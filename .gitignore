@@ -1,0 +1,21 @@
+# 依存パッケージ
+node_modules/
+
+# 同梱ライブラリの取り込み先（npm install 後に scripts/vendor.js が生成する）
+vendor/
+
+# Electron ビルド成果物
+dist/
+out/
+
+# UIモック（使い捨て。デザイン承認後に削除する）
+_mockup_*.html
+_mockup_*.png
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+*.log
+
+# lockfile は当面コミットしない（CheckListMaker と同じ運用）
+package-lock.json
