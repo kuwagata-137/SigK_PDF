@@ -37,6 +37,9 @@ const DEFAULT_VIEWPORT = { width: 900, height: 700 };
 // 与えないと枠が1枚も並ばない（spec-1-3 確定事項5）。
 const DEFAULT_SIDE = { width: 240, height: 600 };
 
+// 前回の見た目。settings.json に入っているものと同じ形にする。
+const DEFAULT_UI = { mode: 'view', sidePanel: { open: true, width: 240 } };
+
 const A4 = { width: 595.28, height: 841.89 };
 
 // index.html が読み込む順に <script src> のパスを返す。
@@ -219,6 +222,7 @@ async function createShell({
   pdfjs = createPdfjsStub(),
   openResults = [],
   recent = [],
+  ui = DEFAULT_UI,
   // パス → 読み込み結果。pdfAPI.read(path) がここを引く。
   files = {},
 } = {}) {
@@ -234,7 +238,9 @@ async function createShell({
   const openRequestHandlers = [];
   const docInfoRequestHandlers = [];
   const recentCalls = [];
+  const uiCalls = [];
   let recentList = [...recent];
+  let savedUi = structuredClone(ui);
 
   if (withApis) {
     window.appInfoAPI = { available: true, get: async () => appInfo };
@@ -255,6 +261,18 @@ async function createShell({
       pathForFile: (file) => file?.__path ?? null,
       onOpenRequest: (callback) => openRequestHandlers.push(callback),
       onDocInfoRequest: (callback) => docInfoRequestHandlers.push(callback),
+    };
+    window.settingsAPI = {
+      available: true,
+      getUi: async () => ({ ok: true, ui: structuredClone(savedUi) }),
+      setUi: async (patch) => {
+        uiCalls.push(structuredClone(patch));
+        savedUi = {
+          mode: patch?.mode ?? savedUi.mode,
+          sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
+        };
+        return { ok: true, ui: structuredClone(savedUi) };
+      },
     };
     window.recentAPI = {
       available: true,
@@ -297,6 +315,9 @@ async function createShell({
     openResults,
     recentCalls,
     recentList: () => recentList,
+    // 覚えた見た目と、そこへ届いた patch の並び。
+    uiCalls,
+    savedUi: () => savedUi,
     // メニューの「開く」から届く合図を、テストから引く。パスを渡せば
     // 「最近使ったファイル」から選んだのと同じ経路になる。
     fireOpenRequest: (filePath) => openRequestHandlers.forEach((handler) => handler(filePath)),
@@ -328,6 +349,7 @@ module.exports = {
   DEFAULT_APP_INFO,
   DEFAULT_VIEWPORT,
   DEFAULT_SIDE,
+  DEFAULT_UI,
   A4,
   readScriptSources,
   readClassicSources,

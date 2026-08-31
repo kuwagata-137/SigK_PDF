@@ -18,6 +18,10 @@ const DEFAULTS = {
   recent: [],
 };
 
+// ツールレールの4つのモード。renderer/shell.js の MODES と同じ並びであること。
+// プロセスが違うので import はできない。test/settings.test.js が一致を見張る。
+const UI_MODES = ['view', 'pages', 'annot', 'tools'];
+
 const SIDE_PANEL_MIN = 180;
 const SIDE_PANEL_MAX = 420;
 const RENAME_RETRIES = 3;
@@ -60,9 +64,36 @@ function mergeDefaults(raw) {
       open: pickBoolean(sidePanel.open, DEFAULTS.sidePanel.open),
       width: clampSidePanelWidth(pickNumber(sidePanel.width, DEFAULTS.sidePanel.width)),
     },
-    mode: typeof raw.mode === 'string' ? raw.mode : DEFAULTS.mode,
+    mode: isValidMode(raw.mode) ? raw.mode : DEFAULTS.mode,
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
+  };
+}
+
+function isValidMode(mode) {
+  return UI_MODES.includes(mode);
+}
+
+// 画面の見た目に関する設定だけを取り出す。レンダラーへ渡すのはこの3つで、
+// ウィンドウの位置や履歴は渡さない（spec-1-3 確定事項33）。
+function pickUi(settings) {
+  return {
+    mode: settings.mode,
+    sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
+  };
+}
+
+// 部分更新。sidePanel は入れ子なので丸ごと置き換えず、キー単位で重ねる。
+// これが無いと { sidePanel: { open: false } } を送っただけで幅が既定へ戻る。
+function mergeUi(current, patch) {
+  const next = isPlainObject(patch) ? patch : {};
+  const sidePanel = isPlainObject(next.sidePanel) ? next.sidePanel : {};
+  return {
+    mode: isValidMode(next.mode) ? next.mode : current.mode,
+    sidePanel: {
+      open: pickBoolean(sidePanel.open, current.sidePanel.open),
+      width: clampSidePanelWidth(pickNumber(sidePanel.width, current.sidePanel.width)),
+    },
   };
 }
 
@@ -188,8 +219,12 @@ function createSettingsStore({ dir, fileName = 'settings.json', onError = () => 
 
 module.exports = {
   DEFAULTS,
+  UI_MODES,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,
+  isValidMode,
+  pickUi,
+  mergeUi,
   mergeDefaults,
   clampSidePanelWidth,
   clampWindowBounds,

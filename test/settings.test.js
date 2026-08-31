@@ -8,8 +8,12 @@ const path = require('node:path');
 
 const {
   DEFAULTS,
+  UI_MODES,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,
+  isValidMode,
+  pickUi,
+  mergeUi,
   mergeDefaults,
   clampSidePanelWidth,
   clampWindowBounds,
@@ -200,4 +204,65 @@ test('履歴はファイルに保存され、読み直せる', () => {
   assert.equal(loaded.recent.length, 1);
   assert.equal(loaded.recent[0].path, 'C:\\work\\a.pdf');
   assert.equal(loaded.recent[0].openedAt, '2026-08-31T00:00:00.000Z');
+});
+
+// --- 画面の見た目（spec-1-3 確定事項31〜35） ---
+
+test('未知のモードは既定へ落ちる', () => {
+  assert.equal(mergeDefaults({ mode: 'pages' }).mode, 'pages');
+  assert.equal(mergeDefaults({ mode: 'zzz' }).mode, DEFAULTS.mode);
+  assert.equal(mergeDefaults({ mode: 42 }).mode, DEFAULTS.mode);
+  assert.equal(mergeDefaults({}).mode, DEFAULTS.mode);
+});
+
+test('範囲外のサイドパネル幅は上下限で止まる', () => {
+  assert.equal(mergeDefaults({ sidePanel: { width: 10 } }).sidePanel.width, SIDE_PANEL_MIN);
+  assert.equal(mergeDefaults({ sidePanel: { width: 9999 } }).sidePanel.width, SIDE_PANEL_MAX);
+  assert.equal(mergeDefaults({ sidePanel: { width: '240' } }).sidePanel.width, DEFAULTS.sidePanel.width);
+  assert.equal(mergeDefaults({ sidePanel: { open: 'yes' } }).sidePanel.open, DEFAULTS.sidePanel.open);
+});
+
+// レンダラーへ渡すのはこの3つだけである。ウィンドウの位置や履歴は渡さない。
+test('pickUi はモードとサイドパネルだけを取り出す', () => {
+  const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
+
+  assert.deepEqual(ui, { mode: 'tools', sidePanel: { open: false, width: 300 } });
+});
+
+// { sidePanel: { open: false } } を送っただけで幅が既定へ戻る、を防ぐ。
+test('mergeUi は入れ子をキー単位で重ねる', () => {
+  const current = { mode: 'view', sidePanel: { open: true, width: 300 } };
+
+  assert.deepEqual(mergeUi(current, { sidePanel: { open: false } }), {
+    mode: 'view',
+    sidePanel: { open: false, width: 300 },
+  });
+  assert.deepEqual(mergeUi(current, { mode: 'annot' }), {
+    mode: 'annot',
+    sidePanel: { open: true, width: 300 },
+  });
+  // 使えない値は現在値のまま。何も送らなくても壊れない。
+  assert.deepEqual(mergeUi(current, { mode: 'zzz', sidePanel: { width: 9999 } }), {
+    mode: 'view',
+    sidePanel: { open: true, width: SIDE_PANEL_MAX },
+  });
+  assert.deepEqual(mergeUi(current, null), current);
+});
+
+// プロセスが違うので import できない。並びがずれると、レンダラーで選べる
+// モードが設定側で弾かれる（またはその逆）。
+test('モードの一覧が renderer/shell.js と一致する', () => {
+  require('../renderer/shell.js');
+
+  assert.deepEqual(UI_MODES, globalThis.SigK.shell.MODES);
+  assert.equal(isValidMode('view'), true);
+  assert.equal(isValidMode('zzz'), false);
+});
+
+test('サイドパネルの上下限が renderer/shell.js と一致する', () => {
+  require('../renderer/shell.js');
+
+  assert.equal(SIDE_PANEL_MIN, globalThis.SigK.shell.SIDE_PANEL_MIN);
+  assert.equal(SIDE_PANEL_MAX, globalThis.SigK.shell.SIDE_PANEL_MAX);
+  assert.equal(clampSidePanelWidth(9999), globalThis.SigK.shell.clampSidePanelWidth(9999));
 });

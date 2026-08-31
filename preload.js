@@ -52,6 +52,15 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   },
 });
 
+// 画面の見た目を覚える（spec-1-3 確定事項31〜35）。覚えるのはモードと
+// サイドパネルの開閉・幅の3つだけで、サムネイルのスクロール位置のような
+// タブごとの一時的な状態は settings.json に置かない。
+contextBridge.exposeInMainWorld('settingsAPI', {
+  available: true,
+  getUi: () => ipcRenderer.invoke('settings:getUi'),
+  setUi: (patch) => ipcRenderer.invoke('settings:setUi', patch),
+});
+
 // 最近使ったファイル（spec-1-2 確定事項8〜10）。実体は settings.json にあり、
 // メニューの再構築もメイン側が持つ。レンダラーは一覧を読んで描くだけ。
 contextBridge.exposeInMainWorld('recentAPI', {

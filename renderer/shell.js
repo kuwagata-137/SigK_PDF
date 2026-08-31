@@ -8,8 +8,26 @@
   const SIDE_PANEL_MIN = 180;
   const SIDE_PANEL_MAX = 420;
 
+  // いま当てている幅。ドラッグが終わった時点で覚えるのに使う。
+  let sidePanelWidth = 240;
+  // 保存してある値を当てている最中は書き戻さない。起動のたびに
+  // settings.json を触ることになるため。
+  let restoring = false;
+
   function isValidMode(mode) {
     return MODES.includes(mode);
+  }
+
+  // 見た目の変更を覚える（spec-1-3 確定事項31〜35）。fs に触るのはメイン
+  // だけなので、IPC へ投げて結果は待たない。失敗しても画面は動いてよい。
+  function persist(patch) {
+    if (restoring)
+      return false;
+    const api = root.settingsAPI;
+    if (!api || api.available !== true)
+      return false;
+    api.setUi(patch)?.catch?.(() => {});
+    return true;
   }
 
   function clampSidePanelWidth(px) {
@@ -40,6 +58,7 @@
     // ほかのモードでは従来のプレースホルダーへ戻す。
     root.SigK.thumbnails?.refresh();
 
+    persist({ mode });
     return true;
   }
 
@@ -57,14 +76,35 @@
   function setSidePanelOpen(doc, open) {
     doc.documentElement.setAttribute('data-panel', open ? 'open' : 'collapsed');
     notifyViewportChanged();
+    persist({ sidePanel: { open } });
     return open;
   }
 
+  // 幅はここでは覚えない。ドラッグ中に毎回呼ばれるためである。覚えるのは
+  // つまみを離した時点で1回だけ（spec-1-3 確定事項34。settings.js は一時
+  // ファイル＋rename のアトミック書き込みで、毎フレーム呼ぶとディスクを叩き続ける）。
   function setSidePanelWidth(doc, px) {
     const width = clampSidePanelWidth(px);
+    sidePanelWidth = width;
     doc.documentElement.style.setProperty('--side-width', `${width}px`);
     notifyViewportChanged();
     return width;
+  }
+
+  // 保存してあった見た目を当てる。当てる操作そのものは覚え直さない。
+  function applyUi(doc, { mode, panelOpen, sidePanelWidth: width } = {}) {
+    restoring = true;
+    try {
+      if (isValidMode(mode))
+        setMode(doc, mode);
+      if (typeof panelOpen === 'boolean')
+        setSidePanelOpen(doc, panelOpen);
+      if (Number.isFinite(width))
+        setSidePanelWidth(doc, width);
+    } finally {
+      restoring = false;
+    }
+    return true;
   }
 
   // ステータスバーに出すファイルサイズ。1KB = 1024 で数え、小数は1桁までにする。
@@ -94,14 +134,12 @@
     set('status-version', status.version);
   }
 
-  function init(doc, { mode = 'view', panelOpen = true, sidePanelWidth = 240 } = {}) {
+  function init(doc, ui = {}) {
     if (doc.documentElement.dataset.shellReady === 'true')
       return false;
     doc.documentElement.dataset.shellReady = 'true';
 
-    setMode(doc, mode);
-    setSidePanelOpen(doc, panelOpen);
-    setSidePanelWidth(doc, sidePanelWidth);
+    applyUi(doc, { mode: 'view', panelOpen: true, sidePanelWidth: 240, ...ui });
 
     for (const item of doc.querySelectorAll('.rail-item'))
       item.addEventListener('click', () => setMode(doc, item.dataset.mode));
@@ -136,7 +174,10 @@
       setSidePanelWidth(doc, event.clientX - side.getBoundingClientRect().left);
     });
     doc.addEventListener('mouseup', () => {
+      if (!dragging)
+        return;
       dragging = false;
+      persist({ sidePanel: { width: sidePanelWidth } });
     });
   }
 
@@ -152,6 +193,7 @@
     setMode,
     setSidePanelOpen,
     setSidePanelWidth,
+    applyUi,
     setStatus,
     init,
   };
