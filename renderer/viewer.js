@@ -125,6 +125,9 @@
       node.style.left = `${page.left}px`;
       node.style.width = `${page.width}px`;
       node.style.height = `${page.height}px`;
+      // テキストレイヤーが寸法の計算に読む変数。倍率と一緒に動くので、
+      // ページ枠の寸法を書くこの場所で揃えて置く（spec-1-3 確定事項19）。
+      root.SigK.textLayer?.setScaleVariables(node, state.zoom);
     }
   }
 

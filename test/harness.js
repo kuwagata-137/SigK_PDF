@@ -50,13 +50,68 @@ function readClassicSources(document) {
     .map((el) => el.getAttribute('src'));
 }
 
+// pdf.js の TextLayer の代わり（spec-1-3 確定事項26）。
+//
+// 本物は canvas の 2D コンテキストでフォントの高さを測るため、jsdom では
+// 動かない。ここは「span を items の数だけ並べる」ところまでを真似る。
+// 位置の正しさは jsdom では確かめられないので、npm start の実測で担保する。
+function createTextLayerStub(layers) {
+  return class TextLayerStub {
+    constructor({ textContentSource, container, viewport }) {
+      this.container = container;
+      this.viewport = viewport;
+      this.items = textContentSource?.items ?? [];
+      this.canceled = false;
+      this.settled = null;
+      this.spans = [];
+      layers.push(this);
+    }
+
+    render() {
+      const doc = this.container.ownerDocument;
+      for (const item of this.items) {
+        const span = doc.createElement('span');
+        span.textContent = item.str;
+        this.container.append(span);
+        this.spans.push(span);
+      }
+      this.settled = Promise.withResolvers();
+      // 本物は読み終えた時点で解決する。ここは次のティックで済ませ、
+      // 「解決前に cancel される」経路もテストから作れるようにしておく。
+      queueMicrotask(() => {
+        if (!this.canceled)
+          this.settled.resolve();
+      });
+      return this.settled.promise;
+    }
+
+    // 本物と同じく、まだ終わっていなければ render() の promise を拒否する。
+    // DOM は消さない（ページ枠ごと捨てられる前提）。
+    cancel() {
+      this.canceled = true;
+      this.settled?.reject(new Error('TextLayer task cancelled.'));
+    }
+
+    get textDivs() {
+      return this.spans;
+    }
+  };
+}
+
 // pdf.js の代わり。ページの寸法を返し、描画は即座に終わったことにする。
 //
 // getDocument() は呼ばれるたびに別の文書を作る。タブは複数の文書を同時に
 // 抱えるため、1つを使い回すと「どのタブの文書が破棄されたか」を確かめられない。
-function createPdfjsStub({ sizes = [A4, A4, A4], openError = null, info = {} } = {}) {
+function createPdfjsStub({
+  sizes = [A4, A4, A4],
+  openError = null,
+  info = {},
+  // ページ1枚あたりのテキスト。null にすると TextLayer ごと使えない状態を作れる。
+  textItems = ['あいうえお', 'かきくけこ'],
+} = {}) {
   const rendered = [];
   const documents = [];
+  const textLayers = [];
 
   function createDocument() {
     const document = {
@@ -77,6 +132,9 @@ function createPdfjsStub({ sizes = [A4, A4, A4], openError = null, info = {} } =
             rendered.push(number);
             return { promise: Promise.resolve(), cancel: () => {} };
           },
+          async getTextContent() {
+            return { items: (textItems ?? []).map((str) => ({ str })), styles: {} };
+          },
         };
       },
     };
@@ -89,6 +147,10 @@ function createPdfjsStub({ sizes = [A4, A4, A4], openError = null, info = {} } =
     stub: true,
     rendered,
     documents,
+    textLayers,
+    // 本物の pdfjs-bridge.mjs は lib に pdf.js の名前空間をそのまま載せる。
+    // text-layer.js が TextLayer をここから取るので、同じ形にしておく。
+    lib: { TextLayer: textItems === null ? undefined : createTextLayerStub(textLayers) },
     // 最後に開いた文書。1文書しか扱わないテストのための近道。
     get document() {
       return documents.at(-1) ?? null;

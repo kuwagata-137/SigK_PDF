@@ -35,12 +35,33 @@
       return typeof root.CanvasRenderingContext2D !== 'undefined';
     }
 
+    // ページ1枚を canvas に描く。描けない環境では null を返す。
+    //
+    // 「描けないなら打ち切る」ではなく「絵だけ無い」で返すのは、テキスト
+    // レイヤーが canvas と独立しているためである。文字の層は DOM だけで
+    // 作れるので、絵が出せない環境（jsdom）でも組み立てて確かめられる。
+    async function drawCanvas({ entry, page }) {
+      const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
+      const viewport = page.getViewport({ scale });
+      if (!canDrawCanvas())
+        return null;
+
+      const canvas = ctx.el().doc.createElement('canvas');
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+      await entry.task.promise;
+      return canvas;
+    }
+
     function releasePage(index) {
       const entry = state.rendered.get(index);
       if (entry === undefined)
         return;
       state.rendered.delete(index);
       entry.task?.cancel();
+      // テキストレイヤーは canvas と同じ寿命にする（spec-1-3 確定事項21）。
+      entry.text?.cancel();
       ctx.el().pageNodes[index]?.replaceChildren();
     }
 
@@ -54,7 +75,7 @@
         return;
 
       const token = state.token;
-      const entry = { task: null };
+      const entry = { task: null, text: null };
       state.rendered.set(index, entry);
 
       // 捨てられたかどうかは、地図に載っているのが自分の entry かどうかで見る。
@@ -67,20 +88,13 @@
         if (isStale())
           return;
 
-        const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
-        const viewport = page.getViewport({ scale });
-        const canvas = ctx.el().doc.createElement('canvas');
-        canvas.width = Math.round(viewport.width);
-        canvas.height = Math.round(viewport.height);
-
-        if (!canDrawCanvas())
-          return;
-
-        entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
-        await entry.task.promise;
+        const canvas = await drawCanvas({ entry, page });
         if (isStale())
           return;
-        ctx.el().pageNodes[index]?.replaceChildren(canvas);
+        if (canvas !== null)
+          ctx.el().pageNodes[index]?.replaceChildren(canvas);
+
+        await attachTextLayer({ index, entry, page, isStale });
       } catch (error) {
         if (state.rendered.get(index) === entry)
           state.rendered.delete(index);
@@ -89,6 +103,39 @@
           return;
         ctx.report(error, { page: index + 1 });
       }
+    }
+
+    // 文字を選べるようにする層を canvas の後ろへ足す（spec-1-3 確定事項20）。
+    // DOM 順で後ろ＝重なりで上になり、.textLayer は position:absolute; inset:0
+    // なので .pdf-page の枠にぴったり重なる。
+    //
+    // canvas を貼ってから追いかける。テキストを待ってから両方を貼ると、
+    // 絵が出るのがその分遅れる。
+    async function attachTextLayer({ index, entry, page, isStale }) {
+      const textLayer = root.SigK.textLayer;
+      if (textLayer === undefined || !textLayer.available())
+        return;
+
+      const node = ctx.el().pageNodes[index];
+      if (node === undefined || node === null)
+        return;
+
+      // canvas 用の viewport は devicePixelRatio を掛けてある。文字には
+      // 掛けない CSS ピクセル基準のものを渡す（text-layer.js の注記を参照）。
+      const viewport = page.getViewport({ scale: state.zoom * layout().CSS_UNITS });
+      const handle = await textLayer.render({ doc: ctx.el().doc, page, viewport });
+      if (handle === null)
+        return;
+      // 待っている間に捨てられていたら貼らない。遅れて届いたテキストが、
+      // もう見ていないページに乗るのを防ぐ。
+      if (isStale()) {
+        handle.cancel();
+        return;
+      }
+
+      entry.text = handle;
+      node.append(handle.node);
+      await handle.done;
     }
 
     function update() {

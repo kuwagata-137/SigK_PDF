@@ -39,6 +39,17 @@ test('index.html が読み込むスクリプトはすべて実在する', async 
     assert.ok(fs.existsSync(path.join(ROOT, ...src.split('/'))), `${src} が無い`);
 });
 
+// 実在の確認をスクリプトと揃える。text-layer.css は pdf.js から写したもので
+// （spec-1-3 確定事項18）、消すとテキストレイヤーの寸法が無効になる。
+test('index.html が読み込むスタイルシートはすべて実在する', async (t) => {
+  const { document } = await withShell(t);
+  const hrefs = [...document.querySelectorAll('link[rel="stylesheet"]')].map((el) => el.getAttribute('href'));
+
+  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css']);
+  for (const href of hrefs)
+    assert.ok(fs.existsSync(path.join(ROOT, ...href.split('/'))), `${href} が無い`);
+});
+
 // pdf.js は ESM でしか配布されていない。module はこの1本に限る（spec-1-1 確定事項1）。
 // 数が増えていたら、IIFE で書く決まり（docs/02 第4章）が崩れかけている。
 test('module として読むスクリプトは pdf.js の入口1本だけである', async (t) => {
