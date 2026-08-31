@@ -39,15 +39,38 @@
     return true;
   }
 
+  // サイドパネルの開閉と幅はページビューの幅を変える。「幅に合わせる」で
+  // 表示しているときは倍率を計算し直さないと、紙がはみ出したまま残る。
+  function notifyViewportChanged() {
+    root.SigK.viewer?.refit();
+  }
+
   function setSidePanelOpen(doc, open) {
     doc.documentElement.setAttribute('data-panel', open ? 'open' : 'collapsed');
+    notifyViewportChanged();
     return open;
   }
 
   function setSidePanelWidth(doc, px) {
     const width = clampSidePanelWidth(px);
     doc.documentElement.style.setProperty('--side-width', `${width}px`);
+    notifyViewportChanged();
     return width;
+  }
+
+  // ステータスバーに出すファイルサイズ。1KB = 1024 で数え、小数は1桁までにする。
+  function formatFileSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0)
+      return '–';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+      value /= 1024;
+      unit += 1;
+    }
+    const rounded = unit === 0 ? value : Math.round(value * 10) / 10;
+    return `${rounded} ${units[unit]}`;
   }
 
   function setStatus(doc, status = {}) {
@@ -116,6 +139,7 @@
     SIDE_PANEL_MAX,
     isValidMode,
     clampSidePanelWidth,
+    formatFileSize,
     setMode,
     setSidePanelOpen,
     setSidePanelWidth,

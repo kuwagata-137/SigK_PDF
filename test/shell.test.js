@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { ROOT, INDEX_PATH, createShell } = require('./harness.js');
+const { ROOT, INDEX_PATH, createShell, readClassicSources } = require('./harness.js');
 const { CSP_META_STRING, CSP_STRING, CSP_DIRECTIVES, META_IGNORED_DIRECTIVES } = require('../security-policy.js');
 
 async function withShell(t, options) {
@@ -37,6 +37,17 @@ test('index.html が読み込むスクリプトはすべて実在する', async 
   assert.ok(shell.sources.length >= 4, 'スクリプトが読み込まれていない');
   for (const src of shell.sources)
     assert.ok(fs.existsSync(path.join(ROOT, ...src.split('/'))), `${src} が無い`);
+});
+
+// pdf.js は ESM でしか配布されていない。module はこの1本に限る（spec-1-1 確定事項1）。
+// 数が増えていたら、IIFE で書く決まり（docs/02 第4章）が崩れかけている。
+test('module として読むスクリプトは pdf.js の入口1本だけである', async (t) => {
+  const { document, sources } = await withShell(t);
+  const modules = [...document.querySelectorAll('script[src][type="module"]')].map((el) => el.getAttribute('src'));
+
+  assert.deepEqual(modules, ['renderer/pdfjs-bridge.mjs']);
+  assert.ok(sources.includes('renderer/pdfjs-bridge.mjs'), 'module も実在の確認からは外さない');
+  assert.equal(readClassicSources(document).includes('renderer/pdfjs-bridge.mjs'), false);
 });
 
 test('画面の骨組みが組み上がる', async (t) => {
@@ -173,4 +184,16 @@ test('初期化は二度走らない', async (t) => {
   assert.equal(SigK.app.init(document, window), false);
   assert.equal(SigK.shell.init(document), false);
   assert.equal(SigK.log.install(window), false);
+});
+
+test('formatFileSize は 1024 区切りで単位を上げる', async (t) => {
+  const { SigK } = await withShell(t);
+
+  assert.equal(SigK.shell.formatFileSize(0), '0 B');
+  assert.equal(SigK.shell.formatFileSize(1023), '1023 B');
+  assert.equal(SigK.shell.formatFileSize(1024), '1 KB');
+  assert.equal(SigK.shell.formatFileSize(1463), '1.4 KB');
+  assert.equal(SigK.shell.formatFileSize(2.5 * 1024 * 1024), '2.5 MB');
+  assert.equal(SigK.shell.formatFileSize(-1), '–');
+  assert.equal(SigK.shell.formatFileSize(Number.NaN), '–');
 });

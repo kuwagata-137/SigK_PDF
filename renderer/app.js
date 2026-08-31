@@ -37,6 +37,8 @@
     root.SigK.log.install(win);
     fillIcons(doc);
     root.SigK.shell.init(doc);
+    root.SigK.viewer.init(doc, win);
+    root.SigK.viewerControls.init(doc, win);
     showAppVersion(doc);
 
     // テストから内部に触るための口。
@@ -44,6 +46,9 @@
       shell: root.SigK.shell,
       log: root.SigK.log,
       icons: root.SigK.icons,
+      viewer: root.SigK.viewer,
+      viewerLayout: root.SigK.viewerLayout,
+      viewerControls: root.SigK.viewerControls,
       fillIcons: () => fillIcons(doc),
     };
     return true;

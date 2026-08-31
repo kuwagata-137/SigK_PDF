@@ -10,6 +10,8 @@
   "scripts": {
     "postinstall": "node scripts/vendor.js",
     "notices": "node scripts/notices.js",
+    "fixtures": "node test/fixtures/build.js",
+    "pretest": "node test/fixtures/build.js",
     "start": "electron .",
     "test": "node --test \"test/*.test.js\"",
     "pack": "electron-builder --dir",
@@ -36,6 +38,7 @@
       "security-policy.js",
       "settings.js",
       "errorlog.js",
+      "file-io.js",
       "index.html",
       "renderer/**",
       "assets/**",

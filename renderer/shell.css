@@ -48,6 +48,8 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
 }
 .tb-btn:hover{background:var(--surface-2); border-color:var(--border)}
 .tb-btn[aria-disabled="true"]:hover{background:transparent; border-color:transparent}
+/* 「幅」「全体」は押しっぱなしの状態を持つ。追従中であることを見せる。 */
+.tb-btn.active{background:var(--select); border-color:transparent; color:var(--accent)}
 .tb-btn.icon{width:30px; padding:0; justify-content:center}
 .tb-sep{width:1px; height:22px; background:var(--border); margin:0 5px}
 .pager,.zoom{
@@ -59,7 +61,11 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
   display:inline-flex; align-items:center; gap:4px; padding:0 8px; color:var(--text);
   font-variant-numeric:tabular-nums;
 }
-.pager .num b{font-weight:600}
+.pager .num input{
+  width:32px; padding:0; border:none; background:transparent; color:var(--text);
+  font:inherit; font-weight:600; text-align:right; font-variant-numeric:tabular-nums;
+}
+.pager .num input:focus{outline:none}
 .pager .num span{color:var(--muted)}
 .pager .step,.zoom .step{
   width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted);
@@ -126,17 +132,32 @@ html[data-panel="collapsed"] #side{display:none}
 #side-resizer:hover{background:var(--select)}
 html[data-panel="collapsed"] #side-resizer{display:none}
 
-/* ページビュー */
+/* ページビュー。ページは絶対配置で置く。位置と寸法は renderer/viewer-layout.js が
+   計算し、下の余白・間隔の値（18px・16px）と対で決まっている。片方だけ変えると
+   スクロール位置の計算が実際の描画とずれる。 */
+/* scrollbar-gutter を確保するのは、幅に合わせる の計算が「まだスクロールバーが
+   出ていない幅」で走り、ページを並べた瞬間に幅が縮んで左右の余白がずれるのを
+   防ぐためである。出ても出なくても clientWidth が変わらないようにする。 */
 #view{
-  flex:1; min-width:0; background:var(--canvas); overflow:auto;
-  display:flex; flex-direction:column; align-items:center; gap:16px; padding:18px 0;
+  flex:1; min-width:0; background:var(--canvas); overflow:auto; position:relative;
+  scrollbar-gutter:stable;
 }
+#view-pages{position:relative; margin:0 auto}
+#view-pages[hidden]{display:none}
+.pdf-page{
+  position:absolute; background:var(--page); box-shadow:var(--page-shadow); overflow:hidden;
+}
+.pdf-page canvas{display:block; width:100%; height:100%}
 
-/* 空の状態。PDF を開く経路は Phase 1 で作る。 */
+/* 空の状態と読み込み中のメッセージ。 */
 .empty{
   margin:auto; padding:0 24px; text-align:center; line-height:1.9;
 }
-#view .empty{color:var(--surface); opacity:.85}
+#view-empty{
+  position:absolute; inset:0; display:grid; place-items:center;
+  color:var(--surface); opacity:.85; pointer-events:none;
+}
+#view-empty[hidden]{display:none}
 #side .empty{color:var(--muted); font-size:12px}
 
 /* ステータスバー */
