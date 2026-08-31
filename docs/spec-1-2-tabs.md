@@ -87,6 +87,7 @@
 - [x] `pathForFile` の橋が生きている（起動確認の出力で判定）
 - [x] **本物のドラッグ＆ドロップで開ける**（`SIGK_SMOKE_DROP`。当初は手作業とみなしていたが自動化できた。後述）
 - [x] `npm run dist` で NSIS インストーラーが生成される（107.6MB）
+- [x] **生成物が起動する**（`SIGK_SMOKE=1 "./dist/win-unpacked/SigK PDF.exe"`。2026-08-31 に追加。この判定が無かったため不具合3 を見逃した）
 - [x] 実装後の点検で見つけた不具合2件を直し、同じ実測で直ったことを確かめた（後述）
 - [x] タブ20枚でも選ばれているタブが画面内に入る（後述）
 
@@ -152,6 +153,38 @@ SIGK_SMOKE=1 SIGK_SMOKE_DROP="test/fixtures/rotated.pdf" npm start
 | 20枚目へ移ったとき | `scrollLeft=702`、タブは左から 1168〜1264px に収まり見えている |
 | 1枚目へ移ったとき | `scrollLeft=8`、タブは 0〜96px に収まり見えている |
 | タブバーの高さ | **36px のまま**（タブ 29px ＋ スクロールバー 4px）。スクロールバーを出しても縮まない |
+
+### 塊③ の着手前の点検で見つけた不具合3（配布物にモジュールが入っていない）
+
+塊② の完了判定を全部通したあとに見つかった。**塊② で持ち込んだものである。**
+
+`package.json` の `build.files` は手で並べた配列で、そこに `recent-documents.js` が無い。
+`main.js:22` と `settings.js:11` がトップレベルで `require('./recent-documents.js')` して
+いるため、**インストーラーから入れたアプリは起動時に落ちる。**
+
+生成済みの `app.asar` のヘッダを読んで確認した。
+
+```
+asar ルート直下: LICENSE, THIRD-PARTY-NOTICES.md, assets, errorlog.js, file-io.js,
+                 index.html, main.js, package.json, preload.js, renderer,
+                 security-policy.js, settings.js, vendor
+```
+
+| 状態 | `SIGK_SMOKE=1 "./dist/win-unpacked/SigK PDF.exe"` の結果 |
+|---|---|
+| 直す前 | **何も出力せずハングする。**メインプロセスが `require` で落ち、Electron が「JavaScript エラー」ダイアログを出して入力待ちになるため。10分待っても終わらなかった |
+| 直した後 | `problems: []` を出して終了コード 0 |
+
+**なぜ完了判定をすり抜けたか。**完了判定は「`npm run dist` で NSIS インストーラーが
+**生成される**」までしか見ていない。生成そのものは成功する。手元の `npm start` は開発ツリーを
+読むので、`build.files` が何を落としていても影響を受けない。**配布物だけが壊れる種類の不具合**
+であり、実測の項目にも入っていなかった。
+
+対処は2つ。①`build.files` に足す。②`test/dist-files.test.js` を新設し、`main.js`・`preload.js`
+から辿れるローカル `require` の推移閉包と `index.html` が読むものが、すべて `build.files` に
+載っていることを機械的に確かめる。考え方は `scripts/vendor.js` の `verifyVendorSources` と同じで、
+「必要なものの一覧」を実物から求めて宣言と突き合わせる。あわせて `docs/05_開発ロードマップ.md`
+の検証手順に、**生成物を起動するところまで**を足した。
 
 ### 実装中に見つけた不具合（塊① から潜んでいたもの）
 
