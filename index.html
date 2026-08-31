@@ -42,22 +42,22 @@ body{
   </div>
 
   <div id="toolbar">
-    <div class="tb-btn" aria-disabled="true"><span data-icon="open"></span>開く</div>
+    <div class="tb-btn" id="btn-open" title="PDF を開く (Ctrl+O)"><span data-icon="open"></span>開く</div>
     <div class="tb-btn" aria-disabled="true"><span data-icon="save"></span>保存</div>
     <div class="tb-sep"></div>
-    <div class="pager" aria-disabled="true">
-      <div class="step" data-icon="chevronLeft" data-icon-size="15" data-icon-stroke="2"></div>
-      <div class="num"><b id="page-current">–</b><span id="page-total">/ –</span></div>
-      <div class="step" data-icon="chevronRight" data-icon-size="15" data-icon-stroke="2"></div>
+    <div class="pager" id="pager" aria-disabled="true">
+      <div class="step" id="page-prev" data-icon="chevronLeft" data-icon-size="15" data-icon-stroke="2" title="前のページ"></div>
+      <div class="num"><input id="page-current" type="text" inputmode="numeric" size="3" aria-label="ページ番号"><span id="page-total">/ –</span></div>
+      <div class="step" id="page-next" data-icon="chevronRight" data-icon-size="15" data-icon-stroke="2" title="次のページ"></div>
     </div>
     <div class="tb-sep"></div>
-    <div class="zoom" aria-disabled="true">
-      <div class="step">−</div>
+    <div class="zoom" id="zoom" aria-disabled="true">
+      <div class="step" id="zoom-out" title="縮小 (Ctrl+−)">−</div>
       <div class="val" id="zoom-value">100%</div>
-      <div class="step">＋</div>
+      <div class="step" id="zoom-in" title="拡大 (Ctrl+＋)">＋</div>
     </div>
-    <div class="tb-btn" aria-disabled="true"><span data-icon="fitWidth"></span>幅</div>
-    <div class="tb-btn" aria-disabled="true"><span data-icon="fitPage"></span>全体</div>
+    <div class="tb-btn" id="btn-fit-width" aria-disabled="true" title="幅に合わせる"><span data-icon="fitWidth"></span>幅</div>
+    <div class="tb-btn" id="btn-fit-page" aria-disabled="true" title="全体を表示"><span data-icon="fitPage"></span>全体</div>
     <div class="spacer"></div>
     <div class="tb-btn icon" data-icon="search" title="検索" aria-disabled="true"></div>
   </div>
@@ -102,7 +102,8 @@ body{
     <div id="side-resizer"></div>
 
     <div id="view">
-      <p class="empty">文書が開かれていません</p>
+      <div id="view-pages" hidden></div>
+      <p class="empty" id="view-empty">文書が開かれていません</p>
     </div>
   </div>
 
@@ -115,9 +116,15 @@ body{
   </div>
 </div>
 
+<!-- pdf.js は ESM でしか配布されていない。module はここ1本に限る（spec-1-1 確定事項1）。
+     module は defer 相当で、下の classic スクリプトより後・DOMContentLoaded より前に走る。 -->
+<script type="module" src="renderer/pdfjs-bridge.mjs"></script>
 <script src="assets/icons.js"></script>
 <script src="renderer/log.js"></script>
 <script src="renderer/shell.js"></script>
+<script src="renderer/viewer-layout.js"></script>
+<script src="renderer/viewer.js"></script>
+<script src="renderer/viewer-controls.js"></script>
 <script src="renderer/app.js"></script>
 </body>
 </html>

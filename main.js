@@ -18,6 +18,7 @@ const {
 } = require('./security-policy.js');
 const { createSettingsStore, clampWindowBounds } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
+const { createFileIo } = require('./file-io.js');
 
 // app.whenReady() の中では手遅れになる。トップレベルで登録すること。
 // 遅れると app:// が不透明オリジンになり、CSP の 'self' が何も指さなくなる。
@@ -28,6 +29,7 @@ const ROOT_DIR = __dirname;
 
 let errorLog = null;
 let settings = null;
+let fileIo = null;
 let mainWindow = null;
 
 function logError(entry) {
@@ -139,10 +141,23 @@ function showAboutDialog() {
   });
 }
 
-// Phase 0 で実際に動く項目だけを並べる。動かない項目をメニューに出さない。
+// 開く経路はレンダラーに1本だけ持たせる。メニューはその引き金を引くだけにして、
+// ツールバーからの経路と分岐させない（spec-1-1 確定事項10）。
+function requestOpen() {
+  mainWindow?.webContents.send('pdf:openRequest');
+}
+
+// 実際に動く項目だけを並べる。動かない項目をメニューに出さない。
 function buildAppMenu() {
   const template = [
-    { label: 'ファイル', submenu: [{ label: '終了', role: 'quit' }] },
+    {
+      label: 'ファイル',
+      submenu: [
+        { label: '開く…', accelerator: 'CmdOrCtrl+O', click: requestOpen },
+        { type: 'separator' },
+        { label: '終了', role: 'quit' },
+      ],
+    },
     {
       label: 'ヘルプ',
       submenu: [{ label: 'バージョン情報', click: showAboutDialog }],
@@ -174,6 +189,9 @@ function registerIpc() {
   }));
 
   ipcMain.handle('log:error', (_event, entry) => ({ ok: errorLog.append(entry) }));
+
+  ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
+  ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
 }
 
 // SIGK_SMOKE=1 で起動すると、画面が読み込めたかを標準出力へ書いて終了する。
@@ -188,9 +206,19 @@ function installSmokeCheck(win) {
   win.webContents.on('did-fail-load', (_e, code, description, url) => {
     problems.push(`did-fail-load: ${code} ${description} ${url}`);
   });
-  const readShellState = `(() => {
+  // CSP の script-src に 'wasm-unsafe-eval' を足した効果を、その場で確かめる。
+  // pdf.js が wasm を使うのは JBIG2・JPEG2000・ICC を含む PDF に限られるため、
+  // 手元の検証用 PDF を開くだけでは通ったかどうかが分からない。
+  const readShellState = `(async () => {
     const root = document.documentElement;
+    let wasm = 'ok';
+    try {
+      await WebAssembly.compile(new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]));
+    } catch (err) {
+      wasm = err.message;
+    }
     return {
+      wasm,
       mode: root.getAttribute('data-mode'),
       panel: root.getAttribute('data-panel'),
       railItems: document.querySelectorAll('.rail-item').length,
@@ -205,6 +233,53 @@ function installSmokeCheck(win) {
         return acc;
       }, {}),
       activeRailColor: getComputedStyle(document.querySelector('.rail-item.active')).color,
+      viewClient: { w: document.getElementById('view').clientWidth, h: document.getElementById('view').clientHeight },
+    };
+  })()`;
+
+  // SIGK_SMOKE_PDF=<path> を付けると、その PDF を実際に開いて結果を報告する。
+  // pdf.js が app:// で本当に動いているかを、目で見なくても確かめられるようにする。
+  const openPdfScript = (filePath) => `(async () => {
+    const result = await window.pdfAPI.read(${JSON.stringify(filePath)});
+    if (result.error !== undefined)
+      return { error: result.error };
+    const opened = await window.SigK.viewer.open(result);
+    // 可視ページの描画が終わるのを待つ。
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    const state = window.SigK.viewer.getState();
+    const box = document.querySelector('.pdf-page')?.getBoundingClientRect() ?? null;
+    const canvas = document.querySelector('.pdf-page canvas') ?? null;
+    const message = document.getElementById('view-empty');
+    return {
+      opened,
+      name: result.name,
+      pageCount: state.pageCount,
+      zoom: Math.round(state.zoom * 1000) / 1000,
+      fit: state.fit,
+      rendered: state.rendered,
+      canvasCount: document.querySelectorAll('.pdf-page canvas').length,
+      pageBox: box === null ? null : { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) },
+      viewBox: (() => { const r = document.getElementById('view').getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width) }; })(),
+      canvasPixels: canvas === null ? null : { w: canvas.width, h: canvas.height },
+      status: document.getElementById('status-pages').textContent,
+      message: message.hidden ? null : message.textContent,
+      // 途中まで飛んで、描画が付いてきて、要らなくなった canvas が捨てられるか。
+      afterJump: await (async () => {
+        const target = Math.min(19, state.pageCount - 1);
+        window.SigK.viewer.goToPage(target);
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const after = window.SigK.viewer.getState();
+        // スクリーンショットはこの後で撮る。先頭に戻しておく。
+        window.SigK.viewer.goToPage(0);
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        return {
+          target,
+          current: after.current,
+          rendered: after.rendered,
+          canvasCount: document.querySelectorAll('.pdf-page canvas').length,
+          scrollTop: document.getElementById('view').scrollTop,
+        };
+      })(),
     };
   })()`;
 
@@ -212,11 +287,14 @@ function installSmokeCheck(win) {
     setTimeout(async () => {
       const bounds = win.getBounds();
       let shell = null;
+      let pdf = null;
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
         if (process.env.SIGK_SMOKE_THROW === '1')
           await win.webContents.executeJavaScript('setTimeout(() => { throw new Error("起動確認の意図的な例外"); }, 0); true');
         shell = await win.webContents.executeJavaScript(readShellState);
+        if (process.env.SIGK_SMOKE_PDF)
+          pdf = await win.webContents.executeJavaScript(openPdfScript(path.resolve(process.env.SIGK_SMOKE_PDF)));
       } catch (err) {
         problems.push(`executeJavaScript: ${err.message}`);
       }
@@ -237,6 +315,7 @@ function installSmokeCheck(win) {
         bounds: { width: bounds.width, height: bounds.height, x: bounds.x, y: bounds.y },
         title: win.getTitle(),
         shell,
+        pdf,
         screenshot,
         problems,
       }));
@@ -251,6 +330,7 @@ function start() {
   errorLog = createErrorLog({ dir: path.join(userData, 'logs') });
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
+  fileIo = createFileIo({ dialog, onError: logError });
 
   protocol.handle(APP_SCHEME, createAppProtocolHandler(ROOT_DIR));
   applySecurity(session.defaultSession);
