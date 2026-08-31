@@ -6,6 +6,10 @@
   // pdf.js の呼び出しだけを担う。ツールバーとキー操作の結線は
   // viewer-controls.js にある。
   //
+  // 「いま何を描き、何を捨てるか」は page-render.js へ切り出した
+  // （spec-1-3 確定事項29）。ここに残るのは文書の開閉・セッションの退避と
+  // 復元・倍率・ページ移動である。
+  //
   // 画面に映すのは常に1文書だけである。タブの束を持つのは tabs.js の役目で、
   // ここは detach()／attach() で「いま映しているもの」を差し替える口を出す。
   // 非アクティブなタブが canvas を持ち続けないのは、この境界のおかげである
@@ -28,6 +32,16 @@
   };
 
   let el = null;
+
+  // 描画ライフサイクルは page-render.js が持つ。状態と要素はこちらのものを
+  // 貸す（複製を持たせると「捨てたはずのページが復活する」食い違いが出る）。
+  // el は init() で差し替わるので、値ではなく取り出す関数を渡す。
+  const render = root.SigK.pageRender.create({
+    state,
+    el: () => el,
+    report: (error, context) => report(error, context),
+    getState: () => getState(),
+  });
 
   function layout() {
     return root.SigK.viewerLayout;
@@ -114,111 +128,6 @@
     }
   }
 
-  // ---- 描画 ----
-
-  // jsdom には 2D コンテキストが無い（canvas パッケージを入れていないため）。
-  // getContext を呼ぶと「Not implemented」がコンソールに出るので、呼ぶ前に確かめる。
-  function canDrawCanvas() {
-    return typeof root.CanvasRenderingContext2D !== 'undefined';
-  }
-
-  function releasePage(index) {
-    const entry = state.rendered.get(index);
-    if (entry === undefined)
-      return;
-    state.rendered.delete(index);
-    entry.task?.cancel();
-    el.pageNodes[index]?.replaceChildren();
-  }
-
-  function releaseAll() {
-    for (const index of [...state.rendered.keys()])
-      releasePage(index);
-  }
-
-  async function renderPage(index) {
-    if (state.rendered.has(index))
-      return;
-
-    const token = state.token;
-    const entry = { task: null };
-    state.rendered.set(index, entry);
-
-    // 捨てられたかどうかは、地図に載っているのが自分の entry かどうかで見る。
-    // token は文書とズームの変化しか捉えない。スクロールで範囲外になった場合、
-    // これが無いと遅れて届いた描画が、もう見ていないページに canvas を貼る。
-    const isStale = () => token !== state.token || state.rendered.get(index) !== entry;
-
-    try {
-      const page = await state.doc.getPage(index + 1);
-      if (isStale())
-        return;
-
-      const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
-      const viewport = page.getViewport({ scale });
-      const canvas = el.doc.createElement('canvas');
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
-
-      if (!canDrawCanvas())
-        return;
-
-      entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
-      await entry.task.promise;
-      if (isStale())
-        return;
-      el.pageNodes[index]?.replaceChildren(canvas);
-    } catch (error) {
-      if (state.rendered.get(index) === entry)
-        state.rendered.delete(index);
-      // スクロールで捨てた描画は失敗ではない。
-      if (error?.name === 'RenderingCancelledException')
-        return;
-      report(error, { page: index + 1 });
-    }
-  }
-
-  function update() {
-    if (state.doc === null)
-      return;
-
-    const pages = state.layout.pages;
-    const scrollTop = el.view.scrollTop;
-    const viewportHeight = el.view.clientHeight;
-    const range = layout().visibleRange({ pages, scrollTop, viewportHeight });
-    const current = layout().currentPageIndex({ pages, scrollTop, viewportHeight });
-
-    if (current !== state.current) {
-      state.current = current;
-      controls()?.syncPage(el.doc, getState());
-    }
-
-    const targets = layout().renderTargets({
-      count: pages.length,
-      first: range.first,
-      last: range.last,
-      current,
-    });
-
-    for (const index of [...state.rendered.keys()]) {
-      if (!targets.includes(index))
-        releasePage(index);
-    }
-    for (const index of targets)
-      renderPage(index);
-  }
-
-  // スクロールと寸法変更は1フレームに1回へ間引く。
-  function scheduleUpdate() {
-    if (state.frame !== 0)
-      return;
-    const raf = root.requestAnimationFrame ?? ((fn) => root.setTimeout(fn, 16));
-    state.frame = raf(() => {
-      state.frame = 0;
-      update();
-    });
-  }
-
   // ---- 倍率 ----
 
   function setZoom(zoom, { fit = null } = {}) {
@@ -230,12 +139,12 @@
     if (state.doc !== null && changed) {
       // 倍率が変われば canvas の解像度も変わる。飛んでいる描画ごと捨てる。
       state.token += 1;
-      releaseAll();
+      render.releaseAll();
       applyLayout();
       goToPage(state.current);
     }
     controls()?.syncZoom(el.doc, getState());
-    scheduleUpdate();
+    render.scheduleUpdate();
     return state.zoom;
   }
 
@@ -259,7 +168,7 @@
     if (state.doc === null)
       return;
     if (state.fit === null) {
-      scheduleUpdate();
+      render.scheduleUpdate();
       return;
     }
     applyFit(state.fit);
@@ -274,7 +183,7 @@
     el.view.scrollTop = layout().scrollTopForPage({ pages: state.layout.pages, index: target });
     state.current = target;
     controls()?.syncPage(el.doc, getState());
-    scheduleUpdate();
+    render.scheduleUpdate();
     return target;
   }
 
@@ -283,7 +192,7 @@
   // 画面を空に戻す。pdf.js の文書は破棄しない（持ち主は tabs.js かもしれない）。
   function resetView() {
     state.token += 1;
-    releaseAll();
+    render.releaseAll();
     // 別の文書に移るのだから、前の文書について出した帯は用済みである。
     root.SigK.viewBanner.hide();
     state.doc = null;
@@ -344,7 +253,7 @@
       size: root.SigK.shell.formatFileSize(session.file.size),
     });
     controls()?.syncAll(el.doc, getState());
-    scheduleUpdate();
+    render.scheduleUpdate();
     return true;
   }
 
@@ -472,7 +381,7 @@
     }
     win.__sigkViewerReady = true;
 
-    el.view.addEventListener('scroll', scheduleUpdate);
+    el.view.addEventListener('scroll', render.scheduleUpdate);
     win.addEventListener('resize', refit);
     setDocumentOpen(false);
     return true;
