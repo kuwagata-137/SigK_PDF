@@ -37,11 +37,15 @@
 | 7 | 設定の保存形式 | JSON 1ファイル。アトミック書き込み（一時ファイル → `rename`）。壊れていたら既定値で起動し、エラーログに残す |
 | 8 | エラーログ | `<userData>/logs/error.log` に JSONL で追記。外部送信しない。CheckListMaker と同じ形 |
 | 9 | `vendor/` の複製 | `postinstall` で実行。複製元が見つからなければ**エラーで落とす**（黙って進めると Phase 1 で原因の分からない失敗になる） |
-| 10 | pdf.js のバージョン | `package.json` では `^4` を指定する。**3系へ落とす必要はない**——ES Modules が読めないのは `file://` の制約であり、`app://` では通常どおり動く（実測は `docs/07_開発計画の決定事項.md` 第1章）。ただし **Phase 0 では読み込まない**。実際の統合は Phase 1 の塊①で行う |
+| 10 | pdf.js のバージョン | `package.json` では **`^6` を指定する**（2026-08-31 更新。当初は `^4` としていた）。ES Modules が読めないのは `file://` の制約であり、`app://` では通常どおり動く（実測は `docs/07_開発計画の決定事項.md` 第1章）。したがって古い版に固定する理由がない。ただし **Phase 0 では読み込まない**。実際の統合は Phase 1 の塊①で行う |
 | 11 | ウィンドウ枠 | OS 標準（`frame: true`）。独自のタイトルバーを描かない |
 | 12 | 初期ウィンドウサイズ | 1280×800。最小 960×600。位置とサイズを設定に保存し、次回起動で復元する |
 | 13 | lockfile | コミットしない（CheckListMaker と同じ運用）。CI は `npm install` を使う |
 | 14 | レンダラーの配信方式 | `app://` スキーム。`protocol.registerSchemesAsPrivileged` で標準スキームとして登録し、`protocol.handle` でアプリ内のファイルを返す。`file://` は使わない。ES Modules が `file://` で実行されないため（`docs/07` 第1章）であり、副次的に origin・相対パス・Worker・CSP の扱いがすべて素直になる |
+| 15 | Electron と electron-builder の版 | Electron は 44 系、electron-builder は 26 系（2026-08-31 追加）。当初は CheckListMaker に揃えて 31 系としていたが、Windows 実機で検証できるようになったため、古い版から始めて後で上げるより手戻りが少ないと判断した |
+| 16 | `app://` のオリジン | `app://sigk`。**ホスト名を必ず付ける**。`app:///index.html` のようにホストが空だと Chromium に拒否されることがある。CSP の `'self'` が指すのはこのオリジンである |
+| 17 | 同梱ライブラリの依存区分 | pdfjs-dist・pdf-lib・fontkit は **`devDependencies` に置く**（2026-08-31 追加）。実行時に `node_modules` から `require` することはなく、`vendor/` を作るための材料でしかない。`dependencies` に置くと electron-builder が `node_modules` を丸ごと同梱し、pdfjs-dist が引き込むネイティブモジュールまで配布物に入って約19MB 膨らむ（実測 126.3MB → 107.3MB） |
+| 18 | `<meta>` の CSP | ヘッダとは1指令だけ異なる。`frame-ancestors` は `<meta>` で配ると仕様上無視され、Chromium が警告を出すため、`<meta>` 側からは外す（`CSP_META_STRING`）。効かない指令を書いて警告を残すより、ヘッダで確実に効かせるほうがよい。両者が1指令の差しかないことはテストで固定する |
 
 ## セキュリティ設定の内訳
 
@@ -56,10 +60,18 @@
 | `webContents.setWindowOpenHandler` | すべて `deny` | 新規ウィンドウを開かせない |
 | `webContents` の `will-navigate` | アプリ外への遷移を `preventDefault` | 外部サイトへ飛ばさない |
 | `session.webRequest.onBeforeRequest` | `app:` `devtools:` 以外を `cancel`（`file:` も含めて拒否） | PDF に埋め込まれた外部参照で通信させない |
+| `webContents` の `will-frame-navigate` | iframe 内の遷移も `preventDefault` | `will-navigate` だけでは iframe を塞げない |
+| `webContents` の `will-attach-webview` | `preventDefault` | webview を差し込ませない |
 | `app.on('web-contents-created')` | 上記を新規 `webContents` にも適用 | 抜け道を作らない |
 | CSP | `default-src 'self'` ほか | インラインスクリプトの実行を禁じる |
 
 CSP は次のとおり。`style-src` に `'unsafe-inline'` を許すのは、レンダラーが要素の `style` 属性で色や位置を変えるためである。`script-src` にはインラインを許さない。
+
+**`file:` を拒否することの帰結**（2026-08-31 追記）。`app://` の応答を Electron 公式の例に
+ならって `net.fetch(pathToFileURL(p))` で組み立ててはならない。`net.fetch` はセッションを
+経由するため、自分で仕掛けた `file:` の遮断に自分で引っかかる。症状は原因表示のない
+白画面で、たどり着くのに時間がかかる。`protocol.handle` の中では `fs.promises.readFile`
+で直接読むこと。asar の中身も Electron が `fs` にパッチを当てているため読める。
 
 ```
 default-src 'self';
@@ -80,37 +92,50 @@ frame-ancestors 'none'
 |---|---|
 | `test/settings.test.js` | 設定の読み書き、壊れた JSON からの復帰、アトミック書き込み、既定値 |
 | `test/errorlog.test.js` | JSONL の追記、サイズ上限での切り詰め、書き込み失敗時に例外を投げないこと |
-| `test/security.test.js` | `buildWebPreferences()` の値、`isAllowedRequest()` の判定、CSP 文字列の内容 |
+| `test/security.test.js` | `buildWebPreferences()` の値、`isAllowedRequest()` の判定、CSP 文字列の内容、`resolveAppPath()` がアプリのフォルダの外を指さないこと |
 | `test/vendor.test.js` | `planVendorCopy()` が返す複製計画。複製元が無いときにエラーになること |
 | `test/shell.test.js` | jsdom で `index.html` を起動し、骨組みの DOM が組み上がること |
 
-`test/shell.test.js` は jsdom を要する。それ以外は Node の標準機能だけで動くようにし、依存が入らない環境でも回るようにする。
+`test/shell.test.js` は jsdom を要する。それ以外は Node の標準機能だけで動かす。
+**その理由は環境の制約ではない**（2026-08-31 改訂）。テストの起動を短く保ち、依存の
+増減がテストの成否に影響する範囲を1本に閉じ込めるためである。
+
+`security-policy.js` を `main.js` から切り出しているのは、`main.js` が `require('electron')`
+を含み `node --test` から読み込めないためである。判定の純関数だけを別ファイルに置く。
+
+`test/harness.js` は CheckListMaker から移植したものではなく、新規に書き起こしている
+（`docs/07` 第1章 #5 の訂正を参照）。jsdom は構築直後の `readyState` が `'loading'` で
+`DOMContentLoaded` は次のティックで発火するため、ハーネスはこれを待ってから返す。
 
 ## 完了の判定
 
-- [ ] `npm install` で `vendor/` が揃う
-- [ ] `npm start` でウィンドウが出て、`app://` から画面が読み込まれる
-- [ ] `npm test` が緑
-- [ ] `npm run dist` で NSIS インストーラーが生成される
-- [ ] GitHub Actions の2本が通り、インストーラーが Artifact に出る
-- [ ] `THIRD-PARTY-NOTICES.md` に依存分のライセンスが入っている
+- [x] `npm install` で `vendor/` が揃う（手元）
+- [x] `npm start` でウィンドウが出て、`app://` から画面が読み込まれる（手元。`SIGK_SMOKE=1` で機械的に判定）
+- [x] `npm test` が緑（手元。61件）
+- [x] `npm run dist` で NSIS インストーラーが生成される（手元）
+- [x] GitHub Actions の2本が通り、インストーラーが Artifact に出る
+- [x] `THIRD-PARTY-NOTICES.md` に依存分のライセンスが入っている（同梱8件。`scripts/notices.js` が生成）
 
-## この環境で確認できること・できないこと
+## 検証をどこで回すか
 
-開発環境が Linux コンテナであり、npm レジストリがネットワークの許可リストに入っていない
-（`registry.npmjs.org` が 403）。したがって依存を要する検証は GitHub Actions に回す。
-一方で Chromium は同梱されているため、画面の骨組みは手元で確認できる。
+**2026-08-31 改訂。** この節はかつて「開発環境が Linux コンテナで `registry.npmjs.org` が
+403 のため、依存を要する検証はすべて GitHub Actions に回す」と書かれていた。その前提は
+現在当てはまらない。開発環境は Windows 11 実機（Node 24.12.0 ／ npm 11.19.1）であり、
+npm レジストリへ到達できる。
 
-| 確認 | この環境 | 手段 |
-|---|---|---|
-| 依存を要しないテスト | できる | `node --test` |
-| `index.html` の DOM とレイアウト | できる | 同梱の Chromium（`/opt/pw-browsers/`）でヘッドレス描画し、DOM とスクリーンショットを取る |
-| `npm install` | できない | Actions |
-| `npm start`（Electron の起動） | できない | Actions ／ 実機 |
-| `npm run dist`（NSIS） | できない | Actions（windows-latest） |
-| jsdom を要するテスト（`test/shell.test.js`） | できない | Actions |
-| `app://` スキームの動作 | できない | Electron 固有のため Actions ／ 実機 |
+したがって**手元を第一の検証の場とする**。`npm install`・`npm test`・`npm start`・
+`npm run dist` をすべて手元で実行して確かめてから push する。GitHub Actions は、
+依存を新規に解決するクリーンな環境でも同じ結果になることの担保と、インストーラーを
+Artifact として取り出す経路を担う。
 
-Chromium での確認は `file://` から行う。**製品は `app://` で配信するため、この確認は
-レイアウトと DOM の検証に限られる**（`file://` では ES Modules が動かないので、
-pdf.js を読む経路はここでは試せない）。`docs/07_開発計画の決定事項.md` 第1章を参照。
+| 確認 | 手段 |
+|---|---|
+| 依存を要しないテスト | `npm test`（`node --test`） |
+| jsdom を要するテスト（`test/shell.test.js`） | `npm test` |
+| Electron の起動と `app://` の動作 | `npm start`。`SIGK_SMOKE=1` を付けると、読み込んだ URL・画面の状態・寸法・コンソールのエラーを標準出力へ書いて終了する |
+| 画面の寸法と配色 | `SIGK_SMOKE=1` の出力（`getBoundingClientRect` と `getComputedStyle` の実測値）。`SIGK_SMOKE_SHOT=<path>` でスクリーンショットも保存できる |
+| インストーラーの生成 | `npm run dist`（NSIS） |
+| クリーンな環境での再現性 | GitHub Actions（`test.yml`・`build-windows.yml`） |
+
+jsdom は CSS を解釈せず `getBoundingClientRect()` がすべて 0 を返す。したがって
+**寸法や配色の検証をテストに書いてはならない**。それは `npm start` の実測で担保する。
