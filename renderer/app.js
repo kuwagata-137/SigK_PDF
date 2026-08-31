@@ -37,6 +37,8 @@
     root.SigK.log.install(win);
     fillIcons(doc);
     root.SigK.shell.init(doc);
+    // 帯はビューアが失敗を伝えるのに使う。先に用意しておく。
+    root.SigK.viewBanner.init(doc, win);
     root.SigK.viewer.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
@@ -55,6 +57,7 @@
       viewerLayout: root.SigK.viewerLayout,
       viewerControls: root.SigK.viewerControls,
       tabs: root.SigK.tabs,
+      viewBanner: root.SigK.viewBanner,
       docInfo: root.SigK.docInfo,
       recentPanel: root.SigK.recentPanel,
       fileDrop: root.SigK.fileDrop,

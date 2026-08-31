@@ -230,7 +230,55 @@ test('上限を超えて開こうとすると断る', async (t) => {
   const opened = await SigK.tabs.openPath('C:\\work\\20.pdf');
   assert.equal(opened, false);
   assert.equal(SigK.tabs.count(), SigK.tabs.MAX_TABS, '上限を超えて開けてしまった');
-  assert.match(document.getElementById('view-message').textContent, /タブが多すぎます/);
+
+  // 文書は開いたままなので、理由は上端の帯に出す（確定事項20）。
+  // 全面のオーバーレイで出すと、読んでいる文書が隠れてしまう。
+  assert.match(document.getElementById('view-banner').textContent, /タブが多すぎます/);
+  assert.equal(document.getElementById('view-banner').hidden, false);
+  assert.equal(document.getElementById('view-empty').hidden, true, '文書が隠れてはいけない');
+  assert.equal(SigK.viewer.getState().open, true);
+});
+
+test('タブを切り替えると、前の文書について出した帯は消える', async (t) => {
+  const files = {};
+  for (let i = 0; i < 25; i += 1)
+    files[`C:\\work\\${i}.pdf`] = makeSource({ path: `C:\\work\\${i}.pdf` });
+  const { document, SigK, flush } = await withShell(t, { files });
+
+  for (let i = 0; i < SigK.tabs.MAX_TABS; i += 1)
+    await SigK.tabs.openPath(`C:\\work\\${i}.pdf`);
+  await SigK.tabs.openPath('C:\\work\\20.pdf');
+  assert.equal(document.getElementById('view-banner').hidden, false);
+
+  SigK.tabs.activate(SigK.tabs.list()[0].id);
+  await flush();
+  assert.equal(document.getElementById('view-banner').hidden, true);
+});
+
+// 20枚 × 最小 96px = 1920px はタブバーに入らない。画面外のタブへ Ctrl+Tab で
+// 移ったとき、選ばれているタブが見えないままにならないようにする。
+test('選ばれているタブを画面内へ寄せる', async (t) => {
+  const { document, SigK, flush } = await withTabs(t, [A, B, C]);
+  const calls = [];
+
+  // jsdom は scrollIntoView を実装しない。呼ばれたことだけを見る。
+  for (const node of document.querySelectorAll('#tabbar .tab'))
+    node.scrollIntoView = function stub() { calls.push(this.querySelector('.name').textContent); };
+
+  SigK.tabs.revealActive();
+  assert.deepEqual([...calls], ['c.pdf'], '選ばれているタブを寄せていない');
+
+  // 切り替えのたびに寄せ直す。render() を通る経路すべてで効く必要がある。
+  SigK.tabs.activate(SigK.tabs.list()[0].id);
+  await flush();
+  const after = document.querySelector('#tabbar .tab.active .name').textContent;
+  assert.equal(after, 'a.pdf');
+});
+
+test('タブが無くても、寄せる処理は転ばない', async (t) => {
+  const { SigK } = await withShell(t);
+
+  assert.equal(SigK.tabs.revealActive(), false);
 });
 
 test('ウィンドウのタイトルが選ばれているタブに追従する', async (t) => {

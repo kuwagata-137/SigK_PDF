@@ -3,8 +3,8 @@
 - ステータス: **確定**（2026-08-31 制定）
 - 関連: `docs/05_開発ロードマップ.md` Phase 1 塊② ／ `docs/spec-1-1-viewer.md` ／ `docs/04_UI設計.md` 第3章・第8章
 - 対応要件: F-06-1（開く。残りのドラッグ＆ドロップ経路）／F-06-4（タブによる複数文書）／F-06-3（最近使ったファイル）／F-01-7（文書情報）
-- 実装: `recent-documents.js`・`settings.js`・`main.js`・`preload.js`・`index.html`・`renderer/tabs.js`・`renderer/file-drop.js`・`renderer/recent-panel.js`・`renderer/doc-info.js`・`renderer/viewer.js`・`renderer/viewer-controls.js`
-- テスト: `test/recent-documents.test.js`・`test/tabs.test.js`・`test/file-drop.test.js`・`test/doc-info.test.js`・`test/settings.test.js`・`test/shell.test.js`
+- 実装: `recent-documents.js`・`settings.js`・`main.js`・`preload.js`・`index.html`・`renderer/tabs.js`・`renderer/file-drop.js`・`renderer/recent-panel.js`・`renderer/doc-info.js`・`renderer/view-banner.js`・`renderer/viewer.js`・`renderer/viewer-controls.js`
+- テスト: `test/recent-documents.test.js`・`test/tabs.test.js`・`test/file-drop.test.js`・`test/recent-panel.test.js`・`test/view-banner.test.js`・`test/doc-info.test.js`・`test/settings.test.js`・`test/shell.test.js`
 
 ## 目的
 
@@ -46,6 +46,8 @@
 | 17 | 閉じたあとのアクティブタブ | 右隣。右端を閉じたときは左隣。最後の1枚を閉じたら空の表示に戻る |
 | 18 | 開く経路の一本化 | ダイアログ・ドロップ・最近使ったファイル・メニューのいずれも、最終的に `SigK.tabs.openPath()` の1本へ集まる（`spec-1-1` 確定事項10 の趣旨を引き継ぐ） |
 | 19 | 開けなかったファイルの扱い | **タブは作る。**そのタブをアクティブにしたまま、ページビューに理由を出す（`spec-1-1` 確定事項16 の「ダイアログで塞がない」を守るため、理由を出せる場所がページビューしかない）。タブを作らずに前のタブへ戻すと、戻した文書の表示が理由を上書きして消してしまう。タブ名は `--danger` で示し、閉じれば消える。**実装時に判明した論点であり、着手前には挙げられていなかった**（2026-08-31 追記） |
+| 20 | 失敗の伝え方（**`spec-1-1` 確定事項16 を改める**） | 出し先を**文書が映っているかで分ける**。映っていなければ従来どおり空の表示の文言を差し替える。**映っていれば、ページビューの上端に帯を出す**（`renderer/view-banner.js`）。6秒で自動的に消え、押せばすぐ消える。`docs/04` 第6章が進捗表示に「ページビューの上に帯状」を定めているので様式を揃えた。加えて、**重ねるものは `#view` の外**（`#view-wrap` の直下）へ移す。`#view` はスクロールする器であり、その中で `position:absolute` にすると中身と一緒に流れて画面外へ出る（ユーザー判断 2026-08-31。後述の不具合2件への対処） |
+| 21 | タブが画面に入りきらないとき | 上限20は据え置き、**選ばれているタブを `scrollIntoView` で画面内へ寄せる**。タブバーには 4px の細い横スクロールバーを出す。タブ（29px）＋4px は 36px に収まるので、タブバーの高さは変えなくてよい（ユーザー判断 2026-08-31） |
 
 ## 画面の動き
 
@@ -58,7 +60,9 @@
 | Ctrl+Tab／Ctrl+Shift+Tab | 次／前のタブへ巡回する |
 | 文書なしの画面 | 最近使ったファイルの一覧。クリックで開く |
 | ステータスバーのファイル名／Ctrl+I | 文書情報のモーダル。Esc で閉じる |
-| 21個目を開こうとする | 開かず「タブが多すぎます」と出す |
+| 21個目を開こうとする | 開かず、上端の帯で「タブが多すぎます」と断る。読んでいる文書はそのまま |
+| 読んでいる最中の失敗（PDF 以外のドロップなど） | 上端に帯を出す。6秒で消え、押してもすぐ消える |
+| タブが画面に入りきらないとき | 選ばれているタブを自動で画面内へ寄せる |
 
 ## テストの範囲
 
@@ -68,20 +72,23 @@
 | `test/tabs.test.js` | 3文書でタブが3枚／切り替えで倍率とページ位置が戻る／同じパスは既存タブへ／`×`・中クリック・Ctrl+W で閉じる／Ctrl+Tab の巡回／上限20で断る／最後の1枚で空表示へ戻る／`document.title` |
 | `test/file-drop.test.js` | `DataTransfer` のスタブから PDF を落とすと開く／PDF 以外は無視／1件も無ければメッセージ／パスが取れなければその旨／`dragenter` で受け入れ表示が出る／子要素をまたぐ `dragleave` で消えない／既定動作を必ず止める |
 | `test/recent-panel.test.js` | 履歴の一覧が並ぶ／空なら出さない／クリックで開く／文書を開いている間は隠す／開いたものが先頭へ来る／開けなかったものが消える |
+| `test/view-banner.test.js` | 文書が映っていれば帯・映っていなければ空の表示へ出し分ける／自動で消える／押すと消える／消灯予約が積み重ならない／**重ねるものが `#view` の外に置かれている**（不具合1・2の回帰テスト） |
 | `test/doc-info.test.js` | PDF の日付の変換、欠けた項目が「—」になること、`EncryptFilterName` から暗号化を判定すること |
 | `test/settings.test.js` | `recent` の正規化（配列でない・要素の型が違う場合に既定へ落ちる） |
-| `test/shell.test.js` | `index.html` の `<script>` に新しい4本が入っていること |
+| `test/shell.test.js` | `index.html` の `<script>` に新しい5本が入っていること |
 
 `test/harness.js` を広げる（`recentAPI` のスタブ、`pathForFile` のスタブ、`createPdfjsStub` へ
 `getMetadata()` を追加、複数文書ぶんの `openResults`）。
 
 ## 完了の判定
 
-- [x] `npm test` が緑（193件。塊① の 127件から66件増）
+- [x] `npm test` が緑（**204件**。塊① の 127件から77件増）
 - [x] `SIGK_SMOKE_TABS` で 2つの PDF がタブ2枚として開き、切り替えでページ位置が戻り、コンソールエラーが0件
 - [x] `pathForFile` の橋が生きている（起動確認の出力で判定）
 - [x] **本物のドラッグ＆ドロップで開ける**（`SIGK_SMOKE_DROP`。当初は手作業とみなしていたが自動化できた。後述）
 - [x] `npm run dist` で NSIS インストーラーが生成される（107.6MB）
+- [x] 実装後の点検で見つけた不具合2件を直し、同じ実測で直ったことを確かめた（後述）
+- [x] タブ20枚でも選ばれているタブが画面内に入る（後述）
 
 ### 実測（2026-08-31。1280×800）
 
@@ -115,6 +122,36 @@ SIGK_SMOKE=1 SIGK_SMOKE_DROP="test/fixtures/rotated.pdf" npm start
  "openedPath":"C:\\...\\test\\fixtures\\rotated.pdf","pageCount":3,
  "message":null,"overlayHidden":true}
 ```
+
+### 実装後の点検で見つけた不具合2件（確定事項20・21 の直接の理由）
+
+塊② を一度仕上げたあとに点検して見つかった。どちらも**塊② で持ち込んだもの**である。
+
+| # | 症状 | 原因 |
+|---|---|---|
+| 1 | 失敗の文言が、読んでいる文書の上に重なったまま消えない。スクロールしていると**何も出ない** | `#view-empty` を `overflow:auto` の `#view` の中で `position:absolute` にしていた。スクロールする中身と一緒に流れる。実測 `scrollTop=12700` のとき `y=-12620`（画面の 12,620px 上） |
+| 2 | ドロップの受け入れ表示が、スクロール中は出ない | 同上（`#view-drop`） |
+
+塊① では失敗＝空表示のときしか文言が出ず、そのとき `scrollTop` は必ず 0 だったため
+表に出なかった。塊② で「文書を開いたまま失敗する」経路（タブ上限・PDF 以外のドロップ・
+履歴の消えたファイル）が増えて初めて表面化した。
+
+直したあとの実測（同じ `scrollTop=12700`）。
+
+| 要素 | 直す前 | 直した後 |
+|---|---|---|
+| `#view`（見えている範囲） | `y=80 h=629` | `y=80 h=629` |
+| `#view-banner` | （無し。`#view-empty` が `y=-12620`） | **`y=80 h=34`** — ビューの上端ちょうど |
+| `#view-drop` | `y=-12620` | **`y=80 h=629`** — 見えている範囲を過不足なく覆う |
+
+### タブが20枚のときの実測
+
+| 見たもの | 結果 |
+|---|---|
+| タブバーの幅 | 必要 1994px に対し 1264px。**入りきらない**（確定事項21 の前提） |
+| 20枚目へ移ったとき | `scrollLeft=702`、タブは左から 1168〜1264px に収まり見えている |
+| 1枚目へ移ったとき | `scrollLeft=8`、タブは 0〜96px に収まり見えている |
+| タブバーの高さ | **36px のまま**（タブ 29px ＋ スクロールバー 4px）。スクロールバーを出しても縮まない |
 
 ### 実装中に見つけた不具合（塊① から潜んでいたもの）
 

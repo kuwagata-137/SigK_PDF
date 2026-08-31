@@ -63,7 +63,14 @@
   // 失敗はページビューにその場で出す。ダイアログで画面を塞がない（spec-1-1 確定事項16）。
   // 文言は #view-message、出し入れは器の #view-empty で行う。器には最近使った
   // ファイルの一覧も入るため、textContent で丸ごと書き換えてはいけない。
+  // 出し先は「文書が映っているか」で決まる（spec-1-2 確定事項20）。
+  // 映っていれば上端の帯へ。全面に出すと読んでいる文書が隠れる。
+  // 映っていなければ空の表示の文言そのものを差し替える。
   function setMessage(text) {
+    if (state.doc !== null) {
+      root.SigK.viewBanner.show(text);
+      return;
+    }
     el.message.textContent = text;
     el.empty.hidden = false;
   }
@@ -277,6 +284,8 @@
   function resetView() {
     state.token += 1;
     releaseAll();
+    // 別の文書に移るのだから、前の文書について出した帯は用済みである。
+    root.SigK.viewBanner.hide();
     state.doc = null;
     state.file = null;
     state.sizes = [];

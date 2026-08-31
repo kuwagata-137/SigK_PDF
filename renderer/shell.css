@@ -14,9 +14,13 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
   display:flex; align-items:flex-end; gap:2px;
   padding:0 8px; background:var(--surface-2);
   border-bottom:1px solid var(--border);
-  overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
+  overflow-x:auto; overflow-y:hidden;
 }
-#tabbar::-webkit-scrollbar{height:0}
+/* 細い横スクロールバー。タブ（29px）＋4px は 36px に収まるので、
+   出してもタブの高さは変わらない。 */
+#tabbar::-webkit-scrollbar{height:4px}
+#tabbar::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:2px}
+#tabbar::-webkit-scrollbar-track{background:transparent}
 .tab{
   display:flex; align-items:center; gap:7px; height:29px; padding:0 9px 0 11px;
   border:1px solid var(--border); border-bottom:none;
@@ -143,6 +147,10 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* scrollbar-gutter を確保するのは、幅に合わせる の計算が「まだスクロールバーが
    出ていない幅」で走り、ページを並べた瞬間に幅が縮んで左右の余白がずれるのを
    防ぐためである。出ても出なくても clientWidth が変わらないようにする。 */
+/* 重ねるもの（空の表示・帯・ドロップの受け入れ）の土台。スクロールしない
+   のがこの器の役目である。#view の中に重ねると、position:absolute が
+   スクロールする中身を基準に置かれ、読み進めた分だけ画面外へ出ていく。 */
+#view-wrap{flex:1; min-width:0; display:flex; position:relative}
 #view{
   flex:1; min-width:0; background:var(--canvas); overflow:auto; position:relative;
   scrollbar-gutter:stable;
@@ -190,6 +198,16 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .recent-name{font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 /* 場所はファイル名の下に添えるだけなので、末尾から省いてよい。 */
 .recent-path{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* 失敗を伝える帯（spec-1-2 確定事項20）。文書を開いたままでも読めるよう
+   上端に出す。押せば消え、出さなければ数秒で自動的に消える。 */
+#view-banner{
+  position:absolute; top:0; left:0; right:0; z-index:3;
+  padding:9px 16px; text-align:center; font-size:12.5px;
+  background:var(--danger); color:var(--surface);
+  box-shadow:0 2px 8px rgba(16,24,40,.24); cursor:pointer;
+}
+#view-banner[hidden]{display:none}
 
 /* ドロップの受け入れ表示（spec-1-2 確定事項5）。 */
 #view-drop{

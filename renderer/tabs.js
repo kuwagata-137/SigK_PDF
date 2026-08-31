@@ -102,6 +102,18 @@
     el.doc.title = tab === null ? TITLE : `${tab.name} — ${TITLE}`;
   }
 
+  // 上限まで開くとタブバーの幅を超える（20枚 × 最小 96px = 1920px）。
+  // Ctrl+Tab で画面外のタブへ移ったとき、選ばれているタブが見えないままに
+  // ならないよう寄せる（spec-1-2 確定事項21）。
+  function revealActive() {
+    const node = el.bar.querySelector('.tab.active');
+    // jsdom は scrollIntoView を実装しない。画面テストで落とさないため確かめる。
+    if (node === null || typeof node.scrollIntoView !== 'function')
+      return false;
+    node.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    return true;
+  }
+
   function render() {
     if (el === null)
       return;
@@ -112,6 +124,7 @@
       nodes.push(el.add);
     }
     el.bar.replaceChildren(...nodes);
+    revealActive();
     syncTitle();
     root.SigK.recentPanel?.sync();
   }
@@ -337,5 +350,6 @@
     closeActive,
     cycle,
     render,
+    revealActive,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
