@@ -29,9 +29,17 @@ const PRIVILEGED_SCHEME = {
 
 // style-src に 'unsafe-inline' を許すのは、レンダラーが要素の style 属性で
 // 色や位置を変えるためである。script-src にインラインは許さない。
+//
+// script-src に 'wasm-unsafe-eval' を足しているのは、pdf.js 6 が画像デコード
+// （JBIG2・JPEG2000）と色管理を WebAssembly で持っており、Chromium はこの語が
+// 無いと WebAssembly.instantiate を拒否するためである。許すのは WebAssembly の
+// コンパイルだけで eval() は許さない（'unsafe-eval' とは別の指令である）。
+// 読み込む .wasm は vendor/ へ自分で複製したものだけで、app: 以外の要求は
+// isAllowedRequest() が遮断する（spec-1-1 確定事項3）。
+const WASM_CSP_KEYWORD = "'wasm-unsafe-eval'";
 const CSP_DIRECTIVES = [
   "default-src 'self'",
-  "script-src 'self'",
+  `script-src 'self' ${WASM_CSP_KEYWORD}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
@@ -71,6 +79,7 @@ const CONTENT_TYPES = {
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
   '.wasm': 'application/wasm',
+  '.icc': 'application/vnd.iccprofile',
   '.bcmap': 'application/octet-stream',
   '.pfb': 'application/octet-stream',
 };
@@ -162,6 +171,7 @@ module.exports = {
   APP_ORIGIN,
   APP_INDEX_URL,
   PRIVILEGED_SCHEME,
+  WASM_CSP_KEYWORD,
   CSP_DIRECTIVES,
   CSP_STRING,
   META_IGNORED_DIRECTIVES,

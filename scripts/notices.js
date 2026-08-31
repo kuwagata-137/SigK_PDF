@@ -22,7 +22,8 @@ const BUNDLED = [
     pkg: 'pdfjs-dist',
     license: 'node_modules/pdfjs-dist/LICENSE',
     note: 'PDF の描画に用いる。`vendor/pdf.mjs`・`vendor/pdf.worker.mjs`・`vendor/cmaps/`・'
-      + '`vendor/standard_fonts/` として同梱する。',
+      + '`vendor/standard_fonts/`・`vendor/wasm/`・`vendor/iccs/` として同梱する。'
+      + 'このうち `vendor/wasm/` と `vendor/iccs/` は出自の異なるコードを含むため、次節に個別に掲げる。',
   },
   {
     pkg: 'pdf-lib',
@@ -60,6 +61,36 @@ const BUNDLED = [
   },
 ];
 
+// パッケージの中に同居している、出自の違うコードである。package.json を持たないため
+// 版を引けない。名称・ライセンス・用途で示し、全文は付属のライセンスファイルから読む。
+// vendor/wasm/ と vendor/iccs/ を同梱すると決めたのは spec-1-1 確定事項3・4 である。
+const BUNDLED_COMPONENTS = [
+  {
+    name: 'JBIG2 デコーダ',
+    license: 'BSD-3-Clause（PDFium）/ Apache-2.0（pdf.js の組み込み部分）',
+    note: 'JBIG2 で圧縮された白黒画像の展開に用いる。`vendor/wasm/jbig2.wasm` として同梱する。',
+    files: ['node_modules/pdfjs-dist/wasm/LICENSE_JBIG2', 'node_modules/pdfjs-dist/wasm/LICENSE_PDFJS_JBIG2'],
+  },
+  {
+    name: 'JPEG2000 デコーダ（OpenJPEG）',
+    license: 'BSD-2-Clause',
+    note: 'JPEG2000 で圧縮された画像の展開に用いる。`vendor/wasm/openjpeg.wasm` として同梱する。',
+    files: ['node_modules/pdfjs-dist/wasm/LICENSE_OPENJPEG', 'node_modules/pdfjs-dist/wasm/LICENSE_PDFJS_OPENJPEG'],
+  },
+  {
+    name: '色管理（qcms）',
+    license: 'MIT',
+    note: 'ICC プロファイルに基づく色変換に用いる。`vendor/wasm/qcms_bg.wasm` として同梱する。',
+    files: ['node_modules/pdfjs-dist/wasm/LICENSE_QCMS', 'node_modules/pdfjs-dist/wasm/LICENSE_PDFJS_QCMS'],
+  },
+  {
+    name: 'CGATS001Compat-v2-micro（ICC プロファイル）',
+    license: 'CC0-1.0',
+    note: 'CMYK の色を画面の色へ移すときの既定のプロファイルである。`vendor/iccs/` として同梱する。',
+    files: ['node_modules/pdfjs-dist/iccs/LICENSE'],
+  },
+];
+
 // 開発時だけ使い、配布物には入らないもの。名称と種別のみ挙げる。
 const DEV_ONLY = ['electron-builder', 'jsdom'];
 
@@ -84,6 +115,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.`;
+
+// 1つの節に複数のライセンス全文を並べるときの区切り。
+const SEPARATOR = '\n\n----------------------------------------\n\n';
 
 function readManifest(pkg) {
   return JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules', ...pkg.split('/'), 'package.json'), 'utf8'));
@@ -142,6 +176,18 @@ function build() {
     ].filter((line) => line !== null).join('\n');
   });
 
+  const componentSections = BUNDLED_COMPONENTS.map((entry) => [
+    `### ${entry.name}`,
+    '',
+    `- ライセンス: ${entry.license}`,
+    '',
+    entry.note,
+    '',
+    '```',
+    entry.files.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8').trimEnd()).join(SEPARATOR),
+    '```',
+  ].join('\n'));
+
   const devList = DEV_ONLY.map((pkg) => {
     const manifest = readManifest(pkg);
     return `| ${pkg} | ${manifest.version} | ${manifest.license} |`;
@@ -160,6 +206,12 @@ SigK PDF は以下の第三者ソフトウェアを利用している。それ�
 配布物（インストーラー）に含まれるソフトウェアである。
 
 ${sections.join('\n\n')}
+
+## 同梱するもの（パッケージの一部として入るもの）
+
+上のパッケージの中に同居しており、著作権者と条項が異なるものである。
+
+${componentSections.join('\n\n')}
 
 ## 開発時にのみ用いるもの
 
@@ -187,14 +239,14 @@ MIT License。全文は \`LICENSE\` を参照のこと。
 `;
 
   fs.writeFileSync(OUTPUT, body, 'utf8');
-  return { path: OUTPUT, bundled: BUNDLED.length, copyleft };
+  return { path: OUTPUT, bundled: BUNDLED.length, components: BUNDLED_COMPONENTS.length, copyleft };
 }
 
-module.exports = { BUNDLED, DEV_ONLY, findCopyleft, build };
+module.exports = { BUNDLED, BUNDLED_COMPONENTS, DEV_ONLY, findCopyleft, build };
 
 if (require.main === module) {
   const result = build();
-  console.log(`同梱 ${result.bundled} 件の告知を書き出しました: ${path.relative(ROOT, result.path)}`);
+  console.log(`同梱 ${result.bundled} 件＋構成部品 ${result.components} 件の告知を書き出しました: ${path.relative(ROOT, result.path)}`);
   if (result.copyleft.length > 0) {
     console.error('GPL / AGPL のパッケージが見つかりました。同梱の可否を確認してください。');
     console.error(result.copyleft.join('\n'));

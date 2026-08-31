@@ -101,3 +101,27 @@ test('runVendorCopy は古い vendor/ を消してから複製する', () => {
 
   assert.equal(fs.existsSync(stale), false, '前回の残骸が消えていない');
 });
+
+// PDF に埋め込まれた JavaScript を実行するサンドボックスである。docs/02 第6章が
+// 閉じると決めた経路なので、wasm/ をディレクトリごと複製して紛れ込ませない
+// （spec-1-1 確定事項4）。
+test('quickjs-eval は複製しない', () => {
+  for (const entry of planVendorCopy({ rootDir: ROOT })) {
+    assert.equal(entry.from.includes('quickjs'), false, `${entry.label} に quickjs が混ざっている`);
+    assert.equal(entry.to.includes('quickjs'), false, `${entry.label} に quickjs が混ざっている`);
+  }
+});
+
+test('pdf.js の wasm と ICC プロファイルを複製する', () => {
+  const targets = planVendorCopy({ rootDir: ROOT }).map((entry) => path.relative(path.join(ROOT, 'vendor'), entry.to));
+
+  for (const expected of [
+    path.join('wasm', 'jbig2.wasm'),
+    path.join('wasm', 'jbig2_nowasm_fallback.js'),
+    path.join('wasm', 'openjpeg.wasm'),
+    path.join('wasm', 'openjpeg_nowasm_fallback.js'),
+    path.join('wasm', 'qcms_bg.wasm'),
+    'iccs',
+  ])
+    assert.ok(targets.includes(expected), `${expected} が複製計画に無い`);
+});

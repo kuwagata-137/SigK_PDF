@@ -18,6 +18,16 @@ const VENDOR_MANIFEST = [
   { label: 'pdf.js worker', pkg: 'pdfjs-dist', from: 'build/pdf.worker.mjs', to: 'pdf.worker.mjs', kind: 'file' },
   { label: 'pdf.js cmaps', pkg: 'pdfjs-dist', from: 'cmaps', to: 'cmaps', kind: 'dir' },
   { label: 'pdf.js 標準フォント', pkg: 'pdfjs-dist', from: 'standard_fonts', to: 'standard_fonts', kind: 'dir' },
+  // wasm はディレクトリごと複製せず、要る5ファイルだけを名指しする。
+  // wasm/ には quickjs-eval（PDF に埋め込まれた JavaScript を実行するサンドボックス）が
+  // 同居しており、docs/02 第6章はその経路を閉じると決めているためである。
+  // 複製する物を増やすときは、それが何をするコードかを確かめてから足すこと。
+  { label: 'pdf.js JBIG2 デコーダ', pkg: 'pdfjs-dist', from: 'wasm/jbig2.wasm', to: 'wasm/jbig2.wasm', kind: 'file' },
+  { label: 'pdf.js JBIG2 退避経路', pkg: 'pdfjs-dist', from: 'wasm/jbig2_nowasm_fallback.js', to: 'wasm/jbig2_nowasm_fallback.js', kind: 'file' },
+  { label: 'pdf.js JPEG2000 デコーダ', pkg: 'pdfjs-dist', from: 'wasm/openjpeg.wasm', to: 'wasm/openjpeg.wasm', kind: 'file' },
+  { label: 'pdf.js JPEG2000 退避経路', pkg: 'pdfjs-dist', from: 'wasm/openjpeg_nowasm_fallback.js', to: 'wasm/openjpeg_nowasm_fallback.js', kind: 'file' },
+  { label: 'pdf.js 色管理', pkg: 'pdfjs-dist', from: 'wasm/qcms_bg.wasm', to: 'wasm/qcms_bg.wasm', kind: 'file' },
+  { label: 'pdf.js ICC プロファイル', pkg: 'pdfjs-dist', from: 'iccs', to: 'iccs', kind: 'dir' },
   { label: 'pdf-lib', pkg: 'pdf-lib', from: 'dist/pdf-lib.min.js', to: 'pdf-lib.min.js', kind: 'file' },
   { label: 'fontkit', pkg: '@pdf-lib/fontkit', from: 'dist/fontkit.umd.min.js', to: 'fontkit.umd.min.js', kind: 'file' },
 ];

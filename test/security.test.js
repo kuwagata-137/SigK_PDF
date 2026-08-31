@@ -8,6 +8,7 @@ const {
   APP_ORIGIN,
   APP_INDEX_URL,
   PRIVILEGED_SCHEME,
+  WASM_CSP_KEYWORD,
   CSP_DIRECTIVES,
   CSP_STRING,
   buildWebPreferences,
@@ -86,14 +87,24 @@ test('CSP はインラインスクリプトを禁じ、必要な指令をすべ�
     assert.ok(CSP_DIRECTIVES.some((line) => line.startsWith(`${directive} `)), `${directive} が無い`);
 
   const scriptSrc = CSP_DIRECTIVES.find((line) => line.startsWith('script-src '));
-  assert.equal(scriptSrc.includes("'unsafe-inline'"), false, 'script-src にインラインを許してはいけない');
-  assert.equal(scriptSrc.includes("'unsafe-eval'"), false, 'script-src に eval を許してはいけない');
+  const tokens = scriptSrc.split(' ').slice(1);
+  assert.equal(tokens.includes("'unsafe-inline'"), false, 'script-src にインラインを許してはいけない');
+  assert.equal(tokens.includes("'unsafe-eval'"), false, 'script-src に eval を許してはいけない');
 
   // style-src だけは要素の style 属性のために 'unsafe-inline' を許す。
   const styleSrc = CSP_DIRECTIVES.find((line) => line.startsWith('style-src '));
   assert.ok(styleSrc.includes("'unsafe-inline'"));
 
   assert.equal(CSP_STRING, CSP_DIRECTIVES.join('; '));
+});
+
+// pdf.js 6 の WebAssembly を通すために script-src を1語だけ緩めている
+// （spec-1-1 確定事項3）。緩みが広がっていないことをここで固定する。
+test('script-src に足したのは wasm-unsafe-eval の1語だけである', () => {
+  const scriptSrc = CSP_DIRECTIVES.find((line) => line.startsWith('script-src '));
+
+  assert.equal(WASM_CSP_KEYWORD, "'wasm-unsafe-eval'");
+  assert.deepEqual(scriptSrc.split(' '), ['script-src', "'self'", WASM_CSP_KEYWORD]);
 });
 
 test('resolveAppPath は app:// のパスをアプリ内のファイルへ写す', () => {
@@ -160,5 +171,7 @@ test('contentTypeFor は拡張子から MIME を返す', () => {
   assert.equal(contentTypeFor('shell.css'), 'text/css; charset=utf-8');
   assert.equal(contentTypeFor('icon.svg'), 'image/svg+xml');
   assert.equal(contentTypeFor('UniJIS-UCS2-H.bcmap'), 'application/octet-stream');
+  assert.equal(contentTypeFor('jbig2.wasm'), 'application/wasm');
+  assert.equal(contentTypeFor('CGATS001Compat-v2-micro.icc'), 'application/vnd.iccprofile');
   assert.equal(contentTypeFor('unknown.xyz'), 'application/octet-stream');
 });
