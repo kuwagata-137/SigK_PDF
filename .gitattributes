@@ -1,0 +1,11 @@
+# 改行コードはリポジトリ内で LF に統一する。
+# Windows で作業しても CRLF が混入せず、Ubuntu で回す CI との差分が出ない。
+* text=auto eol=lf
+
+*.ico binary
+*.png binary
+*.jpg binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.woff2 binary
