@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<title>SigK PDF モック</title>
+<style>
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
+  --text:#1c2430; --muted:#5f6b7a;
+  --border:#dfe3e8; --border-strong:#c4cbd3;
+  --primary:#2f6feb; --accent:#2f6feb;
+  --canvas:#8b93a1; --page:#ffffff;
+  --page-shadow:0 1px 3px rgba(16,24,40,.28), 0 8px 20px rgba(16,24,40,.22);
+  --select:rgba(47,111,235,.14); --danger:#d64545;
+  --shadow:0 2px 4px rgba(16,24,40,.06), 0 10px 24px rgba(16,24,40,.12);
+  --shadow-item:0 2px 8px rgba(16,24,40,.12);
+  --topbar-shadow:0 1px 0 var(--border), 0 4px 10px rgba(16,24,40,.06);
+  --radius:10px;
+  --ink:#5b6472;           /* 疑似本文の行 */
+  --ink-strong:#39414d;    /* 疑似見出しの行 */
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  /* 本番は Segoe UI / Yu Gothic UI。この環境の描画確認用に IPAGothic を後ろに置く */
+  font-family:'Segoe UI','Yu Gothic UI',Meiryo,'IPAGothic',system-ui,sans-serif;
+  font-size:13px; -webkit-font-smoothing:antialiased;
+}
+#app{display:flex; flex-direction:column; width:1280px; height:800px; overflow:hidden}
+
+/* ── タブバー 36px ───────────────────────────── */
+#tabbar{
+  height:36px; flex:0 0 36px; display:flex; align-items:flex-end; gap:2px;
+  padding:0 8px; background:var(--surface-2);
+  border-bottom:1px solid var(--border);
+}
+.tab{
+  display:flex; align-items:center; gap:7px; height:29px; padding:0 9px 0 11px;
+  border:1px solid var(--border); border-bottom:none;
+  border-radius:8px 8px 0 0; background:var(--surface-2);
+  color:var(--muted); max-width:210px; cursor:default;
+}
+.tab.active{background:var(--surface); color:var(--text); border-color:var(--border)}
+.tab .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tab .dirty{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:0 0 6px}
+.tab .x{
+  width:16px;height:16px;border-radius:4px;display:grid;place-items:center;
+  color:var(--muted); flex:0 0 16px;
+}
+.tab.active .x:hover{background:var(--surface-2)}
+.tab-add{
+  width:26px;height:26px;margin-left:4px;margin-bottom:2px;border-radius:6px;
+  display:grid;place-items:center;color:var(--muted);
+}
+
+/* ── ツールバー 44px ─────────────────────────── */
+#toolbar{
+  height:44px; flex:0 0 44px; display:flex; align-items:center; gap:6px;
+  padding:0 10px; background:var(--surface);
+  box-shadow:var(--topbar-shadow); position:relative; z-index:5;
+}
+.tb-btn{
+  height:30px; padding:0 10px; display:inline-flex; align-items:center; gap:6px;
+  border:1px solid transparent; border-radius:8px; background:transparent;
+  color:var(--text); white-space:nowrap;
+}
+.tb-btn:hover{background:var(--surface-2); border-color:var(--border)}
+.tb-btn.icon{width:30px; padding:0; justify-content:center}
+.tb-sep{width:1px; height:22px; background:var(--border); margin:0 5px}
+.pager{
+  display:inline-flex; align-items:center; gap:2px;
+  border:1px solid var(--border); border-radius:8px; background:var(--surface-2);
+  height:30px; padding:0 2px;
+}
+.pager .num{
+  display:inline-flex;align-items:center;gap:4px;padding:0 8px;color:var(--text);
+  font-variant-numeric:tabular-nums;
+}
+.pager .num b{font-weight:600}
+.pager .num span{color:var(--muted)}
+.pager .step{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--muted)}
+.pager .step:hover{background:var(--surface); color:var(--text)}
+.zoom{
+  display:inline-flex; align-items:center; gap:2px;
+  border:1px solid var(--border); border-radius:8px; background:var(--surface-2);
+  height:30px; padding:0 2px;
+}
+.zoom .val{min-width:48px; text-align:center; font-variant-numeric:tabular-nums}
+.zoom .step{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--muted);font-size:15px}
+.zoom .step:hover{background:var(--surface); color:var(--text)}
+.spacer{flex:1}
+
+/* ── 本体 ────────────────────────────────────── */
+#body{flex:1; display:flex; min-height:0}
+
+/* ツールレール */
+#rail{
+  flex:0 0 56px; width:56px; background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column; padding:8px 0; gap:2px;
+}
+html[data-rail="label"] #rail{flex-basis:72px; width:72px}
+.rail-item{
+  position:relative; display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:8px 2px 7px; margin:0 6px; border-radius:8px; color:var(--muted);
+}
+.rail-item .lbl{font-size:10.5px; line-height:1; letter-spacing:.02em}
+html[data-rail="icon"] .rail-item .lbl{display:none}
+html[data-rail="icon"] .rail-item{padding:11px 2px}
+.rail-item:hover{background:var(--surface-2); color:var(--text)}
+.rail-item.active{color:var(--accent); background:var(--select)}
+.rail-item.active::before{
+  content:""; position:absolute; left:-6px; top:6px; bottom:6px; width:3px;
+  border-radius:0 3px 3px 0; background:var(--accent);
+}
+
+/* サイドパネル */
+#side{
+  flex:0 0 240px; width:240px; background:var(--surface);
+  border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0;
+}
+html[data-panel="collapsed"] #side{display:none}
+.side-head{
+  height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 8px 0 12px; border-bottom:1px solid var(--border);
+  color:var(--muted); font-size:11.5px; letter-spacing:.04em;
+}
+.side-head .collapse{width:24px;height:24px;border-radius:6px;display:grid;place-items:center}
+.side-head .collapse:hover{background:var(--surface-2); color:var(--text)}
+.side-scroll{flex:1; overflow:hidden; padding:10px}
+
+/* サムネイル（閲覧モード＝1列） */
+.thumbs1{display:flex; flex-direction:column; gap:10px}
+.thumb{
+  border-radius:6px; padding:3px; border:2px solid transparent; background:transparent;
+}
+.thumb .sheet{
+  background:var(--page); border:1px solid var(--border-strong); border-radius:2px;
+  box-shadow:var(--shadow-item); padding:7px 6px; display:flex; flex-direction:column; gap:3px;
+}
+.thumb .cap{text-align:center; color:var(--muted); font-size:10.5px; margin-top:3px; font-variant-numeric:tabular-nums}
+.thumb.current{border-color:var(--accent); background:var(--select)}
+.thumb.current .cap{color:var(--accent)}
+
+/* サムネイル（ページモード＝多列グリッド） */
+.thumbsN{display:grid; grid-template-columns:repeat(2,1fr); gap:9px}
+.thumbsN .thumb.sel{border-color:var(--accent); background:var(--select)}
+.thumbsN .thumb{position:relative}
+.hoverbar{
+  position:absolute; left:50%; transform:translateX(-50%); bottom:22px;
+  display:flex; gap:3px; padding:3px; border-radius:7px;
+  background:var(--surface); border:1px solid var(--border); box-shadow:var(--shadow);
+}
+.hoverbar .hb{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--muted)}
+.hoverbar .hb.danger{color:var(--danger)}
+.side-actions[hidden]{display:none}
+.side-actions{
+  flex:0 0 auto; border-top:1px solid var(--border); padding:8px 10px;
+  display:grid; grid-template-columns:1fr 1fr; gap:6px;
+}
+.act{
+  height:28px; display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text);
+  font-size:12px;
+}
+.act:hover{background:var(--surface); box-shadow:var(--shadow-item)}
+.act.danger{color:var(--danger)}
+
+/* ページビュー */
+#view{
+  flex:1; min-width:0; background:var(--canvas); overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; gap:16px; padding:18px 0;
+}
+.page{
+  background:var(--page); box-shadow:var(--page-shadow); border-radius:1px;
+  width:min(430px, 58%); aspect-ratio:1 / 1.414; flex:0 0 auto;
+  padding:34px 36px; display:flex; flex-direction:column; gap:9px; overflow:hidden;
+}
+.ln{height:7px; border-radius:2px; background:var(--ink); opacity:.30}
+.ln.h{height:13px; opacity:.62; background:var(--ink-strong); margin-bottom:8px}
+.ln.h2{height:9px; opacity:.5; background:var(--ink-strong); margin-top:12px; margin-bottom:3px}
+.ln.sel{background:var(--primary); opacity:.22}
+.gap{height:6px}
+/* サムネイル内の疑似行 */
+.t-ln{height:2px;border-radius:1px;background:var(--ink);opacity:.30}
+.t-ln.h{height:4px;opacity:.6;background:var(--ink-strong)}
+
+/* ステータスバー 26px */
+#status{
+  height:26px; flex:0 0 26px; display:flex; align-items:center; gap:0;
+  padding:0 12px; background:var(--surface); border-top:1px solid var(--border);
+  color:var(--muted); font-size:11.5px;
+}
+#status .sep{margin:0 10px; opacity:.5}
+#status .dirty{color:var(--accent)}
+
+svg{display:block}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="tabbar">
+    <div class="tab active"><span class="name">報告書.pdf</span><span class="dirty"></span><span class="x"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></div>
+    <div class="tab"><span class="name">見積書.pdf</span><span class="x"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span></div>
+    <div class="tab-add"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+  </div>
+
+  <div id="toolbar">
+    <div class="tb-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>開く</div>
+    <div class="tb-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg>保存</div>
+    <div class="tb-sep"></div>
+    <div class="pager">
+      <div class="step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></div>
+      <div class="num"><b>3</b><span>/ 24</span></div>
+      <div class="step"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l6 6-6 6"/></svg></div>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="zoom">
+      <div class="step">−</div>
+      <div class="val">75%</div>
+      <div class="step">＋</div>
+    </div>
+    <div class="tb-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg>幅</div>
+    <div class="tb-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M9 9h6v6H9z"/></svg>全体</div>
+    <div class="spacer"></div>
+    <div class="tb-btn icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L21 21"/></svg></div>
+    <div class="tb-btn icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
+  </div>
+
+  <div id="body">
+
+    <div id="rail">
+      <div class="rail-item" data-mode="view">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+        <span class="lbl">閲覧</span>
+      </div>
+      <div class="rail-item" data-mode="pages">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="7" height="7" rx="1"/><rect x="13.5" y="4" width="7" height="7" rx="1"/><rect x="3.5" y="13" width="7" height="7" rx="1"/><rect x="13.5" y="13" width="7" height="7" rx="1"/></svg>
+        <span class="lbl">ページ</span>
+      </div>
+      <div class="rail-item" data-mode="annot">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3.5 3.5"/></svg>
+        <span class="lbl">注釈</span>
+      </div>
+      <div class="rail-item" data-mode="tools">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h9M17 17h3"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="15" cy="17" r="2"/></svg>
+        <span class="lbl">ツール</span>
+      </div>
+    </div>
+
+    <div id="side">
+      <div class="side-head">
+        <span id="side-title">ページ</span>
+        <span class="collapse"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg></span>
+      </div>
+      <div class="side-scroll" id="side-scroll"></div>
+      <div class="side-actions" id="side-actions" hidden>
+        <div class="act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9a8 8 0 1 1 1.2 6"/><path d="M4 4v5h5"/></svg>左回転</div>
+        <div class="act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9a8 8 0 1 0-1.2 6"/><path d="M20 4v5h-5"/></svg>右回転</div>
+        <div class="act"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h8a1 1 0 0 1 1 1v10"/><rect x="5" y="8" width="9" height="12" rx="1"/></svg>抽出</div>
+        <div class="act danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5h4v2M8 7l1 13h6l1-13"/></svg>削除</div>
+      </div>
+    </div>
+
+    <div id="view"></div>
+  </div>
+
+  <div id="status">
+    <span>報告書.pdf</span><span class="sep">│</span>
+    <span>24ページ</span><span class="sep">│</span>
+    <span>2.4MB</span><span class="sep">│</span>
+    <span class="dirty">変更あり</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var rail  = q.get('rail')  || 'label';   // 決定14: アイコン＋文字
+  var panel = q.get('panel') || 'open';   // 決定13: 開いた状態で起動
+  var mode  = q.get('mode')  || 'view';
+  var root = document.documentElement;
+  root.setAttribute('data-rail', rail);
+  root.setAttribute('data-panel', panel);
+
+  // ツールレールの選択状態
+  document.querySelectorAll('.rail-item').forEach(function(el){
+    el.classList.toggle('active', el.dataset.mode === (mode === 'pages' ? 'pages' : 'view'));
+  });
+
+  // 疑似本文（ページ内）
+  function fillPage(p, opts){
+    opts = opts || {};
+    var plan = opts.plan || ['h','','','','','g','h2','','','','','g','','','',''];
+    plan.forEach(function(kind, i){
+      if (kind === 'g'){ var g=document.createElement('div'); g.className='gap'; p.appendChild(g); return; }
+      var d = document.createElement('div');
+      d.className = 'ln' + (kind ? ' ' + kind : '');
+      if (opts.sel && opts.sel.indexOf(i) >= 0) d.className += ' sel';
+      // 行末を少し不揃いにして本文らしく見せる
+      var w = [100,97,99,94,98,96,92,99,95,100,93,97][i % 12];
+      if (kind === 'h')  w = 68;
+      if (kind === 'h2') w = 44;
+      if (i === plan.length - 1) w = 61;
+      d.style.width = w + '%';
+      p.appendChild(d);
+    });
+  }
+
+  // 中央のページ（連続スクロールの途中に見えるよう、上を少し切る）
+  var view = document.getElementById('view');
+  [0,1].forEach(function(n){
+    var p = document.createElement('div');
+    p.className = 'page';
+    if (n === 0) p.style.marginTop = '-232px';
+    fillPage(p, n === 0 ? {sel:[3,4]} : {});
+    view.appendChild(p);
+  });
+
+  // サムネイル
+  function thumbSheet(){
+    var s = document.createElement('div');
+    s.className = 'sheet';
+    var plan = ['h','','','','','','','',''];
+    plan.forEach(function(k,i){
+      var d = document.createElement('div');
+      d.className = 't-ln' + (k ? ' ' + k : '');
+      d.style.width = (k === 'h' ? 62 : [100,95,98,92,99,96,90,97][i%8]) + '%';
+      s.appendChild(d);
+    });
+    return s;
+  }
+  var scroll = document.getElementById('side-scroll');
+  var title = document.getElementById('side-title');
+
+  if (mode === 'pages'){
+    title.textContent = 'ページ  24枚 ・ 2枚選択';
+    document.getElementById('side-actions').hidden = false;
+    var grid = document.createElement('div');
+    grid.className = 'thumbsN';
+    for (var i=1;i<=8;i++){
+      var t = document.createElement('div');
+      t.className = 'thumb' + (i===3||i===4 ? ' sel' : '');
+      t.appendChild(thumbSheet());
+      var c = document.createElement('div'); c.className='cap'; c.textContent = i;
+      t.appendChild(c);
+      if (i === 3){
+        var hb = document.createElement('div');
+        hb.className = 'hoverbar';
+        hb.innerHTML =
+          '<div class="hb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9a8 8 0 1 1 1.2 6"/><path d="M4 4v5h5"/></svg></div>'+
+          '<div class="hb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 9a8 8 0 1 0-1.2 6"/><path d="M20 4v5h-5"/></svg></div>'+
+          '<div class="hb danger"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5h4v2M8 7l1 13h6l1-13"/></svg></div>';
+        t.appendChild(hb);
+      }
+      grid.appendChild(t);
+    }
+    scroll.appendChild(grid);
+  } else {
+    title.textContent = 'サムネイル';
+    var col = document.createElement('div');
+    col.className = 'thumbs1';
+    for (var j=2;j<=5;j++){
+      var t2 = document.createElement('div');
+      t2.className = 'thumb' + (j===3 ? ' current' : '');
+      t2.appendChild(thumbSheet());
+      var c2 = document.createElement('div'); c2.className='cap'; c2.textContent = j;
+      t2.appendChild(c2);
+      col.appendChild(t2);
+    }
+    scroll.appendChild(col);
+  }
+})();
+</script>
+</body>
+</html>

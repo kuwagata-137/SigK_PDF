@@ -8,8 +8,12 @@ vendor/
 dist/
 out/
 
-# UIモック（使い捨て。デザイン承認後に削除する）
+# UIモック
+# _mockup_sigkpdf.html は使い捨てにしない。Phase 0 の作業 0-4（デザイントークンと
+# 画面の骨組み）の下地としてそのまま育て、index.html と renderer/* へ移す。
+# 詳細は docs/07_開発計画の決定事項.md 決定11 と docs/04_UI設計.md 第10章。
 _mockup_*.html
+!_mockup_sigkpdf.html
 _mockup_*.png
 
 # OS / エディタ
