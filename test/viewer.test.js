@@ -35,7 +35,7 @@ test('起動直後は文書なしで、文書に要る操作は押せない', as
   const { document, SigK } = await withShell(t);
 
   assert.equal(document.documentElement.getAttribute('data-doc'), 'empty');
-  assert.equal(document.getElementById('view-empty').textContent, SigK.viewer.EMPTY_MESSAGE);
+  assert.equal(document.getElementById('view-message').textContent, SigK.viewer.EMPTY_MESSAGE);
   assert.equal(SigK.viewer.getState().open, false);
 
   for (const id of SigK.viewerControls.DOCUMENT_CONTROLS)
@@ -208,6 +208,23 @@ test('2つ目を開くと1つ目を置き換える', async (t) => {
   assert.equal(shell.document.querySelectorAll('.pdf-page').length, 3, 'スタブは常に3ページを返す');
 });
 
+// 「幅に合わせる」の結果が1つ目と同じ倍率になると、setZoom は倍率が変わって
+// いないと見て配置をやり直さない。紙の大きさが同じ文書を続けて開けば普通に
+// 起こる（塊② のタブ切り替えを作る途中で見つかった）。
+test('2つ目の文書が同じ倍率でも、ページの配置は置き直される', async (t) => {
+  const shell = await withOpenDocument(t);
+  const before = shell.SigK.viewer.getState().zoom;
+
+  await shell.SigK.viewer.open(source({ name: 'same-size.pdf' }));
+  await shell.flush();
+  const state = shell.SigK.viewer.getState();
+
+  assert.equal(state.zoom, before, '前提: 倍率は変わっていない');
+  assert.ok(state.totalHeight > 0, 'ページの総高さが空のまま残っている');
+  assert.notEqual(shell.document.querySelectorAll('.pdf-page')[0].style.height, '');
+  assert.ok(state.rendered.length > 0, '描画対象が1つも選ばれていない');
+});
+
 test('閉じると空の表示に戻る', async (t) => {
   const { document, SigK } = await withOpenDocument(t);
 
@@ -227,7 +244,7 @@ test('パスワード付きの PDF は理由を画面に出す', async (t) => {
   const opened = await SigK.viewer.open(source());
 
   assert.equal(opened, false);
-  assert.match(document.getElementById('view-empty').textContent, /パスワード/);
+  assert.match(document.getElementById('view-message').textContent, /パスワード/);
   assert.equal(document.getElementById('view-empty').hidden, false);
 });
 
@@ -238,7 +255,7 @@ test('壊れた PDF は理由を画面に出す', async (t) => {
 
   await SigK.viewer.open(source());
 
-  assert.match(document.getElementById('view-empty').textContent, /壊れている/);
+  assert.match(document.getElementById('view-message').textContent, /壊れている/);
 });
 
 test('読み込みに失敗した理由はそのまま画面に出る', async (t) => {
@@ -247,7 +264,7 @@ test('読み込みに失敗した理由はそのまま画面に出る', async (t
   const opened = await SigK.viewer.open({ error: 'ファイルが見つかりません。' });
 
   assert.equal(opened, false);
-  assert.equal(document.getElementById('view-empty').textContent, 'ファイルが見つかりません。');
+  assert.equal(document.getElementById('view-message').textContent, 'ファイルが見つかりません。');
 });
 
 test('開くダイアログで選ばれたファイルを表示する', async (t) => {
@@ -267,7 +284,7 @@ test('ダイアログを取り消しても何も変わらない', async (t) => {
 
   assert.equal(opened, false);
   assert.equal(shell.SigK.viewer.getState().open, false);
-  assert.equal(shell.document.getElementById('view-empty').textContent, shell.SigK.viewer.EMPTY_MESSAGE);
+  assert.equal(shell.document.getElementById('view-message').textContent, shell.SigK.viewer.EMPTY_MESSAGE);
 });
 
 // メニューの「開く」（Ctrl+O）はメインから合図が届く。ツールバーと同じ経路を通す。
@@ -342,7 +359,7 @@ test('pdf.js が読み込めていなければ、その旨を出す', async (t) 
   const opened = await SigK.viewer.open(source());
 
   assert.equal(opened, false);
-  assert.match(document.getElementById('view-empty').textContent, /表示機能/);
+  assert.match(document.getElementById('view-message').textContent, /表示機能/);
 });
 
 // bindClick が実際に効いているかを、API 直呼びではなくクリックで確かめる。

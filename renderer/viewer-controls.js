@@ -93,7 +93,29 @@
     PageUp: () => viewer().prevPage(),
   };
 
+  // タブの操作は文書が開いているかによらず受ける。開けなかったタブも
+  // Ctrl+W で閉じられる必要がある（spec-1-2 確定事項15・19）。
+  function handleTabKey(event) {
+    const tabs = root.SigK.tabs;
+    if (tabs === undefined || !event.ctrlKey)
+      return false;
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      tabs.cycle(event.shiftKey ? -1 : 1);
+      return true;
+    }
+    if (event.key === 'w' || event.key === 'W') {
+      event.preventDefault();
+      tabs.closeActive();
+      return true;
+    }
+    return false;
+  }
+
   function handleKey(event) {
+    if (handleTabKey(event))
+      return;
     if (viewer().getState().open !== true)
       return;
 
@@ -116,7 +138,7 @@
       return false;
     win.__sigkControlsReady = true;
 
-    bindClick(doc, 'btn-open', () => viewer().openViaDialog());
+    bindClick(doc, 'btn-open', () => root.SigK.tabs.openViaDialog());
     bindClick(doc, 'page-prev', () => viewer().prevPage());
     bindClick(doc, 'page-next', () => viewer().nextPage());
     bindClick(doc, 'zoom-in', () => viewer().zoomIn());
@@ -133,9 +155,15 @@
       });
     }
 
-    // メニューの「開く」（Ctrl+O）はメイン側から届く。開く経路を1本に保つため、
-    // ここでもツールバーと同じ処理を呼ぶ。
-    root.pdfAPI?.onOpenRequest?.(() => viewer().openViaDialog());
+    // メニューの「開く」（Ctrl+O）と「最近使ったファイル」はメイン側から届く。
+    // 開く経路を1本に保つため、ここでもツールバーと同じ処理を呼ぶ。
+    // パスが付いていればそれを開き、無ければダイアログを出す。
+    root.pdfAPI?.onOpenRequest?.((filePath) => {
+      if (typeof filePath === 'string' && filePath.length > 0)
+        root.SigK.tabs.openPath(filePath);
+      else
+        root.SigK.tabs.openViaDialog();
+    });
 
     doc.addEventListener('keydown', handleKey);
     syncAll(doc, viewer().getState());

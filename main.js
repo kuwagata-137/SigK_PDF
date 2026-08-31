@@ -19,6 +19,7 @@ const {
 const { createSettingsStore, clampWindowBounds } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
+const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 
 // app.whenReady() の中では手遅れになる。トップレベルで登録すること。
 // 遅れると app:// が不透明オリジンになり、CSP の 'self' が何も指さなくなる。
@@ -142,9 +143,30 @@ function showAboutDialog() {
 }
 
 // 開く経路はレンダラーに1本だけ持たせる。メニューはその引き金を引くだけにして、
-// ツールバーからの経路と分岐させない（spec-1-1 確定事項10）。
-function requestOpen() {
-  mainWindow?.webContents.send('pdf:openRequest');
+// ツールバーからの経路と分岐させない（spec-1-1 確定事項10・spec-1-2 確定事項18）。
+// パスを渡さなければレンダラーがダイアログを出す。
+function requestOpen(filePath = null) {
+  mainWindow?.webContents.send('pdf:openRequest', filePath);
+}
+
+function requestDocInfo() {
+  mainWindow?.webContents.send('pdf:docInfoRequest');
+}
+
+// 最近使ったファイルのサブメニュー（spec-1-2 確定事項9）。
+// 履歴が空のときは、押せない1項目を出す。項目ごと消すと、メニューの並びが
+// 履歴の有無で動いてしまい、狙って押せなくなる。
+function buildRecentSubmenu() {
+  const recent = normalizeList(settings.get().recent);
+  if (recent.length === 0)
+    return [{ label: '（履歴なし）', enabled: false }];
+
+  return recent.map((entry) => ({
+    // & はメニューでアクセスキーの指定として食われる。ファイル名に含まれ得るので潰す。
+    label: entry.name.replace(/&/g, '&&'),
+    toolTip: entry.path,
+    click: () => requestOpen(entry.path),
+  }));
 }
 
 // 実際に動く項目だけを並べる。動かない項目をメニューに出さない。
@@ -153,7 +175,10 @@ function buildAppMenu() {
     {
       label: 'ファイル',
       submenu: [
-        { label: '開く…', accelerator: 'CmdOrCtrl+O', click: requestOpen },
+        { label: '開く…', accelerator: 'CmdOrCtrl+O', click: () => requestOpen(null) },
+        { label: '最近使ったファイル', submenu: buildRecentSubmenu() },
+        { type: 'separator' },
+        { label: '文書情報…', accelerator: 'CmdOrCtrl+I', click: requestDocInfo },
         { type: 'separator' },
         { label: '終了', role: 'quit' },
       ],
@@ -192,6 +217,19 @@ function registerIpc() {
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
+
+  ipcMain.handle('recent:list', () => ({ ok: true, recent: normalizeList(settings.get().recent) }));
+  ipcMain.handle('recent:add', (_event, entry) => updateRecent(addRecent(settings.get().recent, entry)));
+  ipcMain.handle('recent:remove', (_event, filePath) => updateRecent(removeRecent(settings.get().recent, filePath)));
+}
+
+// 履歴が変われば、保存とメニューの作り直しを必ず同時に行う。片方だけ更新すると
+// メニューだけ古いまま残る。呼び出し側が忘れないよう、この1本にまとめる。
+function updateRecent(recent) {
+  settings.set({ recent });
+  settings.save();
+  buildAppMenu();
+  return { ok: true, recent: normalizeList(settings.get().recent) };
 }
 
 // SIGK_SMOKE=1 で起動すると、画面が読み込めたかを標準出力へ書いて終了する。
@@ -237,6 +275,73 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_TABS=<path1>,<path2> を付けると、2つの PDF をタブで開き、
+  // 切り替えで読み位置が戻るか、文書情報が埋まるかまで確かめる（spec-1-2）。
+  // ドロップだけは自動化できない。代わりに、パスを取り出す橋（webUtils）が
+  // 生きているかをここで見る。橋が死んでいれば ドラッグ＆ドロップ は必ず失敗する。
+  const tabsScript = (paths) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const tabs = window.SigK.tabs;
+    const paths = ${JSON.stringify(paths)};
+
+    for (const p of paths) {
+      await tabs.openPath(p);
+      await wait(700);
+    }
+    const names = [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent);
+
+    // 2枚目を 200% の3ページ目にしてから1枚目へ移り、戻して位置を見る。
+    window.SigK.viewer.setZoom(2);
+    window.SigK.viewer.goToPage(2);
+    await wait(500);
+    const marked = window.SigK.viewer.getState();
+
+    const ids = tabs.list().map((t) => t.id);
+    tabs.activate(ids[0]);
+    await wait(700);
+    const onFirst = window.SigK.viewer.getState();
+
+    tabs.activate(ids[1]);
+    await wait(700);
+    const back = window.SigK.viewer.getState();
+
+    await window.SigK.docInfo.open(document);
+    const info = [...document.querySelectorAll('#doc-info-body dd')].map((el) => el.textContent);
+    const infoOpen = document.getElementById('doc-info').hasAttribute('open');
+
+    // ドロップ由来でない File には '' が返る。例外にならず null が返れば橋は生きている。
+    let bridge = 'missing';
+    try {
+      bridge = String(window.pdfAPI.pathForFile(new File([], 'probe.pdf')));
+    } catch (err) {
+      bridge = 'threw: ' + err.message;
+    }
+
+    // スクリーンショットはこの後で撮る。モーダルを閉じ、素直に読める状態へ戻す。
+    window.SigK.docInfo.close(document);
+    window.SigK.viewer.applyFit('width');
+    window.SigK.viewer.goToPage(0);
+    await wait(900);
+
+    const box = document.querySelector('.pdf-page').getBoundingClientRect();
+    const canvas = document.querySelector('.pdf-page canvas');
+
+    return {
+      names,
+      tabCount: tabs.count(),
+      canvasCount: document.querySelectorAll('.pdf-page canvas').length,
+      pageBox: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width), h: Math.round(box.height) },
+      canvasPixels: canvas === null ? null : { w: canvas.width, h: canvas.height },
+      marked: { zoom: Math.round(marked.zoom * 1000) / 1000, current: marked.current },
+      onFirst: { name: onFirst.file && onFirst.file.name, current: onFirst.current, fit: onFirst.fit },
+      back: { name: back.file && back.file.name, zoom: Math.round(back.zoom * 1000) / 1000, current: back.current },
+      infoOpen,
+      info,
+      bridge,
+      title: document.title,
+    };
+  })()`;
+
   // SIGK_SMOKE_PDF=<path> を付けると、その PDF を実際に開いて結果を報告する。
   // pdf.js が app:// で本当に動いているかを、目で見なくても確かめられるようにする。
   const openPdfScript = (filePath) => `(async () => {
@@ -249,7 +354,7 @@ function installSmokeCheck(win) {
     const state = window.SigK.viewer.getState();
     const box = document.querySelector('.pdf-page')?.getBoundingClientRect() ?? null;
     const canvas = document.querySelector('.pdf-page canvas') ?? null;
-    const message = document.getElementById('view-empty');
+    const message = document.getElementById('view-message');
     return {
       opened,
       name: result.name,
@@ -283,11 +388,43 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_DROP=<path> を付けると、本物のドラッグ＆ドロップを再現する。
+  // Chromium の Input.dispatchDragEvent に実ファイルのパスを渡すと、ページには
+  // OS から落としたときと同じ File が届く。webUtils.getPathForFile がそこから
+  // パスを取り出せるか（spec-1-2 確定事項6）を、人の手を借りずに確かめられる。
+  async function dispatchDrop(filePath) {
+    const { debugger: dbg } = win.webContents;
+    dbg.attach('1.3');
+    try {
+      const data = { items: [], files: [filePath], dragOperationsMask: 1 };
+      for (const type of ['dragEnter', 'dragOver', 'drop'])
+        await dbg.sendCommand('Input.dispatchDragEvent', { type, x: 640, y: 400, data });
+    } finally {
+      dbg.detach();
+    }
+  }
+
+  const dropResultScript = `(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const state = window.SigK.viewer.getState();
+    return {
+      tabCount: window.SigK.tabs.count(),
+      names: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
+      openedName: state.file && state.file.name,
+      openedPath: state.file && state.file.path,
+      pageCount: state.pageCount,
+      message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
+      overlayHidden: document.getElementById('view-drop').hidden,
+    };
+  })()`;
+
   win.webContents.on('did-finish-load', () => {
     setTimeout(async () => {
       const bounds = win.getBounds();
       let shell = null;
       let pdf = null;
+      let tabs = null;
+      let drop = null;
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
         if (process.env.SIGK_SMOKE_THROW === '1')
@@ -295,6 +432,14 @@ function installSmokeCheck(win) {
         shell = await win.webContents.executeJavaScript(readShellState);
         if (process.env.SIGK_SMOKE_PDF)
           pdf = await win.webContents.executeJavaScript(openPdfScript(path.resolve(process.env.SIGK_SMOKE_PDF)));
+        if (process.env.SIGK_SMOKE_TABS) {
+          const paths = process.env.SIGK_SMOKE_TABS.split(',').map((p) => path.resolve(p.trim()));
+          tabs = await win.webContents.executeJavaScript(tabsScript(paths));
+        }
+        if (process.env.SIGK_SMOKE_DROP) {
+          await dispatchDrop(path.resolve(process.env.SIGK_SMOKE_DROP));
+          drop = await win.webContents.executeJavaScript(dropResultScript);
+        }
       } catch (err) {
         problems.push(`executeJavaScript: ${err.message}`);
       }
@@ -316,6 +461,8 @@ function installSmokeCheck(win) {
         title: win.getTitle(),
         shell,
         pdf,
+        tabs,
+        drop,
         screenshot,
         problems,
       }));
