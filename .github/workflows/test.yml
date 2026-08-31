@@ -1,0 +1,28 @@
+name: test
+
+# 作業ブランチへの push でも回す。PR を立てる前に結果を見たいため。
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # このジョブは Electron を起動しない。本体（約250MB）の取得を省く。
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # cache: npm は使わない。lockfile を持たない運用のためキーを作れない。
+
+      - name: 依存を入れる
+        run: npm install
+
+      - name: テストを回す
+        run: npm test

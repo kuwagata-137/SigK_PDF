@@ -1,0 +1,47 @@
+name: build-windows
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 依存を入れる
+        # ここでは ELECTRON_SKIP_BINARY_DOWNLOAD を立てない。
+        # 立てると electron-builder が本体を見つけられずビルドが落ちる。
+        run: npm install
+
+      - name: インストーラーを作る
+        run: npm run dist
+
+      - name: ハッシュをサマリーに書く
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist/*.exe | Select-Object -First 1
+          $hash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash
+          $size = [math]::Round($exe.Length / 1MB, 1)
+          @(
+            '## インストーラー'
+            ''
+            "- ファイル: $($exe.Name)"
+            "- サイズ: $size MB"
+            "- SHA-256: ``$hash``"
+            ''
+            '無署名で配布するため、受け取った側がこの値で真正性を確かめられるようにしている。'
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigk-pdf-setup
+          path: dist/*.exe
+          if-no-files-found: error

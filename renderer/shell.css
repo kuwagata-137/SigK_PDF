@@ -1,0 +1,155 @@
+/* 画面の枠組み。デザイントークンは index.html の <style> にある。 */
+
+#app{display:flex; flex-direction:column; height:100%; overflow:hidden}
+svg{display:block}
+
+button{font:inherit; color:inherit; background:none; border:none; padding:0; cursor:default}
+:focus-visible{outline:2px solid var(--primary); outline-offset:1px; border-radius:4px}
+[aria-disabled="true"]{opacity:.45}
+
+/* ── タブバー ───────────────────────────────── */
+#tabbar{
+  height:var(--tabbar-height); flex:0 0 var(--tabbar-height);
+  display:flex; align-items:flex-end; gap:2px;
+  padding:0 8px; background:var(--surface-2);
+  border-bottom:1px solid var(--border);
+}
+.tab{
+  display:flex; align-items:center; gap:7px; height:29px; padding:0 9px 0 11px;
+  border:1px solid var(--border); border-bottom:none;
+  border-radius:8px 8px 0 0; background:var(--surface-2);
+  color:var(--muted); max-width:210px;
+}
+.tab.active{background:var(--surface); color:var(--text)}
+.tab .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tab .dirty{width:6px; height:6px; border-radius:50%; background:var(--accent); flex:0 0 6px}
+.tab .x{
+  width:16px; height:16px; border-radius:4px; display:grid; place-items:center;
+  color:var(--muted); flex:0 0 16px;
+}
+.tab.active .x:hover{background:var(--surface-2)}
+.tab-add{
+  width:26px; height:26px; margin-left:4px; margin-bottom:2px; border-radius:6px;
+  display:grid; place-items:center; color:var(--muted);
+}
+
+/* ── ツールバー ─────────────────────────────── */
+/* モードが変わっても中身を入れ替えない。ボタンの位置が動かないようにするため。 */
+#toolbar{
+  height:var(--toolbar-height); flex:0 0 var(--toolbar-height);
+  display:flex; align-items:center; gap:6px;
+  padding:0 10px; background:var(--surface);
+  box-shadow:var(--topbar-shadow); position:relative; z-index:5;
+}
+.tb-btn{
+  height:30px; padding:0 10px; display:inline-flex; align-items:center; gap:6px;
+  border:1px solid transparent; border-radius:8px; background:transparent;
+  color:var(--text); white-space:nowrap;
+}
+.tb-btn:hover{background:var(--surface-2); border-color:var(--border)}
+.tb-btn[aria-disabled="true"]:hover{background:transparent; border-color:transparent}
+.tb-btn.icon{width:30px; padding:0; justify-content:center}
+.tb-sep{width:1px; height:22px; background:var(--border); margin:0 5px}
+.pager,.zoom{
+  display:inline-flex; align-items:center; gap:2px;
+  border:1px solid var(--border); border-radius:8px; background:var(--surface-2);
+  height:30px; padding:0 2px;
+}
+.pager .num{
+  display:inline-flex; align-items:center; gap:4px; padding:0 8px; color:var(--text);
+  font-variant-numeric:tabular-nums;
+}
+.pager .num b{font-weight:600}
+.pager .num span{color:var(--muted)}
+.pager .step,.zoom .step{
+  width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted);
+}
+.zoom .step{font-size:15px}
+.pager .step:hover,.zoom .step:hover{background:var(--surface); color:var(--text)}
+.zoom .val{min-width:48px; text-align:center; font-variant-numeric:tabular-nums}
+.spacer{flex:1}
+
+/* ── 本体 ───────────────────────────────────── */
+#body{flex:1; display:flex; min-height:0}
+
+/* ツールレール。決定14 によりアイコン＋文字で 72px 固定。 */
+#rail{
+  flex:0 0 var(--rail-width); width:var(--rail-width); background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column; padding:8px 0; gap:2px;
+}
+.rail-item{
+  position:relative; display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:8px 2px 7px; margin:0 6px; border-radius:8px; color:var(--muted);
+  width:calc(100% - 12px);
+}
+.rail-item .lbl{font-size:10.5px; line-height:1; letter-spacing:.02em}
+.rail-item:hover{background:var(--surface-2); color:var(--text)}
+.rail-item.active{color:var(--accent); background:var(--select)}
+.rail-item.active::before{
+  content:""; position:absolute; left:-6px; top:6px; bottom:6px; width:3px;
+  border-radius:0 3px 3px 0; background:var(--accent);
+}
+
+/* サイドパネル。決定13 により開いた状態で起動する。 */
+#side{
+  flex:0 0 var(--side-width); width:var(--side-width); background:var(--surface);
+  border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0;
+}
+html[data-panel="collapsed"] #side{display:none}
+.side-head{
+  height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 8px 0 12px; border-bottom:1px solid var(--border);
+  color:var(--muted); font-size:11.5px; letter-spacing:.04em;
+}
+.side-head .collapse{width:24px; height:24px; border-radius:6px; display:grid; place-items:center}
+.side-head .collapse:hover{background:var(--surface-2); color:var(--text)}
+.side-scroll{flex:1; overflow:auto; padding:10px}
+.side-actions[hidden]{display:none}
+.side-actions{
+  flex:0 0 auto; border-top:1px solid var(--border); padding:8px 10px;
+  display:grid; grid-template-columns:1fr 1fr; gap:6px;
+}
+.act{
+  height:28px; display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text);
+  font-size:12px;
+}
+.act:hover{background:var(--surface); box-shadow:var(--shadow-item)}
+.act[aria-disabled="true"]:hover{background:var(--surface-2); box-shadow:none}
+.act.danger{color:var(--danger)}
+
+/* サイドパネルの幅を変えるつまみ */
+#side-resizer{
+  flex:0 0 4px; cursor:col-resize; background:transparent; margin-left:-2px; z-index:6;
+}
+#side-resizer:hover{background:var(--select)}
+html[data-panel="collapsed"] #side-resizer{display:none}
+
+/* ページビュー */
+#view{
+  flex:1; min-width:0; background:var(--canvas); overflow:auto;
+  display:flex; flex-direction:column; align-items:center; gap:16px; padding:18px 0;
+}
+
+/* 空の状態。PDF を開く経路は Phase 1 で作る。 */
+.empty{
+  margin:auto; padding:0 24px; text-align:center; line-height:1.9;
+}
+#view .empty{color:var(--surface); opacity:.85}
+#side .empty{color:var(--muted); font-size:12px}
+
+/* ステータスバー */
+#status{
+  height:var(--status-height); flex:0 0 var(--status-height);
+  display:flex; align-items:center;
+  padding:0 12px; background:var(--surface); border-top:1px solid var(--border);
+  color:var(--muted); font-size:11.5px;
+}
+#status .sep{margin:0 10px; opacity:.5}
+#status .spacer{flex:1}
+#status .version{font-variant-numeric:tabular-nums}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important; animation:none !important}
+}
