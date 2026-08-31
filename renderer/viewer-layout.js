@@ -30,6 +30,10 @@
   const THUMB_FRAME = 5;     // .thumb の padding 3px ＋ border 2px
   const THUMB_CAPTION = 17;  // .cap の行の高さ ＋ margin-top
   const THUMB_MARGIN = 10;   // .side-scroll の padding
+  // 先読みの枚数。ページビューの1より多くする。240px 幅のパネルには
+  // A4 が約2枚しか見えず、1 のままでは4枚しか持てない。少し戻すたびに
+  // 描き直しが起きるのを避けるため、実測して 4 にした（spec-1-3 の実測）。
+  const THUMB_AHEAD = 4;
   const MAX_THUMBS = 24;
   const MAX_THUMB_SCALE = 2;
 
@@ -218,6 +222,7 @@
     THUMB_FRAME,
     THUMB_CAPTION,
     THUMB_MARGIN,
+    THUMB_AHEAD,
     MAX_THUMBS,
     MAX_THUMB_SCALE,
     clampZoom,

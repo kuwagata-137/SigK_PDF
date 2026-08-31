@@ -206,6 +206,7 @@
       first: range.first,
       last: range.last,
       current: center,
+      ahead: layout().THUMB_AHEAD,
       max: layout().MAX_THUMBS,
     });
 

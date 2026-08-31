@@ -404,6 +404,17 @@ function installSmokeCheck(win) {
   // SIGK_SMOKE_PDF と一緒に使う（文書が開いていないと測るものが無い）。
   const textScript = `(async () => {
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    // 時間で待つと、初回起動（フォントの取得を伴う）で取りこぼす。状態で待つ。
+    const until = async (check, limit = 8000) => {
+      for (let waited = 0; waited < limit; waited += 100) {
+        if (check())
+          return true;
+        await wait(100);
+      }
+      return false;
+    };
+
+    const layerReady = await until(() => document.querySelector('.pdf-page .textLayer') !== null);
     const round = (rect) => rect === null ? null : {
       x: Math.round(rect.x), y: Math.round(rect.y),
       w: Math.round(rect.width), h: Math.round(rect.height),
@@ -432,6 +443,10 @@ function installSmokeCheck(win) {
       return {
         count: list.length,
         canvasCount: document.querySelectorAll('#thumbs canvas').length,
+        cssVar: document.documentElement.style.getPropertyValue('--side-width'),
+        sideWidth: document.getElementById('side').clientWidth,
+        scrollWidth: document.getElementById('side-scroll').clientWidth,
+        columnWidth: window.SigK.thumbnails.getState().columnWidth,
         first: list.length === 0 ? null : round(list[0].getBoundingClientRect()),
         currentPage: current === null ? null : current.dataset.page,
         currentBox: current === null ? null : round(current.getBoundingClientRect()),
@@ -439,17 +454,24 @@ function installSmokeCheck(win) {
     };
 
     // 紙の幅がサイドパネルの実幅に追従するか（確定事項5）。
+    const measureAt = async (width) => {
+      const before = window.SigK.thumbnails.getState().columnWidth;
+      window.SigK.shell.setSidePanelWidth(document, width);
+      await until(() => window.SigK.thumbnails.getState().columnWidth !== before);
+      await wait(400);
+      return measureThumbs();
+    };
+
     const atDefault = measureThumbs();
-    window.SigK.shell.setSidePanelWidth(document, 180);
-    await wait(600);
-    const atMin = measureThumbs();
-    window.SigK.shell.setSidePanelWidth(document, 420);
-    await wait(600);
-    const atMax = measureThumbs();
-    window.SigK.shell.setSidePanelWidth(document, 240);
-    await wait(600);
+    const atMin = await measureAt(180);
+    const atMax = await measureAt(420);
+    await measureAt(240);
 
     return {
+      // テキストレイヤーが使える状態か。pdf.js の読み込みに失敗していれば false。
+      available: window.SigK.textLayer.available(),
+      textLayerClass: typeof (window.SigK.pdfjs.lib || {}).TextLayer,
+      layerReady,
       spans: layer === null ? 0 : layer.querySelectorAll('span').length,
       pageBox: round(pageBox),
       layerBox: round(layerBox),
