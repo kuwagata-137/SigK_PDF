@@ -14,12 +14,15 @@ jobs:
       # このジョブは Electron を起動しない。本体（約250MB）の取得を省く。
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       # cache: npm は使わない。lockfile を持たない運用のためキーを作れない。
+      # setup-node は v5 以降、package.json に packageManager があると自動で
+      # キャッシュを有効にする。本リポジトリには同項目が無いので効かないが、
+      # 追加すると同じ理由で落ちる。
 
       - name: 依存を入れる
         run: npm install
