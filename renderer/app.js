@@ -74,22 +74,6 @@
     showAppVersion(doc);
     restoreUi(doc);
 
-    // テストから内部に触るための口。
-    win.__test__ = {
-      shell: root.SigK.shell,
-      log: root.SigK.log,
-      icons: root.SigK.icons,
-      viewer: root.SigK.viewer,
-      viewerLayout: root.SigK.viewerLayout,
-      viewerControls: root.SigK.viewerControls,
-      tabs: root.SigK.tabs,
-      viewBanner: root.SigK.viewBanner,
-      docInfo: root.SigK.docInfo,
-      recentPanel: root.SigK.recentPanel,
-      fileDrop: root.SigK.fileDrop,
-      thumbnails: root.SigK.thumbnails,
-      fillIcons: () => fillIcons(doc),
-    };
     return true;
   }
 

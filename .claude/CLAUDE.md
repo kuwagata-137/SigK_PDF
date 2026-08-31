@@ -144,7 +144,8 @@
 - `preload.js` は `contextBridge.exposeInMainWorld` で機能ごとに名前付き API を公開し、
   各 API に `available: true` を持たせる。
 - IPC のチャンネル名は `領域:動作`（例 `pdf:open`・`merge:run`）。
-- テストは `node --test` ＋ jsdom。テスト専用フック `window.__test__` 経由で内部 API に触る。
+- テストは `node --test` ＋ jsdom。画面テストは `test/harness.js` が返す `window.SigK` 経由で
+  内部 API に触る（テスト専用のフックは別に持たない）。
 - 外部 CDN・Web フォント・アイコンライブラリを参照しない。アイコンはインライン SVG を自作する。
 
 ### B. 単一 HTML への集約はしない
