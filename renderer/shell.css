@@ -162,10 +162,11 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 #view-empty{
   position:absolute; inset:0; display:flex; flex-direction:column;
   align-items:center; justify-content:center; gap:18px;
-  color:var(--surface); opacity:.9; pointer-events:none;
+  color:var(--surface); pointer-events:none;
 }
 #view-empty[hidden]{display:none}
-#view-message{margin:0; text-align:center; line-height:1.9}
+/* 薄めるのは文言だけにする。下の一覧まで薄くすると読めなくなる。 */
+#view-message{margin:0; text-align:center; line-height:1.9; opacity:.9}
 #side .empty{color:var(--muted); font-size:12px}
 
 /* 最近使ったファイル（spec-1-2 確定事項9）。 */
@@ -175,16 +176,20 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #view-recent[hidden]{display:none}
 .recent-head{
-  margin:0 0 4px; font-size:11.5px; letter-spacing:.04em; opacity:.8;
+  margin:0 0 4px; font-size:11.5px; letter-spacing:.04em; opacity:.85;
 }
+/* 一覧は「紙」ではなく操作できる札として見せる。--canvas の上に白を薄く
+   重ねると文字が沈むため、surface で塗って本文色を使う。 */
 .recent-item{
   display:flex; flex-direction:column; gap:1px; width:100%;
   padding:7px 11px; border-radius:8px; text-align:left;
-  background:rgba(255,255,255,.10); cursor:pointer;
+  background:var(--surface); color:var(--text);
+  box-shadow:var(--shadow-item); cursor:pointer;
 }
-.recent-item:hover{background:rgba(255,255,255,.20)}
+.recent-item:hover{background:var(--surface-2)}
 .recent-name{font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.recent-path{font-size:11px; opacity:.72; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl}
+/* 場所はファイル名の下に添えるだけなので、末尾から省いてよい。 */
+.recent-path{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
 /* ドロップの受け入れ表示（spec-1-2 確定事項5）。 */
 #view-drop{

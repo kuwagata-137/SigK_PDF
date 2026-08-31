@@ -45,6 +45,7 @@
 | 16 | 未保存の警告 | **入れない。**塊② の時点で編集手段が無く、`dirty` になる経路が存在しない。タブの CSS（`.tab .dirty`）は置いたまま、点は出さない。F-06-5 は塊⑤ |
 | 17 | 閉じたあとのアクティブタブ | 右隣。右端を閉じたときは左隣。最後の1枚を閉じたら空の表示に戻る |
 | 18 | 開く経路の一本化 | ダイアログ・ドロップ・最近使ったファイル・メニューのいずれも、最終的に `SigK.tabs.openPath()` の1本へ集まる（`spec-1-1` 確定事項10 の趣旨を引き継ぐ） |
+| 19 | 開けなかったファイルの扱い | **タブは作る。**そのタブをアクティブにしたまま、ページビューに理由を出す（`spec-1-1` 確定事項16 の「ダイアログで塞がない」を守るため、理由を出せる場所がページビューしかない）。タブを作らずに前のタブへ戻すと、戻した文書の表示が理由を上書きして消してしまう。タブ名は `--danger` で示し、閉じれば消える。**実装時に判明した論点であり、着手前には挙げられていなかった**（2026-08-31 追記） |
 
 ## 画面の動き
 
@@ -65,7 +66,8 @@
 |---|---|
 | `test/recent-documents.test.js` | 先頭への追加、同一パスの重複排除、10件での打ち切り、削除、壊れた入力の正規化 |
 | `test/tabs.test.js` | 3文書でタブが3枚／切り替えで倍率とページ位置が戻る／同じパスは既存タブへ／`×`・中クリック・Ctrl+W で閉じる／Ctrl+Tab の巡回／上限20で断る／最後の1枚で空表示へ戻る／`document.title` |
-| `test/file-drop.test.js` | `DataTransfer` のスタブから PDF を落とすと開く／PDF 以外は無視／1件も無ければメッセージ／`dragover` で受け入れ表示が出る／`drop` 後に消える |
+| `test/file-drop.test.js` | `DataTransfer` のスタブから PDF を落とすと開く／PDF 以外は無視／1件も無ければメッセージ／パスが取れなければその旨／`dragenter` で受け入れ表示が出る／子要素をまたぐ `dragleave` で消えない／既定動作を必ず止める |
+| `test/recent-panel.test.js` | 履歴の一覧が並ぶ／空なら出さない／クリックで開く／文書を開いている間は隠す／開いたものが先頭へ来る／開けなかったものが消える |
 | `test/doc-info.test.js` | PDF の日付の変換、欠けた項目が「—」になること、`EncryptFilterName` から暗号化を判定すること |
 | `test/settings.test.js` | `recent` の正規化（配列でない・要素の型が違う場合に既定へ落ちる） |
 | `test/shell.test.js` | `index.html` の `<script>` に新しい4本が入っていること |
@@ -75,8 +77,50 @@
 
 ## 完了の判定
 
-- [ ] `npm test` が緑
-- [ ] `SIGK_SMOKE=1` で 2つの PDF がタブ2枚として開き、切り替えでページ位置が戻り、コンソールエラーが0件
-- [ ] `pathForFile` の橋が生きている（起動確認の出力で判定）
-- [ ] エクスプローラーからの実ドロップで開ける（手作業。自動化できない）
-- [ ] `npm run dist` で NSIS インストーラーが生成される
+- [x] `npm test` が緑（193件。塊① の 127件から66件増）
+- [x] `SIGK_SMOKE_TABS` で 2つの PDF がタブ2枚として開き、切り替えでページ位置が戻り、コンソールエラーが0件
+- [x] `pathForFile` の橋が生きている（起動確認の出力で判定）
+- [x] **本物のドラッグ＆ドロップで開ける**（`SIGK_SMOKE_DROP`。当初は手作業とみなしていたが自動化できた。後述）
+- [x] `npm run dist` で NSIS インストーラーが生成される（107.6MB）
+
+### 実測（2026-08-31。1280×800）
+
+```
+SIGK_SMOKE=1 SIGK_SMOKE_TABS="test/fixtures/three-pages.pdf,test/fixtures/many-pages.pdf" npm start
+SIGK_SMOKE=1 SIGK_SMOKE_DROP="test/fixtures/rotated.pdf" npm start
+```
+
+| 見たもの | 結果 |
+|---|---|
+| タブ2枚 | `["three-pages.pdf","many-pages.pdf"]`。`document.title` は `many-pages.pdf — SigK PDF` |
+| 読み位置の保持 | 2枚目を 200%・3ページ目にして1枚目（幅に合わせる・1ページ目）へ移り、戻すと 200%・3ページ目に復帰した |
+| 非アクティブ側の canvas | 切り替え後の canvas は2枚。持ち越していない |
+| 文書情報 | 12項目すべて埋まった。PDF バージョン 1.7、40ページ、10.9 KB、日付は `2026-08-31 07:43` に変換。作成者は取れず「—」 |
+| ページの位置 | 幅に合わせた状態で `x=338, y=98, w=887`。ビューの左端 312＋`SIDE_MARGIN` 24、上端 80＋`PAGE_MARGIN` 18 と一致する（`spec-1-1` の実測と同じ） |
+| コンソールのエラー | 0件（両方の起動で） |
+
+### ドラッグ＆ドロップを自動で確かめた方法（確定事項6 の決着）
+
+当初は「自動化できないので手作業」としていたが、Chromium の
+`Input.dispatchDragEvent` に**実ファイルのパス**を渡すと、ページには OS から
+落としたときと同じ `File` が届く。`webContents.debugger` からこれを送れるため、
+`SIGK_SMOKE_DROP=<path>` として起動確認に組み込んだ。
+
+結果は次のとおりで、**`webUtils.getPathForFile` は `sandbox: true` の preload でも
+実パスを返す**ことが確かめられた。確定事項6 のフォールバック（`File.arrayBuffer()`
+でパス無しで開く）は**要らない**。
+
+```json
+{"tabCount":1,"names":["rotated.pdf"],
+ "openedPath":"C:\\...\\test\\fixtures\\rotated.pdf","pageCount":3,
+ "message":null,"overlayHidden":true}
+```
+
+### 実装中に見つけた不具合（塊① から潜んでいたもの）
+
+2つ目の文書を開いたとき、「幅に合わせる」の結果が1つ目と同じ倍率になると
+`setZoom` が「倍率は変わっていない」と判断して `applyLayout()` を呼ばず、
+ページの位置と寸法が空のまま残る。**紙の大きさが同じ文書を続けて開けば普通に
+起こる**。塊① は1文書しか開けなかったため表に出なかった。
+`viewer.open()` で `applyFit()` の前に一度 `applyLayout()` を置いて直し、
+`test/viewer.test.js` に回帰テストを足した。
