@@ -52,8 +52,8 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.app = { init, fillIcons };
 
-  // jsdom はスクリプトを評価する時点で readyState が complete になっている。
-  // DOMContentLoaded だけを待つ実装だと init が一度も走らない。
+  // 読み込みの途中なら DOMContentLoaded を待ち、すでに終わっていれば即座に始める。
+  // 後から読み込まれた場合に init が一度も走らない、という取りこぼしを防ぐ。
   if (typeof root.document !== 'undefined') {
     if (root.document.readyState === 'loading')
       root.document.addEventListener('DOMContentLoaded', () => init(root.document, root));
