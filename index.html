@@ -5,6 +5,7 @@
 <meta name="color-scheme" content="light">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>SigK PDF</title>
+<link rel="stylesheet" href="renderer/shell.css">
 <style>
 :root{
   --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
@@ -35,7 +36,88 @@ body{
 </head>
 <body>
 <div id="app">
-  <div id="boot">SigK PDF</div>
+
+  <div id="tabbar">
+    <div class="tab-add" data-icon="plus" data-icon-size="14" data-icon-stroke="2" title="タブを追加" aria-disabled="true"></div>
+  </div>
+
+  <div id="toolbar">
+    <div class="tb-btn" aria-disabled="true"><span data-icon="open"></span>開く</div>
+    <div class="tb-btn" aria-disabled="true"><span data-icon="save"></span>保存</div>
+    <div class="tb-sep"></div>
+    <div class="pager" aria-disabled="true">
+      <div class="step" data-icon="chevronLeft" data-icon-size="15" data-icon-stroke="2"></div>
+      <div class="num"><b id="page-current">–</b><span id="page-total">/ –</span></div>
+      <div class="step" data-icon="chevronRight" data-icon-size="15" data-icon-stroke="2"></div>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="zoom" aria-disabled="true">
+      <div class="step">−</div>
+      <div class="val" id="zoom-value">100%</div>
+      <div class="step">＋</div>
+    </div>
+    <div class="tb-btn" aria-disabled="true"><span data-icon="fitWidth"></span>幅</div>
+    <div class="tb-btn" aria-disabled="true"><span data-icon="fitPage"></span>全体</div>
+    <div class="spacer"></div>
+    <div class="tb-btn icon" data-icon="search" title="検索" aria-disabled="true"></div>
+  </div>
+
+  <div id="body">
+
+    <div id="rail">
+      <div class="rail-item" data-mode="view">
+        <span data-icon="modeView" data-icon-size="21"></span>
+        <span class="lbl">閲覧</span>
+      </div>
+      <div class="rail-item" data-mode="pages">
+        <span data-icon="modePages" data-icon-size="21"></span>
+        <span class="lbl">ページ</span>
+      </div>
+      <div class="rail-item" data-mode="annot">
+        <span data-icon="modeAnnot" data-icon-size="21"></span>
+        <span class="lbl">注釈</span>
+      </div>
+      <div class="rail-item" data-mode="tools">
+        <span data-icon="modeTools" data-icon-size="21"></span>
+        <span class="lbl">ツール</span>
+      </div>
+    </div>
+
+    <div id="side">
+      <div class="side-head">
+        <span id="side-title">サムネイル</span>
+        <span class="collapse" id="side-collapse" data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを閉じる"></span>
+      </div>
+      <div class="side-scroll" id="side-scroll">
+        <p class="empty">文書を開くと<br>ページの一覧が出ます</p>
+      </div>
+      <div class="side-actions" id="side-actions" hidden>
+        <div class="act" aria-disabled="true"><span data-icon="rotateLeft" data-icon-size="14" data-icon-stroke="1.9"></span>左回転</div>
+        <div class="act" aria-disabled="true"><span data-icon="rotateRight" data-icon-size="14" data-icon-stroke="1.9"></span>右回転</div>
+        <div class="act" aria-disabled="true"><span data-icon="extract" data-icon-size="14" data-icon-stroke="1.9"></span>抽出</div>
+        <div class="act danger" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>削除</div>
+      </div>
+    </div>
+
+    <div id="side-resizer"></div>
+
+    <div id="view">
+      <p class="empty">文書が開かれていません</p>
+    </div>
+  </div>
+
+  <div id="status">
+    <span id="status-file">文書なし</span><span class="sep">│</span>
+    <span id="status-pages">–</span><span class="sep">│</span>
+    <span id="status-size">–</span>
+    <span class="spacer"></span>
+    <span class="version" id="status-version"></span>
+  </div>
 </div>
+
+<script src="assets/icons.js"></script>
+<script src="renderer/log.js"></script>
+<script src="renderer/shell.js"></script>
+<script src="renderer/app.js"></script>
 </body>
 </html>

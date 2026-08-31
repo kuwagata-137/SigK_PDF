@@ -188,14 +188,56 @@ function installSmokeCheck(win) {
   win.webContents.on('did-fail-load', (_e, code, description, url) => {
     problems.push(`did-fail-load: ${code} ${description} ${url}`);
   });
+  const readShellState = `(() => {
+    const root = document.documentElement;
+    return {
+      mode: root.getAttribute('data-mode'),
+      panel: root.getAttribute('data-panel'),
+      railItems: document.querySelectorAll('.rail-item').length,
+      icons: document.querySelectorAll('svg').length,
+      unfilledIcons: document.querySelectorAll('[data-icon]:empty').length,
+      sideTitle: document.getElementById('side-title')?.textContent ?? null,
+      version: document.getElementById('status-version')?.textContent ?? null,
+      metrics: ['#tabbar', '#toolbar', '#rail', '#side', '#view', '#status'].reduce((acc, sel) => {
+        const el = document.querySelector(sel);
+        const rect = el.getBoundingClientRect();
+        acc[sel] = { w: Math.round(rect.width), h: Math.round(rect.height), bg: getComputedStyle(el).backgroundColor };
+        return acc;
+      }, {}),
+      activeRailColor: getComputedStyle(document.querySelector('.rail-item.active')).color,
+    };
+  })()`;
+
   win.webContents.on('did-finish-load', () => {
-    setTimeout(() => {
+    setTimeout(async () => {
       const bounds = win.getBounds();
+      let shell = null;
+      try {
+        // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
+        if (process.env.SIGK_SMOKE_THROW === '1')
+          await win.webContents.executeJavaScript('setTimeout(() => { throw new Error("起動確認の意図的な例外"); }, 0); true');
+        shell = await win.webContents.executeJavaScript(readShellState);
+      } catch (err) {
+        problems.push(`executeJavaScript: ${err.message}`);
+      }
+      let screenshot = null;
+      if (process.env.SIGK_SMOKE_SHOT) {
+        try {
+          const image = await win.webContents.capturePage();
+          screenshot = path.resolve(process.env.SIGK_SMOKE_SHOT);
+          fs.mkdirSync(path.dirname(screenshot), { recursive: true });
+          fs.writeFileSync(screenshot, image.toPNG());
+        } catch (err) {
+          problems.push(`capturePage: ${err.message}`);
+        }
+      }
+
       console.log(JSON.stringify({
         url: win.webContents.getURL(),
         bounds: { width: bounds.width, height: bounds.height, x: bounds.x, y: bounds.y },
         title: win.getTitle(),
-        preload: Object.keys(win.webContents.getLastWebPreferences() ?? {}).length > 0,
+        shell,
+        screenshot,
         problems,
       }));
       // destroy ではなく close を使う。設定の保存を通す経路と同じにするため。
