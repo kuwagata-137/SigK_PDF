@@ -8,12 +8,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { DEFAULT_WINDOW, MIN_WINDOW } = require('./security-policy.js');
+const { normalizeList } = require('./recent-documents.js');
 
 const DEFAULTS = {
   version: 1,
   window: { width: DEFAULT_WINDOW.width, height: DEFAULT_WINDOW.height, x: null, y: null, maximized: false },
   sidePanel: { open: true, width: 240 },
   mode: 'view',
+  recent: [],
 };
 
 const SIDE_PANEL_MIN = 180;
@@ -59,6 +61,8 @@ function mergeDefaults(raw) {
       width: clampSidePanelWidth(pickNumber(sidePanel.width, DEFAULTS.sidePanel.width)),
     },
     mode: typeof raw.mode === 'string' ? raw.mode : DEFAULTS.mode,
+    // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
+    recent: normalizeList(raw.recent),
   };
 }
 

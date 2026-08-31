@@ -164,3 +164,40 @@ test('壊れた JSON では例外を投げず、既定値で起動して onError
 test('createSettingsStore は dir が無いと落ちる', () => {
   assert.throws(() => createSettingsStore({}), /dir/);
 });
+
+// ---- 最近使ったファイル（spec-1-2 確定事項8） ----
+
+test('既定では履歴が空である', () => {
+  assert.deepEqual(DEFAULTS.recent, []);
+  assert.deepEqual(mergeDefaults({}).recent, []);
+});
+
+test('mergeDefaults は履歴の壊れた入力を落とす', () => {
+  assert.deepEqual(mergeDefaults({ recent: 'nope' }).recent, []);
+  assert.deepEqual(mergeDefaults({ recent: null }).recent, []);
+  assert.deepEqual(mergeDefaults({ recent: [null, 7, {}] }).recent, []);
+});
+
+test('mergeDefaults は履歴の重複を畳み、10件で切る', () => {
+  const many = Array.from({ length: 14 }, (_unused, i) => ({ path: `C:\\work\\${i}.pdf` }));
+  const merged = mergeDefaults({ recent: [...many, { path: 'C:/WORK/0.PDF' }] });
+
+  assert.equal(merged.recent.length, 10);
+  assert.equal(merged.recent[0].path, 'C:\\work\\0.pdf');
+  assert.equal(merged.recent[0].name, '0.pdf');
+});
+
+test('履歴はファイルに保存され、読み直せる', () => {
+  const dir = makeTempDir();
+  const store = createSettingsStore({ dir });
+
+  store.load();
+  store.set({ recent: [{ path: 'C:\\work\\a.pdf', name: 'a.pdf', openedAt: '2026-08-31T00:00:00.000Z' }] });
+  assert.equal(store.save(), true);
+
+  const reopened = createSettingsStore({ dir });
+  const loaded = reopened.load();
+  assert.equal(loaded.recent.length, 1);
+  assert.equal(loaded.recent[0].path, 'C:\\work\\a.pdf');
+  assert.equal(loaded.recent[0].openedAt, '2026-08-31T00:00:00.000Z');
+});

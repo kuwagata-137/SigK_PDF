@@ -103,17 +103,33 @@ body{
 
     <div id="view">
       <div id="view-pages" hidden></div>
-      <p class="empty" id="view-empty">文書が開かれていません</p>
+      <div class="empty" id="view-empty">
+        <p id="view-message">文書が開かれていません</p>
+        <div id="view-recent" hidden></div>
+      </div>
+      <div id="view-drop" hidden aria-hidden="true">
+        <div class="drop-frame"><span data-icon="open" data-icon-size="22"></span>ここにドロップして開く</div>
+      </div>
     </div>
   </div>
 
   <div id="status">
-    <span id="status-file">文書なし</span><span class="sep">│</span>
+    <span id="status-file" title="文書情報を表示 (Ctrl+I)">文書なし</span><span class="sep">│</span>
     <span id="status-pages">–</span><span class="sep">│</span>
     <span id="status-size">–</span>
     <span class="spacer"></span>
     <span class="version" id="status-version"></span>
   </div>
+
+  <!-- 文書情報（spec-1-2 確定事項11）。ネイティブの messageBox では文字を
+       選択・コピーできないため、アプリ内のモーダルで出す。 -->
+  <dialog id="doc-info">
+    <div class="dlg-head">
+      <span>文書情報</span>
+      <button type="button" class="dlg-x" id="doc-info-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" title="閉じる"></button>
+    </div>
+    <dl id="doc-info-body"></dl>
+  </dialog>
 </div>
 
 <!-- pdf.js は ESM でしか配布されていない。module はここ1本に限る（spec-1-1 確定事項1）。
@@ -124,6 +140,10 @@ body{
 <script src="renderer/shell.js"></script>
 <script src="renderer/viewer-layout.js"></script>
 <script src="renderer/viewer.js"></script>
+<script src="renderer/doc-info.js"></script>
+<script src="renderer/tabs.js"></script>
+<script src="renderer/recent-panel.js"></script>
+<script src="renderer/file-drop.js"></script>
 <script src="renderer/viewer-controls.js"></script>
 <script src="renderer/app.js"></script>
 </body>

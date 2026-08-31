@@ -5,6 +5,11 @@
   // 配置と倍率の計算は viewer-layout.js（純関数）に置き、ここは DOM と
   // pdf.js の呼び出しだけを担う。ツールバーとキー操作の結線は
   // viewer-controls.js にある。
+  //
+  // 画面に映すのは常に1文書だけである。タブの束を持つのは tabs.js の役目で、
+  // ここは detach()／attach() で「いま映しているもの」を差し替える口を出す。
+  // 非アクティブなタブが canvas を持ち続けないのは、この境界のおかげである
+  // （spec-1-2 確定事項1）。
 
   const EMPTY_MESSAGE = '文書が開かれていません';
 
@@ -56,9 +61,16 @@
   }
 
   // 失敗はページビューにその場で出す。ダイアログで画面を塞がない（spec-1-1 確定事項16）。
+  // 文言は #view-message、出し入れは器の #view-empty で行う。器には最近使った
+  // ファイルの一覧も入るため、textContent で丸ごと書き換えてはいけない。
   function setMessage(text) {
-    el.empty.textContent = text;
+    el.message.textContent = text;
     el.empty.hidden = false;
+  }
+
+  // いま出ている文言。tabs.js が失敗の理由をタブへ控えるのに使う。
+  function getMessage() {
+    return el.message.textContent;
   }
 
   function setDocumentOpen(open) {
@@ -261,10 +273,10 @@
 
   // ---- 文書 ----
 
-  function close() {
+  // 画面を空に戻す。pdf.js の文書は破棄しない（持ち主は tabs.js かもしれない）。
+  function resetView() {
     state.token += 1;
     releaseAll();
-    state.doc?.destroy?.();
     state.doc = null;
     state.file = null;
     state.sizes = [];
@@ -276,6 +288,73 @@
     setMessage(EMPTY_MESSAGE);
     root.SigK.shell.setStatus(el.doc, { file: '文書なし', pages: '–', size: '–' });
     controls()?.syncAll(el.doc, getState());
+  }
+
+  // 映すのをやめ、続きから読むために要るものだけを持ち出す（spec-1-2 確定事項2）。
+  // 文書は破棄しないので、attach() で元どおりに戻せる。
+  function detach() {
+    const session = state.doc === null ? null : {
+      doc: state.doc,
+      file: state.file,
+      sizes: state.sizes,
+      zoom: state.zoom,
+      fit: state.fit,
+      current: state.current,
+      scrollTop: el.view.scrollTop,
+    };
+    resetView();
+    return session;
+  }
+
+  function attach(session) {
+    if (session === null || session === undefined || session.doc === undefined)
+      return false;
+
+    // tabs.js は必ず detach してから渡す。ここに何か残っているのは呼び出し側の
+    // 不具合であり、黙って捨てると pdf.js の文書が宙に浮く。記録して破棄する。
+    if (state.doc !== null) {
+      report(new Error('attach: 前の文書が畳まれていません'), { file: state.file?.name });
+      close();
+    }
+
+    state.token += 1;
+    state.doc = session.doc;
+    state.file = session.file;
+    state.sizes = session.sizes;
+    state.zoom = session.zoom;
+    state.fit = session.fit;
+    state.current = session.current;
+
+    buildPages();
+    setDocumentOpen(true);
+    applyLayout();
+    el.view.scrollTop = session.scrollTop ?? 0;
+    root.SigK.shell.setStatus(el.doc, {
+      file: session.file.name,
+      pages: `${state.sizes.length} ページ`,
+      size: root.SigK.shell.formatFileSize(session.file.size),
+    });
+    controls()?.syncAll(el.doc, getState());
+    scheduleUpdate();
+    return true;
+  }
+
+  function close() {
+    const session = detach();
+    session?.doc?.destroy?.();
+  }
+
+  // 映していないタブを閉じるときの後始末。
+  function destroySession(session) {
+    session?.doc?.destroy?.();
+  }
+
+  // 文書情報（F-01-7）が読む。pdf.js の生の戻り値をそのまま渡し、
+  // 人が読む形への整形は doc-info.js が持つ。
+  function getMetadata() {
+    if (state.doc === null)
+      return Promise.resolve(null);
+    return state.doc.getMetadata();
   }
 
   // 全ページの寸法を先に集める。スクロールバーの長さが最初から正しくなり、
@@ -328,6 +407,10 @@
 
       buildPages();
       setDocumentOpen(true);
+      // ここで一度置いておく。applyFit の中の setZoom は倍率が変わったときしか
+      // 配置し直さないため、2つ目の文書が1つ目と同じ倍率になると（同じ紙の
+      // 大きさなら普通に起こる）ページの位置と寸法が空のまま残ってしまう。
+      applyLayout();
       // 用紙サイズを知らなくても読める幅で出す（spec-1-1 確定事項8）。
       applyFit('width');
       el.view.scrollTop = 0;
@@ -345,7 +428,12 @@
     }
   }
 
+  // 開く経路は tabs.js に1本だけ持たせる（spec-1-2 確定事項18）。ここは
+  // タブ層が居ないとき（ビューア単体のテスト）のための素の経路として残す。
   async function openViaDialog() {
+    if (root.SigK.tabs !== undefined)
+      return root.SigK.tabs.openViaDialog();
+
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
       setMessage('ファイルを開く機能が使えません。');
@@ -366,9 +454,10 @@
       view: doc.getElementById('view'),
       pages: doc.getElementById('view-pages'),
       empty: doc.getElementById('view-empty'),
+      message: doc.getElementById('view-message'),
       pageNodes: [],
     };
-    if (el.view === null || el.pages === null || el.empty === null) {
+    if (el.view === null || el.pages === null || el.empty === null || el.message === null) {
       el = null;
       return false;
     }
@@ -387,6 +476,12 @@
     open,
     openViaDialog,
     close,
+    detach,
+    attach,
+    destroySession,
+    getMetadata,
+    setMessage,
+    getMessage,
     getState,
     setZoom,
     applyFit,

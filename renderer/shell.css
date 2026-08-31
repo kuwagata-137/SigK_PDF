@@ -8,19 +8,24 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
 [aria-disabled="true"]{opacity:.45}
 
 /* ── タブバー ───────────────────────────────── */
+/* タブが増えたら横に流す。折り返すとタブバーの高さが変わり、下の全部がずれる。 */
 #tabbar{
   height:var(--tabbar-height); flex:0 0 var(--tabbar-height);
   display:flex; align-items:flex-end; gap:2px;
   padding:0 8px; background:var(--surface-2);
   border-bottom:1px solid var(--border);
+  overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
 }
+#tabbar::-webkit-scrollbar{height:0}
 .tab{
   display:flex; align-items:center; gap:7px; height:29px; padding:0 9px 0 11px;
   border:1px solid var(--border); border-bottom:none;
   border-radius:8px 8px 0 0; background:var(--surface-2);
-  color:var(--muted); max-width:210px;
+  color:var(--muted); max-width:210px; min-width:96px; flex:0 1 auto;
 }
 .tab.active{background:var(--surface); color:var(--text)}
+/* 開けなかったタブ。名前を消さずに、開けていないことだけを示す。 */
+.tab.failed .name{color:var(--danger)}
 .tab .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .tab .dirty{width:6px; height:6px; border-radius:50%; background:var(--accent); flex:0 0 6px}
 .tab .x{
@@ -149,16 +154,71 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 .pdf-page canvas{display:block; width:100%; height:100%}
 
-/* 空の状態と読み込み中のメッセージ。 */
+/* 空の状態と読み込み中のメッセージ。器は画面を覆うが、クリックは通す。
+   中の最近使ったファイルだけが押せる（pointer-events を戻している）。 */
 .empty{
   margin:auto; padding:0 24px; text-align:center; line-height:1.9;
 }
 #view-empty{
-  position:absolute; inset:0; display:grid; place-items:center;
-  color:var(--surface); opacity:.85; pointer-events:none;
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:18px;
+  color:var(--surface); opacity:.9; pointer-events:none;
 }
 #view-empty[hidden]{display:none}
+#view-message{margin:0; text-align:center; line-height:1.9}
 #side .empty{color:var(--muted); font-size:12px}
+
+/* 最近使ったファイル（spec-1-2 確定事項9）。 */
+#view-recent{
+  pointer-events:auto; width:min(460px, 78%);
+  display:flex; flex-direction:column; gap:3px; text-align:left;
+}
+#view-recent[hidden]{display:none}
+.recent-head{
+  margin:0 0 4px; font-size:11.5px; letter-spacing:.04em; opacity:.8;
+}
+.recent-item{
+  display:flex; flex-direction:column; gap:1px; width:100%;
+  padding:7px 11px; border-radius:8px; text-align:left;
+  background:rgba(255,255,255,.10); cursor:pointer;
+}
+.recent-item:hover{background:rgba(255,255,255,.20)}
+.recent-name{font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.recent-path{font-size:11px; opacity:.72; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl}
+
+/* ドロップの受け入れ表示（spec-1-2 確定事項5）。 */
+#view-drop{
+  position:absolute; inset:0; display:grid; place-items:center;
+  background:rgba(47,111,235,.16); pointer-events:none; z-index:4;
+}
+#view-drop[hidden]{display:none}
+#view-drop .drop-frame{
+  display:flex; align-items:center; gap:10px;
+  padding:18px 26px; border-radius:var(--radius);
+  border:2px dashed var(--surface); background:rgba(16,24,40,.34);
+  color:var(--surface); font-size:14px;
+}
+
+/* 文書情報（spec-1-2 確定事項11）。 */
+#doc-info{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(560px, 88vw); max-height:82vh; overflow:auto;
+}
+#doc-info::backdrop{background:rgba(16,24,40,.34)}
+.dlg-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:11px 12px 11px 16px; border-bottom:1px solid var(--border);
+  font-weight:600; position:sticky; top:0; background:var(--surface);
+}
+.dlg-x{width:24px; height:24px; border-radius:6px; display:grid; place-items:center; color:var(--muted); cursor:pointer}
+.dlg-x:hover{background:var(--surface-2)}
+#doc-info-body{
+  margin:0; padding:14px 16px 18px;
+  display:grid; grid-template-columns:auto 1fr; gap:7px 16px; align-items:baseline;
+}
+#doc-info-body dt{color:var(--muted); font-size:12px; white-space:nowrap}
+#doc-info-body dd{margin:0; font-size:12.5px; overflow-wrap:anywhere; user-select:text}
 
 /* ステータスバー */
 #status{

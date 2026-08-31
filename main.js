@@ -19,6 +19,7 @@ const {
 const { createSettingsStore, clampWindowBounds } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
+const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 
 // app.whenReady() の中では手遅れになる。トップレベルで登録すること。
 // 遅れると app:// が不透明オリジンになり、CSP の 'self' が何も指さなくなる。
@@ -142,9 +143,30 @@ function showAboutDialog() {
 }
 
 // 開く経路はレンダラーに1本だけ持たせる。メニューはその引き金を引くだけにして、
-// ツールバーからの経路と分岐させない（spec-1-1 確定事項10）。
-function requestOpen() {
-  mainWindow?.webContents.send('pdf:openRequest');
+// ツールバーからの経路と分岐させない（spec-1-1 確定事項10・spec-1-2 確定事項18）。
+// パスを渡さなければレンダラーがダイアログを出す。
+function requestOpen(filePath = null) {
+  mainWindow?.webContents.send('pdf:openRequest', filePath);
+}
+
+function requestDocInfo() {
+  mainWindow?.webContents.send('pdf:docInfoRequest');
+}
+
+// 最近使ったファイルのサブメニュー（spec-1-2 確定事項9）。
+// 履歴が空のときは、押せない1項目を出す。項目ごと消すと、メニューの並びが
+// 履歴の有無で動いてしまい、狙って押せなくなる。
+function buildRecentSubmenu() {
+  const recent = normalizeList(settings.get().recent);
+  if (recent.length === 0)
+    return [{ label: '（履歴なし）', enabled: false }];
+
+  return recent.map((entry) => ({
+    // & はメニューでアクセスキーの指定として食われる。ファイル名に含まれ得るので潰す。
+    label: entry.name.replace(/&/g, '&&'),
+    toolTip: entry.path,
+    click: () => requestOpen(entry.path),
+  }));
 }
 
 // 実際に動く項目だけを並べる。動かない項目をメニューに出さない。
@@ -153,7 +175,10 @@ function buildAppMenu() {
     {
       label: 'ファイル',
       submenu: [
-        { label: '開く…', accelerator: 'CmdOrCtrl+O', click: requestOpen },
+        { label: '開く…', accelerator: 'CmdOrCtrl+O', click: () => requestOpen(null) },
+        { label: '最近使ったファイル', submenu: buildRecentSubmenu() },
+        { type: 'separator' },
+        { label: '文書情報…', accelerator: 'CmdOrCtrl+I', click: requestDocInfo },
         { type: 'separator' },
         { label: '終了', role: 'quit' },
       ],
@@ -192,6 +217,19 @@ function registerIpc() {
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
+
+  ipcMain.handle('recent:list', () => ({ ok: true, recent: normalizeList(settings.get().recent) }));
+  ipcMain.handle('recent:add', (_event, entry) => updateRecent(addRecent(settings.get().recent, entry)));
+  ipcMain.handle('recent:remove', (_event, filePath) => updateRecent(removeRecent(settings.get().recent, filePath)));
+}
+
+// 履歴が変われば、保存とメニューの作り直しを必ず同時に行う。片方だけ更新すると
+// メニューだけ古いまま残る。呼び出し側が忘れないよう、この1本にまとめる。
+function updateRecent(recent) {
+  settings.set({ recent });
+  settings.save();
+  buildAppMenu();
+  return { ok: true, recent: normalizeList(settings.get().recent) };
 }
 
 // SIGK_SMOKE=1 で起動すると、画面が読み込めたかを標準出力へ書いて終了する。
@@ -249,7 +287,7 @@ function installSmokeCheck(win) {
     const state = window.SigK.viewer.getState();
     const box = document.querySelector('.pdf-page')?.getBoundingClientRect() ?? null;
     const canvas = document.querySelector('.pdf-page canvas') ?? null;
-    const message = document.getElementById('view-empty');
+    const message = document.getElementById('view-message');
     return {
       opened,
       name: result.name,

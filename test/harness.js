@@ -51,33 +51,50 @@ function readClassicSources(document) {
 }
 
 // pdf.js の代わり。ページの寸法を返し、描画は即座に終わったことにする。
-function createPdfjsStub({ sizes = [A4, A4, A4], openError = null } = {}) {
+//
+// getDocument() は呼ばれるたびに別の文書を作る。タブは複数の文書を同時に
+// 抱えるため、1つを使い回すと「どのタブの文書が破棄されたか」を確かめられない。
+function createPdfjsStub({ sizes = [A4, A4, A4], openError = null, info = {} } = {}) {
   const rendered = [];
-  const document = {
-    numPages: sizes.length,
-    destroyed: false,
-    destroy() {
-      document.destroyed = true;
-    },
-    async getPage(number) {
-      const size = sizes[number - 1];
-      return {
-        getViewport: ({ scale }) => ({ width: size.width * scale, height: size.height * scale }),
-        render: () => {
-          rendered.push(number);
-          return { promise: Promise.resolve(), cancel: () => {} };
-        },
-      };
-    },
-  };
+  const documents = [];
+
+  function createDocument() {
+    const document = {
+      id: documents.length,
+      numPages: sizes.length,
+      destroyed: false,
+      destroy() {
+        document.destroyed = true;
+      },
+      async getMetadata() {
+        return { info, metadata: null };
+      },
+      async getPage(number) {
+        const size = sizes[number - 1];
+        return {
+          getViewport: ({ scale }) => ({ width: size.width * scale, height: size.height * scale }),
+          render: () => {
+            rendered.push(number);
+            return { promise: Promise.resolve(), cancel: () => {} };
+          },
+        };
+      },
+    };
+    documents.push(document);
+    return document;
+  }
 
   return {
     available: true,
     stub: true,
     rendered,
-    document,
+    documents,
+    // 最後に開いた文書。1文書しか扱わないテストのための近道。
+    get document() {
+      return documents.at(-1) ?? null;
+    },
     getDocument: () => ({
-      promise: openError === null ? Promise.resolve(document) : Promise.reject(openError),
+      promise: openError === null ? Promise.resolve(createDocument()) : Promise.reject(openError),
     }),
   };
 }
@@ -100,12 +117,35 @@ function applyViewport(window, viewport) {
   Object.defineProperty(view, 'clientHeight', { value: viewport.height, configurable: true });
 }
 
+// 読み込み結果を1つ作る。中身は使われないので、PDF の署名だけ入れておく。
+function makeSource({ path = 'C:\\work\\sample.pdf', name = null, size = 2048 } = {}) {
+  return {
+    ok: true,
+    path,
+    name: name ?? path.split(/[\\/]/).pop(),
+    size,
+    bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]),
+  };
+}
+
+// ドロップされた File の代わり。webUtils が返すはずのパスを持たせておく。
+function makeDroppedFile(name, filePath) {
+  return { name, __path: filePath ?? `C:\\work\\${name}` };
+}
+
+function makeDataTransfer(files, { types = ['Files'] } = {}) {
+  return { types, files, dropEffect: 'none' };
+}
+
 async function createShell({
   appInfo = DEFAULT_APP_INFO,
   withApis = true,
   viewport = DEFAULT_VIEWPORT,
   pdfjs = createPdfjsStub(),
   openResults = [],
+  recent = [],
+  // パス → 読み込み結果。pdfAPI.read(path) がここを引く。
+  files = {},
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -117,6 +157,9 @@ async function createShell({
   const { window } = dom;
   const logs = [];
   const openRequestHandlers = [];
+  const docInfoRequestHandlers = [];
+  const recentCalls = [];
+  let recentList = [...recent];
 
   if (withApis) {
     window.appInfoAPI = { available: true, get: async () => appInfo };
@@ -130,8 +173,27 @@ async function createShell({
     window.pdfAPI = {
       available: true,
       open: async () => openResults.shift() ?? { canceled: true },
-      read: async () => openResults.shift() ?? { error: '読み込み結果が用意されていません。' },
+      read: async (filePath) => files[filePath]
+        ?? openResults.shift()
+        ?? { error: '読み込み結果が用意されていません。' },
+      // 本物は webUtils.getPathForFile を呼ぶ。ここでは仕込んだパスを返す。
+      pathForFile: (file) => file?.__path ?? null,
       onOpenRequest: (callback) => openRequestHandlers.push(callback),
+      onDocInfoRequest: (callback) => docInfoRequestHandlers.push(callback),
+    };
+    window.recentAPI = {
+      available: true,
+      list: async () => ({ ok: true, recent: recentList }),
+      add: async (entry) => {
+        recentCalls.push({ kind: 'add', entry });
+        recentList = [entry, ...recentList.filter((e) => e.path !== entry.path)].slice(0, 10);
+        return { ok: true, recent: recentList };
+      },
+      remove: async (filePath) => {
+        recentCalls.push({ kind: 'remove', path: filePath });
+        recentList = recentList.filter((e) => e.path !== filePath);
+        return { ok: true, recent: recentList };
+      },
     };
   }
 
@@ -157,8 +219,12 @@ async function createShell({
     logs,
     sources,
     openResults,
-    // メニューの「開く」から届く合図を、テストから引く。
-    fireOpenRequest: () => openRequestHandlers.forEach((handler) => handler()),
+    recentCalls,
+    recentList: () => recentList,
+    // メニューの「開く」から届く合図を、テストから引く。パスを渡せば
+    // 「最近使ったファイル」から選んだのと同じ経路になる。
+    fireOpenRequest: (filePath) => openRequestHandlers.forEach((handler) => handler(filePath)),
+    fireDocInfoRequest: () => docInfoRequestHandlers.forEach((handler) => handler()),
     // スクロール後の描画は requestAnimationFrame で1フレーム遅れる。待つための口。
     flush: () => new Promise((resolve) => {
       window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
@@ -177,6 +243,9 @@ module.exports = {
   readScriptSources,
   readClassicSources,
   createPdfjsStub,
+  makeSource,
+  makeDroppedFile,
+  makeDataTransfer,
   waitForReady,
   applyViewport,
   createShell,

@@ -38,6 +38,11 @@
     fillIcons(doc);
     root.SigK.shell.init(doc);
     root.SigK.viewer.init(doc, win);
+    // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
+    root.SigK.docInfo.init(doc, win);
+    root.SigK.tabs.init(doc, win);
+    root.SigK.recentPanel.init(doc, win);
+    root.SigK.fileDrop.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
     showAppVersion(doc);
 
@@ -49,6 +54,10 @@
       viewer: root.SigK.viewer,
       viewerLayout: root.SigK.viewerLayout,
       viewerControls: root.SigK.viewerControls,
+      tabs: root.SigK.tabs,
+      docInfo: root.SigK.docInfo,
+      recentPanel: root.SigK.recentPanel,
+      fileDrop: root.SigK.fileDrop,
       fillIcons: () => fillIcons(doc),
     };
     return true;
