@@ -9,6 +9,7 @@
   "main": "main.js",
   "scripts": {
     "postinstall": "node scripts/vendor.js",
+    "notices": "node scripts/notices.js",
     "start": "electron .",
     "test": "node --test \"test/*.test.js\"",
     "pack": "electron-builder --dir",
@@ -40,6 +41,7 @@
       "assets/**",
       "vendor/**",
       "LICENSE",
+      "THIRD-PARTY-NOTICES.md",
       "package.json"
     ],
     "win": {
