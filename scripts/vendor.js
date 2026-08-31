@@ -3,6 +3,11 @@
 // 同梱ライブラリを node_modules から vendor/ へ複製する。
 // バンドラーを置かない方針のため、レンダラーは vendor/ 配下を app:// 経由で直接読む。
 // npm install の postinstall から実行される。
+//
+// 複製元は devDependencies に置いてある。実行時に node_modules から require する
+// ことはなく、あくまで vendor/ を作るための材料だからである。dependencies に
+// 置くと electron-builder が node_modules を丸ごと同梱し、pdfjs-dist が引き込む
+// ネイティブモジュールまで配布物に入って100MB以上膨らむ。
 
 const fs = require('node:fs');
 const path = require('node:path');
