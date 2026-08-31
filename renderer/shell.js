@@ -36,13 +36,22 @@
     if (actions !== null)
       actions.hidden = mode !== 'pages';
 
+    // サムネイルは閲覧モードのときだけ出す（spec-1-3 確定事項1）。
+    // ほかのモードでは従来のプレースホルダーへ戻す。
+    root.SigK.thumbnails?.refresh();
+
     return true;
   }
 
   // サイドパネルの開閉と幅はページビューの幅を変える。「幅に合わせる」で
   // 表示しているときは倍率を計算し直さないと、紙がはみ出したまま残る。
+  //
+  // サムネイルも同じ合図で追従する。紙の幅はパネルの実幅から決まるので、
+  // 幅が変われば作り直しが要る（spec-1-3 確定事項15）。畳んだときに捨てるのも
+  // ここを通る（確定事項14）。
   function notifyViewportChanged() {
     root.SigK.viewer?.refit();
+    root.SigK.thumbnails?.refresh();
   }
 
   function setSidePanelOpen(doc, open) {

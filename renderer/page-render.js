@@ -25,10 +25,6 @@
       return root.SigK.viewerLayout;
     }
 
-    function controls() {
-      return root.SigK.viewerControls;
-    }
-
     // jsdom には 2D コンテキストが無い（canvas パッケージを入れていないため）。
     // getContext を呼ぶと「Not implemented」がコンソールに出るので、呼ぶ前に確かめる。
     function canDrawCanvas() {
@@ -151,7 +147,7 @@
 
       if (current !== state.current) {
         state.current = current;
-        controls()?.syncPage(el.doc, ctx.getState());
+        ctx.syncPage();
       }
 
       const targets = layout().renderTargets({

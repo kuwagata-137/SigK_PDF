@@ -90,7 +90,8 @@ body{
         <span class="collapse" id="side-collapse" data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを閉じる"></span>
       </div>
       <div class="side-scroll" id="side-scroll">
-        <p class="empty">文書を開くと<br>ページの一覧が出ます</p>
+        <div class="thumbs1" id="thumbs" hidden></div>
+        <p class="empty" id="thumbs-empty">文書を開くと<br>ページの一覧が出ます</p>
       </div>
       <div class="side-actions" id="side-actions" hidden>
         <div class="act" aria-disabled="true"><span data-icon="rotateLeft" data-icon-size="14" data-icon-stroke="1.9"></span>左回転</div>
@@ -150,6 +151,7 @@ body{
 <script src="renderer/page-render.js"></script>
 <script src="renderer/view-banner.js"></script>
 <script src="renderer/viewer.js"></script>
+<script src="renderer/thumbnails.js"></script>
 <script src="renderer/doc-info.js"></script>
 <script src="renderer/tabs.js"></script>
 <script src="renderer/recent-panel.js"></script>

@@ -41,6 +41,7 @@
     el: () => el,
     report: (error, context) => report(error, context),
     getState: () => getState(),
+    syncPage: () => syncPage(),
   });
 
   function layout() {
@@ -49,6 +50,13 @@
 
   function controls() {
     return root.SigK.viewerControls;
+  }
+
+  // 現在ページが変わったことを、それを映しているものへ伝える。ツールバーの
+  // ページ番号と、サムネイルの枠が同じ合図で動く（spec-1-3 確定事項6・11）。
+  function syncPage() {
+    controls()?.syncPage(el.doc, getState());
+    root.SigK.thumbnails?.setCurrent(state.current);
   }
 
   function getState() {
@@ -185,7 +193,7 @@
     const target = Math.min(state.sizes.length - 1, Math.max(0, index));
     el.view.scrollTop = layout().scrollTopForPage({ pages: state.layout.pages, index: target });
     state.current = target;
-    controls()?.syncPage(el.doc, getState());
+    syncPage();
     render.scheduleUpdate();
     return target;
   }
@@ -205,6 +213,7 @@
     state.current = 0;
     el.pageNodes = [];
     el.pages.replaceChildren();
+    root.SigK.thumbnails?.clear();
     setDocumentOpen(false);
     setMessage(EMPTY_MESSAGE);
     root.SigK.shell.setStatus(el.doc, { file: '文書なし', pages: '–', size: '–' });
@@ -222,6 +231,9 @@
       fit: state.fit,
       current: state.current,
       scrollTop: el.view.scrollTop,
+      // canvas は持ち越さない。持ち越すのは見ていた場所だけである
+      // （spec-1-3 確定事項13）。
+      thumbScrollTop: root.SigK.thumbnails?.getScrollTop() ?? 0,
     };
     resetView();
     return session;
@@ -249,6 +261,12 @@
     buildPages();
     setDocumentOpen(true);
     applyLayout();
+    root.SigK.thumbnails?.setDocument({
+      doc: state.doc,
+      sizes: state.sizes,
+      current: state.current,
+      scrollTop: session.thumbScrollTop ?? 0,
+    });
     el.view.scrollTop = session.scrollTop ?? 0;
     root.SigK.shell.setStatus(el.doc, {
       file: session.file.name,
@@ -328,6 +346,7 @@
 
       buildPages();
       setDocumentOpen(true);
+      root.SigK.thumbnails?.setDocument({ doc, sizes, current: 0, scrollTop: 0 });
       // ここで一度置いておく。applyFit の中の setZoom は倍率が変わったときしか
       // 配置し直さないため、2つ目の文書が1つ目と同じ倍率になると（同じ紙の
       // 大きさなら普通に起こる）ページの位置と寸法が空のまま残ってしまう。
