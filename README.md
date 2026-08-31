@@ -2,10 +2,12 @@
 
 PDF の閲覧・ページ操作・結合・分割・変換・注釈を、1つの画面で行う Windows デスクトップアプリケーション。
 
-**現在の状態: Phase 0（土台）まで実装済み。PDF を扱う機能はこれから。**
+**現在の状態: Phase 1「閲覧とページ操作」の途中。PDF を開いて読めるところまで動く。**
 
-空のウィンドウが `app://` から読み込まれ、テストと CI が回り、NSIS インストーラーを
-生成できるところまでできている。PDF の表示は Phase 1 で作る（`docs/05_開発ロードマップ.md`）。
+PDF をダイアログ・ドラッグ＆ドロップ・最近使ったファイルから開き、タブで並べて、
+連続スクロール・ズーム・ページ移動で読める。文書情報も見られる。
+サムネイル・検索・テキスト選択・印刷・ページ編集・保存はこれから
+（`docs/05_開発ロードマップ.md` Phase 1 の塊③以降）。
 
 ```bash
 npm install && npm test && npm start
@@ -64,6 +66,15 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/04_UI設計.md`](docs/04_UI設計.md) | 画面構成、モード、デザイントークン、キーボード操作 |
 | [`docs/05_開発ロードマップ.md`](docs/05_開発ロードマップ.md) | Phase 0〜6 の作業とその順序 |
 | [`docs/06_ライセンス・商標チェックリスト.md`](docs/06_ライセンス・商標チェックリスト.md) | リリース前に通す確認項目 |
+| [`docs/07_開発計画の決定事項.md`](docs/07_開発計画の決定事項.md) | 着手前に固めた決定と、その後の訂正の記録 |
+
+各フェーズの仕様書。着手前に書き、確定させてから実装に入る。
+
+| ファイル | 内容 |
+|---|---|
+| [`docs/spec-0-foundation.md`](docs/spec-0-foundation.md) | Phase 0 土台 |
+| [`docs/spec-1-1-viewer.md`](docs/spec-1-1-viewer.md) | Phase 1 塊① 表示の最小 |
+| [`docs/spec-1-2-tabs.md`](docs/spec-1-2-tabs.md) | Phase 1 塊② 入出力とタブ |
 
 開発の進め方（着手前の仕様確定、PR・マージの承認ゲート、ブランチ運用）は [`.claude/CLAUDE.md`](.claude/CLAUDE.md) に定める。
 
@@ -71,7 +82,8 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 
 MIT License。[`LICENSE`](LICENSE) を参照。
 
-同梱する OSS のライセンスは、実装着手後に `THIRD-PARTY-NOTICES.md` へ集約する。
+同梱する OSS のライセンスは [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) に集約する。
+`npm run notices` が `node_modules` の実物から生成する。
 
 ## 商標について
 
