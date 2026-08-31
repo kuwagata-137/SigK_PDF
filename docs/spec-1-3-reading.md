@@ -1,6 +1,6 @@
 # 仕様書: Phase 1 塊③-a サムネイルとテキスト
 
-- ステータス: **草案**（2026-08-31 起草。確定前）
+- ステータス: **確定**（2026-08-31 起草／2026-09-01 確定。確定事項35件をそのまま実装する）
 - 関連: `docs/05_開発ロードマップ.md` Phase 1 塊③-a ／ `docs/spec-1-1-viewer.md` ／ `docs/spec-1-2-tabs.md` ／ `docs/04_UI設計.md` 第4-1章・第10章
 - 対応要件: F-01-4（サムネイル一覧）／F-01-6（テキスト選択・コピー）
 - 実装: `renderer/viewer-layout.js`・`renderer/page-render.js`・`renderer/text-layer.js`・`renderer/text-layer.css`・`renderer/thumbnails.js`・`renderer/viewer.js`・`renderer/tabs.js`・`renderer/shell.js`・`index.html`・`renderer/shell.css`
@@ -94,7 +94,7 @@
 | 32 | 経路 | preload に `settingsAPI`（`getUi()` / `setUi(patch)`）を足し、IPC は `settings:getUi` / `settings:setUi` の2本。`sandbox: true` のため、`fs` に触るのはメインだけ（`docs/02` 第6章） |
 | 33 | 何を覚えるか | モード（`view`/`pages`/`annot`/`tools`）、サイドパネルの開閉、サイドパネルの幅の3つ。**サムネイルのスクロール位置は覚えない**（タブごとの一時的な状態であり、`settings.json` に置くものではない） |
 | 34 | 書き込みの頻度 | 幅のドラッグ中に毎回書かない。**ドラッグが終わった時点で1回**。`settings.js` はアトミック書き込み（一時ファイル＋rename）なので、毎フレーム呼ぶとディスクを叩き続ける |
-| 35 | この項目は切り離せる | A・B・C とは独立している。**分量や検証の都合で外す判断があってよい。**外す場合は `docs/07` 第6章の積み残しに戻す |
+| 35 | この項目は切り離せる | A・B・C とは独立しており、分量の都合で外す判断があり得た。**2026-09-01 の確認で「塊③-a に含める」と決まった**ので外さない |
 
 ---
 
@@ -160,4 +160,4 @@
 | サムネイル canvas の上限24 | 実測に基づかない初期値（確定事項6）。常用して見直す |
 | 現在ページの自動追従が人の操作を奪う件 | 塊③-a では受け入れる（確定事項12）。煩わしければ抑制を足す |
 | 見開き表示（F-01-1 後半） | `docs/07` 第6章のまま。Phase 1 完了時に決める。`layoutPages` に後から足せる形は保つ |
-| `window.__test__` の扱い | `docs/07` 第6章のまま。本書では触らない |
+| ~~`window.__test__` の扱い~~ | **解決済み。**2026-09-01 の確認で「削って文書を実態へ合わせる」と決まった。`renderer/app.js` の定義を消し、`docs/02` 第8章・`.claude/CLAUDE.md` 付則A の「`window.__test__` 経由」を「`test/harness.js` 経由の `window.SigK`」へ書き換える。塊③-a の作業に含める |
