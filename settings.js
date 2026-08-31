@@ -147,7 +147,8 @@ function createSettingsStore({ dir, fileName = 'settings.json', onError = () => 
     }
 
     try {
-      current = mergeDefaults(JSON.parse(text));
+      // メモ帳などで手編集すると BOM が付くことがある。JSON.parse は BOM で落ちる。
+      current = mergeDefaults(JSON.parse(text.replace(/^﻿/, '')));
     } catch {
       onError({
         level: 'warn',

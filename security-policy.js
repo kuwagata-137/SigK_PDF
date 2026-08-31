@@ -43,6 +43,15 @@ const CSP_DIRECTIVES = [
 ];
 const CSP_STRING = CSP_DIRECTIVES.join('; ');
 
+// frame-ancestors は <meta> で配ると仕様上無視され、Chromium が警告を出す。
+// <meta> 側だけこれを外す。効かない指令を書いて警告を残すより、
+// ヘッダで確実に効かせ、meta では効く指令だけを二重化するほうがよい。
+const META_IGNORED_DIRECTIVES = ['frame-ancestors'];
+const CSP_META_DIRECTIVES = CSP_DIRECTIVES.filter(
+  (line) => !META_IGNORED_DIRECTIVES.some((name) => line.startsWith(`${name} `)),
+);
+const CSP_META_STRING = CSP_META_DIRECTIVES.join('; ');
+
 const DEFAULT_WINDOW = { width: 1280, height: 800 };
 const MIN_WINDOW = { width: 960, height: 600 };
 
@@ -155,6 +164,9 @@ module.exports = {
   PRIVILEGED_SCHEME,
   CSP_DIRECTIVES,
   CSP_STRING,
+  META_IGNORED_DIRECTIVES,
+  CSP_META_DIRECTIVES,
+  CSP_META_STRING,
   DEFAULT_WINDOW,
   MIN_WINDOW,
   buildWebPreferences,

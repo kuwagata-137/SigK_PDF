@@ -133,6 +133,20 @@ test('保存した設定は次のストアで読み戻せる', () => {
   assert.equal(loaded.window.maximized, true);
 });
 
+test('BOM 付きで保存された設定も読める', () => {
+  const dir = makeTempDir();
+  const content = `﻿${JSON.stringify({ mode: 'pages', sidePanel: { open: false, width: 300 } })}`;
+  fs.writeFileSync(path.join(dir, 'settings.json'), content, 'utf8');
+  const reported = [];
+  const store = createSettingsStore({ dir, onError: (entry) => reported.push(entry) });
+
+  const loaded = store.load();
+
+  assert.equal(loaded.mode, 'pages');
+  assert.equal(loaded.sidePanel.open, false);
+  assert.deepEqual(reported, [], 'BOM を壊れたファイルとして扱ってはいけない');
+});
+
 test('壊れた JSON では例外を投げず、既定値で起動して onError を呼ぶ', () => {
   const dir = makeTempDir();
   fs.writeFileSync(path.join(dir, 'settings.json'), '{ this is not json', 'utf8');
