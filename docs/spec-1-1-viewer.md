@@ -81,8 +81,23 @@ fixture は `test/fixtures/build.js` が pdf-lib で生成する（`docs/07` 決
 
 ## 完了の判定
 
-- [ ] `npm install` で `vendor/wasm/` と `vendor/iccs/` が揃い、`quickjs-eval` が入っていない
-- [ ] `npm test` が緑
-- [ ] `npm start` で fixture の PDF を開き、連続スクロール・ズーム・ページ移動が動く
-- [ ] `SIGK_SMOKE=1` の出力でコンソールエラーが0件（CSP 違反はここに出る）
-- [ ] `npm run dist` で NSIS インストーラーが生成される
+- [x] `npm install` で `vendor/wasm/` と `vendor/iccs/` が揃い、`quickjs-eval` が入っていない（配布物の asar でも確認）
+- [x] `npm test` が緑（124件）
+- [x] `npm start` で fixture の PDF を開き、連続スクロール・ズーム・ページ移動が動く
+- [x] `SIGK_SMOKE=1` の出力でコンソールエラーが0件（CSP 違反はここに出る）
+- [x] `npm run dist` で NSIS インストーラーが生成される
+
+### 実測（2026-08-31。1280×800・`SIGK_SMOKE_PDF` 付きの `npm start`）
+
+| 見たもの | 結果 |
+|---|---|
+| `WebAssembly.compile` | `ok`。`'wasm-unsafe-eval'` が効いている。この語が無いと拒否されるため、CSP の変更を直接確かめられる |
+| ページビューの内寸 | 950px（`scrollbar-gutter: stable` により、文書の有無で変わらない） |
+| 幅に合わせた倍率 | 1.118。紙の幅 887px ＋ 左右の余白 24px×2 = 935px = `clientWidth` と一致 |
+| 紙の位置 | 上端がビューの 18px 下（`PAGE_MARGIN`）、左端が 24px 右（`SIDE_MARGIN`）。純関数の計算と一致 |
+| 40ページの文書 | 開いた直後の canvas は2枚。20ページ目へ飛ぶと `[17,18,19,20]` の4枚に入れ替わり、1ページ目の canvas は捨てられた |
+| 90 度回転したページ | `getViewport` が回転を含んだ寸法を返し、幅の広いページに合わせて器が広がった。縦のページはその中で中央に寄った |
+| コンソールのエラー | 0件（4つの検証用 PDF すべて） |
+
+pdf.js の描画そのもの（canvas に何が描かれたか）は jsdom では確かめられない。
+`npm start` のスクリーンショット（`screenshots/phase1-viewer.png`）で担保する。
