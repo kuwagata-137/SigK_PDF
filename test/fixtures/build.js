@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { PDFDocument, StandardFonts, degrees, rgb } = require('pdf-lib');
+const { buildEncryptedPdf } = require('./standard-security.js');
 
 const OUTPUT_DIR = __dirname;
 
@@ -111,10 +112,30 @@ async function buildOne(spec) {
   return { file: spec.file, bytes: bytes.length };
 }
 
+// pdf-lib で作れないもの。バイト列を直に組む（spec-1-6 事前調査 D）。
+//
+//   encrypted.pdf … パスワード付き（ユーザー user1 ／ オーナー owner1）。
+//                   開くときに聞かれること、正しいパスワードで開けること、
+//                   そして保存を断ることを試す。
+//   broken.pdf    … 途中で切れた PDF。開こうとして落ちず、人が読める
+//                   文言になることを試す。**保存の経路の検体ではない**。
+//                   pdf.js も pdf-lib も等しく開けないため、この文書は
+//                   そもそもタブにならない（実測で5通り試して確認した）。
+const HANDMADE = {
+  'encrypted.pdf': () => buildEncryptedPdf(),
+  'broken.pdf': () => fs.readFileSync(fixturePath('three-pages.pdf')).subarray(0, 400),
+};
+
 async function build() {
   const built = [];
   for (const spec of FIXTURES)
     built.push(await buildOne(spec));
+  // three-pages.pdf を切って作るものがあるので、必ず後に回す。
+  for (const [file, make] of Object.entries(HANDMADE)) {
+    const bytes = make();
+    fs.writeFileSync(fixturePath(file), bytes);
+    built.push({ file, bytes: bytes.length });
+  }
   return built;
 }
 

@@ -118,6 +118,31 @@ pdf-lib は暗号化した文書を `load(bytes, { ignoreEncryption: true })` �
 つまり `ignoreEncryption` を使った保存は**黙ってファイルを壊す**。
 **暗号化 PDF は「開けるが保存できない文書」として扱う**（確定事項12）。
 
+### F. 「閲覧はできるが保存だけできない文書」は本当にあるか
+
+`docs/spec-1-5` の申し送りは「pdf.js で開けて pdf-lib で開けない文書がある」としていた。
+どういう検体を用意すればよいかを確かめるため、`three-pages.pdf` を5通りに壊して
+両方に読ませた。
+
+| 壊し方 | pdf-lib | pdf.js |
+|---|---|---|
+| 末尾を切る（400B） | `Failed to parse PDF document` | `InvalidPDFException: Invalid PDF structure.` |
+| 末尾を切る（半分） | `Failed to parse PDF document` | `InvalidPDFException: Invalid PDF structure.` |
+| `startxref` の値を壊す | `TypeError: Cannot read properties of undefined` | `InvalidPDFException: Invalid Root reference.` |
+| xref 表ごと消す | `TypeError: Cannot read properties of undefined` | `InvalidPDFException: Invalid Root reference.` |
+| オブジェクト参照を壊す | `TypeError: Cannot read properties of undefined` | `InvalidPDFException: Invalid Root reference.` |
+
+**5通りとも両方が失敗した。**単純に壊した PDF では、pdf.js だけが開ける状態は作れない。
+つまり**壊れた PDF はそもそもタブにならず、保存の経路に到達しない**。
+
+申し送りが指していた素の `TypeError`（`Cannot read properties of undefined (reading 'Pages')`）は
+再現できたので、**ワーカー側で例外の型を選ばずに握る**必要はある。ただしそれは
+「開けた文書が保存だけできない」ための備えではなく、**予期しない入力に対する防具**である。
+
+**実際に「閲覧できて保存できない」のは暗号化 PDF である**（実測E）。こちらは pdf.js が
+パスワードを聞いて開き、pdf-lib は `load` を断る。確定事項11 と12 の重みが逆で、
+**12 が主・11 が従**である。
+
 ---
 
 ## 塊⑤ は割らず、1本の PR で仕上げる
@@ -154,7 +179,7 @@ pdf-lib は暗号化した文書を `load(bytes, { ignoreEncryption: true })` �
 
 | # | 論点 | 決定 |
 |---|------|------|
-| 11 | pdf-lib で開けない文書 | **「閲覧はできるが保存だけできない」**として扱う。保存を押した時点で帯に理由を出す。`Failed to parse invalid PDF obj` のような素の文言は出さず、「この PDF は内容が壊れているため保存できません。」に翻訳する |
+| 11 | pdf-lib で開けない文書 | **防具として置く**（実測F）。単純に壊れた PDF は pdf.js も開けないため、**タブにならず保存の経路へ来ない**。それでも想定外の入力でワーカーが素の `TypeError` を投げることはあるので、例外の型を選ばずに握り、「この PDF は内容が壊れているため保存できません。」に翻訳する。素の文言は表に出さない |
 | 12 | **暗号化 PDF** | **保存を断る**（実測E）。`ignoreEncryption` で保存するとファイルが壊れるため、**成功したように見せてはならない**。文言は「パスワードで保護された PDF は保存できません。」。閲覧・印刷は従来どおりできる |
 | 13 | いつ判定するか | **保存を押したとき**（開いたときではない）。開く経路に pdf-lib の読み込みを足すと、開くのが 328ms（1,000ページ）遅くなるうえ、保存しない文書にも払わせることになる |
 | 14 | 0ページの保存 | 起き得ない。塊④ が最後の1枚を消せないようにしてある（`spec-1-5` 確定事項41）。念のためワーカー側でも `pages.length === 0` を断る |
