@@ -145,6 +145,10 @@ html[data-panel="collapsed"] #side{display:none}
 .thumb:hover .sheet{border-color:var(--primary)}
 .thumb.current{border-color:var(--accent); background:var(--select)}
 .thumb.current .cap{color:var(--accent)}
+/* ページモードの選択（spec-1-5 確定事項22）。現在ページの .current とは
+   別に持ち、両方付くことがある。選ばれた紙は番号を濃くして見分ける。 */
+.thumb.selected{border-color:var(--accent); background:var(--select)}
+.thumb.selected .cap{color:var(--accent); font-weight:600}
 .side-actions[hidden]{display:none}
 .side-actions{
   flex:0 0 auto; border-top:1px solid var(--border); padding:8px 10px;

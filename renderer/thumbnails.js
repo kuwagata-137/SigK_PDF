@@ -135,6 +135,9 @@
     el.list.hidden = nodes.length === 0;
     el.empty.hidden = nodes.length > 0;
     markCurrent();
+    // 枠を作り直すと選択の印も消える。付け直すのはページモードの担当である
+    // （spec-1-5 確定事項22）。
+    root.SigK.pageGrid?.syncMarks();
   }
 
   // 枠ごと捨てる。畳んでいるとき・閲覧モード以外・文書が無いときの姿へ戻す。
@@ -388,8 +391,13 @@
     if (node === null || node === undefined)
       return;
     const index = Number(node.dataset.page) - 1;
-    if (Number.isInteger(index))
-      root.SigK.viewer?.goToPage(index);
+    if (!Number.isInteger(index))
+      return;
+    // ページモードではクリックが選択の操作になる（spec-1-5 確定事項15〜17）。
+    // 閲覧モードのサイドパネルは地図のままで、選択の概念を持ち込まない。
+    if (root.SigK.pageGrid?.handleClick(index, event) === true)
+      return;
+    root.SigK.viewer?.goToPage(index);
   }
 
   function init(doc, win) {

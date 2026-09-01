@@ -314,8 +314,9 @@
     el.pageNodes = [];
     el.pages.replaceChildren();
     root.SigK.thumbnails?.clear();
-    // 検索の状態は文書に属する。持ち越すぶんは detach() が先に控えている。
+    // 検索の状態も選択も文書に属する。持ち越すぶんは detach() が先に控えている。
     root.SigK.find?.clear();
+    root.SigK.pageGrid?.clearSelection();
     setDocumentOpen(false);
     setMessage(EMPTY_MESSAGE);
     root.SigK.shell.setStatus(el.doc, { file: '文書なし', pages: '–', size: '–' });
@@ -342,6 +343,8 @@
       // 検索語・取り出した本文・ヒット一覧はタブごとに持つ（spec-1-4 確定事項
       // 3・27）。canvas と違って軽く、タブを戻すたびに読み直す理由がない。
       find: root.SigK.find?.capture() ?? null,
+      // 選択もタブごとである（spec-1-5 確定事項11・14）。
+      grid: root.SigK.pageGrid?.capture() ?? null,
     };
     resetView();
     return session;
@@ -380,6 +383,8 @@
     });
     el.view.scrollTop = session.scrollTop ?? 0;
     root.SigK.find?.restore(session.find);
+    // 枠が並んだあとで印を付け直す。順番を逆にすると付ける先が無い。
+    root.SigK.pageGrid?.restore(session.grid);
     root.SigK.shell.setStatus(el.doc, {
       file: session.file.name,
       pages: `${state.sizes.length} ページ`,
