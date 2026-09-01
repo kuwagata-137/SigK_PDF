@@ -148,6 +148,44 @@ test('アイコンはすべて描画され、空の入れ物が残らない', as
   }
 });
 
+// 塊③-b で足した2つ（spec-1-4 F）。検索の「前へ」と印刷である。
+test('検索と印刷のアイコンが描かれる', async (t) => {
+  const { document, SigK } = await withShell(t);
+
+  for (const name of ['chevronUp', 'print'])
+    assert.ok(SigK.icons.has(name), `${name} が定義されていない`);
+  assert.notEqual(document.querySelector('#find-prev svg'), null, '「前へ」のアイコンが出ていない');
+  assert.notEqual(document.querySelector('#btn-print svg'), null, '印刷のアイコンが出ていない');
+});
+
+test('検索バーと印刷ダイアログの部品が揃っている', async (t) => {
+  const { document } = await withShell(t);
+
+  // 検索バーは #view の「外」に置く。中に置くと読み進めた分だけ流れる
+  // （spec-1-4 確定事項22）。
+  const bar = document.getElementById('find-bar');
+  assert.notEqual(bar, null);
+  assert.equal(bar.parentNode.id, 'view-wrap');
+  assert.equal(bar.hidden, true, '起動直後は閉じている');
+  for (const id of ['find-input', 'find-count', 'find-case', 'find-prev', 'find-next', 'find-close'])
+    assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
+
+  for (const id of ['print-dialog', 'print-area', 'print-mode-all', 'print-mode-current',
+    'print-mode-custom', 'print-pages', 'print-error', 'print-progress', 'print-bar',
+    'print-run', 'print-cancel'])
+    assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
+
+  // 印刷用のコンテナは #app の外に置く。@media print で #app ごと隠すため。
+  assert.equal(document.getElementById('print-area').parentNode.tagName, 'BODY');
+});
+
+test('検索と印刷のレンダラーが index.html から読み込まれる', async (t) => {
+  const { sources } = await withShell(t);
+
+  for (const src of ['renderer/find-text.js', 'renderer/find.js', 'renderer/find-bar.js', 'renderer/print.js'])
+    assert.ok(sources.includes(src), `${src} が index.html から読まれていない`);
+});
+
 test('未定義のアイコンを要求すると落ちる', async (t) => {
   const { document, SigK } = await withShell(t);
 

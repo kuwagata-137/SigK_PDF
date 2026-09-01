@@ -227,6 +227,27 @@ function registerIpc() {
     return { ok: true, ui: pickUi(settings.get()) };
   });
 
+  // 印刷（spec-1-4 確定事項28〜30）。レンダラーが印刷用のコンテナへ画像を
+  // 並べ終えてから呼ぶ。silent: false が OS の印刷ダイアログを出す経路である。
+  // 取り消しは失敗ではないので、理由を見て分けて返す。
+  ipcMain.handle('print:run', (event, options = {}) => new Promise((resolve) => {
+    const contents = event.sender;
+    const settingsForPrint = {
+      silent: options?.silent === true,
+      printBackground: true,
+      deviceName: typeof options?.deviceName === 'string' ? options.deviceName : undefined,
+    };
+    try {
+      contents.print(settingsForPrint, (success, reason) => {
+        const canceled = success !== true && /cancel/i.test(String(reason ?? ''));
+        resolve({ ok: success === true, canceled, reason: success === true ? null : String(reason ?? '') });
+      });
+    } catch (err) {
+      logError({ message: '印刷に失敗しました', stack: err.stack, context: { where: 'print:run' } });
+      resolve({ ok: false, canceled: false, reason: err.message });
+    }
+  }));
+
   ipcMain.handle('recent:list', () => ({ ok: true, recent: normalizeList(settings.get().recent) }));
   ipcMain.handle('recent:add', (_event, entry) => updateRecent(addRecent(settings.get().recent, entry)));
   ipcMain.handle('recent:remove', (_event, filePath) => updateRecent(removeRecent(settings.get().recent, filePath)));
@@ -244,8 +265,41 @@ function updateRecent(recent) {
 // SIGK_SMOKE=1 で起動すると、画面が読み込めたかを標準出力へ書いて終了する。
 // 人が窓を見なくても「app:// から読み込まれ、コンソールにエラーが無い」ことを
 // 確かめられるようにするためで、CI からも同じ判定ができる。
+// SIGK_SMOKE_DISPLAY=<番号|secondary> を付けると、起動確認のウィンドウを
+// そのディスプレイの中央へ寄せる。確認のたびに作業中の画面へ窓が出てくるのを
+// 避けるためである。
+//
+// 移した位置は settings.json にそのまま残り、次からは通常の起動もその
+// ディスプレイに出る（ユーザー判断 2026-09-01）。戻したいときは窓を動かして
+// 閉じれば、その位置が覚え直される。
+function displayWorkArea(spec) {
+  const displays = screen.getAllDisplays();
+  const primaryId = screen.getPrimaryDisplay().id;
+  if (spec === 'secondary')
+    return (displays.find((display) => display.id !== primaryId) ?? displays[0]).workArea;
+  return (displays[Number(spec)] ?? displays[0]).workArea;
+}
+
+function moveToDisplay(win, spec) {
+  const area = displayWorkArea(spec);
+  const size = win.getBounds();
+  const width = Math.min(size.width, area.width);
+  const height = Math.min(size.height, area.height);
+  win.setBounds({
+    x: area.x + Math.round((area.width - width) / 2),
+    y: area.y + Math.round((area.height - height) / 2),
+    width,
+    height,
+  });
+}
+
 function installSmokeCheck(win) {
   const problems = [];
+  if (process.env.SIGK_SMOKE_DISPLAY) {
+    if (win.isMaximized())
+      win.unmaximize();
+    moveToDisplay(win, process.env.SIGK_SMOKE_DISPLAY);
+  }
   win.webContents.on('console-message', (event) => {
     if (event.level === 'error')
       problems.push(`console: ${event.message}`);
@@ -489,6 +543,144 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_FIND=<語> を付けると、検索の実測を出す（spec-1-4 の完了判定）。
+  // ヒット数・現在位置・ハイライトの数と緑の位置は jsdom でも見られるが、
+  // 全ページのテキスト取り出しにかかる時間と検索バーの実寸はここでしか測れない。
+  // SIGK_SMOKE_PDF と一緒に使う。
+  const findScript = (term) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const until = async (check, limit = 8000) => {
+      for (let waited = 0; waited < limit; waited += 100) {
+        if (check())
+          return true;
+        await wait(100);
+      }
+      return false;
+    };
+    const round = (rect) => rect === null ? null : {
+      x: Math.round(rect.x), y: Math.round(rect.y),
+      w: Math.round(rect.width), h: Math.round(rect.height),
+    };
+    const boxOf = (selector) => {
+      const node = document.querySelector(selector);
+      return node === null ? null : round(node.getBoundingClientRect());
+    };
+
+    const layerReady = await until(() => document.querySelector('.pdf-page .textLayer') !== null);
+    window.SigK.findBar.open();
+    // 人が打ったときと同じ見た目にする（画面写真のため）。探すのは下で直接呼ぶ。
+    document.getElementById('find-input').value = ${JSON.stringify(term)};
+
+    // 1回目は全ページのテキスト取り出しを含む。2回目は取り出し済みなので、
+    // 差が取り出しにかかった時間の目安になる（確定事項2 の根拠）。
+    const t0 = performance.now();
+    const first = await window.SigK.find.run(${JSON.stringify(term)}, { matchCase: false });
+    const firstMs = Math.round(performance.now() - t0);
+    const t1 = performance.now();
+    await window.SigK.find.run(${JSON.stringify(term)} + ' ', { matchCase: false });
+    const warmMs = Math.round(performance.now() - t1);
+    await window.SigK.find.run(${JSON.stringify(term)}, { matchCase: false });
+    await wait(600);
+
+    const pages = window.SigK.find.getPages() || [];
+    const chars = pages.reduce((sum, items) => sum + items.join('').length, 0);
+    const afterNext = window.SigK.find.step(1);
+    await wait(400);
+    const afterPrev = window.SigK.find.step(-1);
+    await wait(400);
+
+    return {
+      layerReady,
+      term: ${JSON.stringify(term)},
+      total: first.total,
+      current: first.current,
+      page: first.page,
+      textPages: pages.length,
+      textChars: chars,
+      // 取り出し込みの1回目と、取り出し済みの2回目。
+      firstMs,
+      warmMs,
+      extractMs: firstMs - warmMs,
+      highlights: document.querySelectorAll('.textLayer .highlight').length,
+      selectedCount: document.querySelectorAll('.textLayer .highlight.selected').length,
+      selectedText: (document.querySelector('.textLayer .highlight.selected') || {}).textContent || null,
+      selectedBox: boxOf('.textLayer .highlight.selected'),
+      afterNext: { current: afterNext.current, page: afterNext.page },
+      afterPrev: { current: afterPrev.current, page: afterPrev.page },
+      countText: document.getElementById('find-count').textContent,
+      barBox: boxOf('#find-bar'),
+      barHidden: document.getElementById('find-bar').hidden,
+    };
+  })()`;
+
+  // SIGK_SMOKE_PRINT=<範囲> を付けると、印刷の準備までを実測する。
+  // 「all」「current」はそのまま、それ以外は「ページ指定」の文字列として渡す。
+  // 印刷ダイアログ自体は自動化できないので、OS へ送る手前までを確かめる
+  // （spec-1-4 の完了判定）。
+  const printScript = (spec) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const round = (rect) => rect === null ? null : {
+      w: Math.round(rect.width), h: Math.round(rect.height),
+    };
+    const spec = ${JSON.stringify(spec)};
+    const mode = (spec === 'all' || spec === 'current') ? spec : 'custom';
+
+    window.SigK.print.open();
+    await wait(200);
+    const dialogBox = round(document.getElementById('print-dialog').getBoundingClientRect());
+
+    const t0 = performance.now();
+    const result = await window.SigK.print.prepare({ mode, text: spec });
+    const elapsedMs = Math.round(performance.now() - t0);
+    const imgs = [...document.querySelectorAll('#print-area img')];
+    const measured = {
+      mode,
+      spec,
+      error: result.error || null,
+      pageCount: (result.pages || []).length,
+      pages: (result.pages || []).slice(0, 12),
+      placed: result.placed || 0,
+      imgCount: imgs.length,
+      firstImage: result.images && result.images[0] ? result.images[0] : null,
+      totalBytes: (result.images || []).reduce((sum, image) => sum + image.bytes, 0),
+      elapsedMs,
+      dialogBox,
+    };
+
+    // 上限（確定事項33）が本当に効くかも、同じ経路で見ておく。
+    const overflow = await window.SigK.print.prepare({ mode: 'custom', text: '1-1000' });
+    measured.overLimitError = overflow.error || null;
+    measured.overCountError = window.SigK.print.resolvePages({ mode: 'all', pageCount: 300 }).error || null;
+
+    // 1ページあたりの内訳。描画と PNG への変換のどちらが重いのかは、
+    // 上限100ページ（確定事項33）を見直すときの根拠になる。
+    const page = await window.SigK.viewer.getPage(1);
+    const viewport = page.getViewport({ scale: window.SigK.print.PRINT_SCALE });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const r0 = performance.now();
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const renderMs = Math.round(performance.now() - r0);
+    const e0 = performance.now();
+    const url = canvas.toDataURL('image/png');
+    const encodeMs = Math.round(performance.now() - e0);
+    canvas.width = 0;
+    canvas.height = 0;
+    measured.perPage = { renderMs, encodeMs, pngBytes: Math.round((url.length - url.indexOf(',') - 1) * 3 / 4) };
+    measured.heapMB = performance.memory
+      ? Math.round(performance.memory.usedJSHeapSize / 1048576)
+      : null;
+
+    // このあと SIGK_SMOKE_SHOT で画面写真を撮ることがある。実際に使う状態で
+    // 開き直しておく（準備で作った画像は open が捨てる）。
+    window.SigK.print.open();
+    document.getElementById('print-mode-' + mode).checked = true;
+    if (mode === 'custom')
+      document.getElementById('print-pages').value = spec;
+    return measured;
+  })()`;
+
   // SIGK_SMOKE_DROP=<path> を付けると、本物のドラッグ＆ドロップを再現する。
   // Chromium の Input.dispatchDragEvent に実ファイルのパスを渡すと、ページには
   // OS から落としたときと同じ File が届く。webUtils.getPathForFile がそこから
@@ -526,6 +718,8 @@ function installSmokeCheck(win) {
       let pdf = null;
       let tabs = null;
       let text = null;
+      let find = null;
+      let print = null;
       let drop = null;
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
@@ -540,6 +734,10 @@ function installSmokeCheck(win) {
         }
         if (process.env.SIGK_SMOKE_TEXT === '1')
           text = await win.webContents.executeJavaScript(textScript);
+        if (process.env.SIGK_SMOKE_FIND)
+          find = await win.webContents.executeJavaScript(findScript(process.env.SIGK_SMOKE_FIND));
+        if (process.env.SIGK_SMOKE_PRINT)
+          print = await win.webContents.executeJavaScript(printScript(process.env.SIGK_SMOKE_PRINT));
         if (process.env.SIGK_SMOKE_DROP) {
           await dispatchDrop(path.resolve(process.env.SIGK_SMOKE_DROP));
           drop = await win.webContents.executeJavaScript(dropResultScript);
@@ -567,6 +765,8 @@ function installSmokeCheck(win) {
         pdf,
         tabs,
         text,
+        find,
+        print,
         drop,
         screenshot,
         problems,

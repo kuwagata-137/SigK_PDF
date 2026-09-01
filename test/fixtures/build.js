@@ -31,7 +31,48 @@ const FIXTURES = [
   { file: 'rotated.pdf', pages: 3, size: A4, rotate: { 1: 90 }, label: '2ページ目だけ 90 度回転', caption: 'page 2 rotated 90' },
   { file: 'mixed-size.pdf', pages: 3, size: A4, sizeOverrides: { 1: A5 }, label: '2ページ目だけ A5', caption: 'page 2 is A5' },
   { file: 'many-pages.pdf', pages: 40, size: A4, label: '連続スクロールの確認用', caption: 'continuous scroll' },
+  // 検索の実測用（spec-1-4「実測に残すもの」）。many-pages.pdf は40ページで
+  // 751文字しかなく、取り出し時間の下限にしかならない。こちらは1ページあたり
+  // 約1,500文字を載せ、実文書に近い量で測れるようにする。
+  {
+    file: 'text-heavy.pdf',
+    pages: 40,
+    size: A4,
+    label: '文字の多い40ページ（検索の実測用）',
+    caption: 'text heavy',
+    body: { charsPerPage: 1500, fontSize: 9, lineHeight: 13 },
+  },
 ];
+
+// 本文の1行。ページ番号と行番号を混ぜて、ヒットの位置を目で追えるようにする。
+// 標準14書体は WinAnsi しか扱えないため ASCII に限る（docs/02 1-4）。
+function bodyLine(pageNumber, lineNumber) {
+  const words = ['invoice', 'contract', 'estimate', 'summary', 'appendix', 'revision'];
+  const word = words[(pageNumber + lineNumber) % words.length];
+  return `p${pageNumber} line ${lineNumber}: the ${word} section describes SigK terms.`;
+}
+
+function bodyLines({ charsPerPage }, pageNumber) {
+  const lines = [];
+  let total = 0;
+  for (let lineNumber = 1; total < charsPerPage; lineNumber += 1) {
+    const line = bodyLine(pageNumber, lineNumber);
+    lines.push(line);
+    total += line.length;
+  }
+  return lines;
+}
+
+function drawBody(page, font, spec, pageNumber, size) {
+  const { fontSize, lineHeight } = spec.body;
+  let y = size.height - 96;
+  for (const line of bodyLines(spec.body, pageNumber)) {
+    if (y < 40)
+      break;
+    page.drawText(line, { x: 48, y, size: fontSize, font, color: rgb(0.11, 0.14, 0.19) });
+    y -= lineHeight;
+  }
+}
 
 async function buildOne(spec) {
   const pdf = await PDFDocument.create();
@@ -50,6 +91,8 @@ async function buildOne(spec) {
       color: rgb(0.11, 0.14, 0.19),
     });
     page.drawText(spec.caption, { x: 48, y: size.height - 64, size: 14, font, color: rgb(0.37, 0.42, 0.48) });
+    if (spec.body !== undefined)
+      drawBody(page, font, spec, index + 1, size);
     const angle = spec.rotate?.[index];
     if (angle !== undefined)
       page.setRotation(degrees(angle));

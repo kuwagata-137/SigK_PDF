@@ -2,7 +2,7 @@
 
 // sandbox: true のため Node の API は使えない。ipcRenderer の橋渡しだけを担う。
 // 実際に動く API だけを公開する。中身のない口を先に並べない。
-// taskAPI・shellAPI・printAPI は、それぞれの機能を作るフェーズで足す。
+// taskAPI・shellAPI は、それぞれの機能を作るフェーズで足す。
 
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
@@ -59,6 +59,16 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   available: true,
   getUi: () => ipcRenderer.invoke('settings:getUi'),
   setUi: (patch) => ipcRenderer.invoke('settings:setUi', patch),
+});
+
+// 印刷（spec-1-4 確定事項30）。レンダラーが印刷用のコンテナへ画像を並べてから
+// ここを呼ぶ。実際に紙へ送るのはメイン側の webContents.print() で、
+// silent を false にすると OS の印刷ダイアログが出る。
+// レンダラーの window.print() を使わないのは、オプションを渡せず結果
+// （成功・取り消し・失敗）も受け取れないためである（確定事項29）。
+contextBridge.exposeInMainWorld('printAPI', {
+  available: true,
+  print: (options) => ipcRenderer.invoke('print:run', options),
 });
 
 // 最近使ったファイル（spec-1-2 確定事項8〜10）。実体は settings.json にあり、

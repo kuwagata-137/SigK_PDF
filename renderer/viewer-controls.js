@@ -5,7 +5,7 @@
   // viewer.js は「文書とページ」、ここは「操作と表示」を持つ。
 
   // 文書が開いていないと押せないもの。開くボタンだけは常に押せる。
-  const DOCUMENT_CONTROLS = ['pager', 'zoom', 'btn-fit-width', 'btn-fit-page'];
+  const DOCUMENT_CONTROLS = ['pager', 'zoom', 'btn-fit-width', 'btn-fit-page', 'btn-find', 'btn-print'];
 
   function viewer() {
     return root.SigK.viewer;
@@ -113,10 +113,42 @@
     return false;
   }
 
+  // 検索と印刷（spec-1-4 確定事項25・38）。入力欄の中でも効かせるため、
+  // 下の isTextField による打ち切りより前で捌く。F3 と Esc は検索バー自身の
+  // 入力欄から押されるので、奪わないと届かない。
+  function handleFindPrintKey(event) {
+    const findBar = root.SigK.findBar;
+
+    if (event.ctrlKey && !event.altKey && (event.key === 'f' || event.key === 'F')) {
+      event.preventDefault();
+      findBar?.open();
+      return true;
+    }
+    if (event.ctrlKey && !event.altKey && (event.key === 'p' || event.key === 'P')) {
+      event.preventDefault();
+      root.SigK.print?.open();
+      return true;
+    }
+    // F3 / Shift+F3 は検索バーが閉じていても効く。開いてから移動する。
+    if (event.key === 'F3') {
+      event.preventDefault();
+      findBar?.step(event.shiftKey ? -1 : 1);
+      return true;
+    }
+    if (event.key === 'Escape' && findBar?.isOpen() === true) {
+      event.preventDefault();
+      findBar.close();
+      return true;
+    }
+    return false;
+  }
+
   function handleKey(event) {
     if (handleTabKey(event))
       return;
     if (viewer().getState().open !== true)
+      return;
+    if (handleFindPrintKey(event))
       return;
 
     if (event.ctrlKey && ZOOM_KEYS[event.key] !== undefined) {

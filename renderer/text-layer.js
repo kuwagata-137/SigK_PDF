@@ -63,6 +63,9 @@
       node,
       done,
       textDivs: () => layer.textDivs,
+      // span と1対1で並ぶ、その span の元の文字列（spec-1-4 確定事項14）。
+      // 検索のハイライトは span の中身を組み替えるため、元へ戻すのに要る。
+      textItems: () => layer.textContentItemsStr,
       cancel() {
         canceled = true;
         layer.cancel();

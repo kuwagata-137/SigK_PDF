@@ -102,6 +102,12 @@ function createTextLayerStub(layers) {
     get textDivs() {
       return this.spans;
     }
+
+    // 本物と1対1で並ぶ、各 span の元の文字列（spec-1-4 確定事項14）。
+    // 検索のハイライトが span の中身を組み替えたあと、元へ戻すのに使う。
+    get textContentItemsStr() {
+      return this.items.map((item) => item.str);
+    }
   };
 }
 
@@ -115,6 +121,9 @@ function createPdfjsStub({
   info = {},
   // ページ1枚あたりのテキスト。null にすると TextLayer ごと使えない状態を作れる。
   textItems = ['あいうえお', 'かきくけこ'],
+  // ページごとに違う本文を与えたいとき（検索のテスト）。0 起点の配列で、
+  // 埋まっていないページは textItems へ落ちる。
+  pageTextItems = null,
 } = {}) {
   const rendered = [];
   const documents = [];
@@ -140,7 +149,8 @@ function createPdfjsStub({
             return { promise: Promise.resolve(), cancel: () => {} };
           },
           async getTextContent() {
-            return { items: (textItems ?? []).map((str) => ({ str })), styles: {} };
+            const items = pageTextItems?.[number - 1] ?? textItems ?? [];
+            return { items: items.map((str) => ({ str })), styles: {} };
           },
         };
       },
@@ -225,6 +235,8 @@ async function createShell({
   ui = DEFAULT_UI,
   // パス → 読み込み結果。pdfAPI.read(path) がここを引く。
   files = {},
+  // printAPI.print() が返すもの。取り消しや失敗の経路を作れる。
+  printResult = { ok: true, canceled: false, reason: null },
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -239,6 +251,7 @@ async function createShell({
   const docInfoRequestHandlers = [];
   const recentCalls = [];
   const uiCalls = [];
+  const printCalls = [];
   let recentList = [...recent];
   let savedUi = structuredClone(ui);
 
@@ -272,6 +285,15 @@ async function createShell({
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
         };
         return { ok: true, ui: structuredClone(savedUi) };
+      },
+    };
+    // 印刷（spec-1-4 確定事項30）。実際に紙へ送るのはメイン側なので、
+    // ここは呼ばれたことと渡された値だけを控える。
+    window.printAPI = {
+      available: true,
+      print: async (options) => {
+        printCalls.push(structuredClone(options ?? {}));
+        return printResult;
       },
     };
     window.recentAPI = {
@@ -317,6 +339,8 @@ async function createShell({
     recentList: () => recentList,
     // 覚えた見た目と、そこへ届いた patch の並び。
     uiCalls,
+    // printAPI.print() に届いたオプションの並び。
+    printCalls,
     savedUi: () => savedUi,
     // メニューの「開く」から届く合図を、テストから引く。パスを渡せば
     // 「最近使ったファイル」から選んだのと同じ経路になる。
