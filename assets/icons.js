@@ -17,6 +17,8 @@
     chevronLeft: [['path', { d: 'M14 6l-6 6 6 6' }]],
     chevronRight: [['path', { d: 'M10 6l6 6-6 6' }]],
     chevronDown: [['path', { d: 'M6 9l6 6 6-6' }]],
+    // 検索の「前へ」。chevronDown を上下に反転した形にする（spec-1-4 F）。
+    chevronUp: [['path', { d: 'M6 15l6-6 6 6' }]],
     close: [['path', { d: 'M6 6l12 12M18 6L6 18' }]],
     plus: [['path', { d: 'M12 5v14M5 12h14' }]],
     search: [
@@ -61,6 +63,12 @@
       ['rect', { x: 5, y: 8, width: 9, height: 12, rx: 1 }],
     ],
     trash: [['path', { d: 'M5 7h14M10 7V5h4v2M8 7l1 13h6l1-13' }]],
+    // プリンタ。幾何形状にとどめる（docs/06 2-2。他社製品の意匠に寄せない）。
+    print: [
+      ['path', { d: 'M7 9V4h10v5' }],
+      ['path', { d: 'M6 18H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2' }],
+      ['rect', { x: 7, y: 14, width: 10, height: 6, rx: 1 }],
+    ],
   };
 
   function has(name) {

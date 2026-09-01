@@ -2,13 +2,13 @@
 
 PDF の閲覧・ページ操作・結合・分割・変換・注釈を、1つの画面で行う Windows デスクトップアプリケーション。
 
-**現在の状態: Phase 1「閲覧とページ操作」の途中。PDF を開いて読めるところまで動く。**
+**現在の状態: Phase 1「閲覧とページ操作」の途中。読むための機能はひととおり動く。**
 
 PDF をダイアログ・ドラッグ＆ドロップ・最近使ったファイルから開き、タブで並べて、
 連続スクロール・ズーム・ページ移動で読める。サイドパネルのサムネイルで今いる場所が分かり、
-文字を選んでコピーできる。文書情報も見られる。
-検索・印刷・ページ編集・保存はこれから
-（`docs/05_開発ロードマップ.md` Phase 1 の塊③-b 以降）。
+文字を選んでコピーできる。文書内をテキスト検索でき、紙にも印刷できる。文書情報も見られる。
+ページ編集（並べ替え・回転・削除）と保存はこれから
+（`docs/05_開発ロードマップ.md` Phase 1 の塊④以降）。
 
 ```bash
 npm install && npm test && npm start
@@ -78,6 +78,7 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/spec-1-2-tabs.md`](docs/spec-1-2-tabs.md) | Phase 1 塊② 入出力とタブ |
 | [`docs/spec-1-3-reading.md`](docs/spec-1-3-reading.md) | Phase 1 塊③-a サムネイルとテキスト |
 | [`docs/spec-1-4-find-print.md`](docs/spec-1-4-find-print.md) | Phase 1 塊③-b 検索と印刷 |
+| [`docs/spec-1-5-page-edit.md`](docs/spec-1-5-page-edit.md) | Phase 1 塊④ ページ編集 |
 
 開発の進め方（着手前の仕様確定、PR・マージの承認ゲート、ブランチ運用）は [`.claude/CLAUDE.md`](.claude/CLAUDE.md) に定める。
 

@@ -65,6 +65,9 @@
     // サムネイルはビューアが文書を開いたときに差し替えられる。先に用意しておく。
     root.SigK.thumbnails.init(doc, win);
     root.SigK.viewer.init(doc, win);
+    // 検索バーと印刷は、ツールバーの結線とキー操作から呼ばれる。先に用意しておく。
+    root.SigK.findBar.init(doc, win);
+    root.SigK.print.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
     root.SigK.tabs.init(doc, win);

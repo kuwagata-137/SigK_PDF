@@ -73,6 +73,21 @@
     };
   }
 
+  // pdf.js のページを借りる口。検索の全ページ取り出し（spec-1-4 確定事項2）と
+  // 印刷の 150dpi 描画（同31）が使う。文書そのものを渡さないのは、破棄の
+  // 責任をこことタブ層に閉じたままにするためである。
+  function getPage(number) {
+    if (state.doc === null || number < 1 || number > state.sizes.length)
+      return Promise.resolve(null);
+    return state.doc.getPage(number);
+  }
+
+  // いま描いてあるページのテキストレイヤー。検索のハイライトが span を借りる
+  // （spec-1-4 確定事項14）。描いていなければ null。
+  function getTextLayer(index) {
+    return state.rendered.get(index)?.text ?? null;
+  }
+
   function report(error, context = {}) {
     root.SigK.log.report({
       level: 'error',
@@ -214,6 +229,8 @@
     el.pageNodes = [];
     el.pages.replaceChildren();
     root.SigK.thumbnails?.clear();
+    // 検索の状態は文書に属する。持ち越すぶんは detach() が先に控えている。
+    root.SigK.find?.clear();
     setDocumentOpen(false);
     setMessage(EMPTY_MESSAGE);
     root.SigK.shell.setStatus(el.doc, { file: '文書なし', pages: '–', size: '–' });
@@ -234,6 +251,9 @@
       // canvas は持ち越さない。持ち越すのは見ていた場所だけである
       // （spec-1-3 確定事項13）。
       thumbScrollTop: root.SigK.thumbnails?.getScrollTop() ?? 0,
+      // 検索語・取り出した本文・ヒット一覧はタブごとに持つ（spec-1-4 確定事項
+      // 3・27）。canvas と違って軽く、タブを戻すたびに読み直す理由がない。
+      find: root.SigK.find?.capture() ?? null,
     };
     resetView();
     return session;
@@ -268,6 +288,7 @@
       scrollTop: session.thumbScrollTop ?? 0,
     });
     el.view.scrollTop = session.scrollTop ?? 0;
+    root.SigK.find?.restore(session.find);
     root.SigK.shell.setStatus(el.doc, {
       file: session.file.name,
       pages: `${state.sizes.length} ページ`,
@@ -420,6 +441,8 @@
     attach,
     destroySession,
     getMetadata,
+    getPage,
+    getTextLayer,
     setMessage,
     getMessage,
     getState,

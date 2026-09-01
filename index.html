@@ -60,7 +60,8 @@ body{
     <div class="tb-btn" id="btn-fit-width" aria-disabled="true" title="幅に合わせる"><span data-icon="fitWidth"></span>幅</div>
     <div class="tb-btn" id="btn-fit-page" aria-disabled="true" title="全体を表示"><span data-icon="fitPage"></span>全体</div>
     <div class="spacer"></div>
-    <div class="tb-btn icon" data-icon="search" title="検索" aria-disabled="true"></div>
+    <div class="tb-btn icon" id="btn-find" data-icon="search" title="文書内を検索 (Ctrl+F)" aria-disabled="true"></div>
+    <div class="tb-btn icon" id="btn-print" data-icon="print" title="印刷 (Ctrl+P)" aria-disabled="true"></div>
   </div>
 
   <div id="body">
@@ -118,6 +119,20 @@ body{
       <div id="view-drop" hidden aria-hidden="true">
         <div class="drop-frame"><span data-icon="open" data-icon-size="22"></span>ここにドロップして開く</div>
       </div>
+
+      <!-- 検索バー（spec-1-4 確定事項22〜24）。#view の中に置くと、
+           スクロールした分だけ画面外へ流れていく。 -->
+      <div id="find-bar" hidden>
+        <span class="find-icon" data-icon="search" data-icon-size="14"></span>
+        <input id="find-input" type="text" placeholder="文書内を検索" aria-label="文書内を検索" autocomplete="off" spellcheck="false">
+        <span id="find-count" class="find-count"></span>
+        <span class="find-sep"></span>
+        <button type="button" class="find-btn find-case" id="find-case" aria-pressed="false" title="大文字と小文字を区別">Aa</button>
+        <button type="button" class="find-btn" id="find-prev" data-icon="chevronUp" data-icon-size="15" data-icon-stroke="2" title="前へ (Shift+F3)"></button>
+        <button type="button" class="find-btn" id="find-next" data-icon="chevronDown" data-icon-size="15" data-icon-stroke="2" title="次へ (F3)"></button>
+        <span class="find-sep"></span>
+        <button type="button" class="find-btn" id="find-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" title="閉じる (Esc)"></button>
+      </div>
     </div>
   </div>
 
@@ -138,7 +153,36 @@ body{
     </div>
     <dl id="doc-info-body"></dl>
   </dialog>
+
+  <!-- 印刷（spec-1-4 確定事項34〜37）。文書情報と同じ作法・同じ意匠のモーダル
+       にする。モーダルなので、準備している間の背後の操作は自然に塞がれる。 -->
+  <dialog id="print-dialog">
+    <div class="dlg-head">
+      <span>印刷</span>
+      <button type="button" class="dlg-x" id="print-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" title="閉じる"></button>
+    </div>
+    <div class="dlg-body">
+      <p class="dlg-label">印刷する範囲</p>
+      <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-all" checked>すべてのページ</label>
+      <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-current">現在のページ</label>
+      <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-custom">ページ指定</label>
+      <input type="text" id="print-pages" class="print-pages" placeholder="例: 1-5, 8" aria-label="印刷するページ" autocomplete="off">
+      <p class="print-error" id="print-error" hidden></p>
+      <div class="print-progress" id="print-progress" hidden>
+        <div class="print-bar"><div class="print-bar-fill" id="print-bar"></div></div>
+        <span id="print-progress-text"></span>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn" id="print-cancel">閉じる</button>
+      <button type="button" class="dlg-btn primary" id="print-run">印刷…</button>
+    </div>
+  </dialog>
 </div>
+
+<!-- 印刷用のコンテナ（確定事項28）。画面では隠れており、@media print の
+     ときだけ #app と入れ替わって紙に出る。 -->
+<div id="print-area" aria-hidden="true"></div>
 
 <!-- pdf.js は ESM でしか配布されていない。module はここ1本に限る（spec-1-1 確定事項1）。
      module は defer 相当で、下の classic スクリプトより後・DOMContentLoaded より前に走る。 -->
@@ -152,6 +196,10 @@ body{
 <script src="renderer/view-banner.js"></script>
 <script src="renderer/viewer.js"></script>
 <script src="renderer/thumbnails.js"></script>
+<script src="renderer/find-text.js"></script>
+<script src="renderer/find.js"></script>
+<script src="renderer/find-bar.js"></script>
+<script src="renderer/print.js"></script>
 <script src="renderer/doc-info.js"></script>
 <script src="renderer/tabs.js"></script>
 <script src="renderer/recent-panel.js"></script>

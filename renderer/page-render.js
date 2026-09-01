@@ -132,6 +132,12 @@
       entry.text = handle;
       node.append(handle.node);
       await handle.done;
+      // 検索中なら、いま描いたページにハイライトを当てる（spec-1-4 確定事項
+      // 17・20）。まだ描いていないページは span を持てないので、描いた
+      // この時点が唯一の機会である。倍率の変更もタブの切り替えも、
+      // テキストレイヤーを作り直す以上ここを通る。
+      if (!isStale())
+        root.SigK.find?.onPageRendered(index);
     }
 
     function update() {
