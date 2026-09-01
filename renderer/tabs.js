@@ -41,6 +41,24 @@
     return state.list.map((tab) => ({ id: tab.id, path: tab.path, name: tab.name, active: tab.id === state.activeId }));
   }
 
+  // そのタブに未保存の編集があるか（spec-1-5 確定事項49）。
+  //
+  // 映しているタブの plan は viewer が握っており、ほかのタブのぶんは
+  // session の中にある。この非対称は塊② からの作りで、ここでも同じ形になる。
+  function isTabDirty(tab) {
+    if (tab === null || tab === undefined)
+      return false;
+    if (tab.id === state.activeId)
+      return root.SigK.viewer?.isDirty() === true;
+    if (tab.session === null || tab.session === undefined)
+      return false;
+    return root.SigK.pagePlan.isDirty(tab.session.plan ?? [], tab.session.basePages?.length ?? 0);
+  }
+
+  function isDirty(id) {
+    return isTabDirty(find(id));
+  }
+
   // アクティブなタブの中身を viewer から引き取る。切り替えの前に必ず呼ぶ。
   // 直前までアクティブだった id を返す（開くのに失敗したとき元へ戻すため）。
   function stash() {
@@ -90,6 +108,16 @@
     close.className = 'x';
     close.title = 'このタブを閉じる';
     close.replaceChildren(root.SigK.icons.create(el.doc, 'close', { size: 11, strokeWidth: 2 }));
+
+    // 未保存の点（確定事項49）。CSS は Phase 0 からあったが、dirty になる
+    // 経路が無かったので実装は塊④ が初めてである。
+    if (isTabDirty(tab)) {
+      const dot = el.doc.createElement('span');
+      dot.className = 'dirty';
+      dot.title = '編集内容が保存されていません';
+      node.replaceChildren(dot, name, close);
+      return node;
+    }
 
     node.replaceChildren(name, close);
     return node;
@@ -253,7 +281,24 @@
     return true;
   }
 
+  // 未保存があるときだけ確認を挟む（確定事項56）。
+  //
+  // 戻り値は boolean か Promise<boolean> になる。確認が要らない場合まで
+  // 非同期にすると、塊② から続く「閉じたら次の行が同期で決まる」という
+  // 呼び出し側の前提が崩れるためである。
   function closeTab(id) {
+    const tab = find(id);
+    if (tab === null)
+      return false;
+    if (!isTabDirty(tab))
+      return forceCloseTab(id);
+
+    return root.SigK.confirmDiscard
+      .ask({ name: tab.name })
+      .then((ok) => (ok ? forceCloseTab(id) : false));
+  }
+
+  function forceCloseTab(id) {
     const index = indexOf(id);
     if (index === -1)
       return false;
@@ -347,6 +392,8 @@
     openViaDialog,
     activate,
     closeTab,
+    forceCloseTab,
+    isDirty,
     closeActive,
     cycle,
     render,

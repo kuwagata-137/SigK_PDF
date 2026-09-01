@@ -363,6 +363,20 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 .dlg-btn:hover{background:var(--surface)}
 .dlg-btn.primary{background:var(--primary); border-color:var(--primary); color:#fff}
+/* 破棄・上書きにあたるボタンは --danger で塗る（docs/04 第7章）。 */
+.dlg-btn.danger{background:var(--danger); border-color:var(--danger); color:#fff}
+
+/* 未保存の確認（spec-1-5 確定事項57）。意匠は文書情報・印刷と揃える。 */
+#confirm-discard{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(420px, 88vw);
+}
+#confirm-discard::backdrop{background:rgba(16,24,40,.34)}
+.dlg-text{margin:0; line-height:1.7}
+
+/* 未保存の印（確定事項49）。タブの点は Phase 0 から CSS だけあった。 */
+#status-dirty{color:var(--accent); font-weight:600}
 .dlg-btn.primary:hover{filter:brightness(1.06)}
 .dlg-btn[aria-disabled="true"]{cursor:default}
 

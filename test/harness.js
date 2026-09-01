@@ -283,6 +283,10 @@ async function createShell({
   const recentCalls = [];
   const uiCalls = [];
   const printCalls = [];
+  const closeRequestHandlers = [];
+  // メインへ知らせた未保存のタブ数と、確認の答え（spec-1-5 確定事項56）。
+  const dirtyCalls = [];
+  const closeAnswers = [];
   let recentList = [...recent];
   let savedUi = structuredClone(ui);
 
@@ -316,6 +320,17 @@ async function createShell({
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
         };
         return { ok: true, ui: structuredClone(savedUi) };
+      },
+    };
+    // 未保存を持ったまま終了しようとしたときの往復（spec-1-5 確定事項56）。
+    // 実際に窓を閉じるのはメイン側なので、ここは往復だけを真似る。
+    window.appCloseAPI = {
+      available: true,
+      setDirty: (count) => dirtyCalls.push(count),
+      onCloseRequest: (callback) => closeRequestHandlers.push(callback),
+      confirm: async (ok) => {
+        closeAnswers.push(ok);
+        return { ok: true };
       },
     };
     // 印刷（spec-1-4 確定事項30）。実際に紙へ送るのはメイン側なので、
@@ -372,6 +387,12 @@ async function createShell({
     uiCalls,
     // printAPI.print() に届いたオプションの並び。
     printCalls,
+    // appCloseAPI.setDirty() に届いた数の並び（最後が「いま」）。
+    dirtyCalls,
+    // appCloseAPI.confirm() に返した答えの並び。
+    closeAnswers,
+    // 終了しようとしていることをメインから知らせる。
+    fireCloseRequest: () => Promise.all(closeRequestHandlers.map((handler) => handler())),
     savedUi: () => savedUi,
     // メニューの「開く」から届く合図を、テストから引く。パスを渡せば
     // 「最近使ったファイル」から選んだのと同じ経路になる。

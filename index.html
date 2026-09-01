@@ -150,6 +150,9 @@ body{
     <span id="status-file" title="文書情報を表示 (Ctrl+I)">文書なし</span><span class="sep">│</span>
     <span id="status-pages">–</span><span class="sep">│</span>
     <span id="status-size">–</span>
+    <!-- 未保存の印（spec-1-5 確定事項49）。区切りごと出し入れするので
+         1つの要素にまとめてある。 -->
+    <span id="status-dirty" hidden><span class="sep">│</span>変更あり</span>
     <span class="spacer"></span>
     <span class="version" id="status-version"></span>
   </div>
@@ -188,6 +191,20 @@ body{
       <button type="button" class="dlg-btn primary" id="print-run">印刷…</button>
     </div>
   </dialog>
+
+  <!-- 未保存の確認（spec-1-5 確定事項57）。塊④ の時点では保存の手段が無いので
+       2択にしてある。「保存」を含む3択は塊⑤ で完成させる。
+       既定のフォーカスは安全側（キャンセル）に置く。 -->
+  <dialog id="confirm-discard">
+    <div class="dlg-head"><span>編集内容を破棄しますか</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-discard-text">編集内容は保存されていません。閉じると失われます。</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn" id="confirm-discard-cancel">キャンセル</button>
+      <button type="button" class="dlg-btn danger" id="confirm-discard-ok">閉じる</button>
+    </div>
+  </dialog>
 </div>
 
 <!-- 印刷用のコンテナ（確定事項28）。画面では隠れており、@media print の
@@ -210,6 +227,7 @@ body{
 <script src="renderer/thumbnails.js"></script>
 <script src="renderer/page-grid.js"></script>
 <script src="renderer/page-edit.js"></script>
+<script src="renderer/confirm-discard.js"></script>
 <script src="renderer/find-text.js"></script>
 <script src="renderer/find.js"></script>
 <script src="renderer/find-bar.js"></script>

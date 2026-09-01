@@ -68,6 +68,9 @@
     // 先に用意しておく。
     root.SigK.pageGrid.init(doc, win);
     root.SigK.pageEdit.init(doc, win);
+    // 未保存の確認は、タブを閉じるときと終了するときに呼ばれる。
+    // タブ層より先に用意しておく。
+    root.SigK.confirmDiscard.init(doc, win);
     root.SigK.viewer.init(doc, win);
     // 検索バーと印刷は、ツールバーの結線とキー操作から呼ばれる。先に用意しておく。
     root.SigK.findBar.init(doc, win);

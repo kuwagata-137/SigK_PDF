@@ -33,6 +33,13 @@ let settings = null;
 let fileIo = null;
 let mainWindow = null;
 
+// 未保存の編集があるタブの数（spec-1-5 確定事項56）。レンダラーが編集の
+// たびに知らせてくる。メインがこれを持っておくと、未保存が無いときの終了は
+// 従来どおり素通りでき、確認の往復が要るのは実際に未保存があるときだけになる。
+let dirtyTabCount = 0;
+// 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
+let allowClose = false;
+
 function logError(entry) {
   if (errorLog === null) {
     console.error(entry);
@@ -112,7 +119,19 @@ function createMainWindow() {
     win.show();
   });
 
-  win.on('close', () => {
+  win.on('close', (event) => {
+    // 未保存があれば、閉じる前にレンダラーへ確認を頼む（確定事項56）。
+    // 確認のダイアログはアプリ内の <dialog> なので、レンダラーでしか出せない。
+    //
+    // レンダラーが死んでいるときは聞けない。そのまま閉じる（聞けないせいで
+    // 二度と閉じられなくなるほうが困る）。
+    const canAsk = !win.webContents.isDestroyed() && !win.webContents.isCrashed();
+    if (!allowClose && dirtyTabCount > 0 && canAsk) {
+      event.preventDefault();
+      win.webContents.send('app:closeRequest');
+      return;
+    }
+
     const normal = win.getNormalBounds();
     settings.set({
       window: { width: normal.width, height: normal.height, x: normal.x, y: normal.y, maximized: win.isMaximized() },
@@ -214,6 +233,20 @@ function registerIpc() {
   }));
 
   ipcMain.handle('log:error', (_event, entry) => ({ ok: errorLog.append(entry) }));
+
+  // 未保存の数（spec-1-5 確定事項56）。返事は要らないので send で受ける。
+  ipcMain.on('app:dirty', (_event, count) => {
+    dirtyTabCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  });
+
+  // 確認の答え。閉じてよければ、もう一度 close を通して実際に閉じる。
+  ipcMain.handle('app:closeConfirm', (_event, ok) => {
+    if (ok !== true)
+      return { ok: false };
+    allowClose = true;
+    mainWindow?.close();
+    return { ok: true };
+  });
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));

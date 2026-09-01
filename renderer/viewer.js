@@ -134,6 +134,23 @@
     root.SigK.shell.setStatus(el.doc, { pages: `${state.sizes.length} ページ` });
   }
 
+  // 未保存の印（確定事項49）。ステータスバーの「変更あり」と、タブの点。
+  // 編集のたび・文書を開くたび・タブを移るたびに呼ぶ。
+  function syncDirty() {
+    const mark = el.doc.getElementById('status-dirty');
+    if (mark !== null)
+      mark.hidden = !isDirty();
+    root.SigK.tabs?.render();
+
+    // メインは「未保存があるか」だけを知っていれば、終了時に確認が要るかを
+    // 判断できる（確定事項56）。無ければ従来どおり素通りで閉じられる。
+    const tabs = root.SigK.tabs;
+    const count = tabs === undefined
+      ? (isDirty() ? 1 : 0)
+      : tabs.list().filter((info) => tabs.isDirty(info.id)).length;
+    root.appCloseAPI?.setDirty?.(count);
+  }
+
   // 編集後の並びを画面へ映す（確定事項43）。ページビュー・ページ番号・
   // サムネイル・印刷のすべてがここを通った結果を見る。
   //
@@ -160,6 +177,7 @@
 
     root.SigK.thumbnails?.setPlan(state.plan, state.sizes);
     syncStatusPages();
+    syncDirty();
     controls()?.syncAll(el.doc, getState());
     render.scheduleUpdate();
     return true;
@@ -321,6 +339,9 @@
     setDocumentOpen(false);
     setMessage(EMPTY_MESSAGE);
     root.SigK.shell.setStatus(el.doc, { file: '文書なし', pages: '–', size: '–' });
+    const mark = el.doc.getElementById('status-dirty');
+    if (mark !== null)
+      mark.hidden = true;
     controls()?.syncAll(el.doc, getState());
   }
 
@@ -384,6 +405,7 @@
       scrollTop: session.thumbScrollTop ?? 0,
     });
     el.view.scrollTop = session.scrollTop ?? 0;
+    syncDirty();
     root.SigK.find?.restore(session.find);
     // 枠が並んだあとで印を付け直す。順番を逆にすると付ける先が無い。
     root.SigK.pageGrid?.restore(session.grid);
@@ -492,6 +514,7 @@
         pages: `${state.sizes.length} ページ`,
         size: root.SigK.shell.formatFileSize(source.size),
       });
+      syncDirty();
       controls()?.syncAll(el.doc, getState());
       return true;
     } catch (error) {
