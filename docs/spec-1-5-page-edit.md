@@ -375,6 +375,14 @@ mouseMoved を刻んで送るのは、1回で飛ばすと掴む判定と落と�
 | pdf-lib で開けない文書 | 内容が欠損した PDF は `load` が素の `TypeError` になり、警告は `console.warn` へ直接出て `log:error` に載らない。**「閲覧はできるが保存だけできない文書」の見せ方が未定** |
 | 挿入（F-02-5）の実装上の壁 | ① `file-io.js` の `readPdf` は拡張子 `.pdf` 以外を弾くので、画像を入れるなら**メイン側に別の読み込み口**が要る ② pdf-lib が埋め込めるビットマップは **PNG と JPEG だけ**。GIF・BMP は `message` すら持たない値を投げるので、**形式の判定と文言はアプリ側で持つ** ③ `copyPages` した内部リンクは壊れ、余分なページオブジェクトが混入する |
 
+> **2026-09-01 訂正（塊⑤ の事前調査で判明）。**上の表の1行目（`save()` のオプション）は `updateMetadata` を
+> `save()` のオプションとして書いているが、**これは `load()` のオプションである。**
+> `PDFDocument.load(bytes, { updateMetadata: false })` と書かないと Producer は
+> 読み込んだ時点で pdf-lib に書き換わる。また `updateFieldAppearances` による保存の失敗は、
+> **その文書で `getForm()` を呼んだときにだけ**起きる（`save()` の中は
+> `formCache.getValue()` を見ており、触っていない文書ではキャッシュが空のため何もしない）。
+> 正しい形と根拠は `docs/spec-1-6-save.md`「事前調査 B」にある。
+
 ---
 
 ## 未確定のまま残すもの
