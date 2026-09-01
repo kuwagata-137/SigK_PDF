@@ -16,8 +16,8 @@
     history: null,
   };
 
-  function pagePlan() {
-    return root.SigK.pagePlan;
+  function pageHistory() {
+    return root.SigK.pageHistory;
   }
 
   function viewer() {
@@ -35,7 +35,7 @@
   // 文書を開いた時点の並びを1世代目に置く。開くたびに作り直すので、
   // 前の文書の履歴が残らない。
   function reset(plan) {
-    state.history = pagePlan().createHistory(plan ?? []);
+    state.history = pageHistory().createHistory(plan ?? []);
     return state.history;
   }
 
@@ -46,11 +46,11 @@
   }
 
   function canUndo() {
-    return isOpen() && pagePlan().canUndo(history());
+    return isOpen() && pageHistory().canUndo(history());
   }
 
   function canRedo() {
-    return isOpen() && pagePlan().canRedo(history());
+    return isOpen() && pageHistory().canRedo(history());
   }
 
   // 履歴の深さ。起動確認（SIGK_SMOKE_PAGES）が読む。
@@ -67,7 +67,7 @@
     if (!isOpen())
       return false;
 
-    state.history = pagePlan().pushHistory(history(), plan, { before, after });
+    state.history = pageHistory().pushHistory(history(), plan, { before, after });
     viewer().applyPlan(plan);
     grid()?.setSelection(after);
     return true;
@@ -77,7 +77,7 @@
     if (!isOpen())
       return false;
 
-    const moved = direction < 0 ? pagePlan().undo(history()) : pagePlan().redo(history());
+    const moved = direction < 0 ? pageHistory().undo(history()) : pageHistory().redo(history());
     if (!moved.changed)
       return false;
 

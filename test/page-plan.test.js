@@ -4,7 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/page-plan.js');
+require('../renderer/page-history.js');
 const plan = globalThis.SigK.pagePlan;
+// 履歴は page-history.js にある。plan を受け取って plan を返すだけの層で、
+// 並べ替えや回転そのものは知らない。
+const pageHistory = globalThis.SigK.pageHistory;
 
 // plan は「操作の列」ではなく「結果の並び」である（spec-1-5 確定事項1）。
 // 要素は { src, rotate } で、src は元ファイルの 0 始まりページ番号、
@@ -229,67 +233,67 @@ test('3回回した時点では dirty', () => {
 // ---- 履歴（確定事項8〜13） ----
 
 test('createHistory は初期の1世代だけを持つ', () => {
-  const history = plan.createHistory(plan.createPlan(3));
+  const history = pageHistory.createHistory(plan.createPlan(3));
 
   assert.equal(history.stack.length, 1);
   assert.equal(history.at, 0);
-  assert.equal(plan.canUndo(history), false);
-  assert.equal(plan.canRedo(history), false);
+  assert.equal(pageHistory.canUndo(history), false);
+  assert.equal(pageHistory.canRedo(history), false);
 });
 
 test('操作を積むと戻れるようになる', () => {
   const source = plan.createPlan(3);
   const rotated = plan.rotatePages(source, [0], 90);
-  const history = plan.pushHistory(plan.createHistory(source), rotated, { before: [0], after: [0] });
+  const history = pageHistory.pushHistory(pageHistory.createHistory(source), rotated, { before: [0], after: [0] });
 
   assert.equal(history.stack.length, 2);
   assert.equal(history.at, 1);
-  assert.equal(plan.canUndo(history), true);
-  assert.equal(plan.canRedo(history), false);
+  assert.equal(pageHistory.canUndo(history), true);
+  assert.equal(pageHistory.canRedo(history), false);
 });
 
 test('undo は1つ前の plan を返す', () => {
   const source = plan.createPlan(3);
   const rotated = plan.rotatePages(source, [0], 90);
-  const pushed = plan.pushHistory(plan.createHistory(source), rotated, { before: [0], after: [0] });
-  const undone = plan.undo(pushed);
+  const pushed = pageHistory.pushHistory(pageHistory.createHistory(source), rotated, { before: [0], after: [0] });
+  const undone = pageHistory.undo(pushed);
 
   assert.deepEqual(undone.plan, source);
   assert.equal(undone.changed, true);
-  assert.equal(plan.canRedo(undone.history), true);
+  assert.equal(pageHistory.canRedo(undone.history), true);
 });
 
 test('redo は戻した操作をやり直す', () => {
   const source = plan.createPlan(3);
   const rotated = plan.rotatePages(source, [0], 90);
-  const pushed = plan.pushHistory(plan.createHistory(source), rotated, { before: [0], after: [0] });
-  const undone = plan.undo(pushed);
-  const redone = plan.redo(undone.history);
+  const pushed = pageHistory.pushHistory(pageHistory.createHistory(source), rotated, { before: [0], after: [0] });
+  const undone = pageHistory.undo(pushed);
+  const redone = pageHistory.redo(undone.history);
 
   assert.deepEqual(redone.plan, rotated);
   assert.equal(redone.changed, true);
 });
 
 test('先頭で undo、末尾で redo は何も起こさない', () => {
-  const history = plan.createHistory(plan.createPlan(2));
+  const history = pageHistory.createHistory(plan.createPlan(2));
 
-  assert.equal(plan.undo(history).changed, false);
-  assert.equal(plan.redo(history).changed, false);
+  assert.equal(pageHistory.undo(history).changed, false);
+  assert.equal(pageHistory.redo(history).changed, false);
 });
 
 // 確定事項12。何が戻ったか分かるよう、その世代で操作の対象だったページを選ぶ。
 test('undo と redo は操作の対象だったページを選択として返す', () => {
   const source = plan.createPlan(4);
   const deleted = plan.deletePages(source, [2]);
-  const pushed = plan.pushHistory(plan.createHistory(source), deleted.plan, {
+  const pushed = pageHistory.pushHistory(pageHistory.createHistory(source), deleted.plan, {
     before: [2],
     after: deleted.selection,
   });
 
-  const undone = plan.undo(pushed);
+  const undone = pageHistory.undo(pushed);
   assert.deepEqual(undone.selection, [2]);
 
-  const redone = plan.redo(undone.history);
+  const redone = pageHistory.redo(undone.history);
   assert.deepEqual(redone.selection, deleted.selection);
 });
 
@@ -298,31 +302,34 @@ test('戻した状態から操作すると、先の履歴は捨てられる（�
   const first = plan.rotatePages(source, [0], 90);
   const second = plan.rotatePages(first, [1], 90);
 
-  let history = plan.createHistory(source);
-  history = plan.pushHistory(history, first, { before: [0], after: [0] });
-  history = plan.pushHistory(history, second, { before: [1], after: [1] });
+  let history = pageHistory.createHistory(source);
+  history = pageHistory.pushHistory(history, first, { before: [0], after: [0] });
+  history = pageHistory.pushHistory(history, second, { before: [1], after: [1] });
   assert.equal(history.stack.length, 3);
 
-  const undone = plan.undo(history);
-  const branched = plan.pushHistory(undone.history, plan.rotatePages(first, [2], 90), { before: [2], after: [2] });
+  const undone = pageHistory.undo(history);
+  const branched = pageHistory.pushHistory(undone.history, plan.rotatePages(first, [2], 90), {
+    before: [2],
+    after: [2],
+  });
 
   assert.equal(branched.stack.length, 3);
   assert.equal(branched.at, 2);
-  assert.equal(plan.canRedo(branched), false);
+  assert.equal(pageHistory.canRedo(branched), false);
 });
 
 test('履歴は 50 世代で頭打ちになり、古いほうから捨てる（確定事項9）', () => {
   const source = plan.createPlan(2);
-  let history = plan.createHistory(source);
+  let history = pageHistory.createHistory(source);
   let current = source;
 
-  for (let count = 0; count < plan.MAX_HISTORY + 10; count += 1) {
+  for (let count = 0; count < pageHistory.MAX_HISTORY + 10; count += 1) {
     current = plan.rotatePages(current, [0], 90);
-    history = plan.pushHistory(history, current, { before: [0], after: [0] });
+    history = pageHistory.pushHistory(history, current, { before: [0], after: [0] });
   }
 
-  assert.equal(history.stack.length, plan.MAX_HISTORY);
-  assert.equal(history.at, plan.MAX_HISTORY - 1);
+  assert.equal(history.stack.length, pageHistory.MAX_HISTORY);
+  assert.equal(history.at, pageHistory.MAX_HISTORY - 1);
   // 捨てたぶんは戻れない。いちばん古い世代は初期状態ではなくなっている。
   assert.notDeepEqual(history.stack[0].plan, source);
 });

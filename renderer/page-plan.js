@@ -12,10 +12,9 @@
   // ① 時点の曖昧さが消える（配列は常に「いま」を表す。delete の後の rotate が
   // 削除前の番号か削除後の番号か、という問いが生まれない）② undo がスナップ
   // ショット列で書ける ③ 適用が冪等 ④ 並べ替え・回転・削除がすべて配列の操作に落ちる。
-
-  // 履歴として持つ世代の数（確定事項9）。plan 1本は 1,000 ページでも要素 1,000 個
-  // なので、50 世代持っても数MBに収まる。
-  const MAX_HISTORY = 50;
+  //
+  // その undo の履歴そのものは renderer/page-history.js にある。plan を受け取って
+  // plan を返すだけで、この層の関数を1つも呼ばないためである。
 
   function copyPage(page) {
     return { src: page.src, rotate: page.rotate };
@@ -116,65 +115,6 @@
     if (!Array.isArray(plan) || plan.length !== pageCount)
       return true;
     return plan.some((page, index) => page.src !== index || page.rotate !== 0);
-  }
-
-  // ---- 元に戻す・やり直し（確定事項8〜13） ----
-
-  // plan のスナップショット列で持つ。逆操作を書かないので、操作の種類が
-  // 増えても undo の実装は増えない。
-  //
-  // 各世代は before と after を持つ。before は「この操作をする前の並びにおける
-  // 対象の位置」、after は「した後の位置」である。戻した直後に、その世代で
-  // 操作の対象だったページを選び直すのに使う（確定事項12。何が戻ったかを示す）。
-  function createHistory(plan) {
-    return { stack: [{ plan: clonePlan(plan), before: [], after: [] }], at: 0 };
-  }
-
-  function canUndo(history) {
-    return history.at > 0;
-  }
-
-  function canRedo(history) {
-    return history.at < history.stack.length - 1;
-  }
-
-  function pushHistory(history, plan, { before = [], after = [] } = {}) {
-    // 戻した状態から新しい操作をしたら、先の履歴は捨てる（確定事項10）。
-    const stack = history.stack.slice(0, history.at + 1);
-    stack.push({ plan: clonePlan(plan), before: [...before], after: [...after] });
-    // 上限を超えたら古いほうから捨てる。
-    while (stack.length > MAX_HISTORY)
-      stack.shift();
-    return { stack, at: stack.length - 1 };
-  }
-
-  function undo(history) {
-    if (!canUndo(history))
-      return { history, plan: clonePlan(history.stack[history.at].plan), selection: [], changed: false };
-
-    // 取り消すのは「いま居る世代」を作った操作である。
-    const undoing = history.stack[history.at];
-    const at = history.at - 1;
-    return {
-      history: { stack: history.stack, at },
-      plan: clonePlan(history.stack[at].plan),
-      selection: [...undoing.before],
-      changed: true,
-    };
-  }
-
-  function redo(history) {
-    if (!canRedo(history))
-      return { history, plan: clonePlan(history.stack[history.at].plan), selection: [], changed: false };
-
-    const at = history.at + 1;
-    const redoing = history.stack[at];
-    return {
-      history: { stack: history.stack, at },
-      plan: clonePlan(redoing.plan),
-      selection: [...redoing.after],
-      changed: true,
-    };
   }
 
   // ---- 選択（確定事項14〜18） ----
@@ -304,7 +244,6 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.pagePlan = {
-    MAX_HISTORY,
     createPlan,
     clonePlan,
     normalizeRotation,
@@ -314,12 +253,6 @@
     canDelete,
     deletePages,
     isDirty,
-    createHistory,
-    canUndo,
-    canRedo,
-    pushHistory,
-    undo,
-    redo,
     resolveClick,
     selectAll,
     dropIndex,
