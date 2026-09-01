@@ -456,3 +456,26 @@ test('ページが1枚も無ければ 0 を返す', () => {
   assert.equal(plan.dropIndex({ layout: { pages: [] }, columns: 3, x: 10, y: 10 }), 0);
   assert.equal(plan.dropIndex({ layout: null, columns: 3, x: 10, y: 10 }), 0);
 });
+
+// ---- ドラッグ中の自動スクロール（確定事項36） ----
+
+test('パネルの端に寄せた向きへスクロールする', () => {
+  const panel = { viewportHeight: 600, edge: 40, step: 12 };
+
+  assert.equal(plan.autoScrollStep({ y: 10, ...panel }), -12);
+  assert.equal(plan.autoScrollStep({ y: 590, ...panel }), 12);
+});
+
+test('端から離れていればスクロールしない', () => {
+  const panel = { viewportHeight: 600, edge: 40, step: 12 };
+
+  assert.equal(plan.autoScrollStep({ y: 300, ...panel }), 0);
+  // ちょうど境目は動かさない。触れた瞬間に流れ出すと落とし先を狙えない。
+  assert.equal(plan.autoScrollStep({ y: 40, ...panel }), 0);
+  assert.equal(plan.autoScrollStep({ y: 560, ...panel }), 0);
+});
+
+test('パネルの高さが取れないときは動かさない', () => {
+  assert.equal(plan.autoScrollStep({ y: 10, viewportHeight: 0, edge: 40, step: 12 }), 0);
+  assert.equal(plan.autoScrollStep({ y: 10, viewportHeight: 600, edge: 0, step: 12 }), 0);
+});

@@ -287,6 +287,21 @@
     return last.index + 1;
   }
 
+  // ドラッグ中、パネルの端に寄せたときのスクロール量（確定事項36）。
+  // 長い文書で、掴んだ紙を画面の外まで運べないのを防ぐ。
+  //
+  // タイマーの結線ではなく1回ぶんの量だけをここに置くのは、jsdom で
+  // 時間を進めずに規則そのものを確かめられるようにするためである。
+  function autoScrollStep({ y, viewportHeight, edge, step }) {
+    if (!(viewportHeight > 0) || !(edge > 0))
+      return 0;
+    if (y < edge)
+      return -step;
+    if (y > viewportHeight - edge)
+      return step;
+    return 0;
+  }
+
   const SigK = (root.SigK = root.SigK || {});
   SigK.pagePlan = {
     MAX_HISTORY,
@@ -308,5 +323,6 @@
     resolveClick,
     selectAll,
     dropIndex,
+    autoScrollStep,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

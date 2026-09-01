@@ -149,6 +149,15 @@ html[data-panel="collapsed"] #side{display:none}
    別に持ち、両方付くことがある。選ばれた紙は番号を濃くして見分ける。 */
 .thumb.selected{border-color:var(--accent); background:var(--select)}
 .thumb.selected .cap{color:var(--accent); font-weight:600}
+/* ドラッグ中（確定事項35）。掴んでいる枚は半透明にし、落ちる位置に棒を出す。 */
+.thumb.dragging{opacity:.4}
+.drop-line{position:absolute; background:var(--accent); border-radius:1px; pointer-events:none; z-index:2}
+.drag-badge{
+  position:fixed; z-index:50; pointer-events:none;
+  padding:2px 7px; border-radius:10px;
+  background:var(--accent); color:#fff; font-size:11px; line-height:16px;
+  box-shadow:var(--shadow-item);
+}
 .side-actions[hidden]{display:none}
 .side-actions{
   flex:0 0 auto; border-top:1px solid var(--border); padding:8px 10px;

@@ -317,6 +317,7 @@
     // 検索の状態も選択も文書に属する。持ち越すぶんは detach() が先に控えている。
     root.SigK.find?.clear();
     root.SigK.pageGrid?.clearSelection();
+    root.SigK.pageEdit?.restore(null);
     setDocumentOpen(false);
     setMessage(EMPTY_MESSAGE);
     root.SigK.shell.setStatus(el.doc, { file: '文書なし', pages: '–', size: '–' });
@@ -343,8 +344,9 @@
       // 検索語・取り出した本文・ヒット一覧はタブごとに持つ（spec-1-4 確定事項
       // 3・27）。canvas と違って軽く、タブを戻すたびに読み直す理由がない。
       find: root.SigK.find?.capture() ?? null,
-      // 選択もタブごとである（spec-1-5 確定事項11・14）。
+      // 選択も履歴もタブごとである（spec-1-5 確定事項11・14）。
       grid: root.SigK.pageGrid?.capture() ?? null,
+      edit: root.SigK.pageEdit?.capture() ?? null,
     };
     resetView();
     return session;
@@ -385,6 +387,7 @@
     root.SigK.find?.restore(session.find);
     // 枠が並んだあとで印を付け直す。順番を逆にすると付ける先が無い。
     root.SigK.pageGrid?.restore(session.grid);
+    root.SigK.pageEdit?.restore(session.edit);
     root.SigK.shell.setStatus(el.doc, {
       file: session.file.name,
       pages: `${state.sizes.length} ページ`,
@@ -468,6 +471,9 @@
       state.plan = root.SigK.pagePlan.createPlan(sizes.length);
       state.sizes = sizesFromPlan(state.plan);
       state.current = 0;
+      // 履歴は文書ごとに作り直す。前の文書の世代が残っていると、Ctrl+Z で
+      // 別の文書の並びへ戻ってしまう（確定事項11）。
+      root.SigK.pageEdit?.reset(state.plan);
 
       buildPages();
       setDocumentOpen(true);

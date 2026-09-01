@@ -367,6 +367,12 @@
     return el === null ? 0 : el.scroll.scrollTop;
   }
 
+  // いま並べてある配置。ページモードのドラッグが、落とす位置を計算するのに
+  // 借りる（spec-1-5 確定事項33）。
+  function getLayout() {
+    return state.layout;
+  }
+
   // モード・開閉・幅が変わったときに shell.js から呼ばれる（確定事項15）。
   // 見えない状態になったら枠ごと捨て、見える状態に戻ったら作り直す。
   function refresh() {
@@ -429,6 +435,7 @@
     setDocument,
     setPlan,
     clear,
+    getLayout,
     setCurrent,
     refresh,
     getScrollTop,

@@ -229,3 +229,233 @@ test('削除で紙が減ったら、選択は残った範囲に収まる', async
   for (const index of SigK.pageGrid.getSelection())
     assert.ok(index < 3, `消えた紙 ${index} を選んだままである`);
 });
+
+// ---- ドラッグによる並べ替え（確定事項30〜37） ----
+//
+// jsdom は getBoundingClientRect が 0 を返すので、clientX / clientY が
+// そのまま layoutThumbnails の座標になる。既定のパネル幅 240px は2列で、
+// 1行目の枠は x=0 と x=115 に並ぶ。
+
+// 掴む位置と落とす位置。実際の配置から引く（列幅を直に書くと、
+// 列数の決め方を変えたときに黙って壊れる）。
+function centerOf(SigK, index) {
+  const page = SigK.thumbnails.getLayout().pages[index];
+  return { x: page.left + page.width / 2, y: page.top + page.height / 2 };
+}
+
+function dragThumb(shell, from, to, { release = 'inside' } = {}) {
+  const { SigK, firePointer, document } = shell;
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, from);
+  const end = centerOf(SigK, to);
+
+  firePointer(thumbs[from], 'pointerdown', start);
+  firePointer(thumbs[from], 'pointermove', end);
+  const target = release === 'outside' ? document.body : thumbs[to];
+  firePointer(target, 'pointerup', end);
+}
+
+test('5px 動かなければ掴まない（確定事項32）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, firePointer, document } = shell;
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, 0);
+
+  firePointer(thumbs[0], 'pointerdown', start);
+  firePointer(thumbs[0], 'pointermove', { x: start.x + 2, y: start.y + 1 });
+
+  assert.equal(SigK.pageGrid.isDragging(), false);
+  assert.equal(document.querySelector('.drop-line'), null, '挿入位置の棒が出ている');
+});
+
+test('5px を超えたら掴み、印と枚数のバッジを出す（確定事項35）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, firePointer, document } = shell;
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, 0);
+
+  firePointer(thumbs[0], 'pointerdown', start);
+  firePointer(thumbs[0], 'pointermove', { x: start.x + 30, y: start.y });
+
+  assert.equal(SigK.pageGrid.isDragging(), true);
+  assert.equal(thumbs[0].classList.contains('dragging'), true, '掴んだ紙が半透明になっていない');
+  assert.ok(document.querySelector('.drop-line') !== null, '挿入位置の棒が出ていない');
+  assert.match(document.querySelector('.drag-badge').textContent, /1 ページ/);
+});
+
+test('ドラッグして離すと並びが変わる', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+
+  // 1枚目を2枚目の右へ落とす。
+  dragThumb(shell, 0, 1);
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [1, 0, 2]);
+  assert.equal(SigK.viewer.isDirty(), true);
+});
+
+test('落とした先が選び直される（確定事項14）', async (t) => {
+  const shell = await withPagesMode(t);
+
+  dragThumb(shell, 0, 1);
+
+  assert.deepEqual([...shell.SigK.pageGrid.getSelection()], [1]);
+  assert.deepEqual(selectedIn(shell.document), [1]);
+});
+
+test('ドラッグ中の Esc で取り消す（確定事項37）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, firePointer, document, window } = shell;
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, 0);
+
+  firePointer(thumbs[0], 'pointerdown', start);
+  firePointer(thumbs[0], 'pointermove', centerOf(SigK, 1));
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+  assert.equal(SigK.pageGrid.isDragging(), false);
+  assert.equal(document.querySelector('.drop-line'), null);
+  // 取り消したので並びは変わらない。
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [0, 1, 2]);
+  assert.equal(SigK.viewer.isDirty(), false);
+});
+
+test('パネルの外で離しても取り消す（確定事項37）', async (t) => {
+  const shell = await withPagesMode(t);
+
+  dragThumb(shell, 0, 1, { release: 'outside' });
+
+  assert.deepEqual([...shell.SigK.viewer.getPlan()].map((page) => page.src), [0, 1, 2]);
+  assert.equal(shell.SigK.viewer.isDirty(), false);
+});
+
+// 選んでいない紙を掴んだのに、選択中の別の紙が動くのは驚く（確定事項34）。
+test('選択外の紙を掴んだら、その1枚だけを選び直してから動かす', async (t) => {
+  const shell = await withPagesMode(t, { pdfjs: createPdfjsStub({ sizes: [A4, A4, A4, A4] }) });
+  const { SigK, firePointer, document } = shell;
+
+  SigK.pageGrid.setSelection([0, 1]);
+  const thumbs = thumbsIn(document);
+  const head = SigK.thumbnails.getLayout().pages[0];
+  // 先頭の枠の左半分（中心より左）へ落とす＝いちばん手前に入る。
+  const end = { x: head.left + 2, y: head.top + 10 };
+
+  firePointer(thumbs[2], 'pointerdown', centerOf(SigK, 2));
+  firePointer(thumbs[2], 'pointermove', end);
+  firePointer(thumbs[0], 'pointerup', end);
+
+  // 選択中だった 0・1 は動かず、掴んだ 2 だけが先頭へ来る。
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [2, 0, 1, 3]);
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0]);
+});
+
+test('選んだ複数枚はまとめて動く', async (t) => {
+  const shell = await withPagesMode(t, { pdfjs: createPdfjsStub({ sizes: [A4, A4, A4, A4] }) });
+  const { SigK, firePointer, document } = shell;
+
+  SigK.pageGrid.setSelection([0, 1]);
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, 0);
+  // 4枚・2列なので、index 3 は2行目の右。その右半分へ落とす。
+  const last = SigK.thumbnails.getLayout().pages[3];
+  const end = { x: last.left + last.width - 1, y: last.top + 10 };
+
+  firePointer(thumbs[0], 'pointerdown', start);
+  firePointer(thumbs[0], 'pointermove', end);
+  assert.match(document.querySelector('.drag-badge').textContent, /2 ページ/);
+  firePointer(thumbs[3], 'pointerup', end);
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [2, 3, 0, 1]);
+});
+
+test('同じ位置へ落としても履歴は増えない', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+  const before = SigK.pageEdit.getHistoryState().depth;
+
+  // 1枚目を、1枚目自身の左半分へ落とす（動かない）。
+  dragThumb(shell, 0, 0);
+
+  assert.equal(SigK.pageEdit.getHistoryState().depth, before);
+  assert.equal(SigK.viewer.isDirty(), false);
+});
+
+// ---- 履歴（確定事項8〜13） ----
+
+test('ドラッグ1回が1世代になり、Ctrl+Z で戻せる', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+
+  dragThumb(shell, 0, 1);
+  assert.equal(SigK.pageEdit.getHistoryState().depth, 2);
+  assert.equal(SigK.pageEdit.canUndo(), true);
+
+  SigK.pageEdit.undo();
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [0, 1, 2]);
+  assert.equal(SigK.viewer.isDirty(), false);
+  assert.equal(SigK.pageEdit.canRedo(), true);
+});
+
+test('やり直すと並べ替えが戻ってくる', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+
+  dragThumb(shell, 0, 1);
+  SigK.pageEdit.undo();
+  SigK.pageEdit.redo();
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [1, 0, 2]);
+});
+
+test('戻すと、その操作の対象だった紙が選ばれる（確定事項12）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+
+  dragThumb(shell, 0, 1);
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [1]);
+
+  SigK.pageEdit.undo();
+
+  // 戻した先では、掴んだときの位置にいる。
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0]);
+});
+
+test('履歴はタブごとに分かれる（確定事項11）', async (t) => {
+  const shell = await withShell(t, {
+    openResults: [
+      makeSource({ path: 'C:\\work\\a.pdf' }),
+      makeSource({ path: 'C:\\work\\b.pdf' }),
+    ],
+  });
+  const { SigK } = shell;
+
+  await SigK.tabs.openViaDialog();
+  await shell.flush();
+  SigK.shell.setMode(shell.document, 'pages');
+  await shell.flush();
+  dragThumb(shell, 0, 1);
+  const editedId = SigK.tabs.activeId();
+
+  await SigK.tabs.openViaDialog();
+  await shell.flush();
+  assert.equal(SigK.pageEdit.canUndo(), false, '別のタブの履歴が見えている');
+
+  SigK.tabs.activate(editedId);
+  await shell.flush();
+  assert.equal(SigK.pageEdit.canUndo(), true);
+  SigK.pageEdit.undo();
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [0, 1, 2]);
+});
+
+test('文書を開き直すと履歴は捨てられる', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+  dragThumb(shell, 0, 1);
+  assert.equal(SigK.pageEdit.canUndo(), true);
+
+  await SigK.viewer.open(makeSource({ path: 'C:\\work\\other.pdf' }));
+  await shell.flush();
+
+  assert.equal(SigK.pageEdit.canUndo(), false);
+});

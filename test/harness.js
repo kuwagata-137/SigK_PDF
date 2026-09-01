@@ -383,6 +383,22 @@ async function createShell({
       applySide(window, { width, height: side?.height ?? DEFAULT_SIDE.height });
       window.SigK.shell.setSidePanelWidth(window.document, width);
     },
+    // ポインタ操作を送る（spec-1-5 のドラッグ並べ替え）。jsdom は
+    // setPointerCapture も elementFromPoint も持たないので、実装側はどちらにも
+    // 頼らない作りにしてある。座標はそのまま clientX / clientY に載る。
+    firePointer: (node, type, { x = 0, y = 0, button = 0 } = {}) => {
+      const Ctor = window.PointerEvent ?? window.MouseEvent;
+      const event = new Ctor(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button,
+        pointerId: 1,
+      });
+      node.dispatchEvent(event);
+      return event;
+    },
     // サイドパネルを縦にスクロールしたことにする。
     scrollSide: (top) => {
       const scroll = window.document.getElementById('side-scroll');
