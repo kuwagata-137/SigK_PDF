@@ -5,9 +5,10 @@ PDF の閲覧・ページ操作・結合・分割・変換・注釈を、1つの
 **現在の状態: Phase 1「閲覧とページ操作」の途中。PDF を開いて読めるところまで動く。**
 
 PDF をダイアログ・ドラッグ＆ドロップ・最近使ったファイルから開き、タブで並べて、
-連続スクロール・ズーム・ページ移動で読める。文書情報も見られる。
-サムネイル・検索・テキスト選択・印刷・ページ編集・保存はこれから
-（`docs/05_開発ロードマップ.md` Phase 1 の塊③以降）。
+連続スクロール・ズーム・ページ移動で読める。サイドパネルのサムネイルで今いる場所が分かり、
+文字を選んでコピーできる。文書情報も見られる。
+検索・印刷・ページ編集・保存はこれから
+（`docs/05_開発ロードマップ.md` Phase 1 の塊③-b 以降）。
 
 ```bash
 npm install && npm test && npm start
@@ -75,6 +76,8 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/spec-0-foundation.md`](docs/spec-0-foundation.md) | Phase 0 土台 |
 | [`docs/spec-1-1-viewer.md`](docs/spec-1-1-viewer.md) | Phase 1 塊① 表示の最小 |
 | [`docs/spec-1-2-tabs.md`](docs/spec-1-2-tabs.md) | Phase 1 塊② 入出力とタブ |
+| [`docs/spec-1-3-reading.md`](docs/spec-1-3-reading.md) | Phase 1 塊③-a サムネイルとテキスト |
+| [`docs/spec-1-4-find-print.md`](docs/spec-1-4-find-print.md) | Phase 1 塊③-b 検索と印刷 |
 
 開発の進め方（着手前の仕様確定、PR・マージの承認ゲート、ブランチ運用）は [`.claude/CLAUDE.md`](.claude/CLAUDE.md) に定める。
 
