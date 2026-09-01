@@ -382,6 +382,17 @@ mouseMoved を刻んで送るのは、1回で飛ばすと掴む判定と落と�
 > **その文書で `getForm()` を呼んだときにだけ**起きる（`save()` の中は
 > `formCache.getValue()` を見ており、触っていない文書ではキャッシュが空のため何もしない）。
 > 正しい形と根拠は `docs/spec-1-6-save.md`「事前調査 B」にある。
+>
+> **同じく訂正が2件。**
+> ① 上の表の「`copyPages` での複製 → しおりと AcroForm が必ず消える」は、
+> **新規文書を作って全ページを copy し直す方式に限った話である。**開いている
+> `PDFDocument` へ `copyPages` ＋ `insertPage` する分には、その文書のしおり・AcroForm・
+> 内部リンクは保たれた（実測）。ただし**差し込まれた側**の `/Widget` 注釈だけは
+> ページに付いたまま運ばれ、機能しない入力欄の抜け殻になる。
+> ② 「GIF・BMP は message すら持たない値を投げる」は **`embedPng` についてのみ正しい。**
+> `embedPng` はプリミティブの文字列 `"The input is not a PNG file!"` を投げるが、
+> `embedJpg` は本物の `Error`（`"SOI not found in JPEG"`）を投げる。同じライブラリの中で
+> 型が揃っていない。詳細は `docs/spec-1-6-save.md`「事前調査 H」。
 
 ---
 
