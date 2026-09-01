@@ -3,8 +3,8 @@
 - ステータス: **確定**（2026-08-31 起草／2026-09-01 確定。確定事項35件をそのまま実装する）
 - 関連: `docs/05_開発ロードマップ.md` Phase 1 塊③-a ／ `docs/spec-1-1-viewer.md` ／ `docs/spec-1-2-tabs.md` ／ `docs/04_UI設計.md` 第4-1章・第10章
 - 対応要件: F-01-4（サムネイル一覧）／F-01-6（テキスト選択・コピー）
-- 実装: `renderer/viewer-layout.js`・`renderer/page-render.js`・`renderer/text-layer.js`・`renderer/text-layer.css`・`renderer/thumbnails.js`・`renderer/viewer.js`・`renderer/tabs.js`・`renderer/shell.js`・`index.html`・`renderer/shell.css`
-- テスト: `test/viewer-layout.test.js`・`test/thumbnails.test.js`・`test/text-layer.test.js`・`test/shell.test.js`・`test/harness.js`
+- 実装: `renderer/viewer-layout.js`・`renderer/page-render.js`・`renderer/text-layer.js`・`renderer/text-layer.css`・`renderer/thumbnails.js`・`renderer/viewer.js`・`renderer/shell.js`・`renderer/app.js`・`index.html`・`renderer/shell.css`・`settings.js`・`main.js`・`preload.js`
+- テスト: `test/viewer-layout.test.js`・`test/thumbnails.test.js`・`test/text-layer.test.js`・`test/settings.test.js`・`test/shell.test.js`・`test/harness.js`
 
 ## 目的
 
@@ -48,9 +48,9 @@
 | 1 | 置き場所 | `#side-scroll` の中。**閲覧モードのときだけ**出す。ページモード・注釈モード・ツールモードは従来のプレースホルダーのまま。多列グリッドは塊④ |
 | 2 | 枠の作り方 | ページビューと同じ思想（`spec-1-1` 確定事項9）。**全ページ分の枠を先に置き、見えている範囲だけ描く。**総高さが最初から正しくなり、読み進めてもスクロールバーの長さが跳ねない |
 | 3 | レイアウトの法則 | ページビューは「**倍率が一律で、幅は紙ごとに変わる**」。サムネイルは「**幅を揃えて、高さが紙ごとに変わる**」。法則が違うので `layoutPages` は流用せず、`layoutThumbnails()` を `renderer/viewer-layout.js` に足す。返す形は同じ（`{ index, top, height, ... }`）にして、`visibleRange()` と `currentPageIndex()` を**そのまま再利用**する |
-| 4 | `renderTargets` の再利用 | 改修不要。既に `ahead` と `max` を引数で受ける（`viewer-layout.js:112`）。サムネイル側は別の値を渡すだけでよい |
+| 4 | `renderTargets` の再利用 | 改修不要。既に `ahead` と `max` を引数で受ける。サムネイル側は別の値を渡すだけでよい |
 | 5 | 幅 | サイドパネルの実幅に追従する（`#side-scroll` の `clientWidth` から余白を引く）。固定値にしない。サイドパネルは 180〜420px でドラッグできるため、固定だと広げても大きくならない |
-| 6 | 同時に持つ canvas の上限 | **24枚。**240px 幅のパネルに A4 が約2.2枚見え、前後1ページ先読みで4〜5枚。24枚あればスクロールを少し戻したときに描き直しが起きない。**実測に基づかない初期値である**（タブ上限20と同じ扱い。`docs/07` 第6章）。常用して足りない／重いと分かった時点で見直す |
+| 6 | 同時に持つ canvas の上限 | **24枚。**240px 幅のパネルに A4 が約2.2枚見え、24枚あればスクロールを少し戻したときに描き直しが起きない。**実測に基づかない初期値である**（タブ上限20と同じ扱い。`docs/07` 第6章）。常用して足りない／重いと分かった時点で見直す。**2026-09-01 追記: 先読みの枚数を 1 → 4 に変えた。**1 のままだと同時に4枚しか持てず、上限24 に決して届かないと実測で分かったため（下の「実測」節） |
 | 7 | 描画の解像度 | `thumbnailScale()` ＝ サムネイル幅 ÷ ページ幅 × `min(devicePixelRatio, 2)`。**上限はページビューの3より低い 2 にする。**サムネイルは地図であって読むものではなく、24枚を同時に持つため |
 | 8 | 見た目 | `_mockup_sigkpdf.html` の `.thumbs1` に揃える。紙（`.sheet`）＋その下にページ番号（`.cap`）、間隔 10px。現在ページは枠を `--accent`、背景を `--select`、番号も `--accent`（モックの `.thumb.current`）。**モックで確定済みの意匠であり、新たに決め直さない** |
 | 9 | ページ番号を出すか | **出す。**モックにあり、地図として使うなら番号が要る。紙だけでは何ページ目か分からない |
@@ -84,7 +84,7 @@
 |---|------|------|
 | 28 | なぜ今割るか | `renderer/viewer.js` は現在 507 行あり、状態・レイアウト適用・描画ライフサイクル・倍率・ページ移動・文書の開閉・セッションの退避を1本で持っている。**テキストレイヤーを足す場所がまさに描画ライフサイクルである。**足してから割るより、割ってから足すほうが差分が読める |
 | 29 | 何を切り出すか | `renderPage()`・`releasePage()`・`releaseAll()`・`update()`・`scheduleUpdate()`・`canDrawCanvas()` を `renderer/page-render.js` へ。`viewer.js` に残るのは、文書の開閉・セッションの退避と復元・倍率・ページ移動 |
-| 30 | 切り出しの進め方 | **振る舞いを1つも変えない。**先に切り出して既存の208件が緑のままであることを確かめ、そのあとでテキストレイヤーを足す。2つを同じコミットに混ぜない |
+| 30 | 切り出しの進め方 | **振る舞いを1つも変えない。**先に切り出して既存のテストが緑のままであることを確かめ、そのあとでテキストレイヤーを足す。2つを同じコミットに混ぜない（実際には `layoutThumbnails` を先に足したので 214件で確認した） |
 
 ### D. サイドパネルの状態を覚える
 
@@ -132,24 +132,65 @@
 
 ## 完了の判定
 
-- [ ] `npm test` が緑
-- [ ] `SIGK_SMOKE=1 SIGK_SMOKE_PDF=...` でサムネイルが並び、現在ページに枠が付き、コンソールエラーが0件
-- [ ] `SIGK_SMOKE_TEXT=1` でテキストレイヤーの `span` が出て、`window.getSelection().toString()` が文字を返す
-- [ ] `SIGK_SMOKE_DROP` が引き続き通る（確定事項24。テキストレイヤーがドロップを塞いでいない）
-- [ ] `SIGK_SMOKE_TABS` でタブを切り替えてもサムネイルの canvas を持ち越さない
-- [ ] `npm run dist` で NSIS インストーラーが生成される
-- [ ] **生成物が起動する**（`SIGK_SMOKE=1 "./dist/win-unpacked/SigK PDF.exe"`。`docs/spec-1-2-tabs.md` 不具合3 で足した判定）
-- [ ] `screenshots/phase1-thumbnails.png` を残す
+2026-09-01 に全項目を通した（Windows 11・Electron 38・`devicePixelRatio` 1）。
 
-### 実測に残すもの
+- [x] `npm test` が緑（**248件**。塊②終了時の 208件から 40件増）
+- [x] `SIGK_SMOKE=1 SIGK_SMOKE_PDF=test/fixtures/many-pages.pdf` でサムネイルが 40枚並び、1ページ目に枠が付き、コンソールエラー0件
+- [x] `SIGK_SMOKE_TEXT=1` でテキストレイヤーの `span` が出て、`window.getSelection().toString()` が文字を返す
+- [x] `SIGK_SMOKE_DROP` が引き続き通る（3つ目のタブが開き、受け入れ表示も畳まれた。確定事項24）
+- [x] `SIGK_SMOKE_TABS` でタブを切り替えても読み位置が戻り、canvas を持ち越さない
+- [x] `npm run dist` で NSIS インストーラーが生成される
+- [x] **生成物が起動する**（`SIGK_SMOKE=1 SIGK_SMOKE_PDF=... SIGK_SMOKE_TEXT=1 "./dist/win-unpacked/SigK PDF.exe"` で `problems: []`。`docs/spec-1-2-tabs.md` 不具合3 で足した判定）
+- [x] `screenshots/phase1-thumbnails.png` を残す
 
-塊①② と同じく、数値で書き残す。
+### 実測
 
-- サムネイルの枚数・1枚の寸法・現在ページの枠の位置（`getBoundingClientRect`）
-- 40ページの文書で同時に持つサムネイル canvas の枚数（上限24 が効いているか）
-- テキストレイヤーの `span` の数と、ページ枠に対する位置のずれ
-- サイドパネルを 180px と 420px にしたときのサムネイル幅
-- 起動時間・最初のページが出るまでの時間・メモリ（`docs/05` がフェーズ末に定める実測のうち、**サムネイルの解像度の判断に要る分だけ前倒しする**。`docs/05` は対策候補に「サムネイルの解像度の見直し」を名指ししており、決めるその場で測るほうが根拠が確かである）
+#### サムネイル
+
+`test/fixtures/many-pages.pdf`（40ページ・A4）を 1280×800 のウィンドウで開いたときの値。
+
+| サイドパネルの幅 | `#side-scroll` の `clientWidth` | 紙の幅（`columnWidth`） | 枠1枚の寸法 | 同時に持つ canvas |
+|---|---|---|---|---|
+| 180px（下限） | 164px | 144px | 144×217 | 7枚 |
+| 240px（既定） | 224px | 204px | 204×301 | 6枚 |
+| 420px（上限） | 404px | 384px | 384×556 | 6枚 |
+
+- 枠は 40枚すべてが最初から並ぶ。現在ページ（1ページ目）の枠は `x:82, y:114, w:204, h:301` に付いた。
+- `clientWidth` が `--side-width` より 16px 狭いのは、縦スクロールバーの分である。
+  紙の幅を固定値にしていたら、この分だけ常にはみ出していた（確定事項5 の根拠）。
+
+**先読みの枚数を 1 → 4 に変えた。**当初はページビューと同じ 1 だったが、240px 幅の
+パネルには A4 が約2枚しか見えず、canvas を4枚しか持てなかった。確定事項6 は
+「24枚あればスクロールを少し戻したときに描き直しが起きない」を意図していたのに、
+範囲外を即座に捨てる作りでは上限24に決して届かない。先読み4で 6〜7枚になる。
+
+**上限24 は安全弁として残す。**実測では届いていない。canvas のメモリは
+420px・24枚でも `384×556×4B×24 ≒ 20MB` であり、`devicePixelRatio` 2 の画面でも
+80MB に収まる。ページビュー（887×1254×4B×8 ≒ 36MB）と同程度である。
+
+#### テキストレイヤー
+
+| 項目 | 値 |
+|---|---|
+| `span` の数 | 2（`three-pages.pdf` の1ページ目。`items` の数と一致） |
+| ページ枠に対するずれ | `dx:0, dy:0, dw:0, dh:0`（`887×1254` にぴたり重なる） |
+| `--total-scale-factor` | `1.4900551001209517`（＝ 倍率 1.118 × 96/72） |
+| `window.getSelection().toString()` | `"1
+three pages"`（13文字。`many-pages.pdf` では `"1
+continuous scroll"` の19文字） |
+
+ずれが 0 なのは、CSS 変数（確定事項19）と、テキストへ渡す viewport から
+`devicePixelRatio` を外していることの両方が効いた結果である。どちらかを外すと
+文字が紙からずれる。
+
+#### まだ測っていないもの
+
+起動時間・最初のページが出るまでの時間・実メモリは、`docs/05` の定めどおり
+**フェーズ末に回した**。解像度の判断（確定事項7 の上限2）に要るのは canvas の
+寸法であり、それは上表で足りたためである。
+
+なお**この実機の `devicePixelRatio` は 1 であり、上限2 が効く場面は踏んでいない**
+（`canvasPixels` が CSS ピクセルと一致していた）。高 DPI の画面での確認は残っている。
 
 ---
 
