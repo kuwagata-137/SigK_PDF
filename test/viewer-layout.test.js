@@ -158,3 +158,74 @@ test('parsePageNumber は 1 起点の入力を 0 起点の添字にする', () =
   assert.equal(layout.parsePageNumber('', 3), null);
   assert.equal(layout.parsePageNumber('abc', 3), null);
 });
+
+// --- サムネイル（spec-1-3 確定事項3・6・7） ---
+
+test('layoutThumbnails は幅を揃え、高さを紙ごとに変える', () => {
+  const landscape = { width: A4.height, height: A4.width };
+  const { pages, sheetWidth } = layout.layoutThumbnails({ sizes: [A4, landscape, A5], columnWidth: 200 });
+
+  assert.equal(sheetWidth, 200 - layout.THUMB_FRAME * 2);
+  // ページビュー（layoutPages）と逆であることを固定する。あちらは幅が変わる。
+  assert.deepEqual(pages.map((page) => page.sheetWidth), [sheetWidth, sheetWidth, sheetWidth]);
+  assert.equal(pages[0].sheetHeight, Math.round((A4.height / A4.width) * sheetWidth));
+  assert.ok(pages[1].sheetHeight < pages[0].sheetHeight, '横向きのページが縦のままになっている');
+  // A4 と A5 は縦横比がほぼ同じなので、幅を揃えれば高さもほぼ同じになる。
+  assert.ok(Math.abs(pages[2].sheetHeight - pages[0].sheetHeight) <= 1);
+});
+
+test('layoutThumbnails は間隔と余白を空けて積み、総高さを返す', () => {
+  const { pages, totalHeight } = layout.layoutThumbnails({ sizes: [A4, A4, A4], columnWidth: 200 });
+
+  assert.equal(pages[0].top, layout.THUMB_MARGIN);
+  assert.equal(pages[1].top, pages[0].top + pages[0].height + layout.THUMB_GAP);
+  assert.equal(totalHeight, pages[2].top + pages[2].height + layout.THUMB_MARGIN);
+  // 高さには紙のほかに枠とページ番号の分が乗る。
+  assert.equal(pages[0].height, pages[0].sheetHeight + layout.THUMB_FRAME * 2 + layout.THUMB_CAPTION);
+});
+
+test('layoutThumbnails はページが無くても、幅が取れなくても落ちない', () => {
+  const empty = layout.layoutThumbnails({ sizes: [], columnWidth: 200 });
+  assert.deepEqual(empty.pages, []);
+  assert.equal(empty.totalHeight, 0);
+
+  // 壊れたページ（幅0）でも枠は並べる。番号を出すため。
+  const broken = layout.layoutThumbnails({ sizes: [{ width: 0, height: 0 }], columnWidth: 200 });
+  assert.equal(broken.pages.length, 1);
+  assert.ok(broken.pages[0].sheetHeight > 0);
+
+  // サイドパネルが極端に細くても紙の幅は 1px 以上にする。
+  const narrow = layout.layoutThumbnails({ sizes: [A4], columnWidth: 0 });
+  assert.ok(narrow.sheetWidth >= 1);
+});
+
+// 返す形を layoutPages に揃えたのは、可視範囲の判定を作り直さないためである
+// （確定事項3）。実際に流用できることをここで固定する。
+test('layoutThumbnails の返り値で visibleRange と currentPageIndex が動く', () => {
+  const { pages } = layout.layoutThumbnails({ sizes: [A4, A4, A4, A4], columnWidth: 200 });
+
+  assert.deepEqual(layout.visibleRange({ pages, scrollTop: 0, viewportHeight: 400 }), { first: 0, last: 1 });
+  assert.equal(layout.currentPageIndex({ pages, scrollTop: pages[2].top, viewportHeight: 400 }), 2);
+});
+
+test('thumbnailScale は紙の幅ぴったりに描く倍率を返し、上限2で頭打ちにする', () => {
+  // CSS_UNITS は掛けない。狙うのは実寸の何倍かではなく、幅が何ピクセルになるかである。
+  assert.equal(layout.thumbnailScale({ sheetWidth: 190, pageWidth: 380, devicePixelRatio: 1 }), 0.5);
+  assert.equal(layout.thumbnailScale({ sheetWidth: 190, pageWidth: 380, devicePixelRatio: 2 }), 1);
+  // ページビューの上限は3。サムネイルは24枚持つので2で止める。
+  assert.equal(layout.thumbnailScale({ sheetWidth: 190, pageWidth: 380, devicePixelRatio: 8 }), 1);
+  assert.equal(layout.MAX_THUMB_SCALE, 2);
+  assert.ok(layout.MAX_THUMB_SCALE < layout.MAX_CANVAS_SCALE);
+
+  assert.equal(layout.thumbnailScale({ sheetWidth: 190, pageWidth: 0 }), 1);
+  assert.equal(layout.thumbnailScale({ sheetWidth: 0, pageWidth: 380 }), 1);
+});
+
+// サムネイルは小さいので、ページビューの8枚より多く持てる（確定事項6）。
+test('renderTargets はサムネイルの上限24でも同じ規則で切り詰める', () => {
+  const targets = layout.renderTargets({ count: 200, first: 40, last: 90, current: 60, max: layout.MAX_THUMBS });
+
+  assert.equal(layout.MAX_THUMBS, 24);
+  assert.equal(targets.length, 24);
+  assert.ok(targets.includes(60), '現在ページが落ちている');
+});

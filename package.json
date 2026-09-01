@@ -39,6 +39,7 @@
       "settings.js",
       "errorlog.js",
       "file-io.js",
+      "recent-documents.js",
       "index.html",
       "renderer/**",
       "assets/**",

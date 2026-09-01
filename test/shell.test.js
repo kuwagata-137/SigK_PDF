@@ -39,6 +39,17 @@ test('index.html が読み込むスクリプトはすべて実在する', async 
     assert.ok(fs.existsSync(path.join(ROOT, ...src.split('/'))), `${src} が無い`);
 });
 
+// 実在の確認をスクリプトと揃える。text-layer.css は pdf.js から写したもので
+// （spec-1-3 確定事項18）、消すとテキストレイヤーの寸法が無効になる。
+test('index.html が読み込むスタイルシートはすべて実在する', async (t) => {
+  const { document } = await withShell(t);
+  const hrefs = [...document.querySelectorAll('link[rel="stylesheet"]')].map((el) => el.getAttribute('href'));
+
+  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css']);
+  for (const href of hrefs)
+    assert.ok(fs.existsSync(path.join(ROOT, ...href.split('/'))), `${href} が無い`);
+});
+
 // pdf.js は ESM でしか配布されていない。module はこの1本に限る（spec-1-1 確定事項1）。
 // 数が増えていたら、IIFE で書く決まり（docs/02 第4章）が崩れかけている。
 test('module として読むスクリプトは pdf.js の入口1本だけである', async (t) => {
@@ -196,4 +207,80 @@ test('formatFileSize は 1024 区切りで単位を上げる', async (t) => {
   assert.equal(SigK.shell.formatFileSize(2.5 * 1024 * 1024), '2.5 MB');
   assert.equal(SigK.shell.formatFileSize(-1), '–');
   assert.equal(SigK.shell.formatFileSize(Number.NaN), '–');
+});
+
+// --- 画面の見た目を覚える（spec-1-3 確定事項31〜35） ---
+
+test('前回のモードとサイドパネルの状態で開く', async (t) => {
+  const { document, flush, uiCalls } = await withShell(t, {
+    ui: { mode: 'tools', sidePanel: { open: false, width: 320 } },
+  });
+  await flush();
+  const html = document.documentElement;
+
+  assert.equal(html.getAttribute('data-mode'), 'tools');
+  assert.equal(html.getAttribute('data-panel'), 'collapsed');
+  assert.equal(html.style.getPropertyValue('--side-width'), '320px');
+  // 復元そのものは覚え直さない。起動のたびに settings.json を触らない。
+  assert.deepEqual(uiCalls, []);
+});
+
+test('設定が読めなくても既定の見た目で立ち上がる', async (t) => {
+  const { document, flush } = await withShell(t, { withApis: false });
+  await flush();
+  const html = document.documentElement;
+
+  assert.equal(html.getAttribute('data-mode'), 'view');
+  assert.equal(html.getAttribute('data-panel'), 'open');
+  assert.equal(html.style.getPropertyValue('--side-width'), '240px');
+});
+
+test('モードを変えると覚える', async (t) => {
+  const { document, SigK, flush, uiCalls, savedUi } = await withShell(t);
+  await flush();
+
+  SigK.shell.setMode(document, 'annot');
+  await flush();
+
+  assert.deepEqual(uiCalls, [{ mode: 'annot' }]);
+  assert.equal(savedUi().mode, 'annot');
+  // 使えないモードは当たらないので、覚えもしない。
+  SigK.shell.setMode(document, 'zzz');
+  assert.equal(uiCalls.length, 1);
+});
+
+test('サイドパネルの開閉を覚える', async (t) => {
+  const { document, SigK, flush, uiCalls, savedUi } = await withShell(t);
+  await flush();
+
+  document.getElementById('side-collapse').dispatchEvent(new (document.defaultView.MouseEvent)('click'));
+  await flush();
+
+  assert.deepEqual(uiCalls, [{ sidePanel: { open: false } }]);
+  assert.equal(savedUi().sidePanel.open, false);
+});
+
+// settings.js は一時ファイル＋rename のアトミック書き込みである。ドラッグ中に
+// 毎回呼ぶとディスクを叩き続ける（確定事項34）。
+test('サイドパネルの幅はドラッグ中に書かず、離した時点で1回だけ覚える', async (t) => {
+  const { document, window, flush, uiCalls, savedUi } = await withShell(t);
+  await flush();
+
+  const resizer = document.getElementById('side-resizer');
+  resizer.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
+  for (const clientX of [200, 260, 300])
+    document.dispatchEvent(new window.MouseEvent('mousemove', { bubbles: true, clientX }));
+
+  assert.equal(document.documentElement.style.getPropertyValue('--side-width'), '300px', '幅が追従していない');
+  assert.deepEqual(uiCalls, [], 'ドラッグ中に書いている');
+
+  document.dispatchEvent(new window.MouseEvent('mouseup', { bubbles: true }));
+  await flush();
+
+  assert.deepEqual(uiCalls, [{ sidePanel: { width: 300 } }]);
+  assert.equal(savedUi().sidePanel.width, 300);
+
+  // 掴んでいないときの mouseup では書かない。
+  document.dispatchEvent(new window.MouseEvent('mouseup', { bubbles: true }));
+  assert.equal(uiCalls.length, 1);
 });

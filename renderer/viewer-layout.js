@@ -24,6 +24,19 @@
   const MAX_RENDERED = 8;
   const MAX_CANVAS_SCALE = 3;
 
+  // サムネイル（spec-1-3 確定事項3・6・7）。shell.css の .thumbs1 / .thumb / .cap と
+  // 同じ値にする。片方だけ変えると、可視範囲の判定が実際の描画とずれる。
+  const THUMB_GAP = 10;      // .thumbs1 の gap
+  const THUMB_FRAME = 5;     // .thumb の padding 3px ＋ border 2px
+  const THUMB_CAPTION = 17;  // .cap の行の高さ ＋ margin-top
+  const THUMB_MARGIN = 10;   // .side-scroll の padding
+  // 先読みの枚数。ページビューの1より多くする。240px 幅のパネルには
+  // A4 が約2枚しか見えず、1 のままでは4枚しか持てない。少し戻すたびに
+  // 描き直しが起きるのを避けるため、実測して 4 にした（spec-1-3 の実測）。
+  const THUMB_AHEAD = 4;
+  const MAX_THUMBS = 24;
+  const MAX_THUMB_SCALE = 2;
+
   function clampZoom(zoom) {
     if (!Number.isFinite(zoom))
       return 1;
@@ -75,6 +88,49 @@
 
     const totalHeight = pages.length === 0 ? 0 : top - PAGE_GAP + PAGE_MARGIN;
     return { pages, contentWidth, totalHeight };
+  }
+
+  // サムネイルの配置。ページビューとは法則が違う（spec-1-3 確定事項3）。
+  // ページビューは「倍率が一律で、幅が紙ごとに変わる」。ここは
+  // 「幅を揃えて、高さが紙ごとに変わる」。
+  //
+  // 返す形は layoutPages と揃える。top と height を同じ意味で持たせておけば、
+  // visibleRange() と currentPageIndex() をそのまま使える。
+  function layoutThumbnails({
+    sizes,
+    columnWidth,
+    gap = THUMB_GAP,
+    margin = THUMB_MARGIN,
+    caption = THUMB_CAPTION,
+    frame = THUMB_FRAME,
+  }) {
+    const sheetWidth = Math.max(1, Math.round(columnWidth - frame * 2));
+    let top = margin;
+
+    const pages = sizes.map((size, index) => {
+      // 幅が取れない壊れたページでも、枠だけは並べて番号を出す。
+      const ratio = size.width > 0 ? size.height / size.width : 1;
+      const sheetHeight = Math.max(1, Math.round(ratio * sheetWidth));
+      const height = sheetHeight + frame * 2 + caption;
+      const page = { index, top, height, sheetWidth, sheetHeight };
+      top += height + gap;
+      return page;
+    });
+
+    const totalHeight = pages.length === 0 ? 0 : top - gap + margin;
+    return { pages, sheetWidth, totalHeight };
+  }
+
+  // サムネイルを描くときに pdf.js へ渡す scale。
+  // ページビュー（renderScale）と違い CSS_UNITS を掛けない。狙うのは
+  // 「幅が sheetWidth ピクセルになること」であって、実寸の何倍かではないため。
+  // devicePixelRatio の上限をページビューの3より低い2にするのは、サムネイルが
+  // 読むものではなく、最大 MAX_THUMBS 枚を同時に持つためである（確定事項7）。
+  function thumbnailScale({ sheetWidth, pageWidth, devicePixelRatio = 1 }) {
+    if (!(pageWidth > 0) || !(sheetWidth > 0))
+      return 1;
+    const ratio = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
+    return (sheetWidth / pageWidth) * Math.min(ratio, MAX_THUMB_SCALE);
   }
 
   function overlapHeight(page, scrollTop, viewportHeight) {
@@ -162,12 +218,21 @@
     RENDER_AHEAD,
     MAX_RENDERED,
     MAX_CANVAS_SCALE,
+    THUMB_GAP,
+    THUMB_FRAME,
+    THUMB_CAPTION,
+    THUMB_MARGIN,
+    THUMB_AHEAD,
+    MAX_THUMBS,
+    MAX_THUMB_SCALE,
     clampZoom,
     nextZoom,
     prevZoom,
     fitWidthZoom,
     fitPageZoom,
     layoutPages,
+    layoutThumbnails,
+    thumbnailScale,
     visibleRange,
     currentPageIndex,
     renderTargets,

@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>SigK PDF</title>
 <link rel="stylesheet" href="renderer/shell.css">
+<link rel="stylesheet" href="renderer/text-layer.css">
 <style>
 :root{
   --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
@@ -89,7 +90,8 @@ body{
         <span class="collapse" id="side-collapse" data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを閉じる"></span>
       </div>
       <div class="side-scroll" id="side-scroll">
-        <p class="empty">文書を開くと<br>ページの一覧が出ます</p>
+        <div class="thumbs1" id="thumbs" hidden></div>
+        <p class="empty" id="thumbs-empty">文書を開くと<br>ページの一覧が出ます</p>
       </div>
       <div class="side-actions" id="side-actions" hidden>
         <div class="act" aria-disabled="true"><span data-icon="rotateLeft" data-icon-size="14" data-icon-stroke="1.9"></span>左回転</div>
@@ -145,8 +147,11 @@ body{
 <script src="renderer/log.js"></script>
 <script src="renderer/shell.js"></script>
 <script src="renderer/viewer-layout.js"></script>
+<script src="renderer/text-layer.js"></script>
+<script src="renderer/page-render.js"></script>
 <script src="renderer/view-banner.js"></script>
 <script src="renderer/viewer.js"></script>
+<script src="renderer/thumbnails.js"></script>
 <script src="renderer/doc-info.js"></script>
 <script src="renderer/tabs.js"></script>
 <script src="renderer/recent-panel.js"></script>

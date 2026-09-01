@@ -33,6 +33,13 @@ const DEFAULT_APP_INFO = {
 // 「見えている範囲」が常に空になり、倍率も配置も確かめられない。
 const DEFAULT_VIEWPORT = { width: 900, height: 700 };
 
+// サイドパネルのスクロール器の寸法。サムネイルの紙幅はここから決まるので、
+// 与えないと枠が1枚も並ばない（spec-1-3 確定事項5）。
+const DEFAULT_SIDE = { width: 240, height: 600 };
+
+// 前回の見た目。settings.json に入っているものと同じ形にする。
+const DEFAULT_UI = { mode: 'view', sidePanel: { open: true, width: 240 } };
+
 const A4 = { width: 595.28, height: 841.89 };
 
 // index.html が読み込む順に <script src> のパスを返す。
@@ -50,13 +57,68 @@ function readClassicSources(document) {
     .map((el) => el.getAttribute('src'));
 }
 
+// pdf.js の TextLayer の代わり（spec-1-3 確定事項26）。
+//
+// 本物は canvas の 2D コンテキストでフォントの高さを測るため、jsdom では
+// 動かない。ここは「span を items の数だけ並べる」ところまでを真似る。
+// 位置の正しさは jsdom では確かめられないので、npm start の実測で担保する。
+function createTextLayerStub(layers) {
+  return class TextLayerStub {
+    constructor({ textContentSource, container, viewport }) {
+      this.container = container;
+      this.viewport = viewport;
+      this.items = textContentSource?.items ?? [];
+      this.canceled = false;
+      this.settled = null;
+      this.spans = [];
+      layers.push(this);
+    }
+
+    render() {
+      const doc = this.container.ownerDocument;
+      for (const item of this.items) {
+        const span = doc.createElement('span');
+        span.textContent = item.str;
+        this.container.append(span);
+        this.spans.push(span);
+      }
+      this.settled = Promise.withResolvers();
+      // 本物は読み終えた時点で解決する。ここは次のティックで済ませ、
+      // 「解決前に cancel される」経路もテストから作れるようにしておく。
+      queueMicrotask(() => {
+        if (!this.canceled)
+          this.settled.resolve();
+      });
+      return this.settled.promise;
+    }
+
+    // 本物と同じく、まだ終わっていなければ render() の promise を拒否する。
+    // DOM は消さない（ページ枠ごと捨てられる前提）。
+    cancel() {
+      this.canceled = true;
+      this.settled?.reject(new Error('TextLayer task cancelled.'));
+    }
+
+    get textDivs() {
+      return this.spans;
+    }
+  };
+}
+
 // pdf.js の代わり。ページの寸法を返し、描画は即座に終わったことにする。
 //
 // getDocument() は呼ばれるたびに別の文書を作る。タブは複数の文書を同時に
 // 抱えるため、1つを使い回すと「どのタブの文書が破棄されたか」を確かめられない。
-function createPdfjsStub({ sizes = [A4, A4, A4], openError = null, info = {} } = {}) {
+function createPdfjsStub({
+  sizes = [A4, A4, A4],
+  openError = null,
+  info = {},
+  // ページ1枚あたりのテキスト。null にすると TextLayer ごと使えない状態を作れる。
+  textItems = ['あいうえお', 'かきくけこ'],
+} = {}) {
   const rendered = [];
   const documents = [];
+  const textLayers = [];
 
   function createDocument() {
     const document = {
@@ -77,6 +139,9 @@ function createPdfjsStub({ sizes = [A4, A4, A4], openError = null, info = {} } =
             rendered.push(number);
             return { promise: Promise.resolve(), cancel: () => {} };
           },
+          async getTextContent() {
+            return { items: (textItems ?? []).map((str) => ({ str })), styles: {} };
+          },
         };
       },
     };
@@ -89,6 +154,10 @@ function createPdfjsStub({ sizes = [A4, A4, A4], openError = null, info = {} } =
     stub: true,
     rendered,
     documents,
+    textLayers,
+    // 本物の pdfjs-bridge.mjs は lib に pdf.js の名前空間をそのまま載せる。
+    // text-layer.js が TextLayer をここから取るので、同じ形にしておく。
+    lib: { TextLayer: textItems === null ? undefined : createTextLayerStub(textLayers) },
     // 最後に開いた文書。1文書しか扱わないテストのための近道。
     get document() {
       return documents.at(-1) ?? null;
@@ -117,6 +186,14 @@ function applyViewport(window, viewport) {
   Object.defineProperty(view, 'clientHeight', { value: viewport.height, configurable: true });
 }
 
+function applySide(window, side) {
+  const scroll = window.document.getElementById('side-scroll');
+  if (scroll === null || side === null)
+    return;
+  Object.defineProperty(scroll, 'clientWidth', { value: side.width, configurable: true });
+  Object.defineProperty(scroll, 'clientHeight', { value: side.height, configurable: true });
+}
+
 // 読み込み結果を1つ作る。中身は使われないので、PDF の署名だけ入れておく。
 function makeSource({ path = 'C:\\work\\sample.pdf', name = null, size = 2048 } = {}) {
   return {
@@ -141,9 +218,11 @@ async function createShell({
   appInfo = DEFAULT_APP_INFO,
   withApis = true,
   viewport = DEFAULT_VIEWPORT,
+  side = DEFAULT_SIDE,
   pdfjs = createPdfjsStub(),
   openResults = [],
   recent = [],
+  ui = DEFAULT_UI,
   // パス → 読み込み結果。pdfAPI.read(path) がここを引く。
   files = {},
 } = {}) {
@@ -159,7 +238,9 @@ async function createShell({
   const openRequestHandlers = [];
   const docInfoRequestHandlers = [];
   const recentCalls = [];
+  const uiCalls = [];
   let recentList = [...recent];
+  let savedUi = structuredClone(ui);
 
   if (withApis) {
     window.appInfoAPI = { available: true, get: async () => appInfo };
@@ -181,6 +262,18 @@ async function createShell({
       onOpenRequest: (callback) => openRequestHandlers.push(callback),
       onDocInfoRequest: (callback) => docInfoRequestHandlers.push(callback),
     };
+    window.settingsAPI = {
+      available: true,
+      getUi: async () => ({ ok: true, ui: structuredClone(savedUi) }),
+      setUi: async (patch) => {
+        uiCalls.push(structuredClone(patch));
+        savedUi = {
+          mode: patch?.mode ?? savedUi.mode,
+          sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
+        };
+        return { ok: true, ui: structuredClone(savedUi) };
+      },
+    };
     window.recentAPI = {
       available: true,
       list: async () => ({ ok: true, recent: recentList }),
@@ -201,6 +294,7 @@ async function createShell({
     window.SigK = { pdfjs };
 
   applyViewport(window, viewport);
+  applySide(window, side);
 
   const sources = readScriptSources(window.document);
   for (const src of readClassicSources(window.document)) {
@@ -221,10 +315,25 @@ async function createShell({
     openResults,
     recentCalls,
     recentList: () => recentList,
+    // 覚えた見た目と、そこへ届いた patch の並び。
+    uiCalls,
+    savedUi: () => savedUi,
     // メニューの「開く」から届く合図を、テストから引く。パスを渡せば
     // 「最近使ったファイル」から選んだのと同じ経路になる。
     fireOpenRequest: (filePath) => openRequestHandlers.forEach((handler) => handler(filePath)),
     fireDocInfoRequest: () => docInfoRequestHandlers.forEach((handler) => handler()),
+    // サイドパネルの幅を変えたことにする。jsdom はレイアウトしないので、
+    // clientWidth を差し替えてから shell 経由で知らせる。
+    resizeSide: (width) => {
+      applySide(window, { width, height: side?.height ?? DEFAULT_SIDE.height });
+      window.SigK.shell.setSidePanelWidth(window.document, width);
+    },
+    // サイドパネルを縦にスクロールしたことにする。
+    scrollSide: (top) => {
+      const scroll = window.document.getElementById('side-scroll');
+      scroll.scrollTop = top;
+      scroll.dispatchEvent(new window.Event('scroll'));
+    },
     // スクロール後の描画は requestAnimationFrame で1フレーム遅れる。待つための口。
     flush: () => new Promise((resolve) => {
       window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
@@ -239,6 +348,8 @@ module.exports = {
   INDEX_PATH,
   DEFAULT_APP_INFO,
   DEFAULT_VIEWPORT,
+  DEFAULT_SIDE,
+  DEFAULT_UI,
   A4,
   readScriptSources,
   readClassicSources,
@@ -248,5 +359,6 @@ module.exports = {
   makeDataTransfer,
   waitForReady,
   applyViewport,
+  applySide,
   createShell,
 };

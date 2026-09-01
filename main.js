@@ -16,7 +16,7 @@ const {
   resolveAppPath,
   contentTypeFor,
 } = require('./security-policy.js');
-const { createSettingsStore, clampWindowBounds } = require('./settings.js');
+const { createSettingsStore, clampWindowBounds, pickUi, mergeUi } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
@@ -218,6 +218,15 @@ function registerIpc() {
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
 
+  // 画面の見た目（モード・サイドパネルの開閉と幅）を覚える。
+  // sandbox: true のため、fs に触るのはメインだけである（spec-1-3 確定事項32）。
+  ipcMain.handle('settings:getUi', () => ({ ok: true, ui: pickUi(settings.get()) }));
+  ipcMain.handle('settings:setUi', (_event, patch) => {
+    settings.set(mergeUi(pickUi(settings.get()), patch));
+    settings.save();
+    return { ok: true, ui: pickUi(settings.get()) };
+  });
+
   ipcMain.handle('recent:list', () => ({ ok: true, recent: normalizeList(settings.get().recent) }));
   ipcMain.handle('recent:add', (_event, entry) => updateRecent(addRecent(settings.get().recent, entry)));
   ipcMain.handle('recent:remove', (_event, filePath) => updateRecent(removeRecent(settings.get().recent, filePath)));
@@ -388,6 +397,98 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_TEXT=1 を付けると、テキストレイヤーとサムネイルの実測を出す
+  // （spec-1-3 確定事項27）。jsdom は CSS を解釈せず getBoundingClientRect が
+  // すべて 0 を返すため、「文字がページ枠に重なっているか」「実際に選べるか」
+  // 「サイドパネルの幅にサムネイルが追従するか」はここでしか確かめられない。
+  // SIGK_SMOKE_PDF と一緒に使う（文書が開いていないと測るものが無い）。
+  const textScript = `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    // 時間で待つと、初回起動（フォントの取得を伴う）で取りこぼす。状態で待つ。
+    const until = async (check, limit = 8000) => {
+      for (let waited = 0; waited < limit; waited += 100) {
+        if (check())
+          return true;
+        await wait(100);
+      }
+      return false;
+    };
+
+    const layerReady = await until(() => document.querySelector('.pdf-page .textLayer') !== null);
+    const round = (rect) => rect === null ? null : {
+      x: Math.round(rect.x), y: Math.round(rect.y),
+      w: Math.round(rect.width), h: Math.round(rect.height),
+    };
+
+    const page = document.querySelector('.pdf-page');
+    const layer = page === null ? null : page.querySelector('.textLayer');
+    const pageBox = page === null ? null : page.getBoundingClientRect();
+    const layerBox = layer === null ? null : layer.getBoundingClientRect();
+
+    // 本当に選べるか。ページ1枚ぶんを選び、取り出せた文字を見る。
+    let selected = null;
+    if (layer !== null) {
+      const range = document.createRange();
+      range.selectNodeContents(layer);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      selected = selection.toString();
+      selection.removeAllRanges();
+    }
+
+    const measureThumbs = () => {
+      const list = [...document.querySelectorAll('#thumbs .thumb')];
+      const current = document.querySelector('#thumbs .thumb.current');
+      return {
+        count: list.length,
+        canvasCount: document.querySelectorAll('#thumbs canvas').length,
+        cssVar: document.documentElement.style.getPropertyValue('--side-width'),
+        sideWidth: document.getElementById('side').clientWidth,
+        scrollWidth: document.getElementById('side-scroll').clientWidth,
+        columnWidth: window.SigK.thumbnails.getState().columnWidth,
+        first: list.length === 0 ? null : round(list[0].getBoundingClientRect()),
+        currentPage: current === null ? null : current.dataset.page,
+        currentBox: current === null ? null : round(current.getBoundingClientRect()),
+      };
+    };
+
+    // 紙の幅がサイドパネルの実幅に追従するか（確定事項5）。
+    const measureAt = async (width) => {
+      const before = window.SigK.thumbnails.getState().columnWidth;
+      window.SigK.shell.setSidePanelWidth(document, width);
+      await until(() => window.SigK.thumbnails.getState().columnWidth !== before);
+      await wait(400);
+      return measureThumbs();
+    };
+
+    const atDefault = measureThumbs();
+    const atMin = await measureAt(180);
+    const atMax = await measureAt(420);
+    await measureAt(240);
+
+    return {
+      // テキストレイヤーが使える状態か。pdf.js の読み込みに失敗していれば false。
+      available: window.SigK.textLayer.available(),
+      textLayerClass: typeof (window.SigK.pdfjs.lib || {}).TextLayer,
+      layerReady,
+      spans: layer === null ? 0 : layer.querySelectorAll('span').length,
+      pageBox: round(pageBox),
+      layerBox: round(layerBox),
+      // ページ枠に対するずれ。0 でなければ CSS 変数か viewport の渡し方が違う。
+      offset: layerBox === null || pageBox === null ? null : {
+        dx: Math.round(layerBox.x - pageBox.x),
+        dy: Math.round(layerBox.y - pageBox.y),
+        dw: Math.round(layerBox.width - pageBox.width),
+        dh: Math.round(layerBox.height - pageBox.height),
+      },
+      scaleFactor: page === null ? null : page.style.getPropertyValue('--total-scale-factor'),
+      selectedLength: selected === null ? null : selected.length,
+      selectedHead: selected === null ? null : selected.slice(0, 40),
+      thumbs: { atDefault, atMin, atMax },
+    };
+  })()`;
+
   // SIGK_SMOKE_DROP=<path> を付けると、本物のドラッグ＆ドロップを再現する。
   // Chromium の Input.dispatchDragEvent に実ファイルのパスを渡すと、ページには
   // OS から落としたときと同じ File が届く。webUtils.getPathForFile がそこから
@@ -424,6 +525,7 @@ function installSmokeCheck(win) {
       let shell = null;
       let pdf = null;
       let tabs = null;
+      let text = null;
       let drop = null;
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
@@ -436,6 +538,8 @@ function installSmokeCheck(win) {
           const paths = process.env.SIGK_SMOKE_TABS.split(',').map((p) => path.resolve(p.trim()));
           tabs = await win.webContents.executeJavaScript(tabsScript(paths));
         }
+        if (process.env.SIGK_SMOKE_TEXT === '1')
+          text = await win.webContents.executeJavaScript(textScript);
         if (process.env.SIGK_SMOKE_DROP) {
           await dispatchDrop(path.resolve(process.env.SIGK_SMOKE_DROP));
           drop = await win.webContents.executeJavaScript(dropResultScript);
@@ -462,6 +566,7 @@ function installSmokeCheck(win) {
         shell,
         pdf,
         tabs,
+        text,
         drop,
         screenshot,
         problems,

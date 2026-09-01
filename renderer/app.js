@@ -29,6 +29,29 @@
     }
   }
 
+  // 前回のモード・サイドパネルの開閉と幅を当てる（spec-1-3 確定事項31）。
+  //
+  // shell.init は既定値で先に組み、設定は届いた時点で重ねる。IPC の往復を
+  // 待つと、ビューアやタブの初期化まで揃って遅れるためである。
+  async function restoreUi(doc) {
+    const api = root.settingsAPI;
+    if (!api || api.available !== true)
+      return null;
+    try {
+      const result = await api.getUi();
+      if (!result || result.ok !== true)
+        return null;
+      root.SigK.shell.applyUi(doc, {
+        mode: result.ui.mode,
+        panelOpen: result.ui.sidePanel.open,
+        sidePanelWidth: result.ui.sidePanel.width,
+      });
+      return result.ui;
+    } catch {
+      return null;
+    }
+  }
+
   function init(doc, win) {
     if (win.__sigkReady === true)
       return false;
@@ -39,6 +62,8 @@
     root.SigK.shell.init(doc);
     // 帯はビューアが失敗を伝えるのに使う。先に用意しておく。
     root.SigK.viewBanner.init(doc, win);
+    // サムネイルはビューアが文書を開いたときに差し替えられる。先に用意しておく。
+    root.SigK.thumbnails.init(doc, win);
     root.SigK.viewer.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
@@ -47,27 +72,13 @@
     root.SigK.fileDrop.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
     showAppVersion(doc);
+    restoreUi(doc);
 
-    // テストから内部に触るための口。
-    win.__test__ = {
-      shell: root.SigK.shell,
-      log: root.SigK.log,
-      icons: root.SigK.icons,
-      viewer: root.SigK.viewer,
-      viewerLayout: root.SigK.viewerLayout,
-      viewerControls: root.SigK.viewerControls,
-      tabs: root.SigK.tabs,
-      viewBanner: root.SigK.viewBanner,
-      docInfo: root.SigK.docInfo,
-      recentPanel: root.SigK.recentPanel,
-      fileDrop: root.SigK.fileDrop,
-      fillIcons: () => fillIcons(doc),
-    };
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.app = { init, fillIcons };
+  SigK.app = { init, fillIcons, restoreUi };
 
   // 読み込みの途中なら DOMContentLoaded を待ち、すでに終わっていれば即座に始める。
   // 後から読み込まれた場合に init が一度も走らない、という取りこぼしを防ぐ。
