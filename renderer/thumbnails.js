@@ -18,9 +18,13 @@
   const state = {
     doc: null,
     sizes: [],
+    // 表示上の並び（spec-1-5 確定事項1）。元ページを引く写像と、回転を
+    // 当てるのに使う。viewer が applyPlan() のたびに差し替える。
+    plan: [],
     layout: { pages: [], sheetWidth: 0, totalHeight: 0 },
-    // 枠を作ったときのパネル幅。変わっていれば作り直す合図になる。
+    // 枠を作ったときのパネル幅と列数。変わっていれば作り直す合図になる。
     columnWidth: 0,
+    columns: 1,
     current: 0,
     rendered: new Map(),
     // 文書やパネル幅が変わったら、飛んでいる描画をすべて捨てるための世代番号。
@@ -43,13 +47,28 @@
     });
   }
 
-  // 閲覧モードで、サイドパネルが開いているときだけ出す（確定事項1・14）。
-  // 畳んでいる間に描いても誰にも見えない。
+  // 閲覧モードとページモードで、サイドパネルが開いているときだけ出す
+  // （spec-1-3 確定事項1・14／spec-1-5 確定事項28）。畳んでいる間に描いても
+  // 誰にも見えない。
+  //
+  // 塊③-b までは閲覧モード専用だった。ページモードを足したのは塊④ で、
+  // 「ページを押すとサムネイルが消える」状態を解消するためである。
   function isVisible() {
     if (el === null)
       return false;
     const html = el.doc.documentElement;
-    return html.getAttribute('data-mode') === 'view' && html.getAttribute('data-panel') === 'open';
+    const mode = html.getAttribute('data-mode');
+    return (mode === 'view' || mode === 'pages') && html.getAttribute('data-panel') === 'open';
+  }
+
+  // 列数はページモードだけ自動で増やす（確定事項23・28）。閲覧モードの
+  // サイドパネルは1列のまま変えない。
+  function columnsNow() {
+    if (el === null)
+      return 1;
+    if (el.doc.documentElement.getAttribute('data-mode') !== 'pages')
+      return 1;
+    return layout().thumbnailColumns(columnWidthNow());
   }
 
   // 紙の幅はサイドパネルの実幅に追従させる（確定事項5）。固定値にすると、
@@ -62,8 +81,10 @@
     return {
       open: state.doc !== null,
       count: state.layout.pages.length,
+      plan: state.plan,
       current: state.current,
       columnWidth: state.columnWidth,
+      columns: state.columns,
       sheetWidth: state.layout.sheetWidth,
       totalHeight: state.layout.totalHeight,
       rendered: [...state.rendered.keys()].sort((a, b) => a - b),
@@ -74,8 +95,10 @@
 
   function build() {
     const columnWidth = columnWidthNow();
+    const columns = columnsNow();
     state.columnWidth = columnWidth;
-    state.layout = layout().layoutThumbnails({ sizes: state.sizes, columnWidth });
+    state.columns = columns;
+    state.layout = layout().layoutThumbnails({ sizes: state.sizes, columnWidth, columns });
 
     const nodes = [];
     const sheets = [];
@@ -84,7 +107,10 @@
       node.className = 'thumb';
       node.dataset.page = String(page.index + 1);
       node.style.top = `${page.top}px`;
-      node.style.width = `${columnWidth}px`;
+      // 多列では左端が列ごとに変わる。1列のときは 0 で、shell.css の
+      // .thumb{left:0} と同じ位置になる。
+      node.style.left = `${page.left}px`;
+      node.style.width = `${page.width}px`;
       node.style.height = `${page.height}px`;
 
       const sheet = el.doc.createElement('div');
@@ -116,6 +142,7 @@
     state.token += 1;
     releaseAll();
     state.columnWidth = 0;
+    state.columns = 1;
     state.layout = { pages: [], sheetWidth: 0, totalHeight: 0 };
     el.thumbNodes = [];
     el.sheets = [];
@@ -155,18 +182,23 @@
     const isStale = () => token !== state.token || state.rendered.get(index) !== entry;
 
     try {
-      const page = await state.doc.getPage(index + 1);
+      // 表示上の index から元ファイルのページを引く（spec-1-5 確定事項44）。
+      const page = await state.doc.getPage((state.plan[index]?.src ?? index) + 1);
       if (isStale())
         return;
 
       // 幅が sheetWidth ピクセルになる倍率で描く。実寸の何倍かは問わない
       // （確定事項7）。devicePixelRatio の上限もページビューより低い。
+      //
+      // pageWidth は plan を当てたあとの寸法（回転済み）なので、回転した紙でも
+      // 幅がはみ出さない。
       const scale = layout().thumbnailScale({
         sheetWidth: state.layout.sheetWidth,
         pageWidth: state.sizes[index]?.width ?? 0,
         devicePixelRatio: root.devicePixelRatio,
       });
-      const viewport = page.getViewport({ scale });
+      const rotation = (page.rotate ?? 0) + (state.plan[index]?.rotate ?? 0);
+      const viewport = page.getViewport({ scale, rotation });
       if (!canDrawCanvas())
         return;
 
@@ -207,7 +239,9 @@
       last: range.last,
       current: center,
       ahead: layout().THUMB_AHEAD,
-      max: layout().MAX_THUMBS,
+      // 多列では紙が小さくなるので、枚数を増やしても総メモリは1列時を
+      // 下回る（確定事項26）。
+      max: layout().maxThumbs(state.columns),
     });
 
     for (const index of [...state.rendered.keys()]) {
@@ -228,8 +262,8 @@
       state.frame = 0;
       if (state.doc === null || !isVisible())
         return;
-      // 幅が変われば紙の寸法が変わるので、枠から作り直す。
-      if (columnWidthNow() !== state.columnWidth) {
+      // 幅か列数が変われば紙の寸法が変わるので、枠から作り直す（確定事項27）。
+      if (columnWidthNow() !== state.columnWidth || columnsNow() !== state.columns) {
         state.token += 1;
         releaseAll();
         build();
@@ -272,11 +306,12 @@
 
   // 映すものを差し替える。canvas はタブをまたいで持ち越さない（確定事項13）。
   // 持ち越すのはスクロール位置だけである。
-  function setDocument({ doc, sizes, current = 0, scrollTop = 0 }) {
+  function setDocument({ doc, sizes, plan = null, current = 0, scrollTop = 0 }) {
     state.token += 1;
     releaseAll();
     state.doc = doc;
     state.sizes = sizes ?? [];
+    state.plan = plan ?? (state.sizes.map((_size, index) => ({ src: index, rotate: 0 })));
     state.current = current;
     if (el === null)
       return false;
@@ -290,9 +325,34 @@
     return true;
   }
 
+  // 並びだけを差し替える（spec-1-5 確定事項29）。setDocument を呼び直すと
+  // スクロール位置も描画済みも全部捨てることになるので、編集のたびにそれを
+  // やると「1枚回すたびにサイドパネルが先頭へ戻る」ことになる。
+  function setPlan(plan, sizes = null) {
+    state.plan = plan ?? [];
+    if (sizes !== null)
+      state.sizes = sizes;
+    state.current = Math.min(Math.max(0, state.current), Math.max(0, state.plan.length - 1));
+    if (el === null)
+      return false;
+    if (!isVisible()) {
+      discard();
+      return false;
+    }
+
+    // 並びが変われば紙の高さも順番も変わる。枠は作り直すが、見ている場所
+    // （scrollTop）はそのままにする。
+    state.token += 1;
+    releaseAll();
+    build();
+    schedule();
+    return true;
+  }
+
   function clear() {
     state.doc = null;
     state.sizes = [];
+    state.plan = [];
     state.current = 0;
     if (el === null)
       return false;
@@ -359,6 +419,7 @@
   SigK.thumbnails = {
     init,
     setDocument,
+    setPlan,
     clear,
     setCurrent,
     refresh,
