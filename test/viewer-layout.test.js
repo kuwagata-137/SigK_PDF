@@ -229,3 +229,110 @@ test('renderTargets はサムネイルの上限24でも同じ規則で切り詰�
   assert.equal(targets.length, 24);
   assert.ok(targets.includes(60), '現在ページが落ちている');
 });
+
+// ---- 多列グリッド（spec-1-5 D。ページモードのサイドパネル） ----
+
+// サイドパネルは 180〜420px でドラッグできる。固定の列数にすると、どこかの幅で
+// 必ず破綻する（確定事項24）。
+test('thumbnailColumns はパネルの幅から 1〜3 列を決める（確定事項23）', () => {
+  const content = (panelWidth) => panelWidth - layout.THUMB_MARGIN * 2;
+
+  assert.equal(layout.thumbnailColumns(content(180)), 1);
+  assert.equal(layout.thumbnailColumns(content(240)), 2);
+  assert.equal(layout.thumbnailColumns(content(300)), 2);
+  assert.equal(layout.thumbnailColumns(content(340)), 3);
+  assert.equal(layout.thumbnailColumns(content(420)), 3);
+});
+
+test('thumbnailColumns は上限3・下限1で頭打ちにする', () => {
+  assert.equal(layout.thumbnailColumns(9999), 3);
+  assert.equal(layout.thumbnailColumns(0), 1);
+  assert.equal(layout.thumbnailColumns(Number.NaN), 1);
+});
+
+// 固定の2列にすると、最小幅では紙が 65px まで縮む。自動にする理由がこれである。
+test('列数を自動で決めれば、どの幅でも紙は 90px を下回らない', () => {
+  for (const panelWidth of [180, 240, 300, 340, 420]) {
+    const columnWidth = panelWidth - layout.THUMB_MARGIN * 2;
+    const columns = layout.thumbnailColumns(columnWidth);
+    const { sheetWidth } = layout.layoutThumbnails({ sizes: [A4], columnWidth, columns });
+
+    assert.ok(sheetWidth >= 90, panelWidth + 'px で紙が ' + sheetWidth + 'px になった');
+  }
+});
+
+test('layoutThumbnails は多列で left を返し、行ごとに積む', () => {
+  const { pages } = layout.layoutThumbnails({ sizes: [A4, A4, A4, A4, A4], columnWidth: 320, columns: 3 });
+
+  // 1行目の3枚は同じ高さに並ぶ。
+  assert.equal(pages[1].top, pages[0].top);
+  assert.equal(pages[2].top, pages[0].top);
+  assert.equal(pages[0].left, 0);
+  assert.ok(pages[0].left < pages[1].left && pages[1].left < pages[2].left);
+
+  // 2行目は左端へ戻り、1行ぶん下がる。
+  assert.equal(pages[3].left, 0);
+  assert.equal(pages[3].top, pages[0].top + pages[0].height + layout.THUMB_GAP);
+  assert.equal(pages[4].left, pages[1].left);
+});
+
+test('多列でも紙はパネルの幅に収まる', () => {
+  const columnWidth = 320;
+  const { pages, sheetWidth } = layout.layoutThumbnails({ sizes: [A4, A4, A4], columnWidth, columns: 3 });
+  const rightEdge = pages[2].left + pages[2].width;
+
+  assert.ok(rightEdge <= columnWidth, rightEdge + 'px が ' + columnWidth + 'px からはみ出している');
+  assert.equal(sheetWidth, pages[0].width - layout.THUMB_FRAME * 2);
+});
+
+// 閲覧モードのサイドパネルは1列のまま変えない（確定事項28）。塊③-a の回帰を防ぐ。
+test('columns:1 の返り値は columns を渡さないときと同じ（確定事項25）', () => {
+  const sizes = [A4, { width: A4.height, height: A4.width }, A5];
+  const before = layout.layoutThumbnails({ sizes, columnWidth: 220 });
+  const after = layout.layoutThumbnails({ sizes, columnWidth: 220, columns: 1 });
+
+  assert.equal(after.sheetWidth, before.sheetWidth);
+  assert.equal(after.totalHeight, before.totalHeight);
+  assert.deepEqual(after.pages.map((page) => page.top), before.pages.map((page) => page.top));
+  assert.deepEqual(after.pages.map((page) => page.height), before.pages.map((page) => page.height));
+  assert.deepEqual(after.pages.map((page) => page.sheetHeight), before.pages.map((page) => page.sheetHeight));
+  // 1列では左端に揃う（shell.css の .thumb{left:0} と同じ）。
+  assert.deepEqual(after.pages.map((page) => page.left), [0, 0, 0]);
+});
+
+test('行の高さは、その行でいちばん高い紙に合わせる', () => {
+  const landscape = { width: A4.height, height: A4.width };
+  const { pages } = layout.layoutThumbnails({ sizes: [landscape, A4, landscape, A4], columnWidth: 320, columns: 3 });
+  const tallest = Math.max(pages[0].height, pages[1].height, pages[2].height);
+
+  assert.ok(pages[1].height > pages[0].height, '縦向きのほうが高くなっていない');
+  assert.equal(pages[3].top, pages[0].top + tallest + layout.THUMB_GAP);
+});
+
+test('多列では総高さも行の単位で積む', () => {
+  const { pages, totalHeight } = layout.layoutThumbnails({ sizes: [A4, A4, A4, A4], columnWidth: 320, columns: 3 });
+
+  // 4枚・3列なら2行。総高さは2行ぶんで、4枚ぶんではない。
+  assert.equal(totalHeight, pages[3].top + pages[3].height + layout.THUMB_MARGIN);
+  assert.ok(totalHeight < layout.THUMB_MARGIN * 2 + pages[0].height * 3);
+});
+
+// 多列では紙が小さくなるので、枚数が増えても総メモリは1列時を下回る
+// （幅240pxで 1列210px 対 2列105px ＝ 面積比4倍）。
+test('maxThumbs は列数のぶんだけ増やす（確定事項26）', () => {
+  assert.equal(layout.maxThumbs(1), layout.MAX_THUMBS);
+  assert.equal(layout.maxThumbs(2), layout.MAX_THUMBS * 2);
+  assert.equal(layout.maxThumbs(3), layout.MAX_THUMBS * 3);
+  assert.equal(layout.maxThumbs(0), layout.MAX_THUMBS);
+});
+
+test('多列の返り値でも visibleRange と currentPageIndex が動く', () => {
+  const sizes = Array.from({ length: 9 }, () => A4);
+  const { pages } = layout.layoutThumbnails({ sizes, columnWidth: 320, columns: 3 });
+  const range = layout.visibleRange({ pages, scrollTop: 0, viewportHeight: 200 });
+
+  // 同じ行の3枚はまとめて見える。可視範囲は行の単位で返る。
+  assert.equal(range.first, 0);
+  assert.ok(range.last >= 2, '同じ行の3枚が可視範囲に入っていない');
+  assert.equal(layout.currentPageIndex({ pages, scrollTop: pages[3].top, viewportHeight: 200 }), 3);
+});

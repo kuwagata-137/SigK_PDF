@@ -37,6 +37,13 @@
   const MAX_THUMBS = 24;
   const MAX_THUMB_SCALE = 2;
 
+  // ページモードの多列グリッド（spec-1-5 確定事項23）。サイドパネルは
+  // 180〜420px でドラッグできるので、列数はパネルの幅から決める。固定の2列に
+  // すると最小幅で紙が 65px まで縮み、固定の1列だと広げても紙が育たない。
+  const MAX_COLUMNS = 3;
+  // 目標の紙幅 100px ＋ 間隔 10px。この幅ごとに1列を足す。
+  const THUMB_TARGET_WIDTH = 110;
+
   function clampZoom(zoom) {
     if (!Number.isFinite(zoom))
       return 1;
@@ -90,35 +97,81 @@
     return { pages, contentWidth, totalHeight };
   }
 
+  // パネルの内容幅から列数を決める（spec-1-5 確定事項23）。
+  // 実測は 幅180px→1列（紙150px）／240px→2列（95px）／300px→2列（125px）／
+  // 340px→3列（90px）／420px→3列（117px）。
+  function thumbnailColumns(contentWidth) {
+    if (!Number.isFinite(contentWidth))
+      return 1;
+    const columns = Math.floor((contentWidth + THUMB_GAP) / THUMB_TARGET_WIDTH);
+    return Math.min(MAX_COLUMNS, Math.max(1, columns));
+  }
+
+  // 同時に持つサムネイルの上限（確定事項26）。多列では紙が小さくなるため、
+  // 枚数が増えても総メモリは1列時を下回る（幅240pxで 1列210px 対 2列105px ＝ 面積比4倍）。
+  function maxThumbs(columns) {
+    const count = Number.isFinite(columns) && columns > 0 ? Math.floor(columns) : 1;
+    return MAX_THUMBS * Math.min(MAX_COLUMNS, count);
+  }
+
   // サムネイルの配置。ページビューとは法則が違う（spec-1-3 確定事項3）。
   // ページビューは「倍率が一律で、幅が紙ごとに変わる」。ここは
   // 「幅を揃えて、高さが紙ごとに変わる」。
   //
   // 返す形は layoutPages と揃える。top と height を同じ意味で持たせておけば、
   // visibleRange() と currentPageIndex() をそのまま使える。
+  //
+  // columns を渡すと多列に並べる（spec-1-5 確定事項25）。ページモードで使う。
+  // **1列のときの返り値は塊③-a と同じにする。**閲覧モードのサイドパネルは
+  // 1列のまま変えないため、ここで丸め方を変えると見た目が動いてしまう。
   function layoutThumbnails({
     sizes,
     columnWidth,
+    columns = 1,
     gap = THUMB_GAP,
     margin = THUMB_MARGIN,
     caption = THUMB_CAPTION,
     frame = THUMB_FRAME,
   }) {
-    const sheetWidth = Math.max(1, Math.round(columnWidth - frame * 2));
-    let top = margin;
+    const count = Math.min(MAX_COLUMNS, Math.max(1, Math.floor(columns) || 1));
+    // 1列では幅をそのまま使う。多列のぶんの割り算と切り捨てを挟むと、
+    // 1列の見た目が塊③-a から変わってしまう。
+    const cellWidth = count === 1 ? columnWidth : Math.floor((columnWidth - gap * (count - 1)) / count);
+    const sheetWidth = Math.max(1, Math.round(cellWidth - frame * 2));
+    const width = Math.max(1, cellWidth);
 
-    const pages = sizes.map((size, index) => {
+    const pages = [];
+    let rowTop = margin;
+    let rowHeight = 0;
+
+    sizes.forEach((size, index) => {
+      const column = index % count;
+      // 行が変わったら、いちばん高い紙のぶんだけ下げる。幅の違うページが
+      // 混ざると同じ行でも高さが揃わない。
+      if (column === 0 && index > 0) {
+        rowTop += rowHeight + gap;
+        rowHeight = 0;
+      }
+
       // 幅が取れない壊れたページでも、枠だけは並べて番号を出す。
       const ratio = size.width > 0 ? size.height / size.width : 1;
       const sheetHeight = Math.max(1, Math.round(ratio * sheetWidth));
       const height = sheetHeight + frame * 2 + caption;
-      const page = { index, top, height, sheetWidth, sheetHeight };
-      top += height + gap;
-      return page;
+
+      pages.push({
+        index,
+        top: rowTop,
+        left: column * (width + gap),
+        width,
+        height,
+        sheetWidth,
+        sheetHeight,
+      });
+      rowHeight = Math.max(rowHeight, height);
     });
 
-    const totalHeight = pages.length === 0 ? 0 : top - gap + margin;
-    return { pages, sheetWidth, totalHeight };
+    const totalHeight = pages.length === 0 ? 0 : rowTop + rowHeight + margin;
+    return { pages, sheetWidth, totalHeight, columns: count };
   }
 
   // サムネイルを描くときに pdf.js へ渡す scale。
@@ -225,6 +278,10 @@
     THUMB_AHEAD,
     MAX_THUMBS,
     MAX_THUMB_SCALE,
+    MAX_COLUMNS,
+    THUMB_TARGET_WIDTH,
+    thumbnailColumns,
+    maxThumbs,
     clampZoom,
     nextZoom,
     prevZoom,
