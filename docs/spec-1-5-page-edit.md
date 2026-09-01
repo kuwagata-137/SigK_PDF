@@ -3,8 +3,8 @@
 - ステータス: **実装済み**（2026-09-01 起草・同日確定・同日実装。確定事項58件。論点4件はユーザー決定済み → 末尾「ユーザーの確定」）
 - 関連: `docs/05_開発ロードマップ.md` Phase 1 塊④ ／ `docs/spec-1-3-reading.md` ／ `docs/spec-1-4-find-print.md` ／ `docs/04_UI設計.md` 4-2・第7章・第8章 ／ `docs/02_アーキテクチャ設計.md` 2-3
 - 対応要件: F-02-1（並べ替え）／F-02-2（回転）／F-02-3（削除）／F-02-6（複数選択）／F-02-7（元に戻す・やり直し）
-- 実装: `renderer/page-plan.js`・`renderer/page-history.js`・`renderer/page-grid.js`・`renderer/page-edit.js`・`renderer/confirm-discard.js`（新規）／`renderer/thumbnails.js`・`renderer/viewer.js`・`renderer/viewer-layout.js`・`renderer/page-render.js`・`renderer/print.js`・`renderer/tabs.js`・`renderer/viewer-controls.js`・`index.html`・`renderer/shell.css`・`assets/icons.js`・`main.js`・`preload.js`（改修）
-- テスト: `test/page-plan.test.js`・`test/page-grid.test.js`・`test/page-edit.test.js`・`test/confirm-discard.test.js`（新規）／`test/harness.js`・`test/shell.test.js`・`test/viewer-layout.test.js`・`test/thumbnails.test.js`（改修）
+- 実装: `renderer/page-plan.js`・`renderer/page-history.js`・`renderer/page-grid.js`・`renderer/page-edit.js`・`renderer/confirm-discard.js`（新規）／`renderer/thumbnails.js`・`renderer/viewer.js`・`renderer/viewer-layout.js`・`renderer/page-render.js`・`renderer/print.js`・`renderer/tabs.js`・`renderer/viewer-controls.js`・`index.html`・`renderer/shell.css`・`assets/icons.js`・`main.js`・`preload.js`・`renderer/app.js`（改修）
+- テスト: `test/page-plan.test.js`・`test/page-grid.test.js`・`test/page-edit.test.js`・`test/confirm-discard.test.js`（新規）／`test/harness.js`・`test/shell.test.js`・`test/viewer-layout.test.js`・`test/thumbnails.test.js`・`test/fixtures/build.js`（改修）
 
 **起草時の予定から2つ増えた。**`page-plan.js` が 328 行になったので undo/redo を
 `page-history.js` へ出した（plan を受け取って plan を返すだけで、並べ替えや回転を
@@ -156,7 +156,7 @@ pdf-lib をレンダラーへ持ち込まずに済む。
 
 | # | 論点 | 決定 |
 |---|------|------|
-| 23 | 列数 | **パネルの幅から自動で決める。**`列数 = 1〜3 の範囲で floor((内容幅 + 10) / 110)`。目標の紙幅は 100px。実測値は 幅180px→1列（紙150px）／240px→2列（95px）／300px→2列（125px）／340px→3列（90px）／420px→3列（117px）。固定の2列にすると最小幅で紙が 65px まで縮む<br>**2026-09-01 実装時に訂正: 除数は 110 ではなく 100。**この実測表は縦スクロールバー（約16px）を勘定に入れておらず、実機の内容幅は表より 16px 狭い。列数は表のとおりになるが、紙幅は 8〜11px 小さくなる（→「実測で直した前提」） |
+| 23 | 列数 | **パネルの幅から自動で決める。**`列数 = 1〜3 の範囲で floor((内容幅 + 10) / 110)`（**実装の除数は 110 ではなく 100**。この行の下の訂正を見ること）。目標の紙幅は 100px。実測値は 幅180px→1列（紙150px）／240px→2列（95px）／300px→2列（125px）／340px→3列（90px）／420px→3列（117px）。固定の2列にすると最小幅で紙が 65px まで縮む<br>**2026-09-01 実装時に訂正: 除数は 110 ではなく 100。**この実測表は縦スクロールバー（約16px）を勘定に入れておらず、実機の内容幅は表より 16px 狭い。列数は表のとおりになるが、紙幅は小さくなる（1列 −16px／2列 −8px／3列 −6px。→「実測で直した前提」） |
 | 24 | なぜ自動か | サイドパネルは 180〜420px でドラッグできる（`shell.js`）。固定列にすると、どこかの幅で必ず破綻する |
 | 25 | `layoutThumbnails` の改修 | 引数に `columns` を足し、返す `page` に `left` を足す。**1列のときの返り値は今と同じ**にする（閲覧モードの回帰を防ぐ） |
 | 26 | 同時に持つサムネイルの上限 | **`24 × 列数`**（1列24・2列48・3列72）。多列では紙が小さくなるため、枚数が増えても総メモリは1列時を下回る（幅240pxで 1列210px 対 2列105px ＝ 面積比4倍）<br>**2026-09-01 実装時に補足: 先読みも列数倍にした。**先読みは枚数で数えるため、3列のまま 4 では 1.3 行ぶんにしかならず、上限に遠く届かない（実測17枚）。列数倍にして33枚（→「実測で直した前提」） |
@@ -337,15 +337,15 @@ mouseMoved を刻んで送るのは、1回で飛ばすと掴む判定と落と�
 | 並べ替え1回から画面が揃うまで（`applyPlan`） | 1,000ページ **24.9ms** ／ 40ページ **6.2ms** | 枠の作り直しとレイアウトを含む。体感に響かない |
 | 1,000ページ全部を回す | **47.7ms**（`undo` は 29.3ms） | 全選択して90度回す最悪の場合でも 50ms 以内 |
 | 40ページでの各操作 | 回転 **6.9ms** ／ 並べ替え **7.4ms** ／ 削除 **6.8ms** ／ undo **6.7ms** | — |
-| 3列のサムネイル | 紙 **111px**、同時 **33枚**、JS ヒープ **8MB** | 上限 72枚（確定事項26）には**届かない**。届かせる必要も無い |
-| 2列のサムネイル | 紙 **87px**（パネル240px）／ **127px**（パネル320px） | 確定事項23 の表より 8〜11px 小さい（下記の訂正1） |
+| 3列のサムネイル | 紙 **111px**（パネル420px）、同時 **33枚**、JS ヒープ **8MB** | 上限 72枚（確定事項26）には**届かない**。届かせる必要も無い |
+| 2列のサムネイル | 紙 **87px**（パネル240px）／ **127px**（パネル320px） | 確定事項23 の表より 8px 小さい（下記の訂正1） |
 | ドラッグ中のフレーム落ち | 定量化できず | `Input.dispatchMouseEvent` で刻んで送る限り、取りこぼしも遅延も観測されなかった。自動スクロールと縦棒の描き直しが重い兆候は無い |
 
 ### 実測で直した前提（確定事項23・26 の訂正）
 
 | # | 起草時の前提 | 実測 | 直し方 |
 |---|---|---|---|
-| 1 | 確定事項23 の「列数 = floor((内容幅 + 10) / 110)」。実測表は 240px→2列（紙95px） | **1列**になった。実測表が**縦スクロールバー（約16px）を勘定に入れていなかった**ため。実機では幅240pxのパネルの内容幅が 220px ではなく **204px** | 除数を **110 → 100** にした。列数は表（180→1／240→2／300→2／340→3／420→3）と**すべて一致**し、紙幅だけが 8〜11px 小さくなる |
+| 1 | 確定事項23 の「列数 = floor((内容幅 + 10) / 110)」。実測表は 240px→2列（紙95px） | **1列**になった。実測表が**縦スクロールバー（約16px）を勘定に入れていなかった**ため。実機では幅240pxのパネルの内容幅が 220px ではなく **204px** | 除数を **110 → 100** にした。列数は表（180→1／240→2／300→2／340→3／420→3）と**すべて一致**し、紙幅だけが小さくなる。差は列数で違い、**1列 −16px（150→134）／2列 −8px（95→87・125→117）／3列 −6px（90→84・117→111）**である |
 | 2 | 確定事項26 の「同時に持つ上限 = 24 × 列数」 | 3列で **17枚**どまり。上限に遠く届かず、スクロールのたびに描き直しが起きていた。先読み（`THUMB_AHEAD=4`）が**枚数**で数えるため、3列では 1.3 行ぶんにしかならない | 先読みも列数倍にした（`thumbAhead()`）。3列で **33枚**になった。上限を列数倍にした以上、先読みも揃えないと上限が意味を持たない |
 
 ### 実装で分かったこと
@@ -356,7 +356,7 @@ mouseMoved を刻んで送るのは、1回で飛ばすと掴む判定と落と�
 | jsdom は `PointerEvent` を持つが `setPointerCapture` と `elementFromPoint` は**持たない** | どちらにも頼らない作りにした。確定事項31・33 が「挿入位置の計算を純粋関数へ出す」としていた判断は正しかった |
 | jsdom の中で作られた配列は Node の配列と別のプロトタイプを持つ。`assert.deepEqual` が「same structure but not reference-equal」で落ちる | テスト側で `[...値]` を挟む（塊①からの流儀と同じ） |
 | **回転したページがあると、ページビューに横スクロールバーが出る。**`layoutPages` は「いちばん広いページに合わせた器」を作り、「幅に合わせる」は現在ページを基準に倍率を決めるためである（`spec-1-1`） | 直していない。仕様どおりの帰結で、**既知の限界**として残す。気になるようなら「幅に合わせる」を最も広いページ基準にする |
-| `page-plan.js` が 328 行になった | undo/redo を `page-history.js` へ出した（261 行）。`page-grid.js`（400行）は割っていない。選択とドラッグは同じ状態を読み書きしており、分けると状態が2ファイルに散る。`viewer.js` 578行・`thumbnails.js` 444行と比べて突出してもいない |
+| `page-plan.js` が 328 行になった | undo/redo を `page-history.js`（84行）へ出し、`page-plan.js` は 261 行になった。`page-grid.js`（**463行**）は割っていない。選択とドラッグは同じ状態を読み書きしており、分けると状態が2ファイルに散る。最終的な行数は `viewer.js` 601行・`thumbnails.js` 446行・`print.js` 388行なので、突出してもいない |
 
 ---
 
