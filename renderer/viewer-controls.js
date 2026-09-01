@@ -47,6 +47,9 @@
       setEnabled(doc, id, state.open);
     syncPage(doc, state);
     syncZoom(doc, state);
+    // ページ編集のボタン（回転・削除・元に戻す）もここで揃える。文書を開く・
+    // 閉じる・タブを移る・編集する、のすべてがこの1本を通る。
+    root.SigK.pageEdit?.syncActions();
   }
 
   function commitPageInput(doc) {
@@ -143,12 +146,66 @@
     return false;
   }
 
-  function handleKey(event) {
+  // ページ編集のキー（spec-1-5 確定事項54・55）。handleKey の下のほうは
+  // event.ctrlKey で早期 return するため、塊③-b の handleFindPrintKey と同じく
+  // その手前で捌く。
+  function handlePageEditKey(event, doc) {
+    const edit = root.SigK.pageEdit;
+    const grid = root.SigK.pageGrid;
+    if (edit === undefined)
+      return false;
+
+    // 元に戻す・やり直しはどのモードでも効かせる（確定事項55）。編集したまま
+    // 閲覧モードへ戻っていることがある。
+    if (event.ctrlKey && !event.altKey && (event.key === 'z' || event.key === 'Z')) {
+      event.preventDefault();
+      edit.undo();
+      return true;
+    }
+    if (event.ctrlKey && !event.altKey && (event.key === 'y' || event.key === 'Y')) {
+      event.preventDefault();
+      edit.redo();
+      return true;
+    }
+
+    const inPagesMode = doc.documentElement.getAttribute('data-mode') === 'pages';
+
+    // Ctrl+A はページモードで、かつサイドパネルにフォーカスがあるときだけ
+    // 奪う（確定事項18）。奪いすぎると閲覧モードで文字を選べなくなる。
+    if (event.ctrlKey && !event.altKey && (event.key === 'a' || event.key === 'A')) {
+      if (!inPagesMode || doc.getElementById('side')?.contains(doc.activeElement) !== true)
+        return false;
+      event.preventDefault();
+      grid?.selectAll();
+      return true;
+    }
+
+    if (isTextField(event.target))
+      return false;
+
+    // Delete はページモードでだけ効かせる（確定事項55）。
+    if (event.key === 'Delete' && inPagesMode) {
+      event.preventDefault();
+      edit.remove();
+      return true;
+    }
+    // Esc は選択の解除。検索バーが開いていればそちらが先に閉じており、
+    // ここへは届かない（確定事項19 の優先順位）。
+    if (event.key === 'Escape' && inPagesMode) {
+      grid?.clearSelection();
+      return true;
+    }
+    return false;
+  }
+
+  function handleKey(event, doc) {
     if (handleTabKey(event))
       return;
     if (viewer().getState().open !== true)
       return;
     if (handleFindPrintKey(event))
+      return;
+    if (handlePageEditKey(event, doc))
       return;
 
     if (event.ctrlKey && ZOOM_KEYS[event.key] !== undefined) {
@@ -197,7 +254,7 @@
         root.SigK.tabs.openViaDialog();
     });
 
-    doc.addEventListener('keydown', handleKey);
+    doc.addEventListener('keydown', (event) => handleKey(event, doc));
     syncAll(doc, viewer().getState());
     return true;
   }

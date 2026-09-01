@@ -67,6 +67,7 @@
     // ページモードの選択とドラッグは、サムネイルのクリックから呼ばれる。
     // 先に用意しておく。
     root.SigK.pageGrid.init(doc, win);
+    root.SigK.pageEdit.init(doc, win);
     root.SigK.viewer.init(doc, win);
     // 検索バーと印刷は、ツールバーの結線とキー操作から呼ばれる。先に用意しておく。
     root.SigK.findBar.init(doc, win);

@@ -46,6 +46,9 @@ body{
     <div class="tb-btn" id="btn-open" title="PDF を開く (Ctrl+O)"><span data-icon="open"></span>開く</div>
     <div class="tb-btn" aria-disabled="true"><span data-icon="save"></span>保存</div>
     <div class="tb-sep"></div>
+    <div class="tb-btn icon" id="btn-undo" data-icon="undo" title="元に戻す (Ctrl+Z)" aria-disabled="true"></div>
+    <div class="tb-btn icon" id="btn-redo" data-icon="redo" title="やり直し (Ctrl+Y)" aria-disabled="true"></div>
+    <div class="tb-sep"></div>
     <div class="pager" id="pager" aria-disabled="true">
       <div class="step" id="page-prev" data-icon="chevronLeft" data-icon-size="15" data-icon-stroke="2" title="前のページ"></div>
       <div class="num"><input id="page-current" type="text" inputmode="numeric" size="3" aria-label="ページ番号"><span id="page-total">/ –</span></div>
@@ -90,15 +93,22 @@ body{
         <span id="side-title">サムネイル</span>
         <span class="collapse" id="side-collapse" data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを閉じる"></span>
       </div>
-      <div class="side-scroll" id="side-scroll">
+      <!-- tabindex はプログラムから当てるためのもので、Tab 順には入れない。
+           Ctrl+A を「サイドパネルにフォーカスがあるとき」に限るのに要る
+           （spec-1-5 確定事項18）。 -->
+      <div class="side-scroll" id="side-scroll" tabindex="-1">
         <div class="thumbs1" id="thumbs" hidden></div>
         <p class="empty" id="thumbs-empty">文書を開くと<br>ページの一覧が出ます</p>
       </div>
+      <!-- ページモードの操作（spec-1-5 確定事項50・51）。div ではなく button に
+           してある。div のままではフォーカスが当たらず、キーボードから押せない。
+           抽出と挿入は枠だけ置き、結線は塊⑤ で行う。 -->
       <div class="side-actions" id="side-actions" hidden>
-        <div class="act" aria-disabled="true"><span data-icon="rotateLeft" data-icon-size="14" data-icon-stroke="1.9"></span>左回転</div>
-        <div class="act" aria-disabled="true"><span data-icon="rotateRight" data-icon-size="14" data-icon-stroke="1.9"></span>右回転</div>
-        <div class="act" aria-disabled="true"><span data-icon="extract" data-icon-size="14" data-icon-stroke="1.9"></span>抽出</div>
-        <div class="act danger" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>削除</div>
+        <button type="button" class="act" id="act-rotate-left" aria-disabled="true"><span data-icon="rotateLeft" data-icon-size="14" data-icon-stroke="1.9"></span>左回転</button>
+        <button type="button" class="act" id="act-rotate-right" aria-disabled="true"><span data-icon="rotateRight" data-icon-size="14" data-icon-stroke="1.9"></span>右回転</button>
+        <button type="button" class="act" id="act-extract" aria-disabled="true"><span data-icon="extract" data-icon-size="14" data-icon-stroke="1.9"></span>抽出</button>
+        <button type="button" class="act" id="act-insert" aria-disabled="true"><span data-icon="insert" data-icon-size="14" data-icon-stroke="1.9"></span>挿入</button>
+        <button type="button" class="act danger wide" id="act-delete" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>削除</button>
       </div>
     </div>
 

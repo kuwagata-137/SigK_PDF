@@ -97,8 +97,42 @@
       node.classList.toggle('selected', chosen.has(index));
       // 掴んでいる枚は半透明にする（確定事項35）。
       node.classList.toggle('dragging', dragging.has(index));
+      syncThumbTools(node);
     });
     return true;
+  }
+
+  // 紙の上に出す小さなボタン（確定事項52。docs/04 4-2）。ページモードのときだけ
+  // 置く。紙の幅が 100px 前後になるため、文字は入れずアイコンだけにする。
+  const THUMB_TOOLS = [
+    ['rotateLeft', 'rotateLeft', '左に90度回す'],
+    ['rotateRight', 'rotateRight', '右に90度回す'],
+    ['delete', 'trash', 'このページを削除'],
+  ];
+
+  function syncThumbTools(node) {
+    const existing = node.querySelector('.thumb-tools');
+    if (!isPagesMode()) {
+      existing?.remove();
+      return;
+    }
+    if (existing !== null)
+      return;
+
+    const tools = el.doc.createElement('div');
+    tools.className = 'thumb-tools';
+    for (const [tool, icon, title] of THUMB_TOOLS) {
+      const button = el.doc.createElement('button');
+      button.type = 'button';
+      button.className = 'thumb-tool';
+      button.dataset.tool = tool;
+      button.title = title;
+      if (tool === 'delete')
+        button.classList.add('danger');
+      button.append(root.SigK.icons.create(el.doc, icon, { size: 16, strokeWidth: 1.9 }));
+      tools.append(button);
+    }
+    node.append(tools);
   }
 
   function setSelection(indices, { anchor } = {}) {
@@ -109,6 +143,8 @@
     if (!Number.isInteger(state.anchor) || state.anchor >= pageCount())
       state.anchor = state.selection[0] ?? null;
     syncMarks();
+    // 全ページを選ぶと削除は押せなくなる（確定事項41）。選択のたびに揃える。
+    root.SigK.pageEdit?.syncActions();
     return getSelection();
   }
 
@@ -126,6 +162,13 @@
     if (!isPagesMode())
       return false;
 
+    // 紙の上の小さなボタンは、その1枚だけに掛ける。選択は動かさない。
+    const tool = event?.target?.closest?.('.thumb-tool');
+    if (tool !== null && tool !== undefined) {
+      runThumbTool(index, tool.dataset.tool);
+      return true;
+    }
+
     const next = pagePlan().resolveClick({
       selection: state.selection,
       anchor: state.anchor,
@@ -140,6 +183,19 @@
     if (state.selection.length === 1)
       viewer()?.goToPage(state.selection[0]);
     return true;
+  }
+
+  function runThumbTool(index, tool) {
+    const edit = root.SigK.pageEdit;
+    if (edit === undefined)
+      return false;
+    if (tool === 'rotateLeft')
+      return edit.rotate(-90, [index]);
+    if (tool === 'rotateRight')
+      return edit.rotate(90, [index]);
+    if (tool === 'delete')
+      return edit.remove([index]);
+    return false;
   }
 
   // ---- ドラッグによる並べ替え（確定事項30〜37） ----
@@ -263,9 +319,16 @@
     // 左ボタンだけを受ける。中クリック・右クリックでは掴まない。
     if (!isPagesMode() || event.button !== 0)
       return;
+    // 紙の上のボタンを押したのであって、紙を掴んだのではない。
+    if (event.target?.closest?.('.thumb-tool') !== null && event.target?.closest?.('.thumb-tool') !== undefined)
+      return;
     const index = thumbIndexFrom(event.target);
     if (index === null)
       return;
+
+    // Ctrl+A を「サイドパネルにフォーカスがあるときだけ」に限るため、
+    // 触った時点でフォーカスを移す（確定事項18）。
+    el.scroll.focus?.({ preventScroll: true });
 
     // 掴んだ枚が選択に含まれていなければ、その1枚だけを選び直してから動かす
     // （確定事項34）。選んでいない紙を掴んだのに、選択中の別の紙が動くのは驚く。

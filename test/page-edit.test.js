@@ -349,3 +349,267 @@ test('文書が無いときの applyPlan は何もしない', async (t) => {
 
   assert.equal(SigK.viewer.applyPlan([{ src: 0, rotate: 0 }]), false);
 });
+
+// ---- 回転（確定事項38・39） ----
+
+function pressKey(shell, key, { ctrl = false, shift = false, target = null } = {}) {
+  const node = target ?? shell.document;
+  node.dispatchEvent(new shell.window.KeyboardEvent('keydown', {
+    key,
+    ctrlKey: ctrl,
+    shiftKey: shift,
+    bubbles: true,
+  }));
+}
+
+async function withPagesMode(t, options = {}) {
+  const shell = await withOpenDocument(t, options);
+  shell.SigK.shell.setMode(shell.document, 'pages');
+  await shell.flush();
+  return shell;
+}
+
+test('右回転のボタンで選択中のページが回る', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.pageGrid.setSelection([1]);
+  document.getElementById('act-rotate-right').click();
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.rotate), [0, 90, 0]);
+});
+
+test('左回転は 270 として持つ', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.pageGrid.setSelection([0]);
+  document.getElementById('act-rotate-left').click();
+
+  assert.equal(SigK.viewer.getPlan()[0].rotate, 270);
+});
+
+test('選択が無ければ現在のページに掛かる（確定事項38）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.viewer.goToPage(2);
+  SigK.pageGrid.clearSelection();
+  document.getElementById('act-rotate-right').click();
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.rotate), [0, 0, 90]);
+});
+
+test('選択中の複数ページをまとめて回す', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.pageGrid.setSelection([0, 2]);
+  document.getElementById('act-rotate-right').click();
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.rotate), [90, 0, 90]);
+  // 回した紙はそのまま選ばれ続ける。続けてもう90度回せる。
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 2]);
+});
+
+// ---- 削除（確定事項40〜42） ----
+
+test('削除のボタンで選択中のページが消える', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.pageGrid.setSelection([1]);
+  document.getElementById('act-delete').click();
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [0, 2]);
+  // 消した位置に来たページが選ばれる。続けて Delete を押せる。
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [1]);
+});
+
+// 確認を出さない根拠は「Ctrl+Z で戻せる」ことである（確定事項40）。
+test('削除に確認は出ないが、戻せる', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.pageGrid.setSelection([1]);
+  document.getElementById('act-delete').click();
+  assert.equal(document.querySelector('dialog[open]'), null, '確認ダイアログが出ている');
+
+  SigK.pageEdit.undo();
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [0, 1, 2]);
+});
+
+test('全ページを選ぶと削除は押せなくなる（確定事項41）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.pageGrid.selectAll();
+
+  assert.equal(document.getElementById('act-delete').getAttribute('aria-disabled'), 'true');
+  document.getElementById('act-delete').click();
+  assert.equal(SigK.viewer.getState().pageCount, 3, '最後の1枚まで消えている');
+});
+
+test('最後の1ページになったら削除は効かない', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+
+  SigK.pageGrid.setSelection([1, 2]);
+  SigK.pageEdit.remove();
+  assert.equal(SigK.viewer.getState().pageCount, 1);
+
+  SigK.pageGrid.setSelection([0]);
+  assert.equal(SigK.pageEdit.remove(), false);
+  assert.equal(SigK.viewer.getState().pageCount, 1);
+});
+
+// ---- ボタンの有効・無効（確定事項51・53） ----
+
+test('文書が無ければ編集のボタンは押せない', async (t) => {
+  const { document } = await withShell(t);
+
+  for (const id of ['act-rotate-left', 'act-rotate-right', 'act-delete', 'btn-undo', 'btn-redo'])
+    assert.equal(document.getElementById(id).getAttribute('aria-disabled'), 'true', id);
+});
+
+test('文書を開くと回転が押せるようになる', async (t) => {
+  const { document } = await withOpenDocument(t);
+
+  assert.equal(document.getElementById('act-rotate-left').hasAttribute('aria-disabled'), false);
+  assert.equal(document.getElementById('act-rotate-right').hasAttribute('aria-disabled'), false);
+});
+
+// 決定1。どちらもファイルを書く操作で、書き出し経路は塊⑤ の担当である。
+test('抽出と挿入は枠だけ置いて押せないままにする', async (t) => {
+  const { document } = await withOpenDocument(t);
+
+  assert.equal(document.getElementById('act-extract').getAttribute('aria-disabled'), 'true');
+  assert.equal(document.getElementById('act-insert').getAttribute('aria-disabled'), 'true');
+});
+
+test('元に戻す・やり直しは、戻せるときだけ押せる', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+  assert.equal(document.getElementById('btn-undo').getAttribute('aria-disabled'), 'true');
+
+  SigK.pageGrid.setSelection([0]);
+  document.getElementById('act-rotate-right').click();
+  assert.equal(document.getElementById('btn-undo').hasAttribute('aria-disabled'), false);
+  assert.equal(document.getElementById('btn-redo').getAttribute('aria-disabled'), 'true');
+
+  document.getElementById('btn-undo').click();
+  assert.equal(SigK.viewer.getPlan()[0].rotate, 0);
+  assert.equal(document.getElementById('btn-redo').hasAttribute('aria-disabled'), false);
+
+  document.getElementById('btn-redo').click();
+  assert.equal(SigK.viewer.getPlan()[0].rotate, 90);
+});
+
+// ---- 紙の上のボタン（確定事項52） ----
+
+test('紙の上のボタンはその1枚だけに掛かる', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  SigK.pageGrid.setSelection([0]);
+  const thumb = document.querySelectorAll('#thumbs .thumb')[2];
+  thumb.querySelector('.thumb-tool[data-tool="rotateRight"]').click();
+
+  // 選択中の 0 ではなく、押した 2 が回る。
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.rotate), [0, 0, 90]);
+});
+
+test('紙の上のボタンは閲覧モードには出さない', async (t) => {
+  const shell = await withOpenDocument(t);
+
+  assert.equal(shell.document.querySelector('#thumbs .thumb-tools'), null);
+});
+
+// ---- キー操作（確定事項54・55） ----
+
+test('Ctrl+Z と Ctrl+Y はどのモードでも効く（確定事項55）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+
+  SigK.pageGrid.setSelection([0]);
+  SigK.pageEdit.rotate(90);
+  // 閲覧モードへ戻ってから取り消す。編集したまま読みに戻ることがある。
+  SigK.shell.setMode(shell.document, 'view');
+  await shell.flush();
+
+  pressKey(shell, 'z', { ctrl: true });
+  assert.equal(SigK.viewer.getPlan()[0].rotate, 0);
+
+  pressKey(shell, 'y', { ctrl: true });
+  assert.equal(SigK.viewer.getPlan()[0].rotate, 90);
+});
+
+test('Delete はページモードでだけ効く（確定事項55）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK } = shell;
+
+  SigK.pageGrid.setSelection([1]);
+  pressKey(shell, 'Delete');
+  assert.equal(SigK.viewer.getState().pageCount, 3, '閲覧モードで消えている');
+
+  SigK.shell.setMode(shell.document, 'pages');
+  await shell.flush();
+  SigK.pageGrid.setSelection([1]);
+  pressKey(shell, 'Delete');
+  assert.equal(SigK.viewer.getState().pageCount, 2);
+});
+
+// 奪いすぎると閲覧モードで文字を選べなくなる（確定事項18）。
+test('Ctrl+A はページモードでサイドパネルにフォーカスがあるときだけ効く', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+
+  pressKey(shell, 'a', { ctrl: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [], 'フォーカスが無いのに全選択されている');
+
+  document.getElementById('side-scroll').focus();
+  pressKey(shell, 'a', { ctrl: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 1, 2]);
+});
+
+test('閲覧モードの Ctrl+A は奪わない', async (t) => {
+  const shell = await withOpenDocument(t);
+
+  shell.document.getElementById('side-scroll').focus();
+  pressKey(shell, 'a', { ctrl: true });
+
+  assert.deepEqual([...shell.SigK.pageGrid.getSelection()], []);
+});
+
+test('Esc は選択を解除する', async (t) => {
+  const shell = await withPagesMode(t);
+  shell.SigK.pageGrid.setSelection([0, 1]);
+
+  pressKey(shell, 'Escape');
+
+  assert.deepEqual([...shell.SigK.pageGrid.getSelection()], []);
+});
+
+// docs/04 第8章が Esc に2つ割り当てているので、優先順位をここで固定する
+// （確定事項19）。
+test('検索バーが開いていれば Esc は検索バーを閉じるほうが先', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK } = shell;
+  SigK.pageGrid.setSelection([0, 1]);
+  SigK.findBar.open();
+
+  pressKey(shell, 'Escape');
+
+  assert.equal(SigK.findBar.isOpen(), false);
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 1], '選択まで解除されている');
+});
+
+test('入力欄の Delete はページ削除に使わない', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, document } = shell;
+  SigK.pageGrid.setSelection([1]);
+
+  pressKey(shell, 'Delete', { target: document.getElementById('page-current') });
+
+  assert.equal(SigK.viewer.getState().pageCount, 3);
+});

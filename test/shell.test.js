@@ -186,6 +186,74 @@ test('検索と印刷のレンダラーが index.html から読み込まれる',
     assert.ok(sources.includes(src), `${src} が index.html から読まれていない`);
 });
 
+test('ページ編集のレンダラーが index.html から読み込まれる', async (t) => {
+  const { sources } = await withShell(t);
+
+  for (const src of [
+    'renderer/page-plan.js',
+    'renderer/page-history.js',
+    'renderer/page-grid.js',
+    'renderer/page-edit.js',
+  ])
+    assert.ok(sources.includes(src), `${src} が index.html から読まれていない`);
+});
+
+// div のままではフォーカスが当たらず、有効にしてもキーボードから押せない
+// （spec-1-5 確定事項50）。
+test('サイドパネルの操作は button が5つ並ぶ', async (t) => {
+  const { document } = await withShell(t);
+  const actions = [...document.querySelectorAll('#side-actions .act')];
+
+  assert.equal(actions.length, 5);
+  for (const node of actions) {
+    assert.equal(node.tagName, 'BUTTON', `${node.id} が button ではない`);
+    assert.equal(node.getAttribute('type'), 'button');
+    assert.ok(node.id.length > 0, 'id が付いていないボタンがある');
+  }
+  assert.deepEqual(actions.map((node) => node.id), [
+    'act-rotate-left',
+    'act-rotate-right',
+    'act-extract',
+    'act-insert',
+    'act-delete',
+  ]);
+  // 削除だけは全幅にして、回転や抽出と押し間違えないようにする（確定事項51）。
+  assert.ok(document.getElementById('act-delete').classList.contains('wide'));
+  assert.ok(document.getElementById('act-delete').classList.contains('danger'));
+});
+
+test('ツールバーに元に戻す・やり直しが並ぶ（確定事項53）', async (t) => {
+  const { document } = await withShell(t);
+
+  for (const id of ['btn-undo', 'btn-redo']) {
+    const node = document.getElementById(id);
+    assert.ok(node !== null, `${id} が無い`);
+    assert.ok(node.querySelector('svg') !== null, `${id} のアイコンが描かれていない`);
+  }
+});
+
+test('ページ編集で足したアイコンが描ける', async (t) => {
+  const { document, SigK } = await withShell(t);
+
+  for (const name of ['insert', 'undo', 'redo']) {
+    assert.ok(SigK.icons.has(name), `${name} が定義されていない`);
+    const svg = SigK.icons.create(document, name);
+    assert.equal(svg.getAttribute('viewBox'), '0 0 24 24');
+    assert.equal(svg.getAttribute('fill'), 'none');
+    assert.ok(svg.childNodes.length > 0);
+  }
+});
+
+// Ctrl+A を「サイドパネルにフォーカスがあるとき」に限るのに要る（確定事項18）。
+test('サイドパネルはプログラムからフォーカスできる', async (t) => {
+  const { document } = await withShell(t);
+  const scroll = document.getElementById('side-scroll');
+
+  assert.equal(scroll.getAttribute('tabindex'), '-1');
+  scroll.focus();
+  assert.equal(document.activeElement, scroll);
+});
+
 test('未定義のアイコンを要求すると落ちる', async (t) => {
   const { document, SigK } = await withShell(t);
 
