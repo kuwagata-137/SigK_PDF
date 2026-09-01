@@ -78,6 +78,7 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/spec-1-2-tabs.md`](docs/spec-1-2-tabs.md) | Phase 1 塊② 入出力とタブ |
 | [`docs/spec-1-3-reading.md`](docs/spec-1-3-reading.md) | Phase 1 塊③-a サムネイルとテキスト |
 | [`docs/spec-1-4-find-print.md`](docs/spec-1-4-find-print.md) | Phase 1 塊③-b 検索と印刷 |
+| [`docs/spec-1-5-page-edit.md`](docs/spec-1-5-page-edit.md) | Phase 1 塊④ ページ編集（起草。論点4件が確定待ち） |
 
 開発の進め方（着手前の仕様確定、PR・マージの承認ゲート、ブランチ運用）は [`.claude/CLAUDE.md`](.claude/CLAUDE.md) に定める。
 
