@@ -16,9 +16,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { applyPlan } = require('./op-pages.js');
+const { readLabels, rebuildLabels } = require('./op-page-labels.js');
+const { pruneDestinations } = require('./op-outline.js');
 const { writeDocument } = require('../pdf-write.js');
 
-const { PDFDocument } = require(path.join(__dirname, '..', 'vendor', 'pdf-lib.min.js'));
+const pdfLib = require(path.join(__dirname, '..', 'vendor', 'pdf-lib.min.js'));
+const { PDFDocument } = pdfLib;
+
+// 低レベルの組み立てに要る道具。ページラベルとしおりの層へ渡す（パスをあちらに持たせない）。
+const TOOLS = { PDFName: pdfLib.PDFName, PDFHexString: pdfLib.PDFHexString };
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
 
@@ -80,9 +86,15 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   }
 
   advance('apply');
+  // ページラベルは applyPlan の**前**に読む。当てたあとでは元の対応が失われる。
+  const labelsBefore = readLabels(doc);
   const applied = applyPlan(doc, pages);
   if (applied.ok !== true)
     return applied;
+  // 作り直しは applyPlan の**あと**。ページ数が合っていないと最後のラベルが引き延ばされる。
+  rebuildLabels(doc, pages, labelsBefore, TOOLS);
+  // 削除で飛び先を失ったしおりから /Dest と /A を落とす（見出しは残す）。
+  const pruned = pruneDestinations(doc, TOOLS);
 
   advance('save');
   let output;
@@ -104,6 +116,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     bytes: written.bytes,
     pages: applied.pages,
     signature: written.signature,
+    pruned,
   };
 }
 
