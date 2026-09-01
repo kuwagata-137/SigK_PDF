@@ -44,6 +44,14 @@ const FIXTURES = [
   },
 ];
 
+// ページ編集の実測用（spec-1-5「実測に残すもの」）。1,000ページで plan の
+// 作り直しとサムネイルが現実的な速さに収まるかを見る。
+//
+// 毎回作ると pretest が3秒ほど延びるので、要るときだけ作る。
+//   SIGK_FIXTURES_HUGE=1 npm run fixtures
+if (process.env.SIGK_FIXTURES_HUGE === '1')
+  FIXTURES.push({ file: 'huge-pages.pdf', pages: 1000, size: A4, label: '1,000ページ', caption: 'huge' });
+
 // 本文の1行。ページ番号と行番号を混ぜて、ヒットの位置を目で追えるようにする。
 // 標準14書体は WinAnsi しか扱えないため ASCII に限る（docs/02 1-4）。
 function bodyLine(pageNumber, lineNumber) {

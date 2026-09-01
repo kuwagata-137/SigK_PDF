@@ -234,8 +234,13 @@ test('renderTargets はサムネイルの上限24でも同じ規則で切り詰�
 
 // サイドパネルは 180〜420px でドラッグできる。固定の列数にすると、どこかの幅で
 // 必ず破綻する（確定事項24）。
+// 実機では縦スクロールバー（約16px）のぶん、内容幅がパネル幅より狭くなる。
+// 確定事項23 の実測表はこれを勘定に入れていなかったので、ここでは実測に
+// 合わせた内容幅で列数を確かめる（表の列数そのものは満たす）。
+const SCROLLBAR = 16;
+
 test('thumbnailColumns はパネルの幅から 1〜3 列を決める（確定事項23）', () => {
-  const content = (panelWidth) => panelWidth - layout.THUMB_MARGIN * 2;
+  const content = (panelWidth) => panelWidth - layout.THUMB_MARGIN * 2 - SCROLLBAR;
 
   assert.equal(layout.thumbnailColumns(content(180)), 1);
   assert.equal(layout.thumbnailColumns(content(240)), 2);
@@ -251,13 +256,13 @@ test('thumbnailColumns は上限3・下限1で頭打ちにする', () => {
 });
 
 // 固定の2列にすると、最小幅では紙が 65px まで縮む。自動にする理由がこれである。
-test('列数を自動で決めれば、どの幅でも紙は 90px を下回らない', () => {
+test('列数を自動で決めれば、どの幅でも紙は 80px を下回らない', () => {
   for (const panelWidth of [180, 240, 300, 340, 420]) {
-    const columnWidth = panelWidth - layout.THUMB_MARGIN * 2;
+    const columnWidth = panelWidth - layout.THUMB_MARGIN * 2 - SCROLLBAR;
     const columns = layout.thumbnailColumns(columnWidth);
     const { sheetWidth } = layout.layoutThumbnails({ sizes: [A4], columnWidth, columns });
 
-    assert.ok(sheetWidth >= 90, panelWidth + 'px で紙が ' + sheetWidth + 'px になった');
+    assert.ok(sheetWidth >= 80, panelWidth + 'px で紙が ' + sheetWidth + 'px になった');
   }
 });
 
@@ -324,6 +329,16 @@ test('maxThumbs は列数のぶんだけ増やす（確定事項26）', () => {
   assert.equal(layout.maxThumbs(2), layout.MAX_THUMBS * 2);
   assert.equal(layout.maxThumbs(3), layout.MAX_THUMBS * 3);
   assert.equal(layout.maxThumbs(0), layout.MAX_THUMBS);
+});
+
+// 先読みは枚数で数えるので、多列のまま 4 では1.3行ぶんにしかならない。
+// 上限を列数倍にした以上、先読みも揃えないと上限に届かない（2026-09-01 実測）。
+test('先読みも列数のぶんだけ増やす', () => {
+  assert.equal(layout.thumbAhead(1), layout.THUMB_AHEAD);
+  assert.equal(layout.thumbAhead(3), layout.THUMB_AHEAD * 3);
+  assert.equal(layout.thumbAhead(0), layout.THUMB_AHEAD);
+  // 1列（閲覧モード）では塊③-a の実測値のまま変わらない。
+  assert.equal(layout.thumbAhead(1), 4);
 });
 
 test('多列の返り値でも visibleRange と currentPageIndex が動く', () => {

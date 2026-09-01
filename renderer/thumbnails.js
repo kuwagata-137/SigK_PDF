@@ -241,7 +241,9 @@
       first: range.first,
       last: range.last,
       current: center,
-      ahead: layout().THUMB_AHEAD,
+      // 先読みも列数のぶんだけ増やす。多列では1行に何枚も並ぶため、
+      // 枚数で数える先読みは行数に換算すると少なくなる。
+      ahead: layout().thumbAhead(state.columns),
       // 多列では紙が小さくなるので、枚数を増やしても総メモリは1列時を
       // 下回る（確定事項26）。
       max: layout().maxThumbs(state.columns),

@@ -41,8 +41,17 @@
   // 180〜420px でドラッグできるので、列数はパネルの幅から決める。固定の2列に
   // すると最小幅で紙が 65px まで縮み、固定の1列だと広げても紙が育たない。
   const MAX_COLUMNS = 3;
-  // 目標の紙幅 100px ＋ 間隔 10px。この幅ごとに1列を足す。
-  const THUMB_TARGET_WIDTH = 110;
+  // この幅ごとに1列を足す。
+  //
+  // **2026-09-01 実測により 110 → 100 へ改めた。**spec-1-5 確定事項23 は
+  // 「目標の紙幅 100px ＋ 間隔 10px」で 110 としていたが、その実測表は
+  // 縦スクロールバー（約16px）を勘定に入れていなかった。実機では幅 240px の
+  // パネルの内容幅が 220px ではなく **204px** になり、110 のままだと
+  // 確定事項23 が定める「240px→2列」を満たせず1列になる。
+  //
+  // 100 にすると列数は確定事項23 の表（180→1／240→2／300→2／340→3／420→3）と
+  // すべて一致する。紙幅だけが表より 8〜11px 小さくなる（スクロールバーのぶん）。
+  const THUMB_TARGET_WIDTH = 100;
 
   function clampZoom(zoom) {
     if (!Number.isFinite(zoom))
@@ -107,11 +116,25 @@
     return Math.min(MAX_COLUMNS, Math.max(1, columns));
   }
 
+  function clampColumns(columns) {
+    const count = Number.isFinite(columns) && columns > 0 ? Math.floor(columns) : 1;
+    return Math.min(MAX_COLUMNS, count);
+  }
+
   // 同時に持つサムネイルの上限（確定事項26）。多列では紙が小さくなるため、
   // 枚数が増えても総メモリは1列時を下回る（幅240pxで 1列210px 対 2列105px ＝ 面積比4倍）。
   function maxThumbs(columns) {
-    const count = Number.isFinite(columns) && columns > 0 ? Math.floor(columns) : 1;
-    return MAX_THUMBS * Math.min(MAX_COLUMNS, count);
+    return MAX_THUMBS * clampColumns(columns);
+  }
+
+  // 先読みの枚数も列数のぶんだけ増やす。
+  //
+  // **2026-09-01 実測で足した。**先読みは枚数で数えるので、3列のままの 4 では
+  // 1.3 行ぶんにしかならず、上限（72枚）に遠く届かない状態でスクロールのたびに
+  // 描き直しが起きていた（実測: 3列・1,000ページで 17 枚どまり）。
+  // 上限を列数倍にした以上、先読みも揃えないと上限が意味を持たない。
+  function thumbAhead(columns) {
+    return THUMB_AHEAD * clampColumns(columns);
   }
 
   // サムネイルの配置。ページビューとは法則が違う（spec-1-3 確定事項3）。
@@ -282,6 +305,7 @@
     THUMB_TARGET_WIDTH,
     thumbnailColumns,
     maxThumbs,
+    thumbAhead,
     clampZoom,
     nextZoom,
     prevZoom,
