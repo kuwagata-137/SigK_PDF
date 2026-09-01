@@ -111,6 +111,12 @@ function createTextLayerStub(layers) {
   };
 }
 
+// 角度を 0/90/180/270 に丸める。pdf.js の PageViewport と同じ扱いにする
+// （360 で剰余し、負値には +360 する）。
+function normalizeAngle(degrees) {
+  return (((Math.round(degrees / 90) * 90) % 360) + 360) % 360;
+}
+
 // pdf.js の代わり。ページの寸法を返し、描画は即座に終わったことにする。
 //
 // getDocument() は呼ばれるたびに別の文書を作る。タブは複数の文書を同時に
@@ -124,8 +130,15 @@ function createPdfjsStub({
   // ページごとに違う本文を与えたいとき（検索のテスト）。0 起点の配列で、
   // 埋まっていないページは textItems へ落ちる。
   pageTextItems = null,
+  // ページ自身の /Rotate（spec-1-5）。plan の相対角度はこれに足される。
+  // 埋まっていないページは 0。
+  rotations = null,
 } = {}) {
   const rendered = [];
+  // getViewport の呼び出し。どの元ページを、どの回転と倍率で見に行ったかが
+  // 残る（spec-1-5 の写像と回転の検証）。jsdom には 2D コンテキストが無く
+  // page.render() まで届かないので、rendered だけでは経路を追えない。
+  const viewportCalls = [];
   const documents = [];
   const textLayers = [];
 
@@ -142,8 +155,25 @@ function createPdfjsStub({
       },
       async getPage(number) {
         const size = sizes[number - 1];
+        // pdf.js は /Rotate を 90 の倍数へ正規化して持つ。
+        const rotate = normalizeAngle(rotations?.[number - 1] ?? 0);
         return {
-          getViewport: ({ scale }) => ({ width: size.width * scale, height: size.height * scale }),
+          // 何ページ目を借りたのかをテストから見る。plan の写像の検証に使う。
+          pageNumber: number,
+          rotate,
+          // 本物と同じく、rotation は絶対値として置き換える。既定値はページ
+          // 自身の rotate である（spec-1-5 の事前調査）。
+          getViewport: ({ scale, rotation = rotate }) => {
+            const angle = normalizeAngle(rotation);
+            const swapped = angle % 180 !== 0;
+            viewportCalls.push({ page: number, rotation: angle, scale });
+            return {
+              width: (swapped ? size.height : size.width) * scale,
+              height: (swapped ? size.width : size.height) * scale,
+              rotation: angle,
+              scale,
+            };
+          },
           render: () => {
             rendered.push(number);
             return { promise: Promise.resolve(), cancel: () => {} };
@@ -163,6 +193,7 @@ function createPdfjsStub({
     available: true,
     stub: true,
     rendered,
+    viewportCalls,
     documents,
     textLayers,
     // 本物の pdfjs-bridge.mjs は lib に pdf.js の名前空間をそのまま載せる。
@@ -252,6 +283,10 @@ async function createShell({
   const recentCalls = [];
   const uiCalls = [];
   const printCalls = [];
+  const closeRequestHandlers = [];
+  // メインへ知らせた未保存のタブ数と、確認の答え（spec-1-5 確定事項56）。
+  const dirtyCalls = [];
+  const closeAnswers = [];
   let recentList = [...recent];
   let savedUi = structuredClone(ui);
 
@@ -285,6 +320,17 @@ async function createShell({
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
         };
         return { ok: true, ui: structuredClone(savedUi) };
+      },
+    };
+    // 未保存を持ったまま終了しようとしたときの往復（spec-1-5 確定事項56）。
+    // 実際に窓を閉じるのはメイン側なので、ここは往復だけを真似る。
+    window.appCloseAPI = {
+      available: true,
+      setDirty: (count) => dirtyCalls.push(count),
+      onCloseRequest: (callback) => closeRequestHandlers.push(callback),
+      confirm: async (ok) => {
+        closeAnswers.push(ok);
+        return { ok: true };
       },
     };
     // 印刷（spec-1-4 確定事項30）。実際に紙へ送るのはメイン側なので、
@@ -341,6 +387,12 @@ async function createShell({
     uiCalls,
     // printAPI.print() に届いたオプションの並び。
     printCalls,
+    // appCloseAPI.setDirty() に届いた数の並び（最後が「いま」）。
+    dirtyCalls,
+    // appCloseAPI.confirm() に返した答えの並び。
+    closeAnswers,
+    // 終了しようとしていることをメインから知らせる。
+    fireCloseRequest: () => Promise.all(closeRequestHandlers.map((handler) => handler())),
     savedUi: () => savedUi,
     // メニューの「開く」から届く合図を、テストから引く。パスを渡せば
     // 「最近使ったファイル」から選んだのと同じ経路になる。
@@ -351,6 +403,22 @@ async function createShell({
     resizeSide: (width) => {
       applySide(window, { width, height: side?.height ?? DEFAULT_SIDE.height });
       window.SigK.shell.setSidePanelWidth(window.document, width);
+    },
+    // ポインタ操作を送る（spec-1-5 のドラッグ並べ替え）。jsdom は
+    // setPointerCapture も elementFromPoint も持たないので、実装側はどちらにも
+    // 頼らない作りにしてある。座標はそのまま clientX / clientY に載る。
+    firePointer: (node, type, { x = 0, y = 0, button = 0 } = {}) => {
+      const Ctor = window.PointerEvent ?? window.MouseEvent;
+      const event = new Ctor(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button,
+        pointerId: 1,
+      });
+      node.dispatchEvent(event);
+      return event;
     },
     // サイドパネルを縦にスクロールしたことにする。
     scrollSide: (top) => {

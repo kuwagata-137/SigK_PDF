@@ -31,14 +31,27 @@
       return typeof root.CanvasRenderingContext2D !== 'undefined';
     }
 
+    // 表示上の index から元ファイルのページを引く（spec-1-5 確定事項44）。
+    // 直に doc.getPage() を呼ぶのは、このファイルと thumbnails.js の2か所だけ
+    // である。写像を通さないと、編集しても中央のページビューだけが元の並びの
+    // まま取り残される。
+    function sourcePageNumber(index) {
+      return (state.plan[index]?.src ?? index) + 1;
+    }
+
+    // そのページに当てる絶対角度。plan の相対角度を元ページの /Rotate へ足す。
+    function rotationFor(index, page) {
+      return (page?.rotate ?? 0) + (state.plan[index]?.rotate ?? 0);
+    }
+
     // ページ1枚を canvas に描く。描けない環境では null を返す。
     //
     // 「描けないなら打ち切る」ではなく「絵だけ無い」で返すのは、テキスト
     // レイヤーが canvas と独立しているためである。文字の層は DOM だけで
     // 作れるので、絵が出せない環境（jsdom）でも組み立てて確かめられる。
-    async function drawCanvas({ entry, page }) {
+    async function drawCanvas({ entry, page, index }) {
       const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({ scale, rotation: rotationFor(index, page) });
       if (!canDrawCanvas())
         return null;
 
@@ -80,11 +93,11 @@
       const isStale = () => token !== state.token || state.rendered.get(index) !== entry;
 
       try {
-        const page = await state.doc.getPage(index + 1);
+        const page = await state.doc.getPage(sourcePageNumber(index));
         if (isStale())
           return;
 
-        const canvas = await drawCanvas({ entry, page });
+        const canvas = await drawCanvas({ entry, page, index });
         if (isStale())
           return;
         if (canvas !== null)
@@ -118,7 +131,12 @@
 
       // canvas 用の viewport は devicePixelRatio を掛けてある。文字には
       // 掛けない CSS ピクセル基準のものを渡す（text-layer.js の注記を参照）。
-      const viewport = page.getViewport({ scale: state.zoom * layout().CSS_UNITS });
+      // 回転は canvas と揃える。揃えないと、回した紙の上で文字だけが
+      // 元の向きに残る。
+      const viewport = page.getViewport({
+        scale: state.zoom * layout().CSS_UNITS,
+        rotation: rotationFor(index, page),
+      });
       const handle = await textLayer.render({ doc: ctx.el().doc, page, viewport });
       if (handle === null)
         return;

@@ -61,6 +61,22 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   setUi: (patch) => ipcRenderer.invoke('settings:setUi', patch),
 });
 
+// 未保存の編集を持ったまま終了しようとしたときの往復（spec-1-5 確定事項56）。
+// 確認のダイアログはアプリ内の <dialog> なので、レンダラーでしか出せない。
+// メイン側は「未保存があるか」だけを持ち、無ければ従来どおり素通りで閉じる。
+contextBridge.exposeInMainWorld('appCloseAPI', {
+  available: true,
+  // 未保存のタブ数を知らせる。返事は要らない。
+  setDirty: (count) => ipcRenderer.send('app:dirty', count),
+  // 終了しようとしている合図。
+  onCloseRequest: (callback) => {
+    ipcRenderer.removeAllListeners('app:closeRequest');
+    ipcRenderer.on('app:closeRequest', () => callback());
+  },
+  // 聞いた結果。true なら閉じてよい。
+  confirm: (ok) => ipcRenderer.invoke('app:closeConfirm', ok),
+});
+
 // 印刷（spec-1-4 確定事項30）。レンダラーが印刷用のコンテナへ画像を並べてから
 // ここを呼ぶ。実際に紙へ送るのはメイン側の webContents.print() で、
 // silent を false にすると OS の印刷ダイアログが出る。

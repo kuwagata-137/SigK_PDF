@@ -155,16 +155,41 @@ test('サイドパネルを畳むと枠ごと捨て、開くと作り直す', as
   assert.equal(thumbsIn(document).length, 3);
 });
 
-// 出すのは閲覧モードのときだけ。ほかは従来のプレースホルダー（確定事項1）。
-test('閲覧モード以外ではサムネイルを出さない', async (t) => {
+// 出すのは閲覧モードとページモードだけ。注釈・ツールでは従来の
+// プレースホルダーへ戻す（spec-1-3 確定事項1／spec-1-5 確定事項28）。
+//
+// 2026-09-01 改訂: 塊③-a では「閲覧モード以外では出さない」だった。塊④ で
+// ページモードのサイドパネルを多列グリッドにしたため、ページも出す側へ移した。
+test('注釈・ツールモードではサムネイルを出さない', async (t) => {
   const { document, SigK } = await withOpenDocument(t);
 
-  SigK.shell.setMode(document, 'pages');
+  SigK.shell.setMode(document, 'annot');
   assert.equal(thumbsIn(document).length, 0);
   assert.equal(document.getElementById('thumbs-empty').hidden, false);
 
+  SigK.shell.setMode(document, 'tools');
+  assert.equal(thumbsIn(document).length, 0);
+
   SigK.shell.setMode(document, 'view');
   assert.equal(thumbsIn(document).length, 3);
+});
+
+// 並べ直しは1フレーム後である（確定事項15 の間引きに相乗りしている）。
+test('ページモードではサムネイルを出したまま多列にする（確定事項28）', async (t) => {
+  const { document, SigK, flush } = await withOpenDocument(t);
+
+  SigK.shell.setMode(document, 'pages');
+  await flush();
+  assert.equal(thumbsIn(document).length, 3, 'ページモードでサムネイルが消えている');
+  // 既定のパネル幅 240px は2列になる（確定事項23）。
+  assert.equal(SigK.thumbnails.getState().columns, 2);
+  // 2列目は左端からずれる。1列のときは全部 0 だった。
+  assert.notEqual(thumbsIn(document)[1].style.left, '0px');
+
+  SigK.shell.setMode(document, 'view');
+  await flush();
+  assert.equal(SigK.thumbnails.getState().columns, 1, '閲覧モードは1列のまま');
+  assert.equal(thumbsIn(document)[1].style.left, '0px');
 });
 
 // 幅が変われば紙の寸法が変わる（確定事項15）。

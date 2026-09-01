@@ -145,6 +145,32 @@ html[data-panel="collapsed"] #side{display:none}
 .thumb:hover .sheet{border-color:var(--primary)}
 .thumb.current{border-color:var(--accent); background:var(--select)}
 .thumb.current .cap{color:var(--accent)}
+/* ページモードの選択（spec-1-5 確定事項22）。現在ページの .current とは
+   別に持ち、両方付くことがある。選ばれた紙は番号を濃くして見分ける。 */
+.thumb.selected{border-color:var(--accent); background:var(--select)}
+.thumb.selected .cap{color:var(--accent); font-weight:600}
+/* 紙の上の小さなボタン（確定事項52）。紙の幅が 100px 前後になるため、
+   文字は入れずアイコンだけにする。触れている紙にだけ出す。 */
+.thumb-tools{position:absolute; top:6px; right:6px; display:none; gap:3px; z-index:3}
+.thumb:hover .thumb-tools{display:flex}
+.thumb-tool{
+  width:22px; height:22px; display:grid; place-items:center; padding:0;
+  border:1px solid var(--border); border-radius:6px;
+  background:var(--surface); color:var(--text); cursor:pointer;
+  box-shadow:var(--shadow-item);
+}
+.thumb-tool:hover{background:var(--surface-2)}
+.thumb-tool.danger{color:var(--danger)}
+
+/* ドラッグ中（確定事項35）。掴んでいる枚は半透明にし、落ちる位置に棒を出す。 */
+.thumb.dragging{opacity:.4}
+.drop-line{position:absolute; background:var(--accent); border-radius:1px; pointer-events:none; z-index:2}
+.drag-badge{
+  position:fixed; z-index:50; pointer-events:none;
+  padding:2px 7px; border-radius:10px;
+  background:var(--accent); color:#fff; font-size:11px; line-height:16px;
+  box-shadow:var(--shadow-item);
+}
 .side-actions[hidden]{display:none}
 .side-actions{
   flex:0 0 auto; border-top:1px solid var(--border); padding:8px 10px;
@@ -153,8 +179,12 @@ html[data-panel="collapsed"] #side{display:none}
 .act{
   height:28px; display:inline-flex; align-items:center; justify-content:center; gap:5px;
   border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text);
-  font-size:12px;
+  font-size:12px; font-family:inherit; padding:0; cursor:pointer;
 }
+/* 削除だけは全幅にして、回転や抽出と押し間違えないようにする（確定事項51）。 */
+.act.wide{grid-column:1 / -1}
+.act[aria-disabled="true"]{color:var(--muted); cursor:default}
+.side-scroll:focus{outline:none}
 .act:hover{background:var(--surface); box-shadow:var(--shadow-item)}
 .act[aria-disabled="true"]:hover{background:var(--surface-2); box-shadow:none}
 .act.danger{color:var(--danger)}
@@ -333,6 +363,20 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 .dlg-btn:hover{background:var(--surface)}
 .dlg-btn.primary{background:var(--primary); border-color:var(--primary); color:#fff}
+/* 破棄・上書きにあたるボタンは --danger で塗る（docs/04 第7章）。 */
+.dlg-btn.danger{background:var(--danger); border-color:var(--danger); color:#fff}
+
+/* 未保存の確認（spec-1-5 確定事項57）。意匠は文書情報・印刷と揃える。 */
+#confirm-discard{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(420px, 88vw);
+}
+#confirm-discard::backdrop{background:rgba(16,24,40,.34)}
+.dlg-text{margin:0; line-height:1.7}
+
+/* 未保存の印（確定事項49）。タブの点は Phase 0 から CSS だけあった。 */
+#status-dirty{color:var(--accent); font-weight:600}
 .dlg-btn.primary:hover{filter:brightness(1.06)}
 .dlg-btn[aria-disabled="true"]{cursor:default}
 

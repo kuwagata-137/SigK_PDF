@@ -128,7 +128,13 @@
     if (page === null || page === undefined)
       return null;
 
-    const viewport = page.getViewport({ scale: PRINT_SCALE });
+    // 回転を紙にも載せる（spec-1-5 確定事項39）。ここは getViewport を回転
+    // なしで呼んでいた4か所目である。落とすと「画面では回っているのに印刷は
+    // 回っていない」が起きる。
+    const viewport = page.getViewport({
+      scale: PRINT_SCALE,
+      rotation: viewer().viewportRotation(number, page),
+    });
     // jsdom には 2D コンテキストが無い。寸法だけを返して経路の検証に使う。
     if (typeof root.CanvasRenderingContext2D === 'undefined')
       return { url: null, width: Math.round(viewport.width), height: Math.round(viewport.height), bytes: 0 };

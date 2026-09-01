@@ -33,6 +33,13 @@ let settings = null;
 let fileIo = null;
 let mainWindow = null;
 
+// 未保存の編集があるタブの数（spec-1-5 確定事項56）。レンダラーが編集の
+// たびに知らせてくる。メインがこれを持っておくと、未保存が無いときの終了は
+// 従来どおり素通りでき、確認の往復が要るのは実際に未保存があるときだけになる。
+let dirtyTabCount = 0;
+// 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
+let allowClose = false;
+
 function logError(entry) {
   if (errorLog === null) {
     console.error(entry);
@@ -112,7 +119,19 @@ function createMainWindow() {
     win.show();
   });
 
-  win.on('close', () => {
+  win.on('close', (event) => {
+    // 未保存があれば、閉じる前にレンダラーへ確認を頼む（確定事項56）。
+    // 確認のダイアログはアプリ内の <dialog> なので、レンダラーでしか出せない。
+    //
+    // レンダラーが死んでいるときは聞けない。そのまま閉じる（聞けないせいで
+    // 二度と閉じられなくなるほうが困る）。
+    const canAsk = !win.webContents.isDestroyed() && !win.webContents.isCrashed();
+    if (!allowClose && dirtyTabCount > 0 && canAsk) {
+      event.preventDefault();
+      win.webContents.send('app:closeRequest');
+      return;
+    }
+
     const normal = win.getNormalBounds();
     settings.set({
       window: { width: normal.width, height: normal.height, x: normal.x, y: normal.y, maximized: win.isMaximized() },
@@ -214,6 +233,20 @@ function registerIpc() {
   }));
 
   ipcMain.handle('log:error', (_event, entry) => ({ ok: errorLog.append(entry) }));
+
+  // 未保存の数（spec-1-5 確定事項56）。返事は要らないので send で受ける。
+  ipcMain.on('app:dirty', (_event, count) => {
+    dirtyTabCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  });
+
+  // 確認の答え。閉じてよければ、もう一度 close を通して実際に閉じる。
+  ipcMain.handle('app:closeConfirm', (_event, ok) => {
+    if (ok !== true)
+      return { ok: false };
+    allowClose = true;
+    mainWindow?.close();
+    return { ok: true };
+  });
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
@@ -681,6 +714,182 @@ function installSmokeCheck(win) {
     return measured;
   })()`;
 
+  // SIGK_SMOKE_PAGES=<操作列> を付けると、ページ編集の実測を出す
+  // （spec-1-5 の完了判定）。SIGK_SMOKE_PDF と一緒に使う。
+  //
+  // 操作はカンマ区切りで、次のものを受ける。
+  //   select:2 / select:0-4  選ぶ（0 起点）   all  全選択
+  //   rotate / rotateLeft    右90度 / 左90度  delete  削除
+  //   move:3                 選択を3番の手前へ
+  //   undo / redo            元に戻す / やり直し
+  //
+  // 例: SIGK_SMOKE_PAGES=select:0-1,rotate,move:5,delete,undo
+  const pagesScript = (spec) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    const round = (value) => Math.round(value * 100) / 100;
+
+    SigK.shell.setMode(document, 'pages');
+    await wait(500);
+
+    const applied = [];
+    for (const raw of ${JSON.stringify(spec)}.split(',')) {
+      const step = raw.trim();
+      if (step.length === 0)
+        continue;
+      const [name, arg] = step.split(':');
+      const t0 = performance.now();
+
+      if (name === 'scroll') {
+        // サイドパネルを縦に送る。同時に持つサムネイルの上限（確定事項26）を
+        // 実際に埋めて測るのに要る。
+        document.getElementById('side-scroll').scrollTop = Number(arg);
+        await wait(900);
+      } else if (name === 'width') {
+        // サイドパネルの幅を変える。3列（確定事項23）の実測に要る。
+        SigK.shell.setSidePanelWidth(document, Number(arg));
+        await wait(400);
+      } else if (name === 'select') {
+        const parts = String(arg).split('-').map(Number);
+        const from = parts[0];
+        const to = Number.isFinite(parts[1]) ? parts[1] : from;
+        const list = [];
+        for (let index = from; index <= to; index += 1)
+          list.push(index);
+        SigK.pageGrid.setSelection(list);
+      } else if (name === 'all') {
+        SigK.pageGrid.selectAll();
+      } else if (name === 'rotate') {
+        SigK.pageEdit.rotate(90);
+      } else if (name === 'rotateLeft') {
+        SigK.pageEdit.rotate(-90);
+      } else if (name === 'delete') {
+        SigK.pageEdit.remove();
+      } else if (name === 'move') {
+        const before = SigK.pageGrid.getSelection();
+        const moved = SigK.pagePlan.movePages(SigK.viewer.getPlan(), before, Number(arg));
+        SigK.pageEdit.commit(moved.plan, { before, after: moved.selection });
+      } else if (name === 'undo') {
+        SigK.pageEdit.undo();
+      } else if (name === 'redo') {
+        SigK.pageEdit.redo();
+      }
+
+      // 操作そのものにかかった時間（画面が揃うまでを含む）。
+      applied.push({ step, ms: round(performance.now() - t0) });
+      await wait(150);
+    }
+
+    // ページビューとサムネイルが同じ並びを映しているかを数値で見る
+    // （完了判定）。回した紙は縦横比が反転するので、並べ替えと回転を
+    // 混ぜた列を通すと、一致していなければ必ず食い違う。
+    const viewRatios = [...document.querySelectorAll('#view-pages .pdf-page')]
+      .map((node) => Math.round((parseFloat(node.style.width) / parseFloat(node.style.height)) * 100));
+    const layout = SigK.thumbnails.getLayout();
+    const thumbRatios = layout.pages.map((page) => Math.round((page.sheetWidth / page.sheetHeight) * 100));
+    const ratiosMatch = viewRatios.length === thumbRatios.length
+      && viewRatios.every((value, index) => Math.abs(value - thumbRatios[index]) <= 1);
+
+    // 並べ替え1回から画面が揃うまで（実測に残すもの）。
+    // 履歴は通さず applyPlan だけを測る。戻すのも applyPlan で行う。
+    // ここで undo を呼ぶと、操作列で積んだ世代まで1つ戻ってしまう。
+    const restore = SigK.viewer.getPlan();
+    const r0 = performance.now();
+    const shuffled = SigK.pagePlan.movePages(restore, [0], 3);
+    const planMs = round(performance.now() - r0);
+    const a0 = performance.now();
+    SigK.viewer.applyPlan(shuffled.plan);
+    const applyMs = round(performance.now() - a0);
+    await wait(400);
+    SigK.viewer.applyPlan(restore);
+    await wait(200);
+
+    const thumbState = SigK.thumbnails.getState();
+    const plan = SigK.viewer.getPlan();
+    return {
+      applied,
+      pageCount: SigK.viewer.getState().pageCount,
+      basePageCount: SigK.viewer.getBasePageCount(),
+      // 先頭20枚を「元ページ:相対角度」で出す。
+      plan: plan.slice(0, 20).map((page) => page.src + ':' + page.rotate),
+      rotated: plan.filter((page) => page.rotate !== 0).length,
+      selection: SigK.pageGrid.getSelection().slice(0, 20),
+      dirty: SigK.viewer.isDirty(),
+      history: SigK.pageEdit.getHistoryState(),
+      statusPages: document.getElementById('status-pages').textContent,
+      statusDirty: document.getElementById('status-dirty').hidden === false,
+      // SIGK_SMOKE_PDF は viewer.open() を直に呼ぶのでタブが作られない。
+      // タブの点を見るには SIGK_SMOKE_TABS と組み合わせる。
+      tabCount: SigK.tabs.count(),
+      tabDirty: document.querySelector('#tabbar .tab .dirty') !== null,
+      undoEnabled: document.getElementById('btn-undo').hasAttribute('aria-disabled') === false,
+      deleteEnabled: document.getElementById('act-delete').hasAttribute('aria-disabled') === false,
+      // 多列グリッドの実測（確定事項23・26）。
+      columns: thumbState.columns,
+      columnWidth: thumbState.columnWidth,
+      sheetWidth: thumbState.sheetWidth,
+      thumbCount: document.querySelectorAll('#thumbs .thumb').length,
+      renderedThumbs: thumbState.rendered.length,
+      maxThumbs: SigK.viewerLayout.maxThumbs(thumbState.columns),
+      viewRatios: viewRatios.slice(0, 12),
+      thumbRatios: thumbRatios.slice(0, 12),
+      ratiosMatch,
+      planMs,
+      applyMs,
+      heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null,
+    };
+  })()`;
+
+  // SIGK_SMOKE_DRAG=<from>-<to> を付けると、サムネイルのドラッグを
+  // Chromium の Input.dispatchMouseEvent で再現する（完了判定の未検証項目）。
+  // 送るのは mouse 系だが、Chromium は互換のため pointer 系も一緒に発火する。
+  // これが効けば、並べ替えの経路を人の手を借りずに確かめられる。
+  async function dispatchPageDrag(from, to) {
+    const boxes = await win.webContents.executeJavaScript(`(() => {
+      const thumbs = [...document.querySelectorAll('#thumbs .thumb')];
+      const box = (index) => {
+        const rect = thumbs[index].getBoundingClientRect();
+        return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+      };
+      return { from: box(${from}), to: box(${to}), count: thumbs.length };
+    })()`);
+
+    const { debugger: dbg } = win.webContents;
+    dbg.attach('1.3');
+    try {
+      const base = { button: 'left', buttons: 1, clickCount: 1 };
+      await dbg.sendCommand('Input.dispatchMouseEvent', { type: 'mousePressed', ...boxes.from, ...base });
+      // 閾値（5px）を超えるまでを刻んで送る。1回で飛ばすと、掴む判定と
+      // 落とす判定が同じフレームに来て挙動が変わる。
+      for (const ratio of [0.2, 0.5, 0.8, 1]) {
+        await dbg.sendCommand('Input.dispatchMouseEvent', {
+          type: 'mouseMoved',
+          x: Math.round(boxes.from.x + (boxes.to.x - boxes.from.x) * ratio),
+          y: Math.round(boxes.from.y + (boxes.to.y - boxes.from.y) * ratio),
+          button: 'left',
+          buttons: 1,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 60));
+      }
+      await dbg.sendCommand('Input.dispatchMouseEvent', { type: 'mouseReleased', ...boxes.to, ...base });
+    } finally {
+      dbg.detach();
+    }
+    return boxes;
+  }
+
+  const dragResultScript = `(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return {
+      plan: window.SigK.viewer.getPlan().slice(0, 12).map((page) => page.src + ':' + page.rotate),
+      selection: window.SigK.pageGrid.getSelection(),
+      dirty: window.SigK.viewer.isDirty(),
+      historyDepth: window.SigK.pageEdit.getHistoryState().depth,
+      dragging: window.SigK.pageGrid.isDragging(),
+      lineLeft: document.querySelector('.drop-line') === null,
+    };
+  })()`;
+
   // SIGK_SMOKE_DROP=<path> を付けると、本物のドラッグ＆ドロップを再現する。
   // Chromium の Input.dispatchDragEvent に実ファイルのパスを渡すと、ページには
   // OS から落としたときと同じ File が届く。webUtils.getPathForFile がそこから
@@ -720,6 +929,8 @@ function installSmokeCheck(win) {
       let text = null;
       let find = null;
       let print = null;
+      let pages = null;
+      let drag = null;
       let drop = null;
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
@@ -736,8 +947,17 @@ function installSmokeCheck(win) {
           text = await win.webContents.executeJavaScript(textScript);
         if (process.env.SIGK_SMOKE_FIND)
           find = await win.webContents.executeJavaScript(findScript(process.env.SIGK_SMOKE_FIND));
+        // ページ編集を先に済ませてから印刷を測る。回転が 150dpi の画像に
+        // 載るか（確定事項39）を、同じ起動の中で確かめられる。
+        if (process.env.SIGK_SMOKE_PAGES)
+          pages = await win.webContents.executeJavaScript(pagesScript(process.env.SIGK_SMOKE_PAGES));
         if (process.env.SIGK_SMOKE_PRINT)
           print = await win.webContents.executeJavaScript(printScript(process.env.SIGK_SMOKE_PRINT));
+        if (process.env.SIGK_SMOKE_DRAG) {
+          const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
+          const boxes = await dispatchPageDrag(from, to);
+          drag = { boxes, ...(await win.webContents.executeJavaScript(dragResultScript)) };
+        }
         if (process.env.SIGK_SMOKE_DROP) {
           await dispatchDrop(path.resolve(process.env.SIGK_SMOKE_DROP));
           drop = await win.webContents.executeJavaScript(dropResultScript);
@@ -767,11 +987,18 @@ function installSmokeCheck(win) {
         text,
         find,
         print,
+        pages,
+        drag,
         drop,
         screenshot,
         problems,
       }));
       // destroy ではなく close を使う。設定の保存を通す経路と同じにするため。
+      //
+      // ただし未保存の確認は飛ばす（spec-1-5 確定事項56）。起動確認は編集を
+      // する経路（SIGK_SMOKE_PAGES）を持つので、そのまま閉じると確認の
+      // ダイアログが出たまま誰も押さず、いつまでも終わらない。
+      allowClose = true;
       win.close();
     }, 1500);
   });
