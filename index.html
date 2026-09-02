@@ -102,7 +102,7 @@ body{
       </div>
       <!-- ページモードの操作（spec-1-5 確定事項50・51）。div ではなく button に
            してある。div のままではフォーカスが当たらず、キーボードから押せない。
-           挿入はまだ枠だけで、結線は塊⑤ の後半で行う。 -->
+           抽出は extract.js、挿入は insert.js が中身を持つ。 -->
       <div class="side-actions" id="side-actions" hidden>
         <button type="button" class="act" id="act-rotate-left" aria-disabled="true"><span data-icon="rotateLeft" data-icon-size="14" data-icon-stroke="1.9"></span>左回転</button>
         <button type="button" class="act" id="act-rotate-right" aria-disabled="true"><span data-icon="rotateRight" data-icon-size="14" data-icon-stroke="1.9"></span>右回転</button>
@@ -259,6 +259,7 @@ body{
 <script src="renderer/confirm-extract.js"></script>
 <script src="renderer/save.js"></script>
 <script src="renderer/extract.js"></script>
+<script src="renderer/insert.js"></script>
 <script src="renderer/find-text.js"></script>
 <script src="renderer/find.js"></script>
 <script src="renderer/find-bar.js"></script>

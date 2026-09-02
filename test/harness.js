@@ -160,6 +160,9 @@ function createPdfjsStub({
         return {
           // 何ページ目を借りたのかをテストから見る。plan の写像の検証に使う。
           pageNumber: number,
+          // どの文書から来たかも見る。差し込んだページは別の文書から引かれる
+          // （spec-1-6 確定事項93）ので、これが無いと写像を確かめられない。
+          docId: document.id,
           rotate,
           // 本物と同じく、rotation は絶対値として置き換える。既定値はページ
           // 自身の rotate である（spec-1-5 の事前調査）。
@@ -274,6 +277,8 @@ async function createShell({
   taskResults = [],
   // pdfAPI.pickSavePath() が返すものの並び。
   savePathResults = [],
+  // pdfAPI.pickInsertSource() が返すものの並び（spec-1-6 確定事項53）。
+  insertSourceResults = [],
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -299,6 +304,7 @@ async function createShell({
   const progressHandlers = [];
   const saveRequestHandlers = [];
   const savePathCalls = [];
+  const insertSourceCalls = [];
   let recentList = [...recent];
   let savedUi = structuredClone(ui);
 
@@ -327,6 +333,12 @@ async function createShell({
         return savePathResults.shift() ?? { canceled: true };
       },
       onSaveRequest: (callback) => saveRequestHandlers.push(callback),
+      // 差し込む元の選択（確定事項53）。形式の判定はワーカー側なので、
+      // ここはパスを返すだけである。
+      pickInsertSource: async (options) => {
+        insertSourceCalls.push(structuredClone(options ?? {}));
+        return insertSourceResults.shift() ?? { canceled: true };
+      },
     };
     // 重い処理をワーカーへ出す口（spec-1-6 確定事項1〜10）。実際に書くのは
     // メイン側なので、ここは届いた spec と、返す結果だけを扱う。
@@ -425,6 +437,7 @@ async function createShell({
     taskCancels,
     // pdfAPI.pickSavePath() に届いたオプションの並び。
     savePathCalls,
+    insertSourceCalls,
     // ワーカーからの進捗を流す。
     fireProgress: (progress) => progressHandlers.forEach((handler) => handler(progress)),
     // メニューの「保存」「名前を付けて保存…」から届く合図。

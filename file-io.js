@@ -21,6 +21,15 @@ const MAX_PDF_BYTES = 200 * 1024 * 1024;
 
 const PDF_FILTERS = [{ name: 'PDF ファイル', extensions: ['pdf'] }];
 
+// 差し込めるもの（spec-1-6 確定事項53）。**このフィルターは目安でしかない。**
+// 実際に受け付けるかどうかはワーカーが先頭バイトで判定し、既定拒否にする
+// （拡張子は中身と食い違うことがある）。
+const INSERT_FILTERS = [
+  { name: '差し込めるファイル', extensions: ['pdf', 'png', 'jpg', 'jpeg'] },
+  { name: 'PDF ファイル', extensions: ['pdf'] },
+  { name: '画像ファイル', extensions: ['png', 'jpg', 'jpeg'] },
+];
+
 function isPdfPath(filePath) {
   return typeof filePath === 'string' && path.extname(filePath).toLowerCase() === '.pdf';
 }
@@ -95,6 +104,24 @@ async function pickPdf({ dialogLike, parentWindow = null, defaultPath = undefine
   return { path: result.filePaths[0] };
 }
 
+// 差し込む1ファイルを選ばせる（確定事項53）。pickPdf と同じ作法で、
+// 親の有無で呼び分ける。
+async function pickInsertSource({ dialogLike, parentWindow = null, defaultPath = undefined }) {
+  const options = {
+    title: '差し込むファイルを選ぶ',
+    properties: ['openFile'],
+    filters: INSERT_FILTERS,
+    defaultPath,
+  };
+  const result = parentWindow === null
+    ? await dialogLike.showOpenDialog(options)
+    : await dialogLike.showOpenDialog(parentWindow, options);
+
+  if (result?.canceled === true || !Array.isArray(result?.filePaths) || result.filePaths.length === 0)
+    return { canceled: true };
+  return { path: result.filePaths[0] };
+}
+
 // 拡張子を落として保存しようとすることがある。フィルターがあれば OS が足すが、
 // 環境によっては足さないので、こちらでも揃えておく。
 function withPdfExtension(filePath) {
@@ -136,18 +163,22 @@ function createFileIo({ dialog, onError = () => {} }) {
     },
     pickSavePath: (parentWindow = null, { defaultPath, title } = {}) =>
       pickSavePath({ dialogLike: dialog, parentWindow, defaultPath, title }),
+    pickInsertSource: (parentWindow = null, { defaultPath } = {}) =>
+      pickInsertSource({ dialogLike: dialog, parentWindow, defaultPath }),
   };
 }
 
 module.exports = {
   MAX_PDF_BYTES,
   PDF_FILTERS,
+  INSERT_FILTERS,
   isPdfPath,
   withPdfExtension,
   describeReadFailure,
   toBytes,
   readPdf,
   pickPdf,
+  pickInsertSource,
   pickSavePath,
   createFileIo,
 };

@@ -33,6 +33,13 @@
     // pdf.js の文書のままで（確定事項29 で開き直さないと決めている）、
     // getPage() が plan[n-1].src で引くため、振り直すと表示と中身がずれる。
     savedPlan: [],
+    // 差し込んだページの控え（spec-1-6 確定事項93）。要素は
+    // { path, page, size, doc }（doc は差し込むページだけを持つ pdf.js の文書）。
+    // plan の { insert } がこの配列の番号を指す。
+    //
+    // 一度足したものは plan から外れても消さない。undo で外れたぶんを redo で
+    // 戻せるようにするためで、番号がずれないことのほうが大事である。
+    inserts: [],
     // plan から導いた、いま画面に出ている寸法。pageCount はこの長さである。
     sizes: [],
     layout: { pages: [], contentWidth: 0, totalHeight: 0 },
@@ -96,7 +103,9 @@
   function getPage(number) {
     if (state.doc === null || number < 1 || number > state.plan.length)
       return Promise.resolve(null);
-    return state.doc.getPage(state.plan[number - 1].src + 1);
+    // 差し込んだページは別の文書から来る（spec-1-6 確定事項93）。
+    const source = root.SigK.pagePlan.sourceOf(state.plan, number - 1, state);
+    return source === null ? Promise.resolve(null) : source.doc.getPage(source.number);
   }
 
   // そのページに当てる回転。元ページの /Rotate に plan の相対角度を足した
@@ -104,6 +113,28 @@
   // pdf.js が 360 で剰余するので、ここで丸め直す必要はない。
   function viewportRotation(number, page) {
     return (page?.rotate ?? 0) + (state.plan[number - 1]?.rotate ?? 0);
+  }
+
+  // 差し込んだページを控える（spec-1-6 確定事項93）。戻り値は plan に書く番号で、
+  // 呼び出し側（insert.js）が `{ insert: <番号>, rotate: 0 }` として並びへ入れる。
+  //
+  // entries は { path, page, size, doc } の並び。1つの PDF から複数ページを
+  // 差し込むと、同じ doc を指す控えが複数できる。
+  function addInserts(entries) {
+    const first = state.inserts.length;
+    state.inserts.push(...entries);
+    return entries.map((_entry, index) => first + index);
+  }
+
+  // いま画面に出ている寸法（plan の回転を当てたあと）。差し込むページの紙の
+  // 大きさを決めるのに使う（確定事項95）。
+  function getSizes() {
+    return state.sizes.map((size) => ({ width: size.width, height: size.height }));
+  }
+
+  // 保存のときワーカーへ渡す形。pdf.js の文書は渡さない（IPC を越えられない）。
+  function getInserts() {
+    return state.inserts.map(({ path, page, size }) => ({ path, page, size }));
   }
 
   // 元ファイルのページ数。plan が初期値と一致するか（＝未保存か）を
@@ -156,7 +187,9 @@
   // ページ番号入力・Home/End・印刷範囲・検索の走査本数がすべて追従する。
   function sizesFromPlan(plan) {
     return plan.map((page) => {
-      const base = state.basePages[page.src] ?? { width: 0, height: 0 };
+      const base = (Number.isInteger(page.insert)
+        ? state.inserts[page.insert]?.size
+        : state.basePages[page.src]) ?? { width: 0, height: 0 };
       const swapped = page.rotate === 90 || page.rotate === 270;
       return swapped
         ? { width: base.height, height: base.width }
@@ -211,7 +244,7 @@
     // 半分だけ正しいハイライトは、無いより悪い。
     root.SigK.find?.clear();
 
-    root.SigK.thumbnails?.setPlan(state.plan, state.sizes);
+    root.SigK.thumbnails?.setPlan(state.plan, state.sizes, state.inserts);
     syncStatusPages();
     syncDirty();
     controls()?.syncAll(el.doc, getState());
@@ -365,6 +398,7 @@
     state.basePages = [];
     state.plan = [];
     state.savedPlan = [];
+    state.inserts = [];
     state.sizes = [];
     state.layout = { pages: [], contentWidth: 0, totalHeight: 0 };
     state.current = 0;
@@ -394,6 +428,7 @@
       basePages: state.basePages,
       plan: state.plan,
       savedPlan: state.savedPlan,
+      inserts: state.inserts,
       sizes: state.sizes,
       zoom: state.zoom,
       fit: state.fit,
@@ -430,6 +465,7 @@
     state.basePages = session.basePages ?? session.sizes;
     state.plan = session.plan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
     state.savedPlan = session.savedPlan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
+    state.inserts = session.inserts ?? [];
     state.sizes = session.sizes;
     state.zoom = session.zoom;
     state.fit = session.fit;
@@ -442,6 +478,7 @@
       doc: state.doc,
       sizes: state.sizes,
       plan: state.plan,
+      inserts: state.inserts,
       current: state.current,
       scrollTop: session.thumbScrollTop ?? 0,
     });
@@ -462,13 +499,22 @@
   }
 
   function close() {
-    const session = detach();
-    session?.doc?.destroy?.();
+    destroySession(detach());
   }
 
   // 映していないタブを閉じるときの後始末。
+  //
+  // 差し込んだページの文書も畳む（確定事項93）。複数ページの PDF を差し込むと
+  // 同じ文書を複数の控えが指すので、実体ごとに1回だけ呼ぶ。
   function destroySession(session) {
     session?.doc?.destroy?.();
+    const seen = new Set();
+    for (const added of session?.inserts ?? []) {
+      if (added?.doc === undefined || added?.doc === null || seen.has(added.doc))
+        continue;
+      seen.add(added.doc);
+      added.doc.destroy?.();
+    }
   }
 
   // 文書情報（F-01-7）が読む。pdf.js の生の戻り値をそのまま渡し、
@@ -540,6 +586,7 @@
       state.plan = root.SigK.pagePlan.createPlan(sizes.length);
       // 開いた直後は、ファイルの中身と画面の並びが一致している。
       state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+      state.inserts = [];
       state.sizes = sizesFromPlan(state.plan);
       state.current = 0;
       // 履歴は文書ごとに作り直す。前の文書の世代が残っていると、Ctrl+Z で
@@ -548,7 +595,9 @@
 
       buildPages();
       setDocumentOpen(true);
-      root.SigK.thumbnails?.setDocument({ doc, sizes: state.sizes, plan: state.plan, current: 0, scrollTop: 0 });
+      root.SigK.thumbnails?.setDocument({
+        doc, sizes: state.sizes, plan: state.plan, inserts: state.inserts, current: 0, scrollTop: 0,
+      });
       // ここで一度置いておく。applyFit の中の setZoom は倍率が変わったときしか
       // 配置し直さないため、2つ目の文書が1つ目と同じ倍率になると（同じ紙の
       // 大きさなら普通に起こる）ページの位置と寸法が空のまま残ってしまう。
@@ -629,6 +678,9 @@
     viewportRotation,
     getPlan,
     applyPlan,
+    addInserts,
+    getInserts,
+    getSizes,
     isDirty,
     markSaved,
     getBasePageCount,

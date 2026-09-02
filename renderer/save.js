@@ -73,12 +73,12 @@
     });
   }
 
-  // ワーカーを1回だけ回す。呼び出し側は結果を見て、聞き直すかどうかを決める。
+  // ワーカーを1回だけ回す。**spec はそのままワーカーへ渡す。**
   //
-  // 抽出（extract.js）もここを通す。走らせる枠は1つしかなく、進捗の帯・中止・
-  // 二重起動の防止を分けて持つと必ずずれるためである（確定事項9）。
-  // pages を省いたら「いまの並び全部」、kind を省いたら保存になる。
-  async function runTask({ source, target, makeBackup, expect, label, pages, kind = 'save' }) {
+  // 抽出（extract.js）と挿入（insert.js）もここを通す。走らせる枠は1つしかなく、
+  // 進捗の帯・中止・二重起動の防止を分けて持つと必ずずれるためである（確定事項9）。
+  // ここが持つのは「回している間の画面」だけで、何を頼むかは呼び出し側が決める。
+  async function runTask({ label, ...spec }) {
     const api = root.taskAPI;
     if (api?.available !== true)
       return { error: '保存の機能を使えません。' };
@@ -90,25 +90,32 @@
     showRunning(label, taskId);
 
     try {
-      return await api.run(taskId, {
-        kind,
-        source,
-        pages: pages ?? viewer().getPlan(),
-        ops: [],
-        target,
-        makeBackup,
-        expect,
-      });
+      return await api.run(taskId, spec);
     } finally {
       state.running = null;
       syncButtons();
     }
   }
 
+  // 保存でワーカーへ渡す形（docs/02 2-3）。差し込みの控えも一緒に渡す
+  // （確定事項65。plan の { insert } がこの配列の番号を指す）。
+  function saveSpec({ source, target, makeBackup, expect }) {
+    return {
+      kind: 'save',
+      source,
+      pages: viewer().getPlan(),
+      inserts: viewer().getInserts(),
+      ops: [],
+      target,
+      makeBackup,
+      expect,
+    };
+  }
+
   // 保存の1往復。外部で書き換えられていたら聞き直す（確定事項21）。
   async function writeTo({ source, target, makeBackup, name, label = '保存' }) {
     const file = viewer().getState().file;
-    let result = await runTask({ source, target, makeBackup, expect: signatureOf(file), label });
+    let result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: signatureOf(file) }), label });
 
     if (result?.changed === true) {
       const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
@@ -117,7 +124,7 @@
         return { canceled: true };
       }
       // 了承されたので、照合を外してもう一度回す。
-      result = await runTask({ source, target, makeBackup, expect: null, label });
+      result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: null }), label });
     }
 
     if (result?.canceled === true) {

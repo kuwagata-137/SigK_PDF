@@ -196,14 +196,45 @@ async function prepareInserts(doc, original, plan, inserts, tools, { readFile })
     if (loaded.ok !== true)
       return loaded;
 
+    // 紙の大きさは**挿入した時点**で決まっている（確定事項95）。控えが無いのは
+    // 画面を通さずに組み立てたときだけなので、そのときだけここで決める。
     const made = loaded.kind === 'pdf'
       ? await copyPdfPage(doc, loaded.doc, spec.page, tools)
-      : await placeImage(doc, loaded, baseSizeFor(original, plan, at), tools);
+      : await placeImage(doc, loaded, spec.size ?? baseSizeFor(original, plan, at), tools);
     if (made.ok !== true)
       return made;
     pages[entry.insert] = made.page;
   }
   return { ok: true, pages };
+}
+
+// 差し込む1ファイルを、そのまま1つの文書として組み立てる（確定事項93）。
+//
+// 画面へ出すためのものだが、**保存で使うのと同じ placeImage / copyPdfPage を
+// 通る**。だから「見えているもの」と「保存されるもの」が食い違わない。
+// 画像は1ページ、PDF は持っているページぶんになる。
+async function buildPreview(path, base, tools, { readFile }) {
+  const loaded = await loadSource(path, new Map(), { readFile, PDFDocument: tools.PDFDocument });
+  if (loaded.ok !== true)
+    return loaded;
+
+  const doc = await tools.PDFDocument.create();
+  const box = base ?? { ...A4 };
+  const count = loaded.kind === 'pdf' ? loaded.doc.getPageCount() : 1;
+  if (count === 0)
+    return { error: '差し込む PDF にページがありません。' };
+
+  const sizes = [];
+  for (let index = 0; index < count; index += 1) {
+    const made = loaded.kind === 'pdf'
+      ? await copyPdfPage(doc, loaded.doc, index, tools)
+      : await placeImage(doc, loaded, box, tools);
+    if (made.ok !== true)
+      return made;
+    doc.addPage(made.page);
+    sizes.push(made.page.getSize());
+  }
+  return { ok: true, doc, sizes, kind: loaded.kind };
 }
 
 module.exports = {
@@ -215,5 +246,6 @@ module.exports = {
   cleanInsertedPage,
   placeImage,
   copyPdfPage,
+  buildPreview,
   prepareInserts,
 };

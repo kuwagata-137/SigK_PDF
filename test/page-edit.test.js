@@ -479,12 +479,18 @@ test('文書を開くと回転が押せるようになる', async (t) => {
   assert.equal(document.getElementById('act-rotate-right').hasAttribute('aria-disabled'), false);
 });
 
-// 決定1。どちらもファイルを書く操作で、書き出し経路は塊⑤ の担当である。
-test('抽出と挿入は枠だけ置いて押せないままにする', async (t) => {
-  const { document } = await withOpenDocument(t);
+// 抽出と挿入は塊⑤ で結線した。中身は extract.js・insert.js にあり、
+// この層が持つのは押せる・押せないだけである。
+test('抽出は選択が要り、挿入は文書が開いていれば押せる', async (t) => {
+  const { SigK, document } = await withOpenDocument(t);
 
+  // 抽出は「選んだページを取り出す」操作なので、選択が無ければ意味がない（確定事項51）。
   assert.equal(document.getElementById('act-extract').getAttribute('aria-disabled'), 'true');
-  assert.equal(document.getElementById('act-insert').getAttribute('aria-disabled'), 'true');
+  // 挿入は選択が無くても末尾へ差し込める（確定事項64）。
+  assert.equal(document.getElementById('act-insert').hasAttribute('aria-disabled'), false);
+
+  SigK.pageGrid.setSelection([0]);
+  assert.equal(document.getElementById('act-extract').hasAttribute('aria-disabled'), false);
 });
 
 test('元に戻す・やり直しは、戻せるときだけ押せる', async (t) => {

@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('pdfAPI', {
 
   // 保存先を選ばせる（spec-1-6 確定事項25）。{ path } / { canceled }。
   pickSavePath: (options) => ipcRenderer.invoke('pdf:pickSavePath', options),
+  pickInsertSource: (options) => ipcRenderer.invoke('pdf:pickInsertSource', options),
 
   // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。
   // レンダラーの keydown には頼らない。viewer-controls.js の handleKey が

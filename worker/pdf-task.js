@@ -17,7 +17,7 @@ const path = require('node:path');
 
 const { applyPlan } = require('./op-pages.js');
 const { extractPages } = require('./op-extract.js');
-const { prepareInserts } = require('./op-insert.js');
+const { buildPreview, prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
 const { writeDocument } = require('../pdf-write.js');
@@ -82,12 +82,8 @@ function describeSourceReadFailure(error) {
 // 引き延ばされる。この前後関係は入れ替えられない。
 async function applyForSave(doc, pages, inserts, fsLike) {
   const labelsBefore = readLabels(doc);
-  // 差し込むページを先に組み立てる。読み込みは **必ず toBytes() を通す**
-  // （確定事項55）。embedJpg は byteOffset≠0 の Uint8Array を必ず拒否し、
-  // readFileSync は 4KB 未満のファイルでプール Buffer を返すためである。
-  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, {
-    readFile: async (target) => toBytes(await fsLike.promises.readFile(target)),
-  });
+  // 差し込むページを先に組み立てる。
+  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, insertReader(fsLike));
   if (prepared.ok !== true)
     return prepared;
 
@@ -110,6 +106,37 @@ async function applyForExtract(doc, pages) {
     return extracted;
   rebuildLabels(extracted.doc, pages, labelsBefore, TOOLS);
   return { ok: true, doc: extracted.doc, pages: extracted.pages, pruned: { outlines: 0, names: 0 } };
+}
+
+// 差し込む元をディスクから読む口。**必ず toBytes() を通す**（確定事項55）。
+// embedJpg は byteOffset≠0 の Uint8Array を必ず拒否し、readFileSync は 4KB 未満の
+// ファイルでプール Buffer を返すためである。書き落とすと「小さい JPEG だけ
+// 挿入できない」という再現しにくい不具合になる。
+function insertReader(fsLike) {
+  return { readFile: async (target) => toBytes(await fsLike.promises.readFile(target)) };
+}
+
+// 差し込むページを1つの PDF として組み立てて返す（確定事項93・94）。
+//
+// ファイルは書かない。バイト列をそのまま返し、レンダラーが pdf.js で開いて
+// 画面へ出す。**保存と同じ op-insert.js を通る**ので、見えているものと
+// 保存されるものが食い違わない。
+async function runInsertPreview(spec, { fsLike = fs } = {}) {
+  const { path: sourcePath, base = null } = spec ?? {};
+  if (typeof sourcePath !== 'string')
+    return { error: '差し込むファイルが決まっていません。' };
+
+  let built;
+  try {
+    built = await buildPreview(sourcePath, base, TOOLS, insertReader(fsLike));
+  } catch (error) {
+    return { error: '差し込むページを組み立てられませんでした。' };
+  }
+  if (built.ok !== true)
+    return built;
+
+  const bytes = await built.doc.save(SAVE_OPTIONS);
+  return { ok: true, bytes, pages: built.sizes, kind: built.kind };
 }
 
 // 5段を回す。advance(phase) は段の入り口ごとに1回だけ呼ぶ。
@@ -170,13 +197,18 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
 }
 
 // メインへ進捗を送りながら回す。
+//
+// insert-preview だけは5段を回さない。ファイルを書かず、読むのも差し込む元
+// 1本だけなので、進捗を出す間もなく終わる（実測で数ミリ秒）。
 async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   const started = Date.now();
-  const result = await runSave(spec, { fsLike, advance: (phase) => send({ type: 'progress', phase }) });
+  const result = spec?.kind === 'insert-preview'
+    ? await runInsertPreview(spec, { fsLike })
+    : await runSave(spec, { fsLike, advance: (phase) => send({ type: 'progress', phase }) });
   return { ...result, ms: Date.now() - started };
 }
 
-module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runSave, runTask };
+module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runInsertPreview, runSave, runTask };
 
 // メッセージの結線。utilityProcess の中でだけ効く。
 if (process.parentPort !== undefined && process.parentPort !== null) {

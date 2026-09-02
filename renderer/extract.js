@@ -80,6 +80,7 @@
       source: view.file.path,
       target: picked.path,
       pages,
+      ops: [],
       // 元ファイルを触らないので、退避も外部変更の照合も要らない（確定事項18・21）。
       makeBackup: false,
       expect: null,
