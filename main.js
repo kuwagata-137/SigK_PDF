@@ -863,6 +863,77 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_SAVE=<出力先> を付けると、保存の経路を丸ごと1回通す
+  // （spec-1-6 の完了判定8）。SIGK_SMOKE_PDF と一緒に使う。
+  //
+  // ここでしか分からないことが2つある。**ワーカーが配布物（asar）の中から
+  // fork できるか**と、**レンダラーからワーカーまでが本当につながっているか**
+  // である。テストはレンダラー側を偽の taskAPI で、ワーカー側を直接呼びで
+  // 見ているので、この2つは通しでしか確かめられない。
+  //
+  // **名前を付けて保存ではなく上書き保存で通す。**保存ダイアログは OS のもので
+  // 自動では押せず、pickSavePath を差し替えて逃げることもできない。
+  // contextBridge で公開したオブジェクトへの代入は**例外も出さずに無視される**
+  // ためである（実測）。入力を出力先へ複製してから、その複製を開いて上書きする。
+  // .bak が出来るかも同時に確かめられる。
+  const saveScript = (target) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+
+    await SigK.tabs.openPath(${JSON.stringify(target)});
+    await wait(700);
+    const before = SigK.viewer.getState().pageCount;
+
+    // 1ページ目を90度回して末尾へ送る。保存された中身が plan どおりかを、
+    // ページ数と回転で確かめられるようにするためである。
+    SigK.shell.setMode(document, 'pages');
+    SigK.pageEdit.rotate(90, [0]);
+    if (before > 1)
+      SigK.viewer.applyPlan(SigK.pagePlan.movePages(SigK.viewer.getPlan(), [0], before).plan);
+    await wait(200);
+    const dirtyBefore = SigK.viewer.isDirty();
+
+    const started = Date.now();
+    const result = await SigK.save.saveActive();
+    const ms = Date.now() - started;
+    await wait(300);
+
+    const banner = SigK.viewBanner.text();
+    const dirtyAfter = SigK.viewer.isDirty();
+
+    // 書いたものを開き直して、並びが移っているかを見る。上書きなので
+    // いったん閉じてから開く（同じパスのタブは作り直されない）。
+    let reopened = null;
+    if (result && result.ok === true) {
+      const id = SigK.tabs.activeId();
+      SigK.tabs.forceCloseTab(id);
+      await wait(200);
+      await SigK.tabs.openPath(${JSON.stringify(target)});
+      await wait(700);
+      const state = SigK.viewer.getState();
+      // pdf.js のページから /Rotate を直に読む。開き直したあとの plan は
+      // 連番なので、ここに 90 が出れば回転がファイルへ焼き付いたことになる。
+      const last = await SigK.viewer.getPage(state.pageCount);
+      reopened = {
+        pageCount: state.pageCount,
+        lastRotation: last ? last.rotate : null,
+      };
+    }
+
+    return {
+      before,
+      dirtyBefore,
+      ok: result ? result.ok === true : false,
+      error: result ? (result.error ?? null) : 'result が無い',
+      bytes: result ? (result.bytes ?? null) : null,
+      backup: result ? (result.backup ?? null) : null,
+      dirtyAfter,
+      banner,
+      ms,
+      reopened,
+    };
+  })()`;
+
   // SIGK_SMOKE_DRAG=<from>-<to> を付けると、サムネイルのドラッグを
   // Chromium の Input.dispatchMouseEvent で再現する（完了判定の未検証項目）。
   // 送るのは mouse 系だが、Chromium は互換のため pointer 系も一緒に発火する。
@@ -953,6 +1024,7 @@ function installSmokeCheck(win) {
       let find = null;
       let print = null;
       let pages = null;
+      let save = null;
       let drag = null;
       let drop = null;
       try {
@@ -976,6 +1048,14 @@ function installSmokeCheck(win) {
           pages = await win.webContents.executeJavaScript(pagesScript(process.env.SIGK_SMOKE_PAGES));
         if (process.env.SIGK_SMOKE_PRINT)
           print = await win.webContents.executeJavaScript(printScript(process.env.SIGK_SMOKE_PRINT));
+        // 保存はいちばん後ろに置く。前の段（開く・編集）が済んだ状態で通したいのと、
+        // 書いたファイルを開き直してタブを増やすためである。
+        if (process.env.SIGK_SMOKE_SAVE && process.env.SIGK_SMOKE_PDF) {
+          const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);
+          // 入力そのものを書き換えないよう、複製を作ってそちらを上書きする。
+          fs.copyFileSync(path.resolve(process.env.SIGK_SMOKE_PDF), savePath);
+          save = await win.webContents.executeJavaScript(saveScript(savePath));
+        }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
           const boxes = await dispatchPageDrag(from, to);
@@ -1011,6 +1091,7 @@ function installSmokeCheck(win) {
         find,
         print,
         pages,
+        save,
         drag,
         drop,
         screenshot,
