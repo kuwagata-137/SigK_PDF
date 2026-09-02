@@ -17,15 +17,24 @@ const path = require('node:path');
 
 const { applyPlan } = require('./op-pages.js');
 const { extractPages } = require('./op-extract.js');
+const { prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
 const { writeDocument } = require('../pdf-write.js');
+const { toBytes } = require('../file-io.js');
 
 const pdfLib = require(path.join(__dirname, '..', 'vendor', 'pdf-lib.min.js'));
 const { PDFDocument } = pdfLib;
 
-// 低レベルの組み立てに要る道具。ページラベルとしおりの層へ渡す（パスをあちらに持たせない）。
-const TOOLS = { PDFName: pdfLib.PDFName, PDFHexString: pdfLib.PDFHexString };
+// 低レベルの組み立てに要る道具。ページラベル・しおり・差し込みの層へ渡す
+// （vendor へのパスをあちらに持たせない）。
+const TOOLS = {
+  PDFDocument,
+  PDFPage: pdfLib.PDFPage,
+  PDFName: pdfLib.PDFName,
+  PDFHexString: pdfLib.PDFHexString,
+  rgb: pdfLib.rgb,
+};
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
 
@@ -71,9 +80,18 @@ function describeSourceReadFailure(error) {
 // ページラベルは applyPlan の**前**に読む。当てたあとでは元の対応が失われる。
 // 作り直しは applyPlan の**あと**で、ページ数が合っていないと最後のラベルが
 // 引き延ばされる。この前後関係は入れ替えられない。
-function applyForSave(doc, pages) {
+async function applyForSave(doc, pages, inserts, fsLike) {
   const labelsBefore = readLabels(doc);
-  const applied = applyPlan(doc, pages);
+  // 差し込むページを先に組み立てる。読み込みは **必ず toBytes() を通す**
+  // （確定事項55）。embedJpg は byteOffset≠0 の Uint8Array を必ず拒否し、
+  // readFileSync は 4KB 未満のファイルでプール Buffer を返すためである。
+  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, {
+    readFile: async (target) => toBytes(await fsLike.promises.readFile(target)),
+  });
+  if (prepared.ok !== true)
+    return prepared;
+
+  const applied = applyPlan(doc, pages, { inserted: prepared.pages });
   if (applied.ok !== true)
     return applied;
   rebuildLabels(doc, pages, labelsBefore, TOOLS);
@@ -100,7 +118,7 @@ async function applyForExtract(doc, pages) {
 // （選んだページだけを新規文書へ複製する）。違うのは apply の段だけで、
 // 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { kind = 'save', source, pages, target, makeBackup = false, expect = null } = spec ?? {};
+  const { kind = 'save', source, pages, inserts = [], target, makeBackup = false, expect = null } = spec ?? {};
   if (typeof source !== 'string' || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
 
@@ -121,7 +139,9 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   }
 
   advance('apply');
-  const applied = kind === 'extract' ? await applyForExtract(doc, pages) : applyForSave(doc, pages);
+  const applied = kind === 'extract'
+    ? await applyForExtract(doc, pages)
+    : await applyForSave(doc, pages, inserts, fsLike);
   if (applied.ok !== true)
     return applied;
 
