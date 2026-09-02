@@ -49,7 +49,9 @@ function describeLoadFailure(error) {
   return 'この PDF は内容が壊れているため保存できません。';
 }
 
-function describeReadFailure(error) {
+// file-io.js にも同じ役目の describeReadFailure があるが、あちらは「開くとき」の文言で、
+// こちらは「保存しようとしたら元が無くなっていた」文言である。取り違えないよう名前を分ける。
+function describeSourceReadFailure(error) {
   switch (error?.code) {
     case 'ENOENT':
       return '元のファイルが見つかりません。移動または削除された可能性があります。';
@@ -74,7 +76,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     bytes = await fsLike.promises.readFile(source);
   } catch (error) {
-    return { error: describeReadFailure(error) };
+    return { error: describeSourceReadFailure(error) };
   }
 
   advance('load');
@@ -127,7 +129,7 @@ async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   return { ...result, ms: Date.now() - started };
 }
 
-module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeReadFailure, runSave, runTask };
+module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, runSave, runTask };
 
 // メッセージの結線。utilityProcess の中でだけ効く。
 if (process.parentPort !== undefined && process.parentPort !== null) {

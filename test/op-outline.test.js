@@ -195,3 +195,103 @@ test('保存して読み直しても、落とした飛び先は戻らない', as
   assert.equal(items[0].hasDest, false);
   assert.equal(items[0].title, '3ページ目へ');
 });
+
+// --- ここから下は「触ってはいけないもの」の回帰テスト ---
+//
+// 実装当初、飛び先を解決できなかったしおりを一律で削っていた。その結果、
+// ページの削除とは何の関係もない「URL を開くしおり」「別ファイルへ飛ぶしおり」
+// までが壊れていた（2026-09-01 の見直しで発見）。
+// 鉄則は「消えたページを指していると**確かめられたもの**だけを消す」である。
+
+function setSingleOutline(doc, entry) {
+  const context = doc.context;
+  const ref = context.register(context.obj(entry));
+  doc.catalog.set(PDFName.of('Outlines'), context.register(context.obj({
+    Type: PDFName.of('Outlines'), First: ref, Last: ref, Count: 1,
+  })));
+  return ref;
+}
+
+test('URL を開くしおりには触らない', async () => {
+  const doc = await makeDoc(3);
+  const context = doc.context;
+  const ref = setSingleOutline(doc, {
+    Title: PDFHexString.fromText('ウェブサイトへ'),
+    A: context.obj({ S: PDFName.of('URI'), URI: PDFString.of('https://example.com') }),
+  });
+  assert.equal(applyPlan(doc, [{ src: 0 }, { src: 1 }]).ok, true);
+
+  assert.equal(pruneDestinations(doc, TOOLS).outlines, 0);
+  assert.notEqual(context.lookup(ref).get(PDFName.of('A')), undefined);
+});
+
+test('別のファイルへ飛ぶしおり（GoToR）には触らない', async () => {
+  const doc = await makeDoc(3);
+  const context = doc.context;
+  const ref = setSingleOutline(doc, {
+    Title: PDFHexString.fromText('別の PDF へ'),
+    A: context.obj({
+      S: PDFName.of('GoToR'),
+      F: PDFString.of('other.pdf'),
+      D: context.obj([0, PDFName.of('Fit')]),
+    }),
+  });
+  assert.equal(applyPlan(doc, [{ src: 0 }, { src: 1 }]).ok, true);
+
+  assert.equal(pruneDestinations(doc, TOOLS).outlines, 0);
+  assert.notEqual(context.lookup(ref).get(PDFName.of('A')), undefined);
+});
+
+test('解決できない名前を指すしおりには触らない', async () => {
+  const doc = await makeDoc(3);
+  const context = doc.context;
+  const ref = setSingleOutline(doc, {
+    Title: PDFHexString.fromText('謎の宛先'),
+    Dest: PDFString.of('unknown-name'),
+  });
+  assert.equal(applyPlan(doc, [{ src: 0 }, { src: 1 }]).ok, true);
+
+  assert.equal(pruneDestinations(doc, TOOLS).outlines, 0);
+  assert.notEqual(context.lookup(ref).get(PDFName.of('Dest')), undefined);
+});
+
+test('ページ番号で指す宛先には触らない', async () => {
+  // 参照ではなく番号で指す形。生きているかどうかを判定できないので放っておく。
+  const doc = await makeDoc(3);
+  const context = doc.context;
+  const ref = setSingleOutline(doc, {
+    Title: PDFHexString.fromText('番号で指す'),
+    Dest: context.obj([1, PDFName.of('Fit')]),
+  });
+  assert.equal(applyPlan(doc, [{ src: 0 }, { src: 1 }]).ok, true);
+
+  assert.equal(pruneDestinations(doc, TOOLS).outlines, 0);
+  assert.notEqual(context.lookup(ref).get(PDFName.of('Dest')), undefined);
+});
+
+test('解決できない名前付き宛先は残す', async () => {
+  const doc = await makeDoc(3);
+  const context = doc.context;
+  // 値がページ参照でない（番号で指す）名前付き宛先。
+  doc.catalog.set(PDFName.of('Names'), context.obj({
+    Dests: context.register(context.obj({
+      Names: [PDFString.of('numeric'), context.obj([2, PDFName.of('Fit')])],
+    })),
+  }));
+  assert.equal(applyPlan(doc, [{ src: 0 }, { src: 1 }]).ok, true);
+
+  assert.equal(pruneDestinations(doc, TOOLS).names, 0, '判定できないものは外さない');
+});
+
+test('GoTo で飛ぶが宛先が生きていればそのまま', async () => {
+  const doc = await makeDoc(3);
+  const context = doc.context;
+  const ref = setSingleOutline(doc, {
+    Title: PDFHexString.fromText('1ページ目へ'),
+    A: context.obj({ S: PDFName.of('GoTo'), D: context.obj([doc.getPage(0).ref, PDFName.of('Fit')]) }),
+  });
+  assert.equal(applyPlan(doc, [{ src: 0 }, { src: 1 }]).ok, true);
+
+  assert.equal(pruneDestinations(doc, TOOLS).outlines, 0);
+  assert.notEqual(context.lookup(ref).get(PDFName.of('A')), undefined);
+});

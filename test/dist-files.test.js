@@ -20,7 +20,11 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 
 // アプリの入口。main は package.json が指すもの、preload は main.js が
 // webPreferences へ渡すもので、どちらも require では辿れない。
-const ENTRY_POINTS = [pkg.main, 'preload.js'];
+//
+// ワーカーも入口である。utilityProcess.fork にパスで渡すため require では辿れず、
+// ここに書かないと worker/ を build.files から落としても誰も気づかない
+// （塊② の recent-documents.js と同じ形の取りこぼしになる）。
+const ENTRY_POINTS = [pkg.main, 'preload.js', 'worker/pdf-task.js'];
 
 const REQUIRE_LOCAL = /require\(\s*['"](\.[^'"]+)['"]\s*\)/g;
 const HTML_ASSET = /(?:<script[^>]+src|<link[^>]+href)\s*=\s*["']([^"']+)["']/g;
@@ -108,4 +112,14 @@ test('files に書いたものが実在する', () => {
     .filter((rel) => !fs.existsSync(path.join(ROOT, rel)));
 
   assert.deepEqual(missing, [], `build.files が実在しないものを指している: ${missing.join(', ')}`);
+});
+
+test('ワーカーが実行時に読む vendor のファイルが配布物に入る', () => {
+  // ワーカーは vendor/pdf-lib.min.js を path.join で組み立てて require する
+  // （node_modules は配布物に無い。docs/07 決定18）。文字列リテラルではないので
+  // collectLocalRequires では拾えず、ここに手で書くしかない。
+  const runtime = ['vendor/pdf-lib.min.js'];
+  const missing = runtime.filter((rel) => !isCovered(rel, pkg.build.files));
+
+  assert.deepEqual(missing, [], `package.json の build.files に足りない: ${missing.join(', ')}`);
 });

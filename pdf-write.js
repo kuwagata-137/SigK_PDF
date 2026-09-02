@@ -57,6 +57,10 @@ async function readSignature(filePath, { fsLike = fs } = {}) {
 // 段ごとに文言を変える。どの段で転んだかで、ユーザーが取れる手が違うためである。
 function describeWriteFailure(error, phase) {
   const code = error?.code;
+  // 読み取り専用の属性と「他のプログラムが開いている」は、どちらも EPERM である。
+  // rename の失敗だけでは区別できないので、書き込めるかを先に見て段を分けてある。
+  if (phase === 'permission')
+    return 'ファイルに書き込めません。読み取り専用になっていないか確認してください。';
   if (phase === 'replace' && (code === 'EPERM' || code === 'EACCES' || code === 'EBUSY'))
     return 'ファイルが他のプログラムで使われています。閉じてからもう一度お試しください。';
   if (phase === 'backup')
@@ -73,6 +77,16 @@ function describeWriteFailure(error, phase) {
       return '保存先のフォルダーが見つかりません。';
     default:
       return 'ファイルを保存できませんでした。';
+  }
+}
+
+// 書き込める先かどうか。読み取り専用の属性を、一時ファイルを作る前に見分ける。
+async function isWritable(filePath, fsLike) {
+  try {
+    await fsLike.promises.access(filePath, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -97,14 +111,21 @@ async function writeDocument(target, bytes, { makeBackup = false, expect = null,
   if (replacing && !signaturesMatch(expect, current))
     return { changed: true, current };
 
+  // 読み取り専用は一時ファイルを作る前に断る。ここで止めれば書きかけも .bak も
+  // 残らず、文言も「他のプログラムが開いている」にならずに済む。
+  if (replacing && !(await isWritable(target, fsLike)))
+    return { error: describeWriteFailure({ code: 'EPERM' }, 'permission'), code: 'EPERM', phase: 'permission' };
+
+  const backup = replacing && makeBackup ? backupPathFor(target) : null;
+  // 前回の保存で作られた .bak は、今回の保存が転んでも消してはいけない。
+  const backupExisted = backup === null ? false : (await readSignature(backup, { fsLike })) !== null;
+
   let phase = 'temp';
   try {
     await fsLike.promises.writeFile(temp, bytes);
 
-    let backup = null;
-    if (replacing && makeBackup) {
+    if (backup !== null) {
       phase = 'backup';
-      backup = backupPathFor(target);
       await fsLike.promises.copyFile(target, backup);
     }
 
@@ -114,6 +135,9 @@ async function writeDocument(target, bytes, { makeBackup = false, expect = null,
     const saved = await readSignature(target, { fsLike });
     return { ok: true, path: target, backup, bytes: bytes.length, signature: saved };
   } catch (error) {
+    // 転んだら、こちらが作ったものは残さない。元からあった .bak には触れない。
+    if (backup !== null && !backupExisted)
+      await removeQuietly(backup, fsLike);
     return { error: describeWriteFailure(error, phase), code: error?.code ?? null, phase };
   } finally {
     // 成否にかかわらず消す。rename が通っていれば temp はもう無い（確定事項16）。

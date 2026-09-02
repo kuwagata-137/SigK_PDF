@@ -199,3 +199,58 @@ test('無いファイルの署名は null になる', async () => {
     assert.equal(await readSignature(ws.file('nope.pdf')), null);
   } finally { ws.cleanup(); }
 });
+
+// --- ここから下は 2026-09-01 の見直しで見つかった不具合の回帰テスト ---
+
+test('読み取り専用のファイルには、一時ファイルも .bak も作らずに断る', async () => {
+  const ws = workspace();
+  try {
+    const target = ws.seed('a.pdf', 'OLD');
+    fs.chmodSync(target, 0o444);
+
+    const result = await writeDocument(target, bytes('NEW'), { makeBackup: true });
+    // 読み取り専用も「他のプログラムが開いている」も EPERM なので、
+    // 書き込めるかを先に見て段を分けている。文言が食い違わないための分岐である。
+    assert.equal(result.phase, 'permission');
+    assert.match(result.error, /読み取り専用/);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'OLD');
+    assert.equal(fs.existsSync(tempPathFor(target)), false);
+    assert.equal(fs.existsSync(backupPathFor(target)), false, '断る前に .bak を作らない');
+
+    fs.chmodSync(target, 0o666);
+  } finally { ws.cleanup(); }
+});
+
+test('保存に転んだら、こちらが作った .bak は残さない', async () => {
+  const ws = workspace();
+  try {
+    const target = ws.seed('a.pdf', 'OLD');
+    const result = await writeDocument(target, bytes('NEW'), {
+      makeBackup: true,
+      fsLike: failingFs('rename', 'EPERM'),
+    });
+    assert.equal(result.phase, 'replace');
+    assert.equal(fs.readFileSync(target, 'utf8'), 'OLD');
+    assert.equal(fs.existsSync(backupPathFor(target)), false, '失敗したのにゴミを置いていかない');
+    assert.equal(fs.existsSync(tempPathFor(target)), false);
+  } finally { ws.cleanup(); }
+});
+
+test('前からあった .bak は、転んでも消さない', async () => {
+  const ws = workspace();
+  try {
+    const target = ws.seed('a.pdf', 'OLD');
+    // 前回の保存で作られた .bak があるものとする。
+    ws.seed('a.pdf.bak', 'ONE つ前の内容');
+
+    const result = await writeDocument(target, bytes('NEW'), {
+      makeBackup: true,
+      fsLike: failingFs('rename', 'EPERM'),
+    });
+    assert.equal(result.phase, 'replace');
+    assert.equal(fs.existsSync(backupPathFor(target)), true, 'ユーザーの退避を巻き添えにしない');
+    // 中身は「いまの元ファイル」に置き換わる。まだ書いていないので元と同じであり、
+    // 退避としては正しい状態のままである。
+    assert.equal(fs.readFileSync(backupPathFor(target), 'utf8'), 'OLD');
+  } finally { ws.cleanup(); }
+});
