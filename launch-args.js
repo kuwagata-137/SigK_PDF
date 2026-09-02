@@ -18,7 +18,11 @@
 // `argv[0]` が実行ファイルであることは全パターンで共通である。開発時は位置引数の
 // 先頭へアプリのディレクトリが割り込むが、それは「実在するファイル」の条件で落ちる。
 
-const path = require('node:path');
+// **Windows の作法で解釈する。**このアプリは Windows 専用だが、テストは CI の
+// ubuntu でも回る。素の `path` は走らせる OS の作法に従うので、Linux では
+// `isAbsolute('C:\\...')` が false になり、同じ引数の答えが場所によって変わる。
+// それで実際に CI が11件落ちた（2026-09-02）。win32 に固定して host に依らせない。
+const path = require('node:path').win32;
 
 // 意図を表すスイッチ。Chromium に横取りされないことは実測で確かめてある。
 const INTENTS = {
