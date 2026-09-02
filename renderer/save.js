@@ -1,0 +1,207 @@
+(function (root) {
+  'use strict';
+
+  // 保存の指揮（spec-1-6 確定事項6〜9・23〜30）。
+  //
+  // 実際に書くのはワーカーである。ここは「何を、どこへ、どう書くか」を組み立て、
+  // 進捗を帯へ流し、終わったあとの画面の後始末をする層に徹する。
+  //
+  // taskId をこちらで採番するのは、run() の完了を待たずに中止を押させるため
+  // である。メイン側が採番すると「まだ id を知らないのに中止したい」が起こる。
+
+  const state = { seq: 0, running: null };
+
+  function viewer() {
+    return root.SigK.viewer;
+  }
+
+  function banner() {
+    return root.SigK.viewBanner;
+  }
+
+  function tabs() {
+    return root.SigK.tabs;
+  }
+
+  function isBusy() {
+    return state.running !== null;
+  }
+
+  function activeTab() {
+    return tabs()?.list().find((info) => info.active) ?? null;
+  }
+
+  // 保存中は保存・名前を付けて保存・閉じる・終了を塞ぐ（確定事項9）。
+  // タブをまたいだ同時保存は別プロセスなので干渉しないが、第1版では
+  // 「映しているタブを保存する」1本しか入口が無いため、まとめて塞ぐ。
+  function syncButtons(doc) {
+    const target = doc ?? state.doc;
+    if (target === undefined || target === null)
+      return;
+    const open = viewer().getState().open;
+    const button = target.getElementById('btn-save');
+    if (button !== null)
+      button.setAttribute('aria-disabled', String(!open || isBusy()));
+  }
+
+  function signatureOf(file) {
+    if (file === null || file === undefined || file.mtimeMs === null || file.mtimeMs === undefined)
+      return null;
+    return { size: file.size, mtimeMs: file.mtimeMs };
+  }
+
+  // 押した瞬間から出す（確定事項7）。1秒を超えたら出す形にすると、出るか
+  // 出ないかが文書によって変わり、中止を狙って押せない。
+  function showRunning(label, taskId) {
+    banner().show(`${label}しています`, {
+      autoHideMs: 0,
+      tone: 'info',
+      action: { label: '中止', onClick: () => root.taskAPI?.cancel(taskId) },
+    });
+  }
+
+  function onProgress(progress) {
+    if (state.running === null || progress?.taskId !== state.running.taskId)
+      return;
+    banner().show(`${state.running.label}しています（${progress.step}/${progress.total}）`, {
+      autoHideMs: 0,
+      tone: 'info',
+      action: { label: '中止', onClick: () => root.taskAPI?.cancel(progress.taskId) },
+    });
+  }
+
+  // ワーカーを1回だけ回す。呼び出し側は結果を見て、聞き直すかどうかを決める。
+  async function runOnce({ source, target, makeBackup, expect, label }) {
+    const api = root.taskAPI;
+    if (api?.available !== true)
+      return { error: '保存の機能を使えません。' };
+
+    state.seq += 1;
+    const taskId = `save-${state.seq}`;
+    state.running = { taskId, label };
+    syncButtons();
+    showRunning(label, taskId);
+
+    try {
+      return await api.run(taskId, {
+        source,
+        pages: viewer().getPlan(),
+        ops: [],
+        target,
+        makeBackup,
+        expect,
+      });
+    } finally {
+      state.running = null;
+      syncButtons();
+    }
+  }
+
+  // 保存の1往復。外部で書き換えられていたら聞き直す（確定事項21）。
+  async function writeTo({ source, target, makeBackup, name, label = '保存' }) {
+    const file = viewer().getState().file;
+    let result = await runOnce({ source, target, makeBackup, expect: signatureOf(file), label });
+
+    if (result?.changed === true) {
+      const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
+      if (!ok) {
+        banner().show('保存を取りやめました。');
+        return { canceled: true };
+      }
+      // 了承されたので、照合を外してもう一度回す。
+      result = await runOnce({ source, target, makeBackup, expect: null, label });
+    }
+
+    if (result?.canceled === true) {
+      banner().show('保存を中止しました。元のファイルは変更していません。');
+      return result;
+    }
+    if (result?.ok !== true) {
+      banner().show(result?.error ?? '保存できませんでした。');
+      return result ?? { error: '保存できませんでした。' };
+    }
+
+    // 開き直さない（確定事項29）。並びは既に画面へ映っているので、
+    // 読み直しは体感を落とすだけである。
+    const moved = target !== source;
+    viewer().markSaved({
+      path: moved ? target : null,
+      name: moved ? name : null,
+      signature: result.signature ?? null,
+    });
+    if (moved) {
+      const tab = activeTab();
+      if (tab !== null)
+        await tabs().rename(tab.id, { path: target, name });
+    }
+    banner().show('保存しました。', 2500);
+    return result;
+  }
+
+  // 上書き保存（Ctrl+S）。
+  async function saveActive() {
+    if (isBusy())
+      return { error: 'いま保存しています。' };
+
+    const view = viewer().getState();
+    if (!view.open)
+      return { error: '文書が開かれていません。' };
+    // dirty でなければ何もしない（確定事項24）。押せはするが、書く理由がない。
+    if (!viewer().isDirty())
+      return { ok: true, unchanged: true };
+
+    return writeTo({
+      source: view.file.path,
+      target: view.file.path,
+      // 上書きのときだけ .bak を作る（確定事項18・20）。
+      makeBackup: true,
+      name: view.file.name,
+    });
+  }
+
+  // 名前を付けて保存（Ctrl+Shift+S）。dirty でなくても押せる（確定事項24）。
+  async function saveAsActive() {
+    if (isBusy())
+      return { error: 'いま保存しています。' };
+
+    const view = viewer().getState();
+    if (!view.open)
+      return { error: '文書が開かれていません。' };
+
+    const picked = await root.pdfAPI.pickSavePath({ defaultPath: view.file.path });
+    if (picked?.canceled === true)
+      return { canceled: true };
+    if (typeof picked?.path !== 'string')
+      return { error: picked?.error ?? '保存先を決められませんでした。' };
+
+    return writeTo({
+      source: view.file.path,
+      target: picked.path,
+      // 元ファイルを触らないので退避は要らない（確定事項18）。
+      makeBackup: false,
+      name: picked.path.split(/[\\/]/).pop(),
+    });
+  }
+
+  function init(doc, win) {
+    if (win.__sigkSaveReady === true)
+      return false;
+    win.__sigkSaveReady = true;
+    state.doc = doc;
+
+    doc.getElementById('btn-save')?.addEventListener('click', () => {
+      if (doc.getElementById('btn-save').getAttribute('aria-disabled') !== 'true')
+        saveActive();
+    });
+
+    root.taskAPI?.onProgress?.(onProgress);
+    // メニューと Ctrl+S / Ctrl+Shift+S から届く合図（確定事項23・39）。
+    root.pdfAPI?.onSaveRequest?.((mode) => (mode === 'saveAs' ? saveAsActive() : saveActive()));
+
+    syncButtons(doc);
+    return true;
+  }
+
+  const SigK = (root.SigK = root.SigK || {});
+  SigK.save = { init, isBusy, saveActive, saveAsActive, syncButtons };
+})(typeof window !== 'undefined' ? window : globalThis);

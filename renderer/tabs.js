@@ -296,8 +296,10 @@
     if (!isTabDirty(tab))
       return forceCloseTab(id);
 
+    // 3択のうち「保存」を選ばれたら、保存まで済ませてから閉じる。
+    // 保存に失敗したら閉じない（spec-1-6 確定事項34）。
     return root.SigK.confirmDiscard
-      .ask({ name: tab.name })
+      .askAndSave({ name: tab.name })
       .then((ok) => (ok ? forceCloseTab(id) : false));
   }
 
@@ -323,6 +325,20 @@
       restore(state.list[Math.min(index, state.list.length - 1)]);
 
     render();
+    return true;
+  }
+
+  // 名前を付けて保存したら、以後の上書き保存は新しいほうへ行く（確定事項26）。
+  // 最近使ったファイルにも新しいほうを載せる。
+  async function rename(id, { path: nextPath, name }) {
+    const tab = find(id);
+    if (tab === null || typeof nextPath !== 'string')
+      return false;
+    tab.path = nextPath;
+    tab.name = name ?? nextPath.split(/[\/]/).pop();
+    render();
+    syncTitle();
+    await rememberRecent({ path: tab.path, name: tab.name });
     return true;
   }
 
@@ -396,6 +412,7 @@
     activate,
     closeTab,
     forceCloseTab,
+    rename,
     isDirty,
     closeActive,
     cycle,

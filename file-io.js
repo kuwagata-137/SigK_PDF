@@ -7,7 +7,7 @@
 // node --test から読めなくなるためで、security-policy.js と同じ作法である。
 //
 // 戻り値の形は docs/02 第5章に揃える。
-//   成功     { ok: true, path, name, size, bytes }
+//   成功     { ok: true, path, name, size, mtimeMs, bytes }
 //   取り消し { canceled: true }
 //   失敗     { error: '人が読める文言' }
 // レンダラー側で例外を投げない。
@@ -61,7 +61,16 @@ async function readPdf(filePath, { fsLike = fs, maxBytes = MAX_PDF_BYTES, onErro
       return { error: `ファイルが大きすぎます。${Math.floor(maxBytes / 1024 / 1024)}MB までに対応しています。` };
 
     const buffer = await fsLike.promises.readFile(filePath);
-    return { ok: true, path: filePath, name: path.basename(filePath), size: stat.size, bytes: toBytes(buffer) };
+    // mtimeMs は、保存の直前に「開いたあとで外から書き換えられていないか」を
+    // 見るのに使う（spec-1-6 確定事項21）。stat はもう取っているので只である。
+    return {
+      ok: true,
+      path: filePath,
+      name: path.basename(filePath),
+      size: stat.size,
+      mtimeMs: Math.round(stat.mtimeMs),
+      bytes: toBytes(buffer),
+    };
   } catch (error) {
     onError({ message: 'PDF を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });
     return { error: describeReadFailure(error) };

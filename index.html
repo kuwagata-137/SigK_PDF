@@ -44,7 +44,7 @@ body{
 
   <div id="toolbar">
     <div class="tb-btn" id="btn-open" title="PDF を開く (Ctrl+O)"><span data-icon="open"></span>開く</div>
-    <div class="tb-btn" aria-disabled="true"><span data-icon="save"></span>保存</div>
+    <div class="tb-btn" id="btn-save" title="上書き保存 (Ctrl+S)" aria-disabled="true"><span data-icon="save"></span>保存</div>
     <div class="tb-sep"></div>
     <div class="tb-btn icon" id="btn-undo" data-icon="undo" title="元に戻す (Ctrl+Z)" aria-disabled="true"></div>
     <div class="tb-btn icon" id="btn-redo" data-icon="redo" title="やり直し (Ctrl+Y)" aria-disabled="true"></div>
@@ -195,14 +195,26 @@ body{
   <!-- 未保存の確認（spec-1-5 確定事項57）。塊④ の時点では保存の手段が無いので
        2択にしてある。「保存」を含む3択は塊⑤ で完成させる。
        既定のフォーカスは安全側（キャンセル）に置く。 -->
+  <dialog id="confirm-overwrite">
+    <div class="dlg-head"><span>上書きしますか</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-overwrite-text">このファイルは、開いたあとで変更されています。</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn" id="confirm-overwrite-cancel">取りやめ</button>
+      <button type="button" class="dlg-btn danger" id="confirm-overwrite-ok">上書き</button>
+    </div>
+  </dialog>
+
   <dialog id="confirm-discard">
-    <div class="dlg-head"><span>編集内容を破棄しますか</span></div>
+    <div class="dlg-head"><span>変更を保存しますか</span></div>
     <div class="dlg-body">
       <p class="dlg-text" id="confirm-discard-text">編集内容は保存されていません。閉じると失われます。</p>
     </div>
     <div class="dlg-foot">
       <button type="button" class="dlg-btn" id="confirm-discard-cancel">キャンセル</button>
-      <button type="button" class="dlg-btn danger" id="confirm-discard-ok">閉じる</button>
+      <button type="button" class="dlg-btn danger" id="confirm-discard-discard">保存しない</button>
+      <button type="button" class="dlg-btn primary" id="confirm-discard-save">保存</button>
     </div>
   </dialog>
 </div>
@@ -228,6 +240,8 @@ body{
 <script src="renderer/page-grid.js"></script>
 <script src="renderer/page-edit.js"></script>
 <script src="renderer/confirm-discard.js"></script>
+<script src="renderer/confirm-overwrite.js"></script>
+<script src="renderer/save.js"></script>
 <script src="renderer/find-text.js"></script>
 <script src="renderer/find.js"></script>
 <script src="renderer/find-bar.js"></script>

@@ -125,10 +125,28 @@
   // 保存が成功したら、いまの並びを「保存済み」の基準にする（確定事項27）。
   // 以後はここから動いたときだけ未保存になる。元に戻す履歴は捨てない（確定事項28）
   // ので、Ctrl+Z で戻せば再び未保存になる。
-  function markSaved() {
+  // 名前を付けて保存ではファイルそのものが移る（確定事項26）ので、
+  // 名前・パス・署名も一緒に差し替えられるようにしてある。
+  function markSaved({ path: nextPath = null, name = null, signature = null } = {}) {
     if (state.doc === null)
       return false;
     state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+
+    if (nextPath !== null)
+      state.file.path = nextPath;
+    if (name !== null)
+      state.file.name = name;
+    if (signature !== null) {
+      state.file.size = signature.size ?? state.file.size;
+      state.file.mtimeMs = signature.mtimeMs ?? state.file.mtimeMs;
+    }
+    if (nextPath !== null || name !== null || signature !== null) {
+      root.SigK.shell.setStatus(el.doc, {
+        file: state.file.name,
+        size: root.SigK.shell.formatFileSize(state.file.size),
+      });
+    }
+
     syncDirty();
     return true;
   }
@@ -240,6 +258,8 @@
     el.doc.documentElement.setAttribute('data-doc', open ? 'open' : 'empty');
     el.empty.hidden = open;
     el.pages.hidden = !open;
+    // 文書が無ければ保存も無い（確定事項24）。
+    root.SigK.save?.syncButtons(el.doc);
   }
 
   // ---- レイアウト ----
@@ -507,7 +527,13 @@
       }
 
       state.doc = doc;
-      state.file = { path: source.path, name: source.name, size: source.size };
+      state.file = {
+        path: source.path,
+        name: source.name,
+        size: source.size,
+        // 保存の直前に外部での書き換えを見分けるための控え（確定事項21）。
+        mtimeMs: source.mtimeMs ?? null,
+      };
       state.basePages = sizes;
       // 開いた時点の plan は 0..N-1 の連番である（確定事項5）。編集していない
       // 状態も plan で表し、特別扱いを作らない。
