@@ -206,6 +206,21 @@ body{
     </div>
   </dialog>
 
+  <!-- パスワード付き PDF の入力（spec-1-6 確定事項66〜69）。pdf.js の
+       onPassword から呼ばれる。**覚えない**ので、閉じるたびに入力欄を空へ戻す。 -->
+  <dialog id="password-prompt">
+    <div class="dlg-head"><span>パスワードの入力</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="password-prompt-text">この PDF はパスワードで保護されています。</p>
+      <input type="password" id="password-prompt-input" class="dlg-input" aria-label="パスワード" autocomplete="off" spellcheck="false">
+      <p class="dlg-error" id="password-prompt-error" hidden>パスワードが違います。</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn" id="password-prompt-cancel">キャンセル</button>
+      <button type="button" class="dlg-btn primary" id="password-prompt-ok">開く</button>
+    </div>
+  </dialog>
+
   <!-- 抽出の確認（spec-1-6 確定事項48）。抽出は新規文書へ複製するので、
        しおり・入力欄・名前付きのリンク先が必ず消える。失うものを先に名指しする
        のがこのダイアログの役目である。元ファイルは変えないので、既定のフォーカスは
@@ -256,6 +271,7 @@ body{
 <script src="renderer/page-edit.js"></script>
 <script src="renderer/confirm-discard.js"></script>
 <script src="renderer/confirm-overwrite.js"></script>
+<script src="renderer/password-prompt.js"></script>
 <script src="renderer/confirm-extract.js"></script>
 <script src="renderer/save.js"></script>
 <script src="renderer/extract.js"></script>

@@ -133,8 +133,12 @@ function createPdfjsStub({
   // ページ自身の /Rotate（spec-1-5）。plan の相対角度はこれに足される。
   // 埋まっていないページは 0。
   rotations = null,
+  // 開くのに要るパスワード（spec-1-6 確定事項66〜68）。null なら聞いてこない。
+  password = null,
 } = {}) {
   const rendered = [];
+  // 試されたパスワードの並び。何度聞き直したかをテストから見る。
+  const passwordAttempts = [];
   // getViewport の呼び出し。どの元ページを、どの回転と倍率で見に行ったかが
   // 残る（spec-1-5 の写像と回転の検証）。jsdom には 2D コンテキストが無く
   // page.render() まで届かないので、rendered だけでは経路を追えない。
@@ -196,6 +200,7 @@ function createPdfjsStub({
     available: true,
     stub: true,
     rendered,
+    passwordAttempts,
     viewportCalls,
     documents,
     textLayers,
@@ -206,9 +211,47 @@ function createPdfjsStub({
     get document() {
       return documents.at(-1) ?? null;
     },
-    getDocument: () => ({
-      promise: openError === null ? Promise.resolve(createDocument()) : Promise.reject(openError),
-    }),
+    getDocument: () => {
+      // 本物の getDocument() は loadingTask を返す。onPassword は**戻ってきた
+      // あとで**代入されるので、聞くのは1ティック後にする（確定事項66）。
+      const task = { onPassword: null };
+      if (openError !== null) {
+        task.promise = Promise.reject(openError);
+        return task;
+      }
+      if (password === null) {
+        task.promise = Promise.resolve(createDocument());
+        return task;
+      }
+
+      // 間違えると code = 2 で同じ口をもう一度呼ぶ（確定事項67）。
+      passwordAttempts.length = 0;
+      task.promise = new Promise((resolve, reject) => {
+        const askAgain = () => queueMicrotask(() => {
+          if (typeof task.onPassword !== 'function') {
+            reject(new Error('onPassword が代入されていない'));
+            return;
+          }
+          task.onPassword((value) => {
+            // 本物の pdf.js は `password instanceof Error` で取りやめを見分ける。
+            // ここでは使えない。**このスタブは Node の realm、viewer.js は jsdom の
+            // realm** にいるので、あちらで作った Error はこちらの Error では
+            // ないと判定される。文字列かどうかで見る。
+            if (typeof value !== 'string') {
+              reject(value);
+              return;
+            }
+            passwordAttempts.push(value);
+            if (value === password)
+              resolve(createDocument());
+            else
+              askAgain();
+          }, passwordAttempts.length === 0 ? 1 : 2);
+        });
+        askAgain();
+      });
+      return task;
+    },
   };
 }
 

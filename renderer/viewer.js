@@ -50,6 +50,10 @@
     // 文書やズームが変わったら、飛んでいる描画をすべて捨てるための世代番号。
     token: 0,
     frame: 0,
+    // 直前の open() が「パスワードの入力を取りやめて終わった」かどうか
+    // （spec-1-6 確定事項68）。失敗と区別するのは、取りやめではタブを
+    // 作らないためである（理由を出す場所が要らない）。
+    openCanceled: false,
   };
 
   let el = null;
@@ -542,11 +546,48 @@
   }
 
   function describeOpenFailure(error) {
+    // パスワードは聞けるようになった（確定事項66）。ここへ来るのは、聞いた
+    // うえで開けなかったときだけである。
     if (error?.name === 'PasswordException')
-      return 'この PDF にはパスワードが設定されています。この版では開けません。';
+      return 'パスワードが違うため、この PDF を開けませんでした。';
     if (error?.name === 'InvalidPDFException')
       return 'PDF として読めませんでした。ファイルが壊れている可能性があります。';
     return 'この PDF を開けませんでした。';
+  }
+
+  // pdf.js がパスワードを聞いてくる口を繋ぐ（確定事項66〜68）。
+  //
+  // 間違えると同じ口が code = 2 でもう一度呼ばれるので、**何度でも聞き直せる**
+  // （確定事項67）。取りやめは Error を渡すと promise が reject する（確定事項68）。
+  // 戻り値の asked は「一度でも聞かれたか」で、保存を断る判断に使う（確定事項70）。
+  function attachPasswordPrompt(task, source) {
+    const outcome = { asked: false };
+    task.onPassword = (updatePassword, code) => {
+      outcome.asked = true;
+      const prompt = root.SigK.passwordPrompt;
+      if (prompt === undefined) {
+        updatePassword(new Error('パスワードを聞けません'));
+        return;
+      }
+      prompt
+        .ask({ name: source?.name ?? null, retry: code === prompt.INCORRECT_PASSWORD })
+        .then((value) => {
+          if (value === null) {
+            state.openCanceled = true;
+            // Error を渡すと promise が reject する。取りやめの合図である。
+            updatePassword(new Error('パスワードの入力を取りやめました'));
+            return;
+          }
+          updatePassword(value);
+        });
+    };
+    return outcome;
+  }
+
+  // 直前の open() が取りやめで終わったか（確定事項68）。tabs.js が
+  // 「タブを作らずに戻す」を決めるのに使う。
+  function openCanceled() {
+    return state.openCanceled;
   }
 
   async function open(source) {
@@ -561,11 +602,16 @@
 
     close();
     state.token += 1;
+    state.openCanceled = false;
     const token = state.token;
     setMessage('読み込んでいます…');
 
     try {
-      const doc = await root.SigK.pdfjs.getDocument({ data: source.bytes }).promise;
+      const task = root.SigK.pdfjs.getDocument({ data: source.bytes });
+      // パスワードを聞く口は getDocument() の**直後**に代入する（確定事項66）。
+      // await してからでは、pdf.js が先に呼びに来て取りこぼす。
+      const encrypted = attachPasswordPrompt(task, source);
+      const doc = await task.promise;
       const sizes = await collectSizes(doc);
       if (token !== state.token) {
         doc.destroy?.();
@@ -579,6 +625,9 @@
         size: source.size,
         // 保存の直前に外部での書き換えを見分けるための控え（確定事項21）。
         mtimeMs: source.mtimeMs ?? null,
+        // パスワードを聞いて開いた文書は保存できない（確定事項12・70）。
+        // 閲覧・検索・印刷・ページ編集はできる。
+        encrypted: encrypted.asked,
       };
       state.basePages = sizes;
       // 開いた時点の plan は 0..N-1 の連番である（確定事項5）。編集していない
@@ -678,6 +727,7 @@
     viewportRotation,
     getPlan,
     applyPlan,
+    openCanceled,
     addInserts,
     getInserts,
     getSizes,

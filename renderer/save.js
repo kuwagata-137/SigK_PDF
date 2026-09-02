@@ -47,6 +47,27 @@
     root.SigK.pageEdit?.syncActions();
   }
 
+  // 保存できない文書か（確定事項12・70）。パスワードを聞いて開いた文書を
+  // `ignoreEncryption` で保存するとファイルが壊れる（実測E）ので、**成功した
+  // ように見せてはならない**。閲覧・検索・印刷・ページ編集はできる。
+  //
+  // ワーカー側にも同じ判定がある（確定事項11）。あちらは防具で、こちらは
+  // 「押す前から分かっていることを、押す前に伝える」ためのものである。
+  function unsaveableReason() {
+    return viewer()?.getState().file?.encrypted === true
+      ? 'パスワードで保護された PDF は保存できません。'
+      : null;
+  }
+
+  // ページモードに入った時点で伝えておく（確定事項70）。編集はできるので、
+  // ひとしきり並べ替えたあとで初めて知るのでは遅い。
+  function warnIfUnsaveable() {
+    const reason = unsaveableReason();
+    if (reason !== null)
+      banner().show(reason);
+    return reason;
+  }
+
   function signatureOf(file) {
     if (file === null || file === undefined || file.mtimeMs === null || file.mtimeMs === undefined)
       return null;
@@ -161,6 +182,9 @@
     const view = viewer().getState();
     if (!view.open)
       return { error: '文書が開かれていません。' };
+    const blocked = warnIfUnsaveable();
+    if (blocked !== null)
+      return { error: blocked };
     // dirty でなければ何もしない（確定事項24）。押せはするが、書く理由がない。
     if (!viewer().isDirty())
       return { ok: true, unchanged: true };
@@ -182,6 +206,9 @@
     const view = viewer().getState();
     if (!view.open)
       return { error: '文書が開かれていません。' };
+    const blocked = warnIfUnsaveable();
+    if (blocked !== null)
+      return { error: blocked };
 
     const picked = await root.pdfAPI.pickSavePath({ defaultPath: view.file.path });
     if (picked?.canceled === true)
@@ -218,5 +245,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, runTask, saveActive, saveAsActive, syncButtons };
+  SigK.save = { init, isBusy, runTask, saveActive, saveAsActive, syncButtons, unsaveableReason, warnIfUnsaveable };
 })(typeof window !== 'undefined' ? window : globalThis);

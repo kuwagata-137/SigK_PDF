@@ -211,8 +211,16 @@
       return false;
     }
 
-    stash();
+    const previous = stash();
     const opened = await viewer().open(source);
+
+    // パスワードの入力を取りやめたときだけは、タブを作らずに戻す
+    // （spec-1-6 確定事項68）。失敗ではないので、出す理由が無い。
+    if (!opened && viewer().openCanceled() === true) {
+      restore(find(previous));
+      render();
+      return false;
+    }
 
     // 開けなくてもタブは作る（確定事項19）。ページビューには理由が出ている。
     // 作らずに前のタブへ戻すと、その理由が上書きされて消えてしまう。

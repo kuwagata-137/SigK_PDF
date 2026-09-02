@@ -73,6 +73,8 @@
     root.SigK.confirmDiscard.init(doc, win);
     root.SigK.confirmOverwrite.init(doc, win);
     root.SigK.confirmExtract.init(doc, win);
+    // パスワードの入力は viewer.open() の途中から呼ばれる。先に用意しておく。
+    root.SigK.passwordPrompt.init(doc, win);
     // 保存は、未保存の確認（3択の「保存」）からも呼ばれる。確認より先に用意する。
     root.SigK.save.init(doc, win);
     root.SigK.viewer.init(doc, win);

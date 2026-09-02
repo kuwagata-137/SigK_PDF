@@ -58,6 +58,11 @@
     // ほかのモードでは従来のプレースホルダーへ戻す。
     root.SigK.thumbnails?.refresh();
 
+    // パスワード付きの文書は編集できるが保存できない（spec-1-6 確定事項70）。
+    // 並べ替えたあとで初めて知るのでは遅いので、入った時点で伝えておく。
+    if (mode === 'pages')
+      root.SigK.save?.warnIfUnsaveable();
+
     persist({ mode });
     return true;
   }
