@@ -10,8 +10,9 @@ const { createShell, makeSource } = require('./harness.js');
 // dirty になる経路は塊④ で初めて生まれる。ここを空けたままにすると、
 // 編集したタブを閉じたときに確認も出ずに編集が消える。
 //
-// 塊④ の時点では保存の手段がまだ無いので2択である（確定事項57・58）。
-// 「保存／保存しない／キャンセル」の3択は塊⑤ で完成させる。
+// 塊④ の時点では保存の手段がまだ無いので2択だった（確定事項57・58）。
+// 塊⑤ で保存の行き先ができたので、「保存／保存しない／キャンセル」の3択に
+// なっている（spec-1-6 確定事項31〜36）。
 
 async function withShell(t, options) {
   const shell = await createShell(options);
@@ -157,13 +158,13 @@ test('「キャンセル」を選ぶと閉じない', async (t) => {
   assert.equal(SigK.viewer.isDirty(), true, '編集が消えている');
 });
 
-test('「閉じる」を選ぶと閉じる', async (t) => {
+test('「保存しない」を選ぶと閉じる', async (t) => {
   const shell = await withOpenDocument(t);
   const { SigK, document } = shell;
   edit(shell);
 
   const closing = SigK.tabs.closeActive();
-  document.getElementById('confirm-discard-ok').click();
+  document.getElementById('confirm-discard-discard').click();
   await closing;
 
   assert.equal(SigK.tabs.count(), 0);
@@ -205,14 +206,14 @@ test('未保存が無ければ、終了はそのまま通す', async (t) => {
   assert.deepEqual(shell.closeAnswers, [true]);
 });
 
-test('未保存があれば聞き、閉じるを選べば終了を通す', async (t) => {
+test('未保存があれば聞き、保存しないを選べば終了を通す', async (t) => {
   const shell = await withOpenDocument(t);
   edit(shell);
 
   const asking = shell.fireCloseRequest();
   await shell.flush();
   assert.equal(isDialogOpen(shell.document), true);
-  shell.document.getElementById('confirm-discard-ok').click();
+  shell.document.getElementById('confirm-discard-discard').click();
   await asking;
 
   assert.deepEqual(shell.closeAnswers, [true]);
@@ -245,7 +246,7 @@ test('未保存のタブが複数あれば1枚ずつ聞く', async (t) => {
   await shell.flush();
   // 1枚目について聞かれている。聞く前にそのタブへ切り替わる。
   assert.match(document.getElementById('confirm-discard-text').textContent, /a\.pdf/);
-  document.getElementById('confirm-discard-ok').click();
+  document.getElementById('confirm-discard-discard').click();
   await shell.flush();
 
   // 続けて2枚目。
@@ -255,4 +256,74 @@ test('未保存のタブが複数あれば1枚ずつ聞く', async (t) => {
 
   // 2枚目でやめたので、終了は取りやめになる。
   assert.deepEqual(shell.closeAnswers, [false]);
+});
+
+// ---- 3択の「保存」（spec-1-6 確定事項31〜36） ----
+
+test('「保存」を選ぶと、保存してから閉じる', async (t) => {
+  const shell = await withOpenDocument(t, {
+    taskResults: [{ ok: true, path: 'C:\work\sample.pdf', signature: { size: 9, mtimeMs: 9 } }],
+  });
+  edit(shell);
+  const id = shell.SigK.tabs.activeId();
+
+  const closing = shell.SigK.tabs.closeTab(id);
+  await shell.flush();
+  shell.document.getElementById('confirm-discard-save').click();
+  await closing;
+  await shell.flush();
+
+  assert.equal(shell.taskCalls.length, 1, 'ワーカーへ渡している');
+  assert.equal(shell.SigK.tabs.count(), 0, '保存できたので閉じる');
+});
+
+test('保存に失敗したら閉じない', async (t) => {
+  const shell = await withOpenDocument(t, {
+    taskResults: [{ error: 'ファイルが他のプログラムで使われています。' }],
+  });
+  edit(shell);
+  const id = shell.SigK.tabs.activeId();
+
+  const closing = shell.SigK.tabs.closeTab(id);
+  await shell.flush();
+  shell.document.getElementById('confirm-discard-save').click();
+
+  assert.equal(await closing, false);
+  await shell.flush();
+  // 編集を消さない（確定事項34）。理由は帯に出ている。
+  assert.equal(shell.SigK.tabs.count(), 1);
+  assert.equal(shell.SigK.viewer.isDirty(), true);
+  assert.match(shell.SigK.viewBanner.text(), /他のプログラムで使われています/);
+});
+
+test('ask は3つの答えを返す', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK, document } = shell;
+
+  const first = SigK.confirmDiscard.ask({ name: 'a.pdf' });
+  document.getElementById('confirm-discard-save').click();
+  assert.equal(await first, SigK.confirmDiscard.SAVE);
+
+  const second = SigK.confirmDiscard.ask({ name: 'a.pdf' });
+  document.getElementById('confirm-discard-discard').click();
+  assert.equal(await second, SigK.confirmDiscard.DISCARD);
+
+  const third = SigK.confirmDiscard.ask({ name: 'a.pdf' });
+  document.getElementById('confirm-discard-cancel').click();
+  assert.equal(await third, SigK.confirmDiscard.CANCEL);
+});
+
+test('終了しようとしたときも「保存」を選べる', async (t) => {
+  const shell = await withOpenDocument(t, {
+    taskResults: [{ ok: true, path: 'C:\work\sample.pdf', signature: { size: 9, mtimeMs: 9 } }],
+  });
+  edit(shell);
+
+  const asking = shell.fireCloseRequest();
+  await shell.flush();
+  shell.document.getElementById('confirm-discard-save').click();
+  await asking;
+
+  assert.deepEqual(shell.closeAnswers, [true], '保存できたので終了を通す');
+  assert.equal(shell.taskCalls.length, 1);
 });

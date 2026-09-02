@@ -479,12 +479,18 @@ test('文書を開くと回転が押せるようになる', async (t) => {
   assert.equal(document.getElementById('act-rotate-right').hasAttribute('aria-disabled'), false);
 });
 
-// 決定1。どちらもファイルを書く操作で、書き出し経路は塊⑤ の担当である。
-test('抽出と挿入は枠だけ置いて押せないままにする', async (t) => {
-  const { document } = await withOpenDocument(t);
+// 抽出と挿入は塊⑤ で結線した。中身は extract.js・insert.js にあり、
+// この層が持つのは押せる・押せないだけである。
+test('抽出は選択が要り、挿入は文書が開いていれば押せる', async (t) => {
+  const { SigK, document } = await withOpenDocument(t);
 
+  // 抽出は「選んだページを取り出す」操作なので、選択が無ければ意味がない（確定事項51）。
   assert.equal(document.getElementById('act-extract').getAttribute('aria-disabled'), 'true');
-  assert.equal(document.getElementById('act-insert').getAttribute('aria-disabled'), 'true');
+  // 挿入は選択が無くても末尾へ差し込める（確定事項64）。
+  assert.equal(document.getElementById('act-insert').hasAttribute('aria-disabled'), false);
+
+  SigK.pageGrid.setSelection([0]);
+  assert.equal(document.getElementById('act-extract').hasAttribute('aria-disabled'), false);
 });
 
 test('元に戻す・やり直しは、戻せるときだけ押せる', async (t) => {
@@ -612,4 +618,41 @@ test('入力欄の Delete はページ削除に使わない', async (t) => {
   pressKey(shell, 'Delete', { target: document.getElementById('page-current') });
 
   assert.equal(SigK.viewer.getState().pageCount, 3);
+});
+
+// ---- 保存したあとの未保存判定（spec-1-6 確定事項27・28） ----
+
+test('保存したら、その並びが「未保存でない」の基準になる', async (t) => {
+  const { SigK } = await withOpenDocument(t);
+  const original = SigK.viewer.getPlan();
+
+  SigK.viewer.applyPlan(SigK.pagePlan.movePages(original, [0], 3).plan);
+  assert.equal(SigK.viewer.isDirty(), true);
+
+  // 保存の成功で呼ばれる。plan を連番へ振り直すのではなく、いまの並びを
+  // 基準として覚える。振り直すと、開き直していない pdf.js の文書との
+  // 対応が崩れる（確定事項29 で開き直さないと決めている）。
+  assert.equal(SigK.viewer.markSaved(), true);
+  assert.equal(SigK.viewer.isDirty(), false);
+
+  // ページの中身の対応は保ったままである。
+  assert.deepEqual(SigK.viewer.getPlan(), SigK.pagePlan.movePages(original, [0], 3).plan);
+});
+
+test('保存したあとに元へ戻すと、また未保存になる', async (t) => {
+  const { SigK } = await withOpenDocument(t);
+  const original = SigK.viewer.getPlan();
+
+  SigK.viewer.applyPlan(SigK.pagePlan.movePages(original, [0], 3).plan);
+  SigK.viewer.markSaved();
+
+  // 履歴は捨てない（確定事項28）ので、戻せる。戻せば保存した並びと違うので
+  // 未保存に戻る。
+  SigK.viewer.applyPlan(original);
+  assert.equal(SigK.viewer.isDirty(), true);
+});
+
+test('文書を開いていなければ markSaved は空振りする', async (t) => {
+  const { SigK } = await withShell(t);
+  assert.equal(SigK.viewer.markSaved(), false);
 });

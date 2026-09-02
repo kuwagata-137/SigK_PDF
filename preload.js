@@ -50,6 +50,50 @@ contextBridge.exposeInMainWorld('pdfAPI', {
     ipcRenderer.removeAllListeners('pdf:docInfoRequest');
     ipcRenderer.on('pdf:docInfoRequest', () => callback());
   },
+
+  // 保存先を選ばせる（spec-1-6 確定事項25）。{ path } / { canceled }。
+  pickSavePath: (options) => ipcRenderer.invoke('pdf:pickSavePath', options),
+  pickInsertSource: (options) => ipcRenderer.invoke('pdf:pickInsertSource', options),
+
+  // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。
+  // レンダラーの keydown には頼らない。viewer-controls.js の handleKey が
+  // ctrlKey で早期 return するためで、accelerator で受けるほうが確実である
+  // （確定事項39）。mode は 'save' か 'saveAs'。
+  onSaveRequest: (callback) => {
+    ipcRenderer.removeAllListeners('pdf:saveRequest');
+    ipcRenderer.on('pdf:saveRequest', (_event, mode) => callback(mode));
+  },
+});
+
+// 重い処理をワーカーへ出す口（spec-1-6 確定事項1〜10）。
+//
+// taskId はレンダラーが決める。run() が終わるのを待たずに cancel() を押せる
+// ようにするためで、メイン側が採番すると「まだ id を知らないのに中止したい」
+// が起こる。
+contextBridge.exposeInMainWorld('taskAPI', {
+  available: true,
+  // { ok, ... } / { canceled: true } / { changed: true, current } / { error }
+  run: (taskId, spec) => ipcRenderer.invoke('task:run', taskId, spec),
+  cancel: (taskId) => ipcRenderer.invoke('task:cancel', taskId),
+  // { taskId, phase, label, step, total }
+  onProgress: (callback) => {
+    ipcRenderer.removeAllListeners('task:progress');
+    ipcRenderer.on('task:progress', (_event, progress) => callback(progress));
+  },
+});
+
+// エクスプローラーからの起動要求（docs/03 第3章・spec-1-6 確定事項77・80）。
+//
+// **onLaunch を呼んでから ready() を送ること。**購読を始める前にメインが送ると
+// 取りこぼす。メイン側は ready を受けるまで要求を溜めている。
+contextBridge.exposeInMainWorld('shellAPI', {
+  available: true,
+  // { intent: 'open'|'merge'|'split'|'toPdf', paths: string[] }
+  onLaunch: (callback) => {
+    ipcRenderer.removeAllListeners('shell:launch');
+    ipcRenderer.on('shell:launch', (_event, request) => callback(request));
+  },
+  ready: () => ipcRenderer.send('shell:ready'),
 });
 
 // 画面の見た目を覚える（spec-1-3 確定事項31〜35）。覚えるのはモードと

@@ -9,8 +9,10 @@ const {
   MAX_PDF_BYTES,
   isPdfPath,
   describeReadFailure,
+  withPdfExtension,
   readPdf,
   pickPdf,
+  pickSavePath,
   createFileIo,
 } = require('../file-io.js');
 const { fixturePath } = require('./fixtures/build.js');
@@ -131,4 +133,58 @@ test('createFileIo の open は取り消しをそのまま返す', async () => {
   const dialog = { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) };
 
   assert.deepEqual(await createFileIo({ dialog }).open(), { canceled: true });
+});
+
+// ---- 保存先を選ばせる（spec-1-6 確定事項25・49） ----
+//
+// パスの区切りは / で書く。path.extname はどちらでも同じに働き、
+// テストの中で \ を重ねる必要がなくなる。
+
+test('拡張子が無ければ .pdf を足す', () => {
+  assert.equal(withPdfExtension('C:/x/a'), 'C:/x/a.pdf');
+  assert.equal(withPdfExtension('C:/x/a.pdf'), 'C:/x/a.pdf');
+  assert.equal(withPdfExtension('C:/x/a.PDF'), 'C:/x/a.PDF', '大文字でも二重に足さない');
+  assert.equal(withPdfExtension('C:/x/a.txt'), 'C:/x/a.txt.pdf');
+});
+
+test('pickSavePath は選ばれたパスを返す', async () => {
+  const calls = [];
+  const dialogLike = {
+    showSaveDialog: async (options) => { calls.push(options); return { canceled: false, filePath: 'C:/out/b' }; },
+  };
+
+  const result = await pickSavePath({ dialogLike, defaultPath: 'C:/out/a.pdf' });
+  assert.deepEqual(result, { path: 'C:/out/b.pdf' }, '拡張子を補って返す');
+  assert.equal(calls[0].defaultPath, 'C:/out/a.pdf');
+  // 同名の確認は OS のダイアログに委ねる（確定事項22）。
+  assert.ok(calls[0].properties.includes('showOverwriteConfirmation'));
+});
+
+test('pickSavePath を取り消せる', async () => {
+  const dialogLike = { showSaveDialog: async () => ({ canceled: true }) };
+  assert.deepEqual(await pickSavePath({ dialogLike }), { canceled: true });
+});
+
+test('pickSavePath はパスが空でも取り消し扱いにする', async () => {
+  const dialogLike = { showSaveDialog: async () => ({ canceled: false, filePath: '' }) };
+  assert.deepEqual(await pickSavePath({ dialogLike }), { canceled: true });
+});
+
+test('親ウィンドウの有無で showSaveDialog の呼び分けを変える', async () => {
+  const seen = [];
+  const dialogLike = {
+    showSaveDialog: async (...args) => { seen.push(args.length); return { canceled: true }; },
+  };
+
+  await pickSavePath({ dialogLike });
+  await pickSavePath({ dialogLike, parentWindow: { fake: true } });
+  // 親が無いのに undefined を渡すと、options を親として解釈されてしまう。
+  assert.deepEqual(seen, [1, 2]);
+});
+
+test('createFileIo は保存ダイアログも出せる', async () => {
+  const io = createFileIo({
+    dialog: { showSaveDialog: async () => ({ canceled: false, filePath: 'C:/out/c.pdf' }) },
+  });
+  assert.deepEqual(await io.pickSavePath(null, { defaultPath: 'C:/out/c.pdf' }), { path: 'C:/out/c.pdf' });
 });

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, screen, session } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, screen, session, utilityProcess } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -20,6 +20,8 @@ const { createSettingsStore, clampWindowBounds, pickUi, mergeUi } = require('./s
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
+const { createTaskRunner } = require('./task-runner.js');
+const { parseLaunchArgs } = require('./launch-args.js');
 
 // app.whenReady() の中では手遅れになる。トップレベルで登録すること。
 // 遅れると app:// が不透明オリジンになり、CSP の 'self' が何も指さなくなる。
@@ -31,12 +33,18 @@ const ROOT_DIR = __dirname;
 let errorLog = null;
 let settings = null;
 let fileIo = null;
+let taskRunner = null;
 let mainWindow = null;
 
 // 未保存の編集があるタブの数（spec-1-5 確定事項56）。レンダラーが編集の
 // たびに知らせてくる。メインがこれを持っておくと、未保存が無いときの終了は
 // 従来どおり素通りでき、確認の往復が要るのは実際に未保存があるときだけになる。
 let dirtyTabCount = 0;
+// 起動要求（docs/03 第3章・spec-1-6 確定事項77）。**レンダラーが購読を始めるまで
+// メイン側で保持する。**理由は「読み込みが終わる前だから」ではなく「まだ購読して
+// いないから」である。`did-finish-load` を合図に送った分まで消えた（実測で7通中5通）。
+let launchReady = false;
+const pendingLaunch = [];
 // 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
 let allowClose = false;
 
@@ -164,12 +172,48 @@ function showAboutDialog() {
 // 開く経路はレンダラーに1本だけ持たせる。メニューはその引き金を引くだけにして、
 // ツールバーからの経路と分岐させない（spec-1-1 確定事項10・spec-1-2 確定事項18）。
 // パスを渡さなければレンダラーがダイアログを出す。
+// 実在するファイルか。引数の絞り込みの3つ目の条件（確定事項75）。
+function isExistingFile(target) {
+  try {
+    return fs.statSync(target).isFile();
+  } catch (error) {
+    return false;
+  }
+}
+
+function sendLaunch(request) {
+  if (!launchReady) {
+    pendingLaunch.push(request);
+    return;
+  }
+  mainWindow?.webContents.send('shell:launch', request);
+}
+
+// 起動引数を1件の要求にして流す。
+//
+// **集約はしない**（確定事項78）。`open` はパスが届くたびにタブを1枚足せば済む。
+// 集約が要るのは merge・split・toPdf で、いずれも Phase 2 以降である。
+// `PENDING_WINDOW_MS` も Phase 5 のままにする（400ms では短いことは実測済み。docs/03）。
+function queueLaunch(argv) {
+  const request = parseLaunchArgs(argv, { isFile: isExistingFile });
+  // 塊⑤ で扱うのは open だけである。ほかの意図は黙って捨てる。
+  if (request === null || request.intent !== 'open' || request.paths.length === 0)
+    return;
+  sendLaunch(request);
+}
+
 function requestOpen(filePath = null) {
   mainWindow?.webContents.send('pdf:openRequest', filePath);
 }
 
 function requestDocInfo() {
   mainWindow?.webContents.send('pdf:docInfoRequest');
+}
+
+// 保存も開くのと同じで、経路はレンダラーに1本だけ持たせる（確定事項23）。
+// mode は 'save'（上書き）か 'saveAs'（名前を付けて保存）。
+function requestSave(mode) {
+  mainWindow?.webContents.send('pdf:saveRequest', mode);
 }
 
 // 最近使ったファイルのサブメニュー（spec-1-2 確定事項9）。
@@ -196,6 +240,9 @@ function buildAppMenu() {
       submenu: [
         { label: '開く…', accelerator: 'CmdOrCtrl+O', click: () => requestOpen(null) },
         { label: '最近使ったファイル', submenu: buildRecentSubmenu() },
+        { type: 'separator' },
+        { label: '保存', accelerator: 'CmdOrCtrl+S', click: () => requestSave('save') },
+        { label: '名前を付けて保存…', accelerator: 'CmdOrCtrl+Shift+S', click: () => requestSave('saveAs') },
         { type: 'separator' },
         { label: '文書情報…', accelerator: 'CmdOrCtrl+I', click: requestDocInfo },
         { type: 'separator' },
@@ -234,6 +281,13 @@ function registerIpc() {
 
   ipcMain.handle('log:error', (_event, entry) => ({ ok: errorLog.append(entry) }));
 
+  // レンダラーが購読を始めた合図（確定事項77）。溜めていた要求をここで流す。
+  ipcMain.on('shell:ready', () => {
+    launchReady = true;
+    while (pendingLaunch.length > 0)
+      mainWindow?.webContents.send('shell:launch', pendingLaunch.shift());
+  });
+
   // 未保存の数（spec-1-5 確定事項56）。返事は要らないので send で受ける。
   ipcMain.on('app:dirty', (_event, count) => {
     dirtyTabCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
@@ -250,6 +304,19 @@ function registerIpc() {
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
+  ipcMain.handle('pdf:pickSavePath', (_event, options = {}) => fileIo.pickSavePath(mainWindow, options));
+  ipcMain.handle('pdf:pickInsertSource', (_event, options = {}) => fileIo.pickInsertSource(mainWindow, options));
+
+  // ワーカーへの委譲（spec-1-6 確定事項1〜10）。進捗は要求元の webContents へ
+  // 返す。タスク1本につきプロセスを1つ立てて、終わったら落とすのは
+  // task-runner.js の仕事である。
+  ipcMain.handle('task:run', (event, taskId, spec) => taskRunner.run(taskId, spec, {
+    onProgress: (progress) => {
+      if (!event.sender.isDestroyed())
+        event.sender.send('task:progress', progress);
+    },
+  }));
+  ipcMain.handle('task:cancel', (_event, taskId) => taskRunner.cancel(taskId));
 
   // 画面の見た目（モード・サイドパネルの開閉と幅）を覚える。
   // sandbox: true のため、fs に触るのはメインだけである（spec-1-3 確定事項32）。
@@ -840,6 +907,98 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_LAUNCH=<待ち時間ms> を付けると、起動引数から開けたかを報告する
+  // （spec-1-6 確定事項72〜80）。`--open <絶対パス>` と一緒に使う。
+  //
+  // **ここでしか分からないことが2つある。**実機の argv がどう届くか（並べ替えと
+  // `--allow-file-access-from-files` の差し込み）と、レンダラーが購読を始めるまで
+  // 保持した要求が本当に流れるかである。テストは argv を手で組み、購読の順番も
+  // スタブで見ているので、この2つは通しでしか確かめられない。
+  // 待ち時間を長くすると、その間に2つ目のプロセスを起こせる。**`second-instance`
+  // の argv は並べ替えられる**ので、そこを通してこそ確定事項73 を確かめられる。
+  const launchScript = (waitMs) => `(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ${waitMs}));
+    const state = window.SigK.viewer.getState();
+    return {
+      tabCount: window.SigK.tabs.count(),
+      names: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
+      openedName: state.file && state.file.name,
+      pageCount: state.pageCount,
+      message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
+    };
+  })()`;
+
+  // SIGK_SMOKE_SAVE=<出力先> を付けると、保存の経路を丸ごと1回通す
+  // （spec-1-6 の完了判定8）。SIGK_SMOKE_PDF と一緒に使う。
+  //
+  // ここでしか分からないことが2つある。**ワーカーが配布物（asar）の中から
+  // fork できるか**と、**レンダラーからワーカーまでが本当につながっているか**
+  // である。テストはレンダラー側を偽の taskAPI で、ワーカー側を直接呼びで
+  // 見ているので、この2つは通しでしか確かめられない。
+  //
+  // **名前を付けて保存ではなく上書き保存で通す。**保存ダイアログは OS のもので
+  // 自動では押せず、pickSavePath を差し替えて逃げることもできない。
+  // contextBridge で公開したオブジェクトへの代入は**例外も出さずに無視される**
+  // ためである（実測）。入力を出力先へ複製してから、その複製を開いて上書きする。
+  // .bak が出来るかも同時に確かめられる。
+  const saveScript = (target) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+
+    await SigK.tabs.openPath(${JSON.stringify(target)});
+    await wait(700);
+    const before = SigK.viewer.getState().pageCount;
+
+    // 1ページ目を90度回して末尾へ送る。保存された中身が plan どおりかを、
+    // ページ数と回転で確かめられるようにするためである。
+    SigK.shell.setMode(document, 'pages');
+    SigK.pageEdit.rotate(90, [0]);
+    if (before > 1)
+      SigK.viewer.applyPlan(SigK.pagePlan.movePages(SigK.viewer.getPlan(), [0], before).plan);
+    await wait(200);
+    const dirtyBefore = SigK.viewer.isDirty();
+
+    const started = Date.now();
+    const result = await SigK.save.saveActive();
+    const ms = Date.now() - started;
+    await wait(300);
+
+    const banner = SigK.viewBanner.text();
+    const dirtyAfter = SigK.viewer.isDirty();
+
+    // 書いたものを開き直して、並びが移っているかを見る。上書きなので
+    // いったん閉じてから開く（同じパスのタブは作り直されない）。
+    let reopened = null;
+    if (result && result.ok === true) {
+      const id = SigK.tabs.activeId();
+      SigK.tabs.forceCloseTab(id);
+      await wait(200);
+      await SigK.tabs.openPath(${JSON.stringify(target)});
+      await wait(700);
+      const state = SigK.viewer.getState();
+      // pdf.js のページから /Rotate を直に読む。開き直したあとの plan は
+      // 連番なので、ここに 90 が出れば回転がファイルへ焼き付いたことになる。
+      const last = await SigK.viewer.getPage(state.pageCount);
+      reopened = {
+        pageCount: state.pageCount,
+        lastRotation: last ? last.rotate : null,
+      };
+    }
+
+    return {
+      before,
+      dirtyBefore,
+      ok: result ? result.ok === true : false,
+      error: result ? (result.error ?? null) : 'result が無い',
+      bytes: result ? (result.bytes ?? null) : null,
+      backup: result ? (result.backup ?? null) : null,
+      dirtyAfter,
+      banner,
+      ms,
+      reopened,
+    };
+  })()`;
+
   // SIGK_SMOKE_DRAG=<from>-<to> を付けると、サムネイルのドラッグを
   // Chromium の Input.dispatchMouseEvent で再現する（完了判定の未検証項目）。
   // 送るのは mouse 系だが、Chromium は互換のため pointer 系も一緒に発火する。
@@ -930,6 +1089,8 @@ function installSmokeCheck(win) {
       let find = null;
       let print = null;
       let pages = null;
+      let save = null;
+      let launch = null;
       let drag = null;
       let drop = null;
       try {
@@ -937,6 +1098,11 @@ function installSmokeCheck(win) {
         if (process.env.SIGK_SMOKE_THROW === '1')
           await win.webContents.executeJavaScript('setTimeout(() => { throw new Error("起動確認の意図的な例外"); }, 0); true');
         shell = await win.webContents.executeJavaScript(readShellState);
+        // 起動引数はいちばん先に効くので、ほかの経路より前に見る。
+        if (process.env.SIGK_SMOKE_LAUNCH) {
+          const waitMs = Math.max(300, Number(process.env.SIGK_SMOKE_LAUNCH) || 900);
+          launch = await win.webContents.executeJavaScript(launchScript(waitMs));
+        }
         if (process.env.SIGK_SMOKE_PDF)
           pdf = await win.webContents.executeJavaScript(openPdfScript(path.resolve(process.env.SIGK_SMOKE_PDF)));
         if (process.env.SIGK_SMOKE_TABS) {
@@ -953,6 +1119,14 @@ function installSmokeCheck(win) {
           pages = await win.webContents.executeJavaScript(pagesScript(process.env.SIGK_SMOKE_PAGES));
         if (process.env.SIGK_SMOKE_PRINT)
           print = await win.webContents.executeJavaScript(printScript(process.env.SIGK_SMOKE_PRINT));
+        // 保存はいちばん後ろに置く。前の段（開く・編集）が済んだ状態で通したいのと、
+        // 書いたファイルを開き直してタブを増やすためである。
+        if (process.env.SIGK_SMOKE_SAVE && process.env.SIGK_SMOKE_PDF) {
+          const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);
+          // 入力そのものを書き換えないよう、複製を作ってそちらを上書きする。
+          fs.copyFileSync(path.resolve(process.env.SIGK_SMOKE_PDF), savePath);
+          save = await win.webContents.executeJavaScript(saveScript(savePath));
+        }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
           const boxes = await dispatchPageDrag(from, to);
@@ -988,6 +1162,8 @@ function installSmokeCheck(win) {
         find,
         print,
         pages,
+        save,
+        launch,
         drag,
         drop,
         screenshot,
@@ -1010,6 +1186,14 @@ function start() {
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
   fileIo = createFileIo({ dialog, onError: logError });
+  // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。
+  // require ではなくパスで渡すので、配布物への入れ忘れは
+  // test/dist-files.test.js が入口として見張っている。
+  taskRunner = createTaskRunner({
+    utilityProcess,
+    workerPath: path.join(ROOT_DIR, 'worker', 'pdf-task.js'),
+    onError: logError,
+  });
 
   protocol.handle(APP_SCHEME, createAppProtocolHandler(ROOT_DIR));
   applySecurity(session.defaultSession);
@@ -1019,9 +1203,16 @@ function start() {
 
   if (process.env.SIGK_SMOKE === '1')
     installSmokeCheck(mainWindow);
+
+  // 1つ目のプロセス自身の引数も同じ経路に載せる。
+  queueLaunch(process.argv);
 }
 
 app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
+// 保存中は終了を塞いである（確定事項9）ので普通は起きないが、万一残っていたら
+// ワーカーを落として書きかけの一時ファイルも片づける。元ファイルは無傷である。
+app.on('before-quit', () => taskRunner?.cancelAll());
+
 app.on('window-all-closed', () => app.quit());
 
 process.on('uncaughtException', (err) => {
@@ -1031,4 +1222,17 @@ process.on('unhandledRejection', (reason) => {
   logError({ message: '処理されない拒否', stack: reason?.stack, context: { where: 'main', reason: String(reason) } });
 });
 
-app.whenReady().then(start);
+// 2つ目以降のプロセスは窓を開かず、引数だけを1つ目へ渡して終わる（確定事項80）。
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    queueLaunch(argv);
+    if (mainWindow === null)
+      return;
+    if (mainWindow.isMinimized())
+      mainWindow.restore();
+    mainWindow.focus();
+  });
+  app.whenReady().then(start);
+}

@@ -71,6 +71,12 @@
     // 未保存の確認は、タブを閉じるときと終了するときに呼ばれる。
     // タブ層より先に用意しておく。
     root.SigK.confirmDiscard.init(doc, win);
+    root.SigK.confirmOverwrite.init(doc, win);
+    root.SigK.confirmExtract.init(doc, win);
+    // パスワードの入力は viewer.open() の途中から呼ばれる。先に用意しておく。
+    root.SigK.passwordPrompt.init(doc, win);
+    // 保存は、未保存の確認（3択の「保存」）からも呼ばれる。確認より先に用意する。
+    root.SigK.save.init(doc, win);
     root.SigK.viewer.init(doc, win);
     // 検索バーと印刷は、ツールバーの結線とキー操作から呼ばれる。先に用意しておく。
     root.SigK.findBar.init(doc, win);
@@ -81,6 +87,9 @@
     root.SigK.recentPanel.init(doc, win);
     root.SigK.fileDrop.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
+    // 起動要求の受け口は**タブ層より後**に置く。開く先が要るためである。
+    // 購読を始めた時点でメインが溜めていた要求を流してくる（確定事項77）。
+    root.SigK.launch.init(doc, win);
     showAppVersion(doc);
     restoreUi(doc);
 

@@ -26,6 +26,20 @@
     // 編集後の並び。要素は { src, rotate }（確定事項1）。編集していない状態も
     // これで表す。表示・印刷・保存はすべてこの配列だけを見る。
     plan: [],
+    // 最後に保存した並び。未保存かどうかは「plan がこれと違うこと」で決める
+    // （spec-1-6 確定事項27）。開いた直後は plan と同じ（＝連番）である。
+    //
+    // plan を連番へ振り直す形にはできない。state.doc は保存前のファイルを開いた
+    // pdf.js の文書のままで（確定事項29 で開き直さないと決めている）、
+    // getPage() が plan[n-1].src で引くため、振り直すと表示と中身がずれる。
+    savedPlan: [],
+    // 差し込んだページの控え（spec-1-6 確定事項93）。要素は
+    // { path, page, size, doc }（doc は差し込むページだけを持つ pdf.js の文書）。
+    // plan の { insert } がこの配列の番号を指す。
+    //
+    // 一度足したものは plan から外れても消さない。undo で外れたぶんを redo で
+    // 戻せるようにするためで、番号がずれないことのほうが大事である。
+    inserts: [],
     // plan から導いた、いま画面に出ている寸法。pageCount はこの長さである。
     sizes: [],
     layout: { pages: [], contentWidth: 0, totalHeight: 0 },
@@ -36,6 +50,10 @@
     // 文書やズームが変わったら、飛んでいる描画をすべて捨てるための世代番号。
     token: 0,
     frame: 0,
+    // 直前の open() が「パスワードの入力を取りやめて終わった」かどうか
+    // （spec-1-6 確定事項68）。失敗と区別するのは、取りやめではタブを
+    // 作らないためである（理由を出す場所が要らない）。
+    openCanceled: false,
   };
 
   let el = null;
@@ -89,7 +107,9 @@
   function getPage(number) {
     if (state.doc === null || number < 1 || number > state.plan.length)
       return Promise.resolve(null);
-    return state.doc.getPage(state.plan[number - 1].src + 1);
+    // 差し込んだページは別の文書から来る（spec-1-6 確定事項93）。
+    const source = root.SigK.pagePlan.sourceOf(state.plan, number - 1, state);
+    return source === null ? Promise.resolve(null) : source.doc.getPage(source.number);
   }
 
   // そのページに当てる回転。元ページの /Rotate に plan の相対角度を足した
@@ -97,6 +117,28 @@
   // pdf.js が 360 で剰余するので、ここで丸め直す必要はない。
   function viewportRotation(number, page) {
     return (page?.rotate ?? 0) + (state.plan[number - 1]?.rotate ?? 0);
+  }
+
+  // 差し込んだページを控える（spec-1-6 確定事項93）。戻り値は plan に書く番号で、
+  // 呼び出し側（insert.js）が `{ insert: <番号>, rotate: 0 }` として並びへ入れる。
+  //
+  // entries は { path, page, size, doc } の並び。1つの PDF から複数ページを
+  // 差し込むと、同じ doc を指す控えが複数できる。
+  function addInserts(entries) {
+    const first = state.inserts.length;
+    state.inserts.push(...entries);
+    return entries.map((_entry, index) => first + index);
+  }
+
+  // いま画面に出ている寸法（plan の回転を当てたあと）。差し込むページの紙の
+  // 大きさを決めるのに使う（確定事項95）。
+  function getSizes() {
+    return state.sizes.map((size) => ({ width: size.width, height: size.height }));
+  }
+
+  // 保存のときワーカーへ渡す形。pdf.js の文書は渡さない（IPC を越えられない）。
+  function getInserts() {
+    return state.inserts.map(({ path, page, size }) => ({ path, page, size }));
   }
 
   // 元ファイルのページ数。plan が初期値と一致するか（＝未保存か）を
@@ -112,7 +154,36 @@
   function isDirty() {
     if (state.doc === null)
       return false;
-    return root.SigK.pagePlan.isDirty(state.plan, state.basePages.length);
+    return !root.SigK.pagePlan.samePlan(state.plan, state.savedPlan);
+  }
+
+  // 保存が成功したら、いまの並びを「保存済み」の基準にする（確定事項27）。
+  // 以後はここから動いたときだけ未保存になる。元に戻す履歴は捨てない（確定事項28）
+  // ので、Ctrl+Z で戻せば再び未保存になる。
+  // 名前を付けて保存ではファイルそのものが移る（確定事項26）ので、
+  // 名前・パス・署名も一緒に差し替えられるようにしてある。
+  function markSaved({ path: nextPath = null, name = null, signature = null } = {}) {
+    if (state.doc === null)
+      return false;
+    state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+
+    if (nextPath !== null)
+      state.file.path = nextPath;
+    if (name !== null)
+      state.file.name = name;
+    if (signature !== null) {
+      state.file.size = signature.size ?? state.file.size;
+      state.file.mtimeMs = signature.mtimeMs ?? state.file.mtimeMs;
+    }
+    if (nextPath !== null || name !== null || signature !== null) {
+      root.SigK.shell.setStatus(el.doc, {
+        file: state.file.name,
+        size: root.SigK.shell.formatFileSize(state.file.size),
+      });
+    }
+
+    syncDirty();
+    return true;
   }
 
   // plan から画面上の寸法を作り直す。回転が 90/270 のときは幅と高さを
@@ -120,7 +191,9 @@
   // ページ番号入力・Home/End・印刷範囲・検索の走査本数がすべて追従する。
   function sizesFromPlan(plan) {
     return plan.map((page) => {
-      const base = state.basePages[page.src] ?? { width: 0, height: 0 };
+      const base = (Number.isInteger(page.insert)
+        ? state.inserts[page.insert]?.size
+        : state.basePages[page.src]) ?? { width: 0, height: 0 };
       const swapped = page.rotate === 90 || page.rotate === 270;
       return swapped
         ? { width: base.height, height: base.width }
@@ -175,7 +248,7 @@
     // 半分だけ正しいハイライトは、無いより悪い。
     root.SigK.find?.clear();
 
-    root.SigK.thumbnails?.setPlan(state.plan, state.sizes);
+    root.SigK.thumbnails?.setPlan(state.plan, state.sizes, state.inserts);
     syncStatusPages();
     syncDirty();
     controls()?.syncAll(el.doc, getState());
@@ -222,6 +295,8 @@
     el.doc.documentElement.setAttribute('data-doc', open ? 'open' : 'empty');
     el.empty.hidden = open;
     el.pages.hidden = !open;
+    // 文書が無ければ保存も無い（確定事項24）。
+    root.SigK.save?.syncButtons(el.doc);
   }
 
   // ---- レイアウト ----
@@ -326,6 +401,8 @@
     state.file = null;
     state.basePages = [];
     state.plan = [];
+    state.savedPlan = [];
+    state.inserts = [];
     state.sizes = [];
     state.layout = { pages: [], contentWidth: 0, totalHeight: 0 };
     state.current = 0;
@@ -354,6 +431,8 @@
       // 編集内容はタブごとに持つ（確定事項7）。タブを切り替えても残る。
       basePages: state.basePages,
       plan: state.plan,
+      savedPlan: state.savedPlan,
+      inserts: state.inserts,
       sizes: state.sizes,
       zoom: state.zoom,
       fit: state.fit,
@@ -389,6 +468,8 @@
     state.file = session.file;
     state.basePages = session.basePages ?? session.sizes;
     state.plan = session.plan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
+    state.savedPlan = session.savedPlan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
+    state.inserts = session.inserts ?? [];
     state.sizes = session.sizes;
     state.zoom = session.zoom;
     state.fit = session.fit;
@@ -401,6 +482,7 @@
       doc: state.doc,
       sizes: state.sizes,
       plan: state.plan,
+      inserts: state.inserts,
       current: state.current,
       scrollTop: session.thumbScrollTop ?? 0,
     });
@@ -421,13 +503,22 @@
   }
 
   function close() {
-    const session = detach();
-    session?.doc?.destroy?.();
+    destroySession(detach());
   }
 
   // 映していないタブを閉じるときの後始末。
+  //
+  // 差し込んだページの文書も畳む（確定事項93）。複数ページの PDF を差し込むと
+  // 同じ文書を複数の控えが指すので、実体ごとに1回だけ呼ぶ。
   function destroySession(session) {
     session?.doc?.destroy?.();
+    const seen = new Set();
+    for (const added of session?.inserts ?? []) {
+      if (added?.doc === undefined || added?.doc === null || seen.has(added.doc))
+        continue;
+      seen.add(added.doc);
+      added.doc.destroy?.();
+    }
   }
 
   // 文書情報（F-01-7）が読む。pdf.js の生の戻り値をそのまま渡し、
@@ -455,11 +546,48 @@
   }
 
   function describeOpenFailure(error) {
+    // パスワードは聞けるようになった（確定事項66）。ここへ来るのは、聞いた
+    // うえで開けなかったときだけである。
     if (error?.name === 'PasswordException')
-      return 'この PDF にはパスワードが設定されています。この版では開けません。';
+      return 'パスワードが違うため、この PDF を開けませんでした。';
     if (error?.name === 'InvalidPDFException')
       return 'PDF として読めませんでした。ファイルが壊れている可能性があります。';
     return 'この PDF を開けませんでした。';
+  }
+
+  // pdf.js がパスワードを聞いてくる口を繋ぐ（確定事項66〜68）。
+  //
+  // 間違えると同じ口が code = 2 でもう一度呼ばれるので、**何度でも聞き直せる**
+  // （確定事項67）。取りやめは Error を渡すと promise が reject する（確定事項68）。
+  // 戻り値の asked は「一度でも聞かれたか」で、保存を断る判断に使う（確定事項70）。
+  function attachPasswordPrompt(task, source) {
+    const outcome = { asked: false };
+    task.onPassword = (updatePassword, code) => {
+      outcome.asked = true;
+      const prompt = root.SigK.passwordPrompt;
+      if (prompt === undefined) {
+        updatePassword(new Error('パスワードを聞けません'));
+        return;
+      }
+      prompt
+        .ask({ name: source?.name ?? null, retry: code === prompt.INCORRECT_PASSWORD })
+        .then((value) => {
+          if (value === null) {
+            state.openCanceled = true;
+            // Error を渡すと promise が reject する。取りやめの合図である。
+            updatePassword(new Error('パスワードの入力を取りやめました'));
+            return;
+          }
+          updatePassword(value);
+        });
+    };
+    return outcome;
+  }
+
+  // 直前の open() が取りやめで終わったか（確定事項68）。tabs.js が
+  // 「タブを作らずに戻す」を決めるのに使う。
+  function openCanceled() {
+    return state.openCanceled;
   }
 
   async function open(source) {
@@ -474,11 +602,16 @@
 
     close();
     state.token += 1;
+    state.openCanceled = false;
     const token = state.token;
     setMessage('読み込んでいます…');
 
     try {
-      const doc = await root.SigK.pdfjs.getDocument({ data: source.bytes }).promise;
+      const task = root.SigK.pdfjs.getDocument({ data: source.bytes });
+      // パスワードを聞く口は getDocument() の**直後**に代入する（確定事項66）。
+      // await してからでは、pdf.js が先に呼びに来て取りこぼす。
+      const encrypted = attachPasswordPrompt(task, source);
+      const doc = await task.promise;
       const sizes = await collectSizes(doc);
       if (token !== state.token) {
         doc.destroy?.();
@@ -486,11 +619,23 @@
       }
 
       state.doc = doc;
-      state.file = { path: source.path, name: source.name, size: source.size };
+      state.file = {
+        path: source.path,
+        name: source.name,
+        size: source.size,
+        // 保存の直前に外部での書き換えを見分けるための控え（確定事項21）。
+        mtimeMs: source.mtimeMs ?? null,
+        // パスワードを聞いて開いた文書は保存できない（確定事項12・70）。
+        // 閲覧・検索・印刷・ページ編集はできる。
+        encrypted: encrypted.asked,
+      };
       state.basePages = sizes;
       // 開いた時点の plan は 0..N-1 の連番である（確定事項5）。編集していない
       // 状態も plan で表し、特別扱いを作らない。
       state.plan = root.SigK.pagePlan.createPlan(sizes.length);
+      // 開いた直後は、ファイルの中身と画面の並びが一致している。
+      state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+      state.inserts = [];
       state.sizes = sizesFromPlan(state.plan);
       state.current = 0;
       // 履歴は文書ごとに作り直す。前の文書の世代が残っていると、Ctrl+Z で
@@ -499,7 +644,9 @@
 
       buildPages();
       setDocumentOpen(true);
-      root.SigK.thumbnails?.setDocument({ doc, sizes: state.sizes, plan: state.plan, current: 0, scrollTop: 0 });
+      root.SigK.thumbnails?.setDocument({
+        doc, sizes: state.sizes, plan: state.plan, inserts: state.inserts, current: 0, scrollTop: 0,
+      });
       // ここで一度置いておく。applyFit の中の setZoom は倍率が変わったときしか
       // 配置し直さないため、2つ目の文書が1つ目と同じ倍率になると（同じ紙の
       // 大きさなら普通に起こる）ページの位置と寸法が空のまま残ってしまう。
@@ -580,7 +727,12 @@
     viewportRotation,
     getPlan,
     applyPlan,
+    openCanceled,
+    addInserts,
+    getInserts,
+    getSizes,
     isDirty,
+    markSaved,
     getBasePageCount,
     getTextLayer,
     setMessage,

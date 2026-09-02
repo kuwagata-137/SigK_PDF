@@ -52,7 +52,10 @@
       return root.SigK.viewer?.isDirty() === true;
     if (tab.session === null || tab.session === undefined)
       return false;
-    return root.SigK.pagePlan.isDirty(tab.session.plan ?? [], tab.session.basePages?.length ?? 0);
+    // 保存したあとは「保存した並びと同じか」で決める（spec-1-6 確定事項27）。
+    const saved = tab.session.savedPlan
+      ?? root.SigK.pagePlan.createPlan(tab.session.basePages?.length ?? 0);
+    return !root.SigK.pagePlan.samePlan(tab.session.plan ?? [], saved);
   }
 
   function isDirty(id) {
@@ -208,8 +211,16 @@
       return false;
     }
 
-    stash();
+    const previous = stash();
     const opened = await viewer().open(source);
+
+    // パスワードの入力を取りやめたときだけは、タブを作らずに戻す
+    // （spec-1-6 確定事項68）。失敗ではないので、出す理由が無い。
+    if (!opened && viewer().openCanceled() === true) {
+      restore(find(previous));
+      render();
+      return false;
+    }
 
     // 開けなくてもタブは作る（確定事項19）。ページビューには理由が出ている。
     // 作らずに前のタブへ戻すと、その理由が上書きされて消えてしまう。
@@ -293,8 +304,10 @@
     if (!isTabDirty(tab))
       return forceCloseTab(id);
 
+    // 3択のうち「保存」を選ばれたら、保存まで済ませてから閉じる。
+    // 保存に失敗したら閉じない（spec-1-6 確定事項34）。
     return root.SigK.confirmDiscard
-      .ask({ name: tab.name })
+      .askAndSave({ name: tab.name })
       .then((ok) => (ok ? forceCloseTab(id) : false));
   }
 
@@ -320,6 +333,20 @@
       restore(state.list[Math.min(index, state.list.length - 1)]);
 
     render();
+    return true;
+  }
+
+  // 名前を付けて保存したら、以後の上書き保存は新しいほうへ行く（確定事項26）。
+  // 最近使ったファイルにも新しいほうを載せる。
+  async function rename(id, { path: nextPath, name }) {
+    const tab = find(id);
+    if (tab === null || typeof nextPath !== 'string')
+      return false;
+    tab.path = nextPath;
+    tab.name = name ?? nextPath.split(/[\/]/).pop();
+    render();
+    syncTitle();
+    await rememberRecent({ path: tab.path, name: tab.name });
     return true;
   }
 
@@ -393,6 +420,7 @@
     activate,
     closeTab,
     forceCloseTab,
+    rename,
     isDirty,
     closeActive,
     cycle,

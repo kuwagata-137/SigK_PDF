@@ -16,8 +16,13 @@
   // その undo の履歴そのものは renderer/page-history.js にある。plan を受け取って
   // plan を返すだけで、この層の関数を1つも呼ばないためである。
 
+  // 要素は2種類ある（spec-1-6 確定事項65）。{ src, rotate } は元ファイルの
+  // ページ、{ insert, rotate } は差し込んだページである。**両方とも運ぶ。**
+  // 落とすと、undo で戻したときに差し込みが元ページ 0 に化ける。
   function copyPage(page) {
-    return { src: page.src, rotate: page.rotate };
+    return Number.isInteger(page?.insert)
+      ? { insert: page.insert, rotate: page.rotate }
+      : { src: page.src, rotate: page.rotate };
   }
 
   function clonePlan(plan) {
@@ -110,7 +115,34 @@
 
   // ---- 未保存の判定（確定事項6） ----
 
+  // 2つの並びが同じか。保存したあとの未保存判定に使う（spec-1-6「穴1」）。
+  function samePlan(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+      return false;
+    return a.every((page, index) =>
+      page.src === b[index].src && page.insert === b[index].insert && page.rotate === b[index].rotate);
+  }
+
+  // plan の要素から「どの文書の何ページ目を描くか」を返す（spec-1-6 確定事項93）。
+  //
+  // src なら元の文書、insert なら差し込んだ文書である。引けなければ null。
+  // ページビュー（page-render.js）・サムネイル・検索・印刷がここを共有するので、
+  // 差し込みの見え方が1か所で決まる。
+  function sourceOf(plan, index, { doc = null, inserts = [] } = {}) {
+    const entry = plan?.[index];
+    if (Number.isInteger(entry?.insert)) {
+      const added = inserts[entry.insert];
+      return added?.doc === undefined || added?.doc === null
+        ? null
+        : { doc: added.doc, number: (added.page ?? 0) + 1 };
+    }
+    return doc === null || doc === undefined ? null : { doc, number: (entry?.src ?? index) + 1 };
+  }
+
   // 操作した回数では決めない。3回回して元に戻したら dirty ではない。
+  //
+  // 開いたまま一度も保存していない文書のための判定である。保存したあとは
+  // 「保存した並びと同じか」で決めるので samePlan を使う（spec-1-6 確定事項27）。
   function isDirty(plan, pageCount) {
     if (!Array.isArray(plan) || plan.length !== pageCount)
       return true;
@@ -253,6 +285,8 @@
     canDelete,
     deletePages,
     isDirty,
+    samePlan,
+    sourceOf,
     resolveClick,
     selectAll,
     dropIndex,

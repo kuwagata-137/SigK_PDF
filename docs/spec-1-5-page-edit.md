@@ -375,6 +375,25 @@ mouseMoved を刻んで送るのは、1回で飛ばすと掴む判定と落と�
 | pdf-lib で開けない文書 | 内容が欠損した PDF は `load` が素の `TypeError` になり、警告は `console.warn` へ直接出て `log:error` に載らない。**「閲覧はできるが保存だけできない文書」の見せ方が未定** |
 | 挿入（F-02-5）の実装上の壁 | ① `file-io.js` の `readPdf` は拡張子 `.pdf` 以外を弾くので、画像を入れるなら**メイン側に別の読み込み口**が要る ② pdf-lib が埋め込めるビットマップは **PNG と JPEG だけ**。GIF・BMP は `message` すら持たない値を投げるので、**形式の判定と文言はアプリ側で持つ** ③ `copyPages` した内部リンクは壊れ、余分なページオブジェクトが混入する |
 
+> **2026-09-01 訂正（塊⑤ の事前調査で判明）。**上の表の1行目（`save()` のオプション）は `updateMetadata` を
+> `save()` のオプションとして書いているが、**これは `load()` のオプションである。**
+> `PDFDocument.load(bytes, { updateMetadata: false })` と書かないと Producer は
+> 読み込んだ時点で pdf-lib に書き換わる。また `updateFieldAppearances` による保存の失敗は、
+> **その文書で `getForm()` を呼んだときにだけ**起きる（`save()` の中は
+> `formCache.getValue()` を見ており、触っていない文書ではキャッシュが空のため何もしない）。
+> 正しい形と根拠は `docs/spec-1-6-save.md`「事前調査 B」にある。
+>
+> **同じく訂正が2件。**
+> ① 上の表の「`copyPages` での複製 → しおりと AcroForm が必ず消える」は、
+> **新規文書を作って全ページを copy し直す方式に限った話である。**開いている
+> `PDFDocument` へ `copyPages` ＋ `insertPage` する分には、その文書のしおり・AcroForm・
+> 内部リンクは保たれた（実測）。ただし**差し込まれた側**の `/Widget` 注釈だけは
+> ページに付いたまま運ばれ、機能しない入力欄の抜け殻になる。
+> ② 「GIF・BMP は message すら持たない値を投げる」は **`embedPng` についてのみ正しい。**
+> `embedPng` はプリミティブの文字列 `"The input is not a PNG file!"` を投げるが、
+> `embedJpg` は本物の `Error`（`"SOI not found in JPEG"`）を投げる。同じライブラリの中で
+> 型が揃っていない。詳細は `docs/spec-1-6-save.md`「事前調査 H」。
+
 ---
 
 ## 未確定のまま残すもの

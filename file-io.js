@@ -7,7 +7,7 @@
 // node --test から読めなくなるためで、security-policy.js と同じ作法である。
 //
 // 戻り値の形は docs/02 第5章に揃える。
-//   成功     { ok: true, path, name, size, bytes }
+//   成功     { ok: true, path, name, size, mtimeMs, bytes }
 //   取り消し { canceled: true }
 //   失敗     { error: '人が読める文言' }
 // レンダラー側で例外を投げない。
@@ -20,6 +20,15 @@ const path = require('node:path');
 const MAX_PDF_BYTES = 200 * 1024 * 1024;
 
 const PDF_FILTERS = [{ name: 'PDF ファイル', extensions: ['pdf'] }];
+
+// 差し込めるもの（spec-1-6 確定事項53）。**このフィルターは目安でしかない。**
+// 実際に受け付けるかどうかはワーカーが先頭バイトで判定し、既定拒否にする
+// （拡張子は中身と食い違うことがある）。
+const INSERT_FILTERS = [
+  { name: '差し込めるファイル', extensions: ['pdf', 'png', 'jpg', 'jpeg'] },
+  { name: 'PDF ファイル', extensions: ['pdf'] },
+  { name: '画像ファイル', extensions: ['png', 'jpg', 'jpeg'] },
+];
 
 function isPdfPath(filePath) {
   return typeof filePath === 'string' && path.extname(filePath).toLowerCase() === '.pdf';
@@ -61,7 +70,16 @@ async function readPdf(filePath, { fsLike = fs, maxBytes = MAX_PDF_BYTES, onErro
       return { error: `ファイルが大きすぎます。${Math.floor(maxBytes / 1024 / 1024)}MB までに対応しています。` };
 
     const buffer = await fsLike.promises.readFile(filePath);
-    return { ok: true, path: filePath, name: path.basename(filePath), size: stat.size, bytes: toBytes(buffer) };
+    // mtimeMs は、保存の直前に「開いたあとで外から書き換えられていないか」を
+    // 見るのに使う（spec-1-6 確定事項21）。stat はもう取っているので只である。
+    return {
+      ok: true,
+      path: filePath,
+      name: path.basename(filePath),
+      size: stat.size,
+      mtimeMs: Math.round(stat.mtimeMs),
+      bytes: toBytes(buffer),
+    };
   } catch (error) {
     onError({ message: 'PDF を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });
     return { error: describeReadFailure(error) };
@@ -86,6 +104,53 @@ async function pickPdf({ dialogLike, parentWindow = null, defaultPath = undefine
   return { path: result.filePaths[0] };
 }
 
+// 差し込む1ファイルを選ばせる（確定事項53）。pickPdf と同じ作法で、
+// 親の有無で呼び分ける。
+async function pickInsertSource({ dialogLike, parentWindow = null, defaultPath = undefined }) {
+  const options = {
+    title: '差し込むファイルを選ぶ',
+    properties: ['openFile'],
+    filters: INSERT_FILTERS,
+    defaultPath,
+  };
+  const result = parentWindow === null
+    ? await dialogLike.showOpenDialog(options)
+    : await dialogLike.showOpenDialog(parentWindow, options);
+
+  if (result?.canceled === true || !Array.isArray(result?.filePaths) || result.filePaths.length === 0)
+    return { canceled: true };
+  return { path: result.filePaths[0] };
+}
+
+// 拡張子を落として保存しようとすることがある。フィルターがあれば OS が足すが、
+// 環境によっては足さないので、こちらでも揃えておく。
+function withPdfExtension(filePath) {
+  return isPdfPath(filePath) ? filePath : `${filePath}.pdf`;
+}
+
+// 保存先を選ばせる（spec-1-6 確定事項25・49）。
+//
+// 同名ファイルの確認は showSaveDialog が OS の作法で出すので、アプリ側では
+// 重ねて聞かない（確定事項22）。docs/04 第7章の3択は、出力先を自分で
+// 組み立てる Phase 2 の結合・分割の話である。
+async function pickSavePath({ dialogLike, parentWindow = null, defaultPath = undefined, title = 'PDF を保存' }) {
+  const options = {
+    title,
+    filters: PDF_FILTERS,
+    defaultPath,
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+  };
+  // pickPdf と同じ事情で、親の有無で呼び分ける。undefined を渡すと options を
+  // 親として解釈されてしまう。
+  const result = parentWindow === null
+    ? await dialogLike.showSaveDialog(options)
+    : await dialogLike.showSaveDialog(parentWindow, options);
+
+  if (result?.canceled === true || typeof result?.filePath !== 'string' || result.filePath.length === 0)
+    return { canceled: true };
+  return { path: withPdfExtension(result.filePath) };
+}
+
 function createFileIo({ dialog, onError = () => {} }) {
   return {
     MAX_PDF_BYTES,
@@ -96,7 +161,24 @@ function createFileIo({ dialog, onError = () => {} }) {
         return picked;
       return readPdf(picked.path, { onError });
     },
+    pickSavePath: (parentWindow = null, { defaultPath, title } = {}) =>
+      pickSavePath({ dialogLike: dialog, parentWindow, defaultPath, title }),
+    pickInsertSource: (parentWindow = null, { defaultPath } = {}) =>
+      pickInsertSource({ dialogLike: dialog, parentWindow, defaultPath }),
   };
 }
 
-module.exports = { MAX_PDF_BYTES, PDF_FILTERS, isPdfPath, describeReadFailure, toBytes, readPdf, pickPdf, createFileIo };
+module.exports = {
+  MAX_PDF_BYTES,
+  PDF_FILTERS,
+  INSERT_FILTERS,
+  isPdfPath,
+  withPdfExtension,
+  describeReadFailure,
+  toBytes,
+  readPdf,
+  pickPdf,
+  pickInsertSource,
+  pickSavePath,
+  createFileIo,
+};

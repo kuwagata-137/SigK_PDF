@@ -16,11 +16,16 @@
     history: null,
   };
 
-  // 押せなくする操作の一覧。抽出と挿入は枠だけ置いてあり、結線は塊⑤ である
-  // （決定1。どちらもファイルを書く操作で、書き出し経路がまだ無い）。
+  // 押せなくする操作の一覧。
+  //
+  // 抽出と挿入の中身は extract.js・insert.js が持ち、この層の仕事は
+  // **押せる・押せないだけ**である。サイドパネルの操作列の状態を1か所に
+  // まとめたいので、押したときの呼び出しもここから行う。
   const ACTION_IDS = {
     rotateLeft: 'act-rotate-left',
     rotateRight: 'act-rotate-right',
+    extract: 'act-extract',
+    insert: 'act-insert',
     remove: 'act-delete',
     undo: 'btn-undo',
     redo: 'btn-redo',
@@ -181,6 +186,8 @@
     const open = isOpen();
     setEnabled(ACTION_IDS.rotateLeft, open);
     setEnabled(ACTION_IDS.rotateRight, open);
+    setEnabled(ACTION_IDS.extract, root.SigK.extract?.canExtract() === true);
+    setEnabled(ACTION_IDS.insert, root.SigK.insert?.canInsert() === true);
     setEnabled(ACTION_IDS.remove, canDelete());
     setEnabled(ACTION_IDS.undo, canUndo());
     setEnabled(ACTION_IDS.redo, canRedo());
@@ -207,6 +214,8 @@
 
     bindClick(doc, ACTION_IDS.rotateLeft, () => rotate(-90));
     bindClick(doc, ACTION_IDS.rotateRight, () => rotate(90));
+    bindClick(doc, ACTION_IDS.extract, () => root.SigK.extract?.run());
+    bindClick(doc, ACTION_IDS.insert, () => root.SigK.insert?.run());
     bindClick(doc, ACTION_IDS.remove, () => remove());
     bindClick(doc, ACTION_IDS.undo, () => undo());
     bindClick(doc, ACTION_IDS.redo, () => redo());

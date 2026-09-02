@@ -486,3 +486,19 @@ test('パネルの高さが取れないときは動かさない', () => {
   assert.equal(plan.autoScrollStep({ y: 10, viewportHeight: 0, edge: 40, step: 12 }), 0);
   assert.equal(plan.autoScrollStep({ y: 10, viewportHeight: 600, edge: 0, step: 12 }), 0);
 });
+
+// ---- 保存した並びとの比較（spec-1-6 確定事項27） ----
+
+test('samePlan は並びと回転の両方を見る', () => {
+  const base = [{ src: 0, rotate: 0 }, { src: 1, rotate: 90 }];
+  assert.equal(plan.samePlan(base, [{ src: 0, rotate: 0 }, { src: 1, rotate: 90 }]), true);
+  assert.equal(plan.samePlan(base, [{ src: 1, rotate: 90 }, { src: 0, rotate: 0 }]), false, '並びが違う');
+  assert.equal(plan.samePlan(base, [{ src: 0, rotate: 0 }, { src: 1, rotate: 180 }]), false, '回転が違う');
+  assert.equal(plan.samePlan(base, [{ src: 0, rotate: 0 }]), false, '長さが違う');
+});
+
+test('samePlan は配列でないものを同じとは言わない', () => {
+  assert.equal(plan.samePlan(null, []), false);
+  assert.equal(plan.samePlan([], null), false);
+  assert.equal(plan.samePlan([], []), true);
+});

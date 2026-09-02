@@ -31,12 +31,12 @@
       return typeof root.CanvasRenderingContext2D !== 'undefined';
     }
 
-    // 表示上の index から元ファイルのページを引く（spec-1-5 確定事項44）。
-    // 直に doc.getPage() を呼ぶのは、このファイルと thumbnails.js の2か所だけ
-    // である。写像を通さないと、編集しても中央のページビューだけが元の並びの
-    // まま取り残される。
-    function sourcePageNumber(index) {
-      return (state.plan[index]?.src ?? index) + 1;
+    // 表示上の index から、描くべき文書とページ番号を引く（spec-1-5 確定事項44・
+    // spec-1-6 確定事項93）。直に doc.getPage() を呼ぶのは、このファイルと
+    // thumbnails.js の2か所だけである。写像を通さないと、編集しても中央の
+    // ページビューだけが元の並びのまま取り残される。
+    function sourceOf(index) {
+      return root.SigK.pagePlan.sourceOf(state.plan, index, state);
     }
 
     // そのページに当てる絶対角度。plan の相対角度を元ページの /Rotate へ足す。
@@ -93,7 +93,12 @@
       const isStale = () => token !== state.token || state.rendered.get(index) !== entry;
 
       try {
-        const page = await state.doc.getPage(sourcePageNumber(index));
+        const source = sourceOf(index);
+        if (source === null) {
+          state.rendered.delete(index);
+          return;
+        }
+        const page = await source.doc.getPage(source.number);
         if (isStale())
           return;
 

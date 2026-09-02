@@ -114,3 +114,64 @@ test('重ねるものは、スクロールする器の外に置く', async (t) =
   // ページの器だけは #view の中（スクロールする側）に残す。
   assert.equal(view.contains(document.getElementById('view-pages')), true);
 });
+
+// --- 塊⑤ で足した2つ（spec-1-6 確定事項6〜8） ---
+
+test('帯に操作ボタンを載せられる', async (t) => {
+  const shell = await withOpenDocument(t);
+  let pressed = 0;
+
+  shell.SigK.viewBanner.show('保存しています（3/5）', {
+    autoHideMs: 0,
+    tone: 'info',
+    action: { label: '中止', onClick: () => { pressed += 1; } },
+  });
+
+  const button = shell.SigK.viewBanner.action();
+  assert.notEqual(button, null);
+  assert.equal(button.textContent, '中止');
+  // 進捗まで赤いと失敗に見える。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
+  // 文言にボタンのラベルを混ぜない。
+  assert.equal(shell.SigK.viewBanner.text(), '保存しています（3/5）');
+
+  button.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
+  assert.equal(pressed, 1);
+  // 帯そのものを押すと閉じる作りなので、ボタンの押下がそこへ伝わってはいけない。
+  assert.equal(shell.SigK.viewBanner.isVisible(), true, '中止を押しただけで帯が消えては、結果を出す場所が無くなる');
+});
+
+test('autoHideMs に 0 を渡すと、消すまで出したままになる', async (t) => {
+  const shell = await withOpenDocument(t);
+
+  shell.SigK.viewBanner.show('ずっと出ています', { autoHideMs: 0 });
+  await sleep(shell.window, 60);
+  assert.equal(shell.SigK.viewBanner.isVisible(), true);
+
+  shell.SigK.viewBanner.hide();
+  assert.equal(shell.SigK.viewBanner.isVisible(), false);
+});
+
+test('次の帯を出すと、前のボタンと色は残らない', async (t) => {
+  const shell = await withOpenDocument(t);
+
+  shell.SigK.viewBanner.show('保存しています', {
+    autoHideMs: 0, tone: 'info', action: { label: '中止', onClick: () => {} },
+  });
+  shell.SigK.viewBanner.show('保存できませんでした。');
+
+  assert.equal(shell.SigK.viewBanner.action(), null);
+  assert.equal(shell.document.getElementById('view-banner').hasAttribute('data-tone'), false);
+});
+
+test('従来どおり show(text) と show(text, 数値) で呼べる', async (t) => {
+  const shell = await withOpenDocument(t);
+
+  shell.SigK.viewBanner.show('文字だけ');
+  assert.equal(shell.SigK.viewBanner.text(), '文字だけ');
+  assert.equal(shell.SigK.viewBanner.action(), null);
+
+  shell.SigK.viewBanner.show('すぐ消える', 20);
+  await sleep(shell.window, 60);
+  assert.equal(shell.SigK.viewBanner.isVisible(), false);
+});

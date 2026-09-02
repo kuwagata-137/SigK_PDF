@@ -21,6 +21,9 @@
     // 表示上の並び（spec-1-5 確定事項1）。元ページを引く写像と、回転を
     // 当てるのに使う。viewer が applyPlan() のたびに差し替える。
     plan: [],
+    // 差し込んだページの控え（spec-1-6 確定事項93）。plan の { insert } が
+    // この配列の番号を指す。viewer が持っているものをそのまま借りる。
+    inserts: [],
     layout: { pages: [], sheetWidth: 0, totalHeight: 0 },
     // 枠を作ったときのパネル幅と列数。変わっていれば作り直す合図になる。
     columnWidth: 0,
@@ -185,8 +188,14 @@
     const isStale = () => token !== state.token || state.rendered.get(index) !== entry;
 
     try {
-      // 表示上の index から元ファイルのページを引く（spec-1-5 確定事項44）。
-      const page = await state.doc.getPage((state.plan[index]?.src ?? index) + 1);
+      // 表示上の index から、描くべき文書とページ番号を引く（spec-1-5 確定事項44・
+      // spec-1-6 確定事項93）。差し込んだページは別の文書から来る。
+      const source = root.SigK.pagePlan.sourceOf(state.plan, index, state);
+      if (source === null) {
+        state.rendered.delete(index);
+        return;
+      }
+      const page = await source.doc.getPage(source.number);
       if (isStale())
         return;
 
@@ -311,10 +320,11 @@
 
   // 映すものを差し替える。canvas はタブをまたいで持ち越さない（確定事項13）。
   // 持ち越すのはスクロール位置だけである。
-  function setDocument({ doc, sizes, plan = null, current = 0, scrollTop = 0 }) {
+  function setDocument({ doc, sizes, plan = null, inserts = [], current = 0, scrollTop = 0 }) {
     state.token += 1;
     releaseAll();
     state.doc = doc;
+    state.inserts = inserts;
     state.sizes = sizes ?? [];
     state.plan = plan ?? (state.sizes.map((_size, index) => ({ src: index, rotate: 0 })));
     state.current = current;
@@ -333,8 +343,10 @@
   // 並びだけを差し替える（spec-1-5 確定事項29）。setDocument を呼び直すと
   // スクロール位置も描画済みも全部捨てることになるので、編集のたびにそれを
   // やると「1枚回すたびにサイドパネルが先頭へ戻る」ことになる。
-  function setPlan(plan, sizes = null) {
+  function setPlan(plan, sizes = null, inserts = null) {
     state.plan = plan ?? [];
+    if (inserts !== null)
+      state.inserts = inserts;
     if (sizes !== null)
       state.sizes = sizes;
     state.current = Math.min(Math.max(0, state.current), Math.max(0, state.plan.length - 1));
@@ -356,6 +368,7 @@
 
   function clear() {
     state.doc = null;
+    state.inserts = [];
     state.sizes = [];
     state.plan = [];
     state.current = 0;
