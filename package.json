@@ -11,6 +11,7 @@
     "postinstall": "node scripts/vendor.js",
     "notices": "node scripts/notices.js",
     "fixtures": "node test/fixtures/build.js",
+    "fixtures:perf": "node test/fixtures/build-perf.js",
     "pretest": "node test/fixtures/build.js",
     "start": "electron .",
     "test": "node --test \"test/*.test.js\"",
