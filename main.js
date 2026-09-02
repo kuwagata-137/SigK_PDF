@@ -23,6 +23,12 @@ const { addRecent, removeRecent, normalizeList } = require('./recent-documents.j
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
 
+// 起動の時刻の目印（非機能要件の実測。`docs/01_製品要件定義.md` 第4章）。
+// ここはトップレベルなので `loaded` には main.js が読まれた時刻がそのまま入る。
+// 起点はプロセスが作られた時刻（`process.getCreationTime()`）で、
+// SIGK_SMOKE_PERF のときだけ報告に載る。ふだんは Date.now() が3回増えるだけ。
+const startupMarks = { loaded: Date.now(), ready: null, shown: null };
+
 // app.whenReady() の中では手遅れになる。トップレベルで登録すること。
 // 遅れると app:// が不透明オリジンになり、CSP の 'self' が何も指さなくなる。
 protocol.registerSchemesAsPrivileged([PRIVILEGED_SCHEME]);
@@ -125,6 +131,8 @@ function createMainWindow() {
     if (saved.window.maximized)
       win.maximize();
     win.show();
+    // 要件が言う「ウィンドウ表示まで」の到達点はここである。
+    startupMarks.shown = Date.now();
   });
 
   win.on('close', (event) => {
@@ -393,8 +401,39 @@ function moveToDisplay(win, spec) {
   });
 }
 
+// アプリ全体の実メモリ。`getAppMetrics()` はレンダラー・GPU・ユーティリティ
+// （ワーカー）まで含めて返すので、これを足したものが要件の 1.5GB と比べる値に
+// なる。`workingSetSize` の単位は KB である。
+//
+// pdf.js（レンダラー）と pdf-lib（ワーカー）の合算が取れていなかった宿題
+// （spec-1-5 と spec-1-6）も、これで一度に埋まる。
+function memorySnapshot() {
+  const metrics = app.getAppMetrics();
+  const kb = (entry) => entry.memory?.workingSetSize ?? 0;
+  const mb = (value) => Math.round(value / 1024 * 10) / 10;
+  return {
+    totalMb: mb(metrics.reduce((sum, entry) => sum + kb(entry), 0)),
+    byType: metrics.map((entry) => ({ type: entry.type, mb: mb(kb(entry)) })),
+  };
+}
+
 function installSmokeCheck(win) {
   const problems = [];
+
+  // 実メモリの山を捉える。開く・編集する・保存するのどこで一番使うかは
+  // 事前に分からないので、始めから終わりまで一定の間隔で見ておく。
+  const perfPath = process.env.SIGK_SMOKE_PERF;
+  let peakMemoryMb = 0;
+  // 節目の値も山に混ぜる。等間隔の見張りだけだと、間で立った山を取りこぼす
+  // （実測で、開いた直後の 589MB を山が 536MB と報告した）。
+  const snapshotMemory = () => {
+    const snapshot = memorySnapshot();
+    peakMemoryMb = Math.max(peakMemoryMb, snapshot.totalMb);
+    return snapshot;
+  };
+  const memoryTimer = perfPath === undefined ? null : setInterval(snapshotMemory, 200);
+  memoryTimer?.unref?.();
+
   if (process.env.SIGK_SMOKE_DISPLAY) {
     if (win.isMaximized())
       win.unmaximize();
@@ -548,6 +587,51 @@ function installSmokeCheck(win) {
           scrollTop: document.getElementById('view').scrollTop,
         };
       })(),
+    };
+  })()`;
+
+  // SIGK_SMOKE_PERF=<path> を付けると、非機能要件（`docs/01` 第4章）のうち
+  // 「ファイル表示」を実測する。要件は **10MB・50ページ程度の PDF で、開いて
+  // から最初のページが描画されるまで2秒以内**。検体は `npm run fixtures:perf`
+  // で作る。
+  //
+  // 終わりの合図は **`.pdf-page` の中に canvas が入ったこと**にする。
+  // `page-render.js` は `page.render()` が終わってから canvas を貼るので、
+  // これが「描き終えて画面に載った」ことを表す。`viewer.getState().rendered` は
+  // 描き始めた時点で載るので、ここでは使えない。
+  //
+  // SIGK_SMOKE_PDF とは併用しない（同じファイルを2回開くと、2回目は温まった
+  // 状態の測定になって要件と合わない）。
+  const perfOpenScript = (filePath) => `(async () => {
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    const t0 = performance.now();
+    const result = await window.pdfAPI.read(${JSON.stringify(filePath)});
+    if (result.error !== undefined)
+      return { error: result.error };
+    const tRead = performance.now();
+    const opened = await window.SigK.viewer.open(result);
+    const tOpen = performance.now();
+
+    let canvas = null;
+    while (canvas === null && performance.now() - t0 < 20000) {
+      await frame();
+      canvas = document.querySelector('.pdf-page canvas');
+    }
+    // 貼った直後の1フレームぶんを足す。ここまでが「目に入るまで」である。
+    await frame();
+    const tPainted = performance.now();
+
+    const state = window.SigK.viewer.getState();
+    return {
+      opened,
+      name: result.name,
+      pageCount: state.pageCount,
+      painted: canvas !== null,
+      canvasPixels: canvas === null ? null : { w: canvas.width, h: canvas.height },
+      readMs: Math.round(tRead - t0),
+      openMs: Math.round(tOpen - tRead),
+      paintMs: Math.round(tPainted - tOpen),
+      totalMs: Math.round(tPainted - t0),
     };
   })()`;
 
@@ -1093,6 +1177,10 @@ function installSmokeCheck(win) {
       let launch = null;
       let drag = null;
       let drop = null;
+      let perfOpen = null;
+      const memoryAtRest = perfPath === undefined ? null : snapshotMemory();
+      let memoryAfterOpen = null;
+      let memoryAfterEdit = null;
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
         if (process.env.SIGK_SMOKE_THROW === '1')
@@ -1102,6 +1190,11 @@ function installSmokeCheck(win) {
         if (process.env.SIGK_SMOKE_LAUNCH) {
           const waitMs = Math.max(300, Number(process.env.SIGK_SMOKE_LAUNCH) || 900);
           launch = await win.webContents.executeJavaScript(launchScript(waitMs));
+        }
+        // 実測は温まっていない状態で採りたいので、ほかの経路より前に置く。
+        if (perfPath !== undefined) {
+          perfOpen = await win.webContents.executeJavaScript(perfOpenScript(path.resolve(perfPath)));
+          memoryAfterOpen = snapshotMemory();
         }
         if (process.env.SIGK_SMOKE_PDF)
           pdf = await win.webContents.executeJavaScript(openPdfScript(path.resolve(process.env.SIGK_SMOKE_PDF)));
@@ -1115,16 +1208,26 @@ function installSmokeCheck(win) {
           find = await win.webContents.executeJavaScript(findScript(process.env.SIGK_SMOKE_FIND));
         // ページ編集を先に済ませてから印刷を測る。回転が 150dpi の画像に
         // 載るか（確定事項39）を、同じ起動の中で確かめられる。
-        if (process.env.SIGK_SMOKE_PAGES)
+        if (process.env.SIGK_SMOKE_PAGES) {
           pages = await win.webContents.executeJavaScript(pagesScript(process.env.SIGK_SMOKE_PAGES));
+          // 要件が言うメモリは「編集時」である。編集を通した後の値を採る。
+          if (perfPath !== undefined)
+            memoryAfterEdit = snapshotMemory();
+        }
         if (process.env.SIGK_SMOKE_PRINT)
           print = await win.webContents.executeJavaScript(printScript(process.env.SIGK_SMOKE_PRINT));
         // 保存はいちばん後ろに置く。前の段（開く・編集）が済んだ状態で通したいのと、
         // 書いたファイルを開き直してタブを増やすためである。
-        if (process.env.SIGK_SMOKE_SAVE && process.env.SIGK_SMOKE_PDF) {
+        // 保存の元は SIGK_SMOKE_PDF か、実測のときは SIGK_SMOKE_PERF で開いた
+        // ファイル。どちらでも文書は開いているので、保存の経路は同じに通せる。
+        // 実測ではこれが要る。**ワーカーが生きている間の実メモリ**を採る唯一の
+        // 経路で、pdf.js と pdf-lib の合算という宿題（spec-1-5・spec-1-6）が
+        // ここでしか埋まらない。
+        const saveSource = process.env.SIGK_SMOKE_PDF ?? perfPath;
+        if (process.env.SIGK_SMOKE_SAVE && saveSource !== undefined) {
           const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);
           // 入力そのものを書き換えないよう、複製を作ってそちらを上書きする。
-          fs.copyFileSync(path.resolve(process.env.SIGK_SMOKE_PDF), savePath);
+          fs.copyFileSync(path.resolve(saveSource), savePath);
           save = await win.webContents.executeJavaScript(saveScript(savePath));
         }
         if (process.env.SIGK_SMOKE_DRAG) {
@@ -1151,6 +1254,28 @@ function installSmokeCheck(win) {
         }
       }
 
+      if (memoryTimer !== null)
+        clearInterval(memoryTimer);
+      const created = process.getCreationTime?.() ?? null;
+      const since = (mark) => (created === null || mark === null ? null : mark - created);
+      const perf = perfPath === undefined ? null : {
+        // 要件は「アプリ単体の起動からウィンドウ表示まで3秒以内」。
+        // 起点はプロセスが作られた時刻で、Electron が教えてくれる。
+        startup: {
+          toLoadedMs: since(startupMarks.loaded),
+          toReadyMs: since(startupMarks.ready),
+          toShownMs: since(startupMarks.shown),
+        },
+        open: perfOpen,
+        memory: {
+          atRestMb: memoryAtRest?.totalMb ?? null,
+          afterOpenMb: memoryAfterOpen?.totalMb ?? null,
+          afterEditMb: memoryAfterEdit?.totalMb ?? null,
+          peakMb: peakMemoryMb,
+          byType: (memoryAfterEdit ?? memoryAfterOpen ?? memoryAtRest)?.byType ?? null,
+        },
+      };
+
       console.log(JSON.stringify({
         url: win.webContents.getURL(),
         bounds: { width: bounds.width, height: bounds.height, x: bounds.x, y: bounds.y },
@@ -1166,6 +1291,7 @@ function installSmokeCheck(win) {
         launch,
         drag,
         drop,
+        perf,
         screenshot,
         problems,
       }));
@@ -1181,6 +1307,7 @@ function installSmokeCheck(win) {
 }
 
 function start() {
+  startupMarks.ready = Date.now();
   const userData = app.getPath('userData');
   errorLog = createErrorLog({ dir: path.join(userData, 'logs') });
   settings = createSettingsStore({ dir: userData, onError: logError });
