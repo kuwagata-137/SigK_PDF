@@ -86,6 +86,35 @@ async function pickPdf({ dialogLike, parentWindow = null, defaultPath = undefine
   return { path: result.filePaths[0] };
 }
 
+// 拡張子を落として保存しようとすることがある。フィルターがあれば OS が足すが、
+// 環境によっては足さないので、こちらでも揃えておく。
+function withPdfExtension(filePath) {
+  return isPdfPath(filePath) ? filePath : `${filePath}.pdf`;
+}
+
+// 保存先を選ばせる（spec-1-6 確定事項25・49）。
+//
+// 同名ファイルの確認は showSaveDialog が OS の作法で出すので、アプリ側では
+// 重ねて聞かない（確定事項22）。docs/04 第7章の3択は、出力先を自分で
+// 組み立てる Phase 2 の結合・分割の話である。
+async function pickSavePath({ dialogLike, parentWindow = null, defaultPath = undefined, title = 'PDF を保存' }) {
+  const options = {
+    title,
+    filters: PDF_FILTERS,
+    defaultPath,
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+  };
+  // pickPdf と同じ事情で、親の有無で呼び分ける。undefined を渡すと options を
+  // 親として解釈されてしまう。
+  const result = parentWindow === null
+    ? await dialogLike.showSaveDialog(options)
+    : await dialogLike.showSaveDialog(parentWindow, options);
+
+  if (result?.canceled === true || typeof result?.filePath !== 'string' || result.filePath.length === 0)
+    return { canceled: true };
+  return { path: withPdfExtension(result.filePath) };
+}
+
 function createFileIo({ dialog, onError = () => {} }) {
   return {
     MAX_PDF_BYTES,
@@ -96,7 +125,20 @@ function createFileIo({ dialog, onError = () => {} }) {
         return picked;
       return readPdf(picked.path, { onError });
     },
+    pickSavePath: (parentWindow = null, { defaultPath, title } = {}) =>
+      pickSavePath({ dialogLike: dialog, parentWindow, defaultPath, title }),
   };
 }
 
-module.exports = { MAX_PDF_BYTES, PDF_FILTERS, isPdfPath, describeReadFailure, toBytes, readPdf, pickPdf, createFileIo };
+module.exports = {
+  MAX_PDF_BYTES,
+  PDF_FILTERS,
+  isPdfPath,
+  withPdfExtension,
+  describeReadFailure,
+  toBytes,
+  readPdf,
+  pickPdf,
+  pickSavePath,
+  createFileIo,
+};

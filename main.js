@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, screen, session } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, screen, session, utilityProcess } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -20,6 +20,7 @@ const { createSettingsStore, clampWindowBounds, pickUi, mergeUi } = require('./s
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
+const { createTaskRunner } = require('./task-runner.js');
 
 // app.whenReady() の中では手遅れになる。トップレベルで登録すること。
 // 遅れると app:// が不透明オリジンになり、CSP の 'self' が何も指さなくなる。
@@ -31,6 +32,7 @@ const ROOT_DIR = __dirname;
 let errorLog = null;
 let settings = null;
 let fileIo = null;
+let taskRunner = null;
 let mainWindow = null;
 
 // 未保存の編集があるタブの数（spec-1-5 確定事項56）。レンダラーが編集の
@@ -172,6 +174,12 @@ function requestDocInfo() {
   mainWindow?.webContents.send('pdf:docInfoRequest');
 }
 
+// 保存も開くのと同じで、経路はレンダラーに1本だけ持たせる（確定事項23）。
+// mode は 'save'（上書き）か 'saveAs'（名前を付けて保存）。
+function requestSave(mode) {
+  mainWindow?.webContents.send('pdf:saveRequest', mode);
+}
+
 // 最近使ったファイルのサブメニュー（spec-1-2 確定事項9）。
 // 履歴が空のときは、押せない1項目を出す。項目ごと消すと、メニューの並びが
 // 履歴の有無で動いてしまい、狙って押せなくなる。
@@ -196,6 +204,9 @@ function buildAppMenu() {
       submenu: [
         { label: '開く…', accelerator: 'CmdOrCtrl+O', click: () => requestOpen(null) },
         { label: '最近使ったファイル', submenu: buildRecentSubmenu() },
+        { type: 'separator' },
+        { label: '保存', accelerator: 'CmdOrCtrl+S', click: () => requestSave('save') },
+        { label: '名前を付けて保存…', accelerator: 'CmdOrCtrl+Shift+S', click: () => requestSave('saveAs') },
         { type: 'separator' },
         { label: '文書情報…', accelerator: 'CmdOrCtrl+I', click: requestDocInfo },
         { type: 'separator' },
@@ -250,6 +261,18 @@ function registerIpc() {
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
+  ipcMain.handle('pdf:pickSavePath', (_event, options = {}) => fileIo.pickSavePath(mainWindow, options));
+
+  // ワーカーへの委譲（spec-1-6 確定事項1〜10）。進捗は要求元の webContents へ
+  // 返す。タスク1本につきプロセスを1つ立てて、終わったら落とすのは
+  // task-runner.js の仕事である。
+  ipcMain.handle('task:run', (event, taskId, spec) => taskRunner.run(taskId, spec, {
+    onProgress: (progress) => {
+      if (!event.sender.isDestroyed())
+        event.sender.send('task:progress', progress);
+    },
+  }));
+  ipcMain.handle('task:cancel', (_event, taskId) => taskRunner.cancel(taskId));
 
   // 画面の見た目（モード・サイドパネルの開閉と幅）を覚える。
   // sandbox: true のため、fs に触るのはメインだけである（spec-1-3 確定事項32）。
@@ -1010,6 +1033,14 @@ function start() {
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
   fileIo = createFileIo({ dialog, onError: logError });
+  // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。
+  // require ではなくパスで渡すので、配布物への入れ忘れは
+  // test/dist-files.test.js が入口として見張っている。
+  taskRunner = createTaskRunner({
+    utilityProcess,
+    workerPath: path.join(ROOT_DIR, 'worker', 'pdf-task.js'),
+    onError: logError,
+  });
 
   protocol.handle(APP_SCHEME, createAppProtocolHandler(ROOT_DIR));
   applySecurity(session.defaultSession);
@@ -1022,6 +1053,10 @@ function start() {
 }
 
 app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
+// 保存中は終了を塞いである（確定事項9）ので普通は起きないが、万一残っていたら
+// ワーカーを落として書きかけの一時ファイルも片づける。元ファイルは無傷である。
+app.on('before-quit', () => taskRunner?.cancelAll());
+
 app.on('window-all-closed', () => app.quit());
 
 process.on('uncaughtException', (err) => {

@@ -613,3 +613,40 @@ test('入力欄の Delete はページ削除に使わない', async (t) => {
 
   assert.equal(SigK.viewer.getState().pageCount, 3);
 });
+
+// ---- 保存したあとの未保存判定（spec-1-6 確定事項27・28） ----
+
+test('保存したら、その並びが「未保存でない」の基準になる', async (t) => {
+  const { SigK } = await withOpenDocument(t);
+  const original = SigK.viewer.getPlan();
+
+  SigK.viewer.applyPlan(SigK.pagePlan.movePages(original, [0], 3).plan);
+  assert.equal(SigK.viewer.isDirty(), true);
+
+  // 保存の成功で呼ばれる。plan を連番へ振り直すのではなく、いまの並びを
+  // 基準として覚える。振り直すと、開き直していない pdf.js の文書との
+  // 対応が崩れる（確定事項29 で開き直さないと決めている）。
+  assert.equal(SigK.viewer.markSaved(), true);
+  assert.equal(SigK.viewer.isDirty(), false);
+
+  // ページの中身の対応は保ったままである。
+  assert.deepEqual(SigK.viewer.getPlan(), SigK.pagePlan.movePages(original, [0], 3).plan);
+});
+
+test('保存したあとに元へ戻すと、また未保存になる', async (t) => {
+  const { SigK } = await withOpenDocument(t);
+  const original = SigK.viewer.getPlan();
+
+  SigK.viewer.applyPlan(SigK.pagePlan.movePages(original, [0], 3).plan);
+  SigK.viewer.markSaved();
+
+  // 履歴は捨てない（確定事項28）ので、戻せる。戻せば保存した並びと違うので
+  // 未保存に戻る。
+  SigK.viewer.applyPlan(original);
+  assert.equal(SigK.viewer.isDirty(), true);
+});
+
+test('文書を開いていなければ markSaved は空振りする', async (t) => {
+  const { SigK } = await withShell(t);
+  assert.equal(SigK.viewer.markSaved(), false);
+});

@@ -110,7 +110,17 @@
 
   // ---- 未保存の判定（確定事項6） ----
 
+  // 2つの並びが同じか。保存したあとの未保存判定に使う（spec-1-6「穴1」）。
+  function samePlan(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
+      return false;
+    return a.every((page, index) => page.src === b[index].src && page.rotate === b[index].rotate);
+  }
+
   // 操作した回数では決めない。3回回して元に戻したら dirty ではない。
+  //
+  // 開いたまま一度も保存していない文書のための判定である。保存したあとは
+  // 「保存した並びと同じか」で決めるので samePlan を使う（spec-1-6 確定事項27）。
   function isDirty(plan, pageCount) {
     if (!Array.isArray(plan) || plan.length !== pageCount)
       return true;
@@ -253,6 +263,7 @@
     canDelete,
     deletePages,
     isDirty,
+    samePlan,
     resolveClick,
     selectAll,
     dropIndex,

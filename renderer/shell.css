@@ -263,6 +263,17 @@ html[data-panel="collapsed"] #side-resizer{display:none}
   box-shadow:0 2px 8px rgba(16,24,40,.24); cursor:pointer;
 }
 #view-banner[hidden]{display:none}
+/* 進捗は失敗ではないので赤く塗らない（spec-1-6 確定事項6）。 */
+#view-banner[data-tone="info"]{background:var(--accent)}
+#view-banner .banner-text{vertical-align:middle}
+/* 保存中の「中止」。帯の中に置く（確定事項8）。 */
+#view-banner .banner-action{
+  margin-left:12px; vertical-align:middle;
+  padding:2px 10px; font:inherit; font-size:12px; line-height:1.6;
+  color:inherit; background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.55); border-radius:6px; cursor:pointer;
+}
+#view-banner .banner-action:hover{background:rgba(255,255,255,.28)}
 
 /* ドロップの受け入れ表示（spec-1-2 確定事項5）。 */
 #view-drop{

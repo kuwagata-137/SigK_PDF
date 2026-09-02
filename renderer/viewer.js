@@ -26,6 +26,13 @@
     // 編集後の並び。要素は { src, rotate }（確定事項1）。編集していない状態も
     // これで表す。表示・印刷・保存はすべてこの配列だけを見る。
     plan: [],
+    // 最後に保存した並び。未保存かどうかは「plan がこれと違うこと」で決める
+    // （spec-1-6 確定事項27）。開いた直後は plan と同じ（＝連番）である。
+    //
+    // plan を連番へ振り直す形にはできない。state.doc は保存前のファイルを開いた
+    // pdf.js の文書のままで（確定事項29 で開き直さないと決めている）、
+    // getPage() が plan[n-1].src で引くため、振り直すと表示と中身がずれる。
+    savedPlan: [],
     // plan から導いた、いま画面に出ている寸法。pageCount はこの長さである。
     sizes: [],
     layout: { pages: [], contentWidth: 0, totalHeight: 0 },
@@ -112,7 +119,18 @@
   function isDirty() {
     if (state.doc === null)
       return false;
-    return root.SigK.pagePlan.isDirty(state.plan, state.basePages.length);
+    return !root.SigK.pagePlan.samePlan(state.plan, state.savedPlan);
+  }
+
+  // 保存が成功したら、いまの並びを「保存済み」の基準にする（確定事項27）。
+  // 以後はここから動いたときだけ未保存になる。元に戻す履歴は捨てない（確定事項28）
+  // ので、Ctrl+Z で戻せば再び未保存になる。
+  function markSaved() {
+    if (state.doc === null)
+      return false;
+    state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+    syncDirty();
+    return true;
   }
 
   // plan から画面上の寸法を作り直す。回転が 90/270 のときは幅と高さを
@@ -326,6 +344,7 @@
     state.file = null;
     state.basePages = [];
     state.plan = [];
+    state.savedPlan = [];
     state.sizes = [];
     state.layout = { pages: [], contentWidth: 0, totalHeight: 0 };
     state.current = 0;
@@ -354,6 +373,7 @@
       // 編集内容はタブごとに持つ（確定事項7）。タブを切り替えても残る。
       basePages: state.basePages,
       plan: state.plan,
+      savedPlan: state.savedPlan,
       sizes: state.sizes,
       zoom: state.zoom,
       fit: state.fit,
@@ -389,6 +409,7 @@
     state.file = session.file;
     state.basePages = session.basePages ?? session.sizes;
     state.plan = session.plan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
+    state.savedPlan = session.savedPlan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
     state.sizes = session.sizes;
     state.zoom = session.zoom;
     state.fit = session.fit;
@@ -491,6 +512,8 @@
       // 開いた時点の plan は 0..N-1 の連番である（確定事項5）。編集していない
       // 状態も plan で表し、特別扱いを作らない。
       state.plan = root.SigK.pagePlan.createPlan(sizes.length);
+      // 開いた直後は、ファイルの中身と画面の並びが一致している。
+      state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
       state.sizes = sizesFromPlan(state.plan);
       state.current = 0;
       // 履歴は文書ごとに作り直す。前の文書の世代が残っていると、Ctrl+Z で
@@ -581,6 +604,7 @@
     getPlan,
     applyPlan,
     isDirty,
+    markSaved,
     getBasePageCount,
     getTextLayer,
     setMessage,

@@ -52,7 +52,10 @@
       return root.SigK.viewer?.isDirty() === true;
     if (tab.session === null || tab.session === undefined)
       return false;
-    return root.SigK.pagePlan.isDirty(tab.session.plan ?? [], tab.session.basePages?.length ?? 0);
+    // 保存したあとは「保存した並びと同じか」で決める（spec-1-6 確定事項27）。
+    const saved = tab.session.savedPlan
+      ?? root.SigK.pagePlan.createPlan(tab.session.basePages?.length ?? 0);
+    return !root.SigK.pagePlan.samePlan(tab.session.plan ?? [], saved);
   }
 
   function isDirty(id) {
