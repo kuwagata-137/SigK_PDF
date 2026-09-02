@@ -262,6 +262,32 @@ test('差し込む PDF の大きさは元のままである', async () => {
   assert.deepEqual(result.doc.getPage(1).getSize(), { width: 200, height: 300 });
 });
 
+test('使われていない控えは読まない', async () => {
+  // undo で plan から外れても控えは消さない（番号がずれないようにするため）。
+  // その結果、番号は歯抜けになる。**使わないものを読みに行ってはいけない。**
+  // 消えたファイルを指す控えが残っていたら、関係のない保存まで失敗する。
+  const doc = await makeDoc(1);
+  const reads = [];
+  const files = { 'いる.png': makePng({ width: 10, height: 10 }) };
+  const reader = {
+    readFile: async (target) => {
+      reads.push(target);
+      if (!(target in files))
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      return toBytes(files[target]);
+    },
+  };
+
+  const plan = [{ src: 0 }, { insert: 1 }];
+  const inserts = [{ path: 'もう消えた.png' }, { path: 'いる.png' }];
+  const prepared = await prepareInserts(doc, doc.getPages(), plan, inserts, TOOLS, reader);
+
+  assert.equal(prepared.ok, true);
+  assert.deepEqual(reads, ['いる.png']);
+  assert.equal(applyPlan(doc, plan, { inserted: prepared.pages }).ok, true);
+  assert.equal(doc.getPageCount(), 2);
+});
+
 // ---- 回転（確定事項65） ----
 
 test('差し込んだページも plan の rotate で回る', async () => {

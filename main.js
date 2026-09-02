@@ -907,6 +907,27 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_LAUNCH=<待ち時間ms> を付けると、起動引数から開けたかを報告する
+  // （spec-1-6 確定事項72〜80）。`--open <絶対パス>` と一緒に使う。
+  //
+  // **ここでしか分からないことが2つある。**実機の argv がどう届くか（並べ替えと
+  // `--allow-file-access-from-files` の差し込み）と、レンダラーが購読を始めるまで
+  // 保持した要求が本当に流れるかである。テストは argv を手で組み、購読の順番も
+  // スタブで見ているので、この2つは通しでしか確かめられない。
+  // 待ち時間を長くすると、その間に2つ目のプロセスを起こせる。**`second-instance`
+  // の argv は並べ替えられる**ので、そこを通してこそ確定事項73 を確かめられる。
+  const launchScript = (waitMs) => `(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ${waitMs}));
+    const state = window.SigK.viewer.getState();
+    return {
+      tabCount: window.SigK.tabs.count(),
+      names: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
+      openedName: state.file && state.file.name,
+      pageCount: state.pageCount,
+      message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
+    };
+  })()`;
+
   // SIGK_SMOKE_SAVE=<出力先> を付けると、保存の経路を丸ごと1回通す
   // （spec-1-6 の完了判定8）。SIGK_SMOKE_PDF と一緒に使う。
   //
@@ -1069,6 +1090,7 @@ function installSmokeCheck(win) {
       let print = null;
       let pages = null;
       let save = null;
+      let launch = null;
       let drag = null;
       let drop = null;
       try {
@@ -1076,6 +1098,11 @@ function installSmokeCheck(win) {
         if (process.env.SIGK_SMOKE_THROW === '1')
           await win.webContents.executeJavaScript('setTimeout(() => { throw new Error("起動確認の意図的な例外"); }, 0); true');
         shell = await win.webContents.executeJavaScript(readShellState);
+        // 起動引数はいちばん先に効くので、ほかの経路より前に見る。
+        if (process.env.SIGK_SMOKE_LAUNCH) {
+          const waitMs = Math.max(300, Number(process.env.SIGK_SMOKE_LAUNCH) || 900);
+          launch = await win.webContents.executeJavaScript(launchScript(waitMs));
+        }
         if (process.env.SIGK_SMOKE_PDF)
           pdf = await win.webContents.executeJavaScript(openPdfScript(path.resolve(process.env.SIGK_SMOKE_PDF)));
         if (process.env.SIGK_SMOKE_TABS) {
@@ -1136,6 +1163,7 @@ function installSmokeCheck(win) {
         print,
         pages,
         save,
+        launch,
         drag,
         drop,
         screenshot,
