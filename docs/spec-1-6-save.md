@@ -449,6 +449,8 @@ copy し直したときである。塊④ の申し送りはこの区別をし�
 | `worker/image-format.js` | 先頭バイトでの形式判定と画素寸法の読み取り。依存なしで回る層 |
 | `renderer/insert.js` | 挿入の指揮。組み立てを頼み、pdf.js で開いて plan へ入れる |
 | `renderer/password-prompt.js` | パスワードの入力（確定事項66〜69） |
+| `launch-args.js` | 起動引数の解釈（確定事項72〜76）。依存なしで回る層 |
+| `renderer/launch.js` | 起動要求の受け口（確定事項77・78） |
 
 ### 既存への追記
 

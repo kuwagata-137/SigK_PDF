@@ -21,6 +21,7 @@ const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
+const { parseLaunchArgs } = require('./launch-args.js');
 
 // app.whenReady() の中では手遅れになる。トップレベルで登録すること。
 // 遅れると app:// が不透明オリジンになり、CSP の 'self' が何も指さなくなる。
@@ -39,6 +40,11 @@ let mainWindow = null;
 // たびに知らせてくる。メインがこれを持っておくと、未保存が無いときの終了は
 // 従来どおり素通りでき、確認の往復が要るのは実際に未保存があるときだけになる。
 let dirtyTabCount = 0;
+// 起動要求（docs/03 第3章・spec-1-6 確定事項77）。**レンダラーが購読を始めるまで
+// メイン側で保持する。**理由は「読み込みが終わる前だから」ではなく「まだ購読して
+// いないから」である。`did-finish-load` を合図に送った分まで消えた（実測で7通中5通）。
+let launchReady = false;
+const pendingLaunch = [];
 // 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
 let allowClose = false;
 
@@ -166,6 +172,36 @@ function showAboutDialog() {
 // 開く経路はレンダラーに1本だけ持たせる。メニューはその引き金を引くだけにして、
 // ツールバーからの経路と分岐させない（spec-1-1 確定事項10・spec-1-2 確定事項18）。
 // パスを渡さなければレンダラーがダイアログを出す。
+// 実在するファイルか。引数の絞り込みの3つ目の条件（確定事項75）。
+function isExistingFile(target) {
+  try {
+    return fs.statSync(target).isFile();
+  } catch (error) {
+    return false;
+  }
+}
+
+function sendLaunch(request) {
+  if (!launchReady) {
+    pendingLaunch.push(request);
+    return;
+  }
+  mainWindow?.webContents.send('shell:launch', request);
+}
+
+// 起動引数を1件の要求にして流す。
+//
+// **集約はしない**（確定事項78）。`open` はパスが届くたびにタブを1枚足せば済む。
+// 集約が要るのは merge・split・toPdf で、いずれも Phase 2 以降である。
+// `PENDING_WINDOW_MS` も Phase 5 のままにする（400ms では短いことは実測済み。docs/03）。
+function queueLaunch(argv) {
+  const request = parseLaunchArgs(argv, { isFile: isExistingFile });
+  // 塊⑤ で扱うのは open だけである。ほかの意図は黙って捨てる。
+  if (request === null || request.intent !== 'open' || request.paths.length === 0)
+    return;
+  sendLaunch(request);
+}
+
 function requestOpen(filePath = null) {
   mainWindow?.webContents.send('pdf:openRequest', filePath);
 }
@@ -244,6 +280,13 @@ function registerIpc() {
   }));
 
   ipcMain.handle('log:error', (_event, entry) => ({ ok: errorLog.append(entry) }));
+
+  // レンダラーが購読を始めた合図（確定事項77）。溜めていた要求をここで流す。
+  ipcMain.on('shell:ready', () => {
+    launchReady = true;
+    while (pendingLaunch.length > 0)
+      mainWindow?.webContents.send('shell:launch', pendingLaunch.shift());
+  });
 
   // 未保存の数（spec-1-5 確定事項56）。返事は要らないので send で受ける。
   ipcMain.on('app:dirty', (_event, count) => {
@@ -1132,6 +1175,9 @@ function start() {
 
   if (process.env.SIGK_SMOKE === '1')
     installSmokeCheck(mainWindow);
+
+  // 1つ目のプロセス自身の引数も同じ経路に載せる。
+  queueLaunch(process.argv);
 }
 
 app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
@@ -1148,4 +1194,17 @@ process.on('unhandledRejection', (reason) => {
   logError({ message: '処理されない拒否', stack: reason?.stack, context: { where: 'main', reason: String(reason) } });
 });
 
-app.whenReady().then(start);
+// 2つ目以降のプロセスは窓を開かず、引数だけを1つ目へ渡して終わる（確定事項80）。
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    queueLaunch(argv);
+    if (mainWindow === null)
+      return;
+    if (mainWindow.isMinimized())
+      mainWindow.restore();
+    mainWindow.focus();
+  });
+  app.whenReady().then(start);
+}

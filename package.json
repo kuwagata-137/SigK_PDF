@@ -41,6 +41,7 @@
       "file-io.js",
       "recent-documents.js",
       "pdf-write.js",
+      "launch-args.js",
       "task-runner.js",
       "worker/**",
       "index.html",

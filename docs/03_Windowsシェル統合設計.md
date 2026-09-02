@@ -224,6 +224,13 @@ if (!app.requestSingleInstanceLock()) {
 >
 > **`requestSingleInstanceLock(payload)` の `additionalData`（`second-instance` の第4引数）は
 > 順序を保ったまま届く。**2つ目のプロセスが自分で解釈した結果を載せる経路として使える。
+>
+> **2026-09-02 実装済み。**正しい形は `launch-args.js` の `parseLaunchArgs(argv, { isFile })` に
+> ある（純関数・`test/launch-args.test.js`）。上のコード例の `parseArgs` は**使わないこと**。
+> 保持と受け渡しは `main.js` の `queueLaunch` / `sendLaunch` と `renderer/launch.js` にある。
+> **集約（`queueLaunchRequest` / `flushLaunchRequest`）は塊⑤ では実装していない。**
+> `open` はパスが届くたびにタブを1枚足せば済むためで、集約が要る merge・split・toPdf は
+> Phase 2 以降である（`docs/spec-1-6-save.md` 確定事項78）。
 
 
 `PENDING_WINDOW_MS = 400` という値は**実測に基づかない初期値である**。シェルが5個のプロセスを起動し終えるまでの間隔を実機で計測し、Phase 5 で確定させる。短すぎると分裂し（結合画面が2枚開く）、長すぎると単一ファイルの起動が待たされて遅く感じる。

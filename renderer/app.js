@@ -87,6 +87,9 @@
     root.SigK.recentPanel.init(doc, win);
     root.SigK.fileDrop.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
+    // 起動要求の受け口は**タブ層より後**に置く。開く先が要るためである。
+    // 購読を始めた時点でメインが溜めていた要求を流してくる（確定事項77）。
+    root.SigK.launch.init(doc, win);
     showAppVersion(doc);
     restoreUi(doc);
 

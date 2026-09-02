@@ -82,6 +82,20 @@ contextBridge.exposeInMainWorld('taskAPI', {
   },
 });
 
+// エクスプローラーからの起動要求（docs/03 第3章・spec-1-6 確定事項77・80）。
+//
+// **onLaunch を呼んでから ready() を送ること。**購読を始める前にメインが送ると
+// 取りこぼす。メイン側は ready を受けるまで要求を溜めている。
+contextBridge.exposeInMainWorld('shellAPI', {
+  available: true,
+  // { intent: 'open'|'merge'|'split'|'toPdf', paths: string[] }
+  onLaunch: (callback) => {
+    ipcRenderer.removeAllListeners('shell:launch');
+    ipcRenderer.on('shell:launch', (_event, request) => callback(request));
+  },
+  ready: () => ipcRenderer.send('shell:ready'),
+});
+
 // 画面の見た目を覚える（spec-1-3 確定事項31〜35）。覚えるのはモードと
 // サイドパネルの開閉・幅の3つだけで、サムネイルのスクロール位置のような
 // タブごとの一時的な状態は settings.json に置かない。

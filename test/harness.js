@@ -348,6 +348,10 @@ async function createShell({
   const saveRequestHandlers = [];
   const savePathCalls = [];
   const insertSourceCalls = [];
+  // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
+  // 見たいので、呼ばれた順そのものを控える。
+  const launchHandlers = [];
+  const shellCalls = [];
   let recentList = [...recent];
   let savedUi = structuredClone(ui);
 
@@ -382,6 +386,15 @@ async function createShell({
         insertSourceCalls.push(structuredClone(options ?? {}));
         return insertSourceResults.shift() ?? { canceled: true };
       },
+    };
+    // エクスプローラーからの起動要求（spec-1-6 確定事項77・80）。
+    window.shellAPI = {
+      available: true,
+      onLaunch: (callback) => {
+        shellCalls.push('onLaunch');
+        launchHandlers.push(callback);
+      },
+      ready: () => shellCalls.push('ready'),
     };
     // 重い処理をワーカーへ出す口（spec-1-6 確定事項1〜10）。実際に書くのは
     // メイン側なので、ここは届いた spec と、返す結果だけを扱う。
@@ -481,6 +494,9 @@ async function createShell({
     // pdfAPI.pickSavePath() に届いたオプションの並び。
     savePathCalls,
     insertSourceCalls,
+    shellCalls,
+    // メインから起動要求が届いたことにする。
+    fireLaunch: (request) => launchHandlers.map((handler) => handler(request)),
     // ワーカーからの進捗を流す。
     fireProgress: (progress) => progressHandlers.forEach((handler) => handler(progress)),
     // メニューの「保存」「名前を付けて保存…」から届く合図。
