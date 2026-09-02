@@ -42,6 +42,9 @@
     const button = target.getElementById('btn-save');
     if (button !== null)
       button.setAttribute('aria-disabled', String(!open || isBusy()));
+    // 抽出もワーカーを回すので、保存中は一緒に塞ぐ。押せる・押せないを持つのは
+    // page-edit.js（サイドパネルの操作列の持ち主）である。
+    root.SigK.pageEdit?.syncActions();
   }
 
   function signatureOf(file) {
@@ -71,7 +74,11 @@
   }
 
   // ワーカーを1回だけ回す。呼び出し側は結果を見て、聞き直すかどうかを決める。
-  async function runOnce({ source, target, makeBackup, expect, label }) {
+  //
+  // 抽出（extract.js）もここを通す。走らせる枠は1つしかなく、進捗の帯・中止・
+  // 二重起動の防止を分けて持つと必ずずれるためである（確定事項9）。
+  // pages を省いたら「いまの並び全部」、kind を省いたら保存になる。
+  async function runTask({ source, target, makeBackup, expect, label, pages, kind = 'save' }) {
     const api = root.taskAPI;
     if (api?.available !== true)
       return { error: '保存の機能を使えません。' };
@@ -84,8 +91,9 @@
 
     try {
       return await api.run(taskId, {
+        kind,
         source,
-        pages: viewer().getPlan(),
+        pages: pages ?? viewer().getPlan(),
         ops: [],
         target,
         makeBackup,
@@ -100,7 +108,7 @@
   // 保存の1往復。外部で書き換えられていたら聞き直す（確定事項21）。
   async function writeTo({ source, target, makeBackup, name, label = '保存' }) {
     const file = viewer().getState().file;
-    let result = await runOnce({ source, target, makeBackup, expect: signatureOf(file), label });
+    let result = await runTask({ source, target, makeBackup, expect: signatureOf(file), label });
 
     if (result?.changed === true) {
       const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
@@ -109,7 +117,7 @@
         return { canceled: true };
       }
       // 了承されたので、照合を外してもう一度回す。
-      result = await runOnce({ source, target, makeBackup, expect: null, label });
+      result = await runTask({ source, target, makeBackup, expect: null, label });
     }
 
     if (result?.canceled === true) {
@@ -203,5 +211,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, saveActive, saveAsActive, syncButtons };
+  SigK.save = { init, isBusy, runTask, saveActive, saveAsActive, syncButtons };
 })(typeof window !== 'undefined' ? window : globalThis);

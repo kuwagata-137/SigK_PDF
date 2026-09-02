@@ -16,6 +16,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { applyPlan } = require('./op-pages.js');
+const { extractPages } = require('./op-extract.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
 const { writeDocument } = require('../pdf-write.js');
@@ -65,9 +66,41 @@ function describeSourceReadFailure(error) {
   }
 }
 
+// apply の段。開いた文書をその場で並べ替える（上書き・名前を付けて保存）。
+//
+// ページラベルは applyPlan の**前**に読む。当てたあとでは元の対応が失われる。
+// 作り直しは applyPlan の**あと**で、ページ数が合っていないと最後のラベルが
+// 引き延ばされる。この前後関係は入れ替えられない。
+function applyForSave(doc, pages) {
+  const labelsBefore = readLabels(doc);
+  const applied = applyPlan(doc, pages);
+  if (applied.ok !== true)
+    return applied;
+  rebuildLabels(doc, pages, labelsBefore, TOOLS);
+  // 削除で飛び先を失ったしおりから /Dest と /A を落とす（見出しは残す）。
+  return { ok: true, doc, pages: applied.pages, pruned: pruneDestinations(doc, TOOLS) };
+}
+
+// apply の段。新規文書へ複製する（抽出。確定事項47）。
+//
+// ページラベルは保存と同じ規則で引き継ぐ（確定事項45）。しおりも名前付き宛先も
+// 新しい文書へは来ないので、掃除するものが無い。
+async function applyForExtract(doc, pages) {
+  const labelsBefore = readLabels(doc);
+  const extracted = await extractPages(doc, pages, { PDFDocument });
+  if (extracted.ok !== true)
+    return extracted;
+  rebuildLabels(extracted.doc, pages, labelsBefore, TOOLS);
+  return { ok: true, doc: extracted.doc, pages: extracted.pages, pruned: { outlines: 0, names: 0 } };
+}
+
 // 5段を回す。advance(phase) は段の入り口ごとに1回だけ呼ぶ。
+//
+// kind は 'save'（既定。開いた文書をその場で並べ替える）か 'extract'
+// （選んだページだけを新規文書へ複製する）。違うのは apply の段だけで、
+// 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { source, pages, target, makeBackup = false, expect = null } = spec ?? {};
+  const { kind = 'save', source, pages, target, makeBackup = false, expect = null } = spec ?? {};
   if (typeof source !== 'string' || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
 
@@ -88,20 +121,14 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   }
 
   advance('apply');
-  // ページラベルは applyPlan の**前**に読む。当てたあとでは元の対応が失われる。
-  const labelsBefore = readLabels(doc);
-  const applied = applyPlan(doc, pages);
+  const applied = kind === 'extract' ? await applyForExtract(doc, pages) : applyForSave(doc, pages);
   if (applied.ok !== true)
     return applied;
-  // 作り直しは applyPlan の**あと**。ページ数が合っていないと最後のラベルが引き延ばされる。
-  rebuildLabels(doc, pages, labelsBefore, TOOLS);
-  // 削除で飛び先を失ったしおりから /Dest と /A を落とす（見出しは残す）。
-  const pruned = pruneDestinations(doc, TOOLS);
 
   advance('save');
   let output;
   try {
-    output = await doc.save(SAVE_OPTIONS);
+    output = await applied.doc.save(SAVE_OPTIONS);
   } catch (error) {
     return { error: '保存する内容を組み立てられませんでした。' };
   }
@@ -118,7 +145,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     bytes: written.bytes,
     pages: applied.pages,
     signature: written.signature,
-    pruned,
+    pruned: applied.pruned,
   };
 }
 
@@ -129,7 +156,7 @@ async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   return { ...result, ms: Date.now() - started };
 }
 
-module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, runSave, runTask };
+module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runSave, runTask };
 
 // メッセージの結線。utilityProcess の中でだけ効く。
 if (process.parentPort !== undefined && process.parentPort !== null) {

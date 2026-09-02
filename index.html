@@ -102,7 +102,7 @@ body{
       </div>
       <!-- ページモードの操作（spec-1-5 確定事項50・51）。div ではなく button に
            してある。div のままではフォーカスが当たらず、キーボードから押せない。
-           抽出と挿入は枠だけ置き、結線は塊⑤ で行う。 -->
+           挿入はまだ枠だけで、結線は塊⑤ の後半で行う。 -->
       <div class="side-actions" id="side-actions" hidden>
         <button type="button" class="act" id="act-rotate-left" aria-disabled="true"><span data-icon="rotateLeft" data-icon-size="14" data-icon-stroke="1.9"></span>左回転</button>
         <button type="button" class="act" id="act-rotate-right" aria-disabled="true"><span data-icon="rotateRight" data-icon-size="14" data-icon-stroke="1.9"></span>右回転</button>
@@ -206,6 +206,21 @@ body{
     </div>
   </dialog>
 
+  <!-- 抽出の確認（spec-1-6 確定事項48）。抽出は新規文書へ複製するので、
+       しおり・入力欄・名前付きのリンク先が必ず消える。失うものを先に名指しする
+       のがこのダイアログの役目である。元ファイルは変えないので、既定のフォーカスは
+       「抽出」に置く。 -->
+  <dialog id="confirm-extract">
+    <div class="dlg-head"><span>ページを抽出しますか</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-extract-text">選択したページを別のファイルへ書き出します。</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn" id="confirm-extract-cancel">キャンセル</button>
+      <button type="button" class="dlg-btn primary" id="confirm-extract-ok">抽出</button>
+    </div>
+  </dialog>
+
   <dialog id="confirm-discard">
     <div class="dlg-head"><span>変更を保存しますか</span></div>
     <div class="dlg-body">
@@ -241,7 +256,9 @@ body{
 <script src="renderer/page-edit.js"></script>
 <script src="renderer/confirm-discard.js"></script>
 <script src="renderer/confirm-overwrite.js"></script>
+<script src="renderer/confirm-extract.js"></script>
 <script src="renderer/save.js"></script>
+<script src="renderer/extract.js"></script>
 <script src="renderer/find-text.js"></script>
 <script src="renderer/find.js"></script>
 <script src="renderer/find-bar.js"></script>
