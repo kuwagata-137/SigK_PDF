@@ -17,6 +17,7 @@ const path = require('node:path');
 
 const { applyPlan } = require('./op-pages.js');
 const { extractPages } = require('./op-extract.js');
+const { mergeDocuments } = require('./op-merge.js');
 const { buildPreview, prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
@@ -196,19 +197,97 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   };
 }
 
+// 複数の入力を1つへ結合する（spec-2-1 確定事項22・29〜34）。
+//
+// 5段の名前は保存と同じだが、入力が複数あるので read と apply はファイル単位で
+// 刻む（advance(phase, done, total)）。load は apply の中で1本ずつ行い、複製し
+// 終えた入力から手放す（op-merge.js）。「load」の段は入り口の合図だけを送る。
+//
+// 入力は読むだけなので、退避（.bak）も外部変更の照合も要らない。出力先が入力の
+// 1つと同じ経路はレンダラーが先に断る（確定事項24）。ここは黙って書く。
+async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
+  const { inputs, target } = spec ?? {};
+  if (!Array.isArray(inputs) || inputs.length === 0)
+    return { error: '結合するファイルがありません。' };
+  if (typeof target !== 'string')
+    return { error: '保存先が決まっていません。' };
+  if (inputs.some((input) => typeof input?.path !== 'string'))
+    return { error: '結合するファイルの場所が分かりません。' };
+
+  const nameOf = (input) => input.name ?? path.basename(input.path);
+
+  advance('read', 0, inputs.length);
+  const bytes = [];
+  for (const [index, input] of inputs.entries()) {
+    try {
+      bytes.push(await fsLike.promises.readFile(input.path));
+    } catch (error) {
+      return { error: `「${nameOf(input)}」${describeSourceReadFailure(error)}` };
+    }
+    advance('read', index + 1, inputs.length);
+  }
+
+  advance('load');
+  advance('apply', 0, inputs.length);
+  const entries = inputs.map((input, index) => ({
+    name: nameOf(input),
+    pages: input.pages ?? null,
+    load: async () => {
+      const doc = await PDFDocument.load(bytes[index], LOAD_OPTIONS);
+      bytes[index] = null;
+      return doc;
+    },
+  }));
+  const merged = await mergeDocuments(entries, TOOLS, {
+    describeLoadFailure,
+    onProgress: (done, total) => advance('apply', done, total),
+  });
+  if (merged.ok !== true)
+    return merged;
+
+  advance('save');
+  let output;
+  try {
+    output = await merged.doc.save(SAVE_OPTIONS);
+  } catch (error) {
+    return { error: '結合した内容を組み立てられませんでした。' };
+  }
+
+  advance('write');
+  const written = await writeDocument(target, Buffer.from(output), { makeBackup: false, expect: null, fsLike });
+  if (written.ok !== true)
+    return written;
+
+  return {
+    ok: true,
+    path: written.path,
+    bytes: written.bytes,
+    pages: merged.pages,
+    inputs: inputs.length,
+    labeled: merged.labeled,
+    signature: written.signature,
+  };
+}
+
 // メインへ進捗を送りながら回す。
 //
 // insert-preview だけは5段を回さない。ファイルを書かず、読むのも差し込む元
 // 1本だけなので、進捗を出す間もなく終わる（実測で数ミリ秒）。
 async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   const started = Date.now();
-  const result = spec?.kind === 'insert-preview'
-    ? await runInsertPreview(spec, { fsLike })
-    : await runSave(spec, { fsLike, advance: (phase) => send({ type: 'progress', phase }) });
+  const progress = (phase, done, total) => send(
+    Number.isInteger(done) ? { type: 'progress', phase, done, total } : { type: 'progress', phase });
+  let result;
+  if (spec?.kind === 'insert-preview')
+    result = await runInsertPreview(spec, { fsLike });
+  else if (spec?.kind === 'merge')
+    result = await runMerge(spec, { fsLike, advance: progress });
+  else
+    result = await runSave(spec, { fsLike, advance: progress });
   return { ...result, ms: Date.now() - started };
 }
 
-module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runInsertPreview, runSave, runTask };
+module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runInsertPreview, runSave, runMerge, runTask };
 
 // メッセージの結線。utilityProcess の中でだけ効く。
 if (process.parentPort !== undefined && process.parentPort !== null) {

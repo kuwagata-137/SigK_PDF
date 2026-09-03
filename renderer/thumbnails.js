@@ -155,7 +155,9 @@
     el.list.replaceChildren();
     el.list.hidden = true;
     el.list.style.height = '';
-    el.empty.hidden = false;
+    // ツールモードではサイドパネルをツール一覧が使う（spec-2-1 確定事項1）。
+    // 「文書を開くと…」の案内はそこでは出さない。
+    el.empty.hidden = el.list.ownerDocument.documentElement.getAttribute('data-mode') === 'tools';
   }
 
   // ---- 描画 ----

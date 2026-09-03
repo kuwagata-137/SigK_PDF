@@ -99,6 +99,8 @@ body{
       <div class="side-scroll" id="side-scroll" tabindex="-1">
         <div class="thumbs1" id="thumbs" hidden></div>
         <p class="empty" id="thumbs-empty">文書を開くと<br>ページの一覧が出ます</p>
+        <!-- ツールモードのツール一覧（spec-2-1 確定事項1）。中身は tools.js が組む。 -->
+        <div class="tools-list" id="tools-list" hidden></div>
       </div>
       <!-- ページモードの操作（spec-1-5 確定事項50・51）。div ではなく button に
            してある。div のままではフォーカスが当たらず、キーボードから押せない。
@@ -124,6 +126,31 @@ body{
       <div class="empty" id="view-empty">
         <p id="view-message">文書が開かれていません</p>
         <div id="view-recent" hidden></div>
+      </div>
+      <!-- ツールモードの作業画面（spec-2-1 確定事項2）。#view の上に重ね、
+           ページビューは隠すだけで捨てない。帯（#view-banner）はこの上に出る。 -->
+      <div id="tools-view" hidden>
+        <div class="tool-panel" data-tool="merge">
+          <div class="tools-head">
+            <h2>結合</h2>
+            <span class="hint">上から順に1つの PDF にまとめます。しおりは引き継がれません。</span>
+          </div>
+          <div class="merge-bar">
+            <button type="button" class="act" id="merge-add-open"><span data-icon="plus" data-icon-size="14" data-icon-stroke="2"></span>開いているファイルを追加</button>
+            <button type="button" class="act" id="merge-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
+            <span class="spacer"></span>
+            <button type="button" class="act quiet" id="merge-clear">すべて外す</button>
+          </div>
+          <div class="merge-list" id="merge-list">
+            <div class="merge-cols"><span></span><span>ファイル</span><span>ページ数</span><span>ページ範囲（空欄＝すべて）</span><span></span><span></span><span></span></div>
+            <p class="empty" id="merge-empty">「開いているファイルを追加」か「ファイルを選ぶ…」で、結合する PDF を足してください。<br>PDF をここへドロップしても足せます。</p>
+          </div>
+          <div class="merge-foot">
+            <span class="sum" id="merge-summary"></span>
+            <span class="spacer"></span>
+            <button type="button" class="dlg-btn primary" id="merge-run" aria-disabled="true">実行…</button>
+          </div>
+        </div>
       </div>
       <div id="view-banner" hidden></div>
       <div id="view-drop" hidden aria-hidden="true">
@@ -236,6 +263,20 @@ body{
     </div>
   </dialog>
 
+  <!-- 出力先の同名確認の3択（spec-2-1 確定事項26〜28・docs/04 第7章）。
+       既定のフォーカスは安全側の「中止」。「上書き」だけを danger で塗る。 -->
+  <dialog id="confirm-replace">
+    <div class="dlg-head"><span>同じ名前のファイルがあります</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-replace-text">同じ名前のファイルが既にあります。上書きしますか。</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn" id="confirm-replace-cancel">中止</button>
+      <button type="button" class="dlg-btn" id="confirm-replace-rename">別名で保存…</button>
+      <button type="button" class="dlg-btn danger" id="confirm-replace-ok">上書き</button>
+    </div>
+  </dialog>
+
   <dialog id="confirm-discard">
     <div class="dlg-head"><span>変更を保存しますか</span></div>
     <div class="dlg-body">
@@ -273,6 +314,11 @@ body{
 <script src="renderer/confirm-overwrite.js"></script>
 <script src="renderer/password-prompt.js"></script>
 <script src="renderer/confirm-extract.js"></script>
+<script src="renderer/confirm-replace.js"></script>
+<script src="renderer/page-range.js"></script>
+<script src="renderer/tools.js"></script>
+<script src="renderer/tools-merge.js"></script>
+<script src="renderer/tools-merge-list.js"></script>
 <script src="renderer/save.js"></script>
 <script src="renderer/extract.js"></script>
 <script src="renderer/insert.js"></script>

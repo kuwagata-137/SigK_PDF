@@ -413,6 +413,92 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 #status .spacer{flex:1}
 #status .version{font-variant-numeric:tabular-nums}
 
+/* ── ツールモード（spec-2-1 確定事項1・2・41・42） ─────────── */
+
+/* サイドパネルのツール一覧。ページモードの操作列と同じトークンで組む。 */
+.tools-list{display:flex; flex-direction:column; gap:3px}
+.tools-list[hidden]{display:none}
+.tool-item{
+  display:flex; align-items:center; gap:9px; height:34px; padding:0 10px;
+  border-radius:8px; color:var(--text); cursor:pointer;
+}
+.tool-item:hover{background:var(--surface-2)}
+.tool-item.active{background:var(--select); color:var(--accent); font-weight:600}
+.tool-item .desc{margin-left:auto; font-size:11px; color:var(--muted); font-weight:400}
+
+/* 中央の作業画面。#view-wrap の上に重ね、ページビューは隠すだけで捨てない。 */
+#tools-view{
+  position:absolute; inset:0; z-index:2; background:var(--bg);
+  display:flex; flex-direction:column; min-height:0;
+}
+#tools-view[hidden]{display:none}
+.tool-panel{display:flex; flex-direction:column; flex:1; min-height:0}
+.tool-panel[hidden]{display:none}
+.tools-head{display:flex; align-items:baseline; gap:12px; padding:18px 24px 10px}
+.tools-head h2{margin:0; font-size:16px; font-weight:600}
+.tools-head .hint{color:var(--muted); font-size:12px}
+.merge-bar{display:flex; align-items:center; gap:8px; padding:0 24px 10px}
+.merge-bar .spacer{flex:1}
+.merge-bar .act{padding:0 12px; height:30px}
+.merge-bar .act.quiet{background:transparent; border-color:transparent; color:var(--muted)}
+.merge-bar .act.quiet:hover{background:var(--surface-2); box-shadow:none}
+
+/* 一覧。行 36px（確定事項41）。ドロップの棒を置くため position:relative。 */
+.merge-list{
+  flex:1; min-height:0; overflow:auto; margin:0 24px; position:relative;
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+}
+.merge-cols,.merge-row{
+  display:grid; grid-template-columns:22px 1fr 76px 150px 30px 30px 30px; align-items:center; gap:6px;
+  padding:0 8px 0 6px;
+}
+.merge-cols{
+  height:30px; position:sticky; top:0; z-index:1; background:var(--surface-2); border-bottom:1px solid var(--border);
+  color:var(--muted); font-size:11.5px; letter-spacing:.04em;
+}
+.merge-cols span:nth-child(3){text-align:right}
+.merge-row{min-height:36px; border-bottom:1px solid var(--border)}
+.merge-row:last-of-type{border-bottom:none}
+.merge-row:hover{background:var(--surface-2)}
+.merge-row.dragging{opacity:.4}
+.merge-row .grip{color:var(--border-strong); display:grid; place-items:center; cursor:grab}
+.merge-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.merge-row.blocked .name{color:var(--danger)}
+.merge-row .pages{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
+.merge-row .range{
+  height:26px; padding:0 8px; border:1px solid var(--border-strong); border-radius:6px;
+  background:var(--surface); color:var(--text); font:inherit; width:100%;
+}
+.merge-row .range::placeholder{color:var(--muted)}
+.merge-row .range:focus{outline:2px solid var(--primary); outline-offset:-1px; border-color:transparent}
+.merge-row .range:disabled{background:var(--surface-2); color:var(--muted)}
+.merge-row.invalid .range{border-color:var(--danger); background:rgba(214,69,69,.06)}
+.merge-row .rbtn{
+  width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted); cursor:pointer;
+}
+.merge-row .rbtn:hover{background:var(--surface); box-shadow:var(--shadow-item); color:var(--text)}
+.merge-row .rbtn.danger:hover{color:var(--danger)}
+.merge-row .rbtn[aria-disabled="true"]{opacity:.35; cursor:default}
+.merge-row .rbtn[aria-disabled="true"]:hover{background:transparent; box-shadow:none; color:var(--muted)}
+/* 行の下の注意・誤り（確定事項11・14・20）。2列目から範囲欄の列まで。 */
+.merge-row .note{grid-column:2 / 5; font-size:11.5px; line-height:1.5; margin:-4px 0 6px; color:var(--muted)}
+.merge-row .note[hidden]{display:none}
+.merge-row .note.error{color:var(--danger)}
+#merge-empty{color:var(--muted); font-size:12.5px; padding:36px 0; margin:0}
+#merge-empty[hidden]{display:none}
+.merge-foot{display:flex; align-items:center; gap:12px; padding:12px 24px 18px}
+.merge-foot .sum{color:var(--muted); font-size:12px}
+.merge-foot .spacer{flex:1}
+.merge-foot .dlg-btn{min-width:96px}
+
+/* 同名確認の3択（確定事項27）。既存のダイアログと同じ枠。 */
+#confirm-replace{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(440px, 88vw);
+}
+#confirm-replace::backdrop{background:rgba(16,24,40,.34)}
+
 @media (prefers-reduced-motion: reduce){
   *{transition:none !important; animation:none !important}
 }

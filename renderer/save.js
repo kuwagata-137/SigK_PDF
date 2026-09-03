@@ -39,9 +39,12 @@
     if (target === undefined || target === null)
       return;
     const open = viewer().getState().open;
+    // ツールモードでは押せない（spec-2-1 確定事項4）。保存は文書ではなく画面の話で、
+    // ツールモードの画面には保存するものが無い。
+    const toolsMode = target.documentElement?.getAttribute('data-mode') === 'tools';
     const button = target.getElementById('btn-save');
     if (button !== null)
-      button.setAttribute('aria-disabled', String(!open || isBusy()));
+      button.setAttribute('aria-disabled', String(!open || isBusy() || toolsMode));
     // 抽出もワーカーを回すので、保存中は一緒に塞ぐ。押せる・押せないを持つのは
     // page-edit.js（サイドパネルの操作列の持ち主）である。
     root.SigK.pageEdit?.syncActions();
@@ -87,7 +90,11 @@
   function onProgress(progress) {
     if (state.running === null || progress?.taskId !== state.running.taskId)
       return;
-    banner().show(`${state.running.label}しています（${progress.step}/${progress.total}）`, {
+    // 段の中で進むもの（結合）はファイル単位で出す（spec-2-1 確定事項22）。
+    const count = Number.isInteger(progress.done) && Number.isInteger(progress.of)
+      ? `${progress.done} / ${progress.of} ファイル`
+      : `${progress.step}/${progress.total}`;
+    banner().show(`${state.running.label}しています（${count}）`, {
       autoHideMs: 0,
       tone: 'info',
       action: { label: '中止', onClick: () => root.taskAPI?.cancel(progress.taskId) },
@@ -174,10 +181,18 @@
     return result;
   }
 
+  // ツールモードでは Ctrl+S / Ctrl+Shift+S も効かせない（spec-2-1 確定事項4・5）。
+  // メニューの accelerator はモードを知らないので、ここで止める。
+  function inToolsMode() {
+    return state.doc?.documentElement?.getAttribute('data-mode') === 'tools';
+  }
+
   // 上書き保存（Ctrl+S）。
   async function saveActive() {
     if (isBusy())
       return { error: 'いま保存しています。' };
+    if (inToolsMode())
+      return { error: 'ツールモードでは保存できません。' };
 
     const view = viewer().getState();
     if (!view.open)
@@ -202,6 +217,8 @@
   async function saveAsActive() {
     if (isBusy())
       return { error: 'いま保存しています。' };
+    if (inToolsMode())
+      return { error: 'ツールモードでは保存できません。' };
 
     const view = viewer().getState();
     if (!view.open)

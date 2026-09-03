@@ -63,6 +63,18 @@
       ['rect', { x: 5, y: 8, width: 9, height: 12, rx: 1 }],
     ],
     trash: [['path', { d: 'M5 7h14M10 7V5h4v2M8 7l1 13h6l1-13' }]],
+    // 結合（spec-2-1 確定事項43）。2つの紙が1本の線に合流する。
+    merge: [
+      ['path', { d: 'M5 5h5v5H5zM5 14h5v5H5z' }],
+      ['path', { d: 'M10 7.5h3a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h2M10 16.5h3' }],
+      ['path', { d: 'M17 14l2.5 2.5L17 19' }],
+    ],
+    // 行を掴むつまみ（結合画面の並べ替え）。
+    grip: [
+      ['circle', { cx: 9, cy: 6, r: 1.2 }], ['circle', { cx: 15, cy: 6, r: 1.2 }],
+      ['circle', { cx: 9, cy: 12, r: 1.2 }], ['circle', { cx: 15, cy: 12, r: 1.2 }],
+      ['circle', { cx: 9, cy: 18, r: 1.2 }], ['circle', { cx: 15, cy: 18, r: 1.2 }],
+    ],
     // 挿入。extract（紙を取り出す）と対になる向きにする。
     insert: [
       ['rect', { x: 4, y: 9, width: 16, height: 11, rx: 1 }],

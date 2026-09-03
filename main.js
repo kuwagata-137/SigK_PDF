@@ -314,6 +314,9 @@ function registerIpc() {
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
   ipcMain.handle('pdf:pickSavePath', (_event, options = {}) => fileIo.pickSavePath(mainWindow, options));
   ipcMain.handle('pdf:pickInsertSource', (_event, options = {}) => fileIo.pickInsertSource(mainWindow, options));
+  // 結合の入力の複数選択と、出力先の同名判定（spec-2-1 確定事項9・28）。
+  ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
+  ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
 
   // ワーカーへの委譲（spec-1-6 確定事項1〜10）。進捗は要求元の webContents へ
   // 返す。タスク1本につきプロセスを1つ立てて、終わったら落とすのは
@@ -1083,6 +1086,81 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_MERGE=<a.pdf>;<b.pdf> を付けると、結合の経路を丸ごと1回通す
+  // （spec-2-1 の完了判定10）。出力先は SIGK_SMOKE_MERGE_OUT（省略時は
+  // 先頭の入力と同じフォルダーの _結合.pdf）。
+  //
+  // 保存ダイアログは OS のもので自動では押せない（saveScript と同じ事情）ので、
+  // 画面の「実行」は押さず、同じ spec を SigK.save.runTask へ直接渡す。
+  // 画面側は addFromLaunch で一覧を組み、ページ数が読めて実行できる状態に
+  // なるところまでを見る。あわせて同名確認の3択（confirm-replace）も、
+  // 出力先を先に作っておいて resolveTarget を通し、「上書き」を押して確かめる
+  // （完了判定9。画面から到達する経路は塊②）。
+  const mergeScript = (inputs, target) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    const inputs = ${JSON.stringify(inputs)};
+    const target = ${JSON.stringify(target)};
+
+    await SigK.toolsMerge.addFromLaunch(inputs);
+    await wait(500);
+    const rows = SigK.toolsMerge.rows().map((row) => ({ name: row.name, pageCount: row.pageCount, blocked: row.blocked }));
+    const mode = document.documentElement.getAttribute('data-mode');
+    const canRun = SigK.toolsMerge.canRun();
+    const runDisabled = document.getElementById('merge-run').getAttribute('aria-disabled');
+
+    // 同名確認の3択。出力先はメインが先に作ってある。
+    const asked = SigK.toolsMerge.resolveTarget(target);
+    await wait(200);
+    const dialogOpen = SigK.confirmReplace.isOpen();
+    const focusOnCancel = document.activeElement === document.getElementById('confirm-replace-cancel');
+    document.getElementById('confirm-replace-ok').click();
+    const resolved = await asked;
+
+    const started = Date.now();
+    const pending = SigK.save.runTask({
+      kind: 'merge',
+      label: '結合',
+      inputs: SigK.toolsMerge.rows().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
+      target,
+    });
+    // SIGK_SMOKE_MERGE_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
+    // 1,000ページ×2本なら 2秒ほど掛かるので、少し待ってから押せば途中で止まる。
+    let canceledAt = null;
+    if (${process.env.SIGK_SMOKE_MERGE_CANCEL === '1'}) {
+      await wait(400);
+      const action = document.querySelector('#view-banner .banner-action');
+      if (action) { action.click(); canceledAt = Date.now() - started; }
+    }
+    const result = await pending;
+    const ms = Date.now() - started;
+    await wait(300);
+
+    let opened = null;
+    // SIGK_SMOKE_MERGE_STAY=1 なら結合画面に留まる（スクリーンショットを撮るため）。
+    if (result && result.ok === true && !${process.env.SIGK_SMOKE_MERGE_STAY === '1'}) {
+      const tabsBefore = SigK.tabs.count();
+      await SigK.tabs.openPath(target);
+      await wait(700);
+      SigK.shell.setMode(document, 'view');
+      opened = { tabsBefore, tabsAfter: SigK.tabs.count(), pageCount: SigK.viewer.getState().pageCount };
+    }
+
+    return {
+      rows, mode, canRun, runDisabled,
+      dialogOpen, focusOnCancel, resolved,
+      ok: result ? result.ok === true : false,
+      canceled: result ? result.canceled === true : false,
+      canceledAt,
+      banner: SigK.viewBanner.text(),
+      error: result ? (result.error ?? null) : 'result が無い',
+      pages: result ? (result.pages ?? null) : null,
+      labeled: result ? (result.labeled ?? null) : null,
+      ms,
+      opened,
+    };
+  })()`;
+
   // SIGK_SMOKE_DRAG=<from>-<to> を付けると、サムネイルのドラッグを
   // Chromium の Input.dispatchMouseEvent で再現する（完了判定の未検証項目）。
   // 送るのは mouse 系だが、Chromium は互換のため pointer 系も一緒に発火する。
@@ -1174,6 +1252,7 @@ function installSmokeCheck(win) {
       let print = null;
       let pages = null;
       let save = null;
+      let merge = null;
       let launch = null;
       let drag = null;
       let drop = null;
@@ -1229,6 +1308,19 @@ function installSmokeCheck(win) {
           // 入力そのものを書き換えないよう、複製を作ってそちらを上書きする。
           fs.copyFileSync(path.resolve(saveSource), savePath);
           save = await win.webContents.executeJavaScript(saveScript(savePath));
+        }
+        if (process.env.SIGK_SMOKE_MERGE) {
+          const inputs = process.env.SIGK_SMOKE_MERGE.split(';').map((value) => path.resolve(value.trim())).filter((value) => value !== '');
+          const target = process.env.SIGK_SMOKE_MERGE_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_MERGE_OUT)
+            : inputs[0].replace(/\.pdf$/i, '') + '_結合.pdf';
+          // 同名確認の3択を通すため、出力先を先に空で作っておく。
+          fs.writeFileSync(target, '');
+          merge = await win.webContents.executeJavaScript(mergeScript(inputs, target));
+          merge.target = target;
+          merge.bytesOnDisk = fs.existsSync(target) ? fs.statSync(target).size : null;
+          // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項23）。
+          merge.tempLeft = fs.existsSync(require('./pdf-write.js').tempPathFor(target));
         }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
@@ -1288,6 +1380,7 @@ function installSmokeCheck(win) {
         print,
         pages,
         save,
+        merge,
         launch,
         drag,
         drop,
