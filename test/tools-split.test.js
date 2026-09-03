@@ -270,14 +270,14 @@ test('中止と失敗は帯で伝え、中止では書き出し済みの本数�
   assert.deepEqual(plain(await SigK.toolsSplit.run()), { canceled: true });
   assert.equal(bannerText(shell), '分割を中止しました。');
 
-  // 走っている間に1本目だけ書き終えてから中止された。
+  // 走っている間に1本目だけ書き終えてから中止された。本数は進捗から取る
+  // （出力先の有無で数えると、上書き前からあったファイルまで数える）。
   const running = SigK.toolsSplit.run();
   await shell.flush();
-  shell.existingPaths.push(A_TARGETS[0]);
+  shell.fireProgress({ taskId: shell.taskCalls[1].taskId, phase: 'write', label: 'x', step: 5, total: 5, done: 1, of: 3 });
   release({ canceled: true });
   assert.deepEqual(plain(await running), { canceled: true });
   assert.equal(bannerText(shell), '分割を中止しました。1 ファイルは書き出し済みです。');
-  shell.existingPaths.length = 0;
 
   const failed = await SigK.toolsSplit.run();
   assert.match(failed.error, /2 \/ 3/);

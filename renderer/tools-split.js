@@ -246,9 +246,16 @@
     return finish(result, targets);
   }
 
-  async function finish(result, targets) {
+  // 中止までに書き終えた本数。出力先の有無で数えると、上書きする前から
+  // あったファイルまで数えてしまうので、ワーカーの進捗（write の done）を見る。
+  function writtenBeforeCancel() {
+    const progress = root.SigK.save?.lastProgress?.() ?? null;
+    return progress?.phase === 'write' && Number.isInteger(progress.done) ? progress.done : 0;
+  }
+
+  function finish(result, targets) {
     if (result?.canceled === true) {
-      const written = (await countExisting(targets)).length;
+      const written = writtenBeforeCancel();
       banner().show(written > 0 ? `分割を中止しました。${written} ファイルは書き出し済みです。` : '分割を中止しました。');
       return result;
     }
