@@ -18,6 +18,7 @@ const path = require('node:path');
 const { applyPlan } = require('./op-pages.js');
 const { extractPages } = require('./op-extract.js');
 const { mergeDocuments } = require('./op-merge.js');
+const { splitDocument } = require('./op-split.js');
 const { buildPreview, prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
@@ -269,6 +270,66 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
   };
 }
 
+// 1つの入力を複数へ分ける（spec-2-2 確定事項24〜26・36）。
+//
+// 5段の名前は保存と同じだが、出力が複数あるので **write を part 単位**で刻む
+// （advance('write', done, total)）。apply と save は入り口の合図だけを送る。
+// part ごとに save() → writeDocument を済ませてから次へ進み、書き終えた文書は
+// 手放す（事前調査 A。時間はほぼ writeDocument の回数に比例する）。
+//
+// 入力は読むだけなので退避も照合も要らない。途中で書けなかったら、そこで止めて
+// 書き終えた分は残す（確定事項26）。書きかけの一時ファイルの後始末は
+// task-runner.js が spec.targets で行う。
+async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
+  const { source, parts } = spec ?? {};
+  if (typeof source !== 'string')
+    return { error: '分割するファイルが決まっていません。' };
+  if (!Array.isArray(parts) || parts.length === 0)
+    return { error: '分割するページがありません。' };
+  if (parts.some((part) => typeof part?.target !== 'string'))
+    return { error: '出力先が決まっていません。' };
+
+  advance('read');
+  let bytes;
+  try {
+    bytes = await fsLike.promises.readFile(source);
+  } catch (error) {
+    return { error: describeSourceReadFailure(error) };
+  }
+
+  advance('load');
+  let doc;
+  try {
+    doc = await PDFDocument.load(bytes, LOAD_OPTIONS);
+  } catch (error) {
+    return { error: describeLoadFailure(error) };
+  }
+
+  advance('apply');
+  advance('save');
+  advance('write', 0, parts.length);
+  const targets = parts.map((part) => part.target);
+  const split = await splitDocument(doc, parts.map((part) => part.pages), TOOLS, {
+    onPart: async (index, out) => {
+      let output;
+      try {
+        output = await out.save(SAVE_OPTIONS);
+      } catch (error) {
+        return { error: `${index + 1} / ${parts.length} 本目の内容を組み立てられませんでした。` };
+      }
+      const written = await writeDocument(targets[index], Buffer.from(output), { makeBackup: false, expect: null, fsLike });
+      if (written.ok !== true)
+        return { error: `${index + 1} / ${parts.length} 本目を書けませんでした。${written.error ?? ''}` };
+      return { ok: true };
+    },
+    onProgress: (done, total) => advance('write', done, total),
+  });
+  if (split.ok !== true)
+    return split;
+
+  return { ok: true, written: split.written, targets, pages: split.pages, labeled: split.labeled };
+}
+
 // メインへ進捗を送りながら回す。
 //
 // insert-preview だけは5段を回さない。ファイルを書かず、読むのも差し込む元
@@ -282,12 +343,14 @@ async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
     result = await runInsertPreview(spec, { fsLike });
   else if (spec?.kind === 'merge')
     result = await runMerge(spec, { fsLike, advance: progress });
+  else if (spec?.kind === 'split')
+    result = await runSplit(spec, { fsLike, advance: progress });
   else
     result = await runSave(spec, { fsLike, advance: progress });
   return { ...result, ms: Date.now() - started };
 }
 
-module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runInsertPreview, runSave, runMerge, runTask };
+module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runInsertPreview, runSave, runMerge, runSplit, runTask };
 
 // メッセージの結線。utilityProcess の中でだけ効く。
 if (process.parentPort !== undefined && process.parentPort !== null) {

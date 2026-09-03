@@ -54,6 +54,14 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
     }
   }
 
+  // 出力が複数あるタスク（分割。spec-2-2 確定事項25）は spec.targets に並ぶ。
+  // 消すのは**書きかけの一時ファイルだけ**で、書き終えた出力は残す。
+  async function removeAllLeftovers(spec) {
+    const targets = Array.isArray(spec?.targets) ? spec.targets : [];
+    for (const target of [spec?.target, ...targets])
+      await removeLeftovers(target);
+  }
+
   function isRunning(taskId) {
     return running.has(taskId);
   }
@@ -89,7 +97,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
         try { child.kill(); } catch { /* すでに死んでいることがある */ }
         // 成功以外は書きかけが残り得る。中止でも失敗でも消す。
         if (result.ok !== true)
-          await removeLeftovers(spec?.target);
+          await removeAllLeftovers(spec);
         resolve(result);
       }
 
