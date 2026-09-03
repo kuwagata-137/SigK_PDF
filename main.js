@@ -1118,12 +1118,21 @@ function installSmokeCheck(win) {
     const resolved = await asked;
 
     const started = Date.now();
-    const result = await SigK.save.runTask({
+    const pending = SigK.save.runTask({
       kind: 'merge',
       label: '結合',
       inputs: SigK.toolsMerge.rows().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
       target,
     });
+    // SIGK_SMOKE_MERGE_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
+    // 1,000ページ×2本なら 2秒ほど掛かるので、少し待ってから押せば途中で止まる。
+    let canceledAt = null;
+    if (${process.env.SIGK_SMOKE_MERGE_CANCEL === '1'}) {
+      await wait(400);
+      const action = document.querySelector('#view-banner .banner-action');
+      if (action) { action.click(); canceledAt = Date.now() - started; }
+    }
+    const result = await pending;
     const ms = Date.now() - started;
     await wait(300);
 
@@ -1141,6 +1150,9 @@ function installSmokeCheck(win) {
       rows, mode, canRun, runDisabled,
       dialogOpen, focusOnCancel, resolved,
       ok: result ? result.ok === true : false,
+      canceled: result ? result.canceled === true : false,
+      canceledAt,
+      banner: SigK.viewBanner.text(),
       error: result ? (result.error ?? null) : 'result が無い',
       pages: result ? (result.pages ?? null) : null,
       labeled: result ? (result.labeled ?? null) : null,
@@ -1307,6 +1319,8 @@ function installSmokeCheck(win) {
           merge = await win.webContents.executeJavaScript(mergeScript(inputs, target));
           merge.target = target;
           merge.bytesOnDisk = fs.existsSync(target) ? fs.statSync(target).size : null;
+          // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項23）。
+          merge.tempLeft = fs.existsSync(require('./pdf-write.js').tempPathFor(target));
         }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
