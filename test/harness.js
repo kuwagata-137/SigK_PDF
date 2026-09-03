@@ -322,6 +322,10 @@ async function createShell({
   savePathResults = [],
   // pdfAPI.pickInsertSource() が返すものの並び（spec-1-6 確定事項53）。
   insertSourceResults = [],
+  // pdfAPI.pickMergeSources() が返すものの並びと、pdfAPI.exists() が「ある」と
+  // 答えるパス（spec-2-1）。
+  mergeSourceResults = [],
+  existingPaths = [],
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -348,6 +352,7 @@ async function createShell({
   const saveRequestHandlers = [];
   const savePathCalls = [];
   const insertSourceCalls = [];
+  const mergeSourceCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
   // 見たいので、呼ばれた順そのものを控える。
   const launchHandlers = [];
@@ -386,6 +391,12 @@ async function createShell({
         insertSourceCalls.push(structuredClone(options ?? {}));
         return insertSourceResults.shift() ?? { canceled: true };
       },
+      // 結合の入力の複数選択と、出力先の同名判定（spec-2-1 確定事項9・28）。
+      pickMergeSources: async (options) => {
+        mergeSourceCalls.push(structuredClone(options ?? {}));
+        return mergeSourceResults.shift() ?? { canceled: true };
+      },
+      exists: async (filePath) => ({ ok: true, exists: existingPaths.includes(filePath) }),
     };
     // エクスプローラーからの起動要求（spec-1-6 確定事項77・80）。
     window.shellAPI = {
@@ -494,6 +505,8 @@ async function createShell({
     // pdfAPI.pickSavePath() に届いたオプションの並び。
     savePathCalls,
     insertSourceCalls,
+    // pdfAPI.pickMergeSources() に届いたオプションの並び（spec-2-1）。
+    mergeSourceCalls,
     shellCalls,
     // メインから起動要求が届いたことにする。
     fireLaunch: (request) => launchHandlers.map((handler) => handler(request)),
