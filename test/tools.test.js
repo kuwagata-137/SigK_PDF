@@ -22,6 +22,8 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(doc.getElementById('tools-list').hidden, false);
   assert.equal(doc.getElementById('tools-view').hidden, false);
   assert.equal(doc.getElementById('side-title').textContent, 'ツール');
+  // サイドパネルはツール一覧が使う。「文書を開くと…」の案内は出さない。
+  assert.equal(doc.getElementById('thumbs-empty').hidden, true);
   // 塊① の一覧は「結合」だけで、入った時点で選ばれている（確定事項1・3）。
   const items = [...doc.querySelectorAll('#tools-list .tool-item')];
   assert.deepEqual(items.map((item) => item.dataset.tool), ['merge']);
@@ -33,6 +35,7 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(SigK.tools.isToolsMode(), false);
   assert.equal(doc.getElementById('tools-list').hidden, true);
   assert.equal(doc.getElementById('tools-view').hidden, true);
+  assert.equal(doc.getElementById('thumbs-empty').hidden, false);
 });
 
 test('文書を開いたままツールモードへ入り、戻ると文書はそのまま見える', async (t) => {

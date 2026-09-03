@@ -75,6 +75,11 @@
     const active = isToolsMode();
     el.list.hidden = !active;
     el.view.hidden = !active;
+    // サイドパネルはツール一覧が使う。「文書を開くと…」の案内は、ツールモードでは
+    // 出さず、抜けたときはサムネイルが無ければ戻す。
+    const placeholder = el.doc.getElementById('thumbs-empty');
+    if (placeholder !== null)
+      placeholder.hidden = active || el.doc.getElementById('thumbs')?.hidden === false;
     if (active)
       select(state.selected);
     root.SigK.save?.syncButtons();
