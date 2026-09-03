@@ -491,6 +491,60 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .merge-foot .spacer{flex:1}
 .merge-foot .dlg-btn{min-width:96px}
 
+/* ── 分割画面（spec-2-2 確定事項38） ────────────────────────── */
+/* 対象・分け方・出力の3節。結合画面と同じトークンで、節は一覧と同じ枠に入れる。 */
+.split-body{flex:1; min-height:0; overflow:auto; margin:0 24px; display:flex; flex-direction:column; gap:14px}
+.split-sec{border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:14px 18px 16px; flex:0 0 auto}
+.split-sec h3{margin:0 0 10px; font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.04em}
+.split-target{display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px}
+.split-target .file{display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap}
+.split-target .file[hidden]{display:none}
+.split-target .file .name{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.split-target .file.blocked .name{color:var(--danger)}
+.split-target .file .pages{color:var(--muted); font-variant-numeric:tabular-nums}
+.split-target .file .note{font-size:11.5px; color:var(--muted)}
+.split-target .file .note.error{color:var(--danger)}
+.split-target .file .note[hidden]{display:none}
+#split-empty{margin:0; color:var(--muted); font-size:12.5px; line-height:1.6}
+#split-empty[hidden]{display:none}
+.split-target .btns{display:flex; gap:8px}
+.split-target .btns .act{padding:0 12px; height:30px}
+.split-modes{display:flex; flex-direction:column; gap:10px}
+.split-mode{display:grid; grid-template-columns:20px 170px 1fr; align-items:center; gap:8px; min-height:30px; cursor:default}
+.split-mode input[type="radio"]{margin:0; width:16px; height:16px; accent-color:var(--primary)}
+.split-mode .lbl{font-weight:500}
+.split-mode:not(.on) .lbl,.split-mode:not(.on) .ctl{color:var(--muted)}
+.split-mode .ctl{display:flex; align-items:center; gap:8px; font-size:12px; flex-wrap:wrap}
+.split-mode .ctl .unit{color:var(--muted)}
+.split-mode .ctl .err{color:var(--danger); font-size:11.5px}
+.split-mode .ctl .err[hidden]{display:none}
+.split-inp{
+  height:28px; padding:0 8px; border:1px solid var(--border-strong); border-radius:6px;
+  background:var(--surface); color:var(--text); font:inherit;
+}
+.split-inp.num{width:64px; text-align:right; font-variant-numeric:tabular-nums}
+.split-inp.wide{width:260px}
+.split-inp::placeholder{color:var(--muted)}
+.split-inp:focus{outline:2px solid var(--primary); outline-offset:-1px; border-color:transparent}
+.split-inp:disabled,.split-mode:not(.on) .split-inp{background:var(--surface-2); color:var(--muted)}
+.split-inp.invalid{border-color:var(--danger); background:rgba(214,69,69,.06)}
+.split-out{display:grid; grid-template-columns:120px 1fr; row-gap:12px; column-gap:12px; align-items:center}
+.split-out .k{color:var(--muted); font-size:12px}
+.split-out .folder{display:flex; align-items:center; gap:8px; min-width:0}
+.split-out .folder .path{
+  flex:1; height:28px; padding:0 9px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2);
+  display:flex; align-items:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);
+}
+.split-out .folder .act{padding:0 12px; height:28px}
+.split-out .rules{display:flex; gap:22px; flex-wrap:wrap}
+.split-out .rule{display:flex; align-items:center; gap:7px; cursor:default}
+.split-out .rule input[type="radio"]{margin:0; width:16px; height:16px; accent-color:var(--primary)}
+.split-out .rule code{font-family:Consolas,'Yu Gothic UI',monospace; font-size:12px; color:var(--muted)}
+.split-out .example{font-size:12.5px; line-height:1.6; min-height:20px}
+.split-out .example code{font-family:Consolas,'Yu Gothic UI',monospace; font-size:12px; background:var(--surface-2); padding:1px 6px; border-radius:4px}
+.split-out .example .n{color:var(--muted); margin-left:6px}
+.split-out .example .err{color:var(--danger)}
+
 /* 同名確認の3択（確定事項27）。既存のダイアログと同じ枠。 */
 #confirm-replace{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);

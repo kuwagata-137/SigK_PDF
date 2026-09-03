@@ -34,6 +34,24 @@ test('3つのボタンがそれぞれの答えを返す', async (t) => {
   assert.equal(SigK.confirmReplace.isOpen(), false);
 });
 
+test('同名が複数あるときは、最初の1つと件数で1回だけ聞く（spec-2-2 確定事項22）', async (t) => {
+  const shell = await createShell();
+  t.after(() => shell.cleanup());
+  const { document: doc, SigK } = shell;
+
+  const promise = SigK.confirmReplace.ask({ name: 'a_001.pdf', count: 3 });
+  await shell.flush();
+  assert.equal(doc.getElementById('confirm-replace-text').textContent, '「a_001.pdf」など 3 件のファイルが既にあります。上書きしますか。');
+  doc.getElementById('confirm-replace-ok').click();
+  assert.equal(await promise, 'replace');
+
+  const single = SigK.confirmReplace.ask({ name: 'a_001.pdf', count: 1 });
+  await shell.flush();
+  assert.equal(doc.getElementById('confirm-replace-text').textContent, '「a_001.pdf」は既にあります。上書きしますか。');
+  doc.getElementById('confirm-replace-cancel').click();
+  await single;
+});
+
 test('既定のフォーカスは「中止」にあり、「上書き」だけが danger', async (t) => {
   const shell = await createShell();
   t.after(() => shell.cleanup());

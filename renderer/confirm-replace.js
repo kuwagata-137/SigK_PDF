@@ -35,16 +35,24 @@
     return el !== null && pending !== null;
   }
 
+  // 同名が複数あるとき（分割。spec-2-2 確定事項21・22）は、最初の1つと件数で
+  // 1回だけ聞く。本数ぶん聞かない。
+  function describe(name, count) {
+    if (Number.isInteger(count) && count > 1)
+      return `「${name}」など ${count} 件のファイルが既にあります。上書きしますか。`;
+    return name === null
+      ? '同じ名前のファイルが既にあります。上書きしますか。'
+      : `「${name}」は既にあります。上書きしますか。`;
+  }
+
   // 組み立てられない環境では「中止」を返す。黙って上書きするより安全である。
-  function ask({ name = null } = {}) {
+  function ask({ name = null, count = 1 } = {}) {
     if (el === null)
       return Promise.resolve(CANCEL);
     if (pending !== null)
       return pending.promise;
 
-    el.text.textContent = name === null
-      ? '同じ名前のファイルが既にあります。上書きしますか。'
-      : `「${name}」は既にあります。上書きしますか。`;
+    el.text.textContent = describe(name, count);
 
     pending = Promise.withResolvers();
     if (typeof el.dialog.showModal === 'function')

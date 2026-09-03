@@ -122,12 +122,13 @@ async function pickInsertSource({ dialogLike, parentWindow = null, defaultPath =
   return { path: result.filePaths[0] };
 }
 
-// 結合する PDF をまとめて選ばせる（spec-2-1 確定事項9）。pickPdf は1本しか
-// 返さないので、複数選択の口を別に持つ。選んだ順が戻り値の順である。
-async function pickMergeSources({ dialogLike, parentWindow = null, defaultPath = undefined }) {
+// ツールの入力に PDF を選ばせる。結合は複数、分割は1本（spec-2-1 確定事項9・
+// spec-2-2 確定事項2）。pickPdf は読み込みまで行うので、パスだけを返す口を別に持つ。
+// 選んだ順が戻り値の順である。
+async function pickPdfPaths({ dialogLike, parentWindow = null, defaultPath = undefined, title, multiple = false }) {
   const options = {
-    title: '結合する PDF を選ぶ',
-    properties: ['openFile', 'multiSelections'],
+    title,
+    properties: multiple ? ['openFile', 'multiSelections'] : ['openFile'],
     filters: PDF_FILTERS,
     defaultPath,
   };
@@ -138,6 +139,27 @@ async function pickMergeSources({ dialogLike, parentWindow = null, defaultPath =
   if (result?.canceled === true || !Array.isArray(result?.filePaths) || result.filePaths.length === 0)
     return { canceled: true };
   return { paths: result.filePaths.filter((entry) => typeof entry === 'string' && entry.length > 0) };
+}
+
+function pickMergeSources(options) {
+  return pickPdfPaths({ ...options, title: '結合する PDF を選ぶ', multiple: true });
+}
+
+async function pickSplitSource(options) {
+  const picked = await pickPdfPaths({ ...options, title: '分割する PDF を選ぶ', multiple: false });
+  return picked.canceled === true ? picked : { path: picked.paths[0] };
+}
+
+// 出力フォルダーを選ばせる（spec-2-2 確定事項14）。フィルターは付けない。
+async function pickFolder({ dialogLike, parentWindow = null, defaultPath = undefined, title = '出力フォルダーを選ぶ' }) {
+  const options = { title, properties: ['openDirectory', 'createDirectory'], defaultPath };
+  const result = parentWindow === null
+    ? await dialogLike.showOpenDialog(options)
+    : await dialogLike.showOpenDialog(parentWindow, options);
+
+  if (result?.canceled === true || !Array.isArray(result?.filePaths) || typeof result.filePaths[0] !== 'string' || result.filePaths[0] === '')
+    return { canceled: true };
+  return { path: result.filePaths[0] };
 }
 
 // 出力先に同名があるか（spec-2-1 確定事項28）。3択を出すかどうかを
@@ -198,6 +220,10 @@ function createFileIo({ dialog, onError = () => {} }) {
       pickInsertSource({ dialogLike: dialog, parentWindow, defaultPath }),
     pickMergeSources: (parentWindow = null, { defaultPath } = {}) =>
       pickMergeSources({ dialogLike: dialog, parentWindow, defaultPath }),
+    pickSplitSource: (parentWindow = null, { defaultPath } = {}) =>
+      pickSplitSource({ dialogLike: dialog, parentWindow, defaultPath }),
+    pickFolder: (parentWindow = null, { defaultPath } = {}) =>
+      pickFolder({ dialogLike: dialog, parentWindow, defaultPath }),
     exists: (filePath) => exists(filePath),
   };
 }
@@ -213,7 +239,10 @@ module.exports = {
   readPdf,
   pickPdf,
   pickInsertSource,
+  pickPdfPaths,
   pickMergeSources,
+  pickSplitSource,
+  pickFolder,
   exists,
   pickSavePath,
   createFileIo,

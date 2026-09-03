@@ -326,6 +326,9 @@ async function createShell({
   // 答えるパス（spec-2-1）。
   mergeSourceResults = [],
   existingPaths = [],
+  // pdfAPI.pickSplitSource() / pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
+  splitSourceResults = [],
+  folderResults = [],
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -353,6 +356,10 @@ async function createShell({
   const savePathCalls = [];
   const insertSourceCalls = [];
   const mergeSourceCalls = [];
+  const splitSourceCalls = [];
+  const folderCalls = [];
+  // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
+  const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
   // 見たいので、呼ばれた順そのものを控える。
   const launchHandlers = [];
@@ -397,6 +404,15 @@ async function createShell({
         return mergeSourceResults.shift() ?? { canceled: true };
       },
       exists: async (filePath) => ({ ok: true, exists: existingPaths.includes(filePath) }),
+      // 分割の入力の1本選択と出力フォルダーの選択（spec-2-2 確定事項2・14）。
+      pickSplitSource: async (options) => {
+        splitSourceCalls.push(structuredClone(options ?? {}));
+        return splitSourceResults.shift() ?? { canceled: true };
+      },
+      pickFolder: async (options) => {
+        folderCalls.push(structuredClone(options ?? {}));
+        return folderResults.shift() ?? { canceled: true };
+      },
     };
     // エクスプローラーからの起動要求（spec-1-6 確定事項77・80）。
     window.shellAPI = {
@@ -406,6 +422,10 @@ async function createShell({
         launchHandlers.push(callback);
       },
       ready: () => shellCalls.push('ready'),
+      showInFolder: async (filePath) => {
+        showInFolderCalls.push(filePath);
+        return { ok: true };
+      },
     };
     // 重い処理をワーカーへ出す口（spec-1-6 確定事項1〜10）。実際に書くのは
     // メイン側なので、ここは届いた spec と、返す結果だけを扱う。
@@ -507,6 +527,11 @@ async function createShell({
     insertSourceCalls,
     // pdfAPI.pickMergeSources() に届いたオプションの並び（spec-2-1）。
     mergeSourceCalls,
+    splitSourceCalls,
+    folderCalls,
+    showInFolderCalls,
+    // pdfAPI.exists() が「ある」と答えるパス。テストから足したり消したりできる。
+    existingPaths,
     shellCalls,
     // メインから起動要求が届いたことにする。
     fireLaunch: (request) => launchHandlers.map((handler) => handler(request)),

@@ -58,6 +58,10 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   pickMergeSources: (options) => ipcRenderer.invoke('pdf:pickMergeSources', options),
   // 出力先に同名があるか（spec-2-1 確定事項28）。{ ok, exists }。
   exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
+  // 分割する PDF を1本選ばせる（spec-2-2 確定事項2）。{ path } / { canceled }。
+  pickSplitSource: (options) => ipcRenderer.invoke('pdf:pickSplitSource', options),
+  // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
+  pickFolder: (options) => ipcRenderer.invoke('pdf:pickFolder', options),
 
   // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。
   // レンダラーの keydown には頼らない。viewer-controls.js の handleKey が
@@ -98,6 +102,9 @@ contextBridge.exposeInMainWorld('shellAPI', {
     ipcRenderer.on('shell:launch', (_event, request) => callback(request));
   },
   ready: () => ipcRenderer.send('shell:ready'),
+  // エクスプローラーでそのファイルを選択した状態で開く（spec-2-2 確定事項30）。
+  // { ok }。実在するファイルのときだけ開く。
+  showInFolder: (filePath) => ipcRenderer.invoke('shell:showInFolder', filePath),
 });
 
 // 画面の見た目を覚える（spec-1-3 確定事項31〜35）。覚えるのはモードと

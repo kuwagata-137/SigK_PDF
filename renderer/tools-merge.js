@@ -39,30 +39,12 @@
 
   // ---- ページ数を読む（確定事項14） ----
 
-  // pdf.js で numPages だけ読む。パスワード付きは聞かずに断る（password-prompt.js は
-  // 通さない）。読めたら文書はすぐ手放す。
+  // 読むのは tool-source.js（分割と共用）。文言の続き「外してください」はこちらで足す。
   async function inspect(filePath) {
-    const api = root.pdfAPI;
-    if (api?.available !== true || root.SigK.pdfjs?.available !== true)
-      return { error: 'PDF を読む機能を使えません' };
-    const read = await api.read(filePath);
-    if (read?.error !== undefined)
-      return { error: read.error };
-
-    const task = root.SigK.pdfjs.getDocument({ data: read.bytes });
-    let encrypted = false;
-    task.onPassword = (update) => {
-      encrypted = true;
-      update(new Error('パスワード付きの PDF は結合できません'));
-    };
-    try {
-      const doc = await task.promise;
-      const pageCount = doc.numPages;
-      doc.destroy?.();
-      return { pageCount, name: read.name ?? baseName(filePath) };
-    } catch {
-      return { error: encrypted ? '保存できない PDF です（パスワード付き）。外してください' : 'この PDF を開けません。外してください' };
-    }
+    const info = await root.SigK.toolSource.inspectPdf(filePath);
+    if (info.reason === 'encrypted' || info.reason === 'broken')
+      return { error: `${info.error}。外してください` };
+    return info;
   }
 
   // ---- 足す・外す・並べ替える ----
