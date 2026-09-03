@@ -54,6 +54,10 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   // 保存先を選ばせる（spec-1-6 確定事項25）。{ path } / { canceled }。
   pickSavePath: (options) => ipcRenderer.invoke('pdf:pickSavePath', options),
   pickInsertSource: (options) => ipcRenderer.invoke('pdf:pickInsertSource', options),
+  // 結合する PDF をまとめて選ばせる（spec-2-1 確定事項9）。{ paths } / { canceled }。
+  pickMergeSources: (options) => ipcRenderer.invoke('pdf:pickMergeSources', options),
+  // 出力先に同名があるか（spec-2-1 確定事項28）。{ ok, exists }。
+  exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
 
   // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。
   // レンダラーの keydown には頼らない。viewer-controls.js の handleKey が

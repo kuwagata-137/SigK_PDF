@@ -122,6 +122,37 @@ async function pickInsertSource({ dialogLike, parentWindow = null, defaultPath =
   return { path: result.filePaths[0] };
 }
 
+// 結合する PDF をまとめて選ばせる（spec-2-1 確定事項9）。pickPdf は1本しか
+// 返さないので、複数選択の口を別に持つ。選んだ順が戻り値の順である。
+async function pickMergeSources({ dialogLike, parentWindow = null, defaultPath = undefined }) {
+  const options = {
+    title: '結合する PDF を選ぶ',
+    properties: ['openFile', 'multiSelections'],
+    filters: PDF_FILTERS,
+    defaultPath,
+  };
+  const result = parentWindow === null
+    ? await dialogLike.showOpenDialog(options)
+    : await dialogLike.showOpenDialog(parentWindow, options);
+
+  if (result?.canceled === true || !Array.isArray(result?.filePaths) || result.filePaths.length === 0)
+    return { canceled: true };
+  return { paths: result.filePaths.filter((entry) => typeof entry === 'string' && entry.length > 0) };
+}
+
+// 出力先に同名があるか（spec-2-1 確定事項28）。3択を出すかどうかを
+// レンダラーが実行前に決めるための口で、ワーカーの write は黙って置き換える。
+async function exists(filePath, { fsLike = fs } = {}) {
+  if (typeof filePath !== 'string' || filePath.length === 0)
+    return { ok: true, exists: false };
+  try {
+    await fsLike.promises.access(filePath);
+    return { ok: true, exists: true };
+  } catch {
+    return { ok: true, exists: false };
+  }
+}
+
 // 拡張子を落として保存しようとすることがある。フィルターがあれば OS が足すが、
 // 環境によっては足さないので、こちらでも揃えておく。
 function withPdfExtension(filePath) {
@@ -165,6 +196,9 @@ function createFileIo({ dialog, onError = () => {} }) {
       pickSavePath({ dialogLike: dialog, parentWindow, defaultPath, title }),
     pickInsertSource: (parentWindow = null, { defaultPath } = {}) =>
       pickInsertSource({ dialogLike: dialog, parentWindow, defaultPath }),
+    pickMergeSources: (parentWindow = null, { defaultPath } = {}) =>
+      pickMergeSources({ dialogLike: dialog, parentWindow, defaultPath }),
+    exists: (filePath) => exists(filePath),
   };
 }
 
@@ -179,6 +213,8 @@ module.exports = {
   readPdf,
   pickPdf,
   pickInsertSource,
+  pickMergeSources,
+  exists,
   pickSavePath,
   createFileIo,
 };

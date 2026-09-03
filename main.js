@@ -314,6 +314,9 @@ function registerIpc() {
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
   ipcMain.handle('pdf:pickSavePath', (_event, options = {}) => fileIo.pickSavePath(mainWindow, options));
   ipcMain.handle('pdf:pickInsertSource', (_event, options = {}) => fileIo.pickInsertSource(mainWindow, options));
+  // 結合の入力の複数選択と、出力先の同名判定（spec-2-1 確定事項9・28）。
+  ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
+  ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
 
   // ワーカーへの委譲（spec-1-6 確定事項1〜10）。進捗は要求元の webContents へ
   // 返す。タスク1本につきプロセスを1つ立てて、終わったら落とすのは
