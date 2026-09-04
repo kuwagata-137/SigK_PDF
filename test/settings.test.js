@@ -226,24 +226,27 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 test('pickUi はモードとサイドパネルだけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', sidePanel: { open: false, width: 300 } });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', sidePanel: { open: false, width: 300 } });
 });
 
 // { sidePanel: { open: false } } を送っただけで幅が既定へ戻る、を防ぐ。
 test('mergeUi は入れ子をキー単位で重ねる', () => {
-  const current = { mode: 'view', sidePanel: { open: true, width: 300 } };
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 } };
 
   assert.deepEqual(mergeUi(current, { sidePanel: { open: false } }), {
     mode: 'view',
+    pageLayout: 'single',
     sidePanel: { open: false, width: 300 },
   });
   assert.deepEqual(mergeUi(current, { mode: 'annot' }), {
     mode: 'annot',
+    pageLayout: 'single',
     sidePanel: { open: true, width: 300 },
   });
   // 使えない値は現在値のまま。何も送らなくても壊れない。
   assert.deepEqual(mergeUi(current, { mode: 'zzz', sidePanel: { width: 9999 } }), {
     mode: 'view',
+    pageLayout: 'single',
     sidePanel: { open: true, width: SIDE_PANEL_MAX },
   });
   assert.deepEqual(mergeUi(current, null), current);
@@ -265,4 +268,28 @@ test('サイドパネルの上下限が renderer/shell.js と一致する', () =
   assert.equal(SIDE_PANEL_MIN, globalThis.SigK.shell.SIDE_PANEL_MIN);
   assert.equal(SIDE_PANEL_MAX, globalThis.SigK.shell.SIDE_PANEL_MAX);
   assert.equal(clampSidePanelWidth(9999), globalThis.SigK.shell.clampSidePanelWidth(9999));
+});
+
+// ---- 見開きの永続化（spec-2-3 確定事項5） ----
+
+test('pageLayout は single が既定で、不正な値は既定へ落ちる', () => {
+  assert.equal(DEFAULTS.pageLayout, 'single');
+  assert.deepEqual(require('../settings.js').PAGE_LAYOUTS, ['single', 'facing']);
+  assert.equal(mergeDefaults({ pageLayout: 'facing' }).pageLayout, 'facing');
+  assert.equal(mergeDefaults({ pageLayout: 'double' }).pageLayout, 'single');
+  assert.equal(mergeDefaults({ pageLayout: 1 }).pageLayout, 'single');
+  assert.equal(mergeDefaults({}).pageLayout, 'single');
+});
+
+test('pickUi と mergeUi は pageLayout を運ぶ', () => {
+  const ui = pickUi(mergeDefaults({ mode: 'view', pageLayout: 'facing', sidePanel: { open: true, width: 240 } }));
+  assert.equal(ui.pageLayout, 'facing');
+
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 } };
+  assert.equal(mergeUi(current, { pageLayout: 'facing' }).pageLayout, 'facing');
+  // ほかのキーだけの更新では変わらない。使えない値も現在値のまま。
+  assert.equal(mergeUi(current, { mode: 'pages' }).pageLayout, 'single');
+  assert.equal(mergeUi(current, { pageLayout: 'zzz' }).pageLayout, 'single');
+  // 古い settings.json（pageLayout が無い）から来た current でも落ちない。
+  assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).pageLayout, 'single');
 });

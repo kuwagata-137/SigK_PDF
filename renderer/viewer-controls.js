@@ -5,7 +5,7 @@
   // viewer.js は「文書とページ」、ここは「操作と表示」を持つ。
 
   // 文書が開いていないと押せないもの。開くボタンだけは常に押せる。
-  const DOCUMENT_CONTROLS = ['pager', 'zoom', 'btn-fit-width', 'btn-fit-page', 'btn-find', 'btn-print'];
+  const DOCUMENT_CONTROLS = ['pager', 'zoom', 'btn-fit-width', 'btn-fit-page', 'btn-facing', 'btn-find', 'btn-print'];
 
   function viewer() {
     return root.SigK.viewer;
@@ -40,6 +40,10 @@
       if (node !== null)
         node.classList.toggle('active', state.open && state.fit === mode);
     }
+    // 見開きも押しっぱなしの状態を持つ（spec-2-3 確定事項1）。
+    const facing = doc.getElementById('btn-facing');
+    if (facing !== null)
+      facing.classList.toggle('active', state.open && state.facing === true);
   }
 
   function syncAll(doc, state) {
@@ -234,6 +238,10 @@
     bindClick(doc, 'zoom-out', () => viewer().zoomOut());
     bindClick(doc, 'btn-fit-width', () => viewer().applyFit('width'));
     bindClick(doc, 'btn-fit-page', () => viewer().applyFit('page'));
+    // 状態の持ち主は shell.js（覚えるのもそちら。spec-2-3 確定事項3）。
+    bindClick(doc, 'btn-facing', () => {
+      root.SigK.shell.setPageLayout(doc, viewer().getState().facing === true ? 'single' : 'facing');
+    });
 
     const input = doc.getElementById('page-current');
     if (input !== null) {

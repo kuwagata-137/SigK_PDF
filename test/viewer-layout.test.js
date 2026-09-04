@@ -351,3 +351,141 @@ test('多列の返り値でも visibleRange と currentPageIndex が動く', () 
   assert.ok(range.last >= 2, '同じ行の3枚が可視範囲に入っていない');
   assert.equal(layout.currentPageIndex({ pages, scrollTop: pages[3].top, viewportHeight: 200 }), 3);
 });
+
+// ---- 見開き（spec-2-3 確定事項7〜20） ----
+
+const LANDSCAPE = { width: A4.height, height: A4.width };
+
+// 単ページの返り値は塊③ の前と完全に同じであること（回帰）。
+test('facing を渡さなければ layoutPages の結果は従来どおり', () => {
+  const sizes = [A4, A5, LANDSCAPE];
+  const before = layout.layoutPages({ sizes, zoom: 1 });
+  const explicit = layout.layoutPages({ sizes, zoom: 1, facing: false });
+
+  assert.deepEqual(explicit, before);
+  // 縦1列・中央寄せのまま。いちばん広い横向きのページが器の幅になる。
+  assert.equal(before.contentWidth, before.pages[2].width);
+  assert.deepEqual(
+    before.pages.map((page) => page.left),
+    before.pages.map((page) => Math.round((before.contentWidth - page.width) / 2)),
+  );
+  assert.equal(before.pages[1].top, before.pages[0].top + before.pages[0].height + layout.PAGE_GAP);
+});
+
+test('見開きでは 1-2, 3-4 が同じ高さに並び、左右に振り分けられる（確定事項7・9・10）', () => {
+  const { pages, contentWidth, totalHeight } = layout.layoutPages({ sizes: [A4, A4, A4, A4], zoom: 1 });
+  const facing = layout.layoutPages({ sizes: [A4, A4, A4, A4], zoom: 1, facing: true });
+  const [p1, p2, p3, p4] = facing.pages;
+
+  assert.equal(p1.top, layout.PAGE_MARGIN);
+  assert.equal(p2.top, p1.top, '組の2枚は同じ top');
+  assert.equal(p1.left, 0);
+  assert.equal(p2.left, p1.width + layout.FACING_GAP);
+  assert.equal(facing.contentWidth, p1.width + layout.FACING_GAP + p2.width);
+  // 2行目は1行ぶん下がる。
+  assert.equal(p3.top, p1.top + p1.height + layout.PAGE_GAP);
+  assert.equal(p4.top, p3.top);
+  assert.equal(p3.left, 0);
+  assert.equal(p4.left, p2.left);
+  // 2行ぶんの総高さ。4ページぶんではない。
+  assert.equal(facing.totalHeight, p3.top + p3.height + layout.PAGE_MARGIN);
+  assert.ok(facing.totalHeight < totalHeight);
+  assert.ok(facing.contentWidth > contentWidth);
+  assert.equal(pages.length, facing.pages.length);
+});
+
+test('見開きで奇数の末尾は左に単独で置く（確定事項7）', () => {
+  const { pages, contentWidth } = layout.layoutPages({ sizes: [A4, A4, A4], zoom: 1, facing: true });
+
+  assert.equal(pages[2].left, 0);
+  assert.equal(pages[2].top, pages[0].top + pages[0].height + layout.PAGE_GAP);
+  // 器の幅は2枚ぶんのまま。末尾だけ狭くならない。
+  assert.equal(contentWidth, pages[0].width + layout.FACING_GAP + pages[1].width);
+});
+
+test('見開きで行の高さは組の高いほうに合わせ、上揃えにする（確定事項9）', () => {
+  const { pages } = layout.layoutPages({ sizes: [LANDSCAPE, A4, A4, A4], zoom: 1, facing: true });
+
+  assert.ok(pages[0].height < pages[1].height, '横向きのほうが低くなっていない');
+  assert.equal(pages[0].top, pages[1].top);
+  assert.equal(pages[2].top, pages[1].top + pages[1].height + layout.PAGE_GAP);
+});
+
+test('見開きで幅の違うページが混ざっても綴じ目が一直線に通る（確定事項10）', () => {
+  const { pages, contentWidth } = layout.layoutPages({ sizes: [A5, A4, A4, A5], zoom: 1, facing: true });
+  const leftHalf = Math.max(pages[0].width, pages[2].width);
+  const rightHalf = Math.max(pages[1].width, pages[3].width);
+
+  // 左ページは綴じ目へ右寄せ。狭い A5 は右端が A4 と揃う。
+  assert.equal(pages[0].left + pages[0].width, leftHalf);
+  assert.equal(pages[2].left + pages[2].width, leftHalf);
+  // 右ページは綴じ目から左寄せ。
+  assert.equal(pages[1].left, leftHalf + layout.FACING_GAP);
+  assert.equal(pages[3].left, leftHalf + layout.FACING_GAP);
+  assert.equal(contentWidth, leftHalf + layout.FACING_GAP + rightHalf);
+});
+
+test('見開きでも1ページの文書は器に余白を作らない（確定事項10）', () => {
+  const { pages, contentWidth } = layout.layoutPages({ sizes: [A4], zoom: 1, facing: true });
+
+  assert.equal(pages[0].left, 0);
+  assert.equal(contentWidth, pages[0].width);
+  assert.deepEqual(layout.layoutPages({ sizes: [], zoom: 1, facing: true }).pages, []);
+});
+
+test('見開きの返り値でも visibleRange と scrollTopForPage が動く', () => {
+  const { pages } = layout.layoutPages({ sizes: [A4, A4, A4, A4], zoom: 1, facing: true });
+  const range = layout.visibleRange({ pages, scrollTop: 0, viewportHeight: 300 });
+
+  // 同じ行の2枚はまとめて見える。
+  assert.deepEqual(range, { first: 0, last: 1 });
+  // 右ページを指定しても組の先頭（行の上端）へ飛ぶ。
+  assert.equal(layout.scrollTopForPage({ pages, index: 3 }), layout.scrollTopForPage({ pages, index: 2 }));
+  // 同じ行なら若い番号（左）が現在ページになる。補正は page-render 側で行う（確定事項13）。
+  assert.equal(layout.currentPageIndex({ pages, scrollTop: 0, viewportHeight: 300 }), 0);
+});
+
+test('spreadStart は組の先頭を返す（確定事項14）', () => {
+  assert.equal(layout.spreadStart(0, true), 0);
+  assert.equal(layout.spreadStart(1, true), 0);
+  assert.equal(layout.spreadStart(2, true), 2);
+  assert.equal(layout.spreadStart(5, true), 4);
+  // 単ページではそのページ自身。
+  assert.equal(layout.spreadStart(5, false), 5);
+  assert.equal(layout.spreadStart(5), 5);
+});
+
+test('spreadSize は組の2枚ぶんの寸法を返す（確定事項18〜20）', () => {
+  const sizes = [A4, A5, LANDSCAPE];
+
+  // 単ページではそのページの寸法。
+  assert.deepEqual(layout.spreadSize(sizes, 1, false), A5);
+  // 見開きでは幅の和と高さの最大。右ページを指しても同じ組の寸法になる。
+  assert.deepEqual(layout.spreadSize(sizes, 0, true), { width: A4.width + A5.width, height: Math.max(A4.height, A5.height) });
+  assert.deepEqual(layout.spreadSize(sizes, 1, true), layout.spreadSize(sizes, 0, true));
+  // 末尾の単独ページは幅を2倍して見なす。送るたびに倍率が跳ねないため。
+  assert.deepEqual(layout.spreadSize(sizes, 2, true), { width: LANDSCAPE.width * 2, height: LANDSCAPE.height });
+  assert.deepEqual(layout.spreadSize([], 0, true), { width: 0, height: 0 });
+});
+
+test('fitWidthZoom / fitPageZoom は gap を引いてから合わせる（確定事項18・19）', () => {
+  const single = layout.fitWidthZoom({ pageWidth: A4.width, viewportWidth: 900 });
+  const spread = layout.fitWidthZoom({ pageWidth: A4.width * 2, viewportWidth: 900, gap: layout.FACING_GAP });
+  const drawn = A4.width * 2 * spread * layout.CSS_UNITS;
+
+  assert.equal(Math.round(drawn), 900 - layout.SIDE_MARGIN * 2 - layout.FACING_GAP);
+  assert.ok(spread < single / 2, '2枚＋間隔ぶん小さくなっていない');
+  // gap を渡さなければ従来どおり。
+  assert.equal(layout.fitWidthZoom({ pageWidth: A4.width, viewportWidth: 900, gap: 0 }), single);
+
+  const byPage = layout.fitPageZoom({
+    pageWidth: A4.width * 2, pageHeight: A4.height, viewportWidth: 900, viewportHeight: 700, gap: layout.FACING_GAP,
+  });
+  assert.ok(byPage <= spread);
+  assert.ok(A4.height * byPage * layout.CSS_UNITS <= 700);
+});
+
+test('renderTargets は見開きの先読み 2 でも同じ規則で動く（確定事項12）', () => {
+  assert.equal(layout.FACING_AHEAD, 2);
+  assert.deepEqual(layout.renderTargets({ count: 10, first: 2, last: 3, current: 2, ahead: layout.FACING_AHEAD }), [0, 1, 2, 3, 4, 5]);
+});

@@ -5,6 +5,9 @@
 
   const MODES = ['view', 'pages', 'annot', 'tools'];
   const MODE_TITLES = { view: 'サムネイル', pages: 'ページ', annot: '注釈', tools: 'ツール' };
+  // ページの並べ方（spec-2-3 確定事項3・5）。settings.js の PAGE_LAYOUTS と同じ
+  // 並びであること。プロセスが違うので import はできない。test/shell.test.js が見張る。
+  const PAGE_LAYOUTS = ['single', 'facing'];
   const SIDE_PANEL_MIN = 180;
   const SIDE_PANEL_MAX = 420;
 
@@ -100,8 +103,20 @@
     return width;
   }
 
+  // 単ページ／見開きの切り替え（spec-2-3 確定事項3）。状態の持ち主はここで、
+  // 配置はビューアに任せる。アプリ全体の設定なので、文書が無くても当たる
+  // （起動時の復元がそれである）。
+  function setPageLayout(doc, layout) {
+    if (!PAGE_LAYOUTS.includes(layout))
+      return false;
+    doc.documentElement.setAttribute('data-layout', layout);
+    root.SigK.viewer?.setFacing(layout === 'facing');
+    persist({ pageLayout: layout });
+    return true;
+  }
+
   // 保存してあった見た目を当てる。当てる操作そのものは覚え直さない。
-  function applyUi(doc, { mode, panelOpen, sidePanelWidth: width } = {}) {
+  function applyUi(doc, { mode, panelOpen, sidePanelWidth: width, pageLayout } = {}) {
     restoring = true;
     try {
       if (isValidMode(mode))
@@ -110,6 +125,8 @@
         setSidePanelOpen(doc, panelOpen);
       if (Number.isFinite(width))
         setSidePanelWidth(doc, width);
+      if (PAGE_LAYOUTS.includes(pageLayout))
+        setPageLayout(doc, pageLayout);
     } finally {
       restoring = false;
     }
@@ -148,7 +165,7 @@
       return false;
     doc.documentElement.dataset.shellReady = 'true';
 
-    applyUi(doc, { mode: 'view', panelOpen: true, sidePanelWidth: 240, ...ui });
+    applyUi(doc, { mode: 'view', panelOpen: true, sidePanelWidth: 240, pageLayout: 'single', ...ui });
 
     for (const item of doc.querySelectorAll('.rail-item'))
       item.addEventListener('click', () => setMode(doc, item.dataset.mode));
@@ -194,6 +211,7 @@
   SigK.shell = {
     MODES,
     MODE_TITLES,
+    PAGE_LAYOUTS,
     SIDE_PANEL_MIN,
     SIDE_PANEL_MAX,
     isValidMode,
@@ -202,6 +220,7 @@
     setMode,
     setSidePanelOpen,
     setSidePanelWidth,
+    setPageLayout,
     applyUi,
     setStatus,
     init,
