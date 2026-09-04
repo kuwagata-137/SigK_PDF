@@ -174,7 +174,11 @@
       const range = layout().visibleRange({ pages, scrollTop, viewportHeight });
       const current = layout().currentPageIndex({ pages, scrollTop, viewportHeight });
 
-      if (current !== state.current) {
+      // 見開きでは同じ組なら現在ページを保つ（spec-2-3 確定事項13）。
+      // currentPageIndex は同じ行なら左を採るので、番号入力・サムネイル・検索で
+      // 右ページを指定した直後に、左の番号へ戻ってしまうのを防ぐ。
+      const spreadStart = (index) => layout().spreadStart(index, state.facing);
+      if (spreadStart(current) !== spreadStart(state.current)) {
         state.current = current;
         ctx.syncPage();
       }
@@ -183,7 +187,9 @@
         count: pages.length,
         first: range.first,
         last: range.last,
-        current,
+        current: state.current,
+        // 見開きでは1行に2枚出るので、先読みも2枚にする（確定事項12）。
+        ahead: state.facing ? layout().FACING_AHEAD : layout().RENDER_AHEAD,
       });
 
       for (const index of [...state.rendered.keys()]) {

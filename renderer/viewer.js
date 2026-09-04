@@ -45,6 +45,9 @@
     layout: { pages: [], contentWidth: 0, totalHeight: 0 },
     zoom: 1,
     fit: 'width',
+    // 見開き（spec-2-3）。持ち主は shell.js（覚えるのもそちら）で、ここは配置
+    // だけを担う。文書に属さないので detach()／attach() では持ち出さない。
+    facing: false,
     current: 0,
     rendered: new Map(),
     // 文書やズームが変わったら、飛んでいる描画をすべて捨てるための世代番号。
@@ -92,6 +95,7 @@
       current: state.current,
       zoom: state.zoom,
       fit: state.fit,
+      facing: state.facing,
       contentWidth: state.layout.contentWidth,
       totalHeight: state.layout.totalHeight,
       rendered: [...state.rendered.keys()].sort((a, b) => a - b),
@@ -313,7 +317,7 @@
   }
 
   function applyLayout() {
-    const next = layout().layoutPages({ sizes: state.sizes, zoom: state.zoom });
+    const next = layout().layoutPages({ sizes: state.sizes, zoom: state.zoom, facing: state.facing });
     state.layout = next;
     el.pages.style.width = `${next.contentWidth}px`;
     el.pages.style.height = `${next.totalHeight}px`;
@@ -350,19 +354,47 @@
     return state.zoom;
   }
 
+  // 見開きでは組の2枚ぶん（幅の和・高さの最大）に合わせる（spec-2-3 確定事項18〜20）。
   function fitZoomFor(mode) {
-    const size = state.sizes[state.current] ?? state.sizes[0];
-    if (size === undefined)
+    if (state.sizes.length === 0)
       return state.zoom;
+    const size = layout().spreadSize(state.sizes, state.current, state.facing);
+    const gap = state.facing ? layout().FACING_GAP : 0;
     const viewportWidth = el.view.clientWidth;
     const viewportHeight = el.view.clientHeight;
     if (mode === 'page')
-      return layout().fitPageZoom({ pageWidth: size.width, pageHeight: size.height, viewportWidth, viewportHeight });
-    return layout().fitWidthZoom({ pageWidth: size.width, viewportWidth });
+      return layout().fitPageZoom({ pageWidth: size.width, pageHeight: size.height, viewportWidth, viewportHeight, gap });
+    return layout().fitWidthZoom({ pageWidth: size.width, viewportWidth, gap });
   }
 
   function applyFit(mode) {
     return setZoom(fitZoomFor(mode), { fit: mode });
+  }
+
+  // 単ページ／見開きの切り替え（spec-2-3 確定事項3・4）。呼ぶのは shell.js で、
+  // 覚えるのもそちらである。現在ページを保ったまま配置し直し、追従中なら
+  // 倍率も計算し直す（2枚に合わせるので約半分になる）。
+  function setFacing(on) {
+    const next = on === true;
+    if (next === state.facing)
+      return state.facing;
+    state.facing = next;
+
+    if (state.doc !== null) {
+      const zoom = state.fit === null ? state.zoom : layout().clampZoom(fitZoomFor(state.fit));
+      if (zoom !== state.zoom) {
+        // 倍率が変われば canvas の解像度も変わる。飛んでいる描画ごと捨てる。
+        state.zoom = zoom;
+        state.token += 1;
+        render.releaseAll();
+      }
+      applyLayout();
+      goToPage(state.current);
+    }
+    if (el !== null)
+      controls()?.syncAll(el.doc, getState());
+    render.scheduleUpdate();
+    return state.facing;
   }
 
   // ウィンドウやサイドパネルの幅が変わったとき、追従中だけ計算し直す。
@@ -741,12 +773,16 @@
     setZoom,
     applyFit,
     refit,
+    setFacing,
+    isFacing: () => state.facing,
     goToPage,
     zoomIn: () => setZoom(layout().nextZoom(state.zoom)),
     zoomOut: () => setZoom(layout().prevZoom(state.zoom)),
     actualSize: () => setZoom(1),
-    nextPage: () => goToPage(state.current + 1),
-    prevPage: () => goToPage(state.current - 1),
+    // 見開きでは組の単位（2ページ）で動く（spec-2-3 確定事項15）。右ページに
+    // いても組の先頭から数える。
+    nextPage: () => goToPage(layout().spreadStart(state.current, state.facing) + (state.facing ? 2 : 1)),
+    prevPage: () => goToPage(layout().spreadStart(state.current, state.facing) - (state.facing ? 2 : 1)),
     firstPage: () => goToPage(0),
     lastPage: () => goToPage(state.sizes.length - 1),
   };

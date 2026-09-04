@@ -45,6 +45,8 @@
         mode: result.ui.mode,
         panelOpen: result.ui.sidePanel.open,
         sidePanelWidth: result.ui.sidePanel.width,
+        // 見開き（spec-2-3 確定事項5）。古い settings.json には無いことがある。
+        pageLayout: result.ui.pageLayout,
       });
       return result.ui;
     } catch {

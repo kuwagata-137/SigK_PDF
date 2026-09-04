@@ -38,7 +38,7 @@ const DEFAULT_VIEWPORT = { width: 900, height: 700 };
 const DEFAULT_SIDE = { width: 240, height: 600 };
 
 // 前回の見た目。settings.json に入っているものと同じ形にする。
-const DEFAULT_UI = { mode: 'view', sidePanel: { open: true, width: 240 } };
+const DEFAULT_UI = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 } };
 
 const A4 = { width: 595.28, height: 841.89 };
 
@@ -448,6 +448,8 @@ async function createShell({
         uiCalls.push(structuredClone(patch));
         savedUi = {
           mode: patch?.mode ?? savedUi.mode,
+          // 見開きの選択（spec-2-3 確定事項5）。
+          pageLayout: patch?.pageLayout ?? savedUi.pageLayout,
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
         };
         return { ok: true, ui: structuredClone(savedUi) };

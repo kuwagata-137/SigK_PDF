@@ -30,6 +30,11 @@
       ['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }],
       ['path', { d: 'M9 9h6v6H9z' }],
     ],
+    // 見開き（spec-2-3 確定事項28）。2枚の紙が横に並ぶ。
+    facing: [
+      ['rect', { x: 3, y: 5, width: 8.5, height: 14, rx: 1.2 }],
+      ['rect', { x: 12.5, y: 5, width: 8.5, height: 14, rx: 1.2 }],
+    ],
     modeView: [
       ['rect', { x: 5, y: 3, width: 14, height: 18, rx: 1.5 }],
       ['path', { d: 'M9 8h6M9 12h6M9 16h4' }],

@@ -15,12 +15,17 @@ const DEFAULTS = {
   window: { width: DEFAULT_WINDOW.width, height: DEFAULT_WINDOW.height, x: null, y: null, maximized: false },
   sidePanel: { open: true, width: 240 },
   mode: 'view',
+  // 閲覧モードのページの並べ方（spec-2-3 確定事項5）。'single' が縦1列、
+  // 'facing' が見開き。アプリ全体の設定で、文書ごとには持たない。
+  pageLayout: 'single',
   recent: [],
 };
 
 // ツールレールの4つのモード。renderer/shell.js の MODES と同じ並びであること。
 // プロセスが違うので import はできない。test/settings.test.js が一致を見張る。
 const UI_MODES = ['view', 'pages', 'annot', 'tools'];
+// ページの並べ方。renderer/shell.js の PAGE_LAYOUTS と同じ並びであること。
+const PAGE_LAYOUTS = ['single', 'facing'];
 
 const SIDE_PANEL_MIN = 180;
 const SIDE_PANEL_MAX = 420;
@@ -65,6 +70,7 @@ function mergeDefaults(raw) {
       width: clampSidePanelWidth(pickNumber(sidePanel.width, DEFAULTS.sidePanel.width)),
     },
     mode: isValidMode(raw.mode) ? raw.mode : DEFAULTS.mode,
+    pageLayout: isValidPageLayout(raw.pageLayout) ? raw.pageLayout : DEFAULTS.pageLayout,
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
   };
@@ -74,11 +80,16 @@ function isValidMode(mode) {
   return UI_MODES.includes(mode);
 }
 
+function isValidPageLayout(layout) {
+  return PAGE_LAYOUTS.includes(layout);
+}
+
 // 画面の見た目に関する設定だけを取り出す。レンダラーへ渡すのはこの3つで、
-// ウィンドウの位置や履歴は渡さない（spec-1-3 確定事項33）。
+// ウィンドウの位置や履歴は渡さない（spec-1-3 確定事項33、spec-2-3 確定事項5）。
 function pickUi(settings) {
   return {
     mode: settings.mode,
+    pageLayout: settings.pageLayout,
     sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
   };
 }
@@ -90,6 +101,10 @@ function mergeUi(current, patch) {
   const sidePanel = isPlainObject(next.sidePanel) ? next.sidePanel : {};
   return {
     mode: isValidMode(next.mode) ? next.mode : current.mode,
+    // 古い settings.json から来た current には無いことがある。既定へ落とす。
+    pageLayout: isValidPageLayout(next.pageLayout)
+      ? next.pageLayout
+      : (isValidPageLayout(current.pageLayout) ? current.pageLayout : DEFAULTS.pageLayout),
     sidePanel: {
       open: pickBoolean(sidePanel.open, current.sidePanel.open),
       width: clampSidePanelWidth(pickNumber(sidePanel.width, current.sidePanel.width)),
@@ -220,9 +235,11 @@ function createSettingsStore({ dir, fileName = 'settings.json', onError = () => 
 module.exports = {
   DEFAULTS,
   UI_MODES,
+  PAGE_LAYOUTS,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,
   isValidMode,
+  isValidPageLayout,
   pickUi,
   mergeUi,
   mergeDefaults,

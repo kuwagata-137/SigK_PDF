@@ -24,6 +24,12 @@
   const MAX_RENDERED = 8;
   const MAX_CANVAS_SCALE = 3;
 
+  // 見開き（spec-2-3 確定事項11・12）。組の2枚の間隔は縦の間隔と同じにする。
+  // モックで見て、詰めなくても組として読めると判断した。先読みは 1 だと隣の行の
+  // 半分しか用意しないので 2 にする。上限（MAX_RENDERED）は変えない。
+  const FACING_GAP = PAGE_GAP;
+  const FACING_AHEAD = 2;
+
   // サムネイル（spec-1-3 確定事項3・6・7）。shell.css の .thumbs1 / .thumb / .cap と
   // 同じ値にする。片方だけ変えると、可視範囲の判定が実際の描画とずれる。
   const THUMB_GAP = 10;      // .thumbs1 の gap
@@ -72,39 +78,97 @@
     return [...ZOOM_STEPS].reverse().find((step) => step < current - 1e-6) ?? MIN_ZOOM;
   }
 
-  function fitWidthZoom({ pageWidth, viewportWidth }) {
+  // gap は見開きで2枚の間に入る間隔（CSS px）。pageWidth に2枚の幅の和を渡し、
+  // 間隔ぶんを先に引いてから合わせる（spec-2-3 確定事項18）。
+  function fitWidthZoom({ pageWidth, viewportWidth, gap = 0 }) {
     if (!(pageWidth > 0) || !(viewportWidth > 0))
       return 1;
-    return clampZoom((viewportWidth - SIDE_MARGIN * 2) / (pageWidth * CSS_UNITS));
+    return clampZoom((viewportWidth - SIDE_MARGIN * 2 - gap) / (pageWidth * CSS_UNITS));
   }
 
-  function fitPageZoom({ pageWidth, pageHeight, viewportWidth, viewportHeight }) {
+  function fitPageZoom({ pageWidth, pageHeight, viewportWidth, viewportHeight, gap = 0 }) {
     if (!(pageHeight > 0) || !(viewportHeight > 0))
-      return fitWidthZoom({ pageWidth, viewportWidth });
-    const byWidth = fitWidthZoom({ pageWidth, viewportWidth });
+      return fitWidthZoom({ pageWidth, viewportWidth, gap });
+    const byWidth = fitWidthZoom({ pageWidth, viewportWidth, gap });
     const byHeight = (viewportHeight - PAGE_MARGIN * 2) / (pageHeight * CSS_UNITS);
     return clampZoom(Math.min(byWidth, byHeight));
+  }
+
+  // 見開きでの組の先頭（spec-2-3 確定事項14）。組は 1-2, 3-4 で固定なので、
+  // 0 始まりの添字では偶数が左・奇数が右である。単ページではそのページ自身。
+  function spreadStart(index, facing = false) {
+    return facing ? index - (index % 2) : index;
+  }
+
+  // 「幅に合わせる」「全体」が見る寸法（PDF 単位。確定事項18〜20）。見開きでは
+  // 組の2枚の幅の和と高さの最大。末尾の単独ページは幅を2倍して見なす。
+  // ページを送るたびに倍率が跳ねないためである。
+  function spreadSize(sizes, index, facing = false) {
+    const start = spreadStart(index, facing);
+    const left = sizes[start];
+    if (left === undefined)
+      return { width: 0, height: 0 };
+    if (!facing)
+      return { width: left.width, height: left.height };
+    const right = sizes[start + 1];
+    if (right === undefined)
+      return { width: left.width * 2, height: left.height };
+    return { width: left.width + right.width, height: Math.max(left.height, right.height) };
   }
 
   // sizes は pdf.js の getViewport({ scale: 1 }) が返す寸法（回転済み）の配列。
   // 幅の違うページが混ざっていても中央に揃うよう、いちばん広いページに合わせた
   // 器（contentWidth）を作り、その中での左端を各ページに持たせる。
-  function layoutPages({ sizes, zoom }) {
+  //
+  // facing（見開き。spec-2-3 確定事項7〜10）では 2 枚を1行に置く。行の高さは
+  // 高いほうに合わせて上揃え。横は綴じ目を基準にし、左ページは綴じ目へ右寄せ、
+  // 右ページは綴じ目から左寄せにする。幅の違うページが混ざっても綴じ目が
+  // 一直線に通る。奇数の末尾は左に単独で置く。
+  function layoutPages({ sizes, zoom, facing = false }) {
     const scale = zoom * CSS_UNITS;
-    let top = PAGE_MARGIN;
-    const pages = sizes.map((size, index) => {
-      const height = Math.round(size.height * scale);
-      const page = { index, top, left: 0, width: Math.round(size.width * scale), height };
-      top += height + PAGE_GAP;
-      return page;
-    });
+    const pages = sizes.map((size, index) => ({
+      index,
+      top: 0,
+      left: 0,
+      width: Math.round(size.width * scale),
+      height: Math.round(size.height * scale),
+    }));
+    if (pages.length === 0)
+      return { pages, contentWidth: 0, totalHeight: 0 };
 
+    return facing ? placeFacing(pages) : placeSingle(pages);
+  }
+
+  function placeSingle(pages) {
+    let top = PAGE_MARGIN;
+    for (const page of pages) {
+      page.top = top;
+      top += page.height + PAGE_GAP;
+    }
     const contentWidth = pages.reduce((widest, page) => Math.max(widest, page.width), 0);
     for (const page of pages)
       page.left = Math.round((contentWidth - page.width) / 2);
+    return { pages, contentWidth, totalHeight: top - PAGE_GAP + PAGE_MARGIN };
+  }
 
-    const totalHeight = pages.length === 0 ? 0 : top - PAGE_GAP + PAGE_MARGIN;
-    return { pages, contentWidth, totalHeight };
+  function placeFacing(pages) {
+    const isLeft = (page) => page.index % 2 === 0;
+    const leftHalf = pages.filter(isLeft).reduce((widest, page) => Math.max(widest, page.width), 0);
+    const rightHalf = pages.filter((page) => !isLeft(page)).reduce((widest, page) => Math.max(widest, page.width), 0);
+    // 右に置くページが1枚も無い（1ページの文書）なら、間隔ぶんの余白を作らない。
+    const contentWidth = rightHalf === 0 ? leftHalf : leftHalf + FACING_GAP + rightHalf;
+
+    let top = PAGE_MARGIN;
+    for (let start = 0; start < pages.length; start += 2) {
+      const row = pages.slice(start, start + 2);
+      const rowHeight = Math.max(...row.map((page) => page.height));
+      for (const page of row) {
+        page.top = top;
+        page.left = isLeft(page) ? leftHalf - page.width : leftHalf + FACING_GAP;
+      }
+      top += rowHeight + PAGE_GAP;
+    }
+    return { pages, contentWidth, totalHeight: top - PAGE_GAP + PAGE_MARGIN };
   }
 
   // パネルの内容幅から列数を決める（spec-1-5 確定事項23）。
@@ -303,6 +367,8 @@
     RENDER_AHEAD,
     MAX_RENDERED,
     MAX_CANVAS_SCALE,
+    FACING_GAP,
+    FACING_AHEAD,
     THUMB_GAP,
     THUMB_FRAME,
     THUMB_CAPTION,
@@ -320,6 +386,8 @@
     prevZoom,
     fitWidthZoom,
     fitPageZoom,
+    spreadStart,
+    spreadSize,
     layoutPages,
     layoutThumbnails,
     thumbnailScale,

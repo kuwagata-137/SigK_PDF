@@ -1172,6 +1172,76 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_FACING=1 を付けると、見開き表示の経路を通す（spec-2-3 確定事項30）。
+  // SIGK_SMOKE_PDF と一緒に使う。起動時の並べ方を控え、最後にそれへ戻す
+  // （起動確認が利用者の設定を書き換えたままにしない）。
+  const facingScript = `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    const viewer = SigK.viewer;
+    const layout = SigK.viewerLayout;
+    const view = document.getElementById('view');
+    const boxes = () => [...document.querySelectorAll('#view-pages .pdf-page')]
+      .map((node) => ({ top: parseFloat(node.style.top), left: parseFloat(node.style.left), width: parseFloat(node.style.width) }));
+    const startLayout = document.documentElement.getAttribute('data-layout');
+    const zoomBefore = viewer.getState().zoom;
+    // 前回の起動確認がツールモードで終わっていると、ページビューが隠れたまま
+    // 撮ることになる。見開きは閲覧の話なので、閲覧へ戻してから始める。
+    SigK.shell.setMode(document, 'view');
+    await wait(200);
+
+    const t0 = performance.now();
+    SigK.shell.setPageLayout(document, 'facing');
+    await wait(400);
+    const switchMs = Math.round((performance.now() - t0) * 10) / 10;
+    const state = viewer.getState();
+    const all = boxes();
+    const count = all.length;
+    // 1-2 が同じ高さに並び、左右に振り分けられている（確定事項7）。
+    const sameRow = count >= 2 && all[0].top === all[1].top && all[0].left < all[1].left;
+    // 奇数なら末尾は左に単独（同じ幅の紙なら left は 0）。
+    const lastAlone = count % 2 === 1 ? all[count - 1].left === all[0].left : null;
+    // 倍率は2枚基準の「幅に合わせる」になっている（確定事項18）。
+    const spread = layout.spreadSize(viewer.getSizes(), state.current, true);
+    const expectedZoom = layout.fitWidthZoom({ pageWidth: spread.width, viewportWidth: view.clientWidth, gap: layout.FACING_GAP });
+    const fitMatches = state.fit === 'width' && Math.abs(state.zoom - expectedZoom) < 1e-9;
+
+    // ◀ ▶ は2ページ動く（確定事項15）。
+    viewer.nextPage();
+    await wait(200);
+    const afterNext = viewer.getState().current;
+    // 右ページを指定しても、描画更新のあとで左へ戻らない（確定事項13）。
+    viewer.goToPage(3);
+    await wait(200);
+    view.dispatchEvent(new Event('scroll'));
+    await wait(300);
+    const keepsRight = viewer.getState().current;
+    const rendered = viewer.getState().rendered.slice();
+
+    const ui = window.settingsAPI ? await window.settingsAPI.getUi() : null;
+    const saved = ui && ui.ok ? ui.ui.pageLayout : null;
+    const active = document.getElementById('btn-facing').classList.contains('active');
+
+    // 起動時の並べ方へ戻す。SIGK_SMOKE_FACING_STAY=1 なら画面は見開きのまま残す
+    // （スクリーンショットを撮るため）が、覚える値だけは起動時のものへ戻す。
+    const original = startLayout === 'facing' ? 'facing' : 'single';
+    if (${process.env.SIGK_SMOKE_FACING_STAY === '1'})
+      await window.settingsAPI?.setUi({ pageLayout: original });
+    else
+      SigK.shell.setPageLayout(document, original);
+    await wait(300);
+    const restored = viewer.getState();
+    return {
+      startLayout, count, sameRow, lastAlone,
+      boxes: all.slice(0, 5),
+      contentWidth: state.contentWidth, viewWidth: view.clientWidth,
+      zoomBefore, zoom: state.zoom, expectedZoom, fitMatches,
+      afterNext, keepsRight, rendered, saved, active, switchMs,
+      restoredLayout: document.documentElement.getAttribute('data-layout'),
+      restoredZoom: restored.zoom,
+    };
+  })()`;
+
   // SIGK_SMOKE_SPLIT=<pdf> を付けると、分割の経路を丸ごと1回通す（spec-2-2 の
   // 完了判定9）。分け方は SIGK_SMOKE_SPLIT_MODE（every:10 / at:3,7 / range:1-3。
   // 省略時 every:10）、出力先は SIGK_SMOKE_SPLIT_OUT（省略時は一時フォルダー）、
@@ -1334,6 +1404,7 @@ function installSmokeCheck(win) {
       let save = null;
       let merge = null;
       let split = null;
+      let facing = null;
       let launch = null;
       let drag = null;
       let drop = null;
@@ -1364,6 +1435,8 @@ function installSmokeCheck(win) {
         }
         if (process.env.SIGK_SMOKE_TEXT === '1')
           text = await win.webContents.executeJavaScript(textScript);
+        if (process.env.SIGK_SMOKE_FACING === '1')
+          facing = await win.webContents.executeJavaScript(facingScript);
         if (process.env.SIGK_SMOKE_FIND)
           find = await win.webContents.executeJavaScript(findScript(process.env.SIGK_SMOKE_FIND));
         // ページ編集を先に済ませてから印刷を測る。回転が 150dpi の画像に
@@ -1483,6 +1556,7 @@ function installSmokeCheck(win) {
         save,
         merge,
         split,
+        facing,
         launch,
         drag,
         drop,

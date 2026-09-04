@@ -390,3 +390,45 @@ test('サイドパネルの幅はドラッグ中に書かず、離した時点�
   document.dispatchEvent(new window.MouseEvent('mouseup', { bubbles: true }));
   assert.equal(uiCalls.length, 1);
 });
+
+// --- 見開きの選択を覚える（spec-2-3 確定事項3・5） ---
+
+test('前回の見開きの選択で立ち上がる。復元は覚え直さない', async (t) => {
+  const { document, flush, uiCalls } = await withShell(t, {
+    ui: { mode: 'view', pageLayout: 'facing', sidePanel: { open: true, width: 240 } },
+  });
+  await flush();
+
+  assert.equal(document.documentElement.getAttribute('data-layout'), 'facing');
+  assert.deepEqual(uiCalls, []);
+});
+
+test('設定が無ければ単ページで立ち上がる', async (t) => {
+  const { document, flush } = await withShell(t, { withApis: false });
+  await flush();
+
+  assert.equal(document.documentElement.getAttribute('data-layout'), 'single');
+});
+
+test('見開きへ切り替えると覚える。使えない値は当たらない', async (t) => {
+  const { document, SigK, flush, uiCalls, savedUi } = await withShell(t);
+  await flush();
+
+  assert.equal(SigK.shell.setPageLayout(document, 'facing'), true);
+  await flush();
+  assert.deepEqual(uiCalls, [{ pageLayout: 'facing' }]);
+  assert.equal(savedUi().pageLayout, 'facing');
+
+  assert.equal(SigK.shell.setPageLayout(document, 'double'), false);
+  assert.equal(document.documentElement.getAttribute('data-layout'), 'facing');
+  assert.equal(uiCalls.length, 1);
+});
+
+// プロセスが違うので import できない。並びがずれると、レンダラーで選べる
+// 並べ方が設定側で弾かれる（またはその逆）。
+test('ページの並べ方の一覧が settings.js と一致する', async (t) => {
+  const { SigK } = await withShell(t);
+  const settings = require('../settings.js');
+  // jsdom の realm の配列なので、複製してから比べる（deepEqual は prototype も見る）。
+  assert.deepEqual([...SigK.shell.PAGE_LAYOUTS], settings.PAGE_LAYOUTS);
+});
