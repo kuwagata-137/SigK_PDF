@@ -76,11 +76,15 @@
       return false;
     }
 
-    // ツールモードでは結合画面が受け取る（spec-2-1 確定事項12）。
-    // タブに開くのではなく、一覧の末尾へ足す。
-    if (root.SigK.tools?.isToolsMode() === true && root.SigK.toolsMerge !== undefined) {
-      await root.SigK.toolsMerge.addPaths(paths);
-      return true;
+    // ツールモードでは選んでいるツールの画面が受け取る（spec-2-1 確定事項12・
+    // spec-2-2 確定事項2）。タブに開くのではなく、結合なら一覧の末尾へ足し、
+    // 分割なら対象にする。
+    if (root.SigK.tools?.isToolsMode() === true) {
+      const tool = root.SigK.tools.selected() === 'split' ? root.SigK.toolsSplit : root.SigK.toolsMerge;
+      if (tool !== undefined) {
+        await tool.addPaths(paths);
+        return true;
+      }
     }
 
     // 1つずつ開く。まとめて走らせるとタブの並びが到着順で入れ替わる。

@@ -90,6 +90,9 @@
   function onProgress(progress) {
     if (state.running === null || progress?.taskId !== state.running.taskId)
       return;
+    // 最後に届いた進捗。中止したときに「何本まで書けたか」を分割が読む
+    // （spec-2-2 確定事項25）。
+    state.progress = progress;
     // 段の中で進むもの（結合）はファイル単位で出す（spec-2-1 確定事項22）。
     const count = Number.isInteger(progress.done) && Number.isInteger(progress.of)
       ? `${progress.done} / ${progress.of} ファイル`
@@ -114,6 +117,7 @@
     state.seq += 1;
     const taskId = `save-${state.seq}`;
     state.running = { taskId, label };
+    state.progress = null;
     syncButtons();
     showRunning(label, taskId);
 
@@ -262,5 +266,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, runTask, saveActive, saveAsActive, syncButtons, unsaveableReason, warnIfUnsaveable };
+  SigK.save = { init, isBusy, runTask, saveActive, saveAsActive, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
 })(typeof window !== 'undefined' ? window : globalThis);

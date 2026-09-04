@@ -151,6 +151,85 @@ body{
             <button type="button" class="dlg-btn primary" id="merge-run" aria-disabled="true">実行…</button>
           </div>
         </div>
+        <!-- 分割（spec-2-2 確定事項38）。対象・分け方・出力の3節。中身は
+             tools-split.js（状態）と tools-split-view.js（描画）が持つ。 -->
+        <div class="tool-panel" data-tool="split" hidden>
+          <div class="tools-head">
+            <h2>分割</h2>
+            <span class="hint">1つの PDF を複数のファイルに分けます。しおりは引き継がれません。</span>
+          </div>
+          <div class="split-body">
+            <section class="split-sec">
+              <h3>対象</h3>
+              <div class="split-target">
+                <div class="file" id="split-file" hidden>
+                  <span class="name" id="split-name"></span>
+                  <span class="pages" id="split-pages"></span>
+                  <span class="note" id="split-note" hidden></span>
+                </div>
+                <p class="empty" id="split-empty">「開いているファイル」か「ファイルを選ぶ…」で、分割する PDF を決めてください。PDF をここへドロップしてもかまいません。</p>
+                <div class="btns">
+                  <button type="button" class="act" id="split-use-open"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているファイル</button>
+                  <button type="button" class="act" id="split-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
+                </div>
+              </div>
+            </section>
+            <section class="split-sec">
+              <h3>分け方</h3>
+              <div class="split-modes" id="split-modes">
+                <label class="split-mode">
+                  <input type="radio" name="split-mode" value="every" checked>
+                  <span class="lbl">N ページごと</span>
+                  <span class="ctl">
+                    <input type="text" class="split-inp num" id="split-every" value="1" inputmode="numeric" aria-label="何ページごとに分けるか">
+                    <span class="unit">ページごとに1ファイル</span>
+                    <span class="err" id="split-every-err" hidden></span>
+                  </span>
+                </label>
+                <label class="split-mode">
+                  <input type="radio" name="split-mode" value="at">
+                  <span class="lbl">指定したページの前で切る</span>
+                  <span class="ctl">
+                    <input type="text" class="split-inp wide" id="split-at" placeholder="例: 3, 7, 12" aria-label="切る位置のページ番号" autocomplete="off" spellcheck="false">
+                    <span class="unit">そのページの前で分けます</span>
+                    <span class="err" id="split-at-err" hidden></span>
+                  </span>
+                </label>
+                <label class="split-mode">
+                  <input type="radio" name="split-mode" value="range">
+                  <span class="lbl">範囲を取り出す</span>
+                  <span class="ctl">
+                    <input type="text" class="split-inp wide" id="split-range" placeholder="例: 1-3, 5, 8-" aria-label="取り出すページ範囲" autocomplete="off" spellcheck="false">
+                    <span class="unit">書いた順に1つのファイルへ</span>
+                    <span class="err" id="split-range-err" hidden></span>
+                  </span>
+                </label>
+              </div>
+            </section>
+            <section class="split-sec">
+              <h3>出力</h3>
+              <div class="split-out">
+                <span class="k">フォルダ</span>
+                <div class="folder">
+                  <span class="path" id="split-folder"></span>
+                  <button type="button" class="act" id="split-folder-pick">変更…</button>
+                </div>
+                <span class="k">ファイル名</span>
+                <div class="rules" id="split-rules">
+                  <label class="rule"><input type="radio" name="split-rule" value="seq" checked><span>連番</span><code id="split-rule-seq"></code></label>
+                  <label class="rule"><input type="radio" name="split-rule" value="pages"><span>ページ番号</span><code id="split-rule-pages"></code></label>
+                </div>
+                <span class="k">出力の例</span>
+                <div class="example" id="split-example"></div>
+              </div>
+            </section>
+          </div>
+          <div class="merge-foot">
+            <span class="sum" id="split-summary"></span>
+            <span class="spacer"></span>
+            <button type="button" class="dlg-btn primary" id="split-run" aria-disabled="true">実行…</button>
+          </div>
+        </div>
       </div>
       <div id="view-banner" hidden></div>
       <div id="view-drop" hidden aria-hidden="true">
@@ -319,6 +398,10 @@ body{
 <script src="renderer/tools.js"></script>
 <script src="renderer/tools-merge.js"></script>
 <script src="renderer/tools-merge-list.js"></script>
+<script src="renderer/split-plan.js"></script>
+<script src="renderer/tool-source.js"></script>
+<script src="renderer/tools-split.js"></script>
+<script src="renderer/tools-split-view.js"></script>
 <script src="renderer/save.js"></script>
 <script src="renderer/extract.js"></script>
 <script src="renderer/insert.js"></script>
