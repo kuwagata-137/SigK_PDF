@@ -19,6 +19,7 @@ const {
 const { createSettingsStore, clampWindowBounds, pickUi, mergeUi } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
+const { createImageIo } = require('./image-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
@@ -39,6 +40,7 @@ const ROOT_DIR = __dirname;
 let errorLog = null;
 let settings = null;
 let fileIo = null;
+let imageIo = null;
 let taskRunner = null;
 let mainWindow = null;
 
@@ -320,6 +322,9 @@ function registerIpc() {
   // 分割の入力の1本選択と、出力フォルダーの選択（spec-2-2 確定事項2・14）。
   ipcMain.handle('pdf:pickSplitSource', (_event, options = {}) => fileIo.pickSplitSource(mainWindow, options));
   ipcMain.handle('pdf:pickFolder', (_event, options = {}) => fileIo.pickFolder(mainWindow, options));
+  // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
+  ipcMain.handle('pdf:pickImageSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
+  ipcMain.handle('pdf:inspectImage', (_event, filePath) => imageIo.inspect(filePath));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
   // 任意のパスでエクスプローラーを開かせないよう、実在するファイルに限る。
   ipcMain.handle('shell:showInFolder', (_event, filePath) => {
@@ -1582,6 +1587,7 @@ function start() {
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
   fileIo = createFileIo({ dialog, onError: logError });
+  imageIo = createImageIo({ dialog, onError: logError });
   // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。
   // require ではなくパスで渡すので、配布物への入れ忘れは
   // test/dist-files.test.js が入口として見張っている。

@@ -329,6 +329,10 @@ async function createShell({
   // pdfAPI.pickSplitSource() / pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
   splitSourceResults = [],
   folderResults = [],
+  // pdfAPI.pickImageSources() が返すものの並びと、pdfAPI.inspectImage() が返す
+  // 画像の情報（パス → { kind, width, height } か { error }）（spec-3-1）。
+  imageSourceResults = [],
+  imageInfos = {},
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -358,6 +362,7 @@ async function createShell({
   const mergeSourceCalls = [];
   const splitSourceCalls = [];
   const folderCalls = [];
+  const imageSourceCalls = [];
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
   const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
@@ -412,6 +417,20 @@ async function createShell({
       pickFolder: async (options) => {
         folderCalls.push(structuredClone(options ?? {}));
         return folderResults.shift() ?? { canceled: true };
+      },
+      // 変換の入力の複数選択と、画像の形式・画素数（spec-3-1 確定事項2・4）。
+      // 本物は先頭バイトを読む。ここは仕込んだ情報を返すだけである。
+      pickImageSources: async (options) => {
+        imageSourceCalls.push(structuredClone(options ?? {}));
+        return imageSourceResults.shift() ?? { canceled: true };
+      },
+      inspectImage: async (filePath) => {
+        const info = imageInfos[filePath];
+        if (info === undefined)
+          return { error: 'ファイルが見つかりません。' };
+        if (info.error !== undefined)
+          return { error: info.error };
+        return { ok: true, path: filePath, name: filePath.split(/[\\/]/).pop(), size: info.size ?? 1000, kind: info.kind, width: info.width, height: info.height };
       },
     };
     // エクスプローラーからの起動要求（spec-1-6 確定事項77・80）。
@@ -531,6 +550,9 @@ async function createShell({
     mergeSourceCalls,
     splitSourceCalls,
     folderCalls,
+    // pdfAPI.pickImageSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
+    imageSourceCalls,
+    imageInfos,
     showInFolderCalls,
     // pdfAPI.exists() が「ある」と答えるパス。テストから足したり消したりできる。
     existingPaths,

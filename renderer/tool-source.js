@@ -41,6 +41,18 @@
     }
   }
 
+  // 画像の形式と画素数（spec-3-1 確定事項4）。読むのはメイン側 image-io.js で、先頭バイト
+  // だけを見る。戻り値は { ok, kind, width, height, name } か { reason: 'unavailable' | 'image', error }。
+  async function inspectImage(filePath) {
+    const api = root.pdfAPI;
+    if (api?.available !== true || typeof api.inspectImage !== 'function')
+      return { reason: 'unavailable', error: '画像を読む機能を使えません' };
+    const info = await api.inspectImage(filePath);
+    if (info?.ok !== true)
+      return { reason: 'image', error: String(info?.error ?? '画像を読めませんでした').replace(/。$/, '') };
+    return { ok: true, kind: info.kind, width: info.width, height: info.height, name: info.name ?? baseName(filePath) };
+  }
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.toolSource = { inspectPdf, baseName };
+  SigK.toolSource = { inspectPdf, inspectImage, baseName };
 })(typeof window !== 'undefined' ? window : globalThis);
