@@ -545,6 +545,59 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .split-out .example .n{color:var(--muted); margin-left:6px}
 .split-out .example .err{color:var(--danger)}
 
+/* ── 画像→PDF（spec-3-1 確定事項33） ────────────────────────── */
+/* 画像・用紙・出力の3節。節の枠は分割の .split-sec、一覧は結合の .merge-list、
+   出力の欄は .split-out をそのまま使う。ここで足すのは一覧の8列と
+   ラジオの並び（用紙・向き・余白・方式）だけである。 */
+.convert-bar{padding:0 0 10px}
+.convert-bar .drop-hint{color:var(--muted); font-size:12px}
+.convert-list{
+  position:relative; max-height:320px; overflow:auto;
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+}
+.convert-cols,.convert-row{
+  display:grid; grid-template-columns:22px 1fr 96px 54px 108px 30px 30px 30px; align-items:center; gap:6px;
+  padding:0 8px 0 6px;
+}
+.convert-cols{
+  height:30px; position:sticky; top:0; z-index:1; background:var(--surface-2); border-bottom:1px solid var(--border);
+  color:var(--muted); font-size:11.5px; letter-spacing:.04em;
+}
+.convert-cols span:nth-child(3),.convert-cols span:nth-child(4){text-align:right}
+.convert-row{min-height:36px; border-bottom:1px solid var(--border)}
+.convert-row:last-of-type{border-bottom:none}
+.convert-row:hover{background:var(--surface-2)}
+.convert-row.dragging{opacity:.4}
+.convert-row .grip{color:var(--border-strong); display:grid; place-items:center; cursor:grab}
+.convert-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.convert-row.blocked .name,.convert-row.dup .name{color:var(--danger)}
+.convert-row .px,.convert-row .kind{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
+.convert-row .paper{color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.convert-row .rbtn{
+  width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted); cursor:pointer;
+}
+.convert-row .rbtn:hover{background:var(--surface); box-shadow:var(--shadow-item); color:var(--text)}
+.convert-row .rbtn.danger:hover{color:var(--danger)}
+.convert-row .rbtn[aria-disabled="true"]{opacity:.35; cursor:default}
+.convert-row .rbtn[aria-disabled="true"]:hover{background:transparent; box-shadow:none; color:var(--muted)}
+/* 行の下の注意・誤り。2列目から「この紙」の列まで。 */
+.convert-row .note{grid-column:2 / 6; font-size:11.5px; line-height:1.5; margin:-4px 0 6px; color:var(--muted)}
+.convert-row .note[hidden]{display:none}
+.convert-row .note.error{color:var(--danger)}
+#convert-empty{color:var(--muted); font-size:12.5px; padding:36px 0; margin:0}
+#convert-empty[hidden]{display:none}
+
+/* 用紙の3行（サイズ・向き・余白）。左に見出し、右にラジオを横並び。 */
+.convert-opts{display:grid; grid-template-columns:120px 1fr; row-gap:10px; column-gap:12px; align-items:center}
+.convert-opts .k{color:var(--muted); font-size:12px}
+.convert-opts .fit-note{margin:0; color:var(--muted); font-size:11.5px; line-height:1.5}
+.picks{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+.pick{display:flex; align-items:center; gap:7px; cursor:default}
+.pick input[type="radio"]{margin:0; width:16px; height:16px; accent-color:var(--primary)}
+.pick .sub{color:var(--muted); font-size:11.5px}
+.pick:has(input:disabled),.pick input:disabled{color:var(--muted); opacity:.5; cursor:default}
+.convert-out .folder[hidden],.convert-out .k[hidden]{display:none}
+
 /* 同名確認の3択（確定事項27）。既存のダイアログと同じ枠。 */
 #confirm-replace{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);

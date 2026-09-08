@@ -24,14 +24,15 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(doc.getElementById('side-title').textContent, 'ツール');
   // サイドパネルはツール一覧が使う。「文書を開くと…」の案内は出さない。
   assert.equal(doc.getElementById('thumbs-empty').hidden, true);
-  // 一覧は「結合」「分割」で、入った時点では結合が選ばれている（確定事項1・3、
-  // spec-2-2 確定事項39）。
+  // 一覧は「結合」「分割」「画像→PDF」で、入った時点では結合が選ばれている
+  // （確定事項1・3、spec-2-2 確定事項39、spec-3-1 確定事項34）。
   const items = [...doc.querySelectorAll('#tools-list .tool-item')];
-  assert.deepEqual(items.map((item) => item.dataset.tool), ['merge', 'split']);
+  assert.deepEqual(items.map((item) => item.dataset.tool), ['merge', 'split', 'convert']);
   assert.equal(items[0].classList.contains('active'), true);
   assert.equal(SigK.tools.selected(), 'merge');
   assert.equal(SigK.tools.panelFor('merge').hidden, false);
   assert.equal(SigK.tools.panelFor('split').hidden, true);
+  assert.equal(SigK.tools.panelFor('convert').hidden, true);
 
   // 分割を選ぶと作業画面が入れ替わる。
   items[1].click();
@@ -39,6 +40,13 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(items[1].classList.contains('active'), true);
   assert.equal(SigK.tools.panelFor('split').hidden, false);
   assert.equal(SigK.tools.panelFor('merge').hidden, true);
+
+  // 画像→PDF も同じように切り替わる。
+  items[2].click();
+  assert.equal(SigK.tools.selected(), 'convert');
+  assert.equal(items[2].classList.contains('active'), true);
+  assert.equal(SigK.tools.panelFor('convert').hidden, false);
+  assert.equal(SigK.tools.panelFor('split').hidden, true);
   SigK.tools.select('merge');
 
   SigK.shell.setMode(doc, 'view');
