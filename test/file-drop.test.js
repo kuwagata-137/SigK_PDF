@@ -150,3 +150,46 @@ test('同じファイルを2回落としてもタブは1枚のまま', async (t)
 
   assert.equal(shell.SigK.tabs.count(), 1);
 });
+
+// ---- 変換画面は画像を受ける（spec-3-1 確定事項2） ----
+
+const IMG = 'C:\\photo\\a.png';
+const IMAGE_INFOS = { [IMG]: { kind: 'png', width: 1200, height: 800 } };
+
+test('変換画面を選んでいるときは画像を受け、一覧へ足す', async (t) => {
+  const shell = await withShell(t, { imageInfos: IMAGE_INFOS });
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.SigK.tools.select('convert');
+
+  fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('a.png', IMG)]));
+  await shell.flush();
+
+  assert.equal(shell.SigK.toolsConvert.rows().length, 1);
+  assert.equal(shell.SigK.toolsConvert.rows()[0].path, IMG);
+  assert.equal(shell.SigK.tabs.count(), 0, 'タブでは開かない');
+});
+
+test('変換画面のほかでは画像を断り、PDF だけを受ける', async (t) => {
+  const shell = await withShell(t, { imageInfos: IMAGE_INFOS });
+  const message = () => shell.document.getElementById('view-message').textContent;
+
+  // 閲覧中は従来どおり。画像は開かない。
+  fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('a.png', IMG)]));
+  await shell.flush();
+  assert.equal(shell.SigK.tabs.count(), 0);
+  assert.equal(message(), 'PDF ファイルではありません。PDF を落としてください。');
+
+  // 結合の画面でも画像は受けない。
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.SigK.tools.select('merge');
+  fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('a.png', IMG)]));
+  await shell.flush();
+  assert.equal(shell.SigK.toolsMerge.rows().length, 0);
+
+  // 変換画面では PDF を受けない。
+  shell.SigK.tools.select('convert');
+  fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('a.pdf', A)]));
+  await shell.flush();
+  assert.equal(shell.SigK.toolsConvert.rows().length, 0);
+  assert.equal(shell.SigK.tabs.count(), 0);
+});

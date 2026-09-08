@@ -20,6 +20,21 @@
     return typeof name === 'string' && name.toLowerCase().endsWith('.pdf');
   }
 
+  // 変換画面が受ける画像（spec-3-1 確定事項2）。ここは拡張子で粗く選り分けるだけで、
+  // 本当に PNG・JPEG かは足したあとに inspectImage が先頭バイトで判定する。
+  function isImageName(name) {
+    return typeof name === 'string' && /\.(png|jpe?g)$/i.test(name);
+  }
+
+  // いまドロップを受ける画面が画像を欲しがっているか。変換画面を選んでいるときだけ真。
+  function wantsImages() {
+    return root.SigK.tools?.isToolsMode() === true && root.SigK.tools.selected() === 'convert';
+  }
+
+  function isAcceptedName(name) {
+    return wantsImages() ? isImageName(name) : isPdfName(name);
+  }
+
   // ファイルを運んでいるドラッグかどうか。文字の選択をドラッグしただけで
   // 受け入れの表示が出ると、うるさいうえに紛らわしい。
   function carriesFiles(event) {
@@ -41,7 +56,7 @@
     const api = root.pdfAPI;
     const paths = [];
     for (const file of Array.from(fileList ?? [])) {
-      if (!isPdfName(file?.name))
+      if (!isAcceptedName(file?.name))
         continue;
       const filePath = api?.pathForFile?.(file) ?? null;
       if (filePath !== null)
@@ -64,9 +79,11 @@
       ? root.SigK.viewBanner.show(text)
       : root.SigK.viewer.setMessage(text));
 
-    const pdfs = files.filter((file) => isPdfName(file?.name));
-    if (pdfs.length === 0) {
-      complain('PDF ファイルではありません。PDF を落としてください。');
+    const accepted = files.filter((file) => isAcceptedName(file?.name));
+    if (accepted.length === 0) {
+      complain(wantsImages()
+        ? '画像ファイルではありません。PNG・JPEG を落としてください。'
+        : 'PDF ファイルではありません。PDF を落としてください。');
       return false;
     }
 
@@ -77,10 +94,11 @@
     }
 
     // ツールモードでは選んでいるツールの画面が受け取る（spec-2-1 確定事項12・
-    // spec-2-2 確定事項2）。タブに開くのではなく、結合なら一覧の末尾へ足し、
-    // 分割なら対象にする。
+    // spec-2-2 確定事項2・spec-3-1 確定事項2）。タブに開くのではなく、結合なら
+    // 一覧の末尾へ足し、分割なら対象にし、変換なら画像として一覧へ足す。
     if (root.SigK.tools?.isToolsMode() === true) {
-      const tool = root.SigK.tools.selected() === 'split' ? root.SigK.toolsSplit : root.SigK.toolsMerge;
+      const tools = { split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert };
+      const tool = tools[root.SigK.tools.selected()] ?? root.SigK.toolsMerge;
       if (tool !== undefined) {
         await tool.addPaths(paths);
         return true;
@@ -129,5 +147,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.fileDrop = { init, isPdfName, carriesFiles, pathsFrom, handleDrop, depth: () => state.depth };
+  SigK.fileDrop = { init, isPdfName, isImageName, carriesFiles, pathsFrom, handleDrop, depth: () => state.depth };
 })(typeof window !== 'undefined' ? window : globalThis);
