@@ -1,19 +1,17 @@
 (function (root) {
   'use strict';
 
-  // 結合画面の描画と行のドラッグ（spec-2-1 確定事項14・15・41・42）。
+  // 結合画面の描画（spec-2-1 確定事項14・15・41・42）。
   //
   // 状態は tools-merge.js が持つ。ここは rows() を読んで DOM に写し、操作を
   // あちらの関数へ返すだけである。範囲欄の入力ごとに全体を描き直すとフォーカスが
   // 飛ぶので、行の見た目だけを直す syncRow を分けて持つ。
   //
-  // ドラッグは page-grid.js と同じくポインタイベントで組む（HTML5 の draggable は
-  // jsdom に載らない）。落とす位置は、行の中心より上か下かで決める。
-
-  const DRAG_THRESHOLD = 4;
+  // 行のドラッグは row-drag.js が持つ（spec-3-1 確定事項36。変換の一覧と共用する）。
+  // dropIndexFor・isDragging は結線して得た handle をそのまま素通しで公開する。
 
   let el = null;
-  const drag = { pending: false, active: false, id: null, at: null, startY: 0, line: null };
+  let dragHandle = null;
 
   const merge = () => root.SigK.toolsMerge;
 
@@ -135,97 +133,6 @@
     return true;
   }
 
-  // ---- ドラッグ（確定事項15） ----
-
-  function rowNodes() {
-    return [...el.list.querySelectorAll('.merge-row')];
-  }
-
-  function dropIndexFor(y) {
-    const nodes = rowNodes();
-    let at = 0;
-    for (const node of nodes) {
-      const rect = node.getBoundingClientRect();
-      if (y >= rect.top + rect.height / 2)
-        at += 1;
-    }
-    return Math.min(at, nodes.length);
-  }
-
-  function showLine(at) {
-    if (drag.line === null) {
-      drag.line = el.doc.createElement('div');
-      drag.line.className = 'drop-line';
-      el.list.append(drag.line);
-    }
-    const nodes = rowNodes();
-    const anchor = nodes[Math.min(at, nodes.length - 1)];
-    if (anchor === undefined)
-      return;
-    const top = at >= nodes.length ? anchor.offsetTop + anchor.offsetHeight : anchor.offsetTop;
-    drag.line.style.left = '6px';
-    drag.line.style.right = '6px';
-    drag.line.style.height = '2px';
-    drag.line.style.top = `${top - 1}px`;
-  }
-
-  function endDrag() {
-    const node = drag.id === null ? null : el.list.querySelector(`.merge-row[data-id="${drag.id}"]`);
-    node?.classList.remove('dragging');
-    drag.line?.remove();
-    drag.line = null;
-    drag.pending = false;
-    drag.active = false;
-    drag.id = null;
-    drag.at = null;
-  }
-
-  function onPointerDown(event) {
-    if (event.button !== 0 || merge().isRunning())
-      return;
-    if (event.target?.closest?.('input, button') !== null && event.target?.closest?.('input, button') !== undefined)
-      return;
-    const node = event.target?.closest?.('.merge-row');
-    if (node === null || node === undefined)
-      return;
-    drag.pending = true;
-    drag.id = node.dataset.id;
-    drag.startY = event.clientY;
-  }
-
-  function onPointerMove(event) {
-    if (!drag.pending)
-      return;
-    if (!drag.active) {
-      if (Math.abs(event.clientY - drag.startY) < DRAG_THRESHOLD)
-        return;
-      drag.active = true;
-      el.list.querySelector(`.merge-row[data-id="${drag.id}"]`)?.classList.add('dragging');
-    }
-    drag.at = dropIndexFor(event.clientY);
-    showLine(drag.at);
-  }
-
-  function onPointerUp(event) {
-    if (!drag.active) {
-      drag.pending = false;
-      drag.id = null;
-      return;
-    }
-    const inside = el.list.contains(event.target);
-    const { id, at } = drag;
-    endDrag();
-    if (inside && at !== null)
-      merge().moveTo(id, at);
-  }
-
-  function onKeyDown(event) {
-    if (event.key === 'Escape' && (drag.active || drag.pending)) {
-      event.preventDefault();
-      endDrag();
-    }
-  }
-
   function init(doc, win) {
     if (win.__sigkToolsMergeListReady === true)
       return false;
@@ -251,15 +158,24 @@
     el.clear.addEventListener('click', () => { if (el.clear.getAttribute('aria-disabled') !== 'true') merge().clear(); });
     el.run.addEventListener('click', () => { if (el.run.getAttribute('aria-disabled') !== 'true') merge().run(); });
 
-    list.addEventListener('pointerdown', onPointerDown);
-    doc.addEventListener('pointermove', onPointerMove);
-    doc.addEventListener('pointerup', onPointerUp);
-    doc.addEventListener('keydown', onKeyDown);
+    dragHandle = root.SigK.rowDrag.attachRowDrag({
+      doc,
+      list,
+      rowSelector: '.merge-row',
+      onDrop: (id, at) => merge().moveTo(id, at),
+      isLocked: () => merge().isRunning(),
+    });
 
     render();
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.toolsMergeList = { init, render, syncRow, dropIndexFor, isDragging: () => drag.active };
+  SigK.toolsMergeList = {
+    init,
+    render,
+    syncRow,
+    dropIndexFor: (y) => dragHandle?.dropIndexFor(y) ?? 0,
+    isDragging: () => dragHandle?.isDragging() ?? false,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);
