@@ -556,9 +556,12 @@ html[data-panel="collapsed"] #side-resizer{display:none}
   border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
 }
 .convert-cols,.convert-row{
-  display:grid; grid-template-columns:22px 1fr 96px 54px 108px 30px 30px 30px; align-items:center; gap:6px;
+  display:grid; grid-template-columns:22px 1fr 92px 52px 116px 30px 30px 30px; align-items:center; gap:6px;
   padding:0 8px 0 6px;
 }
+/* 「形式」は右寄せ、「この紙」は左寄せなので、そのままだと隣り合って読みにくい。
+   この紙の側に一段ぶんの余白を入れて、列の切れ目を見せる。 */
+.convert-cols span:nth-child(5),.convert-row .paper{padding-left:14px}
 .convert-cols{
   height:30px; position:sticky; top:0; z-index:1; background:var(--surface-2); border-bottom:1px solid var(--border);
   color:var(--muted); font-size:11.5px; letter-spacing:.04em;

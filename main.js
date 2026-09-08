@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, protocol, screen, session, shell, utilityProcess } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, protocol, screen, session, shell, utilityProcess } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -1316,6 +1316,116 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_CONVERT=<a.png>;<b.png> を付けると、画像→PDF の経路を通す
+  // （spec-3-1 の完了判定4・5・7・9）。分割と同じ2段構えで、まず画面を組んで
+  // 計画（出力先）をメインへ返し、メインが同名確認の下ごしらえをしてから走らせる。
+  //
+  // 「画像ごと」（_OUTPUT=each）は画面の「実行」と同じ経路（toolsConvert.run）を
+  // そのまま回せる。「まとめる」は保存先を OS の保存ダイアログが聞くため自動では
+  // 押せないので、結合と同じく同じ spec を SigK.save.runTask へ直接渡す。
+  const convertSetupScript = (inputs, settings) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    await SigK.toolsConvert.addFromLaunch(${JSON.stringify(inputs)});
+    await wait(500);
+    SigK.toolsConvert.setPaper(${JSON.stringify(settings.paper)});
+    SigK.toolsConvert.setOrientation(${JSON.stringify(settings.orientation)});
+    SigK.toolsConvert.setMargin(${JSON.stringify(settings.margin)});
+    SigK.toolsConvert.setOutput(${JSON.stringify(settings.output)});
+    if (${JSON.stringify(settings.folder)} !== null)
+      SigK.toolsConvert.setFolder(${JSON.stringify(settings.folder)});
+    const plan = SigK.toolsConvert.currentPlan();
+    return {
+      rows: SigK.toolsConvert.rows().map((row) => ({ name: row.name, kind: row.kind, width: row.width, height: row.height, blocked: row.blocked })),
+      mode: document.documentElement.getAttribute('data-mode'),
+      selected: SigK.tools.selected(),
+      canRun: SigK.toolsConvert.canRun(),
+      runDisabled: document.getElementById('convert-run').getAttribute('aria-disabled'),
+      example: document.getElementById('convert-example').textContent,
+      summary: document.getElementById('convert-summary').textContent,
+      papers: [...document.querySelectorAll('#convert-list .convert-row .paper')].map((node) => node.textContent),
+      planError: plan.error,
+      pages: plan.ready ? plan.pages.map((page) => page.page) : [],
+      targets: plan.ready && ${JSON.stringify(settings.output)} === 'each' ? plan.targets : [],
+      singleTarget: SigK.toolsConvert.defaultSingleTarget(),
+    };
+  })()`;
+
+  const convertRunScript = (target) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    const each = ${JSON.stringify(process.env.SIGK_SMOKE_CONVERT_OUTPUT ?? 'single')} === 'each';
+    const started = Date.now();
+
+    // 「画像ごと」は画面と同じ経路。「まとめる」は保存ダイアログを避けて spec を直に渡す。
+    const pending = each
+      ? SigK.toolsConvert.run()
+      : SigK.save.runTask({
+          kind: 'convert',
+          label: '変換',
+          output: 'single',
+          images: SigK.toolsConvert.rows().map((row, index) => ({
+            path: row.path,
+            name: row.name,
+            layout: SigK.toolsConvert.currentPlan().pages[index],
+          })),
+          target: ${JSON.stringify(target)},
+          targets: [${JSON.stringify(target)}],
+        });
+    await wait(250);
+    const dialogOpen = SigK.confirmReplace.isOpen();
+    const focusOnCancel = document.activeElement === document.getElementById('confirm-replace-cancel');
+    if (dialogOpen)
+      document.getElementById('confirm-replace-ok').click();
+    // SIGK_SMOKE_CONVERT_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
+    let canceledAt = null;
+    if (${process.env.SIGK_SMOKE_CONVERT_CANCEL === '1'}) {
+      await wait(400);
+      const action = document.querySelector('#view-banner .banner-action');
+      if (action && action.textContent === '中止') { action.click(); canceledAt = Date.now() - started; }
+    }
+    const result = await pending;
+    const ms = Date.now() - started;
+    await wait(300);
+
+    // 「まとめる」はここでタブに開く（画面の finish と同じ動き）。
+    // SIGK_SMOKE_CONVERT_STAY=1 なら変換画面に留まる（スクリーンショットを撮るため）。
+    let opened = null;
+    if (!each && result && result.ok === true && !${process.env.SIGK_SMOKE_CONVERT_STAY === '1'}) {
+      const tabsBefore = SigK.tabs.count();
+      await SigK.tabs.openPath(${JSON.stringify(target)});
+      await wait(700);
+      SigK.shell.setMode(document, 'view');
+      const state = SigK.viewer.getState();
+      opened = { tabsBefore, tabsAfter: SigK.tabs.count(), pageCount: state.pageCount };
+    }
+
+    return {
+      dialogOpen, focusOnCancel,
+      ok: result ? result.ok === true : false,
+      canceled: result ? result.canceled === true : false,
+      canceledAt,
+      banner: SigK.viewBanner.text(),
+      bannerAction: SigK.viewBanner.action() ? SigK.viewBanner.action().textContent : null,
+      error: result ? (result.error ?? null) : 'result が無い',
+      pages: result ? (result.pages ?? null) : null,
+      written: result ? (result.written ?? null) : null,
+      tabs: SigK.tabs.count(),
+      mode: document.documentElement.getAttribute('data-mode'),
+      ms,
+      opened,
+    };
+  })()`;
+
+  // SIGK_SMOKE_CONVERT_JPEG=1 のときの検体。fixtures の PNG はヘッダーだけの
+  // JPEG を置けない（pdf.js が描けない）ので、ここで本物を作る（spec-3-1「fixture」）。
+  function makeSmokeJpeg(dir) {
+    const image = nativeImage.createFromBuffer(fs.readFileSync(path.join(__dirname, 'test', 'fixtures', 'image-wide.png')));
+    const target = path.join(dir, 'smoke-wide.jpg');
+    fs.writeFileSync(target, image.toJPEG(90));
+    return target;
+  }
+
   // SIGK_SMOKE_DRAG=<from>-<to> を付けると、サムネイルのドラッグを
   // Chromium の Input.dispatchMouseEvent で再現する（完了判定の未検証項目）。
   // 送るのは mouse 系だが、Chromium は互換のため pointer 系も一緒に発火する。
@@ -1409,6 +1519,7 @@ function installSmokeCheck(win) {
       let save = null;
       let merge = null;
       let split = null;
+      let convert = null;
       let facing = null;
       let launch = null;
       let drag = null;
@@ -1501,6 +1612,39 @@ function installSmokeCheck(win) {
           // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項25）。
           split.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
         }
+        if (process.env.SIGK_SMOKE_CONVERT) {
+          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          const outDir = process.env.SIGK_SMOKE_CONVERT_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_CONVERT_OUT)
+            : path.join(app.getPath('temp'), 'sigk-smoke-convert');
+          fs.mkdirSync(outDir, { recursive: true });
+          const inputs = process.env.SIGK_SMOKE_CONVERT.split(';').map((value) => path.resolve(value.trim())).filter((value) => value !== '');
+          if (process.env.SIGK_SMOKE_CONVERT_JPEG === '1')
+            inputs.push(makeSmokeJpeg(outDir));
+          const output = process.env.SIGK_SMOKE_CONVERT_OUTPUT ?? 'single';
+          const setup = await win.webContents.executeJavaScript(convertSetupScript(inputs, {
+            paper: process.env.SIGK_SMOKE_CONVERT_PAPER ?? 'a4',
+            orientation: process.env.SIGK_SMOKE_CONVERT_ORIENT ?? 'auto',
+            margin: process.env.SIGK_SMOKE_CONVERT_MARGIN ?? 'normal',
+            output,
+            folder: outDir,
+          }));
+          // まとめるの保存先は画面が決めないので、ここで組む。
+          const target = output === 'each' ? null : path.join(outDir, path.basename(setup.singleTarget ?? 'images.pdf'));
+          // 同名確認の3択を通すため、先頭の出力先を先に空で作っておく。
+          const written = output === 'each' ? setup.targets : (target === null ? [] : [target]);
+          if (output === 'each' && written.length > 0)
+            fs.writeFileSync(written[0], '');
+          convert = await win.webContents.executeJavaScript(convertRunScript(target));
+          convert.setup = setup;
+          convert.outDir = outDir;
+          convert.inputs = inputs;
+          convert.targets = written;
+          convert.onDisk = written.filter((entry) => fs.existsSync(entry) && fs.statSync(entry).size > 0).length;
+          convert.bytesOnDisk = written.reduce((sum, entry) => sum + (fs.existsSync(entry) ? fs.statSync(entry).size : 0), 0);
+          // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項24・25）。
+          convert.tempLeft = written.some((entry) => fs.existsSync(require('./pdf-write.js').tempPathFor(entry)));
+        }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
           const boxes = await dispatchPageDrag(from, to);
@@ -1561,6 +1705,7 @@ function installSmokeCheck(win) {
         save,
         merge,
         split,
+        convert,
         facing,
         launch,
         drag,
