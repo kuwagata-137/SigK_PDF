@@ -21,7 +21,13 @@ const SIGNATURES = [
   { kind: 'bmp', bytes: [0x42, 0x4d] },                                      // BM
 ];
 
+// 差し込みが受けるもの（PDF を含む）。
 const SUPPORTED = new Set(['pdf', 'png', 'jpeg']);
+// 画像として載せられるもの（spec-3-1 確定事項1）。pdf-lib が埋め込めるのはこの2つだけである。
+const IMAGE_KINDS = new Set(['png', 'jpeg']);
+
+// 画素数の上限（spec-1-6 確定事項58）。約 8000×5000。pdf-lib は PNG を RGBA へ完全展開する。
+const MAX_PIXELS = 40 * 1000 * 1000;
 
 // 長さを持たない JPEG のマーカー。TEM・RSTn・SOI・EOI。
 const JPEG_STANDALONE = new Set([0x01, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9]);
@@ -63,6 +69,20 @@ function describeFormat(kind) {
       return 'BMP は挿入できません。PNG・JPEG・PDF を選んでください。';
     default:
       return '対応していない形式です。PNG・JPEG・PDF を選んでください。';
+  }
+}
+
+// 変換で断る理由（spec-3-1 確定事項1）。差し込みの describeFormat と違い PDF を受けない。
+function describeImageFormat(kind) {
+  switch (kind) {
+    case 'gif':
+      return 'GIF はまだ変換できません。PNG・JPEG を選んでください。';
+    case 'bmp':
+      return 'BMP はまだ変換できません。PNG・JPEG を選んでください。';
+    case 'pdf':
+      return 'PDF は画像ではありません。PNG・JPEG を選んでください。';
+    default:
+      return '対応していない形式です。PNG・JPEG を選んでください。';
   }
 }
 
@@ -141,13 +161,34 @@ function imageSize(kind, bytes) {
   return null;
 }
 
+// 画像として載せられるかを1本で判定する（spec-3-1 確定事項4・17）。
+// 形式 → プログレッシブ → 寸法 → 画素上限の順で、埋め込む前に断れるものはすべてここで断る。
+// 画面（image-io.js が先頭バイトを渡す）とワーカー（op-convert.js が全体を渡す）が同じ判定を通る。
+function inspectImageBytes(bytes) {
+  const kind = detectFormat(bytes);
+  if (!IMAGE_KINDS.has(kind))
+    return { error: describeImageFormat(kind), kind };
+  if (kind === 'jpeg' && isProgressiveJpeg(bytes))
+    return { error: 'この JPEG は変換できません（プログレッシブ形式）。', kind };
+  const pixels = imageSize(kind, bytes);
+  if (pixels === null || !(pixels.width > 0) || !(pixels.height > 0))
+    return { error: '画像の大きさを読み取れませんでした。', kind, incomplete: true };
+  if (pixels.width * pixels.height > MAX_PIXELS)
+    return { error: '画像が大きすぎます。', kind };
+  return { ok: true, kind, width: pixels.width, height: pixels.height };
+}
+
 module.exports = {
   SIGNATURES,
   JPEG_PROGRESSIVE,
+  IMAGE_KINDS,
+  MAX_PIXELS,
   detectFormat,
   isSupported,
   describeFormat,
+  describeImageFormat,
   jpegStartOfFrame,
   isProgressiveJpeg,
   imageSize,
+  inspectImageBytes,
 };

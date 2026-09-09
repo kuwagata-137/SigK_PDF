@@ -27,5 +27,6 @@ Thumbs.db
 # lockfile は当面コミットしない（CheckListMaker と同じ運用）
 package-lock.json
 
-# 検証用 PDF（test/fixtures/build.js が pdf-lib で生成する。決定10）
+# 検証用 PDF と画像（test/fixtures/build.js が生成する。決定10）
 test/fixtures/*.pdf
+test/fixtures/*.png

@@ -14,6 +14,7 @@ const path = require('node:path');
 
 const { PDFDocument, StandardFonts, degrees, rgb } = require('pdf-lib');
 const { buildEncryptedPdf } = require('./standard-security.js');
+const { makePng } = require('./images.js');
 
 const OUTPUT_DIR = __dirname;
 
@@ -52,6 +53,22 @@ const FIXTURES = [
 //   SIGK_FIXTURES_HUGE=1 npm run fixtures
 if (process.env.SIGK_FIXTURES_HUGE === '1')
   FIXTURES.push({ file: 'huge-pages.pdf', pages: 1000, size: A4, label: '1,000ページ', caption: 'huge' });
+
+// 画像→PDF の検体（spec-3-1「fixture」）。images.js の makePng で本物の PNG を作る。
+// JPEG は置かない。makeJpeg はヘッダーだけで pdf.js が描けず、変換した PDF をタブで
+// 開くと console error になる。起動確認は SIGK_SMOKE_CONVERT_JPEG=1 で本物を作る。
+const IMAGES = [
+  { file: 'image-wide.png', width: 1200, height: 800, color: [0x2f, 0x6f, 0xeb] },      // 自動→横。A4 に縮小して内接
+  { file: 'image-tall.png', width: 600, height: 900, color: [0xd6, 0x45, 0x45] },       // 自動→縦。拡大して余白内へ
+  { file: 'image-small.png', width: 64, height: 64, color: [0x1c, 0x24, 0x30] },        // 拡大の確認・画像サイズの紙
+  { file: 'image-alpha.png', width: 300, height: 200, color: [0x20, 0x40, 0x80], alpha: 0 }, // 白地が敷かれる
+];
+
+function buildImage(spec) {
+  const bytes = makePng(spec);
+  fs.writeFileSync(path.join(OUTPUT_DIR, spec.file), bytes);
+  return { file: spec.file, bytes: bytes.length };
+}
 
 // 本文の1行。ページ番号と行番号を混ぜて、ヒットの位置を目で追えるようにする。
 // 標準14書体は WinAnsi しか扱えないため ASCII に限る（docs/02 1-4）。
@@ -136,6 +153,8 @@ async function build() {
     fs.writeFileSync(fixturePath(file), bytes);
     built.push({ file, bytes: bytes.length });
   }
+  for (const spec of IMAGES)
+    built.push(buildImage(spec));
   return built;
 }
 
@@ -143,7 +162,7 @@ function fixturePath(file) {
   return path.join(OUTPUT_DIR, file);
 }
 
-module.exports = { A4, A5, FIXTURES, OUTPUT_DIR, build, buildOne, fixturePath };
+module.exports = { A4, A5, FIXTURES, IMAGES, OUTPUT_DIR, build, buildOne, buildImage, fixturePath };
 
 if (require.main === module) {
   build().then((built) => {

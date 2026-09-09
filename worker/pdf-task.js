@@ -19,6 +19,7 @@ const { applyPlan } = require('./op-pages.js');
 const { extractPages } = require('./op-extract.js');
 const { mergeDocuments } = require('./op-merge.js');
 const { splitDocument } = require('./op-split.js');
+const { loadImage, convertToSingle, convertToEach } = require('./op-convert.js');
 const { buildPreview, prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
@@ -330,6 +331,93 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
   return { ok: true, written: split.written, targets, pages: split.pages, labeled: split.labeled };
 }
 
+// 画像を PDF にする（spec-3-1 確定事項22〜25・29）。
+//
+// output が 'single' なら結合の型（apply を画像単位で刻み、1本書く）、'each' なら分割の型
+// （write を出力単位で刻み、書き終えた分は残す）。読み口は差し込みと同じ insertReader で、
+// 必ず toBytes() を通す（4KB 未満の JPEG が byteOffset≠0 で埋め込めない。確定事項31）。
+function convertEntries(images, reader) {
+  return images.map((image) => ({
+    name: image.name ?? path.basename(image.path),
+    layout: image.layout,
+    load: () => loadImage(image.path, reader),
+  }));
+}
+
+async function runConvertSingle(spec, entries, { fsLike, advance }) {
+  const { target } = spec;
+  if (typeof target !== 'string')
+    return { error: '保存先が決まっていません。' };
+
+  advance('read');
+  advance('load');
+  advance('apply', 0, entries.length);
+  const converted = await convertToSingle(entries, TOOLS, { onProgress: (done, total) => advance('apply', done, total) });
+  if (converted.ok !== true)
+    return converted;
+
+  advance('save');
+  let output;
+  try {
+    output = await converted.doc.save(SAVE_OPTIONS);
+  } catch (error) {
+    return { error: '変換した内容を組み立てられませんでした。' };
+  }
+
+  advance('write');
+  const written = await writeDocument(target, Buffer.from(output), { makeBackup: false, expect: null, fsLike });
+  if (written.ok !== true)
+    return written;
+  return { ok: true, path: written.path, bytes: written.bytes, pages: converted.pages, inputs: entries.length, signature: written.signature };
+}
+
+async function runConvertEach(spec, entries, { fsLike, advance }) {
+  const targets = spec.images.map((image) => image.target);
+  if (targets.some((target) => typeof target !== 'string'))
+    return { error: '出力先が決まっていません。' };
+
+  advance('read');
+  advance('load');
+  advance('apply');
+  advance('save');
+  advance('write', 0, entries.length);
+  const converted = await convertToEach(entries, TOOLS, {
+    onPart: async (index, doc) => {
+      let output;
+      try {
+        output = await doc.save(SAVE_OPTIONS);
+      } catch (error) {
+        return { error: `${index + 1} / ${entries.length} 本目の内容を組み立てられませんでした。` };
+      }
+      const written = await writeDocument(targets[index], Buffer.from(output), { makeBackup: false, expect: null, fsLike });
+      if (written.ok !== true)
+        return { error: `${index + 1} / ${entries.length} 本目を書けませんでした。${written.error ?? ''}` };
+      return { ok: true };
+    },
+    onProgress: (done, total) => advance('write', done, total),
+  });
+  if (converted.ok !== true)
+    return converted;
+  return { ok: true, written: converted.written, targets, pages: entries.map(() => 1) };
+}
+
+async function runConvert(spec, { fsLike = fs, advance = () => {} } = {}) {
+  const { images, output = 'single' } = spec ?? {};
+  if (!Array.isArray(images) || images.length === 0)
+    return { error: '変換する画像がありません。' };
+  if (images.some((image) => typeof image?.path !== 'string'))
+    return { error: '変換する画像の場所が分かりません。' };
+  if (images.some((image) => image?.layout === undefined || image.layout === null))
+    return { error: '紙の大きさが決まっていません。' };
+  if (output !== 'single' && output !== 'each')
+    return { error: '出力の方式が決まっていません。' };
+
+  const entries = convertEntries(images, insertReader(fsLike));
+  return output === 'each'
+    ? runConvertEach(spec, entries, { fsLike, advance })
+    : runConvertSingle(spec, entries, { fsLike, advance });
+}
+
 // メインへ進捗を送りながら回す。
 //
 // insert-preview だけは5段を回さない。ファイルを書かず、読むのも差し込む元
@@ -345,12 +433,14 @@ async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
     result = await runMerge(spec, { fsLike, advance: progress });
   else if (spec?.kind === 'split')
     result = await runSplit(spec, { fsLike, advance: progress });
+  else if (spec?.kind === 'convert')
+    result = await runConvert(spec, { fsLike, advance: progress });
   else
     result = await runSave(spec, { fsLike, advance: progress });
   return { ...result, ms: Date.now() - started };
 }
 
-module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runInsertPreview, runSave, runMerge, runSplit, runTask };
+module.exports = { PHASES, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, applyForSave, applyForExtract, runInsertPreview, runSave, runMerge, runSplit, runConvert, runTask };
 
 // メッセージの結線。utilityProcess の中でだけ効く。
 if (process.parentPort !== undefined && process.parentPort !== null) {

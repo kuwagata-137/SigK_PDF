@@ -40,6 +40,7 @@
       "settings.js",
       "errorlog.js",
       "file-io.js",
+      "image-io.js",
       "recent-documents.js",
       "pdf-write.js",
       "launch-args.js",

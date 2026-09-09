@@ -7,22 +7,13 @@
 // ページ実体へ**変え、`op-pages.js` がそれを並びへ置く。組み立てと配置を
 // 分けてあるので、op-pages.js は pdf-lib に依存しないままでいられる。
 //
-// 【画素の寸法をそのまま紙にしない】（確定事項59）
-// 1pt = 1/72 インチなので、スマホ写真 4032×3024 は 1422×1067mm（A4 の6.8倍幅）に
-// なる。64×64 のアイコンは 23×23mm。必ず桁の違う紙が混ざるので、**基準ページへ
-// 内接**させる。ただし拡大は 100% で止める（確定事項61。64×64 を A4 いっぱいへ
-// 引き伸ばすと実効 8dpi のボケた絵になる）。
-//
-// 【白い紙を敷く】（確定事項62）
-// PDF の新規ページには下地が無い。透過 PNG の `/SMask` は正しく保たれるが、
-// 敷かないとビューアの背景色や印刷の下地がそのまま透ける。余白の部分も同じなので、
-// ページ全体を白で塗ってから絵を載せる。
+// 画像を紙に載せる中身（内接・拡大の可否・白い紙。確定事項59〜62）は image-page.js に
+// ある。変換（spec-3-1）も同じ関数を通るので、ここは「基準ページの大きさを決めて渡す」
+// だけを受け持つ。
 
 const { normalizeRotation, isInsert } = require('./op-pages.js');
-const { detectFormat, isSupported, describeFormat, isProgressiveJpeg, imageSize } = require('./image-format.js');
-
-// 確定事項58。約 8000×5000。pdf-lib は PNG を RGBA へ完全展開する。
-const MAX_PIXELS = 40 * 1000 * 1000;
+const { MAX_PIXELS, detectFormat, isSupported, describeFormat, isProgressiveJpeg } = require('./image-format.js');
+const { fitInside, placeImage } = require('./image-page.js');
 
 // 基準になるページが1枚も無いときの逃げ場。塊④ が最後の1枚を守るので
 // 普通は起きないが、元ページを全部消して差し込みだけを残す道が塞がれていない。
@@ -59,16 +50,6 @@ function baseSizeFor(original, plan, at) {
   return { ...A4 };
 }
 
-// 箱に内接させる。拡大はしない（確定事項61）。
-function fitInside(image, box) {
-  if (!(image?.width > 0) || !(image?.height > 0))
-    return null;
-  const scale = Math.min(box.width / image.width, box.height / image.height, 1);
-  const width = image.width * scale;
-  const height = image.height * scale;
-  return { width, height, x: (box.width - width) / 2, y: (box.height - height) / 2 };
-}
-
 // 差し込んだページに付いてくるものを落とす（確定事項63）。
 //
 // `/Widget` は挿入元の AcroForm と切り離されて運ばれ、機能しない入力欄の抜け殻に
@@ -100,33 +81,6 @@ function cleanInsertedPage(page, { PDFName }) {
   if (dropped > 0)
     page.node.set(PDFName.of('Annots'), context.obj(kept));
   return dropped;
-}
-
-// 1枚の画像を、基準ページと同じ大きさの紙の真ん中へ載せる。
-async function placeImage(doc, { kind, bytes }, box, { PDFPage, rgb }) {
-  const pixels = imageSize(kind, bytes);
-  if (pixels === null || !(pixels.width > 0) || !(pixels.height > 0))
-    return { error: '画像の大きさを読み取れませんでした。' };      // 0画素も含む（確定事項57）
-  if (pixels.width * pixels.height > MAX_PIXELS)
-    return { error: '画像が大きすぎます。' };
-
-  let image;
-  try {
-    image = kind === 'png' ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
-  } catch (error) {
-    // embedPng は素の文字列を、embedJpg は Error を投げる（実測 H）。
-    // message で分岐してはいけないので、型を選ばずに握って文言を差し替える。
-    return { error: '画像を読み込めませんでした。ファイルが壊れている可能性があります。' };
-  }
-  if (!(image.width > 0) || !(image.height > 0))
-    return { error: '画像の大きさを読み取れませんでした。' };
-
-  const placed = fitInside(image, box);
-  const page = PDFPage.create(doc);
-  page.setSize(box.width, box.height);
-  page.drawRectangle({ x: 0, y: 0, width: box.width, height: box.height, color: rgb(1, 1, 1) });
-  page.drawImage(image, placed);
-  return { ok: true, page };
 }
 
 // PDF の1ページを複製して差し込む。大きさは元のまま（紙の大きさは中身である）。

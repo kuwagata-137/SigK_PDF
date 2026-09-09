@@ -91,3 +91,39 @@ test('0画素の PNG も寸法として読める', () => {
   // 無言で紙が増えないよう、ここで 0 が見えるようにしておく。
   assert.deepEqual(imageSize('png', makePng({ width: 0, height: 0 })), { width: 0, height: 0 });
 });
+
+// ---- 変換向けの判定（spec-3-1 確定事項1・4・17） ----
+
+const { inspectImageBytes, describeImageFormat, IMAGE_KINDS, MAX_PIXELS } = require('../worker/image-format.js');
+
+test('画像として載せられるかを1本で判定する', () => {
+  assert.deepEqual(inspectImageBytes(makePng({ width: 40, height: 30 })), { ok: true, kind: 'png', width: 40, height: 30 });
+  assert.deepEqual(inspectImageBytes(makeJpeg({ width: 4032, height: 3024 })), { ok: true, kind: 'jpeg', width: 4032, height: 3024 });
+  assert.equal(IMAGE_KINDS.has('pdf'), false, 'PDF は画像ではない');
+});
+
+test('形式・プログレッシブ・寸法・画素上限の順で断る', () => {
+  assert.match(inspectImageBytes(GIF89A).error, /^GIF はまだ変換できません/);
+  assert.match(inspectImageBytes(BMP).error, /^BMP はまだ変換できません/);
+  assert.match(inspectImageBytes(Buffer.from('%PDF-1.7\n')).error, /^PDF は画像ではありません/);
+  assert.match(inspectImageBytes(WEBP).error, /^対応していない形式です/);
+  assert.match(inspectImageBytes(makeJpeg({ marker: 0xc2 })).error, /プログレッシブ形式/);
+  assert.match(inspectImageBytes(makePng({ width: 0, height: 0 })).error, /大きさを読み取れません/);
+  assert.ok(9000 * 5000 > MAX_PIXELS);
+  assert.match(inspectImageBytes(makeJpeg({ width: 9000, height: 5000 })).error, /大きすぎます/);
+});
+
+test('先頭だけでは寸法が見つからないときは incomplete を立てる', () => {
+  // 画面は先頭 64KB しか読まない（確定事項4）。SOF がその先にあれば、全体を読み直す合図になる。
+  const head = makeJpeg().subarray(0, 4);
+  const result = inspectImageBytes(head);
+  assert.equal(result.incomplete, true);
+  assert.equal(result.kind, 'jpeg');
+});
+
+test('断る文言は形式ごとに1か所で決める', () => {
+  assert.match(describeImageFormat('gif'), /GIF/);
+  assert.match(describeImageFormat('bmp'), /BMP/);
+  assert.match(describeImageFormat('pdf'), /PDF は画像ではありません/);
+  assert.match(describeImageFormat(null), /対応していない形式/);
+});

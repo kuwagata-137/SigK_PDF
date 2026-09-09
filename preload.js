@@ -62,6 +62,11 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   pickSplitSource: (options) => ipcRenderer.invoke('pdf:pickSplitSource', options),
   // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
   pickFolder: (options) => ipcRenderer.invoke('pdf:pickFolder', options),
+  // 変換する画像をまとめて選ばせる（spec-3-1 確定事項2）。{ paths } / { canceled }。
+  pickImageSources: (options) => ipcRenderer.invoke('pdf:pickImageSources', options),
+  // 画像の形式と画素数を先頭バイトから読む（spec-3-1 確定事項4）。
+  // { ok, kind, width, height, name, size } / { error }。
+  inspectImage: (filePath) => ipcRenderer.invoke('pdf:inspectImage', filePath),
 
   // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。
   // レンダラーの keydown には頼らない。viewer-controls.js の handleKey が
