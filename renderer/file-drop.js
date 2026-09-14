@@ -94,10 +94,10 @@
     }
 
     // ツールモードでは選んでいるツールの画面が受け取る（spec-2-1 確定事項12・
-    // spec-2-2 確定事項2・spec-3-1 確定事項2）。タブに開くのではなく、結合なら
-    // 一覧の末尾へ足し、分割なら対象にし、変換なら画像として一覧へ足す。
+    // spec-2-2 確定事項2・spec-3-1 確定事項2・spec-3-3 確定事項1）。タブに開くのではなく、
+    // 結合なら一覧の末尾へ足し、分割と PDF→画像なら対象にし、変換なら画像として一覧へ足す。
     if (root.SigK.tools?.isToolsMode() === true) {
-      const tools = { split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert };
+      const tools = { split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert, toImage: root.SigK.toolsToImage };
       const tool = tools[root.SigK.tools.selected()] ?? root.SigK.toolsMerge;
       if (tool !== undefined) {
         await tool.addPaths(paths);

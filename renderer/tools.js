@@ -8,7 +8,8 @@
   // 抜ければ、開いていた文書がそのまま見える（確定事項2）。
   //
   // 一覧に載せるのは動くツールだけである。塊① の結合、塊② の分割（spec-2-2
-  // 確定事項39）、塊④ の画像→PDF（spec-3-1 確定事項34）。ツールモードに入った
+  // 確定事項39）、塊④ の画像→PDF（spec-3-1 確定事項34）、塊⑥ の PDF→画像
+  // （spec-3-3 確定事項28）。ツールモードに入った
   // 時点では結合を選んだ状態にする（確定事項1・3。最後に使ったツールは覚えない。
   // 覚えるかどうかは Phase 6 の設定画面で決める）。透かしはそれを作るフェーズで足す。
   //
@@ -19,6 +20,7 @@
     { id: 'merge', label: '結合', hint: '複数の PDF を1つに', icon: 'merge' },
     { id: 'split', label: '分割', hint: '1つの PDF を複数に', icon: 'split' },
     { id: 'convert', label: '画像→PDF', hint: '画像を PDF に', icon: 'convert' },
+    { id: 'toImage', label: 'PDF→画像', hint: 'PDF のページを画像に', icon: 'toImage' },
   ];
 
   const state = { selected: 'merge' };
