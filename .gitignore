@@ -30,3 +30,6 @@ package-lock.json
 # 検証用 PDF と画像（test/fixtures/build.js が生成する。決定10）
 test/fixtures/*.pdf
 test/fixtures/*.png
+test/fixtures/*.bmp
+test/fixtures/*.gif
+test/fixtures/*.tif

@@ -11,7 +11,9 @@
   // 画面には触らないので node --test で直接読める（test/convert-plan.test.js）。
 
   // 入力の上限（確定事項6）。1枚ごとに embed() を呼べば RSS は1枚ぶんで頭打ちになる
-  // （事前調査 A）ので、結合の入力上限と同じ数にする。
+  // （事前調査 A）ので、結合の入力上限と同じ数にする。複数ページの TIFF が入るようになってからは
+  // **ページで数える**（spec-3-2 確定事項30。メモリの根拠がページ単位のため）。ファイル数の
+  // 先出しの上限（addPaths）も同じ数である。
   const MAX_INPUTS = 100;
 
   const paper = () => root.SigK.paperSize;
@@ -56,7 +58,7 @@
   // ---- ファイル名（確定事項19〜21） ----
 
   function stem(name) {
-    return String(name ?? '').replace(/\.(png|jpe?g)$/i, '');
+    return String(name ?? '').replace(/\.(png|jpe?g|bmp|gif|tiff?)$/i, '');
   }
 
   function outputNames(rows) {
@@ -80,8 +82,32 @@
     return rows.length === 0 ? 'images.pdf' : `${stem(rows[0].name)}.pdf`;
   }
 
+  // 行のページごとの寸法。読めていない行や塊④ までの行（frames 無し）は先頭の1つだけ。
+  function framesOf(row) {
+    if (Array.isArray(row.frames) && row.frames.length > 0)
+      return row.frames;
+    return [{ width: row.width, height: row.height }];
+  }
+
+  function totalPages(rows) {
+    return (rows ?? []).reduce((sum, row) => sum + framesOf(row).length, 0);
+  }
+
+  // 1行ぶんの紙の並び（ページごとに planPage を引く。spec-3-2 確定事項30）。
+  function planRow(row, settings) {
+    const layouts = [];
+    for (const frame of framesOf(row)) {
+      const planned = planPage(frame, settings);
+      if (planned.error !== undefined)
+        return planned;
+      layouts.push({ page: planned.page, box: planned.box, allowUpscale: planned.allowUpscale });
+    }
+    return { layouts };
+  }
+
   // 一覧と設定から計画を組む。行が無い・読んでいる途中・読めない行があれば ready: false
   // （error は null。行の側に理由がある）。「画像ごと」で出力名が衝突すれば ready: false と error。
+  // pages は行 × ページの紙（ワーカーの layouts）、totalPages は「まとめる」のページ数。
   function planConvert(rows, settings) {
     if (!Array.isArray(rows) || rows.length === 0)
       return { ready: false, error: null };
@@ -89,13 +115,16 @@
       return { ready: false, error: `${MAX_INPUTS} ファイルまでです` };
     if (rows.some((row) => row.pending === true || (row.blocked !== null && row.blocked !== undefined)))
       return { ready: false, error: null };
+    const total = totalPages(rows);
+    if (total > MAX_INPUTS)
+      return { ready: false, error: `${MAX_INPUTS} ページまでです` };
 
     const pages = [];
     for (const row of rows) {
-      const planned = planPage({ width: row.width, height: row.height }, settings);
+      const planned = planRow(row, settings);
       if (planned.error !== undefined)
         return { ready: false, error: planned.error };
-      pages.push({ page: planned.page, box: planned.box, allowUpscale: planned.allowUpscale });
+      pages.push(planned.layouts);
     }
 
     const names = outputNames(rows);
@@ -104,9 +133,9 @@
       if (dupes.length > 0)
         return { ready: false, error: `出力名が重なります: ${dupes.join('、')}` };
     }
-    return { ready: true, error: null, pages, names };
+    return { ready: true, error: null, pages, totalPages: total, names };
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.convertPlan = { MAX_INPUTS, planPage, describePage, stem, outputNames, duplicateNames, defaultSingleName, planConvert };
+  SigK.convertPlan = { MAX_INPUTS, planPage, describePage, stem, outputNames, duplicateNames, defaultSingleName, totalPages, planConvert };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -94,8 +94,9 @@
     // （spec-2-2 確定事項25）。
     state.progress = progress;
     // 段の中で進むもの（結合）はファイル単位で出す（spec-2-1 確定事項22）。
+    // 変換はページ単位で、ワーカーが unit を添える（spec-3-2 確定事項21）。
     const count = Number.isInteger(progress.done) && Number.isInteger(progress.of)
-      ? `${progress.done} / ${progress.of} ファイル`
+      ? `${progress.done} / ${progress.of} ${progress.unit ?? 'ファイル'}`
       : `${progress.step}/${progress.total}`;
     banner().show(`${state.running.label}しています（${count}）`, {
       autoHideMs: 0,

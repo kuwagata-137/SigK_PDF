@@ -99,7 +99,9 @@
     const paper = node.querySelector('.paper');
     const note = node.querySelector('.note');
 
-    px.textContent = row.pending ? '…' : (row.width === null ? '–' : `${row.width}×${row.height}`);
+    // 画素数は先頭ページ。2ページ以上（複数ページの TIFF）ならページ数を添える（spec-3-2 確定事項29）。
+    const pages = row.pages > 1 ? ` ・ ${row.pages} ページ` : '';
+    px.textContent = row.pending ? '…' : (row.width === null ? '–' : `${row.width}×${row.height}${pages}`);
     kind.textContent = row.pending || row.kind === null ? '' : String(row.kind).toUpperCase();
 
     const settings = convert().settings();

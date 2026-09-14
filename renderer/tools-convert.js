@@ -81,6 +81,8 @@
         kind: null,
         width: null,
         height: null,
+        pages: 1,
+        frames: null,
         blocked: null,
         pending: true,
       };
@@ -101,6 +103,8 @@
         row.kind = info.kind;
         row.width = info.width;
         row.height = info.height;
+        row.pages = info.pages ?? 1;
+        row.frames = info.frames ?? [{ width: info.width, height: info.height }];
         row.name = info.name;
       }
       list()?.syncRow(row.id);
@@ -235,12 +239,13 @@
     return !state.running && root.SigK.save?.isBusy() !== true && currentPlan().ready === true;
   }
 
-  // ワーカーへ渡す画像の並び（確定事項22）。layout は計画がそのまま持っている。
+  // ワーカーへ渡す画像の並び（確定事項22・spec-3-2 確定事項20）。layouts は計画がそのまま
+  // 持っている（1ファイルにページ数ぶん）。
   function imagesFor(current, targets) {
     return state.rows.map((row, index) => ({
       path: row.path,
       name: row.name,
-      layout: current.pages[index],
+      layouts: current.pages[index],
       ...(targets === undefined ? {} : { target: targets[index] }),
     }));
   }

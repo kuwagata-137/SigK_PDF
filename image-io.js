@@ -9,7 +9,9 @@
 //
 // Electron の dialog は引数で受け取る（file-io.js と同じ作法。node --test から読める）。
 // 戻り値の形も file-io.js に揃える。
-//   成功     { ok: true, path, name, size, kind, width, height }
+//   成功     { ok: true, path, name, size, kind, width, height, pages, frames }
+//            （pages はページ数、frames はページごとの寸法。複数ページを持つのは TIFF だけ。
+//              spec-3-2 確定事項28）
 //   取り消し { canceled: true }
 //   失敗     { error: '人が読める文言' }
 
@@ -23,11 +25,11 @@ const { toBytes, describeReadFailure } = require('./file-io.js');
 const MAX_IMAGE_BYTES = 100 * 1024 * 1024;
 
 // 先頭だけ読む量。PNG の IHDR は 24 バイト、JPEG の SOF は EXIF のサムネイルの後ろでも
-// たいてい 64KB に収まる。
+// たいてい 64KB に収まる。TIFF は IFD が末尾に置かれることが多く、そのときは全体を読み直す。
 const HEAD_BYTES = 64 * 1024;
 
 // **このフィルターは目安でしかない。**受け付けるかどうかは先頭バイトで判定する。
-const IMAGE_FILTERS = [{ name: '画像ファイル', extensions: ['png', 'jpg', 'jpeg'] }];
+const IMAGE_FILTERS = [{ name: '画像ファイル', extensions: ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff'] }];
 
 async function readHead(filePath, size, fsLike) {
   const length = Math.min(size, HEAD_BYTES);
@@ -66,6 +68,8 @@ async function inspectImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_BYTES,
       kind: inspected.kind,
       width: inspected.width,
       height: inspected.height,
+      pages: inspected.pages,
+      frames: inspected.frames,
     };
   } catch (error) {
     onError({ message: '画像を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });

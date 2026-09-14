@@ -1319,6 +1319,8 @@ function installSmokeCheck(win) {
   // SIGK_SMOKE_CONVERT=<a.png>;<b.png> を付けると、画像→PDF の経路を通す
   // （spec-3-1 の完了判定4・5・7・9）。分割と同じ2段構えで、まず画面を組んで
   // 計画（出力先）をメインへ返し、メインが同名確認の下ごしらえをしてから走らせる。
+  // BMP・GIF・TIFF（spec-3-2）も同じ経路で、拡張子は見ない。複数ページの TIFF は
+  // rows の pages と計画の layouts に出る。
   //
   // 「画像ごと」（_OUTPUT=each）は画面の「実行」と同じ経路（toolsConvert.run）を
   // そのまま回せる。「まとめる」は保存先を OS の保存ダイアログが聞くため自動では
@@ -1336,7 +1338,7 @@ function installSmokeCheck(win) {
       SigK.toolsConvert.setFolder(${JSON.stringify(settings.folder)});
     const plan = SigK.toolsConvert.currentPlan();
     return {
-      rows: SigK.toolsConvert.rows().map((row) => ({ name: row.name, kind: row.kind, width: row.width, height: row.height, blocked: row.blocked })),
+      rows: SigK.toolsConvert.rows().map((row) => ({ name: row.name, kind: row.kind, width: row.width, height: row.height, pages: row.pages, blocked: row.blocked })),
       mode: document.documentElement.getAttribute('data-mode'),
       selected: SigK.tools.selected(),
       canRun: SigK.toolsConvert.canRun(),
@@ -1344,8 +1346,10 @@ function installSmokeCheck(win) {
       example: document.getElementById('convert-example').textContent,
       summary: document.getElementById('convert-summary').textContent,
       papers: [...document.querySelectorAll('#convert-list .convert-row .paper')].map((node) => node.textContent),
+      pixels: [...document.querySelectorAll('#convert-list .convert-row .px')].map((node) => node.textContent),
       planError: plan.error,
-      pages: plan.ready ? plan.pages.map((page) => page.page) : [],
+      pages: plan.ready ? plan.pages.map((layouts) => layouts.map((layout) => layout.page)) : [],
+      totalPages: plan.ready ? plan.totalPages : null,
       targets: plan.ready && ${JSON.stringify(settings.output)} === 'each' ? plan.targets : [],
       singleTarget: SigK.toolsConvert.defaultSingleTarget(),
     };
@@ -1367,7 +1371,7 @@ function installSmokeCheck(win) {
           images: SigK.toolsConvert.rows().map((row, index) => ({
             path: row.path,
             name: row.name,
-            layout: SigK.toolsConvert.currentPlan().pages[index],
+            layouts: SigK.toolsConvert.currentPlan().pages[index],
           })),
           target: ${JSON.stringify(target)},
           targets: [${JSON.stringify(target)}],

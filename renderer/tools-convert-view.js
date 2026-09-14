@@ -48,7 +48,7 @@
     const count = el.doc.createElement('span');
     count.className = 'n';
     if (settings.output === 'single') {
-      count.textContent = `（${plan.pages.length} ページ）`;
+      count.textContent = `（${plan.totalPages} ページ）`;
       el.example.append(code(root.SigK.convertPlan.defaultSingleName(convert().rows())), count);
       return;
     }

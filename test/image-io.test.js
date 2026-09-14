@@ -6,7 +6,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, inspectImage, pickImageSources, createImageIo } = require('../image-io.js');
-const { makePng, makeJpeg, GIF89A } = require('./fixtures/images.js');
+const { makePng, makeJpeg, GIF89A, WEBP } = require('./fixtures/images.js');
+const { makeTiff } = require('./fixtures/tiff.js');
+const { makeBmp, rgbaGradient } = require('./fixtures/bmp.js');
 
 const IN_A = 'C:/in/a.png';
 const IN_B = 'C:/in/b.jpg';
@@ -51,7 +53,7 @@ function fsFor(files, { fail = null } = {}) {
 test('先頭だけ読んで形式・画素数・名前を返す', async () => {
   const { fsLike, counts } = fsFor({ [IN_A]: { bytes: makePng({ width: 1200, height: 800 }) }, [IN_B]: { bytes: makeJpeg({ width: 4032, height: 3024 }) } });
   const png = await inspectImage(IN_A, { fsLike });
-  assert.deepEqual(png, { ok: true, path: IN_A, name: 'a.png', size: png.size, kind: 'png', width: 1200, height: 800 });
+  assert.deepEqual(png, { ok: true, path: IN_A, name: 'a.png', size: png.size, kind: 'png', width: 1200, height: 800, pages: 1, frames: [{ width: 1200, height: 800 }] });
   const jpeg = await inspectImage(IN_B, { fsLike });
   assert.equal(jpeg.kind, 'jpeg');
   assert.deepEqual([jpeg.width, jpeg.height], [4032, 3024]);
@@ -78,12 +80,38 @@ test('先頭 64KB に寸法が無ければ全体を読み直す', async () => {
 });
 
 test('断る理由は形式ごとに返し、kind を添える', async () => {
-  const { fsLike } = fsFor({ 'C:/in/c.gif': { bytes: GIF89A }, 'C:/in/d.pdf': { bytes: Buffer.from('%PDF-1.7\n') }, 'C:/in/p.jpg': { bytes: makeJpeg({ marker: 0xc2 }) } });
-  const gif = await inspectImage('C:/in/c.gif', { fsLike });
-  assert.match(gif.error, /GIF はまだ変換できません/);
-  assert.equal(gif.kind, 'gif');
+  const { fsLike } = fsFor({ 'C:/in/c.webp': { bytes: WEBP }, 'C:/in/d.pdf': { bytes: Buffer.from('%PDF-1.7\n') }, 'C:/in/p.jpg': { bytes: makeJpeg({ marker: 0xc2 }) }, 'C:/in/g.gif': { bytes: GIF89A.subarray(0, 8) } });
+  const webp = await inspectImage('C:/in/c.webp', { fsLike });
+  assert.match(webp.error, /対応していない形式です。PNG・JPEG・BMP・GIF・TIFF を選んでください/);
+  assert.equal(webp.kind, null);
   assert.match((await inspectImage('C:/in/d.pdf', { fsLike })).error, /PDF は画像ではありません/);
   assert.match((await inspectImage('C:/in/p.jpg', { fsLike })).error, /プログレッシブ/);
+  const gif = await inspectImage('C:/in/g.gif', { fsLike });
+  assert.match(gif.error, /大きさを読み取れませんでした/, '先頭だけの GIF は寸法が無い');
+  assert.equal(gif.kind, 'gif');
+});
+
+// ---- BMP・GIF・TIFF（spec-3-2 確定事項27・28） ----
+
+test('フィルターに3形式の拡張子が入っている', () => {
+  assert.deepEqual(IMAGE_FILTERS[0].extensions, ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff']);
+});
+
+test('TIFF は IFD が末尾にあるので全体を読み直し、ページ数とページごとの寸法を返す', async () => {
+  const page = (width, height) => ({ width, height, bitsPerSample: [8], photometric: 1, compression: 1, pixels: new Uint8Array(width * height) });
+  const tiff = makeTiff([page(400, 300), page(200, 100), page(8, 8)]);
+  const padded = Buffer.concat([tiff]);
+  const { fsLike, counts } = fsFor({ 'C:/in/scan.tif': { bytes: padded }, 'C:/in/a.bmp': { bytes: makeBmp({ width: 30, height: 20, bits: 24, pixels: rgbaGradient(30, 20) }) } });
+  const scan = await inspectImage('C:/in/scan.tif', { fsLike });
+  assert.equal(scan.ok, true, scan.error);
+  assert.equal(scan.kind, 'tiff');
+  assert.equal(scan.pages, 3);
+  assert.deepEqual(scan.frames, [{ width: 400, height: 300 }, { width: 200, height: 100 }, { width: 8, height: 8 }]);
+  assert.deepEqual([scan.width, scan.height], [400, 300]);
+  assert.equal(counts.whole, 1, '先頭 64KB に IFD が無いので全体を読み直した');
+  const bmp = await inspectImage('C:/in/a.bmp', { fsLike });
+  assert.deepEqual([bmp.kind, bmp.pages, bmp.width, bmp.height], ['bmp', 1, 30, 20]);
+  assert.equal(counts.whole, 1, 'BMP は先頭で足りる');
 });
 
 test('上限・無い・フォルダー・権限は読む前に断る', async () => {

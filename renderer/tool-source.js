@@ -41,8 +41,9 @@
     }
   }
 
-  // 画像の形式と画素数（spec-3-1 確定事項4）。読むのはメイン側 image-io.js で、先頭バイト
-  // だけを見る。戻り値は { ok, kind, width, height, name } か { reason: 'unavailable' | 'image', error }。
+  // 画像の形式と画素数（spec-3-1 確定事項4・spec-3-2 確定事項28）。読むのはメイン側 image-io.js で、
+  // 先頭バイトだけを見る（TIFF は全体）。戻り値は { ok, kind, width, height, pages, frames, name } か
+  // { reason: 'unavailable' | 'image', error }。frames はページごとの寸法（複数ページを持つのは TIFF だけ）。
   async function inspectImage(filePath) {
     const api = root.pdfAPI;
     if (api?.available !== true || typeof api.inspectImage !== 'function')
@@ -50,7 +51,8 @@
     const info = await api.inspectImage(filePath);
     if (info?.ok !== true)
       return { reason: 'image', error: String(info?.error ?? '画像を読めませんでした').replace(/。$/, '') };
-    return { ok: true, kind: info.kind, width: info.width, height: info.height, name: info.name ?? baseName(filePath) };
+    const frames = Array.isArray(info.frames) && info.frames.length > 0 ? info.frames : [{ width: info.width, height: info.height }];
+    return { ok: true, kind: info.kind, width: info.width, height: info.height, pages: frames.length, frames, name: info.name ?? baseName(filePath) };
   }
 
   const SigK = (root.SigK = root.SigK || {});

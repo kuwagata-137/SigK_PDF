@@ -166,6 +166,19 @@ test('1つの PDF から複数ページ差し込める', async (t) => {
   assert.equal((await shell.SigK.viewer.getPage(2)).pageNumber, 2, '2枚目は同じ文書の2ページ目');
 });
 
+test('複数ページの TIFF も PDF と同じくページ数ぶん差し込む（spec-3-2 確定事項25）', async (t) => {
+  const shell = await withOpenDocument(t, {
+    insertSourceResults: [{ path: 'C:\\work\\scan.tif' }],
+    taskResults: [{ ...preview([{ width: A4.width, height: A4.height }, { width: A4.width, height: A4.height }, { width: A4.width, height: A4.height }]), kind: 'tiff' }],
+  });
+  shell.SigK.pageGrid.setSelection([0]);
+
+  assert.equal((await shell.SigK.insert.run()).pages, 3);
+  await shell.flush();
+  assert.deepEqual(plain(shell.SigK.viewer.getInserts()).map((entry) => entry.page), [0, 1, 2], '控えの page がワーカーの frame になる');
+  assert.match(shell.SigK.viewBanner.text(), /3 ページを差し込みました/);
+});
+
 test('差し込んだページの寸法が、画面の寸法になる', async (t) => {
   const shell = await withOpenDocument(t, withPhoto([{ width: 100, height: 200 }]));
 
