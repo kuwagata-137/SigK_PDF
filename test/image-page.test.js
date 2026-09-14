@@ -95,3 +95,56 @@ test('placeImage は箱と同じ大きさの紙に拡大せず載せる（差し
   assert.equal(Math.round(placed.width), 64, '原寸のまま');
   assert.equal(Math.round(placed.x), Math.round((A4.width - 64) / 2));
 });
+
+// ---- BMP・GIF・TIFF（spec-3-2 確定事項19） ----
+
+const { makeBmp, rgbaGradient } = require('./fixtures/bmp.js');
+const { makeGif } = require('./fixtures/gif.js');
+const { makeTiff } = require('./fixtures/tiff.js');
+
+const pdfLib = require('pdf-lib');
+const FULL_TOOLS = { ...TOOLS, PDFImage: pdfLib.PDFImage, PngEmbedder: pdfLib.PngEmbedder, PDFName, PDFHexString: pdfLib.PDFHexString };
+
+function xObjectDict(doc, image) {
+  return doc.context.lookup(image.ref).dict;
+}
+
+test('BMP・GIF・TIFF は画素へ展開して /XObject にし、その場で埋め込む', async () => {
+  const doc = await PDFDocument.create();
+  const bmp = await embedImage(doc, { kind: 'bmp', bytes: toBytes(makeBmp({ width: 12, height: 9, bits: 24, pixels: rgbaGradient(12, 9) })) }, FULL_TOOLS);
+  assert.equal(bmp.ok, true, bmp.error);
+  assert.deepEqual([bmp.image.width, bmp.image.height], [12, 9]);
+  assert.equal(xObjectDict(doc, bmp.image).get(PDFName.of('ColorSpace')).asString(), '/DeviceRGB');
+  assert.equal(bmp.image.embedder, undefined, 'その場で embed 済み');
+
+  const gif = await embedImage(doc, { kind: 'gif', bytes: toBytes(makeGif({ width: 5, height: 4, palette: [0xff0000, 0x00ff00], indices: new Uint8Array(20) })) }, FULL_TOOLS);
+  assert.equal(gif.ok, true, gif.error);
+  assert.deepEqual([gif.image.width, gif.image.height], [5, 4]);
+
+  const bilevel = { width: 16, height: 2, bitsPerSample: [1], photometric: 0, compression: 1, pixels: Uint8Array.from([0xff, 0, 0, 0xff]) };
+  const tiff = await embedImage(doc, { kind: 'tiff', bytes: toBytes(makeTiff([bilevel])) }, FULL_TOOLS);
+  assert.equal(tiff.ok, true, tiff.error);
+  const dict = xObjectDict(doc, tiff.image);
+  assert.equal(dict.get(PDFName.of('BitsPerComponent')).asNumber(), 1, '2値は 1bit のまま');
+  assert.deepEqual(dict.get(PDFName.of('Decode')).asArray().map((n) => n.asNumber()), [1, 0]);
+});
+
+test('複数ページの TIFF は frame でページを選ぶ', async () => {
+  const doc = await PDFDocument.create();
+  const page = (width, height) => ({ width, height, bitsPerSample: [8], photometric: 1, compression: 1, pixels: new Uint8Array(width * height) });
+  const bytes = toBytes(makeTiff([page(4, 3), page(9, 2), page(1, 1)]));
+  const second = await embedImage(doc, { kind: 'tiff', bytes }, FULL_TOOLS, { frame: 1 });
+  assert.deepEqual([second.image.width, second.image.height], [9, 2]);
+  const placed = await placeImage(doc, { kind: 'tiff', bytes }, A4, FULL_TOOLS, { frame: 2 });
+  assert.equal(placed.ok, true);
+  assert.match((await embedImage(doc, { kind: 'tiff', bytes }, FULL_TOOLS, { frame: 3 })).error, /読み取れません/);
+});
+
+test('3形式でも寸法と上限は埋め込む前に断り、道具が無ければ埋め込まない', async () => {
+  const doc = await PDFDocument.create();
+  const huge = { width: 9000, height: 5000, bitsPerSample: [1], photometric: 0, compression: 1, strips: [new Uint8Array(0)] };
+  assert.match((await embedImage(doc, { kind: 'tiff', bytes: toBytes(makeTiff([huge])) }, FULL_TOOLS)).error, /大きすぎます/);
+  const bmp = toBytes(makeBmp({ width: 4, height: 4, bits: 24, pixels: rgbaGradient(4, 4) }));
+  assert.match((await embedImage(doc, { kind: 'bmp', bytes: bmp }, TOOLS)).error, /道具/);
+  assert.match((await embedImage(doc, { kind: 'bmp', bytes: bmp.subarray(0, 60) }, FULL_TOOLS)).error, /壊れている/);
+});
