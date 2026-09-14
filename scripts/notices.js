@@ -59,6 +59,19 @@ const BUNDLED = [
     license: 'node_modules/tslib/LICENSE.txt',
     note: '`vendor/pdf-lib.min.js` に取り込まれている。',
   },
+  {
+    pkg: 'utif',
+    license: 'node_modules/utif/LICENSE',
+    note: 'TIFF の伸長（CCITT G3／G4・LZW・PackBits・JPEG・Deflate）に用いる。`vendor/utif.js` として同梱する。'
+      + 'utif が依存する pako は同梱せず、ワーカーが Node の zlib を差し替えて渡す（spec-3-2 確定事項13）。'
+      + '内蔵の JPEG デコーダーは出自が異なるため、次節に個別に掲げる。',
+  },
+  {
+    pkg: 'omggif',
+    license: 'node_modules/omggif/README',
+    note: 'GIF の伸長に用いる。`vendor/omggif.js` として同梱する。パッケージは LICENSE という名のファイルを'
+      + '持たず、`README` に著作権表示と許諾条項（MIT）が書かれているので、それを掲げる。',
+  },
 ];
 
 // パッケージの中に同居している、出自の違うコードである。package.json を持たないため
@@ -88,6 +101,14 @@ const BUNDLED_COMPONENTS = [
     license: 'CC0-1.0',
     note: 'CMYK の色を画面の色へ移すときの既定のプロファイルである。`vendor/iccs/` として同梱する。',
     files: ['node_modules/pdfjs-dist/iccs/LICENSE'],
+  },
+  {
+    name: 'JPEG デコーダー（utif 内蔵・pdf.js 由来）',
+    license: 'Apache-2.0',
+    note: '`vendor/utif.js` の冒頭に取り込まれている JPEG デコーダーは pdf.js のものを圧縮した'
+      + 'コードで、JPEG 圧縮の TIFF を伸長するときに用いる。utif のファイルに出自の表記が無いため、'
+      + 'ここに pdf.js のライセンス全文を掲げる（spec-3-2 事前調査 A・G）。',
+    files: ['node_modules/pdfjs-dist/LICENSE'],
   },
 ];
 

@@ -30,6 +30,10 @@ const VENDOR_MANIFEST = [
   { label: 'pdf.js ICC プロファイル', pkg: 'pdfjs-dist', from: 'iccs', to: 'iccs', kind: 'dir' },
   { label: 'pdf-lib', pkg: 'pdf-lib', from: 'dist/pdf-lib.min.js', to: 'pdf-lib.min.js', kind: 'file' },
   { label: 'fontkit', pkg: '@pdf-lib/fontkit', from: 'dist/fontkit.umd.min.js', to: 'fontkit.umd.min.js', kind: 'file' },
+  // 画像のデコード（spec-3-2 確定事項35）。ワーカーが require する。utif は先頭で
+  // `require("pako")` するため、worker/vendor-loader.js が zlib の差し替えを渡して読む。
+  { label: 'utif（TIFF）', pkg: 'utif', from: 'UTIF.js', to: 'utif.js', kind: 'file' },
+  { label: 'omggif（GIF）', pkg: 'omggif', from: 'omggif.js', to: 'omggif.js', kind: 'file' },
 ];
 
 // 複製計画を組む。ファイルシステムには触らない（テストから安全に呼べるようにするため）。
