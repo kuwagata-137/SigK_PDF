@@ -1,16 +1,20 @@
 'use strict';
 
-// 差し込むファイルの形式を先頭バイトで見分ける層（spec-1-6 確定事項53〜56）。
+// 差し込む・変換するファイルの形式を先頭バイトで見分ける層（spec-1-6 確定事項53〜56、
+// spec-3-2 確定事項1〜3・6）。
 //
 // **拡張子は見ない。**中身と食い違っていることがあるうえ、pdf-lib の埋め込みは
 // 形式が違うと投げ方が揃わない（`embedPng` は**素の文字列**を、`embedJpg` は
 // `Error` を投げる。実測 H）。**そもそも投げさせない**ために、渡す前にここで断る。
 //
-// 既定拒否にしてあるので、WebP・HEIC・TIFF なども自動的に落ちる。GIF と BMP だけは
-// 名指しで断る（確定事項54）。よく間違えて選ばれる形式で、「対応していない形式です」
-// だけでは何を選び直せばよいか分からないためである。
+// 既定拒否にしてあるので、WebP・HEIC・BigTIFF なども自動的に落ちる。
+// BMP・GIF・TIFF は塊⑤（spec-3-2）で受けるようになった。pdf-lib が埋め込めるのは
+// PNG・JPEG だけなので、3形式はワーカーが画素へ展開する（image-decode.js）。
 //
 // pdf-lib にも fs にも依存しない。docs/07 第4章の「依存なしで回る層」である。
+
+const { JPEG_PROGRESSIVE, jpegStartOfFrame, isProgressiveJpeg, jpegSize } = require('./jpeg-frame.js');
+const { readTiffDirectory, tiffFrameSize, checkTiffSupport } = require('./tiff-directory.js');
 
 const SIGNATURES = [
   { kind: 'pdf', bytes: [0x25, 0x50, 0x44, 0x46, 0x2d] },                    // %PDF-
@@ -19,25 +23,22 @@ const SIGNATURES = [
   { kind: 'gif', bytes: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61] },              // GIF87a
   { kind: 'gif', bytes: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] },              // GIF89a
   { kind: 'bmp', bytes: [0x42, 0x4d] },                                      // BM
+  { kind: 'tiff', bytes: [0x49, 0x49, 0x2a, 0x00] },                         // II*\0（リトルエンディアン）
+  { kind: 'tiff', bytes: [0x4d, 0x4d, 0x00, 0x2a] },                         // MM\0*（ビッグエンディアン）
 ];
 
 // 差し込みが受けるもの（PDF を含む）。
-const SUPPORTED = new Set(['pdf', 'png', 'jpeg']);
-// 画像として載せられるもの（spec-3-1 確定事項1）。pdf-lib が埋め込めるのはこの2つだけである。
-const IMAGE_KINDS = new Set(['png', 'jpeg']);
+const SUPPORTED = new Set(['pdf', 'png', 'jpeg', 'gif', 'bmp', 'tiff']);
+// 画像として載せられるもの（spec-3-1 確定事項1・spec-3-2 確定事項1）。
+const IMAGE_KINDS = new Set(['png', 'jpeg', 'gif', 'bmp', 'tiff']);
 
 // 画素数の上限（spec-1-6 確定事項58）。約 8000×5000。pdf-lib は PNG を RGBA へ完全展開する。
+// 2値の TIFF はワーカーでは軽いが、pdf.js が描くときに RGBA へ展開するので共通のまま
+// （spec-3-2 確定事項7）。
 const MAX_PIXELS = 40 * 1000 * 1000;
 
-// 長さを持たない JPEG のマーカー。TEM・RSTn・SOI・EOI。
-const JPEG_STANDALONE = new Set([0x01, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9]);
-
-// SOF（Start Of Frame）のマーカー。C4（DHT）・C8（JPG）・CC（DAC）は SOF ではない。
-const JPEG_START_OF_FRAME = new Set([
-  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
-]);
-
-const JPEG_PROGRESSIVE = 0xc2;
+const IMAGE_CHOICES = 'PNG・JPEG・BMP・GIF・TIFF';
+const SIZE_UNREADABLE = '画像の大きさを読み取れませんでした。';
 
 function startsWith(bytes, signature) {
   if (bytes.length < signature.length)
@@ -60,82 +61,28 @@ function isSupported(kind) {
   return SUPPORTED.has(kind);
 }
 
-// 断る理由。分かる形式は名指しで、それ以外はひとまとめにする（確定事項54）。
-function describeFormat(kind) {
-  switch (kind) {
-    case 'gif':
-      return 'GIF は挿入できません。PNG・JPEG・PDF を選んでください。';
-    case 'bmp':
-      return 'BMP は挿入できません。PNG・JPEG・PDF を選んでください。';
-    default:
-      return '対応していない形式です。PNG・JPEG・PDF を選んでください。';
-  }
+// 差し込みで断る理由（確定事項54・spec-3-2 確定事項2）。何を選び直せばよいかを伝える。
+function describeFormat() {
+  return `対応していない形式です。${IMAGE_CHOICES}・PDF を選んでください。`;
 }
 
 // 変換で断る理由（spec-3-1 確定事項1）。差し込みの describeFormat と違い PDF を受けない。
 function describeImageFormat(kind) {
-  switch (kind) {
-    case 'gif':
-      return 'GIF はまだ変換できません。PNG・JPEG を選んでください。';
-    case 'bmp':
-      return 'BMP はまだ変換できません。PNG・JPEG を選んでください。';
-    case 'pdf':
-      return 'PDF は画像ではありません。PNG・JPEG を選んでください。';
-    default:
-      return '対応していない形式です。PNG・JPEG を選んでください。';
-  }
+  if (kind === 'pdf')
+    return `PDF は画像ではありません。${IMAGE_CHOICES} を選んでください。`;
+  return `対応していない形式です。${IMAGE_CHOICES} を選んでください。`;
 }
 
-// JPEG のマーカーを走査して、最初の SOF セグメントを { marker, offset } で返す。
-// offset はその `0xFF` の位置である（寸法を読むのに使う）。
-//
-// SOS（0xDA）から先はエントロピー符号で、その中に 0xFF が普通に現れるため、
-// マーカーとして読んではいけない。そこで打ち切る。
-function jpegStartOfFrame(bytes) {
-  let at = 2;                                    // SOI の次から
-  while (at + 1 < bytes.length) {
-    if (bytes[at] !== 0xff) {
-      at += 1;                                   // ずれ・詰め物を読み飛ばす
-      continue;
-    }
-    const marker = bytes[at + 1];
-    if (marker === 0xff) {
-      at += 1;                                   // 0xFF の連続は詰め物である
-      continue;
-    }
-    if (JPEG_STANDALONE.has(marker)) {
-      at += 2;
-      continue;
-    }
-    if (marker === 0xda)
-      return null;                               // SOF を見ないまま本体へ入った
-    if (at + 3 >= bytes.length)
-      return null;
-    if (JPEG_START_OF_FRAME.has(marker))
-      return { marker, offset: at };
-    const length = (bytes[at + 2] << 8) | bytes[at + 3];
-    if (length < 2)
-      return null;                               // 長さが壊れている
-    at += 2 + length;
-  }
-  return null;
-}
-
-// プログレッシブ JPEG かどうか（確定事項53-2）。
-//
-// pdf-lib の JpegEmbedder は SOF2 を受理するが、PDF の DCTDecode はベースラインを
-// 前提にしており、ビューアによって描けない恐れがある。**検体を作れず実測できて
-// いない**ため、壊れたページが黙って入るより断るほうを採る。
-function isProgressiveJpeg(bytes) {
-  return jpegStartOfFrame(bytes)?.marker === JPEG_PROGRESSIVE;
-}
-
-function readUint16(bytes, at) {
-  return (bytes[at] << 8) | bytes[at + 1];
-}
-
-function readUint32(bytes, at) {
+function readUint32BE(bytes, at) {
   return ((bytes[at] << 24) >>> 0) + (bytes[at + 1] << 16) + (bytes[at + 2] << 8) + bytes[at + 3];
+}
+
+function readUint16LE(bytes, at) {
+  return bytes[at] | (bytes[at + 1] << 8);
+}
+
+function readInt32LE(bytes, at) {
+  return (bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | (bytes[at + 3] << 24)) | 0;
 }
 
 // 画素の寸法を、埋め込む**前**に読む（確定事項58）。
@@ -145,37 +92,70 @@ function readUint32(bytes, at) {
 //
 //   PNG  … 署名8 ＋ 長さ4 ＋ "IHDR"4 のあとに幅・高さ（各4バイト・ビッグエンディアン）
 //   JPEG … SOF セグメントの `FF Cx LL LL P HH HH WW WW`
+//   GIF  … Logical Screen Descriptor（6〜9 バイト目・リトルエンディアン）
+//   BMP  … BITMAPINFOHEADER の幅・高さ（18〜25 バイト目。高さは負なら上から並ぶ）
+//   TIFF … frame 番目のページの IFD（256・257）
 // 読み取れなければ null を返す（呼び出し側が「壊れている」として扱う）。
-function imageSize(kind, bytes) {
-  if (kind === 'png') {
-    if (bytes.length < 24)
-      return null;
-    return { width: readUint32(bytes, 16), height: readUint32(bytes, 20) };
-  }
-  if (kind === 'jpeg') {
-    const frame = jpegStartOfFrame(bytes);
-    if (frame === null || frame.offset + 8 >= bytes.length)
-      return null;
-    return { width: readUint16(bytes, frame.offset + 7), height: readUint16(bytes, frame.offset + 5) };
+function imageSize(kind, bytes, { frame = 0 } = {}) {
+  if (kind === 'png')
+    return bytes.length < 24 ? null : { width: readUint32BE(bytes, 16), height: readUint32BE(bytes, 20) };
+  if (kind === 'jpeg')
+    return jpegSize(bytes);
+  if (kind === 'gif')
+    return bytes.length < 10 ? null : { width: readUint16LE(bytes, 6), height: readUint16LE(bytes, 8) };
+  if (kind === 'bmp')
+    return bytes.length < 26 ? null : { width: readInt32LE(bytes, 18), height: Math.abs(readInt32LE(bytes, 22)) };
+  if (kind === 'tiff') {
+    const read = readTiffDirectory(bytes);
+    return read.ok === true && read.pages[frame] !== undefined ? tiffFrameSize(read.pages[frame]) : null;
   }
   return null;
 }
 
-// 画像として載せられるかを1本で判定する（spec-3-1 確定事項4・17）。
+// TIFF は全ページを見る（spec-3-2 確定事項6）。1ページでも対応外なら断る。
+function inspectTiffFrames(bytes) {
+  const read = readTiffDirectory(bytes);
+  if (read.ok !== true)
+    return { error: read.error, incomplete: read.incomplete === true };
+  for (const page of read.pages) {
+    const unsupported = checkTiffSupport(page);
+    if (unsupported !== null)
+      return { error: unsupported };
+  }
+  return { frames: read.pages.map(tiffFrameSize) };
+}
+
+// 画像として載せられるかを1本で判定する（spec-3-1 確定事項4・17、spec-3-2 確定事項6）。
 // 形式 → プログレッシブ → 寸法 → 画素上限の順で、埋め込む前に断れるものはすべてここで断る。
 // 画面（image-io.js が先頭バイトを渡す）とワーカー（op-convert.js が全体を渡す）が同じ判定を通る。
+// 戻りの `frames` はページごとの寸法（TIFF 以外は1つ）、`width`／`height` は先頭ページ。
 function inspectImageBytes(bytes) {
   const kind = detectFormat(bytes);
   if (!IMAGE_KINDS.has(kind))
     return { error: describeImageFormat(kind), kind };
   if (kind === 'jpeg' && isProgressiveJpeg(bytes))
     return { error: 'この JPEG は変換できません（プログレッシブ形式）。', kind };
-  const pixels = imageSize(kind, bytes);
-  if (pixels === null || !(pixels.width > 0) || !(pixels.height > 0))
-    return { error: '画像の大きさを読み取れませんでした。', kind, incomplete: true };
-  if (pixels.width * pixels.height > MAX_PIXELS)
-    return { error: '画像が大きすぎます。', kind };
-  return { ok: true, kind, width: pixels.width, height: pixels.height };
+
+  let frames;
+  if (kind === 'tiff') {
+    const inspected = inspectTiffFrames(bytes);
+    if (inspected.error !== undefined)
+      return { error: inspected.error, kind, ...(inspected.incomplete ? { incomplete: true } : {}) };
+    frames = inspected.frames;
+  } else {
+    const pixels = imageSize(kind, bytes);
+    if (pixels === null)
+      return { error: SIZE_UNREADABLE, kind, incomplete: true };
+    frames = [pixels];
+  }
+
+  for (const frame of frames) {
+    if (!(frame.width > 0) || !(frame.height > 0))
+      return { error: SIZE_UNREADABLE, kind, incomplete: true };
+    if (frame.width * frame.height > MAX_PIXELS)
+      return { error: '画像が大きすぎます。', kind };
+  }
+  return { ok: true, kind, width: frames[0].width, height: frames[0].height, pages: frames.length, frames };
 }
 
 module.exports = {
