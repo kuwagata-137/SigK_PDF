@@ -36,6 +36,8 @@ const TOOLS = {
   PDFPage: pdfLib.PDFPage,
   PDFName: pdfLib.PDFName,
   PDFHexString: pdfLib.PDFHexString,
+  PDFImage: pdfLib.PDFImage,               // 画素列の埋め込み（pixel-image.js。spec-3-2 確定事項18）
+  PngEmbedder: pdfLib.PngEmbedder,
   rgb: pdfLib.rgb,
 };
 
@@ -336,10 +338,12 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
 // output が 'single' なら結合の型（apply を画像単位で刻み、1本書く）、'each' なら分割の型
 // （write を出力単位で刻み、書き終えた分は残す）。読み口は差し込みと同じ insertReader で、
 // 必ず toBytes() を通す（4KB 未満の JPEG が byteOffset≠0 で埋め込めない。確定事項31）。
+// 1ファイル＝1エントリ。layouts はページ数ぶん（TIFF 以外は1つ。spec-3-2 確定事項20）。
+// 塊④ までの `layout`（1つ）も受ける。
 function convertEntries(images, reader) {
   return images.map((image) => ({
     name: image.name ?? path.basename(image.path),
-    layout: image.layout,
+    layouts: Array.isArray(image.layouts) ? image.layouts : [image.layout],
     load: () => loadImage(image.path, reader),
   }));
 }
@@ -351,8 +355,8 @@ async function runConvertSingle(spec, entries, { fsLike, advance }) {
 
   advance('read');
   advance('load');
-  advance('apply', 0, entries.length);
-  const converted = await convertToSingle(entries, TOOLS, { onProgress: (done, total) => advance('apply', done, total) });
+  advance('apply', 0, entries.reduce((sum, entry) => sum + entry.layouts.length, 0), 'ページ');
+  const converted = await convertToSingle(entries, TOOLS, { onProgress: (done, total) => advance('apply', done, total, 'ページ') });
   if (converted.ok !== true)
     return converted;
 
@@ -365,7 +369,9 @@ async function runConvertSingle(spec, entries, { fsLike, advance }) {
   }
 
   advance('write');
-  const written = await writeDocument(target, Buffer.from(output), { makeBackup: false, expect: null, fsLike });
+  // Buffer.from(Uint8Array) は複製する。100 ページの写真では出力が数百 MB になり得るので、
+  // 複製せずに同じメモリを指す Buffer で書く（spec-3-2 実測）。
+  const written = await writeDocument(target, Buffer.from(output.buffer, output.byteOffset, output.byteLength), { makeBackup: false, expect: null, fsLike });
   if (written.ok !== true)
     return written;
   return { ok: true, path: written.path, bytes: written.bytes, pages: converted.pages, inputs: entries.length, signature: written.signature };
@@ -389,7 +395,7 @@ async function runConvertEach(spec, entries, { fsLike, advance }) {
       } catch (error) {
         return { error: `${index + 1} / ${entries.length} 本目の内容を組み立てられませんでした。` };
       }
-      const written = await writeDocument(targets[index], Buffer.from(output), { makeBackup: false, expect: null, fsLike });
+      const written = await writeDocument(targets[index], Buffer.from(output.buffer, output.byteOffset, output.byteLength), { makeBackup: false, expect: null, fsLike });
       if (written.ok !== true)
         return { error: `${index + 1} / ${entries.length} 本目を書けませんでした。${written.error ?? ''}` };
       return { ok: true };
@@ -398,7 +404,7 @@ async function runConvertEach(spec, entries, { fsLike, advance }) {
   });
   if (converted.ok !== true)
     return converted;
-  return { ok: true, written: converted.written, targets, pages: entries.map(() => 1) };
+  return { ok: true, written: converted.written, targets, pages: converted.pages };
 }
 
 async function runConvert(spec, { fsLike = fs, advance = () => {} } = {}) {
@@ -407,7 +413,7 @@ async function runConvert(spec, { fsLike = fs, advance = () => {} } = {}) {
     return { error: '変換する画像がありません。' };
   if (images.some((image) => typeof image?.path !== 'string'))
     return { error: '変換する画像の場所が分かりません。' };
-  if (images.some((image) => image?.layout === undefined || image.layout === null))
+  if (images.some((image) => (image?.layout === undefined || image.layout === null) && !(Array.isArray(image?.layouts) && image.layouts.length > 0)))
     return { error: '紙の大きさが決まっていません。' };
   if (output !== 'single' && output !== 'each')
     return { error: '出力の方式が決まっていません。' };
@@ -424,8 +430,8 @@ async function runConvert(spec, { fsLike = fs, advance = () => {} } = {}) {
 // 1本だけなので、進捗を出す間もなく終わる（実測で数ミリ秒）。
 async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   const started = Date.now();
-  const progress = (phase, done, total) => send(
-    Number.isInteger(done) ? { type: 'progress', phase, done, total } : { type: 'progress', phase });
+  const progress = (phase, done, total, unit) => send(
+    Number.isInteger(done) ? { type: 'progress', phase, done, total, ...(unit === undefined ? {} : { unit }) } : { type: 'progress', phase });
   let result;
   if (spec?.kind === 'insert-preview')
     result = await runInsertPreview(spec, { fsLike });

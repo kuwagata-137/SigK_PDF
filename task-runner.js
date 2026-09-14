@@ -31,13 +31,14 @@ const PHASE_LABELS = {
 // 段の中で進むものは、done / total を添えて刻む（spec-2-1 確定事項22）。
 // 結合は入力が複数あるので、read と apply をファイル単位で進める。
 // 保存や抽出のように段の中で進まないものは、両方とも付けない。
-function phaseStep(phase, { done, total } = {}) {
+// 単位が「ファイル」でないもの（変換はページ単位。spec-3-2 確定事項21）は unit を添える。
+function phaseStep(phase, { done, total, unit } = {}) {
   const index = PHASES.indexOf(phase);
   if (index < 0)
     return null;
   const step = { phase, label: PHASE_LABELS[phase], step: index + 1, total: PHASES.length };
   if (Number.isInteger(done) && Number.isInteger(total) && total > 0)
-    Object.assign(step, { done, of: total });
+    Object.assign(step, { done, of: total }, typeof unit === 'string' && unit !== '' ? { unit } : {});
   return step;
 }
 
@@ -108,7 +109,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
 
       child.on('message', (message) => {
         if (message?.type === 'progress') {
-          const step = phaseStep(message.phase, { done: message.done, total: message.total });
+          const step = phaseStep(message.phase, { done: message.done, total: message.total, unit: message.unit });
           if (step !== null)
             onProgress({ taskId, ...step });
           return;

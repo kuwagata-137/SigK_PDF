@@ -14,6 +14,10 @@
 const { normalizeRotation, isInsert } = require('./op-pages.js');
 const { MAX_PIXELS, detectFormat, isSupported, describeFormat, isProgressiveJpeg } = require('./image-format.js');
 const { fitInside, placeImage } = require('./image-page.js');
+const { frameCount } = require('./image-decode.js');
+const { cleanInsertedPage } = require('./inserted-annotations.js');
+
+const NO_SUCH_IMAGE_PAGE = '差し込む画像にそのページがありません。';
 
 // 基準になるページが1枚も無いときの逃げ場。塊④ が最後の1枚を守るので
 // 普通は起きないが、元ページを全部消して差し込みだけを残す道が塞がれていない。
@@ -50,39 +54,6 @@ function baseSizeFor(original, plan, at) {
   return { ...A4 };
 }
 
-// 差し込んだページに付いてくるものを落とす（確定事項63）。
-//
-// `/Widget` は挿入元の AcroForm と切り離されて運ばれ、機能しない入力欄の抜け殻に
-// なる。内部リンク（`/Dest` を持つもの・`/GoTo` するもの）は飛び先がページ木の外を
-// 指したままで、**飛び先ページも一緒に差し込んでも直らない**（実測 H）。
-// 外部リンク（`/URI`・`/GoToR`）は壊れていないので残す。
-function cleanInsertedPage(page, { PDFName }) {
-  const context = page.doc.context;
-  const annots = context.lookup(page.node.get(PDFName.of('Annots')));
-  if (annots === undefined || annots === null || typeof annots.asArray !== 'function')
-    return 0;
-
-  const kept = [];
-  let dropped = 0;
-  for (const ref of annots.asArray()) {
-    const annot = context.lookup(ref);
-    const subtype = annot?.get?.(PDFName.of('Subtype'))?.asString?.();
-    const action = context.lookup(annot?.get?.(PDFName.of('A')));
-    const isInternalLink = subtype === '/Link'
-      && (annot?.get?.(PDFName.of('Dest')) !== undefined
-        || action?.get?.(PDFName.of('S'))?.asString?.() === '/GoTo');
-    if (subtype === '/Widget' || isInternalLink) {
-      dropped += 1;
-      continue;
-    }
-    kept.push(ref);
-  }
-
-  if (dropped > 0)
-    page.node.set(PDFName.of('Annots'), context.obj(kept));
-  return dropped;
-}
-
 // PDF の1ページを複製して差し込む。大きさは元のまま（紙の大きさは中身である）。
 async function copyPdfPage(doc, source, pageIndex, tools) {
   const index = Number.isInteger(pageIndex) ? pageIndex : 0;
@@ -92,6 +63,13 @@ async function copyPdfPage(doc, source, pageIndex, tools) {
   const [page] = await doc.copyPages(source, [index]);
   cleanInsertedPage(page, tools);
   return { ok: true, page };
+}
+
+// 画像のページ数。複数ページを持つのは TIFF だけ（spec-3-2 確定事項24）。
+function imageFrames(kind, bytes) {
+  if (kind === 'png' || kind === 'jpeg')
+    return 1;
+  return frameCount(kind, bytes);
 }
 
 // 差し込む元を1回だけ読む。同じファイルの複数ページを差し込むことがある。
@@ -117,16 +95,29 @@ async function loadSource(path, cache, { readFile, PDFDocument }) {
     return cache.get(path);
   }
 
-  let loaded = { ok: true, kind, bytes };
+  let loaded;
   if (kind === 'pdf') {
     try {
       loaded = { ok: true, kind, doc: await PDFDocument.load(bytes, { updateMetadata: false }) };
     } catch (error) {
       loaded = { error: '差し込む PDF を読めませんでした。内容が壊れているか、パスワードで保護されています。' };
     }
+  } else {
+    const frames = imageFrames(kind, bytes);
+    loaded = frames === 0
+      ? { error: '画像を読み込めませんでした。ファイルが壊れている可能性があります。' }
+      : { ok: true, kind, bytes, frames };
   }
   cache.set(path, loaded);
   return loaded;
+}
+
+// 画像の frame 番目のページを紙に載せる。複数ページの TIFF は spec.page で選ぶ（spec-3-2 確定事項26）。
+async function placeImagePage(doc, loaded, box, frame, tools) {
+  const index = Number.isInteger(frame) ? frame : 0;
+  if (index < 0 || index >= loaded.frames)
+    return { error: NO_SUCH_IMAGE_PAGE };
+  return placeImage(doc, loaded, box, tools, { frame: index });
 }
 
 // plan の `{ insert }` を、insert 番号で引ける pdf-lib のページの配列に変える。
@@ -154,7 +145,7 @@ async function prepareInserts(doc, original, plan, inserts, tools, { readFile })
     // 画面を通さずに組み立てたときだけなので、そのときだけここで決める。
     const made = loaded.kind === 'pdf'
       ? await copyPdfPage(doc, loaded.doc, spec.page, tools)
-      : await placeImage(doc, loaded, spec.size ?? baseSizeFor(original, plan, at), tools);
+      : await placeImagePage(doc, loaded, spec.size ?? baseSizeFor(original, plan, at), spec.page, tools);
     if (made.ok !== true)
       return made;
     pages[entry.insert] = made.page;
@@ -166,7 +157,7 @@ async function prepareInserts(doc, original, plan, inserts, tools, { readFile })
 //
 // 画面へ出すためのものだが、**保存で使うのと同じ placeImage / copyPdfPage を
 // 通る**。だから「見えているもの」と「保存されるもの」が食い違わない。
-// 画像は1ページ、PDF は持っているページぶんになる。
+// PDF と複数ページの TIFF は持っているページぶん、ほかの画像は1ページになる（spec-3-2 確定事項25）。
 async function buildPreview(path, base, tools, { readFile }) {
   const loaded = await loadSource(path, new Map(), { readFile, PDFDocument: tools.PDFDocument });
   if (loaded.ok !== true)
@@ -174,7 +165,7 @@ async function buildPreview(path, base, tools, { readFile }) {
 
   const doc = await tools.PDFDocument.create();
   const box = base ?? { ...A4 };
-  const count = loaded.kind === 'pdf' ? loaded.doc.getPageCount() : 1;
+  const count = loaded.kind === 'pdf' ? loaded.doc.getPageCount() : loaded.frames;
   if (count === 0)
     return { error: '差し込む PDF にページがありません。' };
 
@@ -182,7 +173,7 @@ async function buildPreview(path, base, tools, { readFile }) {
   for (let index = 0; index < count; index += 1) {
     const made = loaded.kind === 'pdf'
       ? await copyPdfPage(doc, loaded.doc, index, tools)
-      : await placeImage(doc, loaded, box, tools);
+      : await placeImagePage(doc, loaded, box, index, tools);
     if (made.ok !== true)
       return made;
     doc.addPage(made.page);

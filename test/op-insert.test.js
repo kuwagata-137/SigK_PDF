@@ -23,10 +23,15 @@ const {
   prepareInserts,
 } = require('../worker/op-insert.js');
 const { applyPlan } = require('../worker/op-pages.js');
-const { runSave } = require('../worker/pdf-task.js');
-const { makePng, makeJpeg, GIF87A, BMP, WEBP } = require('./fixtures/images.js');
+const { runSave, runInsertPreview } = require('../worker/pdf-task.js');
+const { makePng, makeJpeg, WEBP } = require('./fixtures/images.js');
+const { makeBmp, rgbaGradient } = require('./fixtures/bmp.js');
+const { makeGif } = require('./fixtures/gif.js');
+const { makeTiff } = require('./fixtures/tiff.js');
+const { buildPreview } = require('../worker/op-insert.js');
 
-const TOOLS = { PDFDocument, PDFPage, PDFName, rgb };
+const pdfLib = require('pdf-lib');
+const TOOLS = { PDFDocument, PDFPage, PDFName, PDFHexString: pdfLib.PDFHexString, PDFImage: pdfLib.PDFImage, PngEmbedder: pdfLib.PngEmbedder, rgb };
 const A4 = { width: 595.28, height: 841.89 };
 
 // 差し込み元の読み込みを差し替える。ディスクを触らずに形式ごとの分岐を見る。
@@ -169,10 +174,55 @@ test('受け付けない形式は、断る理由まで返す', async () => {
   const doc = await makeDoc(1);
   const at = (file, bytes) => insertInto(doc, [{ src: 0 }, { insert: 0 }], [{ path: file }], { [file]: bytes });
 
-  assert.match((await at('a.gif', GIF87A)).error, /GIF は挿入できません/);
-  assert.match((await at('a.bmp', BMP)).error, /BMP は挿入できません/);
-  assert.match((await at('a.webp', WEBP)).error, /対応していない形式です/);
+  assert.match((await at('a.webp', WEBP)).error, /対応していない形式です。PNG・JPEG・BMP・GIF・TIFF・PDF/);
   assert.match((await at('a.jpg', makeJpeg({ marker: 0xc2 }))).error, /プログレッシブ形式/);
+  assert.match((await at('a.gif', Buffer.from('GIF89a      '))).error, /大きさを読み取れませんでした/);
+  assert.match((await at('a.gif', Buffer.from('GIF89a     ;'))).error, /壊れている/);
+});
+
+// ---- BMP・GIF・TIFF（spec-3-2 確定事項24〜26） ----
+
+const grayTiffPage = (width, height) => ({ width, height, bitsPerSample: [8], photometric: 1, compression: 1, pixels: new Uint8Array(width * height).fill(120) });
+
+test('BMP・GIF・TIFF も基準ページと同じ大きさの紙に載る', async () => {
+  const doc = await makeDoc(1, [400, 600]);
+  const files = {
+    'a.bmp': makeBmp({ width: 20, height: 10, bits: 24, pixels: rgbaGradient(20, 10) }),
+    'b.gif': makeGif({ width: 8, height: 8, palette: [0xff0000, 0x00ff00], indices: new Uint8Array(64) }),
+    'c.tif': makeTiff([grayTiffPage(16, 16)]),
+  };
+  const result = await insertInto(doc, [{ src: 0 }, { insert: 0 }, { insert: 1 }, { insert: 2 }], [{ path: 'a.bmp' }, { path: 'b.gif' }, { path: 'c.tif' }], files);
+  assert.equal(result.ok, true, result.error);
+  assert.equal(result.doc.getPageCount(), 4);
+  for (let index = 1; index < 4; index += 1)
+    assert.deepEqual(result.doc.getPage(index).getSize(), { width: 400, height: 600 });
+});
+
+test('複数ページの TIFF は page でページを選び、無いページは断る', async () => {
+  const doc = await makeDoc(1, [400, 600]);
+  const files = { 'scan.tif': makeTiff([grayTiffPage(16, 16), grayTiffPage(8, 4), grayTiffPage(2, 2)]) };
+  const result = await insertInto(doc, [{ src: 0 }, { insert: 0 }, { insert: 1 }], [{ path: 'scan.tif', page: 2 }, { path: 'scan.tif', page: 0 }], files);
+  assert.equal(result.ok, true, result.error);
+  const xObjectWidth = (index) => {
+    const resources = result.doc.context.lookup(result.doc.getPage(index).node.get(PDFName.of('Resources')));
+    const xObjects = result.doc.context.lookup(resources.get(PDFName.of('XObject')));
+    return result.doc.context.lookup(xObjects.get(xObjects.keys()[0])).dict.get(PDFName.of('Width')).asNumber();
+  };
+  assert.equal(xObjectWidth(1), 2, '3ページ目');
+  assert.equal(xObjectWidth(2), 16, '1ページ目');
+  const missing = await insertInto(await makeDoc(1), [{ src: 0 }, { insert: 0 }], [{ path: 'scan.tif', page: 3 }], files);
+  assert.match(missing.error, /差し込む画像にそのページがありません/);
+});
+
+test('プレビューは複数ページの TIFF をページ数ぶん組む', async () => {
+  const files = { 'scan.tif': makeTiff([grayTiffPage(16, 16), grayTiffPage(8, 4)]), 'a.bmp': makeBmp({ width: 4, height: 4, bits: 24, pixels: rgbaGradient(4, 4) }) };
+  const built = await buildPreview('scan.tif', { width: 300, height: 500 }, TOOLS, readerFor(files));
+  assert.equal(built.ok, true, built.error);
+  assert.equal(built.kind, 'tiff');
+  assert.deepEqual(built.sizes, [{ width: 300, height: 500 }, { width: 300, height: 500 }]);
+  assert.equal(built.doc.getPageCount(), 2);
+  const single = await buildPreview('a.bmp', null, TOOLS, readerFor(files));
+  assert.equal(single.sizes.length, 1);
 });
 
 test('読めないファイルは、その旨を返す', async () => {

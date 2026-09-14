@@ -25,9 +25,9 @@ const PDF_FILTERS = [{ name: 'PDF ファイル', extensions: ['pdf'] }];
 // 実際に受け付けるかどうかはワーカーが先頭バイトで判定し、既定拒否にする
 // （拡張子は中身と食い違うことがある）。
 const INSERT_FILTERS = [
-  { name: '差し込めるファイル', extensions: ['pdf', 'png', 'jpg', 'jpeg'] },
+  { name: '差し込めるファイル', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff'] },
   { name: 'PDF ファイル', extensions: ['pdf'] },
-  { name: '画像ファイル', extensions: ['png', 'jpg', 'jpeg'] },
+  { name: '画像ファイル', extensions: ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff'] },
 ];
 
 function isPdfPath(filePath) {
