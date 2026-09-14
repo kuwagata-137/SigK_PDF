@@ -145,15 +145,17 @@ function createPdfjsStub({
   const viewportCalls = [];
   const documents = [];
   const textLayers = [];
+  // page.cleanup() が呼ばれたページ番号の並び（spec-3-3 確定事項24）。
+  const cleanups = [];
 
-  function createDocument() {
+  // pdf.js 6 の PDFDocumentProxy には destroy() が無い（spec-3-3 事前調査 B）。畳むのは
+  // loadingTask.destroy() で、本物と同じく document.loadingTask から辿れるようにしておく。
+  function createDocument(task) {
     const document = {
       id: documents.length,
       numPages: sizes.length,
       destroyed: false,
-      destroy() {
-        document.destroyed = true;
-      },
+      loadingTask: task,
       async getMetadata() {
         return { info, metadata: null };
       },
@@ -185,6 +187,11 @@ function createPdfjsStub({
             rendered.push(number);
             return { promise: Promise.resolve(), cancel: () => {} };
           },
+          // 描いたあとに資源を手放す口（spec-3-3 確定事項24）。呼ばれた回数をテストから見る。
+          cleanup: () => {
+            cleanups.push(number);
+            return true;
+          },
           async getTextContent() {
             const items = pageTextItems?.[number - 1] ?? textItems ?? [];
             return { items: items.map((str) => ({ str })), styles: {} };
@@ -204,6 +211,7 @@ function createPdfjsStub({
     viewportCalls,
     documents,
     textLayers,
+    cleanups,
     // 本物の pdfjs-bridge.mjs は lib に pdf.js の名前空間をそのまま載せる。
     // text-layer.js が TextLayer をここから取るので、同じ形にしておく。
     lib: { TextLayer: textItems === null ? undefined : createTextLayerStub(textLayers) },
@@ -214,13 +222,20 @@ function createPdfjsStub({
     getDocument: () => {
       // 本物の getDocument() は loadingTask を返す。onPassword は**戻ってきた
       // あとで**代入されるので、聞くのは1ティック後にする（確定事項66）。
-      const task = { onPassword: null };
+      const task = { onPassword: null, destroyed: false };
+      task.destroy = async () => {
+        task.destroyed = true;
+        for (const document of documents) {
+          if (document.loadingTask === task)
+            document.destroyed = true;
+        }
+      };
       if (openError !== null) {
         task.promise = Promise.reject(openError);
         return task;
       }
       if (password === null) {
-        task.promise = Promise.resolve(createDocument());
+        task.promise = Promise.resolve(createDocument(task));
         return task;
       }
 
@@ -243,7 +258,7 @@ function createPdfjsStub({
             }
             passwordAttempts.push(value);
             if (value === password)
-              resolve(createDocument());
+              resolve(createDocument(task));
             else
               askAgain();
           }, passwordAttempts.length === 0 ? 1 : 2);

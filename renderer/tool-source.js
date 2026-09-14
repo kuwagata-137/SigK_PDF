@@ -32,7 +32,8 @@
     try {
       const doc = await task.promise;
       const pageCount = doc.numPages;
-      doc.destroy?.();
+      // 畳むのは loadingTask（spec-3-3 確定事項25）。doc.destroy は pdf.js 6 に無い。
+      await task.destroy();
       return { pageCount, name: read.name ?? baseName(filePath) };
     } catch {
       return encrypted
