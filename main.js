@@ -1433,6 +1433,83 @@ function installSmokeCheck(win) {
     return target;
   }
 
+  // SIGK_SMOKE_TO_IMAGE=<pdf> を付けると、PDF→画像の経路を丸ごと1回通す
+  // （spec-3-3 の完了判定4〜7・10）。ページは SIGK_SMOKE_TO_IMAGE_PAGES（範囲の記法。
+  // 省略時はすべて）、形式は _FORMAT（png / jpeg）、解像度は _DPI（72 / 150 / 300）、
+  // 出力先は _OUT（省略時は一時フォルダー）。分割と同じ2段構えで、まず画面を組んで
+  // 計画（出力先）をメインへ返し、メインが同名確認の下ごしらえをしてから走らせる。
+  // 描くのはレンダラーなので、経路は画面の「実行」（toolsToImage.run）そのままである。
+  const toImageSetupScript = (source, settings) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    SigK.shell.setMode(document, 'tools');
+    SigK.tools.select('toImage');
+    await SigK.toolsToImage.addPaths([${JSON.stringify(source)}]);
+    await wait(500);
+    const pages = ${JSON.stringify(settings.pages)};
+    SigK.toolsToImage.setPageMode(pages === '' ? 'all' : 'range');
+    SigK.toolsToImage.setRange(pages);
+    SigK.toolsToImage.setFormat(${JSON.stringify(settings.format)});
+    SigK.toolsToImage.setDpi(${JSON.stringify(settings.dpi)});
+    SigK.toolsToImage.setFolder(${JSON.stringify(settings.folder)});
+    const src = SigK.toolsToImage.source();
+    const plan = SigK.toolsToImage.currentPlan();
+    return {
+      source: src ? { name: src.name, pageCount: src.pageCount, sizes: src.sizes ? src.sizes.length : null, blocked: src.blocked } : null,
+      mode: document.documentElement.getAttribute('data-mode'),
+      selected: SigK.tools.selected(),
+      canRun: SigK.toolsToImage.canRun(),
+      runDisabled: document.getElementById('toimage-run').getAttribute('aria-disabled'),
+      example: document.getElementById('toimage-example').textContent,
+      summary: document.getElementById('toimage-summary').textContent,
+      planError: plan.error,
+      pixel: plan.ready ? plan.pixel : null,
+      targets: plan.ready ? plan.targets : [],
+    };
+  })()`;
+
+  const toImageRunScript = () => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    const started = Date.now();
+    const pending = SigK.toolsToImage.run();
+    await wait(250);
+    const dialogOpen = SigK.confirmReplace.isOpen();
+    if (dialogOpen)
+      document.getElementById('confirm-replace-ok').click();
+    await wait(150);
+    const bannerWhileRunning = SigK.viewBanner.text();
+    // SIGK_SMOKE_TO_IMAGE_CANCEL=1 なら、帯の「中止」を押す（完了判定6）。
+    let canceledAt = null;
+    if (${process.env.SIGK_SMOKE_TO_IMAGE_CANCEL === '1'}) {
+      await wait(300);
+      const action = document.querySelector('#view-banner .banner-action');
+      if (action && action.textContent === '中止') { action.click(); canceledAt = Date.now() - started; }
+    }
+    const result = await pending;
+    const ms = Date.now() - started;
+    await wait(300);
+    const heapMb = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
+    // SIGK_SMOKE_TO_IMAGE_STAY=1 なら画面に留まる（スクリーンショットを撮るため）。
+    if (!${process.env.SIGK_SMOKE_TO_IMAGE_STAY === '1'})
+      SigK.shell.setMode(document, 'view');
+    return {
+      dialogOpen,
+      bannerWhileRunning,
+      ok: result ? result.ok === true : false,
+      canceled: result ? result.canceled === true : false,
+      canceledAt,
+      banner: SigK.viewBanner.text(),
+      bannerAction: SigK.viewBanner.action() ? SigK.viewBanner.action().textContent : null,
+      error: result ? (result.error ?? null) : 'result が無い',
+      written: result ? (result.written ?? null) : null,
+      busyAfter: SigK.save.isBusy(),
+      tabs: SigK.tabs.count(),
+      heapMb,
+      ms,
+    };
+  })()`;
+
   // SIGK_SMOKE_DRAG=<from>-<to> を付けると、サムネイルのドラッグを
   // Chromium の Input.dispatchMouseEvent で再現する（完了判定の未検証項目）。
   // 送るのは mouse 系だが、Chromium は互換のため pointer 系も一緒に発火する。
@@ -1527,6 +1604,7 @@ function installSmokeCheck(win) {
       let merge = null;
       let split = null;
       let convert = null;
+      let toImage = null;
       let facing = null;
       let launch = null;
       let drag = null;
@@ -1652,6 +1730,38 @@ function installSmokeCheck(win) {
           // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項24・25）。
           convert.tempLeft = written.some((entry) => fs.existsSync(require('./pdf-write.js').tempPathFor(entry)));
         }
+        if (process.env.SIGK_SMOKE_TO_IMAGE) {
+          const source = path.resolve(process.env.SIGK_SMOKE_TO_IMAGE);
+          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          const outDir = process.env.SIGK_SMOKE_TO_IMAGE_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_TO_IMAGE_OUT)
+            : path.join(app.getPath('temp'), 'sigk-smoke-to-image');
+          fs.mkdirSync(outDir, { recursive: true });
+          const memoryBefore = memorySnapshot();
+          const setup = await win.webContents.executeJavaScript(toImageSetupScript(source, {
+            pages: process.env.SIGK_SMOKE_TO_IMAGE_PAGES ?? '',
+            format: process.env.SIGK_SMOKE_TO_IMAGE_FORMAT ?? 'png',
+            dpi: Number(process.env.SIGK_SMOKE_TO_IMAGE_DPI ?? 150),
+            folder: outDir,
+          }));
+          // 同名確認の3択を通すため、先頭の出力先を先に空で作っておく。
+          if (setup.targets.length > 0)
+            fs.writeFileSync(setup.targets[0], '');
+          toImage = await win.webContents.executeJavaScript(toImageRunScript());
+          toImage.setup = setup;
+          toImage.outDir = outDir;
+          toImage.memory = { before: memoryBefore.byType, after: memorySnapshot().byType };
+          toImage.onDisk = setup.targets.filter((target) => fs.existsSync(target) && fs.statSync(target).size > 0).length;
+          toImage.bytesOnDisk = setup.targets.reduce((sum, target) => sum + (fs.existsSync(target) ? fs.statSync(target).size : 0), 0);
+          // 先頭の出力を先頭バイトから読み直し、形式と画素数が計画どおりかを見る（完了判定4・5）。
+          const first = setup.targets[0];
+          if (first !== undefined && fs.existsSync(first) && fs.statSync(first).size > 0) {
+            const inspected = require('./worker/image-format.js').inspectImageBytes(fs.readFileSync(first));
+            toImage.firstImage = inspected.ok === true ? { kind: inspected.kind, width: inspected.width, height: inspected.height, bytes: fs.statSync(first).size } : { error: inspected.error };
+          }
+          // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項19・20）。
+          toImage.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
+        }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
           const boxes = await dispatchPageDrag(from, to);
@@ -1713,6 +1823,7 @@ function installSmokeCheck(win) {
         merge,
         split,
         convert,
+        toImage,
         facing,
         launch,
         drag,
