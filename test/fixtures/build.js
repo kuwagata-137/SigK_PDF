@@ -15,6 +15,7 @@ const path = require('node:path');
 const { PDFDocument, StandardFonts, degrees, rgb } = require('pdf-lib');
 const { buildEncryptedPdf } = require('./standard-security.js');
 const { makePng } = require('./images.js');
+const { buildFormatImages } = require('./build-images.js');
 
 const OUTPUT_DIR = __dirname;
 
@@ -155,6 +156,8 @@ async function build() {
   }
   for (const spec of IMAGES)
     built.push(buildImage(spec));
+  // BMP／GIF／TIFF の検体（spec-3-2）。作り方は build-images.js に。
+  built.push(...buildFormatImages());
   return built;
 }
 
@@ -166,7 +169,7 @@ module.exports = { A4, A5, FIXTURES, IMAGES, OUTPUT_DIR, build, buildOne, buildI
 
 if (require.main === module) {
   build().then((built) => {
-    console.log(`検証用 PDF を ${built.length} 件生成しました: ${built.map((item) => item.file).join('、')}`);
+    console.log(`検証用の PDF と画像を ${built.length} 件生成しました: ${built.map((item) => item.file).join('、')}`);
   }).catch((error) => {
     console.error('検証用 PDF の生成に失敗しました。');
     console.error(error);
