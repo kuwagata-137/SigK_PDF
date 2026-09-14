@@ -274,3 +274,69 @@ test('保存したあと、2回目の上書きは新しい署名で照合する'
 
   assert.deepEqual(shell.taskCalls[1].spec.expect, { size: 2048, mtimeMs: 2000 }, '書いた直後の署名で照合する');
 });
+
+// ---- レンダラーの中で回す枠（spec-3-3 確定事項17）----
+
+test('runLocal は帯と中止を出し、走っている間は isBusy になる', async (t) => {
+  const shell = await withOpenDocument(t);
+  let release = null;
+  let seen = null;
+
+  const promise = shell.SigK.save.runLocal({
+    label: '画像に',
+    run: (frame) => new Promise((resolve) => {
+      seen = frame;
+      release = () => resolve({ ok: true, written: 3 });
+    }),
+  });
+  await shell.flush();
+
+  assert.equal(shell.SigK.save.isBusy(), true);
+  assert.match(shell.SigK.viewBanner.text(), /画像にしています/);
+  assert.equal(shell.SigK.viewBanner.action()?.textContent, '中止');
+  assert.match((await shell.SigK.save.saveActive()).error, /いま画像にしています/);
+
+  // 進捗はページ単位で帯に出て、最後の値は lastProgress から読める。
+  seen.report(3, 12);
+  assert.match(shell.SigK.viewBanner.text(), /画像にしています（3 \/ 12 ページ）/);
+  assert.deepEqual(plain(shell.SigK.save.lastProgress()), { taskId: 'local-1', phase: 'write', done: 3, of: 12, unit: 'ページ' });
+
+  // 中止はワーカーの kill ではなく旗である。
+  assert.equal(seen.canceled(), false);
+  shell.SigK.viewBanner.action().dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
+  assert.equal(seen.canceled(), true);
+  assert.deepEqual(shell.taskCancels, [], 'taskAPI.cancel は呼ばない');
+
+  release();
+  assert.deepEqual(plain(await promise), { ok: true, written: 3 });
+  assert.equal(shell.SigK.save.isBusy(), false);
+});
+
+test('runLocal はワーカーのタスクと同時には走らず、逆も同じ', async (t) => {
+  const shell = await withOpenDocument(t);
+  let release = null;
+  shell.window.taskAPI.run = () => new Promise((resolve) => { release = () => resolve(okResult()); });
+  edit(shell.SigK);
+
+  const saving = shell.SigK.save.saveActive();
+  await shell.flush();
+  assert.match((await shell.SigK.save.runLocal({ label: '画像に', run: async () => ({ ok: true }) })).error, /いま保存しています/);
+  release();
+  await saving;
+
+  let done = null;
+  const local = shell.SigK.save.runLocal({ label: '画像に', run: () => new Promise((resolve) => { done = () => resolve({ ok: true }); }) });
+  await shell.flush();
+  assert.match((await shell.SigK.save.runLocal({ label: '画像に', run: async () => ({ ok: true }) })).error, /いま画像にしています/);
+  done();
+  await local;
+});
+
+test('runLocal は run が投げても枠を戻し、理由を返す', async (t) => {
+  const shell = await withOpenDocument(t);
+
+  const result = await shell.SigK.save.runLocal({ label: '画像に', run: async () => { throw new Error('描けない'); } });
+
+  assert.deepEqual(plain(result), { error: '描けない' });
+  assert.equal(shell.SigK.save.isBusy(), false);
+});

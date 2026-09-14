@@ -20,6 +20,7 @@ const path = require('node:path');
 
 const { inspectImageBytes } = require('./worker/image-format.js');
 const { toBytes, describeReadFailure } = require('./file-io.js');
+const { writeDocument } = require('./pdf-write.js');
 
 // 画像ファイルの上限（確定事項4）。PDF の 200MB より小さくてよい。
 const MAX_IMAGE_BYTES = 100 * 1024 * 1024;
@@ -96,13 +97,38 @@ async function pickImageSources({ dialogLike, parentWindow = null, defaultPath =
   return { paths: result.filePaths.filter((entry) => typeof entry === 'string' && entry.length > 0) };
 }
 
+// PDF→画像が書き出す拡張子（spec-3-3 確定事項11・19）。レンダラーが組んだ出力先を
+// そのまま書くので、画像以外の名前が来たら断る防具を置く。
+const IMAGE_WRITE_EXTENSIONS = ['.png', '.jpg', '.jpeg'];
+
+function isImageWritePath(target) {
+  return typeof target === 'string' && IMAGE_WRITE_EXTENSIONS.includes(path.extname(target).toLowerCase());
+}
+
+// レンダラーが描いた 1 ページぶんのバイト列を書く（spec-3-3 確定事項19）。
+// 一時ファイル → rename は pdf-write.js に任せる。.bak は作らず、外部変更の照合も
+// しない（新しく作るファイルであり、同名の確認は画面が実行前に済ませている）。
+// 戻り値 { ok, path, bytes } / { error }。
+async function writeImage(target, bytes, { fsLike = fs } = {}) {
+  if (!isImageWritePath(target))
+    return { error: '画像の出力先ではありません。' };
+  const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
+  if (!(view instanceof Uint8Array) || view.length === 0)
+    return { error: '書き出す画像がありません。' };
+  const written = await writeDocument(target, view, { fsLike });
+  if (written.ok !== true)
+    return { error: written.error ?? '画像を書き込めませんでした。' };
+  return { ok: true, path: target, bytes: written.bytes };
+}
+
 function createImageIo({ dialog, onError = () => {} }) {
   return {
     MAX_IMAGE_BYTES,
     inspect: (filePath) => inspectImage(filePath, { onError }),
     pickSources: (parentWindow = null, { defaultPath } = {}) =>
       pickImageSources({ dialogLike: dialog, parentWindow, defaultPath }),
+    write: (target, bytes) => writeImage(target, bytes),
   };
 }
 
-module.exports = { MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, inspectImage, pickImageSources, createImageIo };
+module.exports = { MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, IMAGE_WRITE_EXTENSIONS, inspectImage, pickImageSources, isImageWritePath, writeImage, createImageIo };

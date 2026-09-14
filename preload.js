@@ -60,6 +60,8 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
   // 分割する PDF を1本選ばせる（spec-2-2 確定事項2）。{ path } / { canceled }。
   pickSplitSource: (options) => ipcRenderer.invoke('pdf:pickSplitSource', options),
+  // ツールの対象を1本選ばせる。題名を渡せる（spec-3-3 確定事項2）。{ path } / { canceled }。
+  pickToolSource: (options) => ipcRenderer.invoke('pdf:pickToolSource', options),
   // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
   pickFolder: (options) => ipcRenderer.invoke('pdf:pickFolder', options),
   // 変換する画像をまとめて選ばせる（spec-3-1 確定事項2）。{ paths } / { canceled }。
@@ -145,6 +147,15 @@ contextBridge.exposeInMainWorld('appCloseAPI', {
 contextBridge.exposeInMainWorld('printAPI', {
   available: true,
   print: (options) => ipcRenderer.invoke('print:run', options),
+});
+
+// PDF→画像の書き出し（spec-3-3 確定事項19）。描くのはレンダラー（pdf.js の canvas）で、
+// ここは 1 ページぶんのバイト列をファイルに書くだけである。ほかのツールと向きが
+// 逆になる理由は worker/op-convert.js の頭にある。
+contextBridge.exposeInMainWorld('imageAPI', {
+  available: true,
+  // { ok, path, bytes } / { error }
+  write: (target, bytes) => ipcRenderer.invoke('image:write', target, bytes),
 });
 
 // 最近使ったファイル（spec-1-2 確定事項8〜10）。実体は settings.json にあり、

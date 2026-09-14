@@ -349,6 +349,10 @@ async function createShell({
   // frames を渡すと複数ページ（TIFF）になる。
   imageSourceResults = [],
   imageInfos = {},
+  // pdfAPI.pickToolSource() が返すものの並びと、imageAPI.write() が返すものの並び（spec-3-3）。
+  // write の結果を仕込まなければ、書けたことにして { ok, path, bytes } を返す。
+  toolSourceResults = [],
+  imageWriteResults = [],
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -379,6 +383,9 @@ async function createShell({
   const splitSourceCalls = [];
   const folderCalls = [];
   const imageSourceCalls = [];
+  const toolSourceCalls = [];
+  // imageAPI.write() に届いた { target, bytes } の並び（spec-3-3 確定事項19）。
+  const imageWrites = [];
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
   const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
@@ -433,6 +440,11 @@ async function createShell({
       pickFolder: async (options) => {
         folderCalls.push(structuredClone(options ?? {}));
         return folderResults.shift() ?? { canceled: true };
+      },
+      // ツールの対象の1本選択（spec-3-3 確定事項2）。題名も控える。
+      pickToolSource: async (options) => {
+        toolSourceCalls.push(structuredClone(options ?? {}));
+        return toolSourceResults.shift() ?? { canceled: true };
       },
       // 変換の入力の複数選択と、画像の形式・画素数（spec-3-1 確定事項2・4）。
       // 本物は先頭バイトを読む。ここは仕込んだ情報を返すだけである。
@@ -511,6 +523,15 @@ async function createShell({
         return printResult;
       },
     };
+    // PDF→画像の書き出し（spec-3-3 確定事項19）。実際に書くのはメイン側なので、
+    // ここは届いた出力先とバイト列を控えるだけである。
+    window.imageAPI = {
+      available: true,
+      write: async (target, bytes) => {
+        imageWrites.push({ target, bytes });
+        return imageWriteResults.shift() ?? { ok: true, path: target, bytes: bytes?.length ?? 0 };
+      },
+    };
     window.recentAPI = {
       available: true,
       list: async () => ({ ok: true, recent: recentList }),
@@ -570,6 +591,10 @@ async function createShell({
     // pdfAPI.pickImageSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
     imageSourceCalls,
     imageInfos,
+    // pdfAPI.pickToolSource() に届いたオプションと、imageAPI.write() に届いた書き出し（spec-3-3）。
+    toolSourceCalls,
+    imageWrites,
+    imageWriteResults,
     showInFolderCalls,
     // pdfAPI.exists() が「ある」と答えるパス。テストから足したり消したりできる。
     existingPaths,

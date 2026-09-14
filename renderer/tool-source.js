@@ -15,7 +15,19 @@
     return String(filePath ?? '').split(/[\\/]/).pop();
   }
 
-  async function inspectPdf(filePath) {
+  // 全ページの寸法（pt・回転込み）。PDF→画像が画素の上限と出力の例に使う（spec-3-3 確定事項3）。
+  // 1,000 ページで約 1 秒。
+  async function collectSizes(doc) {
+    const sizes = [];
+    for (let number = 1; number <= doc.numPages; number += 1) {
+      const page = await doc.getPage(number);
+      const viewport = page.getViewport({ scale: 1 });
+      sizes.push({ width: viewport.width, height: viewport.height });
+    }
+    return sizes;
+  }
+
+  async function inspect(filePath, { withSizes, encryptedError }) {
     const api = root.pdfAPI;
     if (api?.available !== true || root.SigK.pdfjs?.available !== true)
       return { reason: 'unavailable', error: 'PDF を読む機能を使えません' };
@@ -31,15 +43,29 @@
     };
     try {
       const doc = await task.promise;
-      const pageCount = doc.numPages;
-      // 畳むのは loadingTask（spec-3-3 確定事項25）。doc.destroy は pdf.js 6 に無い。
-      await task.destroy();
-      return { pageCount, name: read.name ?? baseName(filePath) };
+      const info = { pageCount: doc.numPages, name: read.name ?? baseName(filePath) };
+      if (withSizes)
+        info.sizes = await collectSizes(doc);
+      return info;
     } catch {
       return encrypted
-        ? { reason: 'encrypted', error: '保存できない PDF です（パスワード付き）' }
+        ? { reason: 'encrypted', error: encryptedError }
         : { reason: 'broken', error: 'この PDF を開けません' };
+    } finally {
+      // 畳むのは loadingTask（spec-3-3 確定事項25）。doc.destroy は pdf.js 6 に無い。
+      // 開けなかったときも呼んでおく（pdf.js は失敗したタスクの destroy を許す）。
+      await task.destroy?.();
     }
+  }
+
+  // 結合・分割の対象。書けないので暗号化は「保存できない」と断る。
+  function inspectPdf(filePath) {
+    return inspect(filePath, { withSizes: false, encryptedError: '保存できない PDF です（パスワード付き）' });
+  }
+
+  // PDF→画像の対象（spec-3-3 確定事項3・4）。寸法まで読む。書かないので文言は「画像にできません」。
+  function inspectPdfPages(filePath) {
+    return inspect(filePath, { withSizes: true, encryptedError: 'パスワード付きの PDF は画像にできません' });
   }
 
   // 画像の形式と画素数（spec-3-1 確定事項4・spec-3-2 確定事項28）。読むのはメイン側 image-io.js で、
@@ -57,5 +83,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.toolSource = { inspectPdf, inspectImage, baseName };
+  SigK.toolSource = { inspectPdf, inspectPdfPages, inspectImage, baseName };
 })(typeof window !== 'undefined' ? window : globalThis);

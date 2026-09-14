@@ -145,9 +145,15 @@ function pickMergeSources(options) {
   return pickPdfPaths({ ...options, title: '結合する PDF を選ぶ', multiple: true });
 }
 
-async function pickSplitSource(options) {
-  const picked = await pickPdfPaths({ ...options, title: '分割する PDF を選ぶ', multiple: false });
+// ツールの対象を1本選ばせる（spec-2-2 確定事項2・spec-3-3 確定事項2）。題名は
+// ツールごとに違う（分割・PDF→画像）ので引数で受ける。
+async function pickToolSource({ title = '対象の PDF を選ぶ', ...options }) {
+  const picked = await pickPdfPaths({ ...options, title, multiple: false });
   return picked.canceled === true ? picked : { path: picked.paths[0] };
+}
+
+function pickSplitSource(options) {
+  return pickToolSource({ ...options, title: '分割する PDF を選ぶ' });
 }
 
 // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。フィルターは付けない。
@@ -222,6 +228,8 @@ function createFileIo({ dialog, onError = () => {} }) {
       pickMergeSources({ dialogLike: dialog, parentWindow, defaultPath }),
     pickSplitSource: (parentWindow = null, { defaultPath } = {}) =>
       pickSplitSource({ dialogLike: dialog, parentWindow, defaultPath }),
+    pickToolSource: (parentWindow = null, { defaultPath, title } = {}) =>
+      pickToolSource({ dialogLike: dialog, parentWindow, defaultPath, title }),
     pickFolder: (parentWindow = null, { defaultPath } = {}) =>
       pickFolder({ dialogLike: dialog, parentWindow, defaultPath }),
     exists: (filePath) => exists(filePath),
@@ -241,6 +249,7 @@ module.exports = {
   pickInsertSource,
   pickPdfPaths,
   pickMergeSources,
+  pickToolSource,
   pickSplitSource,
   pickFolder,
   exists,
