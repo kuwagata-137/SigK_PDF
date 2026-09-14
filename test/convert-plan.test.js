@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 require('../renderer/paper-size.js');
 require('../renderer/convert-plan.js');
 
-const { MAX_INPUTS, planPage, describePage, stem, outputNames, duplicateNames, defaultSingleName, planConvert } = globalThis.SigK.convertPlan;
+const { MAX_INPUTS, planPage, describePage, stem, outputNames, duplicateNames, defaultSingleName, totalPages, planConvert } = globalThis.SigK.convertPlan;
 
 const A4 = { width: 595.28, height: 841.89 };
 const round = (value) => Math.round(value * 100) / 100;
@@ -69,6 +69,7 @@ test('拡張子を落とす。大文字も受ける', () => {
   assert.equal(stem('scan.PNG'), 'scan');
   assert.equal(stem('a.b.jpeg'), 'a.b');
   assert.equal(stem('noext'), 'noext');
+  assert.deepEqual(['x.bmp', 'x.gif', 'x.tif', 'x.TIFF'].map(stem), ['x', 'x', 'x', 'x'], 'spec-3-2 確定事項32');
   assert.deepEqual(outputNames([{ name: 'a.jpg' }, { name: 'b.png' }]), ['a.pdf', 'b.pdf']);
   assert.equal(defaultSingleName([{ name: 'IMG_4021.jpg' }]), 'IMG_4021.pdf');
   assert.equal(defaultSingleName([]), 'images.pdf');
@@ -94,9 +95,24 @@ test('組めれば行ごとの紙と箱、出力名を返す', () => {
   const planned = planConvert([row('a.jpg', WIDE), row('b.png', TALL)], SETTINGS);
   assert.equal(planned.ready, true);
   assert.equal(planned.pages.length, 2);
-  assert.deepEqual(planned.pages[0].page, { width: A4.height, height: A4.width });
-  assert.deepEqual(planned.pages[1].page, A4);
+  assert.equal(planned.totalPages, 2);
+  assert.deepEqual(planned.pages[0].map((layout) => layout.page), [{ width: A4.height, height: A4.width }]);
+  assert.deepEqual(planned.pages[1].map((layout) => layout.page), [A4]);
   assert.deepEqual(planned.names, ['a.pdf', 'b.pdf']);
+});
+
+test('複数ページの TIFF はページごとに紙を決め、ページ数で数える（spec-3-2 確定事項30）', () => {
+  const scan = row('scan.tif', WIDE, { frames: [WIDE, TALL, { width: 64, height: 64 }] });
+  const planned = planConvert([scan, row('b.png', TALL)], SETTINGS);
+  assert.equal(planned.ready, true);
+  assert.equal(planned.totalPages, 4);
+  assert.deepEqual(planned.pages[0].map((layout) => layout.page), [{ width: A4.height, height: A4.width }, A4, A4], 'ページごとに向き「自動」が効く');
+  assert.equal(planned.pages[1].length, 1);
+  assert.equal(totalPages([scan, row('b.png', TALL)]), 4);
+  // ファイル数は上限内でも、ページの合計が上限を超えれば組めない
+  const long = row('long.tif', WIDE, { frames: Array.from({ length: MAX_INPUTS }, () => WIDE) });
+  assert.match(planConvert([long, row('b.png', TALL)], SETTINGS).error, /100 ページまで/);
+  assert.equal(planConvert([long], SETTINGS).ready, true, 'ちょうど 100 ページは通る');
 });
 
 test('「画像ごと」で出力名が衝突すれば誤り。「まとめる」なら衝突は問わない', () => {

@@ -15,16 +15,18 @@ const DIR = 'C:\\photo';
 const A = `${DIR}\\a.png`;
 const B = `${DIR}\\b.jpg`;
 const C = `${DIR}\\c.png`;
-const GIF = `${DIR}\\logo.gif`;
+const WEBP = `${DIR}\\logo.webp`;
+const SCAN = `${DIR}\\scan.tif`;
 const OUT = `${DIR}\\a.pdf`;
 const OTHER_DIR = 'C:\\out';
 
-// 既定の検体。横長 PNG・縦長 JPEG・小さい PNG。
+// 既定の検体。横長 PNG・縦長 JPEG・小さい PNG・3ページの TIFF（spec-3-2）。
 const INFOS = {
   [A]: { kind: 'png', width: 1200, height: 800 },
   [B]: { kind: 'jpeg', width: 600, height: 900 },
   [C]: { kind: 'png', width: 64, height: 64 },
-  [GIF]: { error: 'GIF はまだ変換できません。PNG・JPEG を選んでください。' },
+  [WEBP]: { error: '対応していない形式です。PNG・JPEG・BMP・GIF・TIFF を選んでください。' },
+  [SCAN]: { kind: 'tiff', width: 1200, height: 800, frames: [{ width: 1200, height: 800 }, { width: 600, height: 900 }, { width: 64, height: 64 }] },
 };
 
 async function createConvertShell(t, options = {}) {
@@ -95,7 +97,7 @@ test('ドロップでも足せる。変換画面では画像を受け、PDF は�
   // PDF は変換画面では受けない。
   await drop([makeDroppedFile('x.pdf', 'C:\\work\\x.pdf')]);
   assert.deepEqual(names(shell), ['a.png', 'b.jpg']);
-  assert.equal(bannerText(shell), '画像ファイルではありません。PNG・JPEG を落としてください。');
+  assert.equal(bannerText(shell), '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。');
 });
 
 test('結合の画面では従来どおり PDF だけを受け、画像は断る', async (t) => {
@@ -128,15 +130,15 @@ test('addFromLaunch はツールモードへ切り替えて変換を選び、末
 test('読めない画像は行に印と文言が付き、実行できない', async (t) => {
   const shell = await createConvertShell(t, {
     imageInfos: {
-      'C:\\photo\\x.pdf': { error: 'PDF は画像ではありません。PNG・JPEG を選んでください。' },
+      'C:\\photo\\x.pdf': { error: 'PDF は画像ではありません。PNG・JPEG・BMP・GIF・TIFF を選んでください。' },
       'C:\\photo\\p.jpg': { error: 'この JPEG は変換できません（プログレッシブ形式）。' },
     },
   });
   const { SigK } = shell;
-  await SigK.toolsConvert.addPaths([A, GIF, 'C:\\photo\\x.pdf', 'C:\\photo\\p.jpg']);
+  await SigK.toolsConvert.addPaths([A, WEBP, 'C:\\photo\\x.pdf', 'C:\\photo\\p.jpg']);
 
-  assert.equal(rows(shell)[1].blocked, 'GIF はまだ変換できません。PNG・JPEG を選んでください。外してください');
-  assert.equal(rows(shell)[2].blocked, 'PDF は画像ではありません。PNG・JPEG を選んでください。外してください');
+  assert.equal(rows(shell)[1].blocked, '対応していない形式です。PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
+  assert.equal(rows(shell)[2].blocked, 'PDF は画像ではありません。PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
   assert.equal(rows(shell)[3].blocked, 'この JPEG は変換できません（プログレッシブ形式）。外してください');
   assert.equal(rowNodes(shell)[1].classList.contains('blocked'), true);
   assert.equal(cell(shell, 1, '.px'), '–');
@@ -224,7 +226,7 @@ test('用紙・向き・余白を変えると各行の「この紙」と出力�
   // 余白は紙の名前を変えないが、計画の箱は変わる（中身は convert-plan.test.js）。
   pick(shell, 'margin', 'none');
   assert.equal(SigK.toolsConvert.settings().margin, 'none');
-  assert.deepEqual(plain(SigK.toolsConvert.currentPlan().pages[0].box), { x: 0, y: 0, width: 841.89, height: 1190.55 });
+  assert.deepEqual(plain(SigK.toolsConvert.currentPlan().pages[0][0].box), { x: 0, y: 0, width: 841.89, height: 1190.55 });
 
   // 出力の例は「まとめる」なので先頭画像の名前とページ数。
   assert.match(exampleText(shell), /a\.pdf（2 ページ）/);
@@ -239,11 +241,11 @@ test('「画像サイズに合わせる」では向きと余白を押せなく�
   assert.equal(radio(shell, 'orient', 'portrait').disabled, true);
   assert.equal(radio(shell, 'margin', 'none').disabled, true);
   assert.deepEqual([cell(shell, 0, '.paper'), cell(shell, 1, '.paper')], ['1200×800 pt', '64×64 pt']);
-  assert.deepEqual(plain(SigK.toolsConvert.currentPlan().pages[1]), {
+  assert.deepEqual(plain(SigK.toolsConvert.currentPlan().pages[1]), [{
     page: { width: 64, height: 64 },
     box: { x: 0, y: 0, width: 64, height: 64 },
     allowUpscale: false,
-  });
+  }]);
 
   // 用紙を戻せばまた押せる。値は据え置き。
   pick(shell, 'paper', 'a4');
@@ -318,9 +320,9 @@ test('「まとめる」は保存先を聞き、1本ぶんの spec を渡して�
   assert.equal(spec.target, OUT);
   assert.deepEqual(plain(spec.targets), [OUT]);
   assert.deepEqual(plain(spec.images.map((image) => image.path)), [A, B]);
-  assert.deepEqual(plain(spec.images[0].layout.page), { width: 841.89, height: 595.28 }, 'A4 横');
-  assert.deepEqual(plain(spec.images[1].layout.page), { width: 595.28, height: 841.89 }, 'A4 縦');
-  assert.equal(spec.images[0].layout.allowUpscale, true);
+  assert.deepEqual(plain(spec.images[0].layouts.map((layout) => layout.page)), [{ width: 841.89, height: 595.28 }], 'A4 横');
+  assert.deepEqual(plain(spec.images[1].layouts.map((layout) => layout.page)), [{ width: 595.28, height: 841.89 }], 'A4 縦');
+  assert.equal(spec.images[0].layouts[0].allowUpscale, true);
 
   // 開いたタブへ移り、帯で知らせる。
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
@@ -455,10 +457,50 @@ test('実行中は一覧と設定と実行ボタンが押せず、進捗はフ�
 
   shell.fireProgress({ taskId: shell.taskCalls[0].taskId, phase: 'apply', label: 'x', step: 3, total: 5, done: 1, of: 2 });
   assert.match(bannerText(shell), /変換しています（1 \/ 2 ファイル）/);
+  // ワーカーが unit を添えればその単位で出る（変換の apply はページ単位。spec-3-2 確定事項21）。
+  shell.fireProgress({ taskId: shell.taskCalls[0].taskId, phase: 'apply', label: 'x', step: 3, total: 5, done: 3, of: 12, unit: 'ページ' });
+  assert.match(bannerText(shell), /変換しています（3 \/ 12 ページ）/);
   assert.equal(SigK.shell.setMode(doc, 'view'), true, 'モードの切り替えは許す');
 
   release({ ok: true, path: OUT, pages: 2, inputs: 2 });
   await running;
   assert.equal(SigK.toolsConvert.isRunning(), false);
   assert.equal(radio(shell, 'paper', 'a3').disabled, false);
+});
+
+// ---- BMP・GIF・TIFF と複数ページ（spec-3-2 確定事項29〜31） ----
+
+test('TIFF の行には形式とページ数が出て、出力の例と spec はページ数ぶんになる', async (t) => {
+  const shell = await createConvertShell(t, { savePathResults: [{ path: OUT }], taskResults: [{ ok: true, path: OUT, pages: 4, inputs: 2 }] });
+  const { SigK } = shell;
+  await SigK.toolsConvert.addPaths([SCAN, A]);
+  assert.equal(cell(shell, 0, '.kind'), 'TIFF');
+  assert.equal(cell(shell, 0, '.px'), '1200×800 ・ 3 ページ');
+  assert.equal(cell(shell, 0, '.paper'), 'A4 横', '「この紙」は先頭ページ');
+  assert.equal(cell(shell, 1, '.px'), '1200×800', '1ページなら数を出さない');
+  assert.match(exampleText(shell), /scan\.pdf（4 ページ）/);
+  assert.equal(plain(SigK.toolsConvert.currentPlan().totalPages), 4);
+
+  const result = await SigK.toolsConvert.run();
+  assert.equal(result.ok, true);
+  const { spec } = shell.taskCalls[0];
+  assert.deepEqual(plain(spec.images[0].layouts.map((layout) => layout.page)), [
+    { width: 841.89, height: 595.28 }, { width: 595.28, height: 841.89 }, { width: 595.28, height: 841.89 },
+  ], 'ページごとに向き「自動」');
+  assert.equal(spec.images[1].layouts.length, 1);
+  assert.equal(bannerText(shell), '2 ファイルを変換しました（4 ページ）');
+});
+
+test('合計ページ数が 100 を超えると出力の例に文言が出て実行できない', async (t) => {
+  const long = `${DIR}\long.tif`;
+  const shell = await createConvertShell(t, {
+    imageInfos: { [long]: { kind: 'tiff', width: 100, height: 100, frames: Array.from({ length: 100 }, () => ({ width: 100, height: 100 })) } },
+  });
+  const { SigK } = shell;
+  await SigK.toolsConvert.addPaths([long]);
+  assert.equal(SigK.toolsConvert.canRun(), true, 'ちょうど 100 ページは通る');
+  await SigK.toolsConvert.addPaths([A]);
+  assert.equal(SigK.toolsConvert.canRun(), false);
+  assert.equal(exampleText(shell), '100 ページまでです');
+  assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
 });

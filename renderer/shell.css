@@ -556,9 +556,10 @@ html[data-panel="collapsed"] #side-resizer{display:none}
   border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
 }
 .convert-cols,.convert-row{
-  display:grid; grid-template-columns:22px 1fr 92px 52px 116px 30px 30px 30px; align-items:center; gap:6px;
+  display:grid; grid-template-columns:22px 1fr 150px 52px 116px 30px 30px 30px; align-items:center; gap:6px;
   padding:0 8px 0 6px;
 }
+/* 画素数の列は「4960×7016 ・ 3 ページ」（複数ページの TIFF。spec-3-2 確定事項29）まで折り返さずに入る幅。 */
 /* 「形式」は右寄せ、「この紙」は左寄せなので、そのままだと隣り合って読みにくい。
    この紙の側に一段ぶんの余白を入れて、列の切れ目を見せる。 */
 .convert-cols span:nth-child(5),.convert-row .paper{padding-left:14px}
@@ -574,7 +575,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .convert-row .grip{color:var(--border-strong); display:grid; place-items:center; cursor:grab}
 .convert-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .convert-row.blocked .name,.convert-row.dup .name{color:var(--danger)}
-.convert-row .px,.convert-row .kind{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
+.convert-row .px,.convert-row .kind{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
 .convert-row .paper{color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .convert-row .rbtn{
   width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted); cursor:pointer;

@@ -330,7 +330,8 @@ async function createShell({
   splitSourceResults = [],
   folderResults = [],
   // pdfAPI.pickImageSources() が返すものの並びと、pdfAPI.inspectImage() が返す
-  // 画像の情報（パス → { kind, width, height } か { error }）（spec-3-1）。
+  // 画像の情報（パス → { kind, width, height, frames? } か { error }）（spec-3-1・spec-3-2）。
+  // frames を渡すと複数ページ（TIFF）になる。
   imageSourceResults = [],
   imageInfos = {},
 } = {}) {
@@ -430,7 +431,8 @@ async function createShell({
           return { error: 'ファイルが見つかりません。' };
         if (info.error !== undefined)
           return { error: info.error };
-        return { ok: true, path: filePath, name: filePath.split(/[\\/]/).pop(), size: info.size ?? 1000, kind: info.kind, width: info.width, height: info.height };
+        const frames = Array.isArray(info.frames) ? info.frames : [{ width: info.width, height: info.height }];
+        return { ok: true, path: filePath, name: filePath.split(/[\\/]/).pop(), size: info.size ?? 1000, kind: info.kind, width: info.width, height: info.height, pages: frames.length, frames };
       },
     };
     // エクスプローラーからの起動要求（spec-1-6 確定事項77・80）。

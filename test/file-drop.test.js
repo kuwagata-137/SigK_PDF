@@ -169,6 +169,22 @@ test('変換画面を選んでいるときは画像を受け、一覧へ足す',
   assert.equal(shell.SigK.tabs.count(), 0, 'タブでは開かない');
 });
 
+test('変換画面は BMP・GIF・TIFF の拡張子も受ける（spec-3-2 確定事項33）', async (t) => {
+  const extra = { 'C:\\photo\\b.bmp': { kind: 'bmp', width: 10, height: 10 }, 'C:\\photo\\c.gif': { kind: 'gif', width: 10, height: 10 }, 'C:\\photo\\d.tif': { kind: 'tiff', width: 10, height: 10 }, 'C:\\photo\\e.TIFF': { kind: 'tiff', width: 10, height: 10 } };
+  const shell = await withShell(t, { imageInfos: { ...IMAGE_INFOS, ...extra } });
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.SigK.tools.select('convert');
+
+  fireDrag(shell, 'drop', makeDataTransfer(Object.keys(extra).map((filePath) => makeDroppedFile(filePath.split('\\').pop(), filePath))));
+  await shell.flush();
+  assert.equal(shell.SigK.toolsConvert.rows().map((row) => row.kind).join(','), 'bmp,gif,tiff,tiff');
+
+  fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('x.webp', 'C:\\photo\\x.webp')]));
+  await shell.flush();
+  assert.equal(shell.SigK.toolsConvert.rows().length, 4);
+  assert.equal(shell.document.getElementById('view-banner').textContent, '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。');
+});
+
 test('変換画面のほかでは画像を断り、PDF だけを受ける', async (t) => {
   const shell = await withShell(t, { imageInfos: IMAGE_INFOS });
   const message = () => shell.document.getElementById('view-message').textContent;

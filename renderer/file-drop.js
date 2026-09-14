@@ -20,10 +20,10 @@
     return typeof name === 'string' && name.toLowerCase().endsWith('.pdf');
   }
 
-  // 変換画面が受ける画像（spec-3-1 確定事項2）。ここは拡張子で粗く選り分けるだけで、
-  // 本当に PNG・JPEG かは足したあとに inspectImage が先頭バイトで判定する。
+  // 変換画面が受ける画像（spec-3-1 確定事項2・spec-3-2 確定事項33）。ここは拡張子で粗く選り分ける
+  // だけで、本当にその形式かは足したあとに inspectImage が先頭バイトで判定する。
   function isImageName(name) {
-    return typeof name === 'string' && /\.(png|jpe?g)$/i.test(name);
+    return typeof name === 'string' && /\.(png|jpe?g|bmp|gif|tiff?)$/i.test(name);
   }
 
   // いまドロップを受ける画面が画像を欲しがっているか。変換画面を選んでいるときだけ真。
@@ -82,7 +82,7 @@
     const accepted = files.filter((file) => isAcceptedName(file?.name));
     if (accepted.length === 0) {
       complain(wantsImages()
-        ? '画像ファイルではありません。PNG・JPEG を落としてください。'
+        ? '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。'
         : 'PDF ファイルではありません。PDF を落としてください。');
       return false;
     }
