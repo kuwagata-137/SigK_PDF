@@ -2,9 +2,9 @@
 
 PDF の閲覧・ページ操作・結合・分割・変換・注釈を、1つの画面で行う Windows デスクトップアプリケーション。
 
-**現在の状態: Phase 3「変換」の塊④（画像→PDF）が完了（2026-09-08）。読む・並べ替える・
-保存する・結合する・分割する・見開きで読む・画像を PDF にするまでが動き、常用している。
-次は塊⑤（BMP・GIF・TIFF の取り込み）と塊⑥（PDF→画像）。**
+**現在の状態: Phase 3「変換」の塊⑤（BMP・GIF・TIFF の取り込み）が完了（2026-09-14）。読む・並べ替える・
+保存する・結合する・分割する・見開きで読む・画像（JPEG・PNG・BMP・GIF・TIFF）を PDF にするまでが動き、
+常用している。複数ページの TIFF は全ページが PDF になり、差し込みにも使える。次は塊⑥（PDF→画像）。**
 
 PDF をダイアログ・ドラッグ＆ドロップ・最近使ったファイル・エクスプローラーのダブルクリックから
 開き、タブで並べて、連続スクロール・ズーム・ページ移動で読める。単ページと見開き（2ページを
@@ -67,6 +67,7 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 |---|---|
 | PDF の描画 | pdfjs-dist (Apache-2.0) |
 | PDF の生成・編集 | pdf-lib (MIT) |
+| TIFF・GIF の伸長 | utif (MIT) ＋ omggif (MIT)。BMP は自作 |
 | 日本語フォント埋め込み | @pdf-lib/fontkit (MIT) ＋ Noto Sans JP (SIL OFL 1.1) |
 | パッケージング | electron-builder → NSIS |
 | テスト | `node --test` ＋ jsdom |
@@ -99,6 +100,7 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/spec-2-2-split.md`](docs/spec-2-2-split.md) | Phase 2 塊② 分割（ファイル名の規則を含む） |
 | [`docs/spec-2-3-facing.md`](docs/spec-2-3-facing.md) | Phase 2 塊③ 見開き表示 |
 | [`docs/spec-3-1-image-to-pdf.md`](docs/spec-3-1-image-to-pdf.md) | Phase 3 塊④ 画像→PDF（JPEG・PNG） |
+| [`docs/spec-3-2-bmp-gif-tiff.md`](docs/spec-3-2-bmp-gif-tiff.md) | Phase 3 塊⑤ BMP・GIF・TIFF の取り込み |
 
 開発の進め方（着手前の仕様確定、PR・マージの承認ゲート、ブランチ運用）は [`.claude/CLAUDE.md`](.claude/CLAUDE.md) に定める。
 

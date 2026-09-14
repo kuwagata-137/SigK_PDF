@@ -266,7 +266,7 @@ APP0／APP1（JFIF・EXIF）や DQT・DHT の後ろに来るが、EXIF にサム
 
 | 項目 | 扱い |
 |---|---|
-| BMP／GIF／TIFF | 次の塊。Chromium（`createImageBitmap`）でのデコードは BMP・GIF が読めて TIFF は読めない。純 JS ライブラリ（utif 等）は依存追加とライセンス点検が要る。事前調査してから決める |
+| ~~BMP／GIF／TIFF~~ | **解決済み**（2026-09-14。塊⑤ `docs/spec-3-2-bmp-gif-tiff.md`）。ワーカーで utif（TIFF）・omggif（GIF）・自作（BMP）が画素へ展開し、`worker/pixel-image.js` が `/XObject /Image` に直接埋め込む。複数ページの TIFF は全ページ。差し込みにも広がった |
 | EXIF の Orientation | 既知の限界。安く直す手（APP1 の Orientation を読んで `/Rotate` を付ける）は次の塊の候補 |
 | CMYK JPEG | pdf-lib は `DeviceCMYK` で埋め込めるが、Adobe の反転が絡む。検体が無いので未検証 |
 | DPI メタデータ | 読まない（ユーザー確定②）。要望が出たら「画像サイズに合わせる」の換算に足す |
