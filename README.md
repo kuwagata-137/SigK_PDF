@@ -2,9 +2,9 @@
 
 PDF の閲覧・ページ操作・結合・分割・変換・注釈を、1つの画面で行う Windows デスクトップアプリケーション。
 
-**現在の状態: Phase 3「変換」の塊⑤（BMP・GIF・TIFF の取り込み）が完了（2026-09-14）。読む・並べ替える・
-保存する・結合する・分割する・見開きで読む・画像（JPEG・PNG・BMP・GIF・TIFF）を PDF にするまでが動き、
-常用している。複数ページの TIFF は全ページが PDF になり、差し込みにも使える。次は塊⑥（PDF→画像）。**
+**現在の状態: Phase 3「変換」の塊⑥（PDF→画像）まで完了し、Phase 3 を終えた（2026-09-14。PR のマージ待ち）。
+読む・並べ替える・保存する・結合する・分割する・見開きで読む・画像（JPEG・PNG・BMP・GIF・TIFF）を PDF に
+する・PDF のページを PNG／JPEG にするまでが動き、常用している。次は Phase 4（注釈）か、常用で出た不満。**
 
 PDF をダイアログ・ドラッグ＆ドロップ・最近使ったファイル・エクスプローラーのダブルクリックから
 開き、タブで並べて、連続スクロール・ズーム・ページ移動で読める。単ページと見開き（2ページを
@@ -18,12 +18,12 @@ Ctrl / Shift クリックで複数のページを選べ、Ctrl+Z で元に戻せ
 退避）、Ctrl+Shift+S で名前を付けて保存できる。重い保存はワーカーで回り、進捗の帯から中止できる。
 
 ツールモードでは、複数の PDF を並べ替え・ページ範囲を指定して1つに結合でき、1つの PDF を
-ページ数・位置・範囲で複数に分割できる（連番かページ番号のファイル名）。JPEG・PNG を
+ページ数・位置・範囲で複数に分割できる（連番かページ番号のファイル名）。JPEG・PNG・BMP・GIF・TIFF を
 用紙（A4・A3・B5・レター・画像サイズ）・向き・余白を選んで PDF にでき、1つにまとめるか
-画像ごとに分けるかを選べる。出力先に同名があれば上書き・別名・中止の3択で確認する。
+画像ごとに分けるかを選べる。PDF のページ（すべてか範囲）を PNG か JPEG に 72／150／300dpi で
+書き出せる。出力先に同名があれば上書き・別名・中止の3択で確認する。
 
-BMP・GIF・TIFF の取り込み、PDF→画像、注釈、右クリックメニューはまだ無い
-（`docs/05_開発ロードマップ.md` Phase 3 以降）。
+注釈、右クリックメニューはまだ無い（`docs/05_開発ロードマップ.md` Phase 4 以降）。
 
 ```bash
 npm install && npm test && npm start
@@ -101,6 +101,7 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/spec-2-3-facing.md`](docs/spec-2-3-facing.md) | Phase 2 塊③ 見開き表示 |
 | [`docs/spec-3-1-image-to-pdf.md`](docs/spec-3-1-image-to-pdf.md) | Phase 3 塊④ 画像→PDF（JPEG・PNG） |
 | [`docs/spec-3-2-bmp-gif-tiff.md`](docs/spec-3-2-bmp-gif-tiff.md) | Phase 3 塊⑤ BMP・GIF・TIFF の取り込み |
+| [`docs/spec-3-3-pdf-to-image.md`](docs/spec-3-3-pdf-to-image.md) | Phase 3 塊⑥ PDF→画像（PNG・JPEG） |
 
 開発の進め方（着手前の仕様確定、PR・マージの承認ゲート、ブランチ運用）は [`.claude/CLAUDE.md`](.claude/CLAUDE.md) に定める。
 

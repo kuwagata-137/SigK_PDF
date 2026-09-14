@@ -256,3 +256,56 @@ Phase 3「変換」の前半（塊④・⑤）で画像を PDF にする経路�
 | 複数ページの合成（縦連結・TIFF・ZIP） | 入れない。1 ページ＝1 ファイル |
 | GPU プロセスの頭打ち（約 430MB） | Chromium の画像キャッシュで、`cleanup()` を呼んでも 300MB 近く上がる。総量は `docs/01` の 1.5GB に収まる。下げるなら描画の間だけ pdf.js の `canvasMaxAreaInBytes` を絞るが、効き目は未実測。常用の不満を見てから |
 | `save.js` の行数 | `runLocal` で約 300 行になる。`runTask`・`runLocal`・帯を「走らせる枠」として別モジュールへ移す整理は塊⑥の外 |
+
+---
+
+## 実装の記録（2026-09-14・`claude/phase-3-pdf-to-image` ブランチ）
+
+確定事項1〜31 をそのまま実装した。仕様書から変えた点・足した点は次のとおり。
+
+| 項目 | 仕様書 | 実装 | 理由 |
+|---|---|---|---|
+| 範囲の重複 | 畳む（確定事項6・10） | 畳んだうえで**昇順に並べ直す** | 「書き出す集合」であり、出力名はページ番号なので順序に意味が無い。昇順なら帯の進捗と出力名が同じ向きに進む |
+| 範囲の誤りの置き場 | 出力の例に文言（確定事項30） | `planExport` が `errorKind`（`range`・`limit`・`pixels`・`settings`）を返し、範囲の記法の誤りだけは**欄の下にも**出す。上限と画素の上限は出力の例だけ | 分割の欄の下の `err` と同じ作法。「9」と打って何が悪いかを欄のそばで知りたい |
+| 範囲の欄 | ラジオ「範囲」を選んでから打つ | 欄に触れたら「範囲」を選ぶ（分割と同じ） | ラジオまで戻らせない |
+| `inspectPdfPages` | `inspectPdf` とは別に足す（確定事項3） | 2つを共通の `inspect()` に寄せ、寸法の有無と暗号化の文言だけを引数で変える。**開けなかったときも `loadingTask.destroy()` を呼ぶ** | 判定の分岐を 2 か所に持たない |
+| `runLocal` の防具 | 二重起動の防止は枠が持つ（確定事項17） | `isBusy()` なら自分で断り、文言は走っているものの名で組む（`busyReason()`。保存中なら「いま保存しています」、画像にしている最中なら「いま画像にしています」） | 従来の「いま保存しています」固定では、画像にしている最中に保存を押したときに嘘になる |
+| 帯の進捗 | ページ単位（確定事項18） | 1 ページ目を描く前から「0 / N ページ」を出す | 押した瞬間から帯が出る（`spec-1-6` 確定事項7 と同じ理屈） |
+| メインの書く口 | `image:write` → `writeDocument`（確定事項19） | `image-io.js` の `writeImage` が **`.png`／`.jpg`／`.jpeg` 以外と空のバイト列を断って**から `writeDocument` を呼ぶ。`ArrayBuffer` も受ける | レンダラーが組んだ出力先をそのまま書くので、画像以外の名前が来たら止める防具を置く |
+| 対象を選ぶダイアログ | `pickToolSource`（確定事項2） | 題名を省いたときの既定は「対象の PDF を選ぶ」。`createFileIo` にも同名で公開 | — |
+| jsdom での書き出し | — | 2D コンテキストが無いと `exportPage` の `bytes` は `null` で、そのまま `imageAPI.write` へ渡す | 経路（出力先・枚数・順序・畳み）を jsdom で検証するため。Electron では起きない |
+| 起動確認 | `SIGK_SMOKE_TO_IMAGE` ＋ `_PAGES`・`_FORMAT`・`_DPI`・`_OUT`・`_CANCEL`・`_STAY` | すべて作った。分割と同じ2段構えで、画面の「実行」そのままの経路を回す。**先頭の出力を先頭バイトから読み直して形式と画素数を確かめ**、前後の実メモリ（プロセス別）も報告する | 完了判定4・5・7 を機械で見る |
+| `tool-source.js`・`viewer.js` の `destroy` | 3 か所を直す（確定事項25） | `viewer.js` に `releaseDocument(doc)` を置いて 3 か所（`destroySession` の文書と差し込み・開く途中の世代ずれ）から呼ぶ。テストの pdf.js スタブも本物と同じ形（文書に `destroy` 無し・`loadingTask.destroy()` で畳む）にした | スタブが `doc.destroy()` を持ったままだと、直っていなくてもテストが緑のままになる |
+
+### 完了判定の結果
+
+| # | 判定 | 結果 |
+|---|---|---|
+| 1 | ツール一覧に「PDF→画像」、結合・分割・画像→PDF と切り替え、このツールだけ PDF のドロップを対象に | ✅ jsdom（`test/tools.test.js`・`test/tools-to-image.test.js`）・起動確認（`selected: toImage`） |
+| 2 | 3経路で対象が入りページ数が出る。パスワード付き・壊れは印。未保存は注意書き | ✅ jsdom（3経路・「パスワード付きの PDF は画像にできません」・壊れ・未保存の注意と帯）・起動確認（`pageCount: 40`・`sizes: 40`） |
+| 3 | ページ・形式・解像度で例と要約が更新。501 ページ・40M 画素超えは理由が出て実行不可 | ✅ jsdom（例・要約・`.jpg`・2480×3508・範囲の誤り・501・A1 300dpi）・起動確認（`example`・`summary`） |
+| 4 | 帯「画像にしています（n / N ページ）」→ N 本でき、帯「N ファイルに変換しました」＋「フォルダを開く」。画素数が指定どおり | ✅ 起動確認（`1-3,5` → 4 本・585ms・`png 1240×1754`・帯と「フォルダを開く」）。出力を目で見て文字と白地を確認 |
+| 5 | JPEG で `.jpg` ができ、白地 | ✅ 起動確認（300dpi 40 本 → `jpeg 2480×3508`・3.8 秒）。出力を目で見て白地を確認（事前調査 A の alpha=255 とも一致） |
+| 6 | 同名の3択が1回。中止で書き終えた分が残り、一時ファイルは残らない | ✅ jsdom（上書き・中止・別名）・起動確認（`dialogOpen: true`、`_CANCEL=1` で 737ms に止まり `6 ファイルは書き出し済みです。`・`tempLeft: false`） |
+| 7 | 300dpi で 40 ページ以上回してもレンダラーと GPU が頭打ち | ✅ 起動確認（`perf-10mb-50p.pdf` 50 ページ 300dpi: Tab 85→209MB・GPU 138→398MB。事前調査 B の頭打ち 432MB と同じ水準。`many-pages.pdf` 40 ページも GPU 346MB） |
+| 8 | タブを閉じたとき・`inspectPdf` のあとに `loadingTask.destroy()` が呼ばれる | ✅ jsdom（`test/tabs.test.js` の `destroyed`、`test/tools-split.test.js`・`test/tools-merge.test.js`・`test/tools-to-image.test.js` の「読んだ文書は手放す」「中止・失敗でも畳む」） |
+| 9 | 書き出した画像を他のビューアで開き、文字・白地・回転が正しい | ⏳ **ユーザーの目視待ち。**回転は起動確認で `rotated.pdf` の 2 ページ目が `842×595`（横）になることを確認済み |
+| 10 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_TO_IMAGE` | ✅ 1,031 件（974 → 1,031）。配布物（`npm run dist` → `dist/win-unpacked`）で `problems: []`・アイコン 40 個すべて描画・JPEG 3 本・`tempLeft: false` |
+
+### 実測（Windows 11 実機・開発ツリー。`SIGK_SMOKE_TO_IMAGE`）
+
+| 入力 | 結果 |
+|---|---|
+| `text-heavy.pdf`（40p）の `1-3,5` を PNG 150dpi | 4 本・585ms・1.09MB（1 本 264KB）・`1240×1754`。3択を通した |
+| 同じ 40 ページを JPEG 300dpi | 40 本・3.8 秒（95ms／ページ）・20.0MB（1 本 492KB）・`2480×3508`。Tab 84→192MB・GPU 138→347MB |
+| `rotated.pdf` の 2 ページ目（`/Rotate 90`）を PNG 72dpi | 1 本・`842×595`（横）。例も `842×595 px` |
+| `many-pages.pdf` 40 ページを PNG 300dpi、途中で中止 | 押してから 737ms で止まり 6 本を残す。`tempLeft: false` |
+| **`perf-10mb-50p.pdf`（10MB・50p・1 ページ 1 画像）50 ページを PNG 300dpi** | 50 本・4.6 秒（92ms／ページ）・29.8MB・`2480×3508`。**Tab 85→209MB・GPU 138→398MB で頭打ち**（`page.cleanup()` が効いている） |
+| 同じ 50 ページを JPEG 150dpi | 50 本・2.9 秒・15.0MB。Tab 129MB・GPU 241MB |
+| **配布物**（`dist/win-unpacked`）で JPEG 150dpi 3 本 | `SIGK_SMOKE=1` は `problems: []`・アイコン 40 個。3 本・463ms・`tempLeft: false` |
+
+### 人が目で確かめる手順（残り）
+
+- `screenshots/phase3-pdf-to-image-app.png` が `screenshots/phase3-pdf-to-image.png`（モック）と揃っていること。
+- 実物の PDF（文字と写真を含むもの）を 150dpi の PNG と JPEG にし、他のビューアで文字の読みやすさ・白地・回転を確かめること（判定9）。
+- 「フォルダを開く」でエクスプローラーが先頭の出力を選択した状態で開くこと。
