@@ -1013,6 +1013,142 @@ function installSmokeCheck(win) {
     };
   })()`;
 
+  // SIGK_SMOKE_ANNOTATE=<操作列> を付けると、注釈の経路を通す（spec-4-1 の完了判定）。
+  // 文書は SIGK_SMOKE_ANNOTATE_OUT（省略時は一時フォルダー）へ複製してタブで開く
+  // （保存して開き直す経路まで通すため）。元は SIGK_SMOKE_PDF。
+  //
+  // 操作はカンマ区切りで、次のものを受ける。
+  //   page:2                     2 ページ目（1 起点）へ移る
+  //   select:1:0-1               1 ページ目（0 起点）の span 0〜1 を選ぶ
+  //   highlight / underline / strikeout   道具を押す（選んでいれば付く）
+  //   color:#8ce99a              色の丸を押す
+  //   click:0:80x705             ページ 0 の pt (80,705) を押して離す（選ぶ）
+  //   delete / esc / undo / redo / save
+  //   rotate:0                   ページ 0 を右へ 90 度（保存後に開き直す経路の確認用）
+  //
+  // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
+  const annotateScript = (target, spec) => `(async () => {
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const SigK = window.SigK;
+    const round = (value) => Math.round(value * 100) / 100;
+
+    await SigK.tabs.openPath(${JSON.stringify(target)});
+    await wait(700);
+    SigK.shell.setMode(document, 'annot');
+    await wait(400);
+    const importedBefore = Object.values(SigK.viewer.getImported()).reduce((sum, list) => sum + list.length, 0);
+
+    const pageNode = (index) => document.querySelector('.pdf-page[data-page="' + (index + 1) + '"]');
+    const applied = [];
+    let saveResult = null;
+    for (const raw of ${JSON.stringify(spec)}.split(',')) {
+      const step = raw.trim();
+      if (step.length === 0)
+        continue;
+      const [name, ...rest] = step.split(':');
+      const arg = rest.join(':');
+      const t0 = performance.now();
+      if (name === 'page') {
+        SigK.viewer.goToPage(Number(arg) - 1);
+        await wait(500);
+      } else if (name === 'select') {
+        const [page, range] = arg.split(':');
+        const [from, to] = range.split('-').map(Number);
+        // テキストレイヤーが貼られるまで待つ（描画は非同期）。
+        let spans = [];
+        for (let tries = 0; tries < 40 && spans.length <= to; tries += 1) {
+          spans = [...(pageNode(Number(page))?.querySelectorAll('.textLayer span') ?? [])];
+          if (spans.length <= to)
+            await wait(100);
+        }
+        const r = document.createRange();
+        r.setStart(spans[from].firstChild, 0);
+        r.setEnd(spans[to].firstChild, spans[to].textContent.length);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+      } else if (name === 'highlight' || name === 'underline' || name === 'strikeout') {
+        SigK.annotate.toggleTool(name);
+      } else if (name === 'color') {
+        SigK.annotate.setColor(arg);
+      } else if (name === 'click') {
+        const [page, point] = arg.split(':');
+        const [x, y] = point.split('x').map(Number);
+        const node = pageNode(Number(page));
+        const handle = SigK.viewer.getTextLayer(Number(page));
+        const base = node.getBoundingClientRect();
+        const [cx, cy] = handle.viewport.convertToViewportPoint(x, y);
+        for (const type of ['mousedown', 'mouseup'])
+          node.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: base.left + cx, clientY: base.top + cy }));
+      } else if (name === 'rotate') {
+        SigK.pageEdit.rotate(90, [Number(arg)]);
+        await wait(300);
+      } else if (name === 'delete') {
+        SigK.annotate.remove();
+      } else if (name === 'esc') {
+        SigK.annotate.escape();
+      } else if (name === 'undo') {
+        SigK.pageEdit.undo();
+      } else if (name === 'redo') {
+        SigK.pageEdit.redo();
+      } else if (name === 'save') {
+        const started = performance.now();
+        saveResult = await SigK.save.saveActive();
+        saveResult.ms = round(performance.now() - started);
+        await wait(800);
+      }
+      applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected() });
+      await wait(120);
+    }
+
+    // 回転したページで、span の横位置が item の横位置と合っているか（確定事項31）。
+    // 見えているページのうち、テキストレイヤーのあるものを 1 つずつ見る。
+    const alignment = [];
+    for (const index of SigK.viewer.getState().rendered) {
+      const handle = SigK.viewer.getTextLayer(index);
+      const node = pageNode(index);
+      if (!handle || !node)
+        continue;
+      const items = handle.items();
+      const divs = handle.textDivs();
+      const k = items.findIndex((item) => item.str && item.str.length > 3 && item.transform);
+      if (k < 0 || !divs[k] || !divs[k].isConnected)
+        continue;
+      const base = node.getBoundingClientRect();
+      const rect = divs[k].getBoundingClientRect();
+      const corners = [[rect.left, rect.top], [rect.right, rect.top], [rect.left, rect.bottom], [rect.right, rect.bottom]]
+        .map(([x, y]) => handle.viewport.convertToPdfPoint(x - base.left, y - base.top));
+      const xs = corners.map((p) => p[0]);
+      alignment.push({
+        page: index + 1,
+        rotation: handle.viewport.rotation,
+        spanX: [round(Math.min(...xs)), round(Math.max(...xs))],
+        itemX: [round(items[k].transform[4]), round(items[k].transform[4] + items[k].width)],
+      });
+    }
+
+    const annots = SigK.viewer.getAnnotations();
+    return {
+      applied,
+      importedBefore,
+      importedAfter: Object.values(SigK.viewer.getImported()).reduce((sum, list) => sum + list.length, 0),
+      added: annots.added.map((entry) => ({ src: entry.src, kind: entry.kind, color: entry.color, quads: entry.quads.length, rect: entry.rect.map(round), text: entry.text.slice(0, 20) })),
+      removed: annots.removed,
+      dirty: SigK.viewer.isDirty(),
+      history: SigK.pageEdit.getHistoryState(),
+      tool: SigK.annotate.getTool(),
+      selected: SigK.annotate.getSelected(),
+      shapes: [...document.querySelectorAll('.annot-layer')].map((svg) => svg.querySelectorAll('polygon, line').length),
+      frames: document.querySelectorAll('.annot-frame').length,
+      propsKind: document.getElementById('props-kind').textContent,
+      propsVisible: getComputedStyle(document.getElementById('props')).display !== 'none',
+      railTools: [...document.querySelectorAll('.rail-item.tool')].filter((el) => getComputedStyle(el).display !== 'none').length,
+      banner: SigK.viewBanner.text(),
+      save: saveResult,
+      alignment,
+    };
+  })()`;
+
   // SIGK_SMOKE_LAUNCH=<待ち時間ms> を付けると、起動引数から開けたかを報告する
   // （spec-1-6 確定事項72〜80）。`--open <絶対パス>` と一緒に使う。
   //
@@ -1605,6 +1741,7 @@ function installSmokeCheck(win) {
       let split = null;
       let convert = null;
       let toImage = null;
+      let annotate = null;
       let facing = null;
       let launch = null;
       let drag = null;
@@ -1658,6 +1795,16 @@ function installSmokeCheck(win) {
         // 経路で、pdf.js と pdf-lib の合算という宿題（spec-1-5・spec-1-6）が
         // ここでしか埋まらない。
         const saveSource = process.env.SIGK_SMOKE_PDF ?? perfPath;
+        if (process.env.SIGK_SMOKE_ANNOTATE && saveSource !== undefined) {
+          const annotateTarget = process.env.SIGK_SMOKE_ANNOTATE_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_ANNOTATE_OUT)
+            : path.join(app.getPath('temp'), 'sigk-smoke-annotate.pdf');
+          // 入力そのものを書き換えないよう、複製を作ってそちらへ付ける。
+          fs.copyFileSync(path.resolve(saveSource), annotateTarget);
+          annotate = await win.webContents.executeJavaScript(annotateScript(annotateTarget, process.env.SIGK_SMOKE_ANNOTATE));
+          annotate.target = annotateTarget;
+          annotate.bytesOnDisk = fs.statSync(annotateTarget).size;
+        }
         if (process.env.SIGK_SMOKE_SAVE && saveSource !== undefined) {
           const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);
           // 入力そのものを書き換えないよう、複製を作ってそちらを上書きする。
@@ -1824,6 +1971,7 @@ function installSmokeCheck(win) {
         split,
         convert,
         toImage,
+        annotate,
         facing,
         launch,
         drag,

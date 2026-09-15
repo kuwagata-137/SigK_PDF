@@ -619,6 +619,46 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #confirm-replace::backdrop{background:rgba(16,24,40,.34)}
 
+/* ── 注釈モード（spec-4-1 確定事項1〜5・37） ────────────────── */
+/* レールの道具。モードの 4 つの下に区切り線を引き、注釈モードのときだけ出す。
+   道具は .active で押している状態を見せる（モードの縦棒は出さない）。 */
+.annot-only{display:none}
+html[data-mode="annot"] .annot-only{display:flex}
+.rail-sep{height:1px; flex:0 0 1px; background:var(--border); margin:6px 12px}
+.rail-item.tool.active{color:var(--accent); background:var(--select)}
+.rail-item.tool.active::before{display:none}
+.rail-item.tool[aria-disabled="true"]{pointer-events:none}
+
+/* 紙の上に重ねる注釈の層（確定事項5）。canvas のあと・テキストレイヤーの前。
+   ハイライトは multiply で文字を残す。当たり判定は annotate.js が四角で行うので
+   pointer-events は無い。 */
+/* z-index を付けない。付けると重なりの文脈が「孤立したグループ」になり、多角形の
+   multiply が下の canvas と混ざらなくなる（CSS Compositing の規則）。 */
+.annot-layer{position:absolute; inset:0; pointer-events:none; overflow:visible}
+.annot-layer .highlight{mix-blend-mode:multiply}
+.annot-frame{fill:none; stroke:var(--accent); stroke-width:1.5; stroke-dasharray:4 3}
+
+/* 右のプロパティ（確定事項4）。注釈モードの間は常に出す。幅はサイドパネルと
+   同じ意匠で 260px（docs/04 第3章）。 */
+#props{
+  flex:0 0 260px; width:260px; background:var(--surface);
+  border-left:1px solid var(--border); display:none; flex-direction:column; min-height:0;
+}
+html[data-mode="annot"] #props{display:flex}
+.props-body{padding:12px 14px; display:flex; flex-direction:column; gap:14px; overflow:auto}
+.prop{display:flex; flex-direction:column; gap:6px}
+.prop[hidden]{display:none}
+.prop .k{font-size:11px; color:var(--muted); letter-spacing:.04em}
+.prop .v{font-size:13px; line-height:1.6; overflow-wrap:anywhere}
+.swatches{display:flex; gap:8px; min-height:26px}
+.swatch{
+  width:26px; height:26px; border-radius:50%; border:1px solid rgba(16,24,40,.18);
+  padding:0; cursor:pointer;
+}
+.swatch.on{box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--accent)}
+.props-hint{margin:0; color:var(--muted); font-size:11.5px; line-height:1.7}
+.props-actions{margin-top:auto; border-top:1px solid var(--border); padding:10px 14px; display:grid; gap:6px}
+
 @media (prefers-reduced-motion: reduce){
   *{transition:none !important; animation:none !important}
 }

@@ -26,7 +26,11 @@
 
   // 描く。戻り値は { canvas, width, height }。canvas は 2D コンテキストが無い
   // 環境では null で、そのときも寸法は入っている。
-  async function renderToCanvas(doc, page, { scale, rotation }) {
+  //
+  // annotationMode は pdf.js の描き方（spec-4-1 確定事項18・28。読み込んだテキスト
+  // マークアップを pdf.js に描かせないとき ENABLE_STORAGE）。overlay(ctx, viewport) は
+  // 描いたあとに呼ぶ口で、印刷が未保存の注釈を同じ canvas に重ねる（確定事項28）。
+  async function renderToCanvas(doc, page, { scale, rotation, annotationMode, overlay = null }) {
     const viewport = viewportFor(page, { scale, rotation });
     const width = Math.round(viewport.width);
     const height = Math.round(viewport.height);
@@ -36,7 +40,10 @@
     const canvas = doc.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport, annotationMode }).promise;
+    if (typeof overlay === 'function')
+      overlay(ctx, viewport);
     return { canvas, width, height };
   }
 

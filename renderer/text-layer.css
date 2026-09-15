@@ -17,6 +17,11 @@
  * 効かせるのに要る CSS 変数（確定事項19）:
  *   --total-scale-factor / --scale-round-x / --scale-round-y。
  *   .pdf-page へ renderer/text-layer.js が JS から設定する。
+ *
+ * 回転（2026-09-15 追記。spec-4-1 確定事項31）:
+ *   pdf.js 6 の TextLayer は span を回転前の座標に置き、層全体を data-main-rotation
+ *   属性と CSS で回す。末尾の 3 本は同じ pdf_viewer.css の 6237〜6245 行から写した。
+ *   無いと回転したページで文字の選択が元の向きに残る（spec-4-1 事前調査 D の発見）。
  */
 
 .textLayer{
@@ -168,3 +173,12 @@
   }
 }
 
+[data-main-rotation="90"]{
+  transform:rotate(90deg) translateY(-100%);
+}
+[data-main-rotation="180"]{
+  transform:rotate(180deg) translate(-100%, -100%);
+}
+[data-main-rotation="270"]{
+  transform:rotate(270deg) translateX(-100%);
+}

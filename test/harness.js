@@ -79,6 +79,14 @@ function createTextLayerStub(layers) {
       for (const item of this.items) {
         const span = doc.createElement('span');
         span.textContent = item.str;
+        // 位置を持つ item（spec-4-1 のテスト）は、その pt の値を span に残す。
+        // jsdom は配置しないので、テストが矩形を作るのに使う。
+        if (Array.isArray(item.transform)) {
+          span.dataset.x = String(item.transform[4]);
+          span.dataset.y = String(item.transform[5]);
+          span.dataset.w = String(item.width ?? 0);
+          span.dataset.h = String(Math.hypot(item.transform[2], item.transform[3]));
+        }
         this.container.append(span);
         this.spans.push(span);
       }
@@ -135,6 +143,11 @@ function createPdfjsStub({
   rotations = null,
   // 開くのに要るパスワード（spec-1-6 確定事項66〜68）。null なら聞いてこない。
   password = null,
+  // ページごとの注釈（spec-4-1）。0 起点のページ番号 → pdf.js の getAnnotations() が
+  // 返す形 [{ id, subtype, rect, quadPoints, color, opacity }] の配列。
+  annotations = {},
+  // getTextContent() の styles（fontName → { ascent, descent, vertical }）。
+  textStyles = {},
 } = {}) {
   const rendered = [];
   // 試されたパスワードの並び。何度聞き直したかをテストから見る。
@@ -147,6 +160,31 @@ function createPdfjsStub({
   const textLayers = [];
   // page.cleanup() が呼ばれたページ番号の並び（spec-3-3 確定事項24）。
   const cleanups = [];
+  // page.render() に届いた { page, annotationMode } の並び（spec-4-1 確定事項18）。
+  const renderCalls = [];
+
+  // pdf.js の PageViewport と同じ変換（回転 0/90/180/270）。注釈の四角の往復に要る。
+  function viewportTransform({ scale, rotation, width, height }) {
+    if (rotation === 90)
+      return [0, scale, scale, 0, 0, 0];
+    if (rotation === 180)
+      return [-scale, 0, 0, scale, width * scale, 0];
+    if (rotation === 270)
+      return [0, -scale, -scale, 0, height * scale, width * scale];
+    return [scale, 0, 0, -scale, 0, height * scale];
+  }
+
+  // pdf.js の annotationStorage の代わり。setValue / remove / get / size だけ。
+  function createAnnotationStorage() {
+    const values = new Map();
+    return {
+      values,
+      setValue: (key, value) => { values.set(key, { ...(values.get(key) ?? {}), ...value }); },
+      remove: (key) => { values.delete(key); },
+      get: (key) => values.get(key),
+      get size() { return values.size; },
+    };
+  }
 
   // pdf.js 6 の PDFDocumentProxy には destroy() が無い（spec-3-3 事前調査 B）。畳むのは
   // loadingTask.destroy() で、本物と同じく document.loadingTask から辿れるようにしておく。
@@ -156,6 +194,7 @@ function createPdfjsStub({
       numPages: sizes.length,
       destroyed: false,
       loadingTask: task,
+      annotationStorage: createAnnotationStorage(),
       async getMetadata() {
         return { info, metadata: null };
       },
@@ -176,16 +215,29 @@ function createPdfjsStub({
             const angle = normalizeAngle(rotation);
             const swapped = angle % 180 !== 0;
             viewportCalls.push({ page: number, rotation: angle, scale });
+            const [a, b, c, d, e, f] = viewportTransform({ scale, rotation: angle, width: size.width, height: size.height });
+            const det = a * d - b * c;
             return {
               width: (swapped ? size.height : size.width) * scale,
               height: (swapped ? size.width : size.height) * scale,
               rotation: angle,
               scale,
+              // 本物と同じ座標の往復（spec-4-1 確定事項11）。
+              convertToViewportPoint: (x, y) => [a * x + c * y + e, b * x + d * y + f],
+              convertToPdfPoint: (px, py) => [
+                (d * (px - e) - c * (py - f)) / det,
+                (-b * (px - e) + a * (py - f)) / det,
+              ],
             };
           },
-          render: () => {
+          render: (options = {}) => {
             rendered.push(number);
+            renderCalls.push({ page: number, annotationMode: options.annotationMode });
             return { promise: Promise.resolve(), cancel: () => {} };
+          },
+          // ページの注釈（spec-4-1 確定事項17）。仕込んだものをそのまま返す。
+          async getAnnotations() {
+            return (annotations[number - 1] ?? []).map((annotation) => ({ ...annotation }));
           },
           // 描いたあとに資源を手放す口（spec-3-3 確定事項24）。呼ばれた回数をテストから見る。
           cleanup: () => {
@@ -194,7 +246,8 @@ function createPdfjsStub({
           },
           async getTextContent() {
             const items = pageTextItems?.[number - 1] ?? textItems ?? [];
-            return { items: items.map((str) => ({ str })), styles: {} };
+            // 文字列のままか、位置を持つ item（{ str, transform, width, fontName }）か。
+            return { items: items.map((item) => (typeof item === 'string' ? { str: item } : { ...item })), styles: structuredClone(textStyles) };
           },
         };
       },
@@ -212,9 +265,14 @@ function createPdfjsStub({
     documents,
     textLayers,
     cleanups,
+    renderCalls,
     // 本物の pdfjs-bridge.mjs は lib に pdf.js の名前空間をそのまま載せる。
     // text-layer.js が TextLayer をここから取るので、同じ形にしておく。
-    lib: { TextLayer: textItems === null ? undefined : createTextLayerStub(textLayers) },
+    lib: {
+      TextLayer: textItems === null ? undefined : createTextLayerStub(textLayers),
+      // 本物と同じ値（spec-4-1 確定事項18）。
+      AnnotationMode: { DISABLE: 0, ENABLE: 1, ENABLE_FORMS: 2, ENABLE_STORAGE: 3 },
+    },
     // 最後に開いた文書。1文書しか扱わないテストのための近道。
     get document() {
       return documents.at(-1) ?? null;
@@ -499,6 +557,8 @@ async function createShell({
           // 見開きの選択（spec-2-3 確定事項5）。
           pageLayout: patch?.pageLayout ?? savedUi.pageLayout,
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
+          // 注釈の色（spec-4-1 確定事項34）。種類ごとに重ねる。
+          annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },
         };
         return { ok: true, ui: structuredClone(savedUi) };
       },
@@ -571,6 +631,9 @@ async function createShell({
     logs,
     sources,
     openResults,
+    // pdfAPI.read(path) が返すもの（パス → 読み込み結果）。保存後の開き直し（spec-4-1
+    // 確定事項20）で「書き直されたファイル」を装うため、テストから差し替えられる。
+    files,
     recentCalls,
     recentList: () => recentList,
     // 覚えた見た目と、そこへ届いた patch の並び。

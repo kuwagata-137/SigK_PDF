@@ -4,7 +4,8 @@
   // 画面の枠組みの状態を持つ層。PDF の中身には触らない。
 
   const MODES = ['view', 'pages', 'annot', 'tools'];
-  const MODE_TITLES = { view: 'サムネイル', pages: 'ページ', annot: '注釈', tools: 'ツール' };
+  // 注釈モードのサイドパネルは塊①ではサムネイル（spec-4-1 確定事項3）。塊④で注釈一覧に入れ替える。
+  const MODE_TITLES = { view: 'サムネイル', pages: 'ページ', annot: 'サムネイル', tools: 'ツール' };
   // ページの並べ方（spec-2-3 確定事項3・5）。settings.js の PAGE_LAYOUTS と同じ
   // 並びであること。プロセスが違うので import はできない。test/shell.test.js が見張る。
   const PAGE_LAYOUTS = ['single', 'facing'];
@@ -45,7 +46,7 @@
 
     doc.documentElement.setAttribute('data-mode', mode);
 
-    for (const item of doc.querySelectorAll('.rail-item'))
+    for (const item of doc.querySelectorAll('.rail-item[data-mode]'))
       item.classList.toggle('active', item.dataset.mode === mode);
 
     const title = doc.getElementById('side-title');
@@ -69,6 +70,9 @@
     // 並べ替えたあとで初めて知るのでは遅いので、入った時点で伝えておく。
     if (mode === 'pages')
       root.SigK.save?.warnIfUnsaveable();
+
+    // 注釈モードを離れたら注釈の選択を解除する。入ったら同じ帯を出す（spec-4-1 確定事項8・9）。
+    root.SigK.annotate?.onModeChanged(mode);
 
     persist({ mode });
     return true;
@@ -167,7 +171,7 @@
 
     applyUi(doc, { mode: 'view', panelOpen: true, sidePanelWidth: 240, pageLayout: 'single', ...ui });
 
-    for (const item of doc.querySelectorAll('.rail-item'))
+    for (const item of doc.querySelectorAll('.rail-item[data-mode]'))
       item.addEventListener('click', () => setMode(doc, item.dataset.mode));
 
     const collapse = doc.getElementById('side-collapse');
@@ -221,6 +225,7 @@
     setSidePanelOpen,
     setSidePanelWidth,
     setPageLayout,
+    persist,
     applyUi,
     setStatus,
     init,

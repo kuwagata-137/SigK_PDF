@@ -160,12 +160,14 @@ test('サイドパネルを畳むと枠ごと捨て、開くと作り直す', as
 //
 // 2026-09-01 改訂: 塊③-a では「閲覧モード以外では出さない」だった。塊④ で
 // ページモードのサイドパネルを多列グリッドにしたため、ページも出す側へ移した。
-test('注釈・ツールモードではサムネイルを出さない', async (t) => {
-  const { document, SigK } = await withOpenDocument(t);
+// 注釈モードは閲覧と同じ 1 列で出す（spec-4-1 確定事項3。塊④で注釈一覧に入れ替える）。
+test('注釈モードではサムネイルを 1 列で出し、ツールモードでは出さない', async (t) => {
+  const { document, SigK, flush } = await withOpenDocument(t);
 
   SigK.shell.setMode(document, 'annot');
-  assert.equal(thumbsIn(document).length, 0);
-  assert.equal(document.getElementById('thumbs-empty').hidden, false);
+  await flush();
+  assert.equal(thumbsIn(document).length, 3);
+  assert.equal(SigK.thumbnails.getState().columns, 1);
 
   SigK.shell.setMode(document, 'tools');
   assert.equal(thumbsIn(document).length, 0);

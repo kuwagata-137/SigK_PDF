@@ -61,7 +61,8 @@
       return false;
     const html = el.doc.documentElement;
     const mode = html.getAttribute('data-mode');
-    return (mode === 'view' || mode === 'pages') && html.getAttribute('data-panel') === 'open';
+    // 注釈モードも閲覧と同じ 1 列（spec-4-1 確定事項3）。
+    return (mode === 'view' || mode === 'pages' || mode === 'annot') && html.getAttribute('data-panel') === 'open';
   }
 
   // 列数はページモードだけ自動で増やす（確定事項23・28）。閲覧モードの

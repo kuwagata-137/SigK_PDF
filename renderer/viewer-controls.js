@@ -199,6 +199,18 @@
       grid?.clearSelection();
       return true;
     }
+
+    // 注釈モードの Delete と Esc（spec-4-1 確定事項7）。Delete は選んだ注釈を消し、
+    // Esc は選択を解除、無ければ道具を離す。
+    const annotate = root.SigK.annotate;
+    const inAnnotMode = doc.documentElement.getAttribute('data-mode') === 'annot';
+    if (event.key === 'Delete' && inAnnotMode && annotate !== undefined) {
+      event.preventDefault();
+      annotate.remove();
+      return true;
+    }
+    if (event.key === 'Escape' && inAnnotMode && annotate !== undefined)
+      return annotate.escape();
     return false;
   }
 

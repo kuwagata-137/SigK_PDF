@@ -71,10 +71,14 @@ test('画面の骨組みが組み上がる', async (t) => {
 test('ツールレールは4つのモードを持つ', async (t) => {
   const { document, SigK } = await withShell(t);
 
-  const modes = [...document.querySelectorAll('.rail-item')].map((el) => el.dataset.mode);
+  const modes = [...document.querySelectorAll('.rail-item[data-mode]')].map((el) => el.dataset.mode);
 
   // SigK は jsdom 側のレルムに居るため、配列をこちら側へ写してから比べる。
   assert.deepEqual(modes, [...SigK.shell.MODES]);
+  // 注釈の道具はモードではない（spec-4-1 確定事項1）。3 つ押せて、4 つは位置取り。
+  const tools = [...document.querySelectorAll('.rail-item.tool')];
+  assert.deepEqual(tools.filter((el) => el.getAttribute('aria-disabled') !== 'true').map((el) => el.dataset.tool), ['highlight', 'underline', 'strikeout']);
+  assert.equal(tools.filter((el) => el.getAttribute('aria-disabled') === 'true').length, 4);
 });
 
 test('既定は閲覧モードでサイドパネルが開いている', async (t) => {
@@ -104,7 +108,11 @@ test('ツールレールのクリックでモードが変わる', async (t) => {
   document.querySelector('.rail-item[data-mode="annot"]').dispatchEvent(new document.defaultView.MouseEvent('click'));
 
   assert.equal(document.documentElement.getAttribute('data-mode'), 'annot');
-  assert.equal(document.getElementById('side-title').textContent, '注釈');
+  // 塊①のサイドパネルはサムネイル（spec-4-1 確定事項3）。注釈一覧は塊④。
+  assert.equal(document.getElementById('side-title').textContent, 'サムネイル');
+  // 右のプロパティは注釈モードで出る（CSS が持つ。要素はある）。
+  assert.notEqual(document.getElementById('props'), null);
+  assert.equal(document.getElementById('props-kind').textContent, '–');
 });
 
 test('知らないモードは受け付けない', async (t) => {
@@ -191,7 +199,7 @@ test('ページ編集のレンダラーが index.html から読み込まれる',
 
   for (const src of [
     'renderer/page-plan.js',
-    'renderer/page-history.js',
+    'renderer/edit-history.js',
     'renderer/page-grid.js',
     'renderer/page-edit.js',
   ])

@@ -223,33 +223,54 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 });
 
 // レンダラーへ渡すのはこの3つだけである。ウィンドウの位置や履歴は渡さない。
-test('pickUi はモードとサイドパネルだけを取り出す', () => {
+const DEFAULT_COLORS = { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c' };
+
+test('pickUi はモードとサイドパネルと注釈の色だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', sidePanel: { open: false, width: 300 } });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS });
 });
 
 // { sidePanel: { open: false } } を送っただけで幅が既定へ戻る、を防ぐ。
 test('mergeUi は入れ子をキー単位で重ねる', () => {
-  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 } };
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS };
 
   assert.deepEqual(mergeUi(current, { sidePanel: { open: false } }), {
     mode: 'view',
     pageLayout: 'single',
     sidePanel: { open: false, width: 300 },
+    annotColors: DEFAULT_COLORS,
   });
   assert.deepEqual(mergeUi(current, { mode: 'annot' }), {
     mode: 'annot',
     pageLayout: 'single',
     sidePanel: { open: true, width: 300 },
+    annotColors: DEFAULT_COLORS,
   });
   // 使えない値は現在値のまま。何も送らなくても壊れない。
   assert.deepEqual(mergeUi(current, { mode: 'zzz', sidePanel: { width: 9999 } }), {
     mode: 'view',
     pageLayout: 'single',
     sidePanel: { open: true, width: SIDE_PANEL_MAX },
+    annotColors: DEFAULT_COLORS,
   });
   assert.deepEqual(mergeUi(current, null), current);
+});
+
+// 注釈の色（spec-4-1 確定事項33・34）。プリセットに無い値は既定へ落ちる。
+test('annotColors は種類ごとにプリセットの色だけを受け取る', () => {
+  assert.deepEqual(mergeDefaults({}).annotColors, DEFAULT_COLORS);
+  assert.deepEqual(mergeDefaults({ annotColors: { highlight: '#8ce99a', underline: 'red', strikeout: 5 } }).annotColors,
+    { highlight: '#8ce99a', underline: '#d92c2c', strikeout: '#d92c2c' });
+  assert.deepEqual(mergeDefaults({ annotColors: 'x' }).annotColors, DEFAULT_COLORS);
+
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: { ...DEFAULT_COLORS, highlight: '#8fbfff' } };
+  // 種類ごとに重ねる。下線だけ送っても、ハイライトの色は現在値のまま。
+  assert.deepEqual(mergeUi(current, { annotColors: { underline: '#2c5cd9' } }).annotColors,
+    { highlight: '#8fbfff', underline: '#2c5cd9', strikeout: '#d92c2c' });
+  assert.deepEqual(mergeUi(current, { annotColors: { highlight: '#123456' } }).annotColors, current.annotColors);
+  // 古い settings.json（annotColors が無い）から来た current でも落ちない。
+  assert.deepEqual(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).annotColors, DEFAULT_COLORS);
 });
 
 // プロセスが違うので import できない。並びがずれると、レンダラーで選べる

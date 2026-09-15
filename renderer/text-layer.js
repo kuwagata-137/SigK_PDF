@@ -62,10 +62,19 @@
     return {
       node,
       done,
+      // 描いた viewport（CSS ピクセル基準・回転込み）。注釈が選択範囲の矩形を
+      // pt へ戻すのに使う（spec-4-1 確定事項11）。
+      viewport,
       textDivs: () => layer.textDivs,
       // span と1対1で並ぶ、その span の元の文字列（spec-1-4 確定事項14）。
       // 検索のハイライトは span の中身を組み替えるため、元へ戻すのに要る。
       textItems: () => layer.textContentItemsStr,
+      // span と1対1で並ぶ元の item（transform・width・fontName）と、フォントごとの
+      // ascent/descent。四角の縦の範囲をフォントから決めるのに要る（spec-4-1
+      // 確定事項12）。空文字の item（hasEOL だけのもの）も span を持つので、
+      // str を持つ item を素通しにすれば並びが合う（事前調査 D）。
+      items: () => (textContentSource.items ?? []).filter((item) => item.str !== undefined),
+      styles: () => textContentSource.styles ?? {},
       cancel() {
         canceled = true;
         layer.cancel();

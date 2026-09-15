@@ -256,3 +256,73 @@ test('load の失敗は例外の種類を選ばずに文言へ翻訳する', () 
     'この PDF は内容が壊れているため保存できません。');
   assert.equal(describeLoadFailure(undefined), 'この PDF は内容が壊れているため保存できません。');
 });
+
+// ---- 注釈（spec-4-1 確定事項21〜23） ----
+
+const { PDFName } = require('pdf-lib');
+
+function annotSubtypes(doc, pageIndex) {
+  const page = doc.getPages()[pageIndex];
+  const annots = doc.context.lookup(page.node.get(PDFName.of('Annots')));
+  if (annots === undefined)
+    return [];
+  return annots.asArray().map((ref) => doc.context.lookup(ref).get(PDFName.of('Subtype')).asString());
+}
+
+const MARKUP = { kind: 'highlight', color: '#ffe45a', opacity: 1, quads: [[48, 753, 232, 753, 48, 743, 232, 743]], rect: [48, 743, 232, 753] };
+
+test('注釈は並べ替えの前に当たり、動いたページに付いていく', async () => {
+  const ws = workspace();
+  try {
+    const source = ws.copyIn('three-pages.pdf');
+    const result = await runSave({
+      source,
+      target: source,
+      pages: [{ src: 2, rotate: 0 }, { src: 0, rotate: 90 }, { src: 1, rotate: 0 }],
+      annotations: { add: [{ ...MARKUP, src: 0 }, { ...MARKUP, src: 2, kind: 'underline', color: '#d92c2c' }], remove: [] },
+      makeBackup: false,
+    });
+    assert.equal(result.ok, true);
+    const saved = await open(source);
+    // 元の 2 ページ目（下線）が先頭、元の 1 ページ目（ハイライト）が 2 番目に来る。
+    assert.deepEqual(annotSubtypes(saved, 0), ['/Underline']);
+    assert.deepEqual(annotSubtypes(saved, 1), ['/Highlight']);
+    assert.deepEqual(annotSubtypes(saved, 2), []);
+  } finally { ws.cleanup(); }
+});
+
+test('抽出にも注釈が付いていく', async () => {
+  const ws = workspace();
+  try {
+    const source = ws.copyIn('three-pages.pdf');
+    const target = ws.file('picked.pdf');
+    const result = await runSave({
+      kind: 'extract',
+      source,
+      target,
+      pages: [{ src: 1, rotate: 0 }],
+      annotations: { add: [{ ...MARKUP, src: 1 }], remove: [] },
+    });
+    assert.equal(result.ok, true);
+    const saved = await open(target);
+    assert.equal(saved.getPageCount(), 1);
+    assert.deepEqual(annotSubtypes(saved, 0), ['/Highlight']);
+  } finally { ws.cleanup(); }
+});
+
+test('注釈の形が読めなければ書かずに断る', async () => {
+  const ws = workspace();
+  try {
+    const source = ws.copyIn('three-pages.pdf');
+    const before = fs.statSync(source).mtimeMs;
+    const result = await runSave({
+      source,
+      target: source,
+      pages: identityPlan(3),
+      annotations: { add: [{ ...MARKUP, src: 9 }], remove: [] },
+      makeBackup: false,
+    });
+    assert.equal(result.error, '注釈 1 のページ番号が文書に合いません。');
+    assert.equal(fs.statSync(source).mtimeMs, before);
+  } finally { ws.cleanup(); }
+});

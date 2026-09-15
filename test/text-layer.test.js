@@ -124,3 +124,15 @@ test('TextLayer が無くてもページの描画は止まらない', async (t) 
   assert.equal(textLayersIn(document).length, 0);
   assert.deepEqual(logs, [], '記録すべきでない失敗を記録している');
 });
+
+// 注釈が選択範囲を pt へ戻すのに要るもの（spec-4-1 確定事項11・12）。
+test('handle は描いた viewport と、span と並ぶ item・styles を持つ', async (t) => {
+  const pdfjs = createPdfjsStub({ textItems: ['あいう', '', 'かきく'] });
+  const shell = await withOpenDocument(t, { pdfjs });
+  const handle = shell.SigK.viewer.getTextLayer(0);
+  assert.equal(typeof handle.viewport.scale, 'number');
+  assert.equal(handle.viewport.rotation, 0);
+  // 空文字（hasEOL だけ）の item も数に入る。span と 1 対 1 で並ぶためである。
+  assert.deepEqual(handle.items().map((item) => item.str), ['あいう', '', 'かきく']);
+  assert.deepEqual(handle.styles(), {});
+});

@@ -53,9 +53,11 @@
     if (tab.session === null || tab.session === undefined)
       return false;
     // 保存したあとは「保存した並びと同じか」で決める（spec-1-6 確定事項27）。
+    // 注釈の編集も同じ（spec-4-1 確定事項19）。
     const saved = tab.session.savedPlan
       ?? root.SigK.pagePlan.createPlan(tab.session.basePages?.length ?? 0);
-    return !root.SigK.pagePlan.samePlan(tab.session.plan ?? [], saved);
+    return !root.SigK.pagePlan.samePlan(tab.session.plan ?? [], saved)
+      || !root.SigK.annotationState.sameAnnots(tab.session.annots, tab.session.savedAnnots);
   }
 
   function isDirty(id) {

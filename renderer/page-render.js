@@ -58,9 +58,57 @@
       const canvas = ctx.el().doc.createElement('canvas');
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
-      entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+      entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport, annotationMode: annotationMode() });
       await entry.task.promise;
       return canvas;
+    }
+
+    // 読み込んだテキストマークアップは pdf.js に描かせず、自前の層で描く
+    // （spec-4-1 確定事項18）。annotationStorage の noView を見る描き方にする。
+    // pdf.js が無い（jsdom）ときは undefined で、既定に任せる。
+    function annotationMode() {
+      return root.SigK.pdfjs?.lib?.AnnotationMode?.ENABLE_STORAGE;
+    }
+
+    // 注釈の層（spec-4-1 確定事項5）。canvas のあと、テキストレイヤーの前に置く。
+    // viewport は CSS ピクセル基準（テキストレイヤーと同じ）。
+    function attachAnnotationLayer({ index, entry, page }) {
+      const layer = root.SigK.annotationLayer;
+      const node = ctx.el().pageNodes[index];
+      if (layer === undefined || node === undefined || node === null)
+        return;
+      const viewport = page.getViewport({
+        scale: state.zoom * layout().CSS_UNITS,
+        rotation: rotationFor(index, page),
+      });
+      entry.annots = { svg: layer.mount(ctx.el().doc, node, viewport), viewport };
+      drawAnnotations(index, entry);
+    }
+
+    // そのページの注釈を描き直す。差し込んだページには付けない（既知の限界）。
+    function drawAnnotations(index, entry) {
+      const layer = root.SigK.annotationLayer;
+      if (entry.annots === null || entry.annots === undefined || layer === undefined)
+        return;
+      const src = state.plan[index]?.src;
+      const entries = Number.isInteger(src)
+        ? root.SigK.annotationState.annotsOnPage(state.annots, state.imported, src)
+        : [];
+      layer.draw(entry.annots.svg, entries, entry.annots.viewport, { selected: root.SigK.annotate?.getSelected() ?? null });
+    }
+
+    // 描いてあるページの注釈の層を描き直す（編集・undo・選択の変化）。
+    // rerender に元ページ番号を渡すと、そのページは canvas ごと描き直す
+    // （読み込んだ注釈を集め終えたとき。pdf.js が描いたぶんを消すため）。
+    function redrawAnnotations({ rerender = [] } = {}) {
+      for (const [index, entry] of [...state.rendered.entries()]) {
+        if (rerender.includes(state.plan[index]?.src)) {
+          releasePage(index);
+          renderPage(index);
+          continue;
+        }
+        drawAnnotations(index, entry);
+      }
     }
 
     function releasePage(index) {
@@ -70,7 +118,9 @@
       state.rendered.delete(index);
       entry.task?.cancel();
       // テキストレイヤーは canvas と同じ寿命にする（spec-1-3 確定事項21）。
+      // 注釈の層も同じで、枠ごと捨てる。
       entry.text?.cancel();
+      entry.annots = null;
       ctx.el().pageNodes[index]?.replaceChildren();
     }
 
@@ -84,7 +134,7 @@
         return;
 
       const token = state.token;
-      const entry = { task: null, text: null };
+      const entry = { task: null, text: null, annots: null };
       state.rendered.set(index, entry);
 
       // 捨てられたかどうかは、地図に載っているのが自分の entry かどうかで見る。
@@ -107,6 +157,7 @@
           return;
         if (canvas !== null)
           ctx.el().pageNodes[index]?.replaceChildren(canvas);
+        attachAnnotationLayer({ index, entry, page });
 
         await attachTextLayer({ index, entry, page, isStale });
       } catch (error) {
@@ -211,7 +262,7 @@
       });
     }
 
-    return { canDrawCanvas, releasePage, releaseAll, renderPage, update, scheduleUpdate };
+    return { canDrawCanvas, releasePage, releaseAll, renderPage, update, scheduleUpdate, redrawAnnotations };
   }
 
   const SigK = (root.SigK = root.SigK || {});

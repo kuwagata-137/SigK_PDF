@@ -18,7 +18,17 @@ const DEFAULTS = {
   // 閲覧モードのページの並べ方（spec-2-3 確定事項5）。'single' が縦1列、
   // 'facing' が見開き。アプリ全体の設定で、文書ごとには持たない。
   pageLayout: 'single',
+  // 注釈の種類ごとに最後に使った色（spec-4-1 確定事項33・34）。値は #rrggbb で、
+  // renderer/annotate.js のプリセットに無ければ既定へ落とす（一覧はあちらと同じ。
+  // プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
+  annotColors: { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c' },
   recent: [],
+};
+
+const ANNOT_COLORS = {
+  highlight: ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8'],
+  underline: ['#d92c2c', '#2c5cd9', '#1c2430'],
+  strikeout: ['#d92c2c', '#2c5cd9', '#1c2430'],
 };
 
 // ツールレールの4つのモード。renderer/shell.js の MODES と同じ並びであること。
@@ -71,9 +81,22 @@ function mergeDefaults(raw) {
     },
     mode: isValidMode(raw.mode) ? raw.mode : DEFAULTS.mode,
     pageLayout: isValidPageLayout(raw.pageLayout) ? raw.pageLayout : DEFAULTS.pageLayout,
+    annotColors: pickAnnotColors(raw.annotColors, DEFAULTS.annotColors),
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
   };
+}
+
+// 種類ごとに、プリセットにある色だけを受け取る。無ければ fallback の値。
+function pickAnnotColors(raw, fallback) {
+  const source = isPlainObject(raw) ? raw : {};
+  const picked = {};
+  for (const kind of Object.keys(ANNOT_COLORS)) {
+    picked[kind] = ANNOT_COLORS[kind].includes(source[kind])
+      ? source[kind]
+      : (ANNOT_COLORS[kind].includes(fallback?.[kind]) ? fallback[kind] : DEFAULTS.annotColors[kind]);
+  }
+  return picked;
 }
 
 function isValidMode(mode) {
@@ -91,6 +114,7 @@ function pickUi(settings) {
     mode: settings.mode,
     pageLayout: settings.pageLayout,
     sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
+    annotColors: pickAnnotColors(settings.annotColors, DEFAULTS.annotColors),
   };
 }
 
@@ -109,6 +133,8 @@ function mergeUi(current, patch) {
       open: pickBoolean(sidePanel.open, current.sidePanel.open),
       width: clampSidePanelWidth(pickNumber(sidePanel.width, current.sidePanel.width)),
     },
+    // 種類ごとに重ねる。{ annotColors: { highlight } } を送っただけで下線の色が戻らないように。
+    annotColors: pickAnnotColors({ ...(isPlainObject(current.annotColors) ? current.annotColors : {}), ...(isPlainObject(next.annotColors) ? next.annotColors : {}) }, current.annotColors),
   };
 }
 
@@ -236,6 +262,7 @@ module.exports = {
   DEFAULTS,
   UI_MODES,
   PAGE_LAYOUTS,
+  ANNOT_COLORS,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,
   isValidMode,
