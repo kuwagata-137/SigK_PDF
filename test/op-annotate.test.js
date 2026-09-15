@@ -15,6 +15,13 @@ const { pick } = require('../worker/pdf-tree-reader.js');
 const TOOLS = { PDFName, PDFString, PDFArray, PDFRef };
 const NOW = new Date(2026, 8, 15, 12, 0, 0);
 
+// /M の時差は実行環境の時間帯で変わる（手元は +09'00'、CI は UTC で +00'00'）ので、期待値は NOW から組む。
+function zoneOf(date) {
+  const offset = -date.getTimezoneOffset();
+  const pad = (value) => String(Math.abs(value)).padStart(2, '0');
+  return `${offset >= 0 ? '+' : '-'}${pad(Math.floor(Math.abs(offset) / 60))}'${pad(Math.abs(offset) % 60)}'`;
+}
+
 const QUAD = [48, 753, 232, 753, 48, 743, 232, 743];
 const RECT = [48, 743, 232, 753];
 
@@ -75,7 +82,7 @@ test('add で /Annots に辞書と外観が入る', async () => {
   assert.deepEqual(numbersOf(saved, pick(dict, '/C')).map((v) => Math.round(v * 100) / 100), [1, 0.89, 0.35]);
   assert.equal(pick(dict, '/F').asNumber(), 4);
   assert.match(pick(dict, '/NM').decodeText(), /^sigk-[0-9a-z]+-1$/);
-  assert.equal(pick(dict, '/M').decodeText(), "D:20260915120000+09'00'");
+  assert.equal(pick(dict, '/M').decodeText(), `D:20260915120000${zoneOf(NOW)}`);
   // 外観は Form XObject で、ハイライトは Multiply。
   const ap = saved.context.lookup(pick(dict, '/AP'));
   const normal = saved.context.lookup(pick(ap, '/N'));
