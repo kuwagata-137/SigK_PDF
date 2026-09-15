@@ -320,3 +320,52 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 | サムネイルへの反映 | 自前の注釈は映らない（確定事項30）。塊④の注釈一覧で置き換える |
 | `/CA` が pdf.js から取れない下線・取り消し線 | 1 と見なす。保存で 1 になる |
 | 保存後に Ctrl+Z で保存前へ戻ること | できない（確定事項20）。`spec-1-6` 確定事項28 を改める |
+
+---
+
+## 実装の記録（2026-09-15・`claude/phase-4-annotate` ブランチ）
+
+仕様書のとおりに作った。変えた点は次のとおり。
+
+| 仕様書 | 実装 |
+|---|---|
+| `renderer/annotate.js` が読み込みも持つ | 読み込み（`getAnnotations()` → 自前の形、`noView` の印）を **`renderer/annotation-import.js`** に切り出した。`annotate.js` は道具・作成・選択・削除・色・押し離しの結線に絞る（それでも 344 行。塊②で道具が増えるときに、押し離しの結線を別に出す） |
+| `/NM sigk-<uuid>` | `/NM` はワーカーが `sigk-<time36>-<連番>` で振る。保存後に開き直す（確定事項20）ので、レンダラーの id を運ぶ理由が無くなった |
+| `viewer.setImported(imported)` | `setImported(imported, { rerender })` にした。集め終えたページは canvas ごと描き直す（開いた直後に pdf.js が描いたぶんを消す）。注釈の無いページは描き直さない |
+| `page-edit.commit` が注釈を添える | `commit(plan, …)` は変えず、注釈用に **`commitAnnots(annots, { annot })`** を足した。`step`（undo／redo）は plan が変わっていなければ枠を作り直さない（注釈だけの世代でページがちらつかないように） |
+| `reopen()` で選択を捨てる | ページの選択は残す（位置がそのまま。抽出の続きができる）。注釈の選択と検索結果は捨てる |
+| 印刷の `overlay` | `page-image.renderToCanvas` に `annotationMode` と `overlay(ctx, viewport)` を足し、`print.js` が `annotate.painterFor(src)` を渡す。PDF→画像は触っていない |
+| `test/page-history.test.js` | `test/edit-history.test.js` に移し、`page-plan.test.js` から履歴のテストを外した |
+
+### 完了判定の結果
+
+| # | 判定 | 結果 |
+|---|---|---|
+| 1 | レールに道具 3＋4、サイドパネルはサムネイル、右にプロパティ | ✅ `test/shell.test.js`・`test/annotate.test.js`。実機 `screenshots/phase4-annotate-app.png`（`railTools: 7`・`propsVisible: true`） |
+| 2 | なぞって付く／先に選んで道具で付く。付いたら選択解除 | ✅ `test/annotate.test.js`。実機 `SIGK_SMOKE_ANNOTATE` の `select → highlight`・`select → underline` |
+| 3 | 押して選ぶ・色の丸・Delete・Esc | ✅ 同上。実機で `click:0:100x722` が当たり、`delete`・`esc` が効く |
+| 4 | Ctrl+Z／Ctrl+Y がページ編集と 1 本。タブの点と「変更あり」 | ✅ `test/edit-history.test.js`・`test/annotate.test.js`（回転と注釈を交互に戻す・タブごと） |
+| 5 | 保存で `/AP` 付きの `/Annots`。開き直しても同じ位置・色。保存後は履歴が空で、続けて編集して保存しても二重に当たらない | ✅ `test/op-annotate.test.js`・`test/pdf-task.test.js`・`test/save.test.js`。実機で `three-pages.pdf` に「ハイライト → 1 ページ目を回転 → 保存 → もう一度回転 → 下線 → 保存」を通し、ファイルは 1 ページ目 `/Rotate 180`（90＋90）・ハイライト 1・2 ページ目に下線 1・`/AP` あり・オブジェクト 14（下の「実測」） |
+| 6 | 既存のテキストマークアップを選んで消す・色を変える。他の注釈はそのまま | ✅ `test/annotate.test.js`（読み込み → 色変更 → undo → 削除 → 保存の差分）。実機では保存後に開き直したものが「既存」になり、`importedAfter` に数が出る |
+| 7 | 回転・CropBox・倍率でも四角が文字に重なる | ✅ `test/markup-quads.test.js`（回転 0／90／180、CropBox、倍率 0.5〜2）。実機 `rotated.pdf` の `/Rotate 90` のページで span と item の横位置が 47.9〜157.65 対 48〜157.75（0.1pt） |
+| 8 | 印刷に未保存の注釈が映る。PDF→画像には映らない | ✅ `test/page-image.test.js`（overlay）・`test/annotate.test.js`（`painterFor`）・`test/print.test.js` 緑。紙の実物はユーザーの目視（Ctrl+P） |
+| 9 | 回転したページで文字の選択が文字に重なる | ✅ 判定 7 の実機の値（`text-layer.css` の 3 本を足す前は span が回転前の位置に残っていた） |
+| 10 | 他のビューアで色・位置・透け方 | ⏳ **ユーザーの目視** |
+| 11 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_ANNOTATE` | ✅ `npm test` 1,031 → **1,103 件**（68 → 74 ファイル）。`npm run dist` → `SIGK_SMOKE=1 SIGK_SMOKE_ANNOTATE=… "./dist/win-unpacked/SigK PDF.exe"` が `problems: []`・`url: app://sigk/index.html` で通り、作成・選択・削除・undo・保存（363ms）・開き直し（`importedAfter: 2`）まで同じ結果 |
+
+### 実測（Windows 11 実機・開発ツリー。`SIGK_SMOKE_ANNOTATE`）
+
+| 項目 | 値 |
+|---|---|
+| ハイライトを付ける（選択 → 四角 → 履歴 → 描画） | 12〜15ms |
+| 色を変える・選ぶ・消す・戻す | 0.1〜5ms |
+| 保存 → 開き直し（`text-heavy.pdf` 40 ページ・注釈 3） | 保存 381ms（ワーカー）／段全体 1.2 秒（開き直し・帯の待ち込み） |
+| 保存 → 開き直し（`huge-pages.pdf` 1,000 ページ・注釈 1） | 保存 1,226ms（ワーカー）／段全体 2.0 秒。開き直しは約 0.8 秒（読み直し・寸法の集め直し・注釈の集め直し） |
+| 2 回保存した `three-pages.pdf` | 2,221 bytes・オブジェクト 14。1 ページ目 `/Rotate 180`、ハイライト 1（`/AP` あり）、2 ページ目 下線 1 |
+| 回転したページの span と item の横位置 | 47.9〜157.65 対 48〜157.75 pt（`/Rotate 90`・表示 90） |
+
+### 人が目で確かめる手順（残り）
+
+- 保存した PDF を他のビューアで開き、ハイライトの色と位置、文字の透け方（multiply）、下線・取り消し線の太さを見る（判定10）。
+- 他のアプリで付けたハイライトを消して保存し、他のビューアで消えていること。
+- Ctrl+P のプレビューに未保存の注釈が載っていること（判定8 の紙）。

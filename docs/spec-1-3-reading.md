@@ -67,7 +67,7 @@
 | # | 論点 | 決定 |
 |---|------|------|
 | 17 | 実装の土台 | **pdf.js の `TextLayer` クラスを使う。自前でテキストを配置しない。**`vendor/pdf.mjs` が `TextLayer` を export していることを確認済み。`constructor({ textContentSource, container, viewport })`・`render()`・`update({ viewport })`・`cancel()`・`textDivs` を持つ。文字の位置・回転・横方向の伸縮を PDF の座標から合わせる処理は、自前で書けば必ずずれる |
-| 18 | CSS の出所 | `node_modules/pdfjs-dist/web/pdf_viewer.css` の **`.textLayer` ブロックだけ**（約150行）を `renderer/text-layer.css` へ写し、先頭に出典と Apache-2.0 を明記する。`pdf_viewer.css` は全体で 6,409 行あり、使わない注釈エディタ・署名・ページめくりの CSS まで抱えることになるため `vendor/` には入れない。`THIRD-PARTY-NOTICES.md` には pdfjs-dist が既に入っている。`docs/06_ライセンス・商標チェックリスト.md` に「一部を複製した」旨を1件記録する |
+| 18 | CSS の出所 | `node_modules/pdfjs-dist/web/pdf_viewer.css` の **`.textLayer` ブロックだけ**（約150行）を `renderer/text-layer.css` へ写し、先頭に出典と Apache-2.0 を明記する。**2026-09-15 追記: `[data-main-rotation="90|180|270"]` の 3 本（同ファイル 6237〜6245 行）も要る。**pdf.js 6 の TextLayer は span を回転前の座標に置いて層全体を CSS で回すので、無いと回転したページで文字の選択が元の向きに残る（`spec-4-1` 事前調査 D で発見し、同 確定事項31 で足した）。`pdf_viewer.css` は全体で 6,409 行あり、使わない注釈エディタ・署名・ページめくりの CSS まで抱えることになるため `vendor/` には入れない。`THIRD-PARTY-NOTICES.md` には pdfjs-dist が既に入っている。`docs/06_ライセンス・商標チェックリスト.md` に「一部を複製した」旨を1件記録する |
 | 19 | 必要な CSS 変数 | `TextLayer` の内部が呼ぶ `setLayerDimensions()` は、寸法を `round(down, var(--total-scale-factor) * Npx, var(--scale-round-x))` として書き込む。**`--total-scale-factor`・`--scale-round-x`・`--scale-round-y` が未定義だと寸法が無効になる。**`.pdf-page` へ JS から設定する（`--total-scale-factor` は `zoom × 96/72`、丸めは `1px`） |
 | 20 | 貼る場所 | `.pdf-page` の中、canvas の**後ろ**（DOM 順で後ろ＝重なりで上）。`.textLayer` は `position:absolute; inset:0` なので `.pdf-page` の枠にぴったり重なる |
 | 21 | 破棄 | `releasePage()` で `cancel()` を呼ぶ。canvas と同じ寿命にする。世代トークン（`state.token`）の陳腐化判定に相乗りし、遅れて届いたテキストレイヤーが、もう見ていないページに貼られないようにする |

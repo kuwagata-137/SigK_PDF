@@ -1024,6 +1024,7 @@ function installSmokeCheck(win) {
   //   color:#8ce99a              色の丸を押す
   //   click:0:80x705             ページ 0 の pt (80,705) を押して離す（選ぶ）
   //   delete / esc / undo / redo / save
+  //   rotate:0                   ページ 0 を右へ 90 度（保存後に開き直す経路の確認用）
   //
   // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
   const annotateScript = (target, spec) => `(async () => {
@@ -1079,6 +1080,9 @@ function installSmokeCheck(win) {
         const [cx, cy] = handle.viewport.convertToViewportPoint(x, y);
         for (const type of ['mousedown', 'mouseup'])
           node.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: base.left + cx, clientY: base.top + cy }));
+      } else if (name === 'rotate') {
+        SigK.pageEdit.rotate(90, [Number(arg)]);
+        await wait(300);
       } else if (name === 'delete') {
         SigK.annotate.remove();
       } else if (name === 'esc') {
