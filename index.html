@@ -88,6 +88,16 @@ body{
         <span data-icon="modeTools" data-icon-size="21"></span>
         <span class="lbl">ツール</span>
       </div>
+      <!-- 注釈の道具（spec-4-1 確定事項1・2）。注釈モードのときだけ出る。
+           テキスト以降は塊②〜④の位置取りで、まだ押せない。 -->
+      <div class="rail-sep annot-only"></div>
+      <div class="rail-item tool annot-only" data-tool="highlight" title="ハイライト"><span data-icon="highlight" data-icon-size="21"></span><span class="lbl">ハイライト</span></div>
+      <div class="rail-item tool annot-only" data-tool="underline" title="下線"><span data-icon="underline" data-icon-size="21"></span><span class="lbl">下線</span></div>
+      <div class="rail-item tool annot-only" data-tool="strikeout" title="取り消し線"><span data-icon="strikeout" data-icon-size="21"></span><span class="lbl">取り消し線</span></div>
+      <div class="rail-item tool annot-only" aria-disabled="true" title="テキスト（後の段階で入ります）"><span data-icon="text" data-icon-size="21"></span><span class="lbl">テキスト</span></div>
+      <div class="rail-item tool annot-only" aria-disabled="true" title="図形（後の段階で入ります）"><span data-icon="shape" data-icon-size="21"></span><span class="lbl">図形</span></div>
+      <div class="rail-item tool annot-only" aria-disabled="true" title="ペン（後の段階で入ります）"><span data-icon="pen" data-icon-size="21"></span><span class="lbl">ペン</span></div>
+      <div class="rail-item tool annot-only" aria-disabled="true" title="ノート（後の段階で入ります）"><span data-icon="note" data-icon-size="21"></span><span class="lbl">ノート</span></div>
     </div>
 
     <div id="side">
@@ -392,6 +402,22 @@ body{
         <button type="button" class="find-btn" id="find-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" title="閉じる (Esc)"></button>
       </div>
     </div>
+
+    <!-- 注釈のプロパティ（spec-4-1 確定事項4）。注釈モードの間は常に出す。
+         中身は annotation-props.js が実態に合わせる。 -->
+    <div id="props">
+      <div class="side-head"><span>プロパティ</span></div>
+      <div class="props-body">
+        <div class="prop"><span class="k">種類</span><span class="v" id="props-kind">–</span></div>
+        <div class="prop"><span class="k">色</span><div class="swatches" id="props-colors"></div></div>
+        <div class="prop" id="props-page-row" hidden><span class="k">ページ</span><span class="v" id="props-page"></span></div>
+        <div class="prop" id="props-text-row" hidden><span class="k">対象の文字</span><span class="v" id="props-text"></span></div>
+        <p class="props-hint" id="props-hint"></p>
+      </div>
+      <div class="props-actions">
+        <button type="button" class="act danger wide" id="props-delete" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>この注釈を削除</button>
+      </div>
+    </div>
   </div>
 
   <div id="status">
@@ -523,8 +549,13 @@ body{
 <script src="renderer/shell.js"></script>
 <script src="renderer/viewer-layout.js"></script>
 <script src="renderer/page-plan.js"></script>
-<script src="renderer/page-history.js"></script>
+<script src="renderer/annotation-state.js"></script>
+<script src="renderer/edit-history.js"></script>
 <script src="renderer/text-layer.js"></script>
+<script src="renderer/markup-quads.js"></script>
+<script src="renderer/markup-selection.js"></script>
+<script src="renderer/annotation-layer.js"></script>
+<script src="renderer/annotation-import.js"></script>
 <script src="renderer/page-render.js"></script>
 <script src="renderer/view-banner.js"></script>
 <script src="renderer/viewer.js"></script>
@@ -561,6 +592,8 @@ body{
 <script src="renderer/find.js"></script>
 <script src="renderer/find-bar.js"></script>
 <script src="renderer/print.js"></script>
+<script src="renderer/annotate.js"></script>
+<script src="renderer/annotation-props.js"></script>
 <script src="renderer/doc-info.js"></script>
 <script src="renderer/tabs.js"></script>
 <script src="renderer/recent-panel.js"></script>

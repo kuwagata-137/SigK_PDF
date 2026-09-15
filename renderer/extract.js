@@ -80,7 +80,8 @@
       source: view.file.path,
       target: picked.path,
       pages,
-      ops: [],
+      // 選んだページに付いた注釈も一緒に出す（spec-4-1 確定事項21）。
+      annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations()),
       // 元ファイルを触らないので、退避も外部変更の照合も要らない（確定事項18・21）。
       makeBackup: false,
       expect: null,

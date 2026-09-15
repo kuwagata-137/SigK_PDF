@@ -48,6 +48,8 @@
         // 見開き（spec-2-3 確定事項5）。古い settings.json には無いことがある。
         pageLayout: result.ui.pageLayout,
       });
+      // 注釈の色（spec-4-1 確定事項34）。古い settings.json には無いことがある。
+      root.SigK.annotate?.applyColors(result.ui.annotColors);
       return result.ui;
     } catch {
       return null;
@@ -96,6 +98,9 @@
     // 検索バーと印刷は、ツールバーの結線とキー操作から呼ばれる。先に用意しておく。
     root.SigK.findBar.init(doc, win);
     root.SigK.print.init(doc, win);
+    // 注釈モード（spec-4-1）。レールの道具・ページビューの押し離し・右のプロパティ。
+    root.SigK.annotate.init(doc, win);
+    root.SigK.annotationProps.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
     root.SigK.tabs.init(doc, win);

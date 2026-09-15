@@ -571,6 +571,9 @@ async function createShell({
     logs,
     sources,
     openResults,
+    // pdfAPI.read(path) が返すもの（パス → 読み込み結果）。保存後の開き直し（spec-4-1
+    // 確定事項20）で「書き直されたファイル」を装うため、テストから差し替えられる。
+    files,
     recentCalls,
     recentList: () => recentList,
     // 覚えた見た目と、そこへ届いた patch の並び。

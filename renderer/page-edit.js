@@ -8,8 +8,9 @@
   // やること」――履歴に積む・画面へ配る・選択を付け替える・未保存の印を出す――
   // を1か所に書けば済む。
   //
-  // 履歴は plan のスナップショット列で持つ（確定事項8）。逆操作を書かないので、
-  // 操作の種類が増えても undo の実装は増えない。
+  // 履歴は { plan, annots } のスナップショット列で持つ（確定事項8・spec-4-1 確定事項15）。
+  // 逆操作を書かないので、操作の種類が増えても undo の実装は増えない。注釈の
+  // 編集（annotate.js）も同じ履歴に積む。Ctrl+Z はモードを問わず最後の編集を戻す。
 
   const state = {
     // { stack, at }。文書ごとに作り直し、タブごとに持ち回る（確定事項11）。
@@ -37,8 +38,17 @@
     return root.SigK.pagePlan;
   }
 
-  function pageHistory() {
-    return root.SigK.pageHistory;
+  function editHistory() {
+    return root.SigK.editHistory;
+  }
+
+  function annotate() {
+    return root.SigK.annotate;
+  }
+
+  // いまの編集の状態。履歴に積むスナップショットの元になる。
+  function snapshot(plan = viewer()?.getPlan() ?? [], annots = viewer()?.getAnnotations() ?? null) {
+    return { plan, annots };
   }
 
   function viewer() {
@@ -55,23 +65,23 @@
 
   // 文書を開いた時点の並びを1世代目に置く。開くたびに作り直すので、
   // 前の文書の履歴が残らない。
-  function reset(plan) {
-    state.history = pageHistory().createHistory(plan ?? []);
+  function reset(plan, annots) {
+    state.history = editHistory().createHistory(snapshot(plan ?? [], annots ?? null));
     return state.history;
   }
 
   function history() {
     if (state.history === null)
-      reset(viewer()?.getPlan() ?? []);
+      reset();
     return state.history;
   }
 
   function canUndo() {
-    return isOpen() && pageHistory().canUndo(history());
+    return isOpen() && editHistory().canUndo(history());
   }
 
   function canRedo() {
-    return isOpen() && pageHistory().canRedo(history());
+    return isOpen() && editHistory().canRedo(history());
   }
 
   // 履歴の深さ。起動確認（SIGK_SMOKE_PAGES）が読む。
@@ -88,9 +98,21 @@
     if (!isOpen())
       return false;
 
-    state.history = pageHistory().pushHistory(history(), plan, { before, after });
+    state.history = editHistory().pushHistory(history(), snapshot(plan), { before, after });
     viewer().applyPlan(plan);
     grid()?.setSelection(after);
+    syncActions();
+    return true;
+  }
+
+  // 注釈の編集を1世代として確定する（spec-4-1 確定事項15）。plan はいまのまま。
+  // annot は前後で対象だった注釈の id か ref で、戻したときに選び直すのに使う。
+  function commitAnnots(annots, { annot = {} } = {}) {
+    if (!isOpen())
+      return false;
+
+    state.history = editHistory().pushHistory(history(), snapshot(undefined, annots), { annot });
+    viewer().setAnnotations(annots);
     syncActions();
     return true;
   }
@@ -99,15 +121,17 @@
     if (!isOpen())
       return false;
 
-    const moved = direction < 0 ? pageHistory().undo(history()) : pageHistory().redo(history());
+    const moved = direction < 0 ? editHistory().undo(history()) : editHistory().redo(history());
     if (!moved.changed)
       return false;
 
     state.history = moved.history;
     viewer().applyPlan(moved.plan);
+    viewer().setAnnotations(moved.annots);
     // 戻した世代で操作の対象だったページを選び直す。何が戻ったのかが
-    // 分からないと、取り消せたのかどうかも分からない。
+    // 分からないと、取り消せたのかどうかも分からない。注釈も同じ。
     grid()?.setSelection(moved.selection);
+    annotate()?.select(moved.annot ?? null);
     syncActions();
     return true;
   }
@@ -240,6 +264,7 @@
     init,
     reset,
     commit,
+    commitAnnots,
     rotate,
     remove,
     canDelete,

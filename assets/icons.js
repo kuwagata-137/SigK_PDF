@@ -123,6 +123,27 @@
       ['path', { d: 'M6 18H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-2' }],
       ['rect', { x: 7, y: 14, width: 10, height: 6, rx: 1 }],
     ],
+    // 注釈の道具（spec-4-1 確定事項36）。3 つは同じ「文字 2 本」に、帯・下線・横線を
+    // 添えた家族。テキスト以降は塊②〜④の位置取り。いずれも幾何形状のみ（docs/06）。
+    highlight: [
+      ['rect', { x: 3, y: 6.5, width: 18, height: 11, rx: 1.5, fill: 'currentColor', opacity: 0.28, stroke: 'none' }],
+      ['path', { d: 'M7 10h10M7 14h6' }],
+    ],
+    underline: [
+      ['path', { d: 'M7 6.5h10M7 10.5h6' }],
+      ['path', { d: 'M4 18.5h16', 'stroke-width': 2.4 }],
+    ],
+    strikeout: [
+      ['path', { d: 'M7 7.5h10M7 16.5h7' }],
+      ['path', { d: 'M4 12h16', 'stroke-width': 2.4 }],
+    ],
+    text: [['path', { d: 'M5 6h14M12 6v13M9 19h6' }]],
+    shape: [
+      ['rect', { x: 4, y: 5, width: 11, height: 9, rx: 1 }],
+      ['circle', { cx: 16, cy: 16, r: 4 }],
+    ],
+    pen: [['path', { d: 'M4 18c3-8 6-8 8-2s5 6 8-4' }]],
+    note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
   };
 
   function has(name) {

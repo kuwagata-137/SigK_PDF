@@ -29,10 +29,17 @@
     // 最後に保存した並び。未保存かどうかは「plan がこれと違うこと」で決める
     // （spec-1-6 確定事項27）。開いた直後は plan と同じ（＝連番）である。
     //
-    // plan を連番へ振り直す形にはできない。state.doc は保存前のファイルを開いた
-    // pdf.js の文書のままで（確定事項29 で開き直さないと決めている）、
-    // getPage() が plan[n-1].src で引くため、振り直すと表示と中身がずれる。
+    // 保存に成功したら保存先を開き直す（spec-4-1 確定事項20。spec-1-6 確定事項29 を
+    // 改めた）ので、ここは常に連番になる。開き直すまでの間だけ plan と違い得る。
     savedPlan: [],
+    // 注釈の編集（spec-4-1 確定事項16）。{ added, removed } の「ファイルとの差分」で、
+    // plan と同じく開いた直後は空である。savedAnnots は保存の基準。
+    annots: null,
+    savedAnnots: null,
+    // ファイルにあった注釈のうち、自前の層で描くもの（読み込んだテキストマークアップ。
+    // 確定事項17）。src → [{ ref, kind, color, opacity, quads, rect }]。編集ではないので
+    // 履歴には入らない。開いたときに annotate.js が集める。
+    imported: {},
     // 差し込んだページの控え（spec-1-6 確定事項93）。要素は
     // { path, page, size, doc }（doc は差し込むページだけを持つ pdf.js の文書）。
     // plan の { insert } がこの配列の番号を指す。
@@ -158,7 +165,47 @@
   function isDirty() {
     if (state.doc === null)
       return false;
-    return !root.SigK.pagePlan.samePlan(state.plan, state.savedPlan);
+    return !root.SigK.pagePlan.samePlan(state.plan, state.savedPlan)
+      || !annotationState().sameAnnots(state.annots, state.savedAnnots);
+  }
+
+  function annotationState() {
+    return root.SigK.annotationState;
+  }
+
+  function getAnnotations() {
+    return annotationState().cloneAnnots(state.annots);
+  }
+
+  // 注釈の編集を映す（spec-4-1 確定事項18・19）。履歴に積むのは page-edit.js の
+  // 仕事で、ここは状態を差し替えて描き直すだけである。ページの枠は作り直さず、
+  // 描いてある層だけを描き直す（並びは変わらない）。
+  function setAnnotations(next) {
+    if (state.doc === null)
+      return false;
+    state.annots = annotationState().cloneAnnots(next);
+    render.redrawAnnotations();
+    syncDirty();
+    return true;
+  }
+
+  function getImported() {
+    return state.imported;
+  }
+
+  // 読み込んだ注釈を映す（annotation-import.js が集め終えたとき）。rerender の
+  // ページは canvas ごと描き直す。pdf.js が描いたぶんを消すためである（確定事項18）。
+  function setImported(imported, { rerender = [] } = {}) {
+    state.imported = imported ?? {};
+    render.redrawAnnotations({ rerender });
+    return true;
+  }
+
+  function redrawAnnotations(options) {
+    if (state.doc === null)
+      return false;
+    render.redrawAnnotations(options);
+    return true;
   }
 
   // 保存が成功したら、いまの並びを「保存済み」の基準にする（確定事項27）。
@@ -170,6 +217,7 @@
     if (state.doc === null)
       return false;
     state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+    state.savedAnnots = annotationState().cloneAnnots(state.annots);
 
     if (nextPath !== null)
       state.file.path = nextPath;
@@ -434,6 +482,9 @@
     state.basePages = [];
     state.plan = [];
     state.savedPlan = [];
+    state.annots = null;
+    state.savedAnnots = null;
+    state.imported = {};
     state.inserts = [];
     state.sizes = [];
     state.layout = { pages: [], contentWidth: 0, totalHeight: 0 };
@@ -445,6 +496,7 @@
     root.SigK.find?.clear();
     root.SigK.pageGrid?.clearSelection();
     root.SigK.pageEdit?.restore(null);
+    root.SigK.annotate?.select(null);
     setDocumentOpen(false);
     setMessage(EMPTY_MESSAGE);
     root.SigK.shell.setStatus(el.doc, { file: '文書なし', pages: '–', size: '–' });
@@ -464,6 +516,10 @@
       basePages: state.basePages,
       plan: state.plan,
       savedPlan: state.savedPlan,
+      // 注釈の編集もタブごとに持つ（spec-4-1 確定事項19）。
+      annots: state.annots,
+      savedAnnots: state.savedAnnots,
+      imported: state.imported,
       inserts: state.inserts,
       sizes: state.sizes,
       zoom: state.zoom,
@@ -501,6 +557,9 @@
     state.basePages = session.basePages ?? session.sizes;
     state.plan = session.plan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
     state.savedPlan = session.savedPlan ?? root.SigK.pagePlan.createPlan(session.sizes.length);
+    state.annots = annotationState().cloneAnnots(session.annots);
+    state.savedAnnots = annotationState().cloneAnnots(session.savedAnnots);
+    state.imported = session.imported ?? {};
     state.inserts = session.inserts ?? [];
     state.sizes = session.sizes;
     state.zoom = session.zoom;
@@ -674,12 +733,15 @@
       state.plan = root.SigK.pagePlan.createPlan(sizes.length);
       // 開いた直後は、ファイルの中身と画面の並びが一致している。
       state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+      state.annots = annotationState().createAnnots();
+      state.savedAnnots = annotationState().createAnnots();
+      state.imported = {};
       state.inserts = [];
       state.sizes = sizesFromPlan(state.plan);
       state.current = 0;
       // 履歴は文書ごとに作り直す。前の文書の世代が残っていると、Ctrl+Z で
       // 別の文書の並びへ戻ってしまう（確定事項11）。
-      root.SigK.pageEdit?.reset(state.plan);
+      root.SigK.pageEdit?.reset(state.plan, state.annots);
 
       buildPages();
       setDocumentOpen(true);
@@ -702,12 +764,92 @@
       });
       syncDirty();
       controls()?.syncAll(el.doc, getState());
+      // ファイルにあるテキストマークアップを集める（spec-4-1 確定事項17）。待たない。
+      root.SigK.annotate?.importDocument(doc, () => state.doc === doc);
       return true;
     } catch (error) {
       setMessage(describeOpenFailure(error));
       report(error, { path: source?.path });
       return false;
     }
+  }
+
+  // 保存に成功したら保存先を開き直す（spec-4-1 確定事項20。spec-1-6 確定事項27〜29 を改めた）。
+  //
+  // 画面を空にしない。新しい文書を先に読み、寸法が取れてから差し替える。倍率・
+  // 「幅／全体」・現在ページ・スクロール位置はそのまま。plan は連番へ戻り、差し込みと
+  // 注釈の編集は空になり（ファイルに入った）、履歴は 1 世代目から。**保存前へは
+  // Ctrl+Z で戻れない。**開き直さないと、2 回目の保存でワーカーが保存先を読んで
+  // plan をもう一度当ててしまう（spec-4-1 事前調査 F）。
+  async function reopen({ path: nextPath = null, name = null } = {}) {
+    if (state.doc === null || root.pdfAPI?.available !== true)
+      return false;
+    const filePath = nextPath ?? state.file.path;
+    const source = await root.pdfAPI.read(filePath);
+    if (source?.error !== undefined || state.doc === null)
+      return false;
+
+    let doc;
+    let sizes;
+    try {
+      doc = await root.SigK.pdfjs.getDocument({ data: source.bytes }).promise;
+      sizes = await collectSizes(doc);
+    } catch (error) {
+      report(error, { path: filePath, reopen: true });
+      return false;
+    }
+    // 読んでいる間に閉じられていたら、読んだものを捨てる。
+    if (state.doc === null) {
+      releaseDocument(doc);
+      return false;
+    }
+
+    const previous = { doc: state.doc, inserts: state.inserts };
+    const scrollTop = el.view.scrollTop;
+    const thumbScrollTop = root.SigK.thumbnails?.getScrollTop() ?? 0;
+    state.token += 1;
+    render.releaseAll();
+    state.doc = doc;
+    state.file = {
+      path: filePath,
+      name: name ?? source.name ?? state.file.name,
+      size: source.size,
+      mtimeMs: source.mtimeMs ?? null,
+      // パスワード付きは保存できない（spec-1-6 確定事項12）ので、保存先が暗号化されていることはない。
+      encrypted: false,
+    };
+    state.basePages = sizes;
+    state.plan = root.SigK.pagePlan.createPlan(sizes.length);
+    state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+    state.annots = annotationState().createAnnots();
+    state.savedAnnots = annotationState().createAnnots();
+    state.imported = {};
+    state.inserts = [];
+    state.sizes = sizesFromPlan(state.plan);
+    state.current = Math.min(state.sizes.length - 1, Math.max(0, state.current));
+    root.SigK.pageEdit?.reset(state.plan, state.annots);
+    // 検索結果は捨てる（ページ数が変わっていることがある）。ページの選択は
+    // 位置がそのままなので残す。
+    root.SigK.find?.clear();
+
+    buildPages();
+    applyLayout();
+    root.SigK.thumbnails?.setDocument({
+      doc, sizes: state.sizes, plan: state.plan, inserts: state.inserts, current: state.current, scrollTop: thumbScrollTop,
+    });
+    el.view.scrollTop = scrollTop;
+    root.SigK.shell.setStatus(el.doc, {
+      file: state.file.name,
+      pages: `${state.sizes.length} ページ`,
+      size: root.SigK.shell.formatFileSize(state.file.size),
+    });
+    syncStatusPages();
+    syncDirty();
+    controls()?.syncAll(el.doc, getState());
+    render.scheduleUpdate();
+    root.SigK.annotate?.importDocument(doc, () => state.doc === doc);
+    destroySession(previous);
+    return true;
   }
 
   // 開く経路は tabs.js に1本だけ持たせる（spec-1-2 確定事項18）。ここは
@@ -773,6 +915,12 @@
     getSizes,
     isDirty,
     markSaved,
+    reopen,
+    getAnnotations,
+    setAnnotations,
+    getImported,
+    setImported,
+    redrawAnnotations,
     getBasePageCount,
     getTextLayer,
     setMessage,

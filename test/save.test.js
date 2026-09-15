@@ -54,6 +54,7 @@ test('文書を開くと保存ボタンが押せるようになる', async (t) =
 test('上書き保存は、いまの並びと元のパスをワーカーへ渡す', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [okResult()] });
   edit(shell.SigK);
+  const edited = plain(shell.SigK.viewer.getPlan());
 
   const result = await shell.SigK.save.saveActive();
   assert.equal(result.ok, true);
@@ -66,8 +67,33 @@ test('上書き保存は、いまの並びと元のパスをワーカーへ渡�
   assert.equal(spec.makeBackup, true);
   // 開いたときのサイズと更新時刻を控えて渡す（確定事項21）。
   assert.deepEqual(spec.expect, { size: 1024, mtimeMs: 1000 });
-  assert.deepEqual(spec.pages, plain(shell.SigK.viewer.getPlan()));
-  assert.deepEqual(spec.ops, [], '塊⑤ では ops は常に空である');
+  assert.deepEqual(spec.pages, edited);
+  // 注釈は「ファイルとの差分」で渡す（spec-4-1 確定事項22）。編集していなければ空。
+  assert.deepEqual(spec.annotations, { add: [], remove: [] });
+  assert.equal(spec.ops, undefined, 'ops は誰も読まなかったので送らない');
+});
+
+// 保存に成功したら保存先を開き直す（spec-4-1 確定事項20。spec-1-6 確定事項27〜29 を改めた）。
+test('保存に成功すると保存先を開き直し、並びは連番へ戻り、履歴は空になる', async (t) => {
+  const shell = await withOpenDocument(t, { taskResults: [okResult()] });
+  edit(shell.SigK);
+  // 履歴に積む経路（commit）も通しておく。
+  shell.SigK.pageEdit.rotate(90, [0]);
+  shell.SigK.viewer.setZoom(1.5);
+  assert.equal(shell.SigK.pageEdit.canUndo(), true);
+  const before = shell.pdfjs.documents.length;
+
+  await shell.SigK.save.saveActive();
+  await shell.flush();
+
+  // 新しい文書が開かれ、前の文書は畳まれている。
+  assert.equal(shell.pdfjs.documents.length, before + 1);
+  assert.equal(shell.pdfjs.documents[before - 1].destroyed, true);
+  assert.deepEqual(plain(shell.SigK.viewer.getPlan()), [{ src: 0, rotate: 0 }, { src: 1, rotate: 0 }, { src: 2, rotate: 0 }]);
+  assert.equal(shell.SigK.viewer.isDirty(), false);
+  assert.equal(shell.SigK.pageEdit.canUndo(), false, '保存前へは戻れない');
+  // 倍率は保つ。
+  assert.equal(shell.SigK.viewer.getState().zoom, 1.5);
 });
 
 test('保存に成功すると未保存でなくなる', async (t) => {
@@ -263,16 +289,21 @@ test('メニューの合図から保存できる', async (t) => {
   assert.equal(shell.taskCalls[1].spec.target, B);
 });
 
-test('保存したあと、2回目の上書きは新しい署名で照合する', async (t) => {
+test('保存したあと、2回目の上書きは開き直したファイルの署名で照合し、並びを二重に当てない', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [okResult(), okResult()] });
   edit(shell.SigK);
+  // 書き直されたファイルを装う。開き直しがこれを読む。
+  shell.files[A] = makeSource({ path: A, name: 'a.pdf', size: 2048, mtimeMs: 2000 });
   await shell.SigK.save.saveActive();
+  await shell.flush();
 
-  // もう一度編集して保存する。
+  // もう一度編集して保存する。並びは連番から始まるので、前の並べ替えは混ざらない
+  // （spec-4-1 事前調査 F の不具合の再現が緑になること）。
   shell.SigK.viewer.applyPlan(shell.SigK.pagePlan.rotatePages(shell.SigK.viewer.getPlan(), [0], 90));
   await shell.SigK.save.saveActive();
 
   assert.deepEqual(shell.taskCalls[1].spec.expect, { size: 2048, mtimeMs: 2000 }, '書いた直後の署名で照合する');
+  assert.deepEqual(shell.taskCalls[1].spec.pages, [{ src: 0, rotate: 90 }, { src: 1, rotate: 0 }, { src: 2, rotate: 0 }]);
 });
 
 // ---- レンダラーの中で回す枠（spec-3-3 確定事項17）----

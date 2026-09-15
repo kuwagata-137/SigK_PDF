@@ -179,14 +179,15 @@
   }
 
   // 保存でワーカーへ渡す形（docs/02 2-3）。差し込みの控えも一緒に渡す
-  // （確定事項65。plan の { insert } がこの配列の番号を指す）。
+  // （確定事項65。plan の { insert } がこの配列の番号を指す）。注釈は
+  // 「ファイルとの差分」{ add, remove } で渡す（spec-4-1 確定事項22）。
   function saveSpec({ source, target, makeBackup, expect }) {
     return {
       kind: 'save',
       source,
       pages: viewer().getPlan(),
       inserts: viewer().getInserts(),
-      ops: [],
+      annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations()),
       target,
       makeBackup,
       expect,
@@ -217,18 +218,23 @@
       return result ?? { error: '保存できませんでした。' };
     }
 
-    // 開き直さない（確定事項29）。並びは既に画面へ映っているので、
-    // 読み直しは体感を落とすだけである。
+    // 保存先を開き直す（spec-4-1 確定事項20。spec-1-6 確定事項29 を改めた）。
+    // 画面は空にせず、倍率と位置を保ったまま文書だけ差し替える。開き直さないと
+    // 2 回目の保存でワーカーが保存先を読んで plan をもう一度当ててしまう。
+    // 読み直せなかったときは従来どおり基準だけを更新する（次の保存で気づける）。
     const moved = target !== source;
-    viewer().markSaved({
-      path: moved ? target : null,
-      name: moved ? name : null,
-      signature: result.signature ?? null,
-    });
     if (moved) {
       const tab = activeTab();
       if (tab !== null)
         await tabs().rename(tab.id, { path: target, name });
+    }
+    const reopened = await viewer().reopen({ path: moved ? target : null, name: moved ? name : null });
+    if (!reopened) {
+      viewer().markSaved({
+        path: moved ? target : null,
+        name: moved ? name : null,
+        signature: result.signature ?? null,
+      });
     }
     banner().show('保存しました。', 2500);
     return result;
