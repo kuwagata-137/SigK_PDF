@@ -829,8 +829,9 @@
     state.current = Math.min(state.sizes.length - 1, Math.max(0, state.current));
     root.SigK.pageEdit?.reset(state.plan, state.annots);
     // 検索結果は捨てる（ページ数が変わっていることがある）。ページの選択は
-    // 位置がそのままなので残す。
+    // 位置がそのままなので残す。注釈の選択は対象がファイルの中身に変わったので解除する。
     root.SigK.find?.clear();
+    root.SigK.annotate?.select(null);
 
     buildPages();
     applyLayout();
