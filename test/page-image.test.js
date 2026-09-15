@@ -22,8 +22,9 @@ function makePage({ size = A4, rotate = 0 } = {}) {
     const swapped = rotation % 180 !== 0;
     return { width: (swapped ? size.height : size.width) * scale, height: (swapped ? size.width : size.height) * scale };
   };
-  page.render = () => {
+  page.render = (options = {}) => {
     page.rendered += 1;
+    page.lastRender = options;
     return { promise: Promise.resolve() };
   };
   page.cleanup = () => {
@@ -100,6 +101,28 @@ test('2D コンテキストがあれば canvas を寸法どおりに作って描
   assert.equal(doc.canvases.length, 1);
   assert.deepEqual({ w: drawn.canvas.width, h: drawn.canvas.height }, { w: 2480, h: 3508 });
   assert.equal(page.rendered, 1);
+});
+
+// 未保存の注釈を重ねる口（spec-4-1 確定事項28）。描いたあと、同じ ctx と viewport で呼ばれる。
+test('overlay は描いたあとに ctx と viewport で呼ばれ、annotationMode は pdf.js へ渡る', async () => {
+  const doc = makeDocWithCanvas();
+  const page = makePage();
+  const calls = [];
+  const drawn = await images.renderToCanvas(doc, page, {
+    scale: 1,
+    annotationMode: 3,
+    overlay: (ctx, viewport) => calls.push({ ctx, viewport, rendered: page.rendered }),
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].rendered, 1, '描いたあとに呼ばれる');
+  assert.equal(calls[0].viewport, page.lastRender.viewport);
+  assert.equal(calls[0].ctx, page.lastRender.canvasContext);
+  assert.equal(page.lastRender.annotationMode, 3);
+  assert.notEqual(drawn.canvas, null);
+  // 無い環境では呼ばれない。
+  const skipped = [];
+  await images.renderToCanvas(makeDocWithoutCanvas(), makePage(), { scale: 1, overlay: () => skipped.push(1) });
+  assert.equal(skipped.length, 0);
 });
 
 test('release は canvas の寸法を 0 にして中身を手放す。null にも耐える', async () => {

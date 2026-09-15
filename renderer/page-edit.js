@@ -126,7 +126,10 @@
       return false;
 
     state.history = moved.history;
-    viewer().applyPlan(moved.plan);
+    // 並びが変わっていなければ枠を作り直さない（注釈だけの世代を戻したときに、
+    // ページが描き直されてちらつくのを避ける）。
+    if (!pagePlan().samePlan(moved.plan, viewer().getPlan()))
+      viewer().applyPlan(moved.plan);
     viewer().setAnnotations(moved.annots);
     // 戻した世代で操作の対象だったページを選び直す。何が戻ったのかが
     // 分からないと、取り消せたのかどうかも分からない。注釈も同じ。

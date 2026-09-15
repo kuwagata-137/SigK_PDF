@@ -18,6 +18,11 @@
     return root.SigK.markupQuads;
   }
 
+  // 属性に書く数。小数 2 桁で十分で、浮動小数のごみを残さない。
+  function fmt(value) {
+    return String(Math.round(value * 100) / 100);
+  }
+
   // 層を作ってページの枠へ入れる。返す要素はページと同じ寿命で、捨てるのは
   // 枠ごと（page-render.js の releasePage）。
   function mount(doc, node, viewport) {
@@ -34,19 +39,19 @@
     if (entry.kind === 'highlight') {
       const polygon = doc.createElementNS(SVG_NS, 'polygon');
       const [ul, ur, ll, lr] = points;
-      polygon.setAttribute('points', [ul, ur, lr, ll].map((point) => point.join(',')).join(' '));
+      polygon.setAttribute('points', [ul, ur, lr, ll].map((point) => point.map(fmt).join(',')).join(' '));
       polygon.setAttribute('fill', entry.color);
       polygon.setAttribute('class', 'highlight');
       return polygon;
     }
     const line = doc.createElementNS(SVG_NS, 'line');
     const [from, to] = quads().lineEndpoints(points, entry.kind);
-    line.setAttribute('x1', String(from[0]));
-    line.setAttribute('y1', String(from[1]));
-    line.setAttribute('x2', String(to[0]));
-    line.setAttribute('y2', String(to[1]));
+    line.setAttribute('x1', fmt(from[0]));
+    line.setAttribute('y1', fmt(from[1]));
+    line.setAttribute('x2', fmt(to[0]));
+    line.setAttribute('y2', fmt(to[1]));
     line.setAttribute('stroke', entry.color);
-    line.setAttribute('stroke-width', String(quads().lineWidth(points)));
+    line.setAttribute('stroke-width', fmt(quads().lineWidth(points)));
     line.setAttribute('stroke-linecap', 'butt');
     line.setAttribute('class', entry.kind);
     return line;
@@ -58,10 +63,10 @@
     const xs = corners.map((point) => point[0]);
     const ys = corners.map((point) => point[1]);
     const rect = doc.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', String(Math.min(...xs) - FRAME_PADDING));
-    rect.setAttribute('y', String(Math.min(...ys) - FRAME_PADDING));
-    rect.setAttribute('width', String(Math.max(...xs) - Math.min(...xs) + FRAME_PADDING * 2));
-    rect.setAttribute('height', String(Math.max(...ys) - Math.min(...ys) + FRAME_PADDING * 2));
+    rect.setAttribute('x', fmt(Math.min(...xs) - FRAME_PADDING));
+    rect.setAttribute('y', fmt(Math.min(...ys) - FRAME_PADDING));
+    rect.setAttribute('width', fmt(Math.max(...xs) - Math.min(...xs) + FRAME_PADDING * 2));
+    rect.setAttribute('height', fmt(Math.max(...ys) - Math.min(...ys) + FRAME_PADDING * 2));
     rect.setAttribute('rx', '3');
     rect.setAttribute('class', 'annot-frame');
     return rect;
