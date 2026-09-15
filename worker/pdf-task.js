@@ -23,6 +23,7 @@ const { loadImage, convertToSingle, convertToEach } = require('./op-convert.js')
 const { buildPreview, prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
+const { applyAnnotations } = require('./op-annotate.js');
 const { writeDocument } = require('../pdf-write.js');
 const { toBytes } = require('../file-io.js');
 
@@ -39,6 +40,9 @@ const TOOLS = {
   PDFImage: pdfLib.PDFImage,               // 画素列の埋め込み（pixel-image.js。spec-3-2 確定事項18）
   PngEmbedder: pdfLib.PngEmbedder,
   rgb: pdfLib.rgb,
+  PDFString: pdfLib.PDFString,             // 注釈の /NM・/M・/Contents（op-annotate.js。spec-4-1 確定事項25）
+  PDFArray: pdfLib.PDFArray,
+  PDFRef: pdfLib.PDFRef,
 };
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
@@ -85,12 +89,20 @@ function describeSourceReadFailure(error) {
 // ページラベルは applyPlan の**前**に読む。当てたあとでは元の対応が失われる。
 // 作り直しは applyPlan の**あと**で、ページ数が合っていないと最後のラベルが
 // 引き延ばされる。この前後関係は入れ替えられない。
-async function applyForSave(doc, pages, inserts, fsLike) {
+//
+// 注釈も applyPlan の**前**に当てる（spec-4-1 確定事項23）。src は読んだ文書の
+// ページ番号であり、並べ替えたあとでは指す先が変わる。当てた注釈はページ実体に
+// 付いて一緒に動くので、順序はこれで足りる。
+async function applyForSave(doc, pages, inserts, fsLike, annotations) {
   const labelsBefore = readLabels(doc);
   // 差し込むページを先に組み立てる。
   const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, insertReader(fsLike));
   if (prepared.ok !== true)
     return prepared;
+
+  const annotated = applyAnnotations(doc, annotations, TOOLS);
+  if (annotated.ok !== true)
+    return annotated;
 
   const applied = applyPlan(doc, pages, { inserted: prepared.pages });
   if (applied.ok !== true)
@@ -104,8 +116,12 @@ async function applyForSave(doc, pages, inserts, fsLike) {
 //
 // ページラベルは保存と同じ規則で引き継ぐ（確定事項45）。しおりも名前付き宛先も
 // 新しい文書へは来ないので、掃除するものが無い。
-async function applyForExtract(doc, pages) {
+async function applyForExtract(doc, pages, annotations) {
   const labelsBefore = readLabels(doc);
+  // 注釈を当ててから複製する。抽出先にも付いていく（spec-4-1 確定事項21）。
+  const annotated = applyAnnotations(doc, annotations, TOOLS);
+  if (annotated.ok !== true)
+    return annotated;
   const extracted = await extractPages(doc, pages, { PDFDocument });
   if (extracted.ok !== true)
     return extracted;
@@ -150,7 +166,7 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
 // （選んだページだけを新規文書へ複製する）。違うのは apply の段だけで、
 // 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { kind = 'save', source, pages, inserts = [], target, makeBackup = false, expect = null } = spec ?? {};
+  const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null } = spec ?? {};
   if (typeof source !== 'string' || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
 
@@ -172,8 +188,8 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
 
   advance('apply');
   const applied = kind === 'extract'
-    ? await applyForExtract(doc, pages)
-    : await applyForSave(doc, pages, inserts, fsLike);
+    ? await applyForExtract(doc, pages, annotations)
+    : await applyForSave(doc, pages, inserts, fsLike, annotations);
   if (applied.ok !== true)
     return applied;
 
