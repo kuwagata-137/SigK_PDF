@@ -432,3 +432,32 @@ test('ページの並べ方の一覧が settings.js と一致する', async (t) 
   // jsdom の realm の配列なので、複製してから比べる（deepEqual は prototype も見る）。
   assert.deepEqual([...SigK.shell.PAGE_LAYOUTS], settings.PAGE_LAYOUTS);
 });
+
+// ---- PDF→画像（spec-3-3 確定事項27〜29） ----
+
+test('PDF→画像のレンダラーが index.html から読み込まれ、画面の要素とアイコンが揃っている', async (t) => {
+  const { document, SigK, sources } = await withShell(t);
+
+  // 描く層（page-image.js）は print.js より前、計画と画面は変換画面の後ろに並ぶ。
+  for (const src of ['renderer/page-image.js', 'renderer/image-export-plan.js', 'renderer/tools-to-image.js', 'renderer/tools-to-image-view.js'])
+    assert.ok(sources.includes(src), `${src} が index.html から読まれていない`);
+  assert.ok(sources.indexOf('renderer/page-image.js') < sources.indexOf('renderer/print.js'), 'page-image.js は print.js より先に読む');
+
+  const panel = document.querySelector('.tool-panel[data-tool="toImage"]');
+  assert.notEqual(panel, null, 'PDF→画像のパネルが無い');
+  for (const id of [
+    'toimage-file', 'toimage-name', 'toimage-pages', 'toimage-note', 'toimage-empty', 'toimage-use-open', 'toimage-pick',
+    'toimage-page-modes', 'toimage-range', 'toimage-range-err', 'toimage-formats', 'toimage-dpis',
+    'toimage-folder', 'toimage-folder-pick', 'toimage-example', 'toimage-summary', 'toimage-run',
+  ])
+    assert.ok(panel.querySelector(`#${id}`) !== null, `#${id} がパネルの中に無い`);
+  // ラジオはページ 2 択・形式 2 択・解像度 3 択（確定事項6・7・11）。
+  assert.deepEqual([...panel.querySelectorAll('input[name="toimage-page-mode"]')].map((input) => input.value), ['all', 'range']);
+  assert.deepEqual([...panel.querySelectorAll('input[name="toimage-format"]')].map((input) => input.value), ['png', 'jpeg']);
+  assert.deepEqual([...panel.querySelectorAll('input[name="toimage-dpi"]')].map((input) => input.value), ['72', '150', '300']);
+
+  assert.ok(SigK.icons.has('toImage'), 'toImage のアイコンが定義されていない');
+  const svg = SigK.icons.create(document, 'toImage');
+  assert.equal(svg.getAttribute('viewBox'), '0 0 24 24');
+  assert.ok(svg.childNodes.length > 0);
+});

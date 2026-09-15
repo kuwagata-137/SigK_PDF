@@ -602,6 +602,15 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .pick:has(input:disabled),.pick input:disabled{color:var(--muted); opacity:.5; cursor:default}
 .convert-out .folder[hidden],.convert-out .k[hidden]{display:none}
 
+/* ── PDF→画像（spec-3-3 確定事項27） ────────────────────────── */
+/* 対象・ページと形式・出力の3節。節の枠は分割の .split-sec、対象の行は .split-target、
+   ラジオは .picks、出力の欄は .split-out をそのまま使う。ここで足すのは「範囲」の欄が
+   ラジオと同じ行に並ぶことと、「すべて」のときに欄を薄く見せることだけである。 */
+.toimage-range-row .split-inp{margin-left:4px}
+.toimage-range-row:not(.on) .split-inp{background:var(--surface-2); color:var(--muted)}
+.toimage-range-row .err{color:var(--danger); font-size:11.5px; flex-basis:100%}
+.toimage-range-row .err[hidden]{display:none}
+
 /* 同名確認の3択（確定事項27）。既存のダイアログと同じ枠。 */
 #confirm-replace{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);

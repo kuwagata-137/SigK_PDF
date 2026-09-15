@@ -538,18 +538,25 @@
     destroySession(detach());
   }
 
+  // pdf.js の文書を畳む。pdf.js 6 の PDFDocumentProxy には destroy() が無く、
+  // 畳む口は loadingTask.destroy() だけである（spec-3-3 確定事項25。以前の
+  // doc.destroy?.() は何もしておらず、ワーカー側の文書が残っていた）。
+  function releaseDocument(doc) {
+    doc?.loadingTask?.destroy?.();
+  }
+
   // 映していないタブを閉じるときの後始末。
   //
   // 差し込んだページの文書も畳む（確定事項93）。複数ページの PDF を差し込むと
   // 同じ文書を複数の控えが指すので、実体ごとに1回だけ呼ぶ。
   function destroySession(session) {
-    session?.doc?.destroy?.();
+    releaseDocument(session?.doc);
     const seen = new Set();
     for (const added of session?.inserts ?? []) {
       if (added?.doc === undefined || added?.doc === null || seen.has(added.doc))
         continue;
       seen.add(added.doc);
-      added.doc.destroy?.();
+      releaseDocument(added.doc);
     }
   }
 
@@ -646,7 +653,7 @@
       const doc = await task.promise;
       const sizes = await collectSizes(doc);
       if (token !== state.token) {
-        doc.destroy?.();
+        releaseDocument(doc);
         return false;
       }
 
@@ -754,6 +761,7 @@
     detach,
     attach,
     destroySession,
+    releaseDocument,
     getMetadata,
     getPage,
     viewportRotation,

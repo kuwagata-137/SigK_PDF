@@ -14,10 +14,18 @@
 // 合計時間は変わらない（save() の仕事を前倒ししているだけ）。
 // BMP・GIF・TIFF は pixel-image.js が埋め込んだ時点で圧縮済みなので、ここの embed() は何もしない。
 //
-// 【PDF → 画像はここに来ない】
-// 3-2 の PDF → 画像は pdf.js でキャンバスへ描いたものを書き出す。ワーカーは Node 側で
-// canvas を持たないため、その処理だけはレンダラーで行い、書き出しをメインへ渡す。
-// 設計の例外である理由は 3-2 の着手時にここへ書く（docs/05 Phase 3）。
+// 【PDF → 画像はここに来ない — 設計の例外】（docs/05 Phase 3・spec-3-3 確定事項26）
+// ほかのツール（結合・分割・画像→PDF）は「レンダラーが計画を組み、ワーカーが実体を
+// 書く」向きで揃えてある。PDF → 画像（renderer/tools-to-image.js）だけは逆で、
+// **レンダラーが pdf.js で 1 ページずつ canvas に描いて PNG／JPEG のバイト列にし、メインは
+// それをファイルに書くだけ**である（main.js の image:write → image-io.js の writeImage）。
+//
+// 理由は 1 つで、pdf.js の描画は DOM の canvas（か OffscreenCanvas）を要し、ワーカー
+// （utilityProcess ＝ Node 側）には canvas が無いからである。ワーカーへ移すには Node で
+// 動く canvas の実装（ネイティブ依存）を足すことになり、依存とインストーラーが膨らむ。
+// 描画そのものは軽く（300dpi の A4 で 3〜10ms。重いのは PNG 化の 25〜38ms）、
+// レンダラーで 1 ページずつ描いて捨てれば画面は固まらない（spec-3-3 事前調査 A・B）。
+// 帯・中止・二重起動の防止は save.js の runLocal に載せ、ワーカー経路と同じ枠に見せている。
 
 const { inspectImageBytes } = require('./image-format.js');
 const { embedImage, drawImagePage } = require('./image-page.js');

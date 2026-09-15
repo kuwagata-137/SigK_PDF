@@ -123,6 +123,8 @@
 
   // 1ページずつ描き、PNG にして canvas を捨てる（確定事項32）。A4・150dpi の
   // canvas は 1240×1754px ＝ 約8.7MB（RGBA）で、100ページ分を同時には持てない。
+  // canvas を作って描く部分は page-image.js と共用する（spec-3-3 確定事項23）。
+  // jsdom には 2D コンテキストが無く、そのときは寸法だけが返る。
   async function renderPageImage(number) {
     const page = await viewer().getPage(number);
     if (page === null || page === undefined)
@@ -131,30 +133,17 @@
     // 回転を紙にも載せる（spec-1-5 確定事項39）。ここは getViewport を回転
     // なしで呼んでいた4か所目である。落とすと「画面では回っているのに印刷は
     // 回っていない」が起きる。
-    const viewport = page.getViewport({
+    const images = root.SigK.pageImage;
+    const drawn = await images.renderToCanvas(el.doc, page, {
       scale: PRINT_SCALE,
       rotation: viewer().viewportRotation(number, page),
     });
-    // jsdom には 2D コンテキストが無い。寸法だけを返して経路の検証に使う。
-    if (typeof root.CanvasRenderingContext2D === 'undefined')
-      return { url: null, width: Math.round(viewport.width), height: Math.round(viewport.height), bytes: 0 };
+    if (drawn.canvas === null)
+      return { url: null, width: drawn.width, height: drawn.height, bytes: 0 };
 
-    const canvas = el.doc.createElement('canvas');
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    const url = canvas.toDataURL('image/png');
-    // 早めに手放す。参照が残っていても中身は解放される。
-    canvas.width = 0;
-    canvas.height = 0;
-    return {
-      url,
-      width: Math.round(viewport.width),
-      height: Math.round(viewport.height),
-      // data URL の長さではなく、PNG そのもののバイト数を返す。base64 は
-      // 3バイトを4文字にするので、接頭辞を除いた長さの 3/4 が中身である。
-      bytes: Math.round(((url.length - url.indexOf(',') - 1) * 3) / 4),
-    };
+    const { url, bytes } = images.toDataUrl(drawn.canvas);
+    images.release(drawn.canvas);
+    return { url, width: drawn.width, height: drawn.height, bytes };
   }
 
   function fillPrintArea(images) {

@@ -145,15 +145,17 @@ function createPdfjsStub({
   const viewportCalls = [];
   const documents = [];
   const textLayers = [];
+  // page.cleanup() が呼ばれたページ番号の並び（spec-3-3 確定事項24）。
+  const cleanups = [];
 
-  function createDocument() {
+  // pdf.js 6 の PDFDocumentProxy には destroy() が無い（spec-3-3 事前調査 B）。畳むのは
+  // loadingTask.destroy() で、本物と同じく document.loadingTask から辿れるようにしておく。
+  function createDocument(task) {
     const document = {
       id: documents.length,
       numPages: sizes.length,
       destroyed: false,
-      destroy() {
-        document.destroyed = true;
-      },
+      loadingTask: task,
       async getMetadata() {
         return { info, metadata: null };
       },
@@ -185,6 +187,11 @@ function createPdfjsStub({
             rendered.push(number);
             return { promise: Promise.resolve(), cancel: () => {} };
           },
+          // 描いたあとに資源を手放す口（spec-3-3 確定事項24）。呼ばれた回数をテストから見る。
+          cleanup: () => {
+            cleanups.push(number);
+            return true;
+          },
           async getTextContent() {
             const items = pageTextItems?.[number - 1] ?? textItems ?? [];
             return { items: items.map((str) => ({ str })), styles: {} };
@@ -204,6 +211,7 @@ function createPdfjsStub({
     viewportCalls,
     documents,
     textLayers,
+    cleanups,
     // 本物の pdfjs-bridge.mjs は lib に pdf.js の名前空間をそのまま載せる。
     // text-layer.js が TextLayer をここから取るので、同じ形にしておく。
     lib: { TextLayer: textItems === null ? undefined : createTextLayerStub(textLayers) },
@@ -214,13 +222,20 @@ function createPdfjsStub({
     getDocument: () => {
       // 本物の getDocument() は loadingTask を返す。onPassword は**戻ってきた
       // あとで**代入されるので、聞くのは1ティック後にする（確定事項66）。
-      const task = { onPassword: null };
+      const task = { onPassword: null, destroyed: false };
+      task.destroy = async () => {
+        task.destroyed = true;
+        for (const document of documents) {
+          if (document.loadingTask === task)
+            document.destroyed = true;
+        }
+      };
       if (openError !== null) {
         task.promise = Promise.reject(openError);
         return task;
       }
       if (password === null) {
-        task.promise = Promise.resolve(createDocument());
+        task.promise = Promise.resolve(createDocument(task));
         return task;
       }
 
@@ -243,7 +258,7 @@ function createPdfjsStub({
             }
             passwordAttempts.push(value);
             if (value === password)
-              resolve(createDocument());
+              resolve(createDocument(task));
             else
               askAgain();
           }, passwordAttempts.length === 0 ? 1 : 2);
@@ -334,6 +349,10 @@ async function createShell({
   // frames を渡すと複数ページ（TIFF）になる。
   imageSourceResults = [],
   imageInfos = {},
+  // pdfAPI.pickToolSource() が返すものの並びと、imageAPI.write() が返すものの並び（spec-3-3）。
+  // write の結果を仕込まなければ、書けたことにして { ok, path, bytes } を返す。
+  toolSourceResults = [],
+  imageWriteResults = [],
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -364,6 +383,9 @@ async function createShell({
   const splitSourceCalls = [];
   const folderCalls = [];
   const imageSourceCalls = [];
+  const toolSourceCalls = [];
+  // imageAPI.write() に届いた { target, bytes } の並び（spec-3-3 確定事項19）。
+  const imageWrites = [];
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
   const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
@@ -418,6 +440,11 @@ async function createShell({
       pickFolder: async (options) => {
         folderCalls.push(structuredClone(options ?? {}));
         return folderResults.shift() ?? { canceled: true };
+      },
+      // ツールの対象の1本選択（spec-3-3 確定事項2）。題名も控える。
+      pickToolSource: async (options) => {
+        toolSourceCalls.push(structuredClone(options ?? {}));
+        return toolSourceResults.shift() ?? { canceled: true };
       },
       // 変換の入力の複数選択と、画像の形式・画素数（spec-3-1 確定事項2・4）。
       // 本物は先頭バイトを読む。ここは仕込んだ情報を返すだけである。
@@ -496,6 +523,15 @@ async function createShell({
         return printResult;
       },
     };
+    // PDF→画像の書き出し（spec-3-3 確定事項19）。実際に書くのはメイン側なので、
+    // ここは届いた出力先とバイト列を控えるだけである。
+    window.imageAPI = {
+      available: true,
+      write: async (target, bytes) => {
+        imageWrites.push({ target, bytes });
+        return imageWriteResults.shift() ?? { ok: true, path: target, bytes: bytes?.length ?? 0 };
+      },
+    };
     window.recentAPI = {
       available: true,
       list: async () => ({ ok: true, recent: recentList }),
@@ -555,6 +591,10 @@ async function createShell({
     // pdfAPI.pickImageSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
     imageSourceCalls,
     imageInfos,
+    // pdfAPI.pickToolSource() に届いたオプションと、imageAPI.write() に届いた書き出し（spec-3-3）。
+    toolSourceCalls,
+    imageWrites,
+    imageWriteResults,
     showInFolderCalls,
     // pdfAPI.exists() が「ある」と答えるパス。テストから足したり消したりできる。
     existingPaths,

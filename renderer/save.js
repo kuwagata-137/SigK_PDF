@@ -27,6 +27,12 @@
     return state.running !== null;
   }
 
+  // いま走っているものの名で断る。保存中に保存を押せば「いま保存しています」、
+  // PDF→画像の最中なら「いま画像にしています」になる。
+  function busyReason() {
+    return `いま${state.running?.label ?? '保存'}しています。`;
+  }
+
   function activeTab() {
     return tabs()?.list().find((info) => info.active) ?? null;
   }
@@ -130,6 +136,48 @@
     }
   }
 
+  // レンダラーの中で回す処理の枠（spec-3-3 確定事項17）。
+  //
+  // PDF→画像は pdf.js の描画をレンダラーで行い、ワーカーを使わない。それでも
+  // 帯・中止・二重起動の防止は runTask と同じ枠に載せる。走らせる枠を 2 つ持つと
+  // 必ずずれる（確定事項9）。違いは中止の仕方だけで、ワーカーの kill ではなく旗を
+  // 立て、run の中のループが旗を見て抜ける。
+  //
+  // run({ report, canceled }) は { ok, ... } / { canceled: true } / { error } を返す。
+  //   report(done, of, unit) … 帯を「<label>しています（done / of unit）」に書き直す。
+  //                            最後の値は lastProgress() から読める（中止までに書けた数）。
+  //   canceled()             … 中止が押されたか。
+  async function runLocal({ label, run }) {
+    if (isBusy())
+      return { error: busyReason() };
+
+    state.seq += 1;
+    const taskId = `local-${state.seq}`;
+    const flags = { canceled: false };
+    state.running = { taskId, label, local: true };
+    state.progress = null;
+    syncButtons();
+
+    const cancelAction = { label: '中止', onClick: () => { flags.canceled = true; } };
+    banner().show(`${label}しています`, { autoHideMs: 0, tone: 'info', action: cancelAction });
+    const report = (done, of, unit = 'ページ') => {
+      if (state.running?.taskId !== taskId)
+        return;
+      state.progress = { taskId, phase: 'write', done, of, unit };
+      banner().show(`${label}しています（${done} / ${of} ${unit}）`, { autoHideMs: 0, tone: 'info', action: cancelAction });
+    };
+
+    try {
+      const result = await run({ report, canceled: () => flags.canceled });
+      return result ?? { error: `${label}できませんでした。` };
+    } catch (error) {
+      return { error: error?.message ?? String(error) };
+    } finally {
+      state.running = null;
+      syncButtons();
+    }
+  }
+
   // 保存でワーカーへ渡す形（docs/02 2-3）。差し込みの控えも一緒に渡す
   // （確定事項65。plan の { insert } がこの配列の番号を指す）。
   function saveSpec({ source, target, makeBackup, expect }) {
@@ -195,7 +243,7 @@
   // 上書き保存（Ctrl+S）。
   async function saveActive() {
     if (isBusy())
-      return { error: 'いま保存しています。' };
+      return { error: busyReason() };
     if (inToolsMode())
       return { error: 'ツールモードでは保存できません。' };
 
@@ -221,7 +269,7 @@
   // 名前を付けて保存（Ctrl+Shift+S）。dirty でなくても押せる（確定事項24）。
   async function saveAsActive() {
     if (isBusy())
-      return { error: 'いま保存しています。' };
+      return { error: busyReason() };
     if (inToolsMode())
       return { error: 'ツールモードでは保存できません。' };
 
@@ -267,5 +315,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, runTask, saveActive, saveAsActive, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
+  SigK.save = { init, isBusy, runTask, runLocal, saveActive, saveAsActive, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
 })(typeof window !== 'undefined' ? window : globalThis);
