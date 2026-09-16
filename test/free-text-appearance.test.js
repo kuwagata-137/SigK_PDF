@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const {
   FONT_ASCENT, FONT_DESCENT, LINE_HEIGHT, BASELINE, PADDING, RIGHT_SLACK, ROTATIONS,
-  frameOf, widenRight, textBlockOps, freeTextAppearanceOf,
+  frameOf, widenRight, textBlockOps, isFreeTextEntry, freeTextAppearanceOf,
 } = require('../worker/free-text-appearance.js');
 
 // フリーテキスト注釈の外観（/AP /N）の中身（spec-4-2 確定事項25〜27）。
@@ -99,6 +99,15 @@ test('freeTextAppearanceOf は空行も 1 行として書く', () => {
   const appearance = freeTextAppearanceOf(textEntry({ text: 'a\n\nb' }), measure);
   assert.deepEqual(appearance.lines, ['a', '', 'b']);
   assert.ok(appearance.content.includes('<> Tj'));
+});
+
+test('isFreeTextEntry は形だけを見る', () => {
+  assert.equal(isFreeTextEntry(textEntry()), true);
+  assert.equal(isFreeTextEntry(textEntry({ rotation: 270, fontSize: 10.5 })), true);
+  assert.equal(isFreeTextEntry(textEntry({ kind: 'underline' })), false);
+  assert.equal(isFreeTextEntry(textEntry({ text: ' ' })), false);
+  assert.equal(isFreeTextEntry(textEntry({ color: '#12345' })), false);
+  assert.equal(isFreeTextEntry(undefined), false);
 });
 
 test('freeTextAppearanceOf は形が違えば null', () => {

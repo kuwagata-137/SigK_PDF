@@ -72,20 +72,25 @@ function isRect(rect) {
   return Array.isArray(rect) && rect.length === 4 && rect.every(Number.isFinite);
 }
 
+// テキストの entry の形。本文が空でなく、大きさが正で、回転が 4 方向、/Rect が 4 つの数、色が #rrggbb。
+function isFreeTextEntry(entry) {
+  if (entry?.kind !== 'text' || typeof entry.text !== 'string' || entry.text.trim() === '')
+    return false;
+  const { fontSize, rotation, color } = entry;
+  return Number.isFinite(fontSize) && fontSize > 0 && ROTATIONS.includes(rotation) && isRect(entry.rect)
+    && parseColor(color) !== null;
+}
+
 // 外観の中身。戻り値は { content, bbox, rect, da, subtype, rgb, opacity, lines }。形が違えば null。
 //
 //   content … content stream の文字列（q → cm → clip → 文字 → Q）
 //   bbox    … Form XObject の /BBox。注釈の /Rect と同じで、表示の右へ RIGHT_SLACK 伸ばした値
 //   da      … /DA の文字列（他のビューアが文字を直すときの既定の外観）
 function freeTextAppearanceOf(entry, measure) {
-  if (entry?.kind !== 'text' || typeof entry.text !== 'string' || entry.text.trim() === '')
+  if (!isFreeTextEntry(entry))
     return null;
-  const { fontSize, rotation, color } = entry;
-  if (!Number.isFinite(fontSize) || fontSize <= 0 || !ROTATIONS.includes(rotation) || !isRect(entry.rect))
-    return null;
-  const rgb = parseColor(color);
-  if (rgb === null)
-    return null;
+  const { fontSize, rotation } = entry;
+  const rgb = parseColor(entry.color);
 
   const rect = widenRight(entry.rect, rotation, RIGHT_SLACK).map((value) => Math.round(value * 100) / 100);
   const { matrix, clip, first } = frameOf(rect, rotation);
@@ -112,5 +117,5 @@ function freeTextAppearanceOf(entry, measure) {
 
 module.exports = {
   FONT_ASCENT, FONT_DESCENT, LINE_HEIGHT, BASELINE, PADDING, RIGHT_SLACK, ROTATIONS,
-  frameOf, widenRight, textBlockOps, freeTextAppearanceOf,
+  frameOf, widenRight, textBlockOps, isFreeTextEntry, freeTextAppearanceOf,
 };
