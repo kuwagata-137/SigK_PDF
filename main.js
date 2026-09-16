@@ -1025,12 +1025,21 @@ function installSmokeCheck(win) {
   //   click:0:80x705             ページ 0 の pt (80,705) を押して離す（選ぶ）
   //   delete / esc / undo / redo / save
   //   rotate:0                   ページ 0 を右へ 90 度（保存後に開き直す経路の確認用）
+  //   tool:text                  道具を持つ（空なら離す）
+  //   text:0:100x700:一行目|二行目  テキストの道具でページ 0 の pt (100,700) に置いて打ち、Esc で確定する
+  //                              （| は改行。spec-4-2 の完了判定）
+  //   draft:0:100x700:打ちかけ    同じく置いて打つが確定しない（画面写真用。入力欄が残る）
+  //   edit:直した文字            選んでいるテキストを Enter で開き、打ち直して確定する
+  //   size:18                    文字の大きさ（選んでいればその注釈、無ければ次に置く大きさ）
+  //   drag:30x-20                選んでいるテキストを掴んで紙の座標で (30,-20)pt 動かす
   //
   // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
+  // 例: SIGK_SMOKE_ANNOTATE=text:0:100x700:こんにちは|世界,size:18,drag:30x-20,edit:直した,save
   const annotateScript = (target, spec) => `(async () => {
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const SigK = window.SigK;
     const round = (value) => Math.round(value * 100) / 100;
+    const LF = String.fromCharCode(10);
 
     await SigK.tabs.openPath(${JSON.stringify(target)});
     await wait(700);
@@ -1039,6 +1048,27 @@ function installSmokeCheck(win) {
     const importedBefore = Object.values(SigK.viewer.getImported()).reduce((sum, list) => sum + list.length, 0);
 
     const pageNode = (index) => document.querySelector('.pdf-page[data-page="' + (index + 1) + '"]');
+    const viewportOf = (index) => SigK.freeTextEditor.pageOf(index)?.viewport ?? SigK.viewer.getTextLayer(index)?.viewport;
+    // 紙の座標 pt を画面の座標にする。
+    const screenPoint = (index, x, y) => {
+      const base = pageNode(index).getBoundingClientRect();
+      const [cx, cy] = viewportOf(index).convertToViewportPoint(x, y);
+      return [base.left + cx, base.top + cy];
+    };
+    const mouse = (type, target, x, y) => target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+    const editorNode = () => document.querySelector('textarea.free-text-editor');
+    // 入力欄に打って Esc で確定する（IME は通さない。文字は value に置く）。
+    const typeAndCommit = async (body, { commit = true } = {}) => {
+      const node = editorNode();
+      if (node === null)
+        return false;
+      node.value = body.split('|').join(LF);
+      node.dispatchEvent(new Event('input', { bubbles: true }));
+      await wait(100);
+      if (commit)
+        node.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      return true;
+    };
     const applied = [];
     let saveResult = null;
     for (const raw of ${JSON.stringify(spec)}.split(',')) {
@@ -1074,12 +1104,38 @@ function installSmokeCheck(win) {
       } else if (name === 'click') {
         const [page, point] = arg.split(':');
         const [x, y] = point.split('x').map(Number);
-        const node = pageNode(Number(page));
-        const handle = SigK.viewer.getTextLayer(Number(page));
-        const base = node.getBoundingClientRect();
-        const [cx, cy] = handle.viewport.convertToViewportPoint(x, y);
+        const [sx, sy] = screenPoint(Number(page), x, y);
         for (const type of ['mousedown', 'mouseup'])
-          node.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: base.left + cx, clientY: base.top + cy }));
+          mouse(type, pageNode(Number(page)), sx, sy);
+      } else if (name === 'tool') {
+        SigK.annotate.setTool(arg === '' ? null : arg);
+      } else if (name === 'text' || name === 'draft') {
+        const [page, point, ...words] = arg.split(':');
+        const [x, y] = point.split('x').map(Number);
+        SigK.annotate.setTool('text');
+        const [sx, sy] = screenPoint(Number(page), x, y);
+        for (const type of ['mousedown', 'mouseup'])
+          mouse(type, pageNode(Number(page)), sx, sy);
+        await wait(150);
+        await typeAndCommit(words.join(':'), { commit: name === 'text' });
+      } else if (name === 'edit') {
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        await wait(150);
+        await typeAndCommit(arg);
+      } else if (name === 'size') {
+        SigK.annotate.setFontSize(Number(arg));
+      } else if (name === 'drag') {
+        const [dx, dy] = arg.split('x').map(Number);
+        const entry = SigK.annotate.selectedEntry();
+        const index = SigK.viewer.getPlan().findIndex((page) => page.src === entry.src);
+        const [ox, oy] = SigK.freeTextGeometry.frameOrigin(entry.rect, entry.rotation);
+        const scale = viewportOf(index).scale;
+        const [sx, sy] = screenPoint(index, ox, oy);
+        const [ex, ey] = screenPoint(index, ox + dx, oy + dy);
+        // 箱の左上から少し内側を掴む。
+        mouse('mousedown', pageNode(index), sx + 3 * scale, sy + 3 * scale);
+        mouse('mousemove', document.body, ex + 3 * scale, ey + 3 * scale);
+        mouse('mouseup', pageNode(index), ex + 3 * scale, ey + 3 * scale);
       } else if (name === 'rotate') {
         SigK.pageEdit.rotate(90, [Number(arg)]);
         await wait(300);
@@ -1128,11 +1184,20 @@ function installSmokeCheck(win) {
     }
 
     const annots = SigK.viewer.getAnnotations();
+    const importedEntries = Object.values(SigK.viewer.getImported()).flat();
     return {
       applied,
       importedBefore,
-      importedAfter: Object.values(SigK.viewer.getImported()).reduce((sum, list) => sum + list.length, 0),
+      importedAfter: importedEntries.length,
       added: annots.added.map((entry) => ({ src: entry.src, kind: entry.kind, color: entry.color, quads: entry.quads.length, rect: entry.rect.map(round), text: entry.text.slice(0, 20) })),
+      // テキスト（spec-4-2 の完了判定）。置いたもの、読み込んだもの、フォントの先読み、入力欄の残り。
+      texts: annots.added.filter((entry) => entry.kind === 'text').map((entry) => ({ src: entry.src, text: entry.text, fontSize: entry.fontSize, rotation: entry.rotation, color: entry.color, rect: entry.rect.map(round) })),
+      importedTexts: importedEntries.filter((entry) => entry.kind === 'text').map((entry) => ({ ref: entry.ref, src: entry.src, text: entry.text, fontSize: entry.fontSize, rotation: entry.rotation, color: entry.color, rect: entry.rect.map(round) })),
+      fontLoaded: SigK.freeTextShape.isLoaded(),
+      editing: editorNode() !== null,
+      textShapes: [...document.querySelectorAll('.annot-layer')].map((svg) => svg.querySelectorAll('g[data-kind="text"] text').length),
+      propsSize: document.getElementById('props-size').value,
+      propsSizeVisible: document.getElementById('props-size-row').hidden === false,
       removed: annots.removed,
       dirty: SigK.viewer.isDirty(),
       history: SigK.pageEdit.getHistoryState(),
@@ -1148,6 +1213,19 @@ function installSmokeCheck(win) {
       alignment,
     };
   })()`;
+
+  // 保存先に埋まったフォント（/Type0 の辞書）の数を数える（spec-4-2 完了判定）。
+  // 起動確認でしか使わないので、pdf-lib はここで初めて読む。
+  async function countEmbeddedFonts(file) {
+    const { PDFDocument, PDFName } = require(path.join(__dirname, 'vendor', 'pdf-lib.min.js'));
+    const doc = await PDFDocument.load(new Uint8Array(fs.readFileSync(file)), { updateMetadata: false });
+    let count = 0;
+    for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+      if (obj?.get?.(PDFName.of('Subtype'))?.encodedName === '/Type0')
+        count += 1;
+    }
+    return count;
+  }
 
   // SIGK_SMOKE_LAUNCH=<待ち時間ms> を付けると、起動引数から開けたかを報告する
   // （spec-1-6 確定事項72〜80）。`--open <絶対パス>` と一緒に使う。
@@ -1801,9 +1879,13 @@ function installSmokeCheck(win) {
             : path.join(app.getPath('temp'), 'sigk-smoke-annotate.pdf');
           // 入力そのものを書き換えないよう、複製を作ってそちらへ付ける。
           fs.copyFileSync(path.resolve(saveSource), annotateTarget);
+          const bytesBefore = fs.statSync(annotateTarget).size;
           annotate = await win.webContents.executeJavaScript(annotateScript(annotateTarget, process.env.SIGK_SMOKE_ANNOTATE));
           annotate.target = annotateTarget;
           annotate.bytesOnDisk = fs.statSync(annotateTarget).size;
+          annotate.bytesAdded = annotate.bytesOnDisk - bytesBefore;
+          // 保存先に埋まったフォント（/Type0）の数。テキストのある保存で 1 度だけ埋まることの証拠。
+          annotate.fonts = annotate.save === null ? null : await countEmbeddedFonts(annotateTarget);
         }
         if (process.env.SIGK_SMOKE_SAVE && saveSource !== undefined) {
           const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);
