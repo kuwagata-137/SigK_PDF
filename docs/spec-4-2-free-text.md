@@ -357,3 +357,58 @@ B の検体を Browser パネルの pdf.js で開いた。
 | 移動はドラッグのみ（変形無し・矢印キー無し） | 箱は文字に合わせて自動なので変形は不要 |
 | `pdfFont.embedder.font`・`subset._addGlyph` への依存 | pdf-lib 1.17.1・fontkit 1.1.1 固定（どちらも凍結）。テストで見張る |
 | 差し込んだページ・暗号化 PDF・サムネイル・PDF→画像 | 塊①と同じ |
+
+---
+
+## 実装の記録（2026-09-16・`claude/phase-4-free-text` ブランチ）
+
+仕様書のとおりに作った。変えた点は次のとおり。
+
+| 仕様書 | 実装 |
+|---|---|
+| `scripts/notices.js` の `BUNDLED_COMPONENTS` に Noto を足す | その節の見出しは「パッケージの一部として入るもの」なので、**`BUNDLED_ASSETS`**（節「同梱するもの（フォント）」）を別に設けた。予定行は消した |
+| `renderer/annotate.js` を 344 → 約 210 行に | 押し離しを `annotate-pointer.js`、**文字の選択からマークアップを作る部分も `annotate-markup.js`** に出した。それでも 301 行（道具・選択・削除・色・文字の大きさ・印刷の口・結線。`docs/07` 積み残しの「押し離しを別に出す」は済） |
+| `annotation-state.js` に `updateAnnot` | 245 行になった（`validEntry` がテキストの欄を見るぶん）。純関数のまま |
+| 確定事項4「枠の外を押すと確定」 | 確定に使った押し離しは**そのまま次の操作に使わない**（置く・選ぶに回さない）。`free-text-editor.takeSwallow` の印を `annotate-pointer` が見る。押した先が右パネルなど #view の外なら mouseup で印を消す |
+| 確定事項6「掴んで動かす」 | ドラッグ中は SVG の `<g>` を CSS の `transform` で仮に動かし、離したときだけ 1 世代積む。**箱の大きさは本文から取り直す**（読み込んだ `/Rect` の右 1pt の余白が移動のたびに積み上がらないように） |
+| 確定事項8「`viewer-controls.handleKey` は入力欄なら何もしない」 | 除外は **Ctrl+Tab／Ctrl+W と Ctrl+F／Ctrl+P の後、ページ編集のキー（Ctrl+Z／Y・Delete・Esc）の前**に置いた。入力欄の中でもタブ切替・検索・印刷は効く（切替・印刷の前に `finishEditing` が走る）。`page-edit.step` も入力欄の外からの Ctrl+Z に備えて先に確定する |
+| 確定事項13「読み込み」 | `annotation-import.importedText` は `rotation` を 0〜270 に丸め、本文が空・大きさが 0・回転が 4 方向でないものは拾わない（pdf.js が描く） |
+| `worker/free-text-appearance.js` | 形の検証 `isFreeTextEntry` を分けて公開した。`op-annotate.js` はフォントを埋める前にこれで add[] を全部見てから埋める（形が違うときに空のサブセットを残さない） |
+| `worker/annotation-remove.js` | `parseRef` に加えて `sameRef`・`annotsOf` も公開。`op-annotate.js` は `parseRef` を再公開する（既存テストの口） |
+| 文書を閉じるとき | `viewer.close()` は下書きを捨てる（`freeTextEditor.cancel`）。確定は `tabs.closeTab` が dirty を見る前に済ませる |
+| 起動確認 | `draft:<page>:<x>x<y>:<文字>`（確定しない）を足した。画面写真は確定した文字と入力中の箱の両方を写す |
+| テスト | `annotate-pointer.test.js` は画面全体（harness）で振り分けの境目だけを見る。`annotation-remove.test.js` は移すのではなく新しく書き、`op-annotate.test.js` の既存テストはそのまま残した |
+
+### 完了判定の結果
+
+| # | 判定 | 結果 |
+|---|---|---|
+| 1 | レールの「テキスト」が押せ、右パネルに「文字の大きさ」 | ✅ `test/shell.test.js`（有効 4・灰色 3）・`test/annotate-text.test.js`。実機 `screenshots/phase4-free-text-app.png`（`railTools: 7`・`propsSizeVisible: true`） |
+| 2 | 押すと入力欄、打って枠の外で確定、箱が広がる | ✅ `test/free-text-editor.test.js`・`test/annotate-text.test.js`。実機 `text:0:290x745:見積の条件を確認すること` → `rect [289.57, 723.55, 461.57, 745.05]`（12 文字 × 14pt ＋ 余白） |
+| 3 | 選ぶ・大きさ・色・動かす・ダブルクリックで直す・Delete | ✅ `test/annotate-text.test.js`・`test/annotate-pointer.test.js`。実機 `size:18`・`drag:30x-20`（`rect[0]` 100 → 130.2）・`edit:直した文字` |
+| 4 | Ctrl+Z／Y、ページ編集と 1 本、タブの点と「変更あり」 | ✅ `test/annotate-text.test.js`（削除 → undo → undo で dirty が消える）・既存の `test/annotate.test.js`。実機 `undo`・`redo` |
+| 5 | 保存で `/FreeText`・`/AP /N`・`/Contents` UTF-16BE・`/DA`、開き直して同じ位置・大きさ・色、直せる | ✅ `test/op-annotate.test.js`（辞書・外観・`Resources.Font.SigKJP`）・`test/pdf-task.test.js`。実機で保存 → 開き直し → `importedTexts` に `text`・`fontSize`・`rect` が戻り、`beginEdit` で直せる（`test/annotate-text.test.js`） |
+| 6 | テキストのある保存につき `/Type0` が 1 組、無い保存では 0 | ✅ `test/op-annotate.test.js`（3 個で 1 組・2 回目で 2 組・削除で残る）。実機 `fonts: 1`（テキスト 1〜2 個）、マークアップだけの保存は `fonts: 0` |
+| 7 | `/Rotate 90` のページで上向き | ✅ `test/free-text-appearance.test.js`（4 方向の `cm`）・`test/free-text-shape.test.js`（画面の角度）。実機 `rotated.pdf` の 2 ページ目で `rotation: 90`・`rect [99.69, 599.08, 148.69, 694.08]`（縦長）。他のビューアはユーザーの目視（判定11） |
+| 8 | 印刷に映る、PDF→画像には映らない | ✅ `test/annotation-layer.test.js`（`paint` が `fillText`）・`test/annotate-text.test.js`（`painterFor`）。`print.prepare` は `ensureLoaded` を待つ |
+| 9 | `npm test` 緑（`TZ=UTC` も）、配布物で `SIGK_SMOKE_ANNOTATE`、asar からフォント | ✅ 1,103 → **1,189 件**（76 → 85 ファイル）。`TZ=UTC` も 1,189 件緑。`npm run dist` → `dist/win-unpacked/SigK PDF.exe` で `rotated.pdf` に置いて保存 → `fontLoaded: true`・`fonts: 1`・`importedTexts[0].rotation: 90`・`problems: []` |
+| 10 | 配布物のサイズ増と保存時間の増分 | ✅ 下の「実測」 |
+| 11 | 他のビューアで同じ位置・大きさ・色 | ⏳ **ユーザーの目視** |
+
+### 実測（Windows 11 実機・開発ツリー。`SIGK_SMOKE_ANNOTATE`）
+
+| 項目 | 値 |
+|---|---|
+| 置いて打って確定（入力欄の出し入れ・計測・履歴・描画。待ち時間込み） | 270〜330ms（うち待ち 250ms） |
+| 大きさを変える・動かす・直す・戻す | 1〜10ms |
+| 保存 → 開き直し（`three-pages.pdf`・テキスト 1〜2） | 保存 380〜410ms（ワーカー）／段全体 1.2 秒 |
+| 保存 → 開き直し（`huge-pages.pdf` 1,000 ページ・テキスト 1） | 保存 1,244ms。同じ検体でマークアップ 1 つだけの保存は 1,170ms → **テキストの増分 +74ms**（fontkit の require・フォントの読み・サブセット。基準 +500ms 以内） |
+| 保存で増えるバイト数 | 5 文字 +2,206B、2 行 6 文字 +2,467B、4 文字 +2,183B（サブセット 1 組＋辞書。`bytesAdded`） |
+| 配布物 | `SigK PDF Setup 0.1.0.exe` 115.7MB（Phase 2 塊③の記録は 112.9MB）、`app.asar` 14.0MB（フォント 5.47MB＋fontkit 0.76MB を含む） |
+| `@font-face` の先読み | 注釈モードに入った時点で `fontLoaded: true` |
+
+### 目視の残り（判定11。塊①判定10 と同じ扱い）
+
+保存した PDF を他のビューアで開き、日本語が同じ位置・大きさ・色で見え、豆腐や欠けが無いこと。
+`/Rotate 90` のページに置いたものが上向きに読めること。IME で「にほんご」を変換・確定しても変換中の Enter で
+確定されないこと（起動確認は IME を通していない）。
