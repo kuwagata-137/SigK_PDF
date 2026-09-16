@@ -70,6 +70,8 @@
     const previous = state.activeId;
     if (previous === null)
       return null;
+    // 開いているテキストの入力欄は、この文書のものとして確定してから引き取る（spec-4-2 確定事項8）。
+    root.SigK.annotate?.finishEditing();
     const tab = find(previous);
     const session = viewer().detach();
     if (tab !== null)
@@ -303,6 +305,9 @@
     const tab = find(id);
     if (tab === null)
       return false;
+    // 入力中の文字は未保存の編集になる。確定してから dirty を見る（spec-4-2 確定事項8）。
+    if (id === state.activeId)
+      root.SigK.annotate?.finishEditing();
     if (!isTabDirty(tab))
       return forceCloseTab(id);
 

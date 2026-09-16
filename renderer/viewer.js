@@ -496,6 +496,8 @@
     root.SigK.find?.clear();
     root.SigK.pageGrid?.clearSelection();
     root.SigK.pageEdit?.restore(null);
+    // 閉じる文書の下書きは残さない（確定は tabs.js が閉じる前に済ませている）。
+    root.SigK.freeTextEditor?.cancel();
     root.SigK.annotate?.select(null);
     setDocumentOpen(false);
     setMessage(EMPTY_MESSAGE);

@@ -210,6 +210,8 @@
     token += 1;
     const mine = token;
     setBusy(true);
+    // テキスト注釈の字形を紙に載せる前にフォントを揃える（spec-4-2 確定事項29）。
+    await root.SigK.freeTextShape?.ensureLoaded(el.doc);
 
     const images = [];
     const startedAt = root.performance?.now?.() ?? 0;
@@ -285,6 +287,8 @@
       return false;
     if (viewer().getState().open !== true)
       return false;
+    // 入力中のテキストは確定してから映す（spec-4-2 確定事項8）。
+    root.SigK.annotate?.finishEditing();
 
     showError(null);
     setBusy(false);

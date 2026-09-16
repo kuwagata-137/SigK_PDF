@@ -51,6 +51,8 @@
   async function run() {
     if (root.SigK.save?.isBusy() === true)
       return { error: 'いま保存しています。' };
+    // 入力中のテキストは確定してから抽出する（spec-4-2 確定事項8）。
+    root.SigK.annotate?.finishEditing();
 
     const view = viewer().getState();
     if (!view.open)

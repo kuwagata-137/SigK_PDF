@@ -5,7 +5,8 @@
   //
   // .pdf-page の中、canvas のあと・テキストレイヤーの前に <svg class="annot-layer"> を
   // 置く。ハイライトは mix-blend-mode: multiply の多角形（文字が透ける）、下線・
-  // 取り消し線は <line>。pointer-events は無く、当たり判定は annotate.js が四角で行う。
+  // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）。
+  // pointer-events は無く、当たり判定は annotate.js が四角で行う。
   //
   // 同じ絵を canvas 2D にも描ける（paint）。印刷が未保存の注釈を映すのに使う
   // （確定事項28）。SVG と canvas で描き方を分けると、画面と紙で見た目がずれる。
@@ -76,21 +77,32 @@
     return entry.ref ?? entry.id;
   }
 
+  function groupOf(doc, entry, viewport) {
+    const group = doc.createElementNS(SVG_NS, 'g');
+    group.setAttribute('data-annot', keyOf(entry));
+    group.setAttribute('data-kind', entry.kind);
+    if (entry.opacity !== undefined && entry.opacity < 1)
+      group.setAttribute('opacity', String(entry.opacity));
+    if (entry.kind === 'text') {
+      group.append(root.SigK.freeTextShape.svgOf(doc, entry, viewport));
+      return group;
+    }
+    for (const quad of entry.quads)
+      group.append(shapeOf(doc, entry, quads().quadToViewport(quad, viewport)));
+    return group;
+  }
+
   // 層を描き直す。entries は annotationState.annotsOnPage の並び（下から上）。
-  // selected は選んでいる注釈の id か ref（無ければ null）。
-  function draw(svg, entries, viewport, { selected = null } = {}) {
+  // selected は選んでいる注釈の id か ref（無ければ null）。editing は入力欄を開いている
+  // テキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
+  function draw(svg, entries, viewport, { selected = null, editing = null } = {}) {
     const doc = svg.ownerDocument;
     svg.replaceChildren();
     let frame = null;
     for (const entry of entries) {
-      const group = doc.createElementNS(SVG_NS, 'g');
-      group.setAttribute('data-annot', keyOf(entry));
-      group.setAttribute('data-kind', entry.kind);
-      if (entry.opacity !== undefined && entry.opacity < 1)
-        group.setAttribute('opacity', String(entry.opacity));
-      for (const quad of entry.quads)
-        group.append(shapeOf(doc, entry, quads().quadToViewport(quad, viewport)));
-      svg.append(group);
+      if (editing !== null && keyOf(entry) === editing)
+        continue;
+      svg.append(groupOf(doc, entry, viewport));
       if (selected !== null && keyOf(entry) === selected)
         frame = frameOf(doc, entry, viewport);
     }
@@ -104,6 +116,10 @@
   // （CSS px 相当）で受ける。ハイライトは multiply で塗る。
   function paint(ctx, entries, viewport) {
     for (const entry of entries) {
+      if (entry.kind === 'text') {
+        root.SigK.freeTextShape.paint(ctx, entry, viewport);
+        continue;
+      }
       ctx.save();
       ctx.globalAlpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
       ctx.globalCompositeOperation = entry.kind === 'highlight' ? 'multiply' : 'source-over';

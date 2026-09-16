@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
 require('../renderer/markup-quads.js');
+require('../renderer/free-text-geometry.js');
+require('../renderer/free-text-shape.js');
 require('../renderer/annotation-layer.js');
 
 // 紙の上に重ねる注釈の層（spec-4-1 確定事項5・37）と、印刷用の canvas 2D の描き手（確定事項28）。
@@ -16,10 +18,17 @@ function viewport(scale = 1) {
   return {
     width: 595.28 * scale,
     height: 841.89 * scale,
+    scale,
+    rotation: 0,
     convertToViewportPoint: (x, y) => [x * scale, (841.89 - y) * scale],
     convertToPdfPoint: (px, py) => [px / scale, 841.89 - py / scale],
   };
 }
+
+const TEXT = {
+  id: 'sigk-3', src: 0, kind: 'text', color: '#1c2430', opacity: 1, text: 'メモ\n二行目', fontSize: 12, rotation: 0,
+  rect: [100, 690, 164, 720], quads: [[100, 720, 164, 720, 100, 690, 164, 690]],
+};
 
 const HIGHLIGHT = { id: 'sigk-1', src: 0, kind: 'highlight', color: '#ffe45a', opacity: 1, quads: [[48, 753, 232, 753, 48, 743, 232, 743]], rect: [48, 743, 232, 753] };
 const UNDERLINE = { ref: '86R', src: 0, kind: 'underline', color: '#d92c2c', opacity: 1, quads: [[48, 740, 300, 740, 48, 730, 300, 730]], rect: [48, 730, 300, 740] };
@@ -100,6 +109,38 @@ test('paint は canvas 2D に同じ絵を描く（ハイライトは multiply、
   assert.equal(names.filter((name) => name === 'save').length, names.filter((name) => name === 'restore').length);
   const move = calls.find((call) => call[0] === 'moveTo');
   assert.deepEqual(move.slice(1).map((v) => Math.round(v * 100) / 100), [48, 88.89]);
+});
+
+// ---- テキスト（spec-4-2 確定事項5・10・29） ----
+
+test('draw はテキストを free-text-shape の <g> に委ね、編集中のものは描かない', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport());
+  assert.equal(layer.draw(svg, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3' }), 3);
+  const group = svg.querySelector('g[data-annot="sigk-3"]');
+  assert.equal(group.getAttribute('data-kind'), 'text');
+  assert.deepEqual([...group.querySelectorAll('text')].map((t) => t.textContent), ['メモ', '二行目']);
+  // 選択の枠は箱の四角から
+  const frame = svg.querySelector('.annot-frame');
+  assert.equal(Number(frame.getAttribute('x')), 100 - layer.FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 64 + layer.FRAME_PADDING * 2);
+
+  // 編集中は入力欄が代わりなので、group も枠も出さない
+  assert.equal(layer.draw(svg, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3', editing: 'sigk-3' }), 1);
+  assert.equal(svg.querySelector('g[data-annot="sigk-3"]'), null);
+  assert.equal(svg.querySelector('.annot-frame'), null);
+});
+
+test('paint はテキストを fillText で描く', () => {
+  const calls = [];
+  const ctx = new Proxy({}, {
+    get: (_target, name) => (...args) => { calls.push([name, ...args]); },
+    set: (_target, name, value) => { calls.push(['set', name, value]); return true; },
+  });
+  assert.equal(layer.paint(ctx, [TEXT, HIGHLIGHT], viewport()), 2);
+  const texts = calls.filter((call) => call[0] === 'fillText').map((call) => call[1]);
+  assert.deepEqual(texts, ['メモ', '二行目']);
+  assert.equal(calls.filter((call) => call[0] === 'fill').length, 1);
 });
 
 test('keyOf は ref があれば ref、無ければ id', () => {

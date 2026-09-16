@@ -75,10 +75,10 @@ test('ツールレールは4つのモードを持つ', async (t) => {
 
   // SigK は jsdom 側のレルムに居るため、配列をこちら側へ写してから比べる。
   assert.deepEqual(modes, [...SigK.shell.MODES]);
-  // 注釈の道具はモードではない（spec-4-1 確定事項1）。3 つ押せて、4 つは位置取り。
+  // 注釈の道具はモードではない（spec-4-1 確定事項1、spec-4-2 確定事項1）。4 つ押せて、3 つは位置取り。
   const tools = [...document.querySelectorAll('.rail-item.tool')];
-  assert.deepEqual(tools.filter((el) => el.getAttribute('aria-disabled') !== 'true').map((el) => el.dataset.tool), ['highlight', 'underline', 'strikeout']);
-  assert.equal(tools.filter((el) => el.getAttribute('aria-disabled') === 'true').length, 4);
+  assert.deepEqual(tools.filter((el) => el.getAttribute('aria-disabled') !== 'true').map((el) => el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text']);
+  assert.equal(tools.filter((el) => el.getAttribute('aria-disabled') === 'true').length, 3);
 });
 
 test('既定は閲覧モードでサイドパネルが開いている', async (t) => {
