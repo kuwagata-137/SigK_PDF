@@ -9,19 +9,8 @@
   // annotation-import.js、右のプロパティは annotation-props.js が持つ。ここが握るのは
   // 「いまの道具」と「選んでいる注釈」だけである。
 
-  const TOOLS = Object.freeze(['highlight', 'underline', 'strikeout']);
-  const TOOL_LABELS = Object.freeze({ highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線' });
-  // プリセット（確定事項33）。settings.js の ANNOT_COLORS と同じ並びであること
-  // （プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
-  const COLORS = Object.freeze({
-    highlight: ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8'],
-    underline: ['#d92c2c', '#2c5cd9', '#1c2430'],
-    strikeout: ['#d92c2c', '#2c5cd9', '#1c2430'],
-  });
-  const COLOR_NAMES = Object.freeze({
-    '#ffe45a': '黄', '#8ce99a': '緑', '#8fbfff': '青', '#ffa8c8': '桃', '#d92c2c': '赤', '#2c5cd9': '青', '#1c2430': '黒',
-  });
-  const DEFAULT_COLORS = Object.freeze({ highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c' });
+  // プリセット（確定事項33、spec-4-2 確定事項34・35）は annotation-presets.js が持つ。
+  const { TOOLS, MARKUP_TOOLS, TOOL_LABELS, COLORS, COLOR_NAMES, DEFAULT_COLORS } = root.SigK.annotationPresets;
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
   const CLICK_SLOP = 3;
 
@@ -77,11 +66,12 @@
     return state.tool;
   }
 
-  // 道具はトグル。押した時点で文字が選ばれていれば、その場で付ける（確定事項10 ②）。
+  // 道具はトグル。マークアップは、押した時点で文字が選ばれていればその場で付ける
+  // （確定事項10 ②）。テキストは押しても作らない（spec-4-2 確定事項3）。
   function toggleTool(tool) {
     if (!TOOLS.includes(tool))
       return false;
-    if (inAnnotMode() && isOpen() && createFromSelection(tool))
+    if (MARKUP_TOOLS.includes(tool) && inAnnotMode() && isOpen() && createFromSelection(tool))
       return setTool(tool) !== null;
     return setTool(state.tool === tool ? null : tool) !== null;
   }

@@ -114,12 +114,15 @@ test('files に書いたものが実在する', () => {
   assert.deepEqual(missing, [], `build.files が実在しないものを指している: ${missing.join(', ')}`);
 });
 
-test('ワーカーが実行時に読む vendor のファイルが配布物に入る', () => {
-  // ワーカーは vendor/pdf-lib.min.js を path.join で組み立てて require する
-  // （node_modules は配布物に無い。docs/07 決定18）。文字列リテラルではないので
-  // collectLocalRequires では拾えず、ここに手で書くしかない。
-  const runtime = ['vendor/pdf-lib.min.js'];
+test('ワーカーが実行時に読む vendor・assets のファイルが配布物に入る', () => {
+  // ワーカーは vendor/pdf-lib.min.js と vendor/fontkit.umd.min.js を path.join で組み立てて
+  // require し、同梱フォントも path.join で読む（node_modules は配布物に無い。docs/07 決定18）。
+  // 文字列リテラルではないので collectLocalRequires では拾えず、ここに手で書くしかない。
+  const runtime = ['vendor/pdf-lib.min.js', 'vendor/fontkit.umd.min.js', 'assets/fonts/NotoSansJP-Regular.ttf'];
   const missing = runtime.filter((rel) => !isCovered(rel, pkg.build.files));
 
   assert.deepEqual(missing, [], `package.json の build.files に足りない: ${missing.join(', ')}`);
+  // vendor/ は postinstall が作るので実在は問わない。フォントはリポジトリの実物である。
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/fonts/NotoSansJP-Regular.ttf')), '同梱フォントが無い');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/fonts/OFL.txt')), '同梱フォントの許諾文が無い');
 });

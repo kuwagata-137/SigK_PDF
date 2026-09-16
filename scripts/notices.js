@@ -112,6 +112,19 @@ const BUNDLED_COMPONENTS = [
   },
 ];
 
+// パッケージではなく資産として同梱するもの。ライセンス全文はリポジトリに置いた実物から読む。
+// Noto Sans JP を同梱すると決めたのは spec-4-2 確定事項31・32（docs/07 決定35）である。
+const BUNDLED_ASSETS = [
+  {
+    name: 'Noto Sans JP（Regular・静的 TTF）',
+    license: 'SIL Open Font License 1.1',
+    note: 'テキスト注釈の日本語を PDF へ埋め込むフォントである。`assets/fonts/NotoSansJP-Regular.ttf` として同梱し、'
+      + '保存のたびに使った文字だけのサブセットを埋め込む（spec-4-2 確定事項22〜24）。画面の入力欄も同じフォントで描く。'
+      + 'フォント単体では再配布・販売せず、予約名を派生の名前に使わない（OFL 第1条・第3条。`docs/06`）。',
+    files: ['assets/fonts/OFL.txt'],
+  },
+];
+
 // 開発時だけ使い、配布物には入らないもの。名称と種別のみ挙げる。
 const DEV_ONLY = ['electron-builder', 'jsdom'];
 
@@ -209,6 +222,18 @@ function build() {
     '```',
   ].join('\n'));
 
+  const assetSections = BUNDLED_ASSETS.map((entry) => [
+    `### ${entry.name}`,
+    '',
+    `- ライセンス: ${entry.license}`,
+    '',
+    entry.note,
+    '',
+    '```',
+    entry.files.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8').trimEnd()).join(SEPARATOR),
+    '```',
+  ].join('\n'));
+
   const devList = DEV_ONLY.map((pkg) => {
     const manifest = readManifest(pkg);
     return `| ${pkg} | ${manifest.version} | ${manifest.license} |`;
@@ -234,6 +259,12 @@ ${sections.join('\n\n')}
 
 ${componentSections.join('\n\n')}
 
+## 同梱するもの（フォント）
+
+パッケージではなく資産として配布物に入るものである。
+
+${assetSections.join('\n\n')}
+
 ## 開発時にのみ用いるもの
 
 配布物には含まれないため、全文は掲げず名称と種別のみを挙げる。
@@ -241,12 +272,6 @@ ${componentSections.join('\n\n')}
 | 名称 | 版 | ライセンス |
 |---|---|---|
 ${devList.join('\n')}
-
-## 今後追加するもの
-
-| 名称 | ライセンス | 追加する時期 |
-|---|---|---|
-| Noto Sans JP | SIL Open Font License 1.1 | Phase 4-1（日本語フォントの埋め込み基盤） |
 
 ## コピーレフト系ライセンスの確認
 
@@ -260,14 +285,14 @@ MIT License。全文は \`LICENSE\` を参照のこと。
 `;
 
   fs.writeFileSync(OUTPUT, body, 'utf8');
-  return { path: OUTPUT, bundled: BUNDLED.length, components: BUNDLED_COMPONENTS.length, copyleft };
+  return { path: OUTPUT, bundled: BUNDLED.length, components: BUNDLED_COMPONENTS.length, assets: BUNDLED_ASSETS.length, copyleft };
 }
 
-module.exports = { BUNDLED, BUNDLED_COMPONENTS, DEV_ONLY, findCopyleft, build };
+module.exports = { BUNDLED, BUNDLED_COMPONENTS, BUNDLED_ASSETS, DEV_ONLY, findCopyleft, build };
 
 if (require.main === module) {
   const result = build();
-  console.log(`同梱 ${result.bundled} 件＋構成部品 ${result.components} 件の告知を書き出しました: ${path.relative(ROOT, result.path)}`);
+  console.log(`同梱 ${result.bundled} 件＋構成部品 ${result.components} 件＋資産 ${result.assets} 件の告知を書き出しました: ${path.relative(ROOT, result.path)}`);
   if (result.copyleft.length > 0) {
     console.error('GPL / AGPL のパッケージが見つかりました。同梱の可否を確認してください。');
     console.error(result.copyleft.join('\n'));

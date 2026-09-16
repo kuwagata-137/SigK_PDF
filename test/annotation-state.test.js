@@ -134,3 +134,116 @@ test('toSaveSpec は id と text を落とし、removed をそのまま渡す（
   spec.add[0].quads[0][0] = 0;
   assert.equal(annots.added[0].quads[0][0], 48);
 });
+
+// ---- テキスト注釈（spec-4-2 確定事項15〜18） ----
+
+require('../renderer/free-text-geometry.js');
+const { quadOfRect } = globalThis.SigK.freeTextGeometry;
+
+const TEXT_RECT = [100, 700, 200, 720.5];
+
+function textEntry(overrides = {}) {
+  return {
+    src: 0, kind: 'text', color: '#1c2430', quads: [quadOfRect(TEXT_RECT)], rect: TEXT_RECT,
+    text: 'こんにちは', fontSize: 12, rotation: 0, ...overrides,
+  };
+}
+
+test('KINDS は text を含み、MARKUP_KINDS は 3 種のまま', () => {
+  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text']);
+  assert.deepEqual(state.MARKUP_KINDS, ['highlight', 'underline', 'strikeout']);
+  assert.equal(state.isKind('text'), true);
+  assert.equal(state.isMarkupKind('text'), false);
+  assert.equal(state.isMarkupKind('underline'), true);
+});
+
+test('addAnnot はテキストの本文・大きさ・回転を写す', () => {
+  const next = state.addAnnot(state.createAnnots(), textEntry());
+  assert.equal(next.added.length, 1);
+  const added = next.added[0];
+  assert.equal(added.text, 'こんにちは');
+  assert.equal(added.fontSize, 12);
+  assert.equal(added.rotation, 0);
+  assert.equal(added.opacity, 1);
+  assert.deepEqual(added.quads, [[100, 720.5, 200, 720.5, 100, 700, 200, 700]]);
+  // マークアップの写しには fontSize・rotation が付かない
+  const markup = state.addAnnot(state.createAnnots(), entry()).added[0];
+  assert.equal('fontSize' in markup, false);
+  assert.equal('rotation' in markup, false);
+});
+
+test('validEntry はテキストの本文・大きさ・回転・四角の数を見る', () => {
+  const base = state.createAnnots();
+  assert.equal(state.addAnnot(base, textEntry({ text: '' })).added.length, 0);
+  assert.equal(state.addAnnot(base, textEntry({ text: '   ' })).added.length, 0);
+  assert.equal(state.addAnnot(base, textEntry({ fontSize: 0 })).added.length, 0);
+  assert.equal(state.addAnnot(base, textEntry({ fontSize: Infinity })).added.length, 0);
+  assert.equal(state.addAnnot(base, textEntry({ rotation: 45 })).added.length, 0);
+  assert.equal(state.addAnnot(base, textEntry({ quads: [QUAD, QUAD] })).added.length, 0);
+  assert.equal(state.addAnnot(base, textEntry({ rotation: 270 })).added.length, 1);
+});
+
+test('updateAnnot は自前のものの渡された欄だけを書き換える', () => {
+  const one = state.addAnnot(state.createAnnots(), textEntry());
+  const id = one.added[0].id;
+  const rect = [110, 700, 210, 720.5];
+  const next = state.updateAnnot(one, { id }, { text: 'さようなら', fontSize: 14, rect, quads: [quadOfRect(rect)] });
+  assert.equal(next.added[0].id, id);
+  assert.equal(next.added[0].text, 'さようなら');
+  assert.equal(next.added[0].fontSize, 14);
+  assert.deepEqual(next.added[0].rect, rect);
+  assert.deepEqual(next.added[0].quads[0], quadOfRect(rect));
+  assert.equal(next.added[0].color, '#1c2430');
+  assert.equal(next.added[0].rotation, 0);
+  // 元は変わらない。知らない欄は無視する
+  assert.equal(one.added[0].text, 'こんにちは');
+  assert.equal(state.updateAnnot(one, { id }, { rotation: 90, src: 3 }).added[0].rotation, 0);
+});
+
+test('updateAnnot は読み込んだものを消して写しを足す', () => {
+  const loaded = { ref: '120R', ...textEntry({ opacity: 1 }) };
+  const next = state.updateAnnot(state.createAnnots(), loaded, { text: '直した' });
+  assert.deepEqual(next.removed, ['120R']);
+  assert.equal(next.added.length, 1);
+  assert.equal(next.added[0].text, '直した');
+  assert.equal(next.added[0].ref, undefined);
+  assert.equal(next.added[0].fontSize, 12);
+  assert.match(next.added[0].id, /^sigk-/);
+});
+
+test('updateAnnot は空のパッチや形の崩れる値なら何もしない', () => {
+  const one = state.addAnnot(state.createAnnots(), textEntry());
+  const id = one.added[0].id;
+  assert.equal(state.updateAnnot(one, { id }, {}), one);
+  assert.equal(state.updateAnnot(one, { id }, null), one);
+  assert.equal(state.updateAnnot(one, { id }, { text: '' }), one);
+  assert.equal(state.updateAnnot(one, { id }, { fontSize: -1 }), one);
+  assert.equal(state.updateAnnot(one, { id: 'nothing' }, { text: 'x' }).added[0].text, 'こんにちは');
+});
+
+test('recolorAnnot は updateAnnot の色だけの形', () => {
+  const one = state.addAnnot(state.createAnnots(), textEntry());
+  assert.equal(state.recolorAnnot(one, { id: one.added[0].id }, '#d92c2c').added[0].color, '#d92c2c');
+});
+
+test('sameAnnots は本文・大きさ・回転・四角の違いを見る（確定事項17）', () => {
+  const one = state.addAnnot(state.createAnnots(), textEntry());
+  const id = one.added[0].id;
+  assert.equal(state.sameAnnots(one, state.cloneAnnots(one)), true);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { text: 'x' })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { fontSize: 14 })), false);
+  const moved = [101, 700, 201, 720.5];
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { rect: moved, quads: [quadOfRect(moved)] })), false);
+  // 同じ値に更新しても同じ
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { text: 'こんにちは' })), true);
+});
+
+test('toSaveSpec はテキストを rect・text・fontSize・rotation で渡し、quads は落とす', () => {
+  let annots = state.addAnnot(state.createAnnots(), textEntry());
+  annots = state.addAnnot(annots, entry());
+  const spec = state.toSaveSpec(annots);
+  assert.deepEqual(spec.add[0], { src: 0, kind: 'text', color: '#1c2430', opacity: 1, rect: TEXT_RECT, text: 'こんにちは', fontSize: 12, rotation: 0 });
+  assert.deepEqual(Object.keys(spec.add[1]).sort(), ['color', 'kind', 'opacity', 'quads', 'rect', 'src']);
+  spec.add[0].rect[0] = 0;
+  assert.equal(annots.added[0].rect[0], 100);
+});

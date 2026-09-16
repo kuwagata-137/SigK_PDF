@@ -18,10 +18,12 @@ const DEFAULTS = {
   // 閲覧モードのページの並べ方（spec-2-3 確定事項5）。'single' が縦1列、
   // 'facing' が見開き。アプリ全体の設定で、文書ごとには持たない。
   pageLayout: 'single',
-  // 注釈の種類ごとに最後に使った色（spec-4-1 確定事項33・34）。値は #rrggbb で、
-  // renderer/annotate.js のプリセットに無ければ既定へ落とす（一覧はあちらと同じ。
-  // プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
-  annotColors: { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c' },
+  // 注釈の種類ごとに最後に使った色（spec-4-1 確定事項33・34、spec-4-2 確定事項35）。値は
+  // #rrggbb で、renderer/annotation-presets.js のプリセットに無ければ既定へ落とす（一覧は
+  // あちらと同じ。プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
+  annotColors: { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430' },
+  // テキスト注釈で最後に使った文字の大きさ（pt。spec-4-2 確定事項21・34）。
+  annotFontSize: 12,
   recent: [],
 };
 
@@ -29,7 +31,9 @@ const ANNOT_COLORS = {
   highlight: ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8'],
   underline: ['#d92c2c', '#2c5cd9', '#1c2430'],
   strikeout: ['#d92c2c', '#2c5cd9', '#1c2430'],
+  text: ['#1c2430', '#d92c2c', '#2c5cd9'],
 };
+const ANNOT_FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48];
 
 // ツールレールの4つのモード。renderer/shell.js の MODES と同じ並びであること。
 // プロセスが違うので import はできない。test/settings.test.js が一致を見張る。
@@ -82,9 +86,17 @@ function mergeDefaults(raw) {
     mode: isValidMode(raw.mode) ? raw.mode : DEFAULTS.mode,
     pageLayout: isValidPageLayout(raw.pageLayout) ? raw.pageLayout : DEFAULTS.pageLayout,
     annotColors: pickAnnotColors(raw.annotColors, DEFAULTS.annotColors),
+    annotFontSize: pickAnnotFontSize(raw.annotFontSize, DEFAULTS.annotFontSize),
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
   };
+}
+
+// プリセットにある大きさだけを受け取る。無ければ fallback、それも無ければ既定。
+function pickAnnotFontSize(raw, fallback) {
+  if (ANNOT_FONT_SIZES.includes(raw))
+    return raw;
+  return ANNOT_FONT_SIZES.includes(fallback) ? fallback : DEFAULTS.annotFontSize;
 }
 
 // 種類ごとに、プリセットにある色だけを受け取る。無ければ fallback の値。
@@ -107,7 +119,7 @@ function isValidPageLayout(layout) {
   return PAGE_LAYOUTS.includes(layout);
 }
 
-// 画面の見た目に関する設定だけを取り出す。レンダラーへ渡すのはこの3つで、
+// 画面の見た目に関する設定だけを取り出す。レンダラーへ渡すのはこれだけで、
 // ウィンドウの位置や履歴は渡さない（spec-1-3 確定事項33、spec-2-3 確定事項5）。
 function pickUi(settings) {
   return {
@@ -115,6 +127,7 @@ function pickUi(settings) {
     pageLayout: settings.pageLayout,
     sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
     annotColors: pickAnnotColors(settings.annotColors, DEFAULTS.annotColors),
+    annotFontSize: pickAnnotFontSize(settings.annotFontSize, DEFAULTS.annotFontSize),
   };
 }
 
@@ -135,6 +148,7 @@ function mergeUi(current, patch) {
     },
     // 種類ごとに重ねる。{ annotColors: { highlight } } を送っただけで下線の色が戻らないように。
     annotColors: pickAnnotColors({ ...(isPlainObject(current.annotColors) ? current.annotColors : {}), ...(isPlainObject(next.annotColors) ? next.annotColors : {}) }, current.annotColors),
+    annotFontSize: pickAnnotFontSize(next.annotFontSize, current.annotFontSize),
   };
 }
 
@@ -263,6 +277,7 @@ module.exports = {
   UI_MODES,
   PAGE_LAYOUTS,
   ANNOT_COLORS,
+  ANNOT_FONT_SIZES,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,
   isValidMode,
