@@ -1,23 +1,15 @@
 (function (root) {
   'use strict';
 
-  // 図形・ペン注釈の指揮（spec-4-3 確定事項3〜7・9・10・14〜19）。
+  // 図形・ペン注釈の指揮（spec-4-3 確定事項3・5・7・14〜19）。
   //
   // 描く（beginDraft → updateDraft → finishDraft）・動かす（move）・線の太さと図形の種類を
   // 変える（setLineWidth・setShapeKind）を、annotation-state.js の純粋な操作と
-  // page-edit.commitAnnots（1 本の履歴）に結ぶ。幾何は shape-geometry.js、押し離しの振り分けは
-  // annotate-pointer.js、道具と選択は annotate.js が持つ。annotate-text.js と同じ位置づけ。
-  //
-  // 下書き（draft）は表示の座標（.pdf-page 基準の CSS px）で持ち、描くたびに紙の座標の entry へ
-  // 直して annotation-layer に描かせる。離したときにその entry を注釈にする。
+  // page-edit.commitAnnots（1 本の履歴）に結ぶ。下書きそのものは shape-draft.js、幾何は
+  // shape-geometry.js、押し離しの振り分けは annotate-pointer.js、道具と選択は annotate.js が持つ。
+  // annotate-text.js と同じ位置づけ。
 
-  const state = {
-    doc: null,
-    lineWidth: null,
-    shapeKind: null,
-    // { index, src, viewport, kind, start, current, points, shift, color, lineWidth }
-    draft: null,
-  };
+  const state = { doc: null, lineWidth: null, shapeKind: null };
 
   function annotate() {
     return root.SigK.annotate;
@@ -29,6 +21,10 @@
 
   function annotationState() {
     return root.SigK.annotationState;
+  }
+
+  function draft() {
+    return root.SigK.shapeDraft;
   }
 
   function geometry() {
@@ -67,7 +63,7 @@
     return true;
   }
 
-  // ---- 描く（確定事項3・4・6・9） ----
+  // ---- 描く（確定事項3） ----
 
   function beginDraft({ index, point, shift = false }) {
     const kind = kindOfTool(annotate().getTool());
@@ -75,81 +71,27 @@
     const src = viewer()?.getPlan()[index]?.src;
     if (kind === null || !isOpen() || viewport === null || !Number.isInteger(src))
       return false;
-    state.draft = {
-      index, src, viewport, kind, shift,
-      start: [point[0], point[1]],
-      current: [point[0], point[1]],
-      points: [[point[0], point[1]]],
-      color: annotate().colorOf(kind),
-      lineWidth: getLineWidth(),
-    };
-    return true;
+    return draft().begin({ index, src, viewport, kind, point, shift, color: annotate().colorOf(kind), lineWidth: getLineWidth() });
   }
 
   function updateDraft(point, shift = false) {
-    const { draft } = state;
-    if (draft === null)
+    if (!draft().update(point, shift))
       return false;
-    draft.shift = shift;
-    draft.current = [point[0], point[1]];
-    if (draft.kind === 'ink' && geometry().farEnough(draft.points.at(-1), point, geometry().MIN_STEP))
-      draft.points.push([point[0], point[1]]);
     viewer().redrawAnnotations();
     return true;
   }
 
-  function toPdf(draft, point) {
-    return geometry().roundPoint(draft.viewport.convertToPdfPoint(point[0], point[1]));
-  }
-
-  // 下書きを紙の座標の entry にする。points は表示の px の点列（ペンはここまでに間引いたもの）。
-  function entryOf(draft, points) {
-    const base = { src: draft.src, kind: draft.kind, color: draft.color, opacity: 1, lineWidth: draft.lineWidth };
-    if (draft.kind === 'square' || draft.kind === 'circle') {
-      // 正方形・正円の判定は表示の座標で行う（確定事項4）。
-      const box = geometry().boxOf(draft.start, draft.current, { square: draft.shift });
-      const rect = geometry().boxOf(toPdf(draft, [box[0], box[1]]), toPdf(draft, [box[2], box[3]]));
-      return { ...base, ...geometry().rectOfShape({ kind: draft.kind, rect }) };
-    }
-    let paths;
-    if (draft.kind === 'ink') {
-      paths = [points.map((point) => toPdf(draft, point))];
-    } else {
-      const end = draft.shift ? geometry().snapAngle(draft.start, draft.current) : draft.current;
-      paths = [[toPdf(draft, draft.start), toPdf(draft, end)]];
-    }
-    return { ...base, paths, ...geometry().rectOfShape({ kind: draft.kind, paths, lineWidth: draft.lineWidth }) };
-  }
-
-  // annotation-layer が描く下書き（そのページのぶんだけ）。
-  function draftFor(index) {
-    const { draft } = state;
-    if (draft === null || draft.index !== index)
-      return null;
-    return entryOf(draft, draft.points);
-  }
-
-  function moved(draft, point) {
-    const slop = root.SigK.annotatePointer?.CLICK_SLOP ?? 3;
-    const far = (at) => Math.abs(at[0] - draft.start[0]) > slop || Math.abs(at[1] - draft.start[1]) > slop;
-    return far(point) || draft.points.some(far);
-  }
-
   // 離した。動いていなければ捨てる（押しただけ）。動いていれば注釈にして 1 世代積み、選ぶ。
   function finishDraft(point, shift = false) {
-    const { draft } = state;
-    if (draft === null)
-      return false;
-    updateDraft(point, shift);
-    state.draft = null;
-    if (!moved(draft, point) || !isOpen()) {
+    const slop = root.SigK.annotatePointer?.CLICK_SLOP ?? 3;
+    const entry = draft().finish(point, shift, slop);
+    if (entry === null || !isOpen()) {
       viewer()?.redrawAnnotations();
       return false;
     }
-    const points = draft.kind === 'ink' ? geometry().simplifyPath(draft.points, geometry().SIMPLIFY_TOLERANCE) : draft.points;
-    const entry = { ...entryOf(draft, points), id: annotationState().newId() };
-    const next = annotationState().addAnnot(viewer().getAnnotations(), entry);
-    if (next.added.length === viewer().getAnnotations().added.length) {
+    const annots = viewer().getAnnotations();
+    const next = annotationState().addAnnot(annots, { ...entry, id: annotationState().newId() });
+    if (next.added.length === annots.added.length) {
       viewer().redrawAnnotations();
       return false;
     }
@@ -157,15 +99,10 @@
   }
 
   function cancelDraft() {
-    if (state.draft === null)
+    if (!draft().cancel())
       return false;
-    state.draft = null;
     viewer()?.redrawAnnotations();
     return true;
-  }
-
-  function isDrawing() {
-    return state.draft !== null;
   }
 
   // ---- 動かす（確定事項5） ----
@@ -262,8 +199,8 @@
     updateDraft,
     finishDraft,
     cancelDraft,
-    draftFor,
-    isDrawing,
+    draftFor: (index) => draft().draftFor(index),
+    isDrawing: () => draft().isDrawing(),
     move,
     getLineWidth,
     applyLineWidth,
