@@ -21,9 +21,12 @@ const DEFAULTS = {
   // 注釈の種類ごとに最後に使った色（spec-4-1 確定事項33・34、spec-4-2 確定事項35）。値は
   // #rrggbb で、renderer/annotation-presets.js のプリセットに無ければ既定へ落とす（一覧は
   // あちらと同じ。プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
-  annotColors: { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430' },
+  annotColors: { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430', shape: '#d92c2c', pen: '#d92c2c' },
   // テキスト注釈で最後に使った文字の大きさ（pt。spec-4-2 確定事項21・34）。
   annotFontSize: 12,
+  // 図形・ペンで最後に使った線の太さ（pt）と、「図形」の道具の種類（spec-4-3 確定事項19・29）。
+  annotLineWidth: 2,
+  annotShapeKind: 'square',
   recent: [],
 };
 
@@ -32,8 +35,12 @@ const ANNOT_COLORS = {
   underline: ['#d92c2c', '#2c5cd9', '#1c2430'],
   strikeout: ['#d92c2c', '#2c5cd9', '#1c2430'],
   text: ['#1c2430', '#d92c2c', '#2c5cd9'],
+  shape: ['#d92c2c', '#2c5cd9', '#2f9e5a', '#1c2430'],
+  pen: ['#d92c2c', '#2c5cd9', '#2f9e5a', '#1c2430'],
 };
 const ANNOT_FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48];
+const ANNOT_LINE_WIDTHS = [1, 2, 3, 5, 8];
+const ANNOT_SHAPE_KINDS = ['square', 'circle', 'line', 'arrow'];
 
 // ツールレールの4つのモード。renderer/shell.js の MODES と同じ並びであること。
 // プロセスが違うので import はできない。test/settings.test.js が一致を見張る。
@@ -87,6 +94,8 @@ function mergeDefaults(raw) {
     pageLayout: isValidPageLayout(raw.pageLayout) ? raw.pageLayout : DEFAULTS.pageLayout,
     annotColors: pickAnnotColors(raw.annotColors, DEFAULTS.annotColors),
     annotFontSize: pickAnnotFontSize(raw.annotFontSize, DEFAULTS.annotFontSize),
+    annotLineWidth: pickFromList(ANNOT_LINE_WIDTHS, raw.annotLineWidth, DEFAULTS.annotLineWidth, DEFAULTS.annotLineWidth),
+    annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, raw.annotShapeKind, DEFAULTS.annotShapeKind, DEFAULTS.annotShapeKind),
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
   };
@@ -94,9 +103,14 @@ function mergeDefaults(raw) {
 
 // プリセットにある大きさだけを受け取る。無ければ fallback、それも無ければ既定。
 function pickAnnotFontSize(raw, fallback) {
-  if (ANNOT_FONT_SIZES.includes(raw))
+  return pickFromList(ANNOT_FONT_SIZES, raw, fallback, DEFAULTS.annotFontSize);
+}
+
+// 一覧にある値だけを受け取る。無ければ fallback、それも無ければ既定（線の太さ・図形の種類）。
+function pickFromList(list, raw, fallback, fixed) {
+  if (list.includes(raw))
     return raw;
-  return ANNOT_FONT_SIZES.includes(fallback) ? fallback : DEFAULTS.annotFontSize;
+  return list.includes(fallback) ? fallback : fixed;
 }
 
 // 種類ごとに、プリセットにある色だけを受け取る。無ければ fallback の値。
@@ -128,6 +142,8 @@ function pickUi(settings) {
     sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
     annotColors: pickAnnotColors(settings.annotColors, DEFAULTS.annotColors),
     annotFontSize: pickAnnotFontSize(settings.annotFontSize, DEFAULTS.annotFontSize),
+    annotLineWidth: pickFromList(ANNOT_LINE_WIDTHS, settings.annotLineWidth, DEFAULTS.annotLineWidth, DEFAULTS.annotLineWidth),
+    annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, settings.annotShapeKind, DEFAULTS.annotShapeKind, DEFAULTS.annotShapeKind),
   };
 }
 
@@ -149,6 +165,8 @@ function mergeUi(current, patch) {
     // 種類ごとに重ねる。{ annotColors: { highlight } } を送っただけで下線の色が戻らないように。
     annotColors: pickAnnotColors({ ...(isPlainObject(current.annotColors) ? current.annotColors : {}), ...(isPlainObject(next.annotColors) ? next.annotColors : {}) }, current.annotColors),
     annotFontSize: pickAnnotFontSize(next.annotFontSize, current.annotFontSize),
+    annotLineWidth: pickFromList(ANNOT_LINE_WIDTHS, next.annotLineWidth, current.annotLineWidth, DEFAULTS.annotLineWidth),
+    annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, next.annotShapeKind, current.annotShapeKind, DEFAULTS.annotShapeKind),
   };
 }
 
@@ -278,6 +296,8 @@ module.exports = {
   PAGE_LAYOUTS,
   ANNOT_COLORS,
   ANNOT_FONT_SIZES,
+  ANNOT_LINE_WIDTHS,
+  ANNOT_SHAPE_KINDS,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,
   isValidMode,

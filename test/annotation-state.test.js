@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+require('../renderer/annotation-entry.js');
 require('../renderer/annotation-state.js');
 
 // 注釈の状態（spec-4-1 確定事項16・17・19）。plan と同じく「ファイルとの差分」で持つ。
@@ -149,8 +150,8 @@ function textEntry(overrides = {}) {
   };
 }
 
-test('KINDS は text を含み、MARKUP_KINDS は 3 種のまま', () => {
-  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text']);
+test('KINDS は text と図形 5 種を含み、MARKUP_KINDS は 3 種のまま', () => {
+  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text', 'square', 'circle', 'line', 'arrow', 'ink']);
   assert.deepEqual(state.MARKUP_KINDS, ['highlight', 'underline', 'strikeout']);
   assert.equal(state.isKind('text'), true);
   assert.equal(state.isMarkupKind('text'), false);
@@ -246,4 +247,119 @@ test('toSaveSpec はテキストを rect・text・fontSize・rotation で渡し�
   assert.deepEqual(Object.keys(spec.add[1]).sort(), ['color', 'kind', 'opacity', 'quads', 'rect', 'src']);
   spec.add[0].rect[0] = 0;
   assert.equal(annots.added[0].rect[0], 100);
+});
+
+// ---- 図形・ペン（spec-4-3 確定事項14〜18） ----
+
+const SHAPE_RECT = [100, 600, 300, 700];
+
+function shapeEntry(overrides = {}) {
+  return { src: 0, kind: 'square', color: '#d92c2c', lineWidth: 2, quads: [quadOfRect(SHAPE_RECT)], rect: SHAPE_RECT, ...overrides };
+}
+
+function arrowEntry(overrides = {}) {
+  const rect = [98.5, 548.5, 301.5, 601.5];
+  return { src: 0, kind: 'arrow', color: '#2c5cd9', lineWidth: 3, quads: [quadOfRect(rect)], rect, paths: [[[100, 600], [300, 550]]], ...overrides };
+}
+
+function inkEntry(overrides = {}) {
+  const rect = [99, 479, 151, 511];
+  return { src: 1, kind: 'ink', color: '#2f9e5a', lineWidth: 2, quads: [quadOfRect(rect)], rect, paths: [[[100, 500], [120, 480], [150, 510]]], ...overrides };
+}
+
+test('SHAPE_KINDS は 4 種、PATH_KINDS は直線・矢印・ペン', () => {
+  assert.deepEqual(state.SHAPE_KINDS, ['square', 'circle', 'line', 'arrow']);
+  assert.deepEqual(state.PATH_KINDS, ['line', 'arrow', 'ink']);
+  assert.equal(state.isShapeKind('circle'), true);
+  assert.equal(state.isShapeKind('ink'), false);
+  assert.equal(state.isPathKind('ink'), true);
+  assert.equal(state.isPathKind('square'), false);
+  assert.equal(state.isMarkupKind('ink'), false);
+});
+
+test('addAnnot は図形の線幅と点列を写し、矩形には paths を付けない', () => {
+  const next = state.addAnnot(state.addAnnot(state.createAnnots(), shapeEntry()), arrowEntry());
+  assert.equal(next.added.length, 2);
+  const square = next.added[0];
+  assert.equal(square.lineWidth, 2);
+  assert.equal(square.text, '');
+  assert.equal('paths' in square, false);
+  assert.equal('fontSize' in square, false);
+  const arrow = next.added[1];
+  assert.deepEqual(arrow.paths, [[[100, 600], [300, 550]]]);
+  // 写しは別の配列
+  const source = arrowEntry();
+  const copied = state.addAnnot(state.createAnnots(), source).added[0];
+  copied.paths[0][0][0] = 0;
+  assert.equal(source.paths[0][0][0], 100);
+});
+
+test('validEntry は図形の線幅・四角の数・点列の形を見る', () => {
+  const base = state.createAnnots();
+  assert.equal(state.addAnnot(base, shapeEntry({ lineWidth: 0 })).added.length, 0);
+  assert.equal(state.addAnnot(base, shapeEntry({ lineWidth: '2' })).added.length, 0);
+  assert.equal(state.addAnnot(base, shapeEntry({ quads: [QUAD, QUAD] })).added.length, 0);
+  assert.equal(state.addAnnot(base, shapeEntry({ kind: 'circle' })).added.length, 1);
+  // 直線・矢印は 1 本ちょうどで 2 点
+  assert.equal(state.addAnnot(base, arrowEntry({ paths: undefined })).added.length, 0);
+  assert.equal(state.addAnnot(base, arrowEntry({ paths: [[[100, 600]]] })).added.length, 0);
+  assert.equal(state.addAnnot(base, arrowEntry({ paths: [[[100, 600], [300, 550], [310, 560]]] })).added.length, 0);
+  assert.equal(state.addAnnot(base, arrowEntry({ paths: [[[100, 600], [300, 550]], [[0, 0], [1, 1]]] })).added.length, 0);
+  assert.equal(state.addAnnot(base, arrowEntry({ kind: 'line' })).added.length, 1);
+  // ペンは 1 本以上、各 2 点以上、点は有限の [x, y]
+  assert.equal(state.addAnnot(base, inkEntry({ paths: [] })).added.length, 0);
+  assert.equal(state.addAnnot(base, inkEntry({ paths: [[[100, 500]]] })).added.length, 0);
+  assert.equal(state.addAnnot(base, inkEntry({ paths: [[[100, 500], [120, NaN]]] })).added.length, 0);
+  assert.equal(state.addAnnot(base, inkEntry({ paths: [[[100, 500], [120]]] })).added.length, 0);
+  assert.equal(state.addAnnot(base, inkEntry({ paths: [[[100, 500], [120, 480]], [[0, 0], [1, 1], [2, 2]]] })).added.length, 1);
+  // 矩形に paths があっても構わない（無視する）
+  assert.equal(state.addAnnot(base, shapeEntry({ paths: [[[0, 0], [1, 1]]] })).added.length, 1);
+});
+
+test('updateAnnot は線幅と点列を書き換えられる', () => {
+  const one = state.addAnnot(state.createAnnots(), arrowEntry());
+  const id = one.added[0].id;
+  const paths = [[[110, 610], [310, 560]]];
+  const rect = [108.5, 558.5, 311.5, 611.5];
+  const next = state.updateAnnot(one, { id }, { lineWidth: 5, paths, rect, quads: [quadOfRect(rect)] });
+  assert.equal(next.added[0].lineWidth, 5);
+  assert.deepEqual(next.added[0].paths, paths);
+  assert.deepEqual(next.added[0].rect, rect);
+  assert.deepEqual(one.added[0].paths, [[[100, 600], [300, 550]]]);
+  // 形の崩れる値は丸ごと無視
+  assert.equal(state.updateAnnot(one, { id }, { lineWidth: 0 }), one);
+  assert.equal(state.updateAnnot(one, { id }, { paths: [] }), one);
+  assert.equal(state.updateAnnot(one, { id }, { paths: [[[1, 2]]] }), one);
+});
+
+test('updateAnnot は読み込んだ図形を消して写しを足す', () => {
+  const loaded = { ref: '30R', ...inkEntry({ opacity: 1 }) };
+  const next = state.updateAnnot(state.createAnnots(), loaded, { color: '#1c2430' });
+  assert.deepEqual(next.removed, ['30R']);
+  assert.equal(next.added[0].color, '#1c2430');
+  assert.equal(next.added[0].lineWidth, 2);
+  assert.deepEqual(next.added[0].paths, [[[100, 500], [120, 480], [150, 510]]]);
+  assert.equal(next.added[0].ref, undefined);
+});
+
+test('sameAnnots は線幅と点列の違いを見る', () => {
+  const one = state.addAnnot(state.createAnnots(), inkEntry());
+  const id = one.added[0].id;
+  assert.equal(state.sameAnnots(one, state.cloneAnnots(one)), true);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { lineWidth: 3 })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { paths: [[[100, 500], [120, 480], [150, 511]]] })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { paths: [[[100, 500], [120, 480], [150, 510]], [[0, 0], [1, 1]]] })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { lineWidth: 2 })), true);
+});
+
+test('toSaveSpec は図形を rect・lineWidth・paths で渡し、quads は落とす', () => {
+  let annots = state.addAnnot(state.createAnnots(), shapeEntry());
+  annots = state.addAnnot(annots, arrowEntry());
+  annots = state.addAnnot(annots, inkEntry());
+  const spec = state.toSaveSpec(annots);
+  assert.deepEqual(spec.add[0], { src: 0, kind: 'square', color: '#d92c2c', opacity: 1, rect: SHAPE_RECT, lineWidth: 2 });
+  assert.deepEqual(spec.add[1], { src: 0, kind: 'arrow', color: '#2c5cd9', opacity: 1, rect: [98.5, 548.5, 301.5, 601.5], lineWidth: 3, paths: [[[100, 600], [300, 550]]] });
+  assert.deepEqual(Object.keys(spec.add[2]).sort(), ['color', 'kind', 'lineWidth', 'opacity', 'paths', 'rect', 'src']);
+  spec.add[2].paths[0][0][0] = 0;
+  assert.equal(annots.added[2].paths[0][0][0], 100);
 });
