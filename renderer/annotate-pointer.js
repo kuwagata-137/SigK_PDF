@@ -1,14 +1,17 @@
 (function (root) {
   'use strict';
 
-  // 注釈モードのページビューの押し離し（spec-4-1 確定事項6・10、spec-4-2 確定事項3・5・6）。
+  // 注釈モードのページビューの押し離し（spec-4-1 確定事項6・10、spec-4-2 確定事項3・5・6、spec-4-3 確定事項3・5）。
   //
   // annotate.js から切り出した。mousedown／mouseup／dblclick を #view に結び、
-  //   - 離したとき: 道具があり文字が選ばれていればマークアップを作る → 動いていない
-  //     押し離しなら当たり判定で選ぶ → 何も無い場所でテキストの道具ならそこに置く
-  //   - 選んでいるテキストを掴んで動かしたら、離したときに 1 世代（ドラッグ移動）
+  //   - 押したとき: 選んでいるテキスト・図形の上ならドラッグ移動の準備、そうでなく図形・ペンの
+  //     道具を持っていれば描き始める（動かすたびに下書きを描き直す）
+  //   - 離したとき: 描いていて動いていれば注釈にする → 道具があり文字が選ばれていれば
+  //     マークアップを作る → 動いていない押し離しなら当たり判定で選ぶ → 何も無い場所で
+  //     テキストの道具ならそこに置く
+  //   - 選んでいるテキスト・図形を掴んで動かしたら、離したときに 1 世代（ドラッグ移動）
   //   - ダブルクリックしたテキストは入力欄を開く
-  // に振り分ける。判断そのものは annotate.js・annotate-text.js が持つ。
+  // に振り分ける。判断そのものは annotate.js・annotate-text.js・annotate-shape.js が持つ。
 
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
   const CLICK_SLOP = 3;
@@ -18,8 +21,10 @@
     win: null,
     // 押した位置。離したときに動いていなければ当たり判定へ回す。
     pressed: null,
-    // 掴んで動かしているテキスト { key, index, node, viewport, start(px), group }。
+    // 掴んで動かしているテキスト・図形 { key, index, node, viewport, start(px), group }。
     drag: null,
+    // 描いている図形・ペンのページの枠（表示の座標に直すのに使う）。
+    drawing: null,
   };
 
   function annotate() {
@@ -28,6 +33,10 @@
 
   function annotateText() {
     return root.SigK.annotateText;
+  }
+
+  function annotateShape() {
+    return root.SigK.annotateShape;
   }
 
   function editor() {
@@ -59,12 +68,16 @@
     return Math.abs(event.clientX - from.x) > CLICK_SLOP || Math.abs(event.clientY - from.y) > CLICK_SLOP;
   }
 
-  // ---- ドラッグ移動（spec-4-2 確定事項6） ----
+  // ---- ドラッグ移動（spec-4-2 確定事項6、spec-4-3 確定事項5） ----
 
-  // 選んでいるテキストの上で押したらドラッグの準備。文字選択を始めさせない。
+  function isMovable(entry) {
+    return entry.kind === 'text' || root.SigK.annotationEntry.isDrawnKind(entry.kind);
+  }
+
+  // 選んでいるテキスト・図形の上で押したらドラッグの準備。文字選択を始めさせない。
   function beginDrag(event, page, key) {
     const entry = annotate().selectedEntry();
-    if (entry === null || entry.kind !== 'text' || root.SigK.annotationLayer.keyOf(entry) !== key)
+    if (entry === null || !isMovable(entry) || root.SigK.annotationLayer.keyOf(entry) !== key)
       return false;
     const viewport = editor()?.pageOf(page.index)?.viewport ?? viewer().getTextLayer(page.index)?.viewport;
     if (viewport === undefined || viewport === null)
@@ -97,8 +110,41 @@
       return false;
     const from = drag.viewport.convertToPdfPoint(drag.start[0], drag.start[1]);
     const to = drag.viewport.convertToPdfPoint(event.clientX, event.clientY);
-    annotateText()?.move(drag.key, [to[0] - from[0], to[1] - from[1]]);
+    const delta = [to[0] - from[0], to[1] - from[1]];
+    const entry = annotate().selectedEntry();
+    (entry?.kind === 'text' ? annotateText() : annotateShape())?.move(drag.key, delta);
     return true;
+  }
+
+  // ---- 描く（spec-4-3 確定事項3） ----
+
+  function pointIn(node, event) {
+    const base = node.getBoundingClientRect();
+    return [event.clientX - base.left, event.clientY - base.top];
+  }
+
+  // 図形・ペンの道具を持って紙の上で押したら描き始める。文字選択を始めさせない。
+  function beginDraw(event, page) {
+    if (annotateShape()?.beginDraft({ index: page.index, point: page.point, shift: event.shiftKey }) !== true)
+      return false;
+    event.preventDefault();
+    state.drawing = { node: page.node };
+    return true;
+  }
+
+  function onDrawMove(event) {
+    if (state.drawing === null)
+      return;
+    annotateShape().updateDraft(pointIn(state.drawing.node, event), event.shiftKey);
+  }
+
+  // 離した。注釈になったら true（押し離しの残りの経路へは流さない）。
+  function endDraw(event) {
+    const { drawing } = state;
+    state.drawing = null;
+    if (drawing === null)
+      return false;
+    return annotateShape().finishDraft(pointIn(drawing.node, event), event.shiftKey);
   }
 
   // ---- 押し離し ----
@@ -117,8 +163,13 @@
     if (page === null)
       return;
     const hit = annotate().hitTest(page.index, page.point);
-    if (hit !== null && hit === annotate().getSelected())
+    if (hit !== null && hit === annotate().getSelected()) {
       beginDrag(event, page, hit);
+      return;
+    }
+    const tool = annotate().getTool();
+    if (tool === 'shape' || tool === 'pen')
+      beginDraw(event, page);
   }
 
   // 離したとき: 道具があり文字が選ばれていれば作る（spec-4-1 確定事項10 ①）。選ばれて
@@ -127,7 +178,7 @@
   function onMouseUp(event) {
     const pressed = state.pressed;
     state.pressed = null;
-    if (endDrag(event))
+    if (endDrag(event) || endDraw(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
@@ -178,15 +229,18 @@
     view?.addEventListener('mousedown', onMouseDown);
     view?.addEventListener('mouseup', onMouseUp);
     view?.addEventListener('dblclick', onDoubleClick);
-    // ドラッグ中はページビューの外で離しても拾う。
-    doc.addEventListener('mousemove', onDragMove);
+    // ドラッグ中・描いている間はページビューの外で離しても拾う。
+    doc.addEventListener('mousemove', (event) => {
+      onDragMove(event);
+      onDrawMove(event);
+    });
     doc.addEventListener('mouseup', (event) => {
-      if (state.drag !== null && !(view?.contains(event.target) ?? false))
+      if ((state.drag !== null || state.drawing !== null) && !(view?.contains(event.target) ?? false))
         onMouseUp(event);
     });
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotatePointer = { CLICK_SLOP, init, isDragging: () => state.drag !== null };
+  SigK.annotatePointer = { CLICK_SLOP, init, isDragging: () => state.drag !== null, isDrawing: () => state.drawing !== null };
 })(typeof window !== 'undefined' ? window : globalThis);

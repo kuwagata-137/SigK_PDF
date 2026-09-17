@@ -656,6 +656,12 @@ textarea.free-text-editor{
   resize:none; outline:none;
 }
 html[data-mode="annot"][data-tool="text"] .textLayer{cursor:text}
+/* 図形・ペン（spec-4-3 確定事項1・3・8）。ドラッグで描くので文字を選ばせない。下書きは確定後と同じ見た目。 */
+html[data-mode="annot"][data-tool="shape"] .textLayer,
+html[data-mode="annot"][data-tool="pen"] .textLayer{cursor:crosshair; user-select:none}
+html[data-mode="annot"][data-tool="shape"] .textLayer span,
+html[data-mode="annot"][data-tool="pen"] .textLayer span{user-select:none}
+.annot-draft{pointer-events:none}
 
 /* 右のプロパティ（確定事項4）。注釈モードの間は常に出す。幅はサイドパネルと
    同じ意匠で 260px（docs/04 第3章）。 */
@@ -676,7 +682,15 @@ html[data-mode="annot"] #props{display:flex}
 }
 .swatch.on{box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--accent)}
 .props-hint{margin:0; color:var(--muted); font-size:11.5px; line-height:1.7}
-/* 文字の大きさ（spec-4-2 確定事項2・34）。 */
+/* 図形の種類（spec-4-3 確定事項2）。4 つのボタンで、押しているものを強調する。 */
+.props-kinds{display:flex; gap:4px}
+.props-kinds button{
+  width:40px; height:30px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2);
+  display:grid; place-items:center; color:var(--muted); cursor:pointer; padding:0;
+}
+.props-kinds button:hover{color:var(--text)}
+.props-kinds button.on{border-color:var(--accent); color:var(--accent); background:var(--select); box-shadow:inset 0 0 0 1px var(--accent)}
+/* 文字の大きさ・線の太さ（spec-4-2 確定事項2・34、spec-4-3 確定事項2・29）。 */
 .props-select{
   font:13px inherit; font-family:inherit; width:110px; height:28px; padding:0 8px;
   border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text);

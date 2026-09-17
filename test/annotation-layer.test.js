@@ -5,8 +5,11 @@ const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
 require('../renderer/markup-quads.js');
+require('../renderer/annotation-entry.js');
 require('../renderer/free-text-geometry.js');
 require('../renderer/free-text-shape.js');
+require('../renderer/shape-geometry.js');
+require('../renderer/shape-graphics.js');
 require('../renderer/annotation-layer.js');
 
 // 紙の上に重ねる注釈の層（spec-4-1 確定事項5・37）と、印刷用の canvas 2D の描き手（確定事項28）。
@@ -146,4 +149,54 @@ test('paint はテキストを fillText で描く', () => {
 test('keyOf は ref があれば ref、無ければ id', () => {
   assert.equal(layer.keyOf(HIGHLIGHT), 'sigk-1');
   assert.equal(layer.keyOf(UNDERLINE), '86R');
+});
+
+// ---- 図形・ペン（spec-4-3 確定事項3・8・25） ----
+
+const SQUARE = { id: 'sigk-7', src: 0, kind: 'square', color: '#d92c2c', opacity: 1, lineWidth: 2, rect: [100, 600, 300, 700], quads: [[100, 700, 300, 700, 100, 600, 300, 600]] };
+const ARROW = { ref: '40R', src: 0, kind: 'arrow', color: '#2c5cd9', opacity: 0.5, lineWidth: 3, rect: [98.5, 543.55, 301.5, 601.5], quads: [[98.5, 601.5, 301.5, 601.5, 98.5, 543.55, 301.5, 543.55]], paths: [[[100, 600], [300, 550]]] };
+
+test('draw は図形を shape-graphics の <g> に委ね、選択の枠は四角から', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport());
+  assert.equal(layer.draw(svg, [HIGHLIGHT, SQUARE, ARROW], viewport(), { selected: '40R' }), 4);
+  const square = svg.querySelector('g[data-annot="sigk-7"]');
+  assert.equal(square.getAttribute('data-kind'), 'square');
+  assert.equal(square.querySelector('g.shape.square rect').getAttribute('width'), '198');
+  const arrow = svg.querySelector('g[data-annot="40R"]');
+  assert.equal(arrow.getAttribute('opacity'), '0.5');
+  assert.equal(arrow.querySelectorAll('line, polyline').length, 2);
+  const frame = svg.querySelector('.annot-frame');
+  assert.equal(Number(frame.getAttribute('x')), 98.5 - layer.FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), Math.round((203 + layer.FRAME_PADDING * 2) * 100) / 100);
+});
+
+test('draw は下書き（draft）を最後に annot-draft として描き、当たり判定の鍵を持たせない', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport());
+  const draft = { ...SQUARE, id: undefined, rect: [10, 10, 60, 40], quads: [[10, 40, 60, 40, 10, 10, 60, 10]] };
+  assert.equal(layer.draw(svg, [HIGHLIGHT], viewport(), { draft }), 2);
+  const last = svg.lastElementChild;
+  assert.equal(last.getAttribute('class'), 'annot-draft');
+  assert.equal(last.hasAttribute('data-annot'), false);
+  assert.equal(last.querySelector('rect').getAttribute('width'), '48');
+  // 選んでいる注釈の枠より上に来る
+  assert.equal(layer.draw(svg, [HIGHLIGHT], viewport(), { selected: 'sigk-1', draft }), 3);
+  assert.equal(svg.lastElementChild.getAttribute('class'), 'annot-draft');
+  assert.equal(svg.children[1].getAttribute('class'), 'annot-frame');
+  // 無ければ描かない
+  assert.equal(layer.draw(svg, [HIGHLIGHT], viewport(), { draft: null }), 1);
+});
+
+test('paint は図形を shape-graphics に委ねる', () => {
+  const calls = [];
+  const ctx = new Proxy({}, {
+    get: (_target, name) => (...args) => { calls.push([name, ...args]); },
+    set: (_target, name, value) => { calls.push(['set', name, value]); return true; },
+  });
+  assert.equal(layer.paint(ctx, [SQUARE, ARROW, HIGHLIGHT], viewport()), 3);
+  assert.equal(calls.filter((call) => call[0] === 'strokeRect').length, 1);
+  assert.equal(calls.filter((call) => call[0] === 'stroke').length, 2);
+  assert.equal(calls.filter((call) => call[0] === 'fill').length, 1);
+  assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'globalAlpha' && value === 0.5));
 });

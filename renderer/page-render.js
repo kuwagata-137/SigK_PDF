@@ -99,6 +99,8 @@
       layer.draw(entry.annots.svg, entries, entry.annots.viewport, {
         selected: root.SigK.annotate?.getSelected() ?? null,
         editing: root.SigK.freeTextEditor?.editingKey() ?? null,
+        // 描いている途中の図形（spec-4-3 確定事項3）。
+        draft: root.SigK.annotateShape?.draftFor(index) ?? null,
       });
     }
 

@@ -51,6 +51,8 @@
       // 注釈の色と文字の大きさ（spec-4-1 確定事項34、spec-4-2 確定事項21）。古い settings.json には無いことがある。
       root.SigK.annotate?.applyColors(result.ui.annotColors);
       root.SigK.annotate?.applyFontSize(result.ui.annotFontSize);
+      root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
+      root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);
       return result.ui;
     } catch {
       return null;
@@ -105,6 +107,7 @@
     root.SigK.annotateMarkup.init(doc, win);
     root.SigK.freeTextEditor.init(doc, win);
     root.SigK.annotateText.init(doc, win);
+    root.SigK.annotateShape.init(doc, win);
     root.SigK.annotatePointer.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。

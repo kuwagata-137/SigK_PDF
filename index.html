@@ -89,14 +89,14 @@ body{
         <span class="lbl">ツール</span>
       </div>
       <!-- 注釈の道具（spec-4-1 確定事項1・2、spec-4-2 確定事項1）。注釈モードのときだけ出る。
-           図形以降は塊③〜④の位置取りで、まだ押せない。 -->
+           ノートは塊④の位置取りで、まだ押せない（spec-4-3 確定事項1）。 -->
       <div class="rail-sep annot-only"></div>
       <div class="rail-item tool annot-only" data-tool="highlight" title="ハイライト"><span data-icon="highlight" data-icon-size="21"></span><span class="lbl">ハイライト</span></div>
       <div class="rail-item tool annot-only" data-tool="underline" title="下線"><span data-icon="underline" data-icon-size="21"></span><span class="lbl">下線</span></div>
       <div class="rail-item tool annot-only" data-tool="strikeout" title="取り消し線"><span data-icon="strikeout" data-icon-size="21"></span><span class="lbl">取り消し線</span></div>
       <div class="rail-item tool annot-only" data-tool="text" title="テキスト"><span data-icon="text" data-icon-size="21"></span><span class="lbl">テキスト</span></div>
-      <div class="rail-item tool annot-only" aria-disabled="true" title="図形（後の段階で入ります）"><span data-icon="shape" data-icon-size="21"></span><span class="lbl">図形</span></div>
-      <div class="rail-item tool annot-only" aria-disabled="true" title="ペン（後の段階で入ります）"><span data-icon="pen" data-icon-size="21"></span><span class="lbl">ペン</span></div>
+      <div class="rail-item tool annot-only" data-tool="shape" title="図形"><span data-icon="shape" data-icon-size="21"></span><span class="lbl">図形</span></div>
+      <div class="rail-item tool annot-only" data-tool="pen" title="ペン"><span data-icon="pen" data-icon-size="21"></span><span class="lbl">ペン</span></div>
       <div class="rail-item tool annot-only" aria-disabled="true" title="ノート（後の段階で入ります）"><span data-icon="note" data-icon-size="21"></span><span class="lbl">ノート</span></div>
     </div>
 
@@ -409,8 +409,10 @@ body{
       <div class="side-head"><span>プロパティ</span></div>
       <div class="props-body">
         <div class="prop"><span class="k">種類</span><span class="v" id="props-kind">–</span></div>
+        <div class="prop" id="props-shape-row" hidden><span class="k">図形の種類</span><div class="props-kinds" id="props-shape-kinds"></div></div>
         <div class="prop"><span class="k">色</span><div class="swatches" id="props-colors"></div></div>
         <div class="prop" id="props-size-row" hidden><span class="k">文字の大きさ</span><select class="props-select" id="props-size" aria-label="文字の大きさ"></select></div>
+        <div class="prop" id="props-width-row" hidden><span class="k">線の太さ</span><select class="props-select" id="props-width" aria-label="線の太さ"></select></div>
         <div class="prop" id="props-page-row" hidden><span class="k">ページ</span><span class="v" id="props-page"></span></div>
         <div class="prop" id="props-text-row" hidden><span class="k" id="props-text-label">対象の文字</span><span class="v" id="props-text"></span></div>
         <p class="props-hint" id="props-hint"></p>
@@ -559,6 +561,8 @@ body{
 <script src="renderer/markup-quads.js"></script>
 <script src="renderer/markup-selection.js"></script>
 <script src="renderer/free-text-shape.js"></script>
+<script src="renderer/shape-geometry.js"></script>
+<script src="renderer/shape-graphics.js"></script>
 <script src="renderer/annotation-layer.js"></script>
 <script src="renderer/annotation-import.js"></script>
 <script src="renderer/page-render.js"></script>
@@ -601,6 +605,7 @@ body{
 <script src="renderer/annotate-markup.js"></script>
 <script src="renderer/free-text-editor.js"></script>
 <script src="renderer/annotate-text.js"></script>
+<script src="renderer/annotate-shape.js"></script>
 <script src="renderer/annotate-pointer.js"></script>
 <script src="renderer/annotation-props.js"></script>
 <script src="renderer/doc-info.js"></script>

@@ -561,6 +561,9 @@ async function createShell({
           annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },
           // テキストの文字の大きさ（spec-4-2 確定事項21）。
           annotFontSize: patch?.annotFontSize ?? savedUi.annotFontSize,
+          // 図形・ペンの線の太さと図形の種類（spec-4-3 確定事項19）。
+          annotLineWidth: patch?.annotLineWidth ?? savedUi.annotLineWidth,
+          annotShapeKind: patch?.annotShapeKind ?? savedUi.annotShapeKind,
         };
         return { ok: true, ui: structuredClone(savedUi) };
       },
