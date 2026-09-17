@@ -304,3 +304,107 @@ test('text を remove で消すと辞書と外観は消え、フォントは残�
   assert.deepEqual(annotsOf(again, 0), []);
   assert.equal(type0FontsOf(again).length, 1);
 });
+
+// ---- 図形・ペン（spec-4-3 確定事項20〜23） ----
+
+function shape(overrides = {}) {
+  return { src: 0, kind: 'square', color: '#d92c2c', opacity: 1, rect: [100, 600, 300, 700], lineWidth: 2, ...overrides };
+}
+
+function arrow(overrides = {}) {
+  return { src: 0, kind: 'arrow', color: '#2c5cd9', opacity: 1, rect: [98.5, 543.55, 301.5, 601.5], lineWidth: 3, paths: [[[100, 600], [300, 550]]], ...overrides };
+}
+
+function ink(overrides = {}) {
+  return { src: 1, kind: 'ink', color: '#2f9e5a', opacity: 1, rect: [99, 479, 151, 511], lineWidth: 2, paths: [[[100, 500], [120, 480], [150, 510]]], ...overrides };
+}
+
+test('図形は Square・Circle・PolyLine・Ink の辞書と外観で書かれ、フォントは埋めない', async () => {
+  const doc = await makeDoc(2);
+  const result = await applyAnnotations(doc, { add: [shape(), shape({ kind: 'circle' }), arrow({ kind: 'line', rect: [98.5, 548.5, 301.5, 601.5] }), arrow(), ink()] }, TOOLS, { now: NOW, fontSource });
+  assert.deepEqual(result, { ok: true, added: 5, removed: 0 });
+
+  const saved = await roundTrip(doc);
+  const first = annotsOf(saved, 0);
+  assert.deepEqual(first.map(({ dict }) => nameOf(dict, '/Subtype')), ['/Square', '/Circle', '/PolyLine', '/PolyLine']);
+  const [square, circle, line, arrowDict] = first.map(({ dict }) => dict);
+  // 共通の欄
+  for (const dict of [square, circle, line, arrowDict]) {
+    assert.equal(nameOf(dict, '/Type'), '/Annot');
+    assert.equal(pick(dict, '/F').asNumber(), 4);
+    assert.equal(pick(dict, '/CA').asNumber(), 1);
+    assert.equal(pick(dict, '/Contents').decodeText(), '');
+    assert.match(pick(dict, '/NM').decodeText(), /^sigk-[0-9a-z]+-\d$/);
+    assert.equal(pick(dict, '/M').decodeText(), `D:20260915120000${zoneOf(NOW)}`);
+    const bs = saved.context.lookup(pick(dict, '/BS'));
+    assert.equal(nameOf(bs, '/S'), '/S');
+    for (const key of ['/IC', '/L', '/QuadPoints', '/IT', '/DA'])
+      assert.equal(pick(dict, key), undefined, key);
+  }
+  // 矩形: /Rect は箱そのもの、/C は線の色、/BS /W と /Border は線幅
+  assert.deepEqual(numbersOf(saved, pick(square, '/Rect')), [100, 600, 300, 700]);
+  assert.deepEqual(numbersOf(saved, pick(square, '/C')).map((v) => Math.round(v * 100) / 100), [0.85, 0.17, 0.17]);
+  assert.equal(pick(saved.context.lookup(pick(square, '/BS')), '/W').asNumber(), 2);
+  assert.deepEqual(numbersOf(saved, pick(square, '/Border')), [0, 0, 2]);
+  const squareAp = saved.context.lookup(pick(saved.context.lookup(pick(square, '/AP')), '/N'));
+  assert.equal(nameOf(squareAp.dict, '/Subtype'), '/Form');
+  assert.deepEqual(numbersOf(saved, pick(squareAp.dict, '/BBox')), [100, 600, 300, 700]);
+  assert.equal(contentOf(saved, squareAp), '/GS gs\n0.85 0.17 0.17 RG\n2 w 101 601 198 98 re S');
+  assert.equal(pick(saved.context.lookup(pick(squareAp.dict, '/Resources')), '/Font'), undefined);
+  // 楕円
+  assert.match(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(circle, '/AP')), '/N'))), /c\nh S$/);
+  // 直線: /Vertices は向きのまま、/LE は無し
+  assert.deepEqual(numbersOf(saved, pick(line, '/Vertices')), [100, 600, 300, 550]);
+  assert.equal(pick(line, '/LE'), undefined);
+  assert.deepEqual(numbersOf(saved, pick(line, '/Rect')), [98.5, 548.5, 301.5, 601.5]);
+  // 矢印: /LE は終点だけ OpenArrow
+  assert.deepEqual(numbersOf(saved, pick(arrowDict, '/Vertices')), [100, 600, 300, 550]);
+  assert.deepEqual(saved.context.lookup(pick(arrowDict, '/LE')).asArray().map((name) => name.asString()), ['/None', '/OpenArrow']);
+  assert.equal(pick(saved.context.lookup(pick(arrowDict, '/BS')), '/W').asNumber(), 3);
+  assert.match(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(arrowDict, '/AP')), '/N'))), /^\/GS gs\n0\.17 0\.36 0\.85 RG\n3 w 1 J 1 j\n100 600 m 300 550 l S\n[\d.]+ [\d.]+ m 300 550 l [\d.]+ [\d.]+ l S$/);
+  // ペン（2 ページ目）: /InkList は path ごとの平たい並び
+  const [{ dict: inkDict }] = annotsOf(saved, 1);
+  assert.equal(nameOf(inkDict, '/Subtype'), '/Ink');
+  const inkList = saved.context.lookup(pick(inkDict, '/InkList')).asArray();
+  assert.equal(inkList.length, 1);
+  assert.deepEqual(numbersOf(saved, inkList[0]), [100, 500, 120, 480, 150, 510]);
+  assert.equal(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(inkDict, '/AP')), '/N'))), '/GS gs\n0.18 0.62 0.35 RG\n2 w 1 J 1 j\n100 500 m 120 480 l 150 510 l S');
+  // フォントは埋まらない
+  assert.equal(type0FontsOf(saved).length, 0);
+});
+
+test('図形とテキストを同じ保存で足すとフォントは 1 つで、図形の外観にフォントは付かない', async () => {
+  const doc = await makeDoc(1);
+  const result = await applyAnnotations(doc, { add: [shape(), text()] }, TOOLS, { now: NOW, fontSource });
+  assert.deepEqual(result, { ok: true, added: 2, removed: 0 });
+  const saved = await roundTrip(doc);
+  assert.equal(type0FontsOf(saved).length, 1);
+  const [{ dict }] = annotsOf(saved, 0);
+  const normal = saved.context.lookup(pick(saved.context.lookup(pick(dict, '/AP')), '/N'));
+  assert.equal(pick(saved.context.lookup(pick(normal.dict, '/Resources')), '/Font'), undefined);
+});
+
+test('図形の形が違えば何も書かずに断る', async () => {
+  const doc = await makeDoc(1);
+  assert.deepEqual(await applyAnnotations(doc, { add: [shape({ lineWidth: 0 })] }, TOOLS), { error: '注釈 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [arrow({ paths: [[[1, 2]]] })] }, TOOLS), { error: '注釈 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [shape(), ink({ src: 0, paths: [] })] }, TOOLS), { error: '注釈 2 の形が読めません。' });
+  assert.equal(annotsOf(await roundTrip(doc), 0).length, 0);
+});
+
+test('図形を remove で消すと辞書と外観が消える', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [arrow()] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const [{ ref }] = annotsOf(saved, 0);
+  const result = await applyAnnotations(saved, { remove: [`${ref.objectNumber}R`] }, TOOLS, { now: NOW });
+  assert.deepEqual(result, { ok: true, added: 0, removed: 1 });
+  const again = await roundTrip(saved);
+  assert.equal(annotsOf(again, 0).length, 0);
+  let forms = 0;
+  for (const [, obj] of again.context.enumerateIndirectObjects()) {
+    if (obj?.dict?.get?.(PDFName.of('Subtype'))?.encodedName === '/Form')
+      forms += 1;
+  }
+  assert.equal(forms, 0);
+});

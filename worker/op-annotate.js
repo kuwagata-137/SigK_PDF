@@ -1,21 +1,22 @@
 'use strict';
 
-// 注釈を /Annots へ書く層（spec-4-1 確定事項22〜27、spec-4-2 確定事項22〜26）。
+// 注釈を /Annots へ書く層（spec-4-1 確定事項22〜27、spec-4-2 確定事項22〜26、spec-4-3 確定事項20〜23）。
 //
 // レンダラーから届く { add, remove } は「ファイルとの差分」である。add[] はマークアップ
 // { src, kind, color, opacity, quads, rect } かテキスト { src, kind: 'text', color, opacity, rect,
-// text, fontSize, rotation }（src はこの文書のページ番号）、remove[] は pdf.js の id（"86R"）で
-// ある。applyPlan の**前**に当てる。並べ替えのあとでは src が指すページが変わるためで、
+// text, fontSize, rotation } か図形・ペン { src, kind, color, opacity, rect, lineWidth, paths? }
+// （src はこの文書のページ番号）、remove[] は pdf.js の id（"86R"）である。applyPlan の**前**に当てる。並べ替えのあとでは src が指すページが変わるためで、
 // 当てた注釈はページ実体に付いて一緒に動く。外す側は annotation-remove.js。
 //
 // テキストは同梱フォントのサブセットを要る保存でだけ 1 度埋める（font-embed.js）。
-// 純関数（annotation-appearance.js・free-text-appearance.js）が content stream を組み、
+// 純関数（annotation-appearance.js・free-text-appearance.js・shape-appearance.js）が content stream を組み、
 // ここは pdf-lib の Form XObject と辞書に包む。pdf-lib のクラスは TOOLS で受ける
 // （vendor へのパスをここに持たせない）。/Annots の直接操作は inserted-annotations.js と
 // 同じ作法にする（page.node.addAnnot() は normalize() が content stream を包み直すので使わない）。
 
 const { appearanceOf } = require('./annotation-appearance.js');
 const { freeTextAppearanceOf, isFreeTextEntry } = require('./free-text-appearance.js');
+const { shapeAppearanceOf, KINDS: SHAPE_KINDS } = require('./shape-appearance.js');
 const { embedBundledFont, FONT_ERROR } = require('./font-embed.js');
 const { parseRef, annotsOf, removeAnnotations } = require('./annotation-remove.js');
 
@@ -45,9 +46,31 @@ function appearanceStream(context, appearance, font) {
   }));
 }
 
+// 図形・ペンの欄（spec-4-3 確定事項21）。線の色 /C・線幅 /BS /W と /Border、直線・矢印は /Vertices（と矢印の /LE）、
+// ペンは /InkList。塗り /IC は書かない。
+function shapeFields(appearance, { PDFName, PDFString }) {
+  const fields = {
+    C: appearance.rgb,
+    BS: { W: appearance.lineWidth, S: 'S' },
+    Border: [0, 0, appearance.lineWidth],
+    Contents: PDFString.of(''),
+  };
+  if (appearance.vertices !== undefined) {
+    fields.Vertices = appearance.vertices;
+    if (appearance.lineEndings[1] !== 'None')
+      fields.LE = appearance.lineEndings.map((name) => PDFName.of(name));
+  }
+  if (appearance.inkList !== undefined)
+    fields.InkList = appearance.inkList;
+  return fields;
+}
+
 // 種類ごとの欄。マークアップは /QuadPoints と /C、テキストは /Contents・/DA・/Border・/Rotate
-// （spec-4-2 確定事項25。/C は箱の背景色に使うビューアがあるので書かない）。
-function kindFields(entry, appearance, { PDFString, PDFHexString }) {
+// （spec-4-2 確定事項25。/C は箱の背景色に使うビューアがあるので書かない）、図形・ペンは shapeFields。
+function kindFields(entry, appearance, tools) {
+  const { PDFString, PDFHexString } = tools;
+  if (SHAPE_KINDS.includes(entry.kind))
+    return shapeFields(appearance, tools);
   if (entry.kind !== 'text') {
     return { QuadPoints: entry.quads.flat(), C: appearance.rgb, Contents: PDFString.of('') };
   }
@@ -87,13 +110,24 @@ function addAnnotation(doc, page, { entry, appearance }, font, tools, now, seria
   return annotRef;
 }
 
+// 種類ごとの外観。テキストだけフォントの計量が要る。形が違えば null。
+function appearanceFor(entry, measure) {
+  if (entry.kind === 'text')
+    return freeTextAppearanceOf(entry, measure);
+  return SHAPE_KINDS.includes(entry.kind) ? shapeAppearanceOf(entry) : appearanceOf(entry);
+}
+
+// 1 件の形が読めるか（テキストはフォント無しで見る）。
+function validAdd(entry) {
+  return entry.kind === 'text' ? isFreeTextEntry(entry) : appearanceFor(entry) !== null;
+}
+
 // add[] の形を先に全部見る。1 つでも違えば何も書かない（validatePlan と同じ流儀）。
 function validateAdd(add, pageCount) {
   for (const [index, entry] of add.entries()) {
     if (!Number.isInteger(entry?.src) || entry.src < 0 || entry.src >= pageCount)
       return { error: `注釈 ${index + 1} のページ番号が文書に合いません。` };
-    const valid = entry.kind === 'text' ? isFreeTextEntry(entry) : appearanceOf(entry) !== null;
-    if (!valid)
+    if (!validAdd(entry))
       return { error: `注釈 ${index + 1} の形が読めません。` };
   }
   return null;
@@ -122,10 +156,7 @@ async function applyAnnotations(doc, { add = [], remove = [] } = {}, tools, { no
   if (error !== undefined)
     return { error };
 
-  const prepared = add.map((entry) => ({
-    entry,
-    appearance: entry.kind === 'text' ? freeTextAppearanceOf(entry, font.measure) : appearanceOf(entry),
-  }));
+  const prepared = add.map((entry) => ({ entry, appearance: appearanceFor(entry, font?.measure) }));
   const removed = removeAnnotations(doc, remove, tools);
   prepared.forEach((item, serial) => {
     addAnnotation(doc, pages[item.entry.src], item, font, tools, now, serial + 1);
