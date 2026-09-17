@@ -1,17 +1,19 @@
 (function (root) {
   'use strict';
 
-  // 注釈モードの指揮（spec-4-1 確定事項1〜10・15〜19、spec-4-2 確定事項1・7・8・21）。
+  // 注釈モードの指揮（spec-4-1 確定事項1〜10・15〜19、spec-4-2 確定事項1・7・8・21、spec-4-3 確定事項12・19）。
   //
   // 道具を持つ・選ぶ・消す・色を変える・履歴に積む、をここで結ぶ。状態の純粋な操作は
   // annotation-state.js、描画は annotation-layer.js、読み込んだ注釈を集めるのは
   // annotation-import.js、右のプロパティは annotation-props.js、ページビューの押し離しは
   // annotate-pointer.js、文字の選択からマークアップを作るのは annotate-markup.js、
-  // テキストの置く・直す・動かすは annotate-text.js が持つ。ここが握るのは
-  // 「いまの道具」「選んでいる注釈」「次に付ける色と文字の大きさ」だけである。
+  // テキストの置く・直す・動かすは annotate-text.js、図形・ペンの描く・動かす・太さは
+  // annotate-shape.js が持つ。ここが握るのは「いまの道具」「選んでいる注釈」「次に付ける色と
+  // 文字の大きさ」だけである。
 
-  // プリセット（確定事項33、spec-4-2 確定事項34・35）は annotation-presets.js が持つ。
-  const { TOOLS, MARKUP_TOOLS, TOOL_LABELS, COLORS, COLOR_NAMES, DEFAULT_COLORS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
+  // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
+  // 色は種類ごとの引き出し（paletteOf。図形 4 種は shape、ペンは pen）で引く。
+  const { TOOLS, MARKUP_TOOLS, TOOL_LABELS, COLORS, COLOR_NAMES, DEFAULT_COLORS, DEFAULT_FONT_SIZE, isFontSize, paletteOf } = root.SigK.annotationPresets;
 
   const state = {
     doc: null,
@@ -80,7 +82,8 @@
   }
 
   function colorOf(kind) {
-    return state.colors[kind] ?? DEFAULT_COLORS[kind];
+    const palette = paletteOf(kind);
+    return state.colors[palette] ?? DEFAULT_COLORS[palette];
   }
 
   function applyColors(colors) {
@@ -93,10 +96,11 @@
   }
 
   function rememberColor(kind, color) {
-    if (!COLORS[kind]?.includes(color))
+    const palette = paletteOf(kind);
+    if (!COLORS[palette]?.includes(color))
       return false;
-    state.colors[kind] = color;
-    root.SigK.shell?.persist?.({ annotColors: { [kind]: color } });
+    state.colors[palette] = color;
+    root.SigK.shell?.persist?.({ annotColors: { [palette]: color } });
     return true;
   }
 
@@ -146,6 +150,15 @@
     return state.selected;
   }
 
+  // 1 つの注釈に点（紙の座標）が当たるか。直線・矢印・ペンは線からの距離、それ以外は四角（spec-4-3 確定事項12）。
+  function hits(entry, pdfPoint, viewport) {
+    if (!annotationState().isPathKind(entry.kind))
+      return root.SigK.markupQuads.hitTest(entry.quads, pdfPoint);
+    const geometry = root.SigK.shapeGeometry;
+    const tolerance = geometry.hitTolerance(entry.lineWidth, viewport.scale ?? 1);
+    return geometry.hitsPath(entry.paths, pdfPoint, tolerance, { arrow: entry.kind === 'arrow', lineWidth: entry.lineWidth });
+  }
+
   // 点（.pdf-page 基準の CSS px）に当たる注釈。上に描いたもの（後ろ）が優先。
   function hitTest(index, point) {
     const view = viewer();
@@ -156,7 +169,7 @@
     const pdfPoint = viewport.convertToPdfPoint(point[0], point[1]);
     const entries = annotationState().annotsOnPage(view.getAnnotations(), view.getImported(), src);
     for (let position = entries.length - 1; position >= 0; position -= 1) {
-      if (root.SigK.markupQuads.hitTest(entries[position].quads, pdfPoint))
+      if (hits(entries[position], pdfPoint, viewport))
         return root.SigK.annotationLayer.keyOf(entries[position]);
     }
     return null;
@@ -184,7 +197,7 @@
       props()?.refresh();
       return true;
     }
-    if (!COLORS[entry.kind].includes(color))
+    if (!COLORS[paletteOf(entry.kind)].includes(color))
       return false;
     const before = state.selected;
     const annots = annotationState().recolorAnnot(viewer().getAnnotations(), entry, color);
@@ -202,8 +215,11 @@
     return root.SigK.annotateText?.finishEditing() === true;
   }
 
-  // Esc。入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を離す（確定事項7）。
+  // Esc。描いている途中なら捨て、入力欄が開いていれば確定、選んでいる注釈があれば解除、
+  // 無ければ道具を離す（確定事項7、spec-4-3 確定事項3）。
   function escape() {
+    if (root.SigK.annotateShape?.cancelDraft() === true)
+      return true;
     if (finishEditing())
       return true;
     if (state.selected !== null) {
@@ -283,6 +299,10 @@
     applyFontSize,
     rememberFontSize,
     setFontSize: (size) => root.SigK.annotateText?.setFontSize(size) === true,
+    setLineWidth: (width) => root.SigK.annotateShape?.setLineWidth(width) === true,
+    setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
+    getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),
+    getShapeKind: () => root.SigK.annotateShape?.getShapeKind(),
     editSelected: () => root.SigK.annotateText?.editSelected() === true,
     finishEditing,
     createFromSelection,

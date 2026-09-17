@@ -143,6 +143,11 @@
       ['circle', { cx: 16, cy: 16, r: 4 }],
     ],
     pen: [['path', { d: 'M4 18c3-8 6-8 8-2s5 6 8-4' }]],
+    // 右パネルの「図形の種類」（spec-4-3 確定事項2）。
+    shapeSquare: [['rect', { x: 4, y: 6, width: 16, height: 12, rx: 1 }]],
+    shapeCircle: [['ellipse', { cx: 12, cy: 12, rx: 8, ry: 6 }]],
+    shapeLine: [['path', { d: 'M5 18L19 6' }]],
+    shapeArrow: [['path', { d: 'M5 18L19 6M12 6h7v7' }]],
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
   };
 

@@ -1,17 +1,22 @@
 (function (root) {
   'use strict';
 
-  // ファイルにある注釈のうち自前で描くものを集める層（spec-4-1 確定事項17・18、spec-4-2 確定事項13）。
+  // ファイルにある注釈のうち自前で描くものを集める層（spec-4-1 確定事項17・18、spec-4-2 確定事項13、
+  // spec-4-3 確定事項13）。
   //
-  // pdf.js の getAnnotations() から Highlight／Underline／StrikeOut と、自分で付けた FreeText
-  // （/DA のフォント名が SigKJP のもの）だけを拾い、自前の層で描ける形
-  // { ref, src, kind, color, opacity, quads, rect（テキストは text・fontSize・rotation も）} にする。
-  // pdf.js には描かせない印（annotationStorage の noView。事前調査 B ①）もここで付ける。
-  // 他のツールが作った FreeText は拾わず、pdf.js が描く（表示のみ。論点8）。
+  // pdf.js の getAnnotations() から Highlight／Underline／StrikeOut、自分で付けた FreeText
+  // （/DA のフォント名が SigKJP のもの）、Square／Circle／Ink と 2 点の PolyLine を拾い、自前の層で
+  // 描ける形 { ref, src, kind, color, opacity, quads, rect（テキストは text・fontSize・rotation、図形は
+  // lineWidth・paths も）} にする。pdf.js には描かせない印（annotationStorage の noView。事前調査 B ①）も
+  // ここで付ける。他のツールが作った FreeText・Line（pdf.js が /L の向きを落とす）・3 点以上の PolyLine・
+  // Polygon は拾わず、pdf.js が描く（表示のみ）。
   // 集めたものは編集ではないので履歴には入らない。viewer.setImported() へ渡すだけ。
 
-  // pdf.js の subtype → 種類。
-  const SUBTYPES = Object.freeze({ Highlight: 'highlight', Underline: 'underline', StrikeOut: 'strikeout', FreeText: 'text' });
+  // pdf.js の subtype → 種類。PolyLine は頂点と矢じりで line／arrow に分ける。
+  const SUBTYPES = Object.freeze({
+    Highlight: 'highlight', Underline: 'underline', StrikeOut: 'strikeout', FreeText: 'text',
+    Square: 'square', Circle: 'circle', PolyLine: 'polyline', Ink: 'ink',
+  });
   // 自分で付けたテキストの印（worker/font-embed.js の DA_FONT_NAME と同じ）。
   const OWN_FONT_NAME = 'SigKJP';
 
@@ -57,12 +62,73 @@
     };
   }
 
+  function isRect(rect) {
+    return Array.isArray(rect) && rect.length === 4 && rect.every(Number.isFinite);
+  }
+
+  // pdf.js の平たい数の並び（x y x y …）を点列にする。2 点未満なら null。
+  function pathOf(flat) {
+    if (flat === null || flat === undefined || flat.length < 4)
+      return null;
+    const path = [];
+    for (let index = 0; index + 2 <= flat.length; index += 2)
+      path.push([Math.round(flat[index] * 100) / 100, Math.round(flat[index + 1] * 100) / 100]);
+    return path;
+  }
+
+  // PolyLine の種類。2 点で矢じりが無ければ直線、終点だけ開いた矢じりなら矢印。それ以外は拾わない。
+  function polylineKind(annotation) {
+    const [start, end] = annotation.lineEndings ?? ['None', 'None'];
+    if (annotation.vertices?.length !== 4 || start !== 'None')
+      return null;
+    if (end === 'None')
+      return 'line';
+    return end === 'OpenArrow' ? 'arrow' : null;
+  }
+
+  function pathsOf(kind, annotation) {
+    if (kind === 'ink') {
+      const paths = (annotation.inkLists ?? []).map(pathOf).filter((path) => path !== null);
+      return paths.length === 0 ? null : paths;
+    }
+    if (kind === 'line' || kind === 'arrow')
+      return [pathOf(annotation.vertices)];
+    return undefined;
+  }
+
+  // 図形・ペン。/Rect・/C・/BS /W と、/Vertices（PolyLine）・/InkList（Ink）から組む（spec-4-3 確定事項13）。
+  function importedShape(annotation, src) {
+    const kind = annotation.subtype === 'PolyLine' ? polylineKind(annotation) : SUBTYPES[annotation.subtype];
+    if (kind === null || !isRect(annotation.rect) || annotation.color === null || annotation.color === undefined)
+      return null;
+    const paths = pathsOf(kind, annotation);
+    if (paths === null)
+      return null;
+    const rect = roundRect(annotation.rect);
+    const width = annotation.borderStyle?.width;
+    const entry = {
+      ref: annotation.id,
+      src,
+      kind,
+      color: hexOf(annotation.color),
+      opacity: Number.isFinite(annotation.opacity) ? annotation.opacity : 1,
+      lineWidth: Number.isFinite(width) && width > 0 ? width : 1,
+      rect,
+      quads: [root.SigK.freeTextGeometry.quadOfRect(rect)],
+    };
+    if (paths !== undefined)
+      entry.paths = paths;
+    return entry;
+  }
+
   function importedEntry(annotation, src) {
     const kind = SUBTYPES[annotation.subtype];
     if (kind === undefined || annotation.id === undefined)
       return null;
     if (kind === 'text')
       return importedText(annotation, src);
+    if (kind === 'square' || kind === 'circle' || kind === 'polyline' || kind === 'ink')
+      return importedShape(annotation, src);
     const quads = quadsOf(annotation.quadPoints);
     if (quads.length === 0)
       return null;

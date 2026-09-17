@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/page-plan.js');
+require('../renderer/annotation-entry.js');
 require('../renderer/annotation-state.js');
 require('../renderer/edit-history.js');
 

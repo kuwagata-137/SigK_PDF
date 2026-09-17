@@ -1031,10 +1031,15 @@ function installSmokeCheck(win) {
   //   draft:0:100x700:打ちかけ    同じく置いて打つが確定しない（画面写真用。入力欄が残る）
   //   edit:直した文字            選んでいるテキストを Enter で開き、打ち直して確定する
   //   size:18                    文字の大きさ（選んでいればその注釈、無ければ次に置く大きさ）
-  //   drag:30x-20                選んでいるテキストを掴んで紙の座標で (30,-20)pt 動かす
+  //   drag:30x-20                選んでいるテキスト・図形を掴んで紙の座標で (30,-20)pt 動かす
+  //   shape:arrow:0:100x700-300x650  図形の道具でページ 0 の pt (100,700) から (300,650) へドラッグして描く
+  //                              （種類は square / circle / line / arrow。spec-4-3 の完了判定）
+  //   pen:0:100x500;120x480;150x510  ペンでページ 0 の pt の点列をなぞる（; 区切り）
+  //   width:3                    線の太さ（選んでいればその図形、無ければ次に描く太さ）
   //
   // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
   // 例: SIGK_SMOKE_ANNOTATE=text:0:100x700:こんにちは|世界,size:18,drag:30x-20,edit:直した,save
+  // 例: SIGK_SMOKE_ANNOTATE=shape:arrow:0:100x700-300x650,width:3,pen:0:100x500;120x480;150x510,undo,redo,save
   const annotateScript = (target, spec) => `(async () => {
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const SigK = window.SigK;
@@ -1124,18 +1129,49 @@ function installSmokeCheck(win) {
         await typeAndCommit(arg);
       } else if (name === 'size') {
         SigK.annotate.setFontSize(Number(arg));
+      } else if (name === 'width') {
+        SigK.annotate.setLineWidth(Number(arg));
+      } else if (name === 'shape') {
+        const [kind, page, span] = arg.split(':');
+        const [from, to] = span.split('-').map((point) => point.split('x').map(Number));
+        SigK.annotate.setTool('shape');
+        SigK.annotate.setShapeKind(kind);
+        const [sx, sy] = screenPoint(Number(page), from[0], from[1]);
+        const [ex, ey] = screenPoint(Number(page), to[0], to[1]);
+        mouse('mousedown', pageNode(Number(page)), sx, sy);
+        mouse('mousemove', document.body, (sx + ex) / 2, (sy + ey) / 2);
+        mouse('mousemove', document.body, ex, ey);
+        mouse('mouseup', pageNode(Number(page)), ex, ey);
+      } else if (name === 'pen') {
+        const [page, points] = arg.split(':');
+        const path = points.split(';').map((point) => point.split('x').map(Number));
+        SigK.annotate.setTool('pen');
+        const screen = path.map(([x, y]) => screenPoint(Number(page), x, y));
+        mouse('mousedown', pageNode(Number(page)), screen[0][0], screen[0][1]);
+        for (const [x, y] of screen.slice(1))
+          mouse('mousemove', document.body, x, y);
+        mouse('mouseup', pageNode(Number(page)), screen.at(-1)[0], screen.at(-1)[1]);
       } else if (name === 'drag') {
         const [dx, dy] = arg.split('x').map(Number);
         const entry = SigK.annotate.selectedEntry();
         const index = SigK.viewer.getPlan().findIndex((page) => page.src === entry.src);
-        const [ox, oy] = SigK.freeTextGeometry.frameOrigin(entry.rect, entry.rotation);
         const scale = viewportOf(index).scale;
-        const [sx, sy] = screenPoint(index, ox, oy);
+        let grab;
+        if (entry.kind === 'text') {
+          // 箱の左上から少し内側を掴む。
+          const [ox, oy] = SigK.freeTextGeometry.frameOrigin(entry.rect, entry.rotation);
+          const [sx, sy] = screenPoint(index, ox, oy);
+          grab = [sx + 3 * scale, sy + 3 * scale];
+        } else {
+          // 図形は線の上（矩形・楕円は箱の内側でよい。直線・矢印・ペンは最初の点）を掴む。
+          const at = entry.paths ? entry.paths[0][0] : [(entry.rect[0] + entry.rect[2]) / 2, (entry.rect[1] + entry.rect[3]) / 2];
+          grab = screenPoint(index, at[0], at[1]);
+        }
+        const [ox, oy] = viewportOf(index).convertToPdfPoint(grab[0] - pageNode(index).getBoundingClientRect().left, grab[1] - pageNode(index).getBoundingClientRect().top);
         const [ex, ey] = screenPoint(index, ox + dx, oy + dy);
-        // 箱の左上から少し内側を掴む。
-        mouse('mousedown', pageNode(index), sx + 3 * scale, sy + 3 * scale);
-        mouse('mousemove', document.body, ex + 3 * scale, ey + 3 * scale);
-        mouse('mouseup', pageNode(index), ex + 3 * scale, ey + 3 * scale);
+        mouse('mousedown', pageNode(index), grab[0], grab[1]);
+        mouse('mousemove', document.body, ex, ey);
+        mouse('mouseup', pageNode(index), ex, ey);
       } else if (name === 'rotate') {
         SigK.pageEdit.rotate(90, [Number(arg)]);
         await wait(300);
@@ -1204,6 +1240,15 @@ function installSmokeCheck(win) {
       tool: SigK.annotate.getTool(),
       selected: SigK.annotate.getSelected(),
       shapes: [...document.querySelectorAll('.annot-layer')].map((svg) => svg.querySelectorAll('polygon, line').length),
+      // 図形・ペン（spec-4-3 の完了判定）。描いたもの、読み込んだもの、右パネルの太さと種類。
+      drawn: annots.added.filter((entry) => entry.lineWidth !== undefined).map((entry) => ({ src: entry.src, kind: entry.kind, color: entry.color, lineWidth: entry.lineWidth, rect: entry.rect.map(round), points: entry.paths ? entry.paths[0].length : null })),
+      importedShapes: importedEntries.filter((entry) => entry.lineWidth !== undefined).map((entry) => ({ ref: entry.ref, src: entry.src, kind: entry.kind, color: entry.color, lineWidth: entry.lineWidth, rect: entry.rect.map(round), points: entry.paths ? entry.paths[0].length : null })),
+      shapeGroups: [...document.querySelectorAll('.annot-layer')].map((svg) => svg.querySelectorAll('g.shape').length),
+      propsWidth: document.getElementById('props-width').value,
+      propsWidthVisible: document.getElementById('props-width-row').hidden === false,
+      propsShapeKind: [...document.querySelectorAll('#props-shape-kinds button.on')].map((button) => button.dataset.kind).join(''),
+      propsShapeVisible: document.getElementById('props-shape-row').hidden === false,
+      drafts: document.querySelectorAll('.annot-draft').length,
       frames: document.querySelectorAll('.annot-frame').length,
       propsKind: document.getElementById('props-kind').textContent,
       propsVisible: getComputedStyle(document.getElementById('props')).display !== 'none',

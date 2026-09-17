@@ -5,8 +5,9 @@
   //
   // .pdf-page の中、canvas のあと・テキストレイヤーの前に <svg class="annot-layer"> を
   // 置く。ハイライトは mix-blend-mode: multiply の多角形（文字が透ける）、下線・
-  // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）。
-  // pointer-events は無く、当たり判定は annotate.js が四角で行う。
+  // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）、
+  // 図形・ペンは shape-graphics.js の <g>（spec-4-3 確定事項8）。描いている途中の下書きも
+  // 同じ描き手で最後に置く（確定事項3）。pointer-events は無く、当たり判定は annotate.js が行う。
   //
   // 同じ絵を canvas 2D にも描ける（paint）。印刷が未保存の注釈を映すのに使う
   // （確定事項28）。SVG と canvas で描き方を分けると、画面と紙で見た目がずれる。
@@ -17,6 +18,11 @@
 
   function quads() {
     return root.SigK.markupQuads;
+  }
+
+  // 図形・ペン（線幅を持つ種類）か。
+  function isDrawn(entry) {
+    return root.SigK.annotationEntry.isDrawnKind(entry.kind);
   }
 
   // 属性に書く数。小数 2 桁で十分で、浮動小数のごみを残さない。
@@ -87,15 +93,28 @@
       group.append(root.SigK.freeTextShape.svgOf(doc, entry, viewport));
       return group;
     }
+    if (isDrawn(entry)) {
+      group.append(root.SigK.shapeGraphics.svgOf(doc, entry, viewport));
+      return group;
+    }
     for (const quad of entry.quads)
       group.append(shapeOf(doc, entry, quads().quadToViewport(quad, viewport)));
+    return group;
+  }
+
+  // 描いている途中の図形（spec-4-3 確定事項3）。当たり判定の鍵は持たせない。
+  function draftOf(doc, draft, viewport) {
+    const group = doc.createElementNS(SVG_NS, 'g');
+    group.setAttribute('class', 'annot-draft');
+    group.append(root.SigK.shapeGraphics.svgOf(doc, draft, viewport));
     return group;
   }
 
   // 層を描き直す。entries は annotationState.annotsOnPage の並び（下から上）。
   // selected は選んでいる注釈の id か ref（無ければ null）。editing は入力欄を開いている
   // テキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
-  function draw(svg, entries, viewport, { selected = null, editing = null } = {}) {
+  // draft は描いている途中の図形（entry の形）で、枠よりさらに上に描く。
+  function draw(svg, entries, viewport, { selected = null, editing = null, draft = null } = {}) {
     const doc = svg.ownerDocument;
     svg.replaceChildren();
     let frame = null;
@@ -106,9 +125,11 @@
       if (selected !== null && keyOf(entry) === selected)
         frame = frameOf(doc, entry, viewport);
     }
-    // 枠は最後に置く（いちばん上）。
+    // 枠は最後に置く（いちばん上）。下書きはその上。
     if (frame !== null)
       svg.append(frame);
+    if (draft !== null && draft !== undefined)
+      svg.append(draftOf(doc, draft, viewport));
     return svg.childNodes.length;
   }
 
@@ -118,6 +139,10 @@
     for (const entry of entries) {
       if (entry.kind === 'text') {
         root.SigK.freeTextShape.paint(ctx, entry, viewport);
+        continue;
+      }
+      if (isDrawn(entry)) {
+        root.SigK.shapeGraphics.paint(ctx, entry, viewport);
         continue;
       }
       ctx.save();
