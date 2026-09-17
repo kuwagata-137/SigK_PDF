@@ -310,6 +310,54 @@ test('抽出にも注釈が付いていく', async () => {
   } finally { ws.cleanup(); }
 });
 
+// ---- テキスト注釈（spec-4-2 確定事項22〜24。フォントは vendor と assets の実物） ----
+
+const TEXT = { kind: 'text', color: '#1c2430', opacity: 1, rect: [100, 700, 200, 720.5], text: 'こんにちは', fontSize: 12, rotation: 0 };
+
+function type0FontCount(doc) {
+  let count = 0;
+  for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+    if (obj?.get?.(PDFName.of('Subtype'))?.encodedName === '/Type0')
+      count += 1;
+  }
+  return count;
+}
+
+test('テキスト注釈は同梱フォントのサブセット付きで保存され、抽出にも付いていく', async () => {
+  const ws = workspace();
+  try {
+    const source = ws.copyIn('three-pages.pdf');
+    const sizeBefore = fs.statSync(source).size;
+    const result = await runSave({
+      source,
+      target: source,
+      pages: [{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }],
+      annotations: { add: [{ ...TEXT, src: 0 }, { ...TEXT, src: 0, text: '二つ目', rect: [100, 600, 200, 620.5] }], remove: [] },
+      makeBackup: false,
+    });
+    assert.equal(result.ok, true);
+    const saved = await open(source);
+    assert.deepEqual(annotSubtypes(saved, 1), ['/FreeText', '/FreeText']);
+    assert.equal(type0FontCount(saved), 1);
+    // サブセットなので 5MB のフォントを丸ごとは埋めない（事前調査 B: 100 文字で 15KB 級）。
+    assert.ok(fs.statSync(source).size - sizeBefore < 60_000);
+
+    const target = ws.file('picked.pdf');
+    const extracted = await runSave({
+      kind: 'extract',
+      source,
+      target,
+      pages: [{ src: 1, rotate: 0 }],
+      annotations: { add: [{ ...TEXT, src: 1, text: '抽出' }], remove: [] },
+    });
+    assert.equal(extracted.ok, true);
+    const picked = await open(target);
+    assert.deepEqual(annotSubtypes(picked, 0), ['/FreeText', '/FreeText', '/FreeText']);
+    // 既存の 2 つのフォント（保存時のもの）と新しい 1 つ。
+    assert.equal(type0FontCount(picked), 2);
+  } finally { ws.cleanup(); }
+});
+
 test('注釈の形が読めなければ書かずに断る', async () => {
   const ws = workspace();
   try {

@@ -24,6 +24,7 @@ const { buildPreview, prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
 const { applyAnnotations } = require('./op-annotate.js');
+const { createFontSource } = require('./font-embed.js');
 const { writeDocument } = require('../pdf-write.js');
 const { toBytes } = require('../file-io.js');
 
@@ -46,6 +47,10 @@ const TOOLS = {
 };
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
+
+// テキスト注釈の同梱フォント（spec-4-2 確定事項22・23）。読むのはテキストのある保存の
+// 初回だけで、ワーカーは保存ごとに fork される新プロセスなので 1 回きりである。
+const fontSource = createFontSource();
 
 // save() のオプション（spec-1-6 事前調査 B）。
 //
@@ -100,7 +105,7 @@ async function applyForSave(doc, pages, inserts, fsLike, annotations) {
   if (prepared.ok !== true)
     return prepared;
 
-  const annotated = applyAnnotations(doc, annotations, TOOLS);
+  const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
   if (annotated.ok !== true)
     return annotated;
 
@@ -119,7 +124,7 @@ async function applyForSave(doc, pages, inserts, fsLike, annotations) {
 async function applyForExtract(doc, pages, annotations) {
   const labelsBefore = readLabels(doc);
   // 注釈を当ててから複製する。抽出先にも付いていく（spec-4-1 確定事項21）。
-  const annotated = applyAnnotations(doc, annotations, TOOLS);
+  const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
   if (annotated.ok !== true)
     return annotated;
   const extracted = await extractPages(doc, pages, { PDFDocument });

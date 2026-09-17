@@ -1,29 +1,17 @@
 (function (root) {
   'use strict';
 
-  // 注釈モードの指揮（spec-4-1 確定事項1〜10・15〜19）。
+  // 注釈モードの指揮（spec-4-1 確定事項1〜10・15〜19、spec-4-2 確定事項1・7・8・21）。
   //
-  // 道具を持つ・文字の選択から注釈を作る・選ぶ・消す・色を変える・履歴に積む、を
-  // ここで結ぶ。状態の純粋な操作は annotation-state.js、四角の計算は markup-quads.js／
-  // markup-selection.js、描画は annotation-layer.js、読み込んだ注釈を集めるのは
-  // annotation-import.js、右のプロパティは annotation-props.js が持つ。ここが握るのは
-  // 「いまの道具」と「選んでいる注釈」だけである。
+  // 道具を持つ・選ぶ・消す・色を変える・履歴に積む、をここで結ぶ。状態の純粋な操作は
+  // annotation-state.js、描画は annotation-layer.js、読み込んだ注釈を集めるのは
+  // annotation-import.js、右のプロパティは annotation-props.js、ページビューの押し離しは
+  // annotate-pointer.js、文字の選択からマークアップを作るのは annotate-markup.js、
+  // テキストの置く・直す・動かすは annotate-text.js が持つ。ここが握るのは
+  // 「いまの道具」「選んでいる注釈」「次に付ける色と文字の大きさ」だけである。
 
-  const TOOLS = Object.freeze(['highlight', 'underline', 'strikeout']);
-  const TOOL_LABELS = Object.freeze({ highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線' });
-  // プリセット（確定事項33）。settings.js の ANNOT_COLORS と同じ並びであること
-  // （プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
-  const COLORS = Object.freeze({
-    highlight: ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8'],
-    underline: ['#d92c2c', '#2c5cd9', '#1c2430'],
-    strikeout: ['#d92c2c', '#2c5cd9', '#1c2430'],
-  });
-  const COLOR_NAMES = Object.freeze({
-    '#ffe45a': '黄', '#8ce99a': '緑', '#8fbfff': '青', '#ffa8c8': '桃', '#d92c2c': '赤', '#2c5cd9': '青', '#1c2430': '黒',
-  });
-  const DEFAULT_COLORS = Object.freeze({ highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c' });
-  // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
-  const CLICK_SLOP = 3;
+  // プリセット（確定事項33、spec-4-2 確定事項34・35）は annotation-presets.js が持つ。
+  const { TOOLS, MARKUP_TOOLS, TOOL_LABELS, COLORS, COLOR_NAMES, DEFAULT_COLORS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
 
   const state = {
     doc: null,
@@ -31,10 +19,7 @@
     tool: null,
     selected: null,
     colors: { ...DEFAULT_COLORS },
-    // 押した位置。離したときに動いていなければ当たり判定へ回す（確定事項6）。
-    pressed: null,
-    // 矩形を測る口。jsdom のテストが差し替える。
-    rectsOf: (range) => range.getClientRects(),
+    fontSize: DEFAULT_FONT_SIZE,
   };
 
   function viewer() {
@@ -43,10 +28,6 @@
 
   function annotationState() {
     return root.SigK.annotationState;
-  }
-
-  function pageEdit() {
-    return root.SigK.pageEdit;
   }
 
   function props() {
@@ -68,20 +49,32 @@
       return;
     for (const item of state.doc.querySelectorAll('.rail-item.tool[data-tool]'))
       item.classList.toggle('active', item.dataset.tool === state.tool);
+    // CSS がカーソルを変えるための印（テキストの道具で紙の上は text。spec-4-2 確定事項1）。
+    if (state.tool === null)
+      state.doc.documentElement.removeAttribute('data-tool');
+    else
+      state.doc.documentElement.setAttribute('data-tool', state.tool);
     props()?.refresh();
+  }
+
+  function isMarkupTool(tool) {
+    return MARKUP_TOOLS.includes(tool);
   }
 
   function setTool(tool) {
     state.tool = TOOLS.includes(tool) ? tool : null;
+    if (state.tool === 'text')
+      root.SigK.freeTextShape?.ensureLoaded(state.doc);
     syncTools();
     return state.tool;
   }
 
-  // 道具はトグル。押した時点で文字が選ばれていれば、その場で付ける（確定事項10 ②）。
+  // 道具はトグル。マークアップは、押した時点で文字が選ばれていればその場で付ける
+  // （確定事項10 ②）。テキストは押しても作らない（spec-4-2 確定事項3）。
   function toggleTool(tool) {
     if (!TOOLS.includes(tool))
       return false;
-    if (inAnnotMode() && isOpen() && createFromSelection(tool))
+    if (MARKUP_TOOLS.includes(tool) && inAnnotMode() && isOpen() && createFromSelection(tool))
       return setTool(tool) !== null;
     return setTool(state.tool === tool ? null : tool) !== null;
   }
@@ -107,54 +100,29 @@
     return true;
   }
 
-  // ---- 作る（確定事項10〜14） ----
-
-  function renderedPages() {
-    const view = viewer();
-    if (view === undefined || state.doc === null)
-      return [];
-    const plan = view.getPlan();
-    return view.getState().rendered.map((index) => ({
-      index,
-      src: plan[index]?.src,
-      node: state.doc.querySelector(`.pdf-page[data-page="${index + 1}"]`),
-      handle: view.getTextLayer(index),
-    })).filter((page) => page.node !== null && page.handle !== null && page.handle !== undefined);
+  // 次に置くテキストの文字の大きさ（spec-4-2 確定事項21・34）。
+  function getFontSize() {
+    return state.fontSize;
   }
 
-  function clearSelection() {
-    state.win?.getSelection?.()?.removeAllRanges?.();
-  }
-
-  // いまの文字の選択から注釈を作る。ページごとに 1 つ（確定事項11）。差し込んだ
-  // ページ（src が無い）には付けない（既知の限界）。作れたら true。
-  function createFromSelection(kind) {
-    const view = viewer();
-    if (view === undefined || !isOpen())
-      return false;
-    const found = root.SigK.markupSelection.collect({
-      doc: state.doc,
-      selection: state.win?.getSelection?.() ?? null,
-      pages: renderedPages(),
-      rectsOf: state.rectsOf,
-    }).filter((page) => Number.isInteger(page.src));
-    if (found.length === 0)
-      return false;
-
-    let annots = view.getAnnotations();
-    const ids = [];
-    for (const page of found) {
-      const id = annotationState().newId();
-      ids.push(id);
-      annots = annotationState().addAnnot(annots, {
-        id, src: page.src, kind, color: colorOf(kind), opacity: 1, quads: page.quads, rect: page.rect, text: page.text,
-      });
-    }
-    clearSelection();
-    state.selected = ids[0];
-    pageEdit().commitAnnots(annots, { annot: { before: null, after: ids[0] } });
+  function applyFontSize(size) {
+    if (isFontSize(size))
+      state.fontSize = size;
     props()?.refresh();
+    return state.fontSize;
+  }
+
+  function rememberFontSize(size) {
+    if (!isFontSize(size))
+      return false;
+    state.fontSize = size;
+    root.SigK.shell?.persist?.({ annotFontSize: size });
     return true;
+  }
+
+  // 文字の選択からマークアップを作る（確定事項10〜14。annotate-markup.js）。
+  function createFromSelection(kind) {
+    return root.SigK.annotateMarkup?.createFromSelection(kind) === true;
   }
 
   // ---- 選ぶ・消す・色を変える（確定事項6・7） ----
@@ -181,11 +149,11 @@
   // 点（.pdf-page 基準の CSS px）に当たる注釈。上に描いたもの（後ろ）が優先。
   function hitTest(index, point) {
     const view = viewer();
-    const handle = view?.getTextLayer(index);
+    const viewport = root.SigK.freeTextEditor?.pageOf(index)?.viewport ?? view?.getTextLayer(index)?.viewport;
     const src = view?.getPlan()[index]?.src;
-    if (handle === null || handle === undefined || !Number.isInteger(src))
+    if (viewport === null || viewport === undefined || !Number.isInteger(src))
       return null;
-    const pdfPoint = handle.viewport.convertToPdfPoint(point[0], point[1]);
+    const pdfPoint = viewport.convertToPdfPoint(point[0], point[1]);
     const entries = annotationState().annotsOnPage(view.getAnnotations(), view.getImported(), src);
     for (let position = entries.length - 1; position >= 0; position -= 1) {
       if (root.SigK.markupQuads.hitTest(entries[position].quads, pdfPoint))
@@ -201,7 +169,7 @@
     const key = state.selected;
     const annots = annotationState().removeAnnot(viewer().getAnnotations(), entry);
     state.selected = null;
-    pageEdit().commitAnnots(annots, { annot: { before: key, after: null } });
+    root.SigK.pageEdit.commitAnnots(annots, { annot: { before: key, after: null } });
     props()?.refresh();
     return true;
   }
@@ -224,13 +192,20 @@
     const after = entry.ref !== undefined ? annots.added.at(-1).id : before;
     state.selected = after;
     rememberColor(entry.kind, color);
-    pageEdit().commitAnnots(annots, { annot: { before, after } });
+    root.SigK.pageEdit.commitAnnots(annots, { annot: { before, after } });
     props()?.refresh();
     return true;
   }
 
-  // Esc。選んでいる注釈があれば解除、無ければ道具を離す（確定事項7）。
+  // 開いているテキストの入力欄を確定して閉じる（spec-4-2 確定事項8）。
+  function finishEditing() {
+    return root.SigK.annotateText?.finishEditing() === true;
+  }
+
+  // Esc。入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を離す（確定事項7）。
   function escape() {
+    if (finishEditing())
+      return true;
     if (state.selected !== null) {
       select(null);
       return true;
@@ -255,42 +230,20 @@
     return (ctx, viewport) => root.SigK.annotationLayer.paint(ctx, entries, viewport);
   }
 
-  // ---- 画面の結線 ----
+  // ---- 画面の結線（ページビューの押し離しは annotate-pointer.js） ----
 
-  function onMouseDown(event) {
-    state.pressed = inAnnotMode() ? { x: event.clientX, y: event.clientY } : null;
-  }
-
-  // 離したとき: 道具があり文字が選ばれていれば作る（確定事項10 ①）。選ばれて
-  // いなければ、動いていない押し離しを当たり判定へ回す（確定事項6）。
-  function onMouseUp(event) {
-    const pressed = state.pressed;
-    state.pressed = null;
-    if (!inAnnotMode() || !isOpen())
-      return;
-    if (state.tool !== null && createFromSelection(state.tool))
-      return;
-    const selection = state.win?.getSelection?.();
-    if (selection !== null && selection !== undefined && !selection.isCollapsed)
-      return;
-    if (pressed === null || Math.abs(event.clientX - pressed.x) > CLICK_SLOP || Math.abs(event.clientY - pressed.y) > CLICK_SLOP)
-      return;
-    const node = event.target?.closest?.('.pdf-page');
-    if (node === null || node === undefined) {
-      select(null);
-      return;
-    }
-    const base = node.getBoundingClientRect();
-    select(hitTest(Number(node.dataset.page) - 1, [event.clientX - base.left, event.clientY - base.top]));
-  }
-
-  // モードを離れたら選択を解除する。道具は持ち越す（確定事項8）。
+  // モードを離れたら入力欄を確定し、選択を解除する。道具は持ち越す（確定事項8）。
+  // 入ったらフォントを先読みする（spec-4-2 確定事項33）。
   function onModeChanged(mode) {
+    if (mode !== 'annot')
+      finishEditing();
     if (mode !== 'annot' && state.selected !== null)
       select(null);
     props()?.refresh();
-    if (mode === 'annot')
+    if (mode === 'annot') {
       root.SigK.save?.warnIfUnsaveable();
+      root.SigK.freeTextShape?.ensureLoaded(state.doc);
+    }
   }
 
   function init(doc, win) {
@@ -306,9 +259,6 @@
           toggleTool(item.dataset.tool);
       });
     }
-    const view = doc.getElementById('view');
-    view?.addEventListener('mousedown', onMouseDown);
-    view?.addEventListener('mouseup', onMouseUp);
     syncTools();
     return true;
   }
@@ -325,9 +275,16 @@
     getTool: () => state.tool,
     setTool,
     toggleTool,
+    isMarkupTool,
     getColors: () => ({ ...state.colors }),
     colorOf,
     applyColors,
+    getFontSize,
+    applyFontSize,
+    rememberFontSize,
+    setFontSize: (size) => root.SigK.annotateText?.setFontSize(size) === true,
+    editSelected: () => root.SigK.annotateText?.editSelected() === true,
+    finishEditing,
     createFromSelection,
     getSelected,
     selectedEntry,
@@ -338,7 +295,7 @@
     escape,
     painterFor,
     onModeChanged,
-    // jsdom のテストが矩形の測り方を差し替える口。
-    setRectsOf: (fn) => { state.rectsOf = fn; },
+    // jsdom のテストが矩形の測り方を差し替える口（annotate-markup.js へ流す）。
+    setRectsOf: (fn) => root.SigK.annotateMarkup?.setRectsOf(fn),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

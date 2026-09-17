@@ -252,6 +252,8 @@
       return { error: busyReason() };
     if (inToolsMode())
       return { error: 'ツールモードでは保存できません。' };
+    // 入力中のテキストは確定してから書く（spec-4-2 確定事項8）。
+    root.SigK.annotate?.finishEditing();
 
     const view = viewer().getState();
     if (!view.open)
@@ -278,6 +280,7 @@
       return { error: busyReason() };
     if (inToolsMode())
       return { error: 'ツールモードでは保存できません。' };
+    root.SigK.annotate?.finishEditing();
 
     const view = viewer().getState();
     if (!view.open)

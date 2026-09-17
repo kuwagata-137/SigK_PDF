@@ -559,6 +559,8 @@ async function createShell({
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
           // 注釈の色（spec-4-1 確定事項34）。種類ごとに重ねる。
           annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },
+          // テキストの文字の大きさ（spec-4-2 確定事項21）。
+          annotFontSize: patch?.annotFontSize ?? savedUi.annotFontSize,
         };
         return { ok: true, ui: structuredClone(savedUi) };
       },

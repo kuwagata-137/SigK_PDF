@@ -211,6 +211,11 @@
     }
     if (event.key === 'Escape' && inAnnotMode && annotate !== undefined)
       return annotate.escape();
+    // 選んでいるテキストは Enter で直せる（spec-4-2 確定事項5）。
+    if (event.key === 'Enter' && inAnnotMode && annotate !== undefined && annotate.editSelected()) {
+      event.preventDefault();
+      return true;
+    }
     return false;
   }
 
@@ -220,6 +225,10 @@
     if (viewer().getState().open !== true)
       return;
     if (handleFindPrintKey(event))
+      return;
+    // テキストの入力欄の中のキーは入力欄のもの（spec-4-2 確定事項8）。Ctrl+Z は素の取り消し、
+    // Delete・Esc・PageUp 等も奪わない。Esc と Ctrl+Enter は入力欄自身が確定に使う。
+    if (event.target?.closest?.('.free-text-editor'))
       return;
     if (handlePageEditKey(event, doc))
       return;

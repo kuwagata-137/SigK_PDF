@@ -120,6 +120,8 @@
   function step(direction) {
     if (!isOpen())
       return false;
+    // 入力欄の外から Ctrl+Z が来たら、下書きを確定してから戻す（spec-4-2 確定事項8）。
+    root.SigK.annotate?.finishEditing?.();
 
     const moved = direction < 0 ? editHistory().undo(history()) : editHistory().redo(history());
     if (!moved.changed)

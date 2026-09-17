@@ -83,6 +83,8 @@
       });
       entry.annots = { svg: layer.mount(ctx.el().doc, node, viewport), viewport };
       drawAnnotations(index, entry);
+      // テキストの入力欄は枠と同じ寿命で、下書きは生き残る（spec-4-2 確定事項9）。
+      root.SigK.freeTextEditor?.onPageRendered(index, node, viewport);
     }
 
     // そのページの注釈を描き直す。差し込んだページには付けない（既知の限界）。
@@ -94,7 +96,10 @@
       const entries = Number.isInteger(src)
         ? root.SigK.annotationState.annotsOnPage(state.annots, state.imported, src)
         : [];
-      layer.draw(entry.annots.svg, entries, entry.annots.viewport, { selected: root.SigK.annotate?.getSelected() ?? null });
+      layer.draw(entry.annots.svg, entries, entry.annots.viewport, {
+        selected: root.SigK.annotate?.getSelected() ?? null,
+        editing: root.SigK.freeTextEditor?.editingKey() ?? null,
+      });
     }
 
     // 描いてあるページの注釈の層を描き直す（編集・undo・選択の変化）。
@@ -121,6 +126,7 @@
       // 注釈の層も同じで、枠ごと捨てる。
       entry.text?.cancel();
       entry.annots = null;
+      root.SigK.freeTextEditor?.onPageReleased(index);
       ctx.el().pageNodes[index]?.replaceChildren();
     }
 
