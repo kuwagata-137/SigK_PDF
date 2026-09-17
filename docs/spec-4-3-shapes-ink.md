@@ -306,3 +306,53 @@ B で書いた検体（Square・Circle・Line・Line＋矢じり・PolyLine・Po
 | 差し込んだページ・暗号化 PDF・サムネイル・PDF→画像 | 塊①と同じ |
 
 ---
+
+## 実装の記録（2026-09-17・`claude/phase-4-shapes-ink` ブランチ）
+
+テスト 1,189 → 1,263 件。仕様書から変えた点・足した点は次のとおり。
+
+| 項目 | 仕様書 | 実装 | 理由 |
+|---|---|---|---|
+| 注釈 1 件の形 | `annotation-state.js` に足す | **`renderer/annotation-entry.js` を新設**し、種類の一覧・検証・写し・比較・保存の形を移した。`annotation-state.js` は集まりの操作だけ（同じ名前で再公開） | `lineWidth`・`paths` を足すと `annotation-state.js` が 317 行になった。1 件の形と集まりの操作は別の関心 |
+| 下書き | `annotate-shape.js` に含める | **`renderer/shape-draft.js` を新設**（押してから離すまでの点列・正方形・45°・間引き）。`annotate-shape.js` は履歴と設定に結ぶ指揮だけ | 1 本だと 276 行。下書きは履歴も選択も知らない純粋な状態機械なので分けやすい |
+| 「線の太さ」の select | プリセット 5 段 | 読み込んだ図形の太さがプリセットに無いとき（例 1.5pt）は、**その値の選択肢を末尾に足して見せる**（選び直せば消える） | 空欄では何 pt か分からない。値を捏造して丸めるより実物を見せる |
+| ペンの最後の点 | — | 離した点が直前に残した点から `MIN_STEP`（2px）未満なら足さない（`shape-draft.update` の規則をそのまま） | 見た目に出ない差。規則を 1 つにする |
+| `annotate.js` の口 | `hitTest`・`escape` の変更 | それに加えて `setLineWidth`・`setShapeKind`・`getLineWidth`・`getShapeKind` を `annotateShape` への委譲で公開（右パネル・起動確認が `annotate` 経由で呼ぶ） | `setFontSize` と同じ流儀に揃える |
+| 当たり判定の許容 | 線幅/2 ＋ 3px相当 | `shapeGeometry.hitTolerance(lineWidth, viewport.scale)` ＝ 線幅/2 ＋ 3/倍率 pt | 倍率が 0 以下なら 1 として扱う |
+| 起動確認 | `shape:`・`pen:`・`width:` | ペンの点は `;` 区切り（`,` は操作の区切りに使っているため）。`drag:` は図形なら線の最初の点（矩形・楕円は箱の中心）を掴む | — |
+
+pdf.js の `Float32Array` 由来の丸め（`100.4` → `100.4000015`）は読み込みで小数 2 桁に丸め、起動確認で保存 → 開き直しの
+`/Rect` が 0.01pt 級で一致することを確かめた。依存は増やしていない。
+
+### 完了判定の結果
+
+| # | 判定 | 結果 | 確かめ方 |
+|---|---|---|---|
+| 1 | レールの「図形」「ペン」が押せ、右パネルに 2 行が出る | ✅ | `shell.test.js`（有効 6・灰色 1）、`annotate-shape.test.js`（行の出し入れ）、実機の画面 `screenshots/phase4-shapes-ink-app.png` |
+| 2 | ドラッグで 4 種が描け、Shift で正方形・正円・45°、押し離しだけでは作らない | ✅ | `annotate-shape.test.js`・`shape-draft.test.js`・`shape-geometry.test.js`、起動確認 `shape:` |
+| 3 | ペンでなぞると線が引け、点が間引かれる | ✅ | `annotate-shape.test.js`（200 点 → 100 点未満）、`shape-draft.test.js`（400 点の直線 → 2 点）、事前調査 C（1,000 点 → 52 点） |
+| 4 | 選ぶ・色と太さを変える・動かす・消す | ✅ | `annotate-shape.test.js`（当たり判定・移動・太さ・色・Delete）、起動確認 `drag:`・`width:`・`color:` |
+| 5 | Ctrl+Z／Y で戻り、ページ編集と 1 本、dirty と連動 | ✅ | `annotate-shape.test.js`（undo で移動・削除が戻る、付けて消せば dirty でない）、起動確認 `undo`・`redo` |
+| 6 | 色・太さ・種類が `settings.json` に残る | ✅ | `settings.test.js`・`annotate-shape.test.js`（`uiCalls`・起動時に戻る）。起動確認でも前回の色・太さから始まった |
+| 7 | 保存で `/Square`・`/Circle`・`/PolyLine`・`/Ink` が `/AP`・`/BS /W`・`/C` 付きで書かれ、開き直しても直せる | ✅ | `op-annotate.test.js`（読み直して辞書と外観を確認）、起動確認（保存 → 開き直しで `importedShapes` 4 件・`shapeGroups [4, 0]`）、pdf.js での描画（scratchpad の画像で矢じり・楕円・ペンを確認） |
+| 8 | 他のツールの `/Line` は表示のみ、Square／Circle／Ink は選んで消せる | ✅ | `annotation-import.test.js`・`annotate-shape.test.js`（Line は拾わず選べない、Square は選んで削除 → `remove: ['30R']`） |
+| 9 | `/Rotate 90` のページでも描いた位置に保存され、開き直しても同じ | ✅ | 起動確認 `rotated.pdf`（2 ページ目に矩形・矢印・ペン → 保存 → `/Rect` が同じ）、`shape-graphics.test.js`（回転した viewport） |
+| 10 | 印刷のプレビューに未保存の図形が映る | ✅ | `annotation-layer.test.js`・`shape-graphics.test.js`（`paint` が canvas に同じ絵を描く。塊①②と同じ `painterFor` の口）、事前調査 E（`/AP` と画素が一致） |
+| 11 | `npm test` が緑（`TZ=UTC` でも）。配布物でも起動確認が通る | ✅ | 1,263 件緑（`TZ=UTC` も）。`dist/win-unpacked/SigK PDF.exe` で `SIGK_SMOKE=1`＋`SIGK_SMOKE_ANNOTATE`（`problems: []`、保存 → 開き直しで 4 件） |
+| 12 | 他のビューアで同じ位置・太さ・色で見える | ⏳ | **ユーザーの目視待ち**（塊① 判定10・塊② 判定11 と同じ扱い） |
+
+### 実測（Windows 11 実機・開発ツリーと配布物。`SIGK_SMOKE_ANNOTATE`）
+
+| 項目 | 値 |
+|---|---|
+| 図形を 1 つ描く（押す → 動かす → 離す。下書きの描き直し・履歴・描画） | 2〜7ms（道具の持ち替えを含む最初の 1 つは 21〜32ms） |
+| ペン（5 点） | 3〜7ms |
+| 色・太さを変える・動かす・戻す | 1〜4ms |
+| 保存（`three-pages.pdf`・図形 4 つ） | 276〜419ms（ワーカー）／段全体 1.1〜1.2 秒（開き直しを含む） |
+| 保存で増えるバイト数 | 矢印・矩形・楕円・ペン 5 点の 4 つで **+1,744B**、矩形・矢印・ペン 4 点の 3 つで +1,238B（`/InkList` と `/AP` の二重持ち込み） |
+| 配布物 | `SigK PDF Setup 0.1.0.exe` 115.7MB（塊②と同じ）、`app.asar` 14.06MB（塊② 14.0MB） |
+
+### 目視の残り（判定12。塊①判定10・塊②判定11 と同じ扱い）
+
+保存した PDF を他のビューアで開き、矩形・楕円・直線・矢印・ペンが同じ位置・太さ・色で見え、矢じりが終点にあること。
+`/Rotate 90` のページに描いたものも同じ位置にあること。
