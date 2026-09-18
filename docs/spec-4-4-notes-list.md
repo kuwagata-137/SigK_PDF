@@ -334,3 +334,62 @@ Text は全部拾う（論点3）ので表示のみにはならない。
 | 表示のみの注釈の編集・紙の上での選択 | 非対応（一覧から消すだけ） |
 | 一覧の絞り込み・並べ替え・作成者や日時の列 | 非対応 |
 | 差し込んだページ・暗号化 PDF・サムネイル・PDF→画像 | 塊①と同じ |
+
+---
+
+## 実装の記録（2026-09-18・`claude/phase-4-notes-list` ブランチ）
+
+テスト 1,263 → 1,330 件。仕様書から変えた点・足した点は次のとおり。
+
+| 項目 | 仕様書 | 実装 | 理由 |
+|---|---|---|---|
+| ノートの本文の欄 | `text` とは別に `contents` | **`text` を使い回す**（ノートは空を許す。`validPatchValue` を kind で分けた） | 塊①のマークアップの「対象の文字」・塊②のテキストの本文と同じ欄で、一覧の見出し（`titleOf`）も 1 つの式で済む |
+| 「本文」の確定 | blur と Ctrl+Enter | blur に加えて **Ctrl+Enter・Esc のキーの側でも `setContents` を呼んでから blur する**（同じ本文なら 2 度目は積まない） | 起動確認で、窓が非活性のとき Chromium が `blur()` で活性要素を変えても blur イベントを流さず、本文が確定されないことが 3 回に 1 回あった |
+| 作成者を空にしたとき | OS のユーザー名 | 「作成者」欄を空にして確定すると `settings:setUi` の応答（メインが OS のユーザー名で埋めたもの）を受け取って欄に戻す（`annotateNote.setAuthor`。`shell.persist` は応答を捨てるので直接 `settingsAPI.setUi` を呼ぶ） | 次回起動を待たずに既定へ戻る |
+| 一覧の行 | `<div>` | **`<button type="button">`** | キーボードで Tab と Enter で辿れる。見た目は CSS で同じ |
+| 一覧の行の見出し | 表示のみは種類名 | 表示のみでも **`/Contents` があればその先頭行**（無ければ種類名） | 他のツールの直線に付いたコメントが読める。`titleOf` の式が 1 つで済む |
+| 「表示のみ」の色 | — | `/C` が無ければ灰（`#8b93a1`）。一覧のアイコンは CSS で常に灰にする | 色の無いスタンプ等で `hexOf(null)` の黒を出さない |
+| 読み込んだノートの `/Rect` | 左上から 20×20 | `noteGraphics.rectFromAnchor` で作り直す（pdf.js が `/AP` の無いものを 22×22 に直して返すため） | 基準の点だけ保てば、他のビューアと同じ位置になる |
+| `move` の差分 | 2 つの有限数 | 長さ 2 も見る（`[1]` を渡すと NaN の箱になるのをテストで見つけた） | — |
+| `/F` と `/Popup` | `addAnnotation` にノートの分岐 | 外観が `flags`・`popupRect` を返し、`addAnnotation` は種類を知らずに `F: appearance.flags ?? 4`、`popupRect` があれば `/Popup` を足す | 種類ごとの分岐を純関数の側に寄せる |
+| 検体 | `three-pages.pdf`・`rotated.pdf` | **`test/fixtures/annotated.pdf` を足した**（`annotations.js` で three-pages.pdf に `/AP` の無いノート・`/Popup`・他のツールの Line・FreeText・Stamp・Link を載せる。pretest で生成） | 表示のみの削除と `/AP` の無いノートの編集を、起動確認で本物の pdf.js を通して確かめるため |
+| 起動確認 | `note:`・`contents:`・`opacity:`・`list:` | それに加えて `author:`（「作成者」欄）。結果に `notes`・`importedNotes`・`readonly`・`opacities`・`noteGroups`・`listRows`・`listVisible`・`sideTitle`・`propsContents`・`propsAuthor`・`propsOpacity` | — |
+| `annotation-props.js` | 3 行を足す | 349 行になった（塊③で 234 行）。行ごとの出し入れ関数が増えたぶん | 切り出すなら「欄の組み立て（`fillSelect`・`fillShapeKinds`・`fillOpacities`・`bindContents`）」だが、今回は見送り |
+
+依存は増やしていない（`THIRD-PARTY-NOTICES.md` は変えていない）。
+
+### 完了判定の結果
+
+| # | 判定 | 結果 | 確かめ方 |
+|---|---|---|---|
+| 1 | レールの「ノート」が押せ、サイドパネルが「注釈」の一覧になり、右パネルに「本文」「作成者」「不透明度」の行が出る | ✅ | `shell.test.js`（有効 7・灰色 0、題名「注釈」）、`annotate-note.test.js`・`annotation-list.test.js`（行の出し入れ）、実機の画面 `screenshots/phase4-notes-list-app.png`（モック `phase4-notes-list-selected.png` と同じ配置） |
+| 2 | 付箋を置いて選ばれ、本文を書け、色を選べ、動かせ、Delete で消え、Ctrl+Z／Y で戻る | ✅ | `annotate-note.test.js`（置く → 1 世代・フォーカス、blur／Ctrl+Enter／Esc で確定、移動、Delete、undo／redo）、起動確認 `note:`・`contents:`・`drag:`・`delete`・`undo`・`redo` |
+| 3 | 付箋は倍率・回転に依らず同じ大きさ・上向きで、`/Rect` の左上を基準に置かれる | ✅ | `note-graphics.test.js`（倍率 1 と 2 で 26.67px、回転 90 でも左上から右下）、起動確認 `rotated.pdf`（2 ページ目に置く → 保存 → `/Rect [67.09 646.17 87.09 666.17]` → 開き直しで同じ） |
+| 4 | 一覧がページ順に出て、行を押すと該当箇所へ飛んで選ばれ、紙の上で選んだものは一覧でも光る。並べ替えで p.N が追従 | ✅ | `annotation-index.test.js`（ページ順・上から下・左から右・並べ替え）、`annotation-list.test.js`（行・`.on` の同期・行を押すと `select`＋`scrollIntoView`・未描画は `goToPage`＋`onPageRendered`）、起動確認 `list:1`（一覧から選んで `drag:` で動かせた） |
+| 5 | 表示のみの注釈が一覧に出て、選ぶと枠だけ出て、消せる | ✅ | `annotation-import.test.js`・`annotation-layer.test.js`・`annotate-note.test.js`（枠だけ・色と不透明度は断る・紙の上で当たらない・`remove: ['17R']`）、起動確認 `annotated.pdf`（一覧 1 行目の Line を消して保存 → `/Annots` から消え、FreeText・Stamp は残り、Link は一覧に出ない） |
+| 6 | 不透明度が図形・ペン・テキスト・ノートに効き、画面・印刷・保存で同じ値 | ✅ | `annotate-note.test.js`（行の出し入れ・道具ごとに覚える・選んだ注釈は 1 世代・層の `opacity`）、`annotation-layer.test.js`（`paint` の `globalAlpha`）、`op-annotate.test.js`（`/CA` と ExtGState が同じ値）、起動確認（ノート 0.5・矩形 0.5 → 保存 → `/CA 0.5`・`/GS << /CA 0.5 /ca 0.5 >>`） |
+| 7 | 保存で `/Text` が `/Contents`・`/T`・`/M`・`/CreationDate`・`/C`・`/CA`・`/F 28`・`/Name /Comment`・`/AP /N`・`/Popup` 付きで書かれ、開き直しても直せる。他のツールのノート（`/AP` の無いものを含む）も見えて直せる | ✅ | `op-annotate.test.js`・`pdf-task.test.js`（読み直して辞書・Popup・抽出）、起動確認（保存 → 開き直しで `importedNotes` に本文・作成者・色。`annotated.pdf` の `/AP` の無いノートの本文を直して保存 → 元と Popup が消え、写しが `/AP`・`/Popup` 付きで書かれた） |
+| 8 | `/Rotate 90` のページでも置いた位置に保存され、開き直しても同じ位置・上向き | ✅ | 起動確認 `rotated.pdf`（判定3）、`note-graphics.test.js`（回転した viewport） |
+| 9 | 印刷のプレビューに未保存のノートと不透明度が映る | ✅ | `annotation-layer.test.js`・`note-graphics.test.js`（`paint` が 20pt × 倍率で描く）、起動確認 `SIGK_SMOKE_PRINT=1`（未保存の 50% のノートがある状態で印刷の準備が通る。`error: null`・1,240×1,754 の画像） |
+| 10 | 色・不透明度・作成者が `settings.json` に残り、次回起動で戻る。作成者が空なら OS のユーザー名 | ✅ | `settings.test.js`・`annotate-note.test.js`（`uiCalls`・起動時に戻る・プリセット外は捨てる）、起動確認（別の起動で `author:総務` と `opacity:50` が戻っていた。`author:` で空にすると `h.keduka`（OS のユーザー名）が出た） |
+| 11 | `npm test` が緑（`TZ=UTC` でも）。配布物でも起動確認が通る | ✅ | 1,330 件緑（`TZ=UTC` も）。`dist/win-unpacked/SigK PDF.exe` で `SIGK_SMOKE=1` と `SIGK_SMOKE_ANNOTATE`（`problems: []`、保存 → 開き直しで `importedNotes` 1 件・一覧 2 行） |
+| 12 | 他のビューアで付箋が同じ位置・色で見え、本文と作成者が注釈一覧に出て、不透明度が同じ | ⏳ | **ユーザーの目視待ち**（塊① 判定10・塊② 判定11・塊③ 判定12 と同じ扱い） |
+
+### 実測（Windows 11 実機・開発ツリーと配布物。`SIGK_SMOKE_ANNOTATE`）
+
+| 項目 | 値 |
+|---|---|
+| 付箋を置く（押す → 1 世代・選ぶ・「本文」欄へフォーカス。本文の打ち込みと確定を含む） | 385〜433ms（うち待ち 250ms。道具の持ち替えを含む） |
+| 色・不透明度を変える・動かす・戻す | 2〜9ms |
+| 一覧の行を押して飛ぶ（`list:`。待ち 500ms を含む） | 513〜516ms |
+| 保存（`three-pages.pdf`・ノート 1 ＋ 矩形 1） | 307〜349ms（ワーカー）／段全体 1.1〜1.2 秒（開き直しを含む） |
+| 保存で増えるバイト数 | ノート 1（`/Popup`・`/AP` 込み）＋ 矩形 1 で **+1,219〜1,236B**。`annotated.pdf` で Line を消し `/AP` の無いノートを写しにすると −1,733B |
+| 印刷の準備（1 ページ・150dpi・未保存のノート付き） | 79ms（1,240×1,754・61KB） |
+| 一覧の組み直し | 2,000 行で 32〜39ms（事前調査 E。Chromium） |
+| 配布物 | `SigK PDF Setup 0.1.0.exe` 115.7MB（塊③と同じ）、`app.asar` 14.12MB（塊③ 14.06MB） |
+
+### 目視の残り（判定12。塊①判定10・塊②判定11・塊③判定12 と同じ扱い）
+
+保存した PDF を他のビューアで開き、付箋が同じ位置・色で見え、本文と作成者が注釈一覧に出て、ポップアップが開けること。
+不透明度を下げた図形・ノートが同じ濃さに見えること。`/Rotate 90` のページに置いた付箋も同じ位置・上向きであること。
+他のツールで付けた注釈（直線・スタンプ等）を一覧から消したものが、他のビューアでも消えていること。
