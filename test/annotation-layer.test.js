@@ -200,3 +200,47 @@ test('paint は図形を shape-graphics に委ねる', () => {
   assert.equal(calls.filter((call) => call[0] === 'fill').length, 1);
   assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'globalAlpha' && value === 0.5));
 });
+
+// ---- ノートと表示のみ（spec-4-4 確定事項8・11・32・34） ----
+
+require('../renderer/note-graphics.js');
+
+const NOTE = { id: 'sigk-9', src: 0, kind: 'note', color: '#ffe45a', opacity: 0.75, rect: [100, 680, 120, 700], quads: [[100, 700, 120, 700, 100, 680, 120, 680]], text: 'メモ', author: '総務' };
+const READONLY = { ref: '17R', src: 0, kind: 'other', subtype: 'Line', color: '#ff0000', opacity: 1, rect: [298, 698, 502, 762], quads: [[298, 762, 502, 762, 298, 698, 502, 698]], text: 'other line', author: '', readonly: true };
+
+test('draw はノートを note-graphics の <g> に委ね、選択の枠は画面の箱から（倍率に依らない）', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport(2));
+  assert.equal(layer.draw(svg, [HIGHLIGHT, NOTE], viewport(2), { selected: 'sigk-9' }), 3);
+  const note = svg.querySelector('g[data-annot="sigk-9"]');
+  assert.equal(note.getAttribute('data-kind'), 'note');
+  assert.equal(note.getAttribute('opacity'), '0.75');
+  assert.equal(note.querySelector('g.note path').getAttribute('fill'), '#ffe45a');
+  const frame = svg.querySelector('.annot-frame');
+  assert.equal(Number(frame.getAttribute('x')), 200 - layer.FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), Math.round((26.67 + layer.FRAME_PADDING * 2) * 100) / 100);
+});
+
+test('draw は表示のみの注釈を描かず、選ばれていれば枠だけ出す', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport());
+  assert.equal(layer.draw(svg, [READONLY, HIGHLIGHT], viewport()), 1);
+  assert.equal(svg.querySelector('g[data-annot="17R"]'), null);
+  assert.equal(layer.draw(svg, [READONLY, HIGHLIGHT], viewport(), { selected: '17R' }), 2);
+  const frame = svg.querySelector('.annot-frame');
+  assert.equal(Number(frame.getAttribute('x')), 298 - layer.FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 204 + layer.FRAME_PADDING * 2);
+});
+
+test('paint はノートを note-graphics に委ね、表示のみは描かない', () => {
+  const calls = [];
+  const ctx = new Proxy({}, {
+    get: (_target, name) => (...args) => { calls.push([name, ...args]); },
+    set: (_target, name, value) => { calls.push(['set', name, value]); return true; },
+  });
+  assert.equal(layer.paint(ctx, [READONLY, NOTE], viewport()), 2);
+  assert.equal(calls.filter((call) => call[0] === 'bezierCurveTo').length, 4);
+  assert.equal(calls.filter((call) => call[0] === 'fill').length, 1);
+  assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'globalAlpha' && value === 0.75));
+  assert.equal(calls.filter((call) => call[0] === 'save').length, 1, '表示のみは描かない');
+});

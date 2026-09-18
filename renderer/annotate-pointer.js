@@ -1,16 +1,17 @@
 (function (root) {
   'use strict';
 
-  // 注釈モードのページビューの押し離し（spec-4-1 確定事項6・10、spec-4-2 確定事項3・5・6、spec-4-3 確定事項3・5）。
+  // 注釈モードのページビューの押し離し（spec-4-1 確定事項6・10、spec-4-2 確定事項3・5・6、spec-4-3 確定事項3・5、
+  // spec-4-4 確定事項2・7）。
   //
   // annotate.js から切り出した。mousedown／mouseup／dblclick を #view に結び、
   //   - 押したとき: 選んでいるテキスト・図形の上ならドラッグ移動の準備、そうでなく図形・ペンの
   //     道具を持っていれば描き始める（動かすたびに下書きを描き直す）
   //   - 離したとき: 描いていて動いていれば注釈にする → 道具があり文字が選ばれていれば
   //     マークアップを作る → 動いていない押し離しなら当たり判定で選ぶ → 何も無い場所で
-  //     テキストの道具ならそこに置く
-  //   - 選んでいるテキスト・図形を掴んで動かしたら、離したときに 1 世代（ドラッグ移動）
-  //   - ダブルクリックしたテキストは入力欄を開く
+  //     テキストの道具ならそこに置く（ノートの道具なら付箋を置く）
+  //   - 選んでいるテキスト・図形・ノートを掴んで動かしたら、離したときに 1 世代（ドラッグ移動）
+  //   - ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）
   // に振り分ける。判断そのものは annotate.js・annotate-text.js・annotate-shape.js が持つ。
 
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
@@ -37,6 +38,10 @@
 
   function annotateShape() {
     return root.SigK.annotateShape;
+  }
+
+  function annotateNote() {
+    return root.SigK.annotateNote;
   }
 
   function editor() {
@@ -71,7 +76,14 @@
   // ---- ドラッグ移動（spec-4-2 確定事項6、spec-4-3 確定事項5） ----
 
   function isMovable(entry) {
-    return entry.kind === 'text' || root.SigK.annotationEntry.isDrawnKind(entry.kind);
+    return entry.kind === 'text' || entry.kind === 'note' || root.SigK.annotationEntry.isDrawnKind(entry.kind);
+  }
+
+  // 種類ごとの動かす口。
+  function moverFor(entry) {
+    if (entry?.kind === 'text')
+      return annotateText();
+    return entry?.kind === 'note' ? annotateNote() : annotateShape();
   }
 
   // 選んでいるテキスト・図形の上で押したらドラッグの準備。文字選択を始めさせない。
@@ -111,8 +123,7 @@
     const from = drag.viewport.convertToPdfPoint(drag.start[0], drag.start[1]);
     const to = drag.viewport.convertToPdfPoint(event.clientX, event.clientY);
     const delta = [to[0] - from[0], to[1] - from[1]];
-    const entry = annotate().selectedEntry();
-    (entry?.kind === 'text' ? annotateText() : annotateShape())?.move(drag.key, delta);
+    moverFor(annotate().selectedEntry())?.move(drag.key, delta);
     return true;
   }
 
@@ -204,10 +215,14 @@
       annotateText()?.place({ index: page.index, point: page.point });
       return;
     }
+    if (tool === 'note') {
+      annotateNote()?.place({ index: page.index, point: page.point });
+      return;
+    }
     annotate().select(null);
   }
 
-  // ダブルクリックしたテキストは入力欄を開く（spec-4-2 確定事項5）。
+  // ダブルクリックしたテキストは入力欄を開く（spec-4-2 確定事項5）。ノートは「本文」欄へ（spec-4-4 確定事項7）。
   function onDoubleClick(event) {
     if (!inAnnotMode() || !isOpen())
       return;
@@ -215,7 +230,7 @@
     if (page === null)
       return;
     const hit = annotate().hitTest(page.index, page.point);
-    if (hit !== null && annotateText()?.beginEdit(hit) === true)
+    if (hit !== null && (annotateText()?.beginEdit(hit) === true || annotateNote()?.beginEdit(hit) === true))
       event.preventDefault();
   }
 

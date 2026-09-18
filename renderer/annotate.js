@@ -1,15 +1,17 @@
 (function (root) {
   'use strict';
 
-  // 注釈モードの指揮（spec-4-1 確定事項1〜10・15〜19、spec-4-2 確定事項1・7・8・21、spec-4-3 確定事項12・19）。
+  // 注釈モードの指揮（spec-4-1 確定事項1〜10・15〜19、spec-4-2 確定事項1・7・8・21、spec-4-3 確定事項12・19、
+  // spec-4-4 確定事項13・31）。
   //
   // 道具を持つ・選ぶ・消す・色を変える・履歴に積む、をここで結ぶ。状態の純粋な操作は
   // annotation-state.js、描画は annotation-layer.js、読み込んだ注釈を集めるのは
   // annotation-import.js、右のプロパティは annotation-props.js、ページビューの押し離しは
   // annotate-pointer.js、文字の選択からマークアップを作るのは annotate-markup.js、
   // テキストの置く・直す・動かすは annotate-text.js、図形・ペンの描く・動かす・太さは
-  // annotate-shape.js が持つ。ここが握るのは「いまの道具」「選んでいる注釈」「次に付ける色と
-  // 文字の大きさ」だけである。
+  // annotate-shape.js、ノートの置く・動かす・本文・作成者は annotate-note.js、不透明度は
+  // annotate-opacity.js、サイドパネルの一覧は annotation-list.js が持つ。ここが握るのは
+  // 「いまの道具」「選んでいる注釈」「次に付ける色と文字の大きさ」だけである。
 
   // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
   // 色は種類ごとの引き出し（paletteOf。図形 4 種は shape、ペンは pen）で引く。
@@ -141,17 +143,24 @@
     return annotationState().findAnnot(viewer().getAnnotations(), viewer().getImported(), state.selected);
   }
 
+  // 選ぶ。一覧の行も揃える（spec-4-4 確定事項31）。
   function select(key) {
     state.selected = key ?? null;
     if (state.selected !== null && selectedEntry() === null)
       state.selected = null;
     viewer()?.redrawAnnotations();
     props()?.refresh();
+    root.SigK.annotationList?.syncSelected(state.selected);
     return state.selected;
   }
 
-  // 1 つの注釈に点（紙の座標）が当たるか。直線・矢印・ペンは線からの距離、それ以外は四角（spec-4-3 確定事項12）。
-  function hits(entry, pdfPoint, viewport) {
+  // 1 つの注釈に点が当たるか。直線・矢印・ペンは線からの距離、ノートは画面の箱（表示の点で見る。
+  // spec-4-4 確定事項13）、表示のみは当てない、それ以外は四角（spec-4-3 確定事項12）。
+  function hits(entry, pdfPoint, viewport, point) {
+    if (entry.readonly === true)
+      return false;
+    if (annotationState().isNoteKind(entry.kind))
+      return root.SigK.noteGraphics.hits(entry, point, viewport);
     if (!annotationState().isPathKind(entry.kind))
       return root.SigK.markupQuads.hitTest(entry.quads, pdfPoint);
     const geometry = root.SigK.shapeGeometry;
@@ -169,7 +178,7 @@
     const pdfPoint = viewport.convertToPdfPoint(point[0], point[1]);
     const entries = annotationState().annotsOnPage(view.getAnnotations(), view.getImported(), src);
     for (let position = entries.length - 1; position >= 0; position -= 1) {
-      if (hits(entries[position], pdfPoint, viewport))
+      if (hits(entries[position], pdfPoint, viewport, point))
         return root.SigK.annotationLayer.keyOf(entries[position]);
     }
     return null;
@@ -197,7 +206,8 @@
       props()?.refresh();
       return true;
     }
-    if (!COLORS[paletteOf(entry.kind)].includes(color))
+    // 表示のみと、プリセットの無い種類は変えられない（spec-4-4 確定事項32）。
+    if (entry.readonly === true || COLORS[paletteOf(entry.kind)]?.includes(color) !== true)
       return false;
     const before = state.selected;
     const annots = annotationState().recolorAnnot(viewer().getAnnotations(), entry, color);
@@ -260,6 +270,8 @@
       root.SigK.save?.warnIfUnsaveable();
       root.SigK.freeTextShape?.ensureLoaded(state.doc);
     }
+    // サイドパネルの一覧は注釈モードのときだけ（spec-4-4 確定事項9）。
+    root.SigK.annotationList?.refresh();
   }
 
   function init(doc, win) {
@@ -303,7 +315,14 @@
     setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
     getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),
     getShapeKind: () => root.SigK.annotateShape?.getShapeKind(),
-    editSelected: () => root.SigK.annotateText?.editSelected() === true,
+    // 不透明度・本文・作成者（spec-4-4）。
+    setOpacity: (value) => root.SigK.annotateOpacity?.setOpacity(value) === true,
+    getOpacity: (kind) => root.SigK.annotateOpacity?.opacityOf(kind) ?? 1,
+    setContents: (text) => root.SigK.annotateNote?.setContents(text) === true,
+    setAuthor: (author) => root.SigK.annotateNote?.setAuthor(author) === true,
+    getAuthor: () => root.SigK.annotateNote?.getAuthor() ?? '',
+    // Enter・ダブルクリック: テキストは入力欄、ノートは「本文」欄。
+    editSelected: () => root.SigK.annotateText?.editSelected() === true || root.SigK.annotateNote?.editSelected() === true,
     finishEditing,
     createFromSelection,
     getSelected,

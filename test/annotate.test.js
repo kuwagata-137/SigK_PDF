@@ -122,9 +122,12 @@ test('道具はトグルで、持つとプロパティに種類と色が出る',
 
   button.dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(SigK.annotate.getTool(), null);
-  // 位置取りの道具は押せない。
-  document.querySelector('.rail-item.tool[aria-disabled="true"]').dispatchEvent(new shell.window.MouseEvent('click'));
-  assert.equal(SigK.annotate.getTool(), null);
+  // 塊④でレールの 7 つが全部押せる（灰色の位置取りは無い）。
+  assert.equal(document.querySelector('.rail-item.tool[aria-disabled="true"]'), null);
+  document.querySelector('.rail-item.tool[data-tool="note"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  assert.equal(SigK.annotate.getTool(), 'note');
+  assert.equal(document.getElementById('props-kind').textContent, 'ノート（次に付ける）');
+  SigK.annotate.setTool(null);
 });
 
 // ---- 作る（確定事項10〜14） ----
