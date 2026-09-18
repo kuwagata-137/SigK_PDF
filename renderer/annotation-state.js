@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
 
-  // 注釈の状態の純粋層（spec-4-1 確定事項16・17・19、spec-4-2 確定事項15〜18、spec-4-3 確定事項14〜18）。
+  // 注釈の状態の純粋層（spec-4-1 確定事項16・17・19、spec-4-2 確定事項15〜18、spec-4-3 確定事項14〜18、spec-4-4 確定事項15〜19）。
   // DOM にも pdf.js にも触れない。1 件の形（種類・検証・写し・比較・保存の形）は
   // annotation-entry.js が持ち、ここは集まりの操作を持つ。
   //
@@ -13,6 +13,7 @@
   // ファイルにあった注釈そのもの（imported）はここに入れない。履歴に積むのは
   // 編集だけで、ファイルの中身は編集ではないからである（確定事項17）。
   // 読み込んだ注釈を変えるのは「元を removed に足し、写しを added に足す」で表す。
+  // 「表示のみ」の注釈（readonly。annotation-import.js）は消せるだけで、変えられない（spec-4-4 確定事項16）。
 
   let seq = 0;
 
@@ -70,9 +71,11 @@
     return next;
   }
 
-  // 欄を変える（色・本文・大きさ・箱・線幅・点列）。自前のものは書き換え、読み込んだものは消して
-  // 写しを足す（写しは自前の注釈になり、保存で /AP ごと書き直される）。
+  // 欄を変える（色・本文・大きさ・箱・線幅・点列・不透明度）。自前のものは書き換え、読み込んだものは消して
+  // 写しを足す（写しは自前の注釈になり、保存で /AP ごと書き直される）。表示のみのものは変えない。
   function updateAnnot(annots, target, patch) {
+    if (target?.readonly === true)
+      return annots;
     const kind = target?.kind ?? (annots?.added ?? []).find((entry) => entry.id === target?.id)?.kind;
     const picked = entryModule().pickPatch(patch, kind);
     if (picked === null)
@@ -137,6 +140,7 @@
     isShapeKind: entry.isShapeKind,
     isPathKind: entry.isPathKind,
     isDrawnKind: entry.isDrawnKind,
+    isNoteKind: entry.isNoteKind,
     newId,
     createAnnots,
     cloneAnnots,

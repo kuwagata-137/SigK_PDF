@@ -2,23 +2,27 @@
   'use strict';
 
   // 注釈 1 件（entry）の形を知る純粋層（spec-4-1 確定事項16・19、spec-4-2 確定事項15〜18、
-  // spec-4-3 確定事項14〜18）。DOM にも pdf.js にも触れない。annotation-state.js が
+  // spec-4-3 確定事項14〜18、spec-4-4 確定事項15〜19）。DOM にも pdf.js にも触れない。annotation-state.js が
   // 集まり（{ added, removed }）を扱うのに対し、ここは 1 件の種類・検証・写し・比較・保存の形を持つ。
   //
   //   共通       … { id, src, kind, color, opacity, quads, rect, text }
   //   テキスト   … さらに { fontSize, rotation }。quads は箱の四角 1 つ
   //   図形・ペン … さらに { lineWidth }。直線・矢印・ペンは { paths: [[[x, y], …], …] }（紙の座標）。
   //                quads は rect の四角 1 つ
+  //   ノート     … さらに { author }。text は本文（空を許す）。rect は 20×20pt で左上が基準。quads は rect の四角 1 つ
+  //
+  // 読み込んだだけで直せない「表示のみ」の注釈は { ref, kind: 'other', subtype, readonly: true } の形で imported に
+  // だけ現れる（annotation-import.js）。KINDS には無く、ここでは作れない。
 
   const MARKUP_KINDS = Object.freeze(['highlight', 'underline', 'strikeout']);
   // 「図形」の道具で描く 4 種と、点列（paths）を持つ 3 種（spec-4-3 確定事項14）。
   const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow']);
   const PATH_KINDS = Object.freeze(['line', 'arrow', 'ink']);
-  const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink']);
+  const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink', 'note']);
   const ROTATIONS = Object.freeze([0, 90, 180, 270]);
 
   // updateAnnot で書き換えられる欄。
-  const PATCH_FIELDS = Object.freeze(['color', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths']);
+  const PATCH_FIELDS = Object.freeze(['color', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity']);
 
   function isKind(kind) {
     return KINDS.includes(kind);
@@ -39,6 +43,10 @@
   // 図形・ペン（線幅を持つもの）。
   function isDrawnKind(kind) {
     return SHAPE_KINDS.includes(kind) || kind === 'ink';
+  }
+
+  function isNoteKind(kind) {
+    return kind === 'note';
   }
 
   function copyPaths(paths) {
@@ -64,6 +72,8 @@
       copy.lineWidth = entry.lineWidth;
     if (isPathKind(entry.kind))
       copy.paths = copyPaths(entry.paths);
+    if (isNoteKind(entry.kind))
+      copy.author = entry.author ?? '';
     return copy;
   }
 
@@ -82,7 +92,7 @@
   function sameEntry(a, b) {
     return a.id === b.id && a.src === b.src && a.kind === b.kind && a.color === b.color
       && a.opacity === b.opacity && a.text === b.text && a.fontSize === b.fontSize
-      && a.rotation === b.rotation && a.lineWidth === b.lineWidth && sameNumbers(a.rect, b.rect)
+      && a.rotation === b.rotation && a.lineWidth === b.lineWidth && a.author === b.author && sameNumbers(a.rect, b.rect)
       && samePaths(a.paths, b.paths);
   }
 
@@ -92,6 +102,16 @@
 
   function validText(text) {
     return typeof text === 'string' && text.trim() !== '';
+  }
+
+  // ノートの本文は空でもよい。作成者は文字列か無し。
+  function validNoteFields(entry) {
+    return typeof entry.text === 'string' && (entry.author === undefined || typeof entry.author === 'string')
+      && entry.quads.length === 1;
+  }
+
+  function validOpacity(value) {
+    return Number.isFinite(value) && value >= 0 && value <= 1;
   }
 
   function validPositive(value) {
@@ -132,13 +152,16 @@
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);
+    if (isNoteKind(entry.kind))
+      return validNoteFields(entry);
     return isDrawnKind(entry.kind) ? validDrawnFields(entry) : true;
   }
 
   function validPatchValue(field, value, kind) {
     switch (field) {
       case 'color': return typeof value === 'string';
-      case 'text': return validText(value);
+      case 'text': return isNoteKind(kind) ? typeof value === 'string' : validText(value);
+      case 'opacity': return validOpacity(value);
       case 'fontSize': return validPositive(value);
       case 'lineWidth': return validPositive(value);
       case 'rect': return Array.isArray(value) && value.length === 4;
@@ -161,13 +184,15 @@
     return Object.keys(picked).length === 0 ? null : picked;
   }
 
-  // ワーカーへ渡す形（spec-4-1 確定事項22・spec-4-2 確定事項18・spec-4-3 確定事項18）。id は要らない。
-  // マークアップは四角の並び、テキストは箱と本文・大きさ・回転、図形・ペンは箱と線幅（と点列）。
+  // ワーカーへ渡す形（spec-4-1 確定事項22・spec-4-2 確定事項18・spec-4-3 確定事項18・spec-4-4 確定事項19）。id は要らない。
+  // マークアップは四角の並び、テキストは箱と本文・大きさ・回転、図形・ペンは箱と線幅（と点列）、ノートは箱と本文・作成者。
   // 四角は箱から作れるので落とす。
   function toSaveEntry(entry) {
-    const { src, kind, color, opacity, quads, rect, text, fontSize, rotation, lineWidth, paths } = entry;
+    const { src, kind, color, opacity, quads, rect, text, fontSize, rotation, lineWidth, paths, author } = entry;
     if (kind === 'text')
       return { src, kind, color, opacity, rect: [...rect], text, fontSize, rotation };
+    if (isNoteKind(kind))
+      return { src, kind, color, opacity, rect: [...rect], text, author: author ?? '' };
     if (isDrawnKind(kind)) {
       const saved = { src, kind, color, opacity, rect: [...rect], lineWidth };
       if (isPathKind(kind))
@@ -190,6 +215,7 @@
     isShapeKind,
     isPathKind,
     isDrawnKind,
+    isNoteKind,
     copyEntry,
     sameEntry,
     validEntry,

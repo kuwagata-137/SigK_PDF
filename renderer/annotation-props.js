@@ -1,13 +1,17 @@
 (function (root) {
   'use strict';
 
-  // 右のプロパティ（spec-4-1 確定事項4・33、spec-4-2 確定事項2、spec-4-3 確定事項2・7）。注釈モードの間は常に出す。
+  // 右のプロパティ（spec-4-1 確定事項4・33、spec-4-2 確定事項2、spec-4-3 確定事項2・7、spec-4-4 確定事項3〜6）。
+  // 注釈モードの間は常に出す。
   //
   // 出し入れは CSS（html[data-mode="annot"] のときだけ表示）が持ち、ここは中身を
   // 実態に合わせるだけである。選んでいる注釈があればその注釈、無ければ「次に付ける
   // 注釈」（持っている道具）の種類と色を見せる。色の丸を押すと annotate.setColor、
   // 「文字の大きさ」は annotate.setFontSize、「線の太さ」は annotate.setLineWidth、
-  // 「図形の種類」は annotate.setShapeKind、「この注釈を削除」は annotate.remove へ流す。
+  // 「図形の種類」は annotate.setShapeKind、「本文」（ノート。blur か Ctrl+Enter で確定）は
+  // annotate.setContents、「作成者」は annotate.setAuthor、「不透明度」は annotate.setOpacity、
+  // 「この注釈を削除」は annotate.remove へ流す。表示のみの注釈は種類名に「（表示のみ）」を添え、
+  // 色の丸を出さない。
 
   const HINTS = Object.freeze({
     selected: 'Delete で消せます。Esc で選択を解除します。Ctrl+Z で元に戻せます。',
@@ -18,6 +22,9 @@
     shape: '紙の上をドラッグすると描けます。Shift を押しながらで正方形・正円・45° 刻みになります。Esc で道具を離します。',
     pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの注釈になります。Esc で道具を離します。',
     shapeSelected: '掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
+    note: '紙の上を押すと、そこに付箋を置けます。本文は「本文」の欄に書きます。Esc で道具を離します。',
+    noteSelected: '本文は欄の外を押すか Ctrl+Enter で確定します。掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
+    readonly: '他のツールで付けた注釈です。Delete で消せます。編集はできません。',
   });
 
   // 「本文」の行に出す文字数の上限。
@@ -42,6 +49,14 @@
 
   function isDrawnKind(kind) {
     return root.SigK.annotationEntry?.isDrawnKind(kind) === true;
+  }
+
+  function isNoteKind(kind) {
+    return root.SigK.annotationEntry?.isNoteKind(kind) === true;
+  }
+
+  function isOpacityKind(kind) {
+    return presets().isOpacityKind(kind);
   }
 
   // 元ページ番号 src を、いま画面に出ている位置（1 始まり）にする。
@@ -104,27 +119,85 @@
       button.classList.toggle('on', button.dataset.kind === kind);
   }
 
+  function percentOf(value) {
+    return `${Math.round(value * 100)}%`;
+  }
+
+  // 「不透明度」の行。対象の道具か注釈のときだけ出す。読み込んだ注釈のプリセットに無い値は末尾に足して見せる
+  // （線の太さと同じ。spec-4-4 確定事項5）。
+  function setOpacityRow(value) {
+    el.opacityRow.hidden = value === null;
+    for (const extra of el.opacity.querySelectorAll('option[data-extra]'))
+      extra.remove();
+    if (value === null)
+      return;
+    if (!presets().isOpacity(value)) {
+      const option = el.doc.createElement('option');
+      option.value = String(value);
+      option.textContent = percentOf(value);
+      option.dataset.extra = 'true';
+      el.opacity.append(option);
+    }
+    el.opacity.value = String(value);
+  }
+
+  // 「本文」の行（ノートを選んでいるときだけ）。書いている最中は値を触らない。
+  function setContentsRow(text) {
+    el.contentsRow.hidden = text === null;
+    if (text !== null && el.doc.activeElement !== el.contents)
+      el.contents.value = text;
+  }
+
+  // 「作成者」の行。ノートの道具なら編集でき、ノートを選んでいれば読み取り。
+  function setAuthorRow(author, { editable }) {
+    el.authorRow.hidden = author === null;
+    if (author === null)
+      return;
+    el.author.readOnly = !editable;
+    if (el.doc.activeElement !== el.author)
+      el.author.value = author;
+  }
+
   function previewOf(text) {
     const flat = text.replace(/\s*\n\s*/g, ' ');
     return flat.length > TEXT_PREVIEW ? `${flat.slice(0, TEXT_PREVIEW)}…` : flat;
   }
 
   function hintForSelected(entry) {
+    if (entry.readonly === true)
+      return HINTS.readonly;
     if (entry.kind === 'text')
       return HINTS.textSelected;
+    if (isNoteKind(entry.kind))
+      return HINTS.noteSelected;
     return isDrawnKind(entry.kind) ? HINTS.shapeSelected : HINTS.selected;
+  }
+
+  // 種類の見出し。表示のみは subtype の種類名に「（表示のみ）」（spec-4-4 確定事項6）。
+  function kindLabelOf(entry) {
+    if (entry.readonly === true)
+      return `${presets().readonlyLabelOf(entry.subtype)}（表示のみ）`;
+    return annotate().TOOL_LABELS[entry.kind];
   }
 
   function refreshSelected(entry) {
     const isText = entry.kind === 'text';
-    el.kind.textContent = annotate().TOOL_LABELS[entry.kind];
-    renderSwatches(entry.kind, entry.color);
+    const isNote = isNoteKind(entry.kind);
+    const readonly = entry.readonly === true;
+    el.kind.textContent = kindLabelOf(entry);
+    if (readonly)
+      el.colors.replaceChildren();
+    else
+      renderSwatches(entry.kind, entry.color);
+    setContentsRow(isNote ? entry.text : null);
+    setAuthorRow(isNote ? (entry.author ?? '') : null, { editable: false });
     setSizeRow(isText ? entry.fontSize : null);
     setWidthRow(isDrawnKind(entry.kind) ? entry.lineWidth : null);
+    setOpacityRow(!readonly && isOpacityKind(entry.kind) ? entry.opacity : null);
     setShapeRow(null);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象の文字';
-    setRow(el.textRow, entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
+    setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
     el.hint.textContent = hintForSelected(entry);
     setDeleteEnabled(true);
   }
@@ -156,14 +229,49 @@
       el.colors.replaceChildren();
     else
       renderSwatches(tool, annotate().colorOf(tool));
+    setContentsRow(null);
+    setAuthorRow(tool === 'note' ? annotate().getAuthor() : null, { editable: true });
     setSizeRow(tool === 'text' ? annotate().getFontSize() : null);
     setWidthRow(tool === 'shape' || tool === 'pen' ? annotate().getLineWidth() : null);
+    setOpacityRow(tool !== null && presets().OPACITY_TOOLS.includes(tool) ? annotate().getOpacity(tool) : null);
     setShapeRow(tool === 'shape' ? annotate().getShapeKind() : null);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
     el.hint.textContent = hintFor(tool);
     setDeleteEnabled(false);
     return true;
+  }
+
+  // 「本文」欄にフォーカスを移す（置いた直後・ダブルクリック・Enter）。出ていなければ何もしない。
+  function focusContents() {
+    if (el === null || el.contentsRow.hidden)
+      return false;
+    el.contents.focus();
+    return true;
+  }
+
+  // 「不透明度」の選択肢（100%・75%・50%・25%）。
+  function fillOpacities(doc, select) {
+    select.replaceChildren(...presets().OPACITIES.map((value) => {
+      const option = doc.createElement('option');
+      option.value = String(value);
+      option.textContent = percentOf(value);
+      return option;
+    }));
+    select.addEventListener('change', () => annotate().setOpacity(Number(select.value)));
+  }
+
+  // 「本文」欄。欄の外を押す（blur）か Ctrl+Enter で確定、Esc は欄を離れる（＝確定）。キーの側でも確定を
+  // 呼ぶのは、窓が非活性のとき Chromium が blur() で活性要素を変えても blur イベントを流さないため（起動確認で実測）。
+  function bindContents(textarea) {
+    textarea.addEventListener('blur', () => annotate().setContents(textarea.value));
+    textarea.addEventListener('keydown', (event) => {
+      if ((event.key === 'Enter' && event.ctrlKey) || event.key === 'Escape') {
+        event.preventDefault();
+        annotate().setContents(textarea.value);
+        textarea.blur();
+      }
+    });
   }
 
   // 選択肢はプリセットから 1 度だけ組む（spec-4-2 確定事項34、spec-4-3 確定事項29）。
@@ -217,10 +325,19 @@
       shapeKinds: doc.getElementById('props-shape-kinds'),
       hint: doc.getElementById('props-hint'),
       remove: doc.getElementById('props-delete'),
+      contentsRow: doc.getElementById('props-contents-row'),
+      contents: doc.getElementById('props-contents'),
+      authorRow: doc.getElementById('props-author-row'),
+      author: doc.getElementById('props-author'),
+      opacityRow: doc.getElementById('props-opacity-row'),
+      opacity: doc.getElementById('props-opacity'),
     };
     fillSelect(doc, el.size, presets().FONT_SIZES, (size) => annotate().setFontSize(size));
     fillSelect(doc, el.width, presets().LINE_WIDTHS, (width) => annotate().setLineWidth(width));
     fillShapeKinds(doc, el.shapeKinds);
+    fillOpacities(doc, el.opacity);
+    bindContents(el.contents);
+    el.author.addEventListener('change', () => annotate().setAuthor(el.author.value));
     el.remove.addEventListener('click', () => {
       if (el.remove.getAttribute('aria-disabled') !== 'true')
         annotate().remove();
@@ -230,5 +347,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationProps = { HINTS, TEXT_PREVIEW, init, refresh };
+  SigK.annotationProps = { HINTS, TEXT_PREVIEW, init, refresh, focusContents };
 })(typeof window !== 'undefined' ? window : globalThis);

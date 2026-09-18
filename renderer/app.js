@@ -53,6 +53,9 @@
       root.SigK.annotate?.applyFontSize(result.ui.annotFontSize);
       root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
       root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);
+      // 不透明度と作成者（spec-4-4 確定事項21）。作成者が空ならメインが OS のユーザー名で埋めている。
+      root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);
+      root.SigK.annotateNote?.applyAuthor(result.ui.annotAuthor);
       return result.ui;
     } catch {
       return null;
@@ -108,8 +111,11 @@
     root.SigK.freeTextEditor.init(doc, win);
     root.SigK.annotateText.init(doc, win);
     root.SigK.annotateShape.init(doc, win);
+    root.SigK.annotateOpacity.init(doc, win);
+    root.SigK.annotateNote.init(doc, win);
     root.SigK.annotatePointer.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
+    root.SigK.annotationList.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
     root.SigK.tabs.init(doc, win);

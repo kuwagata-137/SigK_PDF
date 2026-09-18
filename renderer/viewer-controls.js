@@ -226,9 +226,9 @@
       return;
     if (handleFindPrintKey(event))
       return;
-    // テキストの入力欄の中のキーは入力欄のもの（spec-4-2 確定事項8）。Ctrl+Z は素の取り消し、
-    // Delete・Esc・PageUp 等も奪わない。Esc と Ctrl+Enter は入力欄自身が確定に使う。
-    if (event.target?.closest?.('.free-text-editor'))
+    // テキストの入力欄と右パネルの「本文」「作成者」の中のキーは欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4）。
+    // Ctrl+Z は素の取り消し、Delete・Esc・PageUp 等も奪わない。Esc と Ctrl+Enter は欄自身が確定に使う。
+    if (event.target?.closest?.('.free-text-editor, .props-field'))
       return;
     if (handlePageEditKey(event, doc))
       return;

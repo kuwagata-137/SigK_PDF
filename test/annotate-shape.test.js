@@ -371,11 +371,13 @@ test('覚えた太さと種類は起動時に戻る', async (t) => {
 
 // ---- 読み込み（確定事項13） ----
 
-test('開くと Square と 2 点の PolyLine を読み込み、pdf.js には描かせず自前で描き、Line は拾わない', async (t) => {
+test('開くと Square と 2 点の PolyLine を読み込み、pdf.js には描かせず自前で描き、Line は表示のみ', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
   const imported = SigK.viewer.getImported();
-  assert.deepEqual(plain(imported[0].map((entry) => [entry.ref, entry.kind, entry.lineWidth])), [['30R', 'square', 4], ['31R', 'arrow', 3]]);
+  // Line は塊④で表示のみの entry として一覧に出る（spec-4-4 確定事項20）。紙の上には描かない。
+  assert.deepEqual(plain(imported[0].map((entry) => [entry.ref, entry.kind, entry.lineWidth, entry.readonly === true])), [['30R', 'square', 4, false], ['31R', 'arrow', 3, false], ['32R', 'other', undefined, true]]);
+  assert.equal(shell.pdfjs.documents.at(-1).annotationStorage.get('32R'), undefined);
   assert.deepEqual(plain(imported[0][1].paths), [[[50, 50], [250, 150]]]);
   const svg = pageNode(shell).querySelector('.annot-layer');
   assert.ok(svg.querySelector('g[data-annot="30R"] rect') !== null);

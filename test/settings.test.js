@@ -223,17 +223,18 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 });
 
 // レンダラーへ渡すのは画面の見た目の設定だけである。ウィンドウの位置や履歴は渡さない。
-const DEFAULT_COLORS = { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430', shape: '#d92c2c', pen: '#d92c2c' };
+const DEFAULT_COLORS = { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430', shape: '#d92c2c', pen: '#d92c2c', note: '#ffe45a' };
+const DEFAULT_OPACITY = { text: 1, shape: 1, pen: 1, note: 1 };
 
-test('pickUi はモードとサイドパネルと注釈の色・文字の大きさ・線の太さ・図形の種類だけを取り出す', () => {
+test('pickUi はモードとサイドパネルと注釈の色・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square' });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '' });
 });
 
 // { sidePanel: { open: false } } を送っただけで幅が既定へ戻る、を防ぐ。
 test('mergeUi は入れ子をキー単位で重ねる', () => {
-  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square' };
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '' };
 
   assert.deepEqual(mergeUi(current, { sidePanel: { open: false } }), {
     mode: 'view',
@@ -243,6 +244,8 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotFontSize: 12,
     annotLineWidth: 2,
     annotShapeKind: 'square',
+    annotOpacity: DEFAULT_OPACITY,
+    annotAuthor: '',
   });
   assert.deepEqual(mergeUi(current, { mode: 'annot' }), {
     mode: 'annot',
@@ -252,6 +255,8 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotFontSize: 12,
     annotLineWidth: 2,
     annotShapeKind: 'square',
+    annotOpacity: DEFAULT_OPACITY,
+    annotAuthor: '',
   });
   // 使えない値は現在値のまま。何も送らなくても壊れない。
   assert.deepEqual(mergeUi(current, { mode: 'zzz', sidePanel: { width: 9999 } }), {
@@ -262,6 +267,8 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotFontSize: 12,
     annotLineWidth: 2,
     annotShapeKind: 'square',
+    annotOpacity: DEFAULT_OPACITY,
+    annotAuthor: '',
   });
   assert.deepEqual(mergeUi(current, null), current);
 });
@@ -310,7 +317,7 @@ test('annotFontSize はプリセットの大きさだけを受け取る', () => 
 test('注釈の色と文字の大きさのプリセットが renderer/annotation-presets.js と一致する', () => {
   require('../renderer/annotation-presets.js');
   const presets = globalThis.SigK.annotationPresets;
-  const { ANNOT_COLORS, ANNOT_FONT_SIZES, ANNOT_LINE_WIDTHS, ANNOT_SHAPE_KINDS } = require('../settings.js');
+  const { ANNOT_COLORS, ANNOT_FONT_SIZES, ANNOT_LINE_WIDTHS, ANNOT_SHAPE_KINDS, ANNOT_OPACITIES } = require('../settings.js');
 
   assert.deepEqual(ANNOT_COLORS, presets.COLORS);
   assert.deepEqual(DEFAULTS.annotColors, presets.DEFAULT_COLORS);
@@ -320,6 +327,54 @@ test('注釈の色と文字の大きさのプリセットが renderer/annotation
   assert.equal(DEFAULTS.annotLineWidth, presets.DEFAULT_LINE_WIDTH);
   assert.deepEqual(ANNOT_SHAPE_KINDS, presets.SHAPE_KINDS);
   assert.equal(DEFAULTS.annotShapeKind, presets.DEFAULT_SHAPE_KIND);
+  assert.deepEqual(ANNOT_OPACITIES, presets.OPACITIES);
+  assert.deepEqual(DEFAULTS.annotOpacity, presets.DEFAULT_OPACITIES);
+  assert.deepEqual(Object.keys(DEFAULTS.annotOpacity), presets.OPACITY_TOOLS);
+});
+
+// 不透明度は道具ごとにプリセットの値だけを受け取る（spec-4-4 確定事項21・38）。
+test('annotOpacity は道具ごとにプリセットの値だけを受け取る', () => {
+  assert.deepEqual(DEFAULTS.annotOpacity, DEFAULT_OPACITY);
+  assert.deepEqual(mergeDefaults({}).annotOpacity, DEFAULT_OPACITY);
+  assert.deepEqual(mergeDefaults({ annotOpacity: { shape: 0.5, note: 0.6, text: '1', pen: null } }).annotOpacity,
+    { text: 1, shape: 0.5, pen: 1, note: 1 });
+  assert.deepEqual(mergeDefaults({ annotOpacity: 0.5 }).annotOpacity, DEFAULT_OPACITY);
+
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS, annotOpacity: { ...DEFAULT_OPACITY, shape: 0.75 } };
+  // 1 つだけ送っても他は戻らない（色と同じ）。
+  assert.deepEqual(mergeUi(current, { annotOpacity: { pen: 0.25 } }).annotOpacity, { text: 1, shape: 0.75, pen: 0.25, note: 1 });
+  assert.deepEqual(mergeUi(current, { annotOpacity: { shape: 0.3 } }).annotOpacity, current.annotOpacity);
+  assert.deepEqual(mergeUi(current, { annotOpacity: { highlight: 0.5 } }).annotOpacity, current.annotOpacity);
+  assert.deepEqual(mergeUi(current, {}).annotOpacity, current.annotOpacity);
+  // 古い settings.json（annotOpacity が無い）から来た current でも落ちない。
+  assert.deepEqual(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).annotOpacity, DEFAULT_OPACITY);
+});
+
+// 作成者は文字列を前後の空白を落として 100 文字まで。空は「OS のユーザー名を使う」の印（spec-4-4 確定事項39）。
+test('annotAuthor は文字列だけを受け取り、空を許す', () => {
+  assert.equal(DEFAULTS.annotAuthor, '');
+  assert.equal(mergeDefaults({}).annotAuthor, '');
+  assert.equal(mergeDefaults({ annotAuthor: '  山田 太郎 ' }).annotAuthor, '山田 太郎');
+  assert.equal(mergeDefaults({ annotAuthor: 42 }).annotAuthor, '');
+  assert.equal(mergeDefaults({ annotAuthor: 'a'.repeat(120) }).annotAuthor, 'a'.repeat(100));
+
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS, annotAuthor: '総務' };
+  assert.equal(mergeUi(current, { annotAuthor: '経理' }).annotAuthor, '経理');
+  assert.equal(mergeUi(current, { annotAuthor: '' }).annotAuthor, '');
+  assert.equal(mergeUi(current, { annotAuthor: 7 }).annotAuthor, '総務');
+  assert.equal(mergeUi(current, {}).annotAuthor, '総務');
+  assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).annotAuthor, '');
+});
+
+test('fillAuthor は空の作成者だけを OS のユーザー名で埋める', () => {
+  const { fillAuthor } = require('../settings.js');
+  assert.equal(fillAuthor({ mode: 'view', annotAuthor: '' }, 'h.user').annotAuthor, 'h.user');
+  assert.equal(fillAuthor({ mode: 'view', annotAuthor: '総務' }, 'h.user').annotAuthor, '総務');
+  assert.equal(fillAuthor({ mode: 'view' }, ' h.user ').annotAuthor, 'h.user');
+  assert.equal(fillAuthor({ mode: 'view', annotAuthor: '' }, undefined).annotAuthor, '');
+  const ui = { mode: 'view', annotAuthor: '' };
+  fillAuthor(ui, 'x');
+  assert.equal(ui.annotAuthor, '', '元は変えない');
 });
 
 test('annotLineWidth と annotShapeKind はプリセットの値だけを受け取る', () => {

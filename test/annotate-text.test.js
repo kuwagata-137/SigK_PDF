@@ -396,7 +396,8 @@ test('自分で付けた FreeText だけを読み込んで pdf.js に描かせ�
   const { SigK } = shell;
   await shell.flush();
   const imported = SigK.viewer.getImported();
-  assert.equal(imported[0].length, 1);
+  // 他のツールの FreeText は塊④で表示のみの entry として並ぶ（spec-4-4 確定事項20）。
+  assert.deepEqual(plain(imported[0].map((entry) => [entry.ref, entry.readonly === true])), [['120R', false], ['121R', true]]);
   const loaded = imported[0][0];
   assert.equal(loaded.ref, '120R');
   assert.equal(loaded.kind, 'text');

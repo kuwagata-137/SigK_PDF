@@ -6,8 +6,10 @@
   // .pdf-page の中、canvas のあと・テキストレイヤーの前に <svg class="annot-layer"> を
   // 置く。ハイライトは mix-blend-mode: multiply の多角形（文字が透ける）、下線・
   // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）、
-  // 図形・ペンは shape-graphics.js の <g>（spec-4-3 確定事項8）。描いている途中の下書きも
-  // 同じ描き手で最後に置く（確定事項3）。pointer-events は無く、当たり判定は annotate.js が行う。
+  // 図形・ペンは shape-graphics.js の <g>（spec-4-3 確定事項8）、ノートは note-graphics.js の
+  // 付箋（spec-4-4 確定事項8）。描いている途中の下書きも同じ描き手で最後に置く（確定事項3）。
+  // 「表示のみ」の注釈（readonly。pdf.js が描く）は描かず、選ばれていれば枠だけ出す
+  // （spec-4-4 確定事項32）。pointer-events は無く、当たり判定は annotate.js が行う。
   //
   // 同じ絵を canvas 2D にも描ける（paint）。印刷が未保存の注釈を映すのに使う
   // （確定事項28）。SVG と canvas で描き方を分けると、画面と紙で見た目がずれる。
@@ -64,16 +66,30 @@
     return line;
   }
 
-  // 選択の枠。四角群の外接（CSS px）に余白を足した破線。
-  function frameOf(doc, entry, viewport) {
+  function isNote(entry) {
+    return root.SigK.annotationEntry.isNoteKind(entry.kind);
+  }
+
+  // 枠の元になる箱（CSS px）。ノートは画面の箱（倍率に依らず一定。spec-4-4 確定事項11）、それ以外は四角群の外接。
+  function boundsOf(entry, viewport) {
+    if (isNote(entry)) {
+      const box = root.SigK.noteGraphics.boxOf(entry, viewport);
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    }
     const corners = entry.quads.flatMap((quad) => quads().quadToViewport(quad, viewport));
     const xs = corners.map((point) => point[0]);
     const ys = corners.map((point) => point[1]);
+    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+  }
+
+  // 選択の枠。箱（CSS px）に余白を足した破線。
+  function frameOf(doc, entry, viewport) {
+    const box = boundsOf(entry, viewport);
     const rect = doc.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', fmt(Math.min(...xs) - FRAME_PADDING));
-    rect.setAttribute('y', fmt(Math.min(...ys) - FRAME_PADDING));
-    rect.setAttribute('width', fmt(Math.max(...xs) - Math.min(...xs) + FRAME_PADDING * 2));
-    rect.setAttribute('height', fmt(Math.max(...ys) - Math.min(...ys) + FRAME_PADDING * 2));
+    rect.setAttribute('x', fmt(box.x - FRAME_PADDING));
+    rect.setAttribute('y', fmt(box.y - FRAME_PADDING));
+    rect.setAttribute('width', fmt(box.width + FRAME_PADDING * 2));
+    rect.setAttribute('height', fmt(box.height + FRAME_PADDING * 2));
     rect.setAttribute('rx', '3');
     rect.setAttribute('class', 'annot-frame');
     return rect;
@@ -83,7 +99,10 @@
     return entry.ref ?? entry.id;
   }
 
+  // 1 つの注釈の <g>。表示のみ（pdf.js が描く）は null。
   function groupOf(doc, entry, viewport) {
+    if (entry.readonly === true)
+      return null;
     const group = doc.createElementNS(SVG_NS, 'g');
     group.setAttribute('data-annot', keyOf(entry));
     group.setAttribute('data-kind', entry.kind);
@@ -95,6 +114,10 @@
     }
     if (isDrawn(entry)) {
       group.append(root.SigK.shapeGraphics.svgOf(doc, entry, viewport));
+      return group;
+    }
+    if (isNote(entry)) {
+      group.append(root.SigK.noteGraphics.svgOf(doc, entry, viewport));
       return group;
     }
     for (const quad of entry.quads)
@@ -121,7 +144,9 @@
     for (const entry of entries) {
       if (editing !== null && keyOf(entry) === editing)
         continue;
-      svg.append(groupOf(doc, entry, viewport));
+      const group = groupOf(doc, entry, viewport);
+      if (group !== null)
+        svg.append(group);
       if (selected !== null && keyOf(entry) === selected)
         frame = frameOf(doc, entry, viewport);
     }
@@ -137,12 +162,18 @@
   // （CSS px 相当）で受ける。ハイライトは multiply で塗る。
   function paint(ctx, entries, viewport) {
     for (const entry of entries) {
+      if (entry.readonly === true)
+        continue;
       if (entry.kind === 'text') {
         root.SigK.freeTextShape.paint(ctx, entry, viewport);
         continue;
       }
       if (isDrawn(entry)) {
         root.SigK.shapeGraphics.paint(ctx, entry, viewport);
+        continue;
+      }
+      if (isNote(entry)) {
+        root.SigK.noteGraphics.paint(ctx, entry, viewport);
         continue;
       }
       ctx.save();

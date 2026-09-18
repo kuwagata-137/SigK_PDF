@@ -186,6 +186,8 @@
     state.annots = annotationState().cloneAnnots(next);
     render.redrawAnnotations();
     syncDirty();
+    // サイドパネルの一覧も描き直す（spec-4-4 確定事項29）。
+    root.SigK.annotationList?.refresh();
     return true;
   }
 
@@ -198,6 +200,7 @@
   function setImported(imported, { rerender = [] } = {}) {
     state.imported = imported ?? {};
     render.redrawAnnotations({ rerender });
+    root.SigK.annotationList?.refresh();
     return true;
   }
 
@@ -305,6 +308,8 @@
     syncDirty();
     controls()?.syncAll(el.doc, getState());
     render.scheduleUpdate();
+    // 並べ替えで一覧の p.N が変わる（spec-4-4 確定事項28）。
+    root.SigK.annotationList?.refresh();
     return true;
   }
 
@@ -349,6 +354,8 @@
     el.pages.hidden = !open;
     // 文書が無ければ保存も無い（確定事項24）。
     root.SigK.save?.syncButtons(el.doc);
+    // 文書の出入りで注釈の一覧も入れ替わる（spec-4-4 確定事項29）。
+    root.SigK.annotationList?.refresh();
   }
 
   // ---- レイアウト ----

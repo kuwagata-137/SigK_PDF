@@ -64,7 +64,7 @@ test('不透明度は 0〜1 に丸め、数でなければ 1', () => {
 });
 
 test('形が違えば null', () => {
-  assert.equal(appearanceOf({ kind: 'note', quads: [QUAD], rect: RECT, color: '#ffe45a' }), null);
+  assert.equal(appearanceOf({ kind: 'stamp', quads: [QUAD], rect: RECT, color: '#ffe45a' }), null);
   assert.equal(appearanceOf({ kind: 'highlight', quads: [], rect: RECT, color: '#ffe45a' }), null);
   assert.equal(appearanceOf({ kind: 'highlight', quads: [[1, 2]], rect: RECT, color: '#ffe45a' }), null);
   assert.equal(appearanceOf({ kind: 'highlight', quads: [QUAD], rect: RECT, color: 'yellow' }), null);

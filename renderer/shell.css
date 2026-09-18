@@ -619,6 +619,25 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #confirm-replace::backdrop{background:rgba(16,24,40,.34)}
 
+/* ── 注釈一覧（spec-4-4 確定事項9・29〜32） ────────────────────── */
+/* サイドパネルの行。ツール一覧と同じトークンで組む。アイコンは注釈の色、表示のみは灰色に「表示のみ」の印。 */
+.annot-list[hidden]{display:none}
+.annot-rows{display:flex; flex-direction:column; gap:2px}
+.annot-row{
+  display:flex; align-items:center; gap:8px; width:100%; height:30px; padding:0 8px; text-align:left;
+  border-radius:8px; color:var(--text); cursor:pointer;
+}
+.annot-row:hover{background:var(--surface-2)}
+.annot-row.on{background:var(--select); color:var(--accent)}
+.annot-row .ic{width:18px; height:18px; display:grid; place-items:center; flex:0 0 18px}
+.annot-row.readonly .ic{color:var(--border-strong) !important}
+.annot-row .pg{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; flex:0 0 26px}
+.annot-row .tx{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px}
+.annot-row .tx.kind{color:var(--muted)}
+.annot-row.on .tx.kind{color:var(--accent)}
+.annot-row .ro{font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:1px 4px; flex:0 0 auto}
+.annot-list .empty{margin:14px 0 0}
+
 /* ── 注釈モード（spec-4-1 確定事項1〜5・37） ────────────────── */
 /* レールの道具。モードの 4 つの下に区切り線を引き、注釈モードのときだけ出す。
    道具は .active で押している状態を見せる（モードの縦棒は出さない）。 */
@@ -661,6 +680,9 @@ html[data-mode="annot"][data-tool="shape"] .textLayer,
 html[data-mode="annot"][data-tool="pen"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="shape"] .textLayer span,
 html[data-mode="annot"][data-tool="pen"] .textLayer span{user-select:none}
+/* ノート（spec-4-4 確定事項1）。押して置くので文字を選ばせない。 */
+html[data-mode="annot"][data-tool="note"] .textLayer{cursor:crosshair; user-select:none}
+html[data-mode="annot"][data-tool="note"] .textLayer span{user-select:none}
 .annot-draft{pointer-events:none}
 
 /* 右のプロパティ（確定事項4）。注釈モードの間は常に出す。幅はサイドパネルと
@@ -695,6 +717,17 @@ html[data-mode="annot"] #props{display:flex}
   font:13px inherit; font-family:inherit; width:110px; height:28px; padding:0 8px;
   border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text);
 }
+/* ノートの本文と作成者（spec-4-4 確定事項3）。本文は複数行で縦に伸ばせる。 */
+.props-textarea{
+  font:12.5px inherit; font-family:inherit; width:100%; min-height:78px; padding:6px 8px; resize:vertical; line-height:1.5;
+  border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text);
+}
+.props-input{
+  font:13px inherit; font-family:inherit; width:100%; height:28px; padding:0 8px;
+  border:1px solid var(--border); border-radius:7px; background:var(--surface-2); color:var(--text);
+}
+.props-input:read-only{color:var(--muted)}
+.props-textarea:focus,.props-input:focus{outline:2px solid var(--primary); outline-offset:-1px; border-color:transparent}
 .props-actions{margin-top:auto; border-top:1px solid var(--border); padding:10px 14px; display:grid; gap:6px}
 
 @media (prefers-reduced-motion: reduce){

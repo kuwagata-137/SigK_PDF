@@ -160,7 +160,7 @@ test('remove で消し、同じ保存で add も足せる', async () => {
 test('形が違えば何も書かずに断る', async () => {
   const doc = await makeDoc(1);
   assert.deepEqual(await applyAnnotations(doc, { add: [markup({ src: 3 })] }, TOOLS), { error: '注釈 1 のページ番号が文書に合いません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), markup({ kind: 'note' })] }, TOOLS), { error: '注釈 2 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), markup({ kind: 'stamp' })] }, TOOLS), { error: '注釈 2 の形が読めません。' });
   assert.deepEqual(await applyAnnotations(doc, { remove: ['abc'] }, TOOLS), { error: '消す注釈の指定が読めません。' });
   assert.deepEqual(annotsOf(await roundTrip(doc), 0), []);
 });
@@ -407,4 +407,107 @@ test('図形を remove で消すと辞書と外観が消える', async () => {
       forms += 1;
   }
   assert.equal(forms, 0);
+});
+
+// ---- ノート（spec-4-4 確定事項23〜27） ----
+
+const NOTE_RECT = [100, 680, 120, 700];
+
+function note(overrides = {}) {
+  return { src: 0, kind: 'note', color: '#ffe45a', opacity: 1, rect: NOTE_RECT, text: 'メモ\n2 行目', author: '総務', ...overrides };
+}
+
+function extGStateOf(saved, dict) {
+  const ap = saved.context.lookup(pick(dict, '/AP'));
+  const normal = saved.context.lookup(pick(ap, '/N'));
+  const resources = saved.context.lookup(pick(normal.dict, '/Resources'));
+  const gs = saved.context.lookup(pick(saved.context.lookup(pick(resources, '/ExtGState')), '/GS'));
+  return { normal, resources, gs };
+}
+
+test('note は /Text の辞書と外観、/Popup 付きで書かれ、フォントは埋めない', async () => {
+  const doc = await makeDoc(1);
+  const result = await applyAnnotations(doc, { add: [note()] }, TOOLS, { now: NOW });
+  assert.deepEqual(result, { ok: true, added: 1, removed: 0 });
+
+  const saved = await roundTrip(doc);
+  const annots = annotsOf(saved, 0);
+  assert.deepEqual(annots.map((a) => nameOf(a.dict, '/Subtype')), ['/Text', '/Popup']);
+  const [text, popup] = annots;
+  assert.equal(nameOf(text.dict, '/Type'), '/Annot');
+  assert.deepEqual(numbersOf(saved, pick(text.dict, '/Rect')), NOTE_RECT);
+  assert.equal(pick(text.dict, '/Contents').decodeText(), 'メモ\n2 行目');
+  assert.equal(pick(text.dict, '/T').decodeText(), '総務');
+  assert.deepEqual(numbersOf(saved, pick(text.dict, '/C')).map((v) => Math.round(v * 100) / 100), [1, 0.89, 0.35]);
+  assert.equal(pick(text.dict, '/CA').asNumber(), 1);
+  assert.equal(pick(text.dict, '/F').asNumber(), 28);
+  assert.equal(nameOf(text.dict, '/Name'), '/Comment');
+  assert.equal(pick(text.dict, '/Open').asBoolean(), false);
+  assert.equal(pick(text.dict, '/CreationDate').decodeText(), `D:20260915120000${zoneOf(NOW)}`);
+  assert.equal(pick(text.dict, '/M').decodeText(), `D:20260915120000${zoneOf(NOW)}`);
+  assert.match(pick(text.dict, '/NM').decodeText(), /^sigk-[0-9a-z]+-1$/);
+  assert.equal(pick(text.dict, '/Popup').objectNumber, popup.ref.objectNumber);
+  // ポップアップは親を指し、アイコンの右隣に閉じた状態で置く。
+  assert.equal(nameOf(popup.dict, '/Type'), '/Annot');
+  assert.equal(pick(popup.dict, '/Parent').objectNumber, text.ref.objectNumber);
+  assert.deepEqual(numbersOf(saved, pick(popup.dict, '/Rect')), [122, 600, 302, 700]);
+  assert.equal(pick(popup.dict, '/Open').asBoolean(), false);
+  assert.equal(pick(popup.dict, '/F').asNumber(), 28);
+  assert.equal(pick(popup.dict, '/AP'), undefined);
+  // 外観は塗って線を引く Form XObject で、フォントは付かない。
+  const { normal, resources, gs } = extGStateOf(saved, text.dict);
+  assert.equal(nameOf(normal.dict, '/Subtype'), '/Form');
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/BBox')), NOTE_RECT);
+  assert.match(Buffer.from(normal.contents).toString('latin1'), /h B\n/);
+  assert.equal(pick(resources, '/Font'), undefined);
+  assert.equal(pick(gs, '/CA').asNumber(), 1);
+  let fonts = 0;
+  for (const [, obj] of saved.context.enumerateIndirectObjects()) {
+    if (obj?.get?.(PDFName.of('Type'))?.encodedName === '/Font')
+      fonts += 1;
+  }
+  assert.equal(fonts, 0);
+});
+
+test('note は作成者が空なら /T を書かず、本文が空でも書ける', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [note({ author: '', text: '' })] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const [text] = annotsOf(saved, 0);
+  assert.equal(pick(text.dict, '/T'), undefined);
+  assert.equal(pick(text.dict, '/Contents').decodeText(), '');
+});
+
+test('note と図形の不透明度は /CA と外観の ExtGState に同じ値で書かれる', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [note({ opacity: 0.5 }), shape({ opacity: 0.25 })] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const [text, , squareAnnot] = annotsOf(saved, 0);
+  assert.equal(pick(text.dict, '/CA').asNumber(), 0.5);
+  assert.equal(pick(extGStateOf(saved, text.dict).gs, '/CA').asNumber(), 0.5);
+  assert.equal(pick(extGStateOf(saved, text.dict).gs, '/ca').asNumber(), 0.5);
+  assert.equal(nameOf(squareAnnot.dict, '/Subtype'), '/Square');
+  assert.equal(pick(squareAnnot.dict, '/CA').asNumber(), 0.25);
+  assert.equal(pick(extGStateOf(saved, squareAnnot.dict).gs, '/CA').asNumber(), 0.25);
+  assert.equal(pick(extGStateOf(saved, squareAnnot.dict).gs, '/ca').asNumber(), 0.25);
+});
+
+test('note を remove で消すと辞書・外観・ポップアップの 3 つが消える', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [note()] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const before = saved.context.enumerateIndirectObjects().length;
+  const [{ ref }] = annotsOf(saved, 0);
+  const result = await applyAnnotations(saved, { remove: [`${ref.objectNumber}R`] }, TOOLS, { now: NOW });
+  assert.deepEqual(result, { ok: true, added: 0, removed: 1 });
+  const again = await roundTrip(saved);
+  assert.deepEqual(annotsOf(again, 0), []);
+  assert.equal(again.context.enumerateIndirectObjects().length, before - 3);
+});
+
+test('note の形が違えば何も書かずに断る', async () => {
+  const doc = await makeDoc(1);
+  assert.deepEqual(await applyAnnotations(doc, { add: [note({ text: 5 })] }, TOOLS, { now: NOW }), { error: '注釈 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [note({ rect: [120, 700, 100, 680] })] }, TOOLS, { now: NOW }), { error: '注釈 1 の形が読めません。' });
+  assert.equal(annotsOf(doc, 0).length, 0);
 });

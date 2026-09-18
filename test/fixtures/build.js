@@ -16,6 +16,7 @@ const { PDFDocument, StandardFonts, degrees, rgb } = require('pdf-lib');
 const { buildEncryptedPdf } = require('./standard-security.js');
 const { makePng } = require('./images.js');
 const { buildFormatImages } = require('./build-images.js');
+const { buildAnnotatedPdf } = require('./annotations.js');
 
 const OUTPUT_DIR = __dirname;
 
@@ -139,9 +140,12 @@ async function buildOne(spec) {
 //                   文言になることを試す。**保存の経路の検体ではない**。
 //                   pdf.js も pdf-lib も等しく開けないため、この文書は
 //                   そもそもタブにならない（実測で5通り試して確認した）。
+//   annotated.pdf … 他のツールが付けた注釈（/AP の無いノート・Line・FreeText・スタンプ・リンク）を
+//                   載せた 3 ページ（spec-4-4）。作り方は annotations.js に。
 const HANDMADE = {
   'encrypted.pdf': () => buildEncryptedPdf(),
   'broken.pdf': () => fs.readFileSync(fixturePath('three-pages.pdf')).subarray(0, 400),
+  'annotated.pdf': () => buildAnnotatedPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
 };
 
 async function build() {
@@ -150,7 +154,7 @@ async function build() {
     built.push(await buildOne(spec));
   // three-pages.pdf を切って作るものがあるので、必ず後に回す。
   for (const [file, make] of Object.entries(HANDMADE)) {
-    const bytes = make();
+    const bytes = await make();
     fs.writeFileSync(fixturePath(file), bytes);
     built.push({ file, bytes: bytes.length });
   }

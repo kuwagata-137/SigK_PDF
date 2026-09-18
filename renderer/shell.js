@@ -4,8 +4,8 @@
   // 画面の枠組みの状態を持つ層。PDF の中身には触らない。
 
   const MODES = ['view', 'pages', 'annot', 'tools'];
-  // 注釈モードのサイドパネルは塊①ではサムネイル（spec-4-1 確定事項3）。塊④で注釈一覧に入れ替える。
-  const MODE_TITLES = { view: 'サムネイル', pages: 'ページ', annot: 'サムネイル', tools: 'ツール' };
+  // 注釈モードのサイドパネルは注釈の一覧（spec-4-4 確定事項9。塊①〜③はサムネイルだった）。
+  const MODE_TITLES = { view: 'サムネイル', pages: 'ページ', annot: '注釈', tools: 'ツール' };
   // ページの並べ方（spec-2-3 確定事項3・5）。settings.js の PAGE_LAYOUTS と同じ
   // 並びであること。プロセスが違うので import はできない。test/shell.test.js が見張る。
   const PAGE_LAYOUTS = ['single', 'facing'];

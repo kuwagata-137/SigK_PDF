@@ -122,9 +122,12 @@ test('道具はトグルで、持つとプロパティに種類と色が出る',
 
   button.dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(SigK.annotate.getTool(), null);
-  // 位置取りの道具は押せない。
-  document.querySelector('.rail-item.tool[aria-disabled="true"]').dispatchEvent(new shell.window.MouseEvent('click'));
-  assert.equal(SigK.annotate.getTool(), null);
+  // 塊④でレールの 7 つが全部押せる（灰色の位置取りは無い）。
+  assert.equal(document.querySelector('.rail-item.tool[aria-disabled="true"]'), null);
+  document.querySelector('.rail-item.tool[data-tool="note"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  assert.equal(SigK.annotate.getTool(), 'note');
+  assert.equal(document.getElementById('props-kind').textContent, 'ノート（次に付ける）');
+  SigK.annotate.setTool(null);
 });
 
 // ---- 作る（確定事項10〜14） ----
@@ -309,7 +312,8 @@ test('注釈を選んでいなければ、色の丸は道具の色（次に付�
 test('覚えた色は起動時に戻る', async (t) => {
   const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotColors: { highlight: '#ffa8c8', underline: '#1c2430', strikeout: '#d92c2c', text: '#2c5cd9', shape: '#2f9e5a', pen: '#1c2430' } } });
   await shell.flush();
-  assert.deepEqual(plain(shell.SigK.annotate.getColors()), { highlight: '#ffa8c8', underline: '#1c2430', strikeout: '#d92c2c', text: '#2c5cd9', shape: '#2f9e5a', pen: '#1c2430' });
+  // 覚えていない種類（ノート）は既定の色。
+  assert.deepEqual(plain(shell.SigK.annotate.getColors()), { highlight: '#ffa8c8', underline: '#1c2430', strikeout: '#d92c2c', text: '#2c5cd9', shape: '#2f9e5a', pen: '#1c2430', note: '#ffe45a' });
 });
 
 // ---- 履歴・dirty・タブ（確定事項15・19） ----
