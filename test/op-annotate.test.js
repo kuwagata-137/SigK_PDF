@@ -160,7 +160,7 @@ test('remove で消し、同じ保存で add も足せる', async () => {
 test('形が違えば何も書かずに断る', async () => {
   const doc = await makeDoc(1);
   assert.deepEqual(await applyAnnotations(doc, { add: [markup({ src: 3 })] }, TOOLS), { error: '注釈 1 のページ番号が文書に合いません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), markup({ kind: 'note' })] }, TOOLS), { error: '注釈 2 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), markup({ kind: 'stamp' })] }, TOOLS), { error: '注釈 2 の形が読めません。' });
   assert.deepEqual(await applyAnnotations(doc, { remove: ['abc'] }, TOOLS), { error: '消す注釈の指定が読めません。' });
   assert.deepEqual(annotsOf(await roundTrip(doc), 0), []);
 });

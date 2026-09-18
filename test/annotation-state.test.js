@@ -38,7 +38,7 @@ test('addAnnot は id を振り、不透明度の既定を 1 にし、元を変�
 
 test('addAnnot は形の違うものを黙って捨てる', () => {
   const base = state.createAnnots();
-  assert.equal(state.addAnnot(base, entry({ kind: 'note' })).added.length, 0);
+  assert.equal(state.addAnnot(base, entry({ kind: 'stamp' })).added.length, 0);
   assert.equal(state.addAnnot(base, entry({ quads: [] })).added.length, 0);
   assert.equal(state.addAnnot(base, entry({ quads: [[1, 2, 3]] })).added.length, 0);
   assert.equal(state.addAnnot(base, entry({ src: -1 })).added.length, 0);
@@ -151,7 +151,7 @@ function textEntry(overrides = {}) {
 }
 
 test('KINDS は text と図形 5 種を含み、MARKUP_KINDS は 3 種のまま', () => {
-  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text', 'square', 'circle', 'line', 'arrow', 'ink']);
+  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text', 'square', 'circle', 'line', 'arrow', 'ink', 'note']);
   assert.deepEqual(state.MARKUP_KINDS, ['highlight', 'underline', 'strikeout']);
   assert.equal(state.isKind('text'), true);
   assert.equal(state.isMarkupKind('text'), false);
@@ -362,4 +362,103 @@ test('toSaveSpec は図形を rect・lineWidth・paths で渡し、quads は落�
   assert.deepEqual(Object.keys(spec.add[2]).sort(), ['color', 'kind', 'lineWidth', 'opacity', 'paths', 'rect', 'src']);
   spec.add[2].paths[0][0][0] = 0;
   assert.equal(annots.added[2].paths[0][0][0], 100);
+});
+
+// ---- ノートと不透明度、表示のみ（spec-4-4 確定事項15〜19） ----
+
+const NOTE_RECT = [100, 680, 120, 700];
+
+function noteEntry(overrides = {}) {
+  return { src: 0, kind: 'note', color: '#ffe45a', quads: [quadOfRect(NOTE_RECT)], rect: NOTE_RECT, text: 'メモ', author: '総務', ...overrides };
+}
+
+function readonlyEntry(overrides = {}) {
+  return { ref: '17R', src: 0, kind: 'other', subtype: 'Line', color: '#ff0000', opacity: 1, quads: [quadOfRect([300, 700, 500, 760])], rect: [300, 700, 500, 760], text: 'other line', author: '', readonly: true, ...overrides };
+}
+
+test('KINDS は note を含み、isNoteKind で見分けられる', () => {
+  assert.equal(state.isNoteKind('note'), true);
+  assert.equal(state.isNoteKind('text'), false);
+  assert.equal(state.isDrawnKind('note'), false);
+  assert.equal(state.isPathKind('note'), false);
+  assert.equal(state.isKind('other'), false);
+});
+
+test('addAnnot はノートの本文（空でもよい）と作成者を写す', () => {
+  const base = state.createAnnots();
+  const one = state.addAnnot(base, noteEntry()).added[0];
+  assert.equal(one.kind, 'note');
+  assert.equal(one.text, 'メモ');
+  assert.equal(one.author, '総務');
+  assert.equal(one.opacity, 1);
+  assert.equal('fontSize' in one, false);
+  assert.equal('lineWidth' in one, false);
+  const empty = state.addAnnot(base, noteEntry({ text: '' })).added[0];
+  assert.equal(empty.text, '');
+  const noAuthor = state.addAnnot(base, noteEntry({ author: undefined })).added[0];
+  assert.equal(noAuthor.author, '');
+});
+
+test('validEntry はノートの本文が文字列で、作成者が文字列か無し、四角が 1 つであることを見る', () => {
+  const base = state.createAnnots();
+  assert.equal(state.addAnnot(base, noteEntry({ text: undefined })).added.length, 0);
+  assert.equal(state.addAnnot(base, noteEntry({ text: 5 })).added.length, 0);
+  assert.equal(state.addAnnot(base, noteEntry({ author: 5 })).added.length, 0);
+  assert.equal(state.addAnnot(base, noteEntry({ quads: [quadOfRect(NOTE_RECT), quadOfRect(NOTE_RECT)] })).added.length, 0);
+  // テキストは空の本文を許さないまま。
+  assert.equal(state.addAnnot(base, { src: 0, kind: 'text', color: '#1c2430', quads: [quadOfRect(NOTE_RECT)], rect: NOTE_RECT, text: '', fontSize: 12, rotation: 0 }).added.length, 0);
+});
+
+test('updateAnnot はノートの本文を空にでき、不透明度も書き換えられる', () => {
+  const one = state.addAnnot(state.createAnnots(), noteEntry());
+  const id = one.added[0].id;
+  assert.equal(state.updateAnnot(one, { id }, { text: '' }).added[0].text, '');
+  assert.equal(state.updateAnnot(one, { id }, { opacity: 0.5 }).added[0].opacity, 0.5);
+  assert.equal(state.updateAnnot(one, { id }, { opacity: 1.5 }), one);
+  assert.equal(state.updateAnnot(one, { id }, { opacity: '0.5' }), one);
+  assert.equal(state.updateAnnot(one, { id }, { author: '経理' }), one);
+  // テキストの本文は空にできない（塊②のまま）。
+  const text = state.addAnnot(state.createAnnots(), { src: 0, kind: 'text', color: '#1c2430', quads: [quadOfRect(NOTE_RECT)], rect: NOTE_RECT, text: 'a', fontSize: 12, rotation: 0 });
+  assert.equal(state.updateAnnot(text, { id: text.added[0].id }, { text: '' }), text);
+  // 図形の不透明度も同じ口で変わる。
+  const square = state.addAnnot(state.createAnnots(), shapeEntry());
+  assert.equal(state.updateAnnot(square, { id: square.added[0].id }, { opacity: 0.25 }).added[0].opacity, 0.25);
+});
+
+test('updateAnnot は読み込んだノートを消して写しを足し、作成者を保つ', () => {
+  const next = state.updateAnnot(state.createAnnots(), { ref: '12R', ...noteEntry({ author: 'other' }) }, { text: '直した' });
+  assert.deepEqual(next.removed, ['12R']);
+  assert.equal(next.added.length, 1);
+  assert.equal(next.added[0].text, '直した');
+  assert.equal(next.added[0].author, 'other');
+  assert.equal('ref' in next.added[0], false);
+});
+
+test('表示のみの注釈は消せるが、変えられない', () => {
+  const removed = state.removeAnnot(state.createAnnots(), readonlyEntry());
+  assert.deepEqual(removed.removed, ['17R']);
+  const base = state.createAnnots();
+  assert.equal(state.updateAnnot(base, readonlyEntry(), { text: 'x' }), base);
+  assert.equal(state.recolorAnnot(base, readonlyEntry(), '#d92c2c'), base);
+  assert.equal(state.updateAnnot(base, readonlyEntry(), { opacity: 0.5 }), base);
+  // imported にあれば annotsOnPage と findAnnot は今までどおり返す。
+  const imported = { 0: [readonlyEntry()] };
+  assert.equal(state.annotsOnPage(base, imported, 0).length, 1);
+  assert.equal(state.findAnnot(base, imported, '17R').readonly, true);
+  assert.equal(state.findAnnot(removed, imported, '17R'), null);
+});
+
+test('sameAnnots は本文・作成者・不透明度の違いを見る', () => {
+  const one = state.addAnnot(state.createAnnots(), noteEntry());
+  const id = one.added[0].id;
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { text: 'メモ' })), true);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { text: 'メモ2' })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { opacity: 0.5 })), false);
+  const other = state.addAnnot(state.createAnnots(), noteEntry({ author: '経理', id: one.added[0].id }));
+  assert.equal(state.sameAnnots(one, other), false);
+});
+
+test('toSaveSpec はノートを rect・text・author で渡し、quads は落とす', () => {
+  const annots = state.addAnnot(state.createAnnots(), noteEntry({ text: '' }));
+  assert.deepEqual(state.toSaveSpec(annots).add[0], { src: 0, kind: 'note', color: '#ffe45a', opacity: 1, rect: NOTE_RECT, text: '', author: '総務' });
 });

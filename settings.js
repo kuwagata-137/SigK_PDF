@@ -21,12 +21,16 @@ const DEFAULTS = {
   // 注釈の種類ごとに最後に使った色（spec-4-1 確定事項33・34、spec-4-2 確定事項35）。値は
   // #rrggbb で、renderer/annotation-presets.js のプリセットに無ければ既定へ落とす（一覧は
   // あちらと同じ。プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
-  annotColors: { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430', shape: '#d92c2c', pen: '#d92c2c' },
+  annotColors: { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430', shape: '#d92c2c', pen: '#d92c2c', note: '#ffe45a' },
   // テキスト注釈で最後に使った文字の大きさ（pt。spec-4-2 確定事項21・34）。
   annotFontSize: 12,
   // 図形・ペンで最後に使った線の太さ（pt）と、「図形」の道具の種類（spec-4-3 確定事項19・29）。
   annotLineWidth: 2,
   annotShapeKind: 'square',
+  // 道具ごとに最後に使った不透明度と、ノートの作成者（spec-4-4 確定事項21・38・39）。作成者が空なら
+  // メインが OS のユーザー名で埋めて渡す。
+  annotOpacity: { text: 1, shape: 1, pen: 1, note: 1 },
+  annotAuthor: '',
   recent: [],
 };
 
@@ -37,10 +41,13 @@ const ANNOT_COLORS = {
   text: ['#1c2430', '#d92c2c', '#2c5cd9'],
   shape: ['#d92c2c', '#2c5cd9', '#2f9e5a', '#1c2430'],
   pen: ['#d92c2c', '#2c5cd9', '#2f9e5a', '#1c2430'],
+  note: ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8'],
 };
 const ANNOT_FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48];
 const ANNOT_LINE_WIDTHS = [1, 2, 3, 5, 8];
 const ANNOT_SHAPE_KINDS = ['square', 'circle', 'line', 'arrow'];
+const ANNOT_OPACITIES = [1, 0.75, 0.5, 0.25];
+const ANNOT_AUTHOR_MAX = 100;
 
 // ツールレールの4つのモード。renderer/shell.js の MODES と同じ並びであること。
 // プロセスが違うので import はできない。test/settings.test.js が一致を見張る。
@@ -96,6 +103,8 @@ function mergeDefaults(raw) {
     annotFontSize: pickAnnotFontSize(raw.annotFontSize, DEFAULTS.annotFontSize),
     annotLineWidth: pickFromList(ANNOT_LINE_WIDTHS, raw.annotLineWidth, DEFAULTS.annotLineWidth, DEFAULTS.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, raw.annotShapeKind, DEFAULTS.annotShapeKind, DEFAULTS.annotShapeKind),
+    annotOpacity: pickAnnotOpacity(raw.annotOpacity, DEFAULTS.annotOpacity),
+    annotAuthor: pickAnnotAuthor(raw.annotAuthor, DEFAULTS.annotAuthor),
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
   };
@@ -125,6 +134,25 @@ function pickAnnotColors(raw, fallback) {
   return picked;
 }
 
+// 道具ごとに、プリセットにある不透明度だけを受け取る。無ければ fallback の値、それも無ければ 1。
+function pickAnnotOpacity(raw, fallback) {
+  const source = isPlainObject(raw) ? raw : {};
+  const picked = {};
+  for (const tool of Object.keys(DEFAULTS.annotOpacity)) {
+    picked[tool] = ANNOT_OPACITIES.includes(source[tool])
+      ? source[tool]
+      : (ANNOT_OPACITIES.includes(fallback?.[tool]) ? fallback[tool] : DEFAULTS.annotOpacity[tool]);
+  }
+  return picked;
+}
+
+// 作成者は文字列だけ。前後の空白を落とし、長すぎれば切る。文字列でなければ fallback。
+function pickAnnotAuthor(raw, fallback) {
+  if (typeof raw !== 'string')
+    return typeof fallback === 'string' ? fallback : DEFAULTS.annotAuthor;
+  return raw.trim().slice(0, ANNOT_AUTHOR_MAX);
+}
+
 function isValidMode(mode) {
   return UI_MODES.includes(mode);
 }
@@ -144,6 +172,8 @@ function pickUi(settings) {
     annotFontSize: pickAnnotFontSize(settings.annotFontSize, DEFAULTS.annotFontSize),
     annotLineWidth: pickFromList(ANNOT_LINE_WIDTHS, settings.annotLineWidth, DEFAULTS.annotLineWidth, DEFAULTS.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, settings.annotShapeKind, DEFAULTS.annotShapeKind, DEFAULTS.annotShapeKind),
+    annotOpacity: pickAnnotOpacity(settings.annotOpacity, DEFAULTS.annotOpacity),
+    annotAuthor: pickAnnotAuthor(settings.annotAuthor, DEFAULTS.annotAuthor),
   };
 }
 
@@ -167,7 +197,18 @@ function mergeUi(current, patch) {
     annotFontSize: pickAnnotFontSize(next.annotFontSize, current.annotFontSize),
     annotLineWidth: pickFromList(ANNOT_LINE_WIDTHS, next.annotLineWidth, current.annotLineWidth, DEFAULTS.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, next.annotShapeKind, current.annotShapeKind, DEFAULTS.annotShapeKind),
+    // 不透明度も道具ごとに重ねる（色と同じ）。
+    annotOpacity: pickAnnotOpacity({ ...(isPlainObject(current.annotOpacity) ? current.annotOpacity : {}), ...(isPlainObject(next.annotOpacity) ? next.annotOpacity : {}) }, current.annotOpacity),
+    annotAuthor: pickAnnotAuthor(next.annotAuthor, pickAnnotAuthor(current.annotAuthor, DEFAULTS.annotAuthor)),
   };
+}
+
+// レンダラーへ渡す直前に、空の作成者を OS のユーザー名で埋める（spec-4-4 確定事項39）。settings.json には
+// 空のまま残す（ユーザーが名前を消したら、次回もその時点の OS のユーザー名になる）。
+function fillAuthor(ui, fallback) {
+  if (typeof ui?.annotAuthor === 'string' && ui.annotAuthor !== '')
+    return ui;
+  return { ...ui, annotAuthor: pickAnnotAuthor(fallback, '') };
 }
 
 function clampSidePanelWidth(px) {
@@ -298,12 +339,15 @@ module.exports = {
   ANNOT_FONT_SIZES,
   ANNOT_LINE_WIDTHS,
   ANNOT_SHAPE_KINDS,
+  ANNOT_OPACITIES,
+  ANNOT_AUTHOR_MAX,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,
   isValidMode,
   isValidPageLayout,
   pickUi,
   mergeUi,
+  fillAuthor,
   mergeDefaults,
   clampSidePanelWidth,
   clampWindowBounds,

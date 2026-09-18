@@ -564,6 +564,9 @@ async function createShell({
           // 図形・ペンの線の太さと図形の種類（spec-4-3 確定事項19）。
           annotLineWidth: patch?.annotLineWidth ?? savedUi.annotLineWidth,
           annotShapeKind: patch?.annotShapeKind ?? savedUi.annotShapeKind,
+          // 不透明度（道具ごとに重ねる）とノートの作成者（spec-4-4 確定事項21）。
+          annotOpacity: { ...(savedUi.annotOpacity ?? {}), ...(patch?.annotOpacity ?? {}) },
+          annotAuthor: patch?.annotAuthor ?? savedUi.annotAuthor,
         };
         return { ok: true, ui: structuredClone(savedUi) };
       },

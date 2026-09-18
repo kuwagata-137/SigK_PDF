@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, protocol, screen, session, shell, utilityProcess } = require('electron');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const {
@@ -16,13 +17,22 @@ const {
   resolveAppPath,
   contentTypeFor,
 } = require('./security-policy.js');
-const { createSettingsStore, clampWindowBounds, pickUi, mergeUi } = require('./settings.js');
+const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
+
+// OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
+function osUserName() {
+  try {
+    return os.userInfo().username;
+  } catch {
+    return '';
+  }
+}
 
 // 起動の時刻の目印（非機能要件の実測。`docs/01_製品要件定義.md` 第4章）。
 // ここはトップレベルなので `loaded` には main.js が読まれた時刻がそのまま入る。
@@ -350,11 +360,13 @@ function registerIpc() {
 
   // 画面の見た目（モード・サイドパネルの開閉と幅）を覚える。
   // sandbox: true のため、fs に触るのはメインだけである（spec-1-3 確定事項32）。
-  ipcMain.handle('settings:getUi', () => ({ ok: true, ui: pickUi(settings.get()) }));
+  // ノートの作成者が空なら OS のユーザー名で埋めて渡す（spec-4-4 確定事項39）。
+  const uiForRenderer = () => fillAuthor(pickUi(settings.get()), osUserName());
+  ipcMain.handle('settings:getUi', () => ({ ok: true, ui: uiForRenderer() }));
   ipcMain.handle('settings:setUi', (_event, patch) => {
     settings.set(mergeUi(pickUi(settings.get()), patch));
     settings.save();
-    return { ok: true, ui: pickUi(settings.get()) };
+    return { ok: true, ui: uiForRenderer() };
   });
 
   // 印刷（spec-1-4 確定事項28〜30）。レンダラーが印刷用のコンテナへ画像を

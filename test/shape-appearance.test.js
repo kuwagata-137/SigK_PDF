@@ -134,7 +134,7 @@ test('isShapeEntry は形だけを見る', () => {
 });
 
 test('形が違えば null', () => {
-  assert.equal(shapeAppearanceOf(square({ kind: 'note' })), null);
+  assert.equal(shapeAppearanceOf(square({ kind: 'stamp' })), null);
   assert.equal(shapeAppearanceOf(line({ paths: [] })), null);
   assert.equal(shapeAppearanceOf(square({ color: '#12345' })), null);
 });
