@@ -1,15 +1,17 @@
 'use strict';
 
-// 注釈を /Annots へ書く層（spec-4-1 確定事項22〜27、spec-4-2 確定事項22〜26、spec-4-3 確定事項20〜23）。
+// 注釈を /Annots へ書く層（spec-4-1 確定事項22〜27、spec-4-2 確定事項22〜26、spec-4-3 確定事項20〜23、
+// spec-4-4 確定事項23〜27）。
 //
 // レンダラーから届く { add, remove } は「ファイルとの差分」である。add[] はマークアップ
 // { src, kind, color, opacity, quads, rect } かテキスト { src, kind: 'text', color, opacity, rect,
-// text, fontSize, rotation } か図形・ペン { src, kind, color, opacity, rect, lineWidth, paths? }
+// text, fontSize, rotation } か図形・ペン { src, kind, color, opacity, rect, lineWidth, paths? } か
+// ノート { src, kind: 'note', color, opacity, rect, text, author }
 // （src はこの文書のページ番号）、remove[] は pdf.js の id（"86R"）である。applyPlan の**前**に当てる。並べ替えのあとでは src が指すページが変わるためで、
 // 当てた注釈はページ実体に付いて一緒に動く。外す側は annotation-remove.js。
 //
 // テキストは同梱フォントのサブセットを要る保存でだけ 1 度埋める（font-embed.js）。
-// 純関数（annotation-appearance.js・free-text-appearance.js・shape-appearance.js）が content stream を組み、
+// 純関数（annotation-appearance.js・free-text-appearance.js・shape-appearance.js・note-appearance.js）が content stream を組み、
 // ここは pdf-lib の Form XObject と辞書に包む。pdf-lib のクラスは TOOLS で受ける
 // （vendor へのパスをここに持たせない）。/Annots の直接操作は inserted-annotations.js と
 // 同じ作法にする（page.node.addAnnot() は normalize() が content stream を包み直すので使わない）。
@@ -17,6 +19,7 @@
 const { appearanceOf } = require('./annotation-appearance.js');
 const { freeTextAppearanceOf, isFreeTextEntry } = require('./free-text-appearance.js');
 const { shapeAppearanceOf, KINDS: SHAPE_KINDS } = require('./shape-appearance.js');
+const { noteAppearanceOf } = require('./note-appearance.js');
 const { embedBundledFont, FONT_ERROR } = require('./font-embed.js');
 const { parseRef, annotsOf, removeAnnotations } = require('./annotation-remove.js');
 
@@ -65,12 +68,30 @@ function shapeFields(appearance, { PDFName, PDFString }) {
   return fields;
 }
 
+// ノートの欄（spec-4-4 確定事項23）。本文（空でもよい）・作成者（空なら書かない）・塗りの色・アイコン名・
+// 閉じたポップアップ・作成日時（/M と同じ時刻）。
+function noteFields(entry, appearance, { PDFString, PDFHexString }, now) {
+  const fields = {
+    Contents: PDFHexString.fromText(entry.text ?? ''),
+    C: appearance.rgb,
+    Name: 'Comment',
+    Open: false,
+    CreationDate: PDFString.of(timestamp(now)),
+  };
+  if (typeof entry.author === 'string' && entry.author !== '')
+    fields.T = PDFHexString.fromText(entry.author);
+  return fields;
+}
+
 // 種類ごとの欄。マークアップは /QuadPoints と /C、テキストは /Contents・/DA・/Border・/Rotate
-// （spec-4-2 確定事項25。/C は箱の背景色に使うビューアがあるので書かない）、図形・ペンは shapeFields。
-function kindFields(entry, appearance, tools) {
+// （spec-4-2 確定事項25。/C は箱の背景色に使うビューアがあるので書かない）、図形・ペンは shapeFields、
+// ノートは noteFields。
+function kindFields(entry, appearance, tools, now) {
   const { PDFString, PDFHexString } = tools;
   if (SHAPE_KINDS.includes(entry.kind))
     return shapeFields(appearance, tools);
+  if (entry.kind === 'note')
+    return noteFields(entry, appearance, tools, now);
   if (entry.kind !== 'text') {
     return { QuadPoints: entry.quads.flat(), C: appearance.rgb, Contents: PDFString.of('') };
   }
@@ -84,7 +105,22 @@ function kindFields(entry, appearance, tools) {
   return fields;
 }
 
-// 1 つ足す。外観（Form XObject）を作り、注釈の辞書を登録して /Annots へ並べる。
+// ノートのポップアップ（spec-4-4 確定事項24）。親を指し、閉じた状態でアイコンの右隣に置く。
+// 外観は持たない（ビューアが自分で窓を描く）。
+function popupDict(context, page, parentRef, rect) {
+  return context.obj({ Type: 'Annot', Subtype: 'Popup', Rect: rect, Parent: parentRef, Open: false, F: 28, P: page.ref });
+}
+
+function appendAnnots(page, context, PDFName, refs) {
+  const annots = annotsOf(page, context, PDFName);
+  if (annots !== null)
+    refs.forEach((ref) => annots.push(ref));
+  else
+    page.node.set(PDFName.of('Annots'), context.obj(refs));
+}
+
+// 1 つ足す。外観（Form XObject）を作り、注釈の辞書を登録して /Annots へ並べる。ノートは
+// /Popup も一緒に足す。フラグは外観が指定すればそれ（ノートは Print＋NoZoom＋NoRotate）、無ければ Print。
 function addAnnotation(doc, page, { entry, appearance }, font, tools, now, serial) {
   const { PDFName, PDFString } = tools;
   const context = doc.context;
@@ -93,20 +129,22 @@ function addAnnotation(doc, page, { entry, appearance }, font, tools, now, seria
     Type: 'Annot',
     Subtype: appearance.subtype,
     Rect: appearance.bbox,
-    ...kindFields(entry, appearance, tools),
+    ...kindFields(entry, appearance, tools, now),
     CA: appearance.opacity,
-    F: 4,
+    F: appearance.flags ?? 4,
     NM: PDFString.of(`sigk-${now.getTime().toString(36)}-${serial}`),
     P: page.ref,
     M: PDFString.of(timestamp(now)),
     AP: { N: streamRef },
   });
   const annotRef = context.register(dict);
-  const annots = annotsOf(page, context, PDFName);
-  if (annots !== null)
-    annots.push(annotRef);
-  else
-    page.node.set(PDFName.of('Annots'), context.obj([annotRef]));
+  const refs = [annotRef];
+  if (appearance.popupRect !== undefined) {
+    const popupRef = context.register(popupDict(context, page, annotRef, appearance.popupRect));
+    dict.set(PDFName.of('Popup'), popupRef);
+    refs.push(popupRef);
+  }
+  appendAnnots(page, context, PDFName, refs);
   return annotRef;
 }
 
@@ -114,6 +152,8 @@ function addAnnotation(doc, page, { entry, appearance }, font, tools, now, seria
 function appearanceFor(entry, measure) {
   if (entry.kind === 'text')
     return freeTextAppearanceOf(entry, measure);
+  if (entry.kind === 'note')
+    return noteAppearanceOf(entry);
   return SHAPE_KINDS.includes(entry.kind) ? shapeAppearanceOf(entry) : appearanceOf(entry);
 }
 

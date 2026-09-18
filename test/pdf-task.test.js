@@ -374,3 +374,36 @@ test('注釈の形が読めなければ書かずに断る', async () => {
     assert.equal(fs.statSync(source).mtimeMs, before);
   } finally { ws.cleanup(); }
 });
+
+// ---- ノート注釈（spec-4-4 確定事項23〜26） ----
+
+const NOTE = { kind: 'note', color: '#ffe45a', opacity: 0.75, rect: [100, 680, 120, 700], text: 'メモ', author: '総務' };
+
+test('ノート注釈は /Popup ごと保存され、抽出にも一緒に付いていく', async () => {
+  const ws = workspace();
+  try {
+    const source = ws.copyIn('three-pages.pdf');
+    const result = await runSave({
+      source,
+      target: source,
+      pages: [{ src: 0, rotate: 0 }, { src: 1, rotate: 0 }, { src: 2, rotate: 0 }],
+      annotations: { add: [{ ...NOTE, src: 1 }], remove: [] },
+      makeBackup: false,
+    });
+    assert.equal(result.ok, true);
+    const saved = await open(source);
+    assert.deepEqual(annotSubtypes(saved, 1), ['/Text', '/Popup']);
+    // 抽出（ポップアップは親と同じページにあるので一緒に写る）。
+    const target = ws.file('picked.pdf');
+    const picked = await runSave({
+      kind: 'extract',
+      source,
+      target,
+      pages: [{ src: 1, rotate: 0 }],
+      annotations: { add: [{ ...NOTE, src: 1, text: '抽出' }], remove: [] },
+    });
+    assert.equal(picked.ok, true);
+    const extracted = await open(target);
+    assert.deepEqual(annotSubtypes(extracted, 0), ['/Text', '/Popup', '/Text', '/Popup']);
+  } finally { ws.cleanup(); }
+});
