@@ -61,8 +61,8 @@
       return false;
     const html = el.doc.documentElement;
     const mode = html.getAttribute('data-mode');
-    // 注釈モードも閲覧と同じ 1 列（spec-4-1 確定事項3）。
-    return (mode === 'view' || mode === 'pages' || mode === 'annot') && html.getAttribute('data-panel') === 'open';
+    // 注釈モードのサイドパネルは注釈の一覧が使う（spec-4-4 確定事項9）。
+    return (mode === 'view' || mode === 'pages') && html.getAttribute('data-panel') === 'open';
   }
 
   // 列数はページモードだけ自動で増やす（確定事項23・28）。閲覧モードの
@@ -156,9 +156,10 @@
     el.list.replaceChildren();
     el.list.hidden = true;
     el.list.style.height = '';
-    // ツールモードではサイドパネルをツール一覧が使う（spec-2-1 確定事項1）。
+    // ツールモードと注釈モードではサイドパネルを別の一覧が使う（spec-2-1 確定事項1、spec-4-4 確定事項9）。
     // 「文書を開くと…」の案内はそこでは出さない。
-    el.empty.hidden = el.list.ownerDocument.documentElement.getAttribute('data-mode') === 'tools';
+    const mode = el.list.ownerDocument.documentElement.getAttribute('data-mode');
+    el.empty.hidden = mode === 'tools' || mode === 'annot';
   }
 
   // ---- 描画 ----

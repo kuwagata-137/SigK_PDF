@@ -619,6 +619,25 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #confirm-replace::backdrop{background:rgba(16,24,40,.34)}
 
+/* ── 注釈一覧（spec-4-4 確定事項9・29〜32） ────────────────────── */
+/* サイドパネルの行。ツール一覧と同じトークンで組む。アイコンは注釈の色、表示のみは灰色に「表示のみ」の印。 */
+.annot-list[hidden]{display:none}
+.annot-rows{display:flex; flex-direction:column; gap:2px}
+.annot-row{
+  display:flex; align-items:center; gap:8px; width:100%; height:30px; padding:0 8px; text-align:left;
+  border-radius:8px; color:var(--text); cursor:pointer;
+}
+.annot-row:hover{background:var(--surface-2)}
+.annot-row.on{background:var(--select); color:var(--accent)}
+.annot-row .ic{width:18px; height:18px; display:grid; place-items:center; flex:0 0 18px}
+.annot-row.readonly .ic{color:var(--border-strong) !important}
+.annot-row .pg{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; flex:0 0 26px}
+.annot-row .tx{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px}
+.annot-row .tx.kind{color:var(--muted)}
+.annot-row.on .tx.kind{color:var(--accent)}
+.annot-row .ro{font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:1px 4px; flex:0 0 auto}
+.annot-list .empty{margin:14px 0 0}
+
 /* ── 注釈モード（spec-4-1 確定事項1〜5・37） ────────────────── */
 /* レールの道具。モードの 4 つの下に区切り線を引き、注釈モードのときだけ出す。
    道具は .active で押している状態を見せる（モードの縦棒は出さない）。 */

@@ -83,8 +83,9 @@
     // サイドパネルはツール一覧が使う。「文書を開くと…」の案内は、ツールモードでは
     // 出さず、抜けたときはサムネイルが無ければ戻す。
     const placeholder = el.doc.getElementById('thumbs-empty');
+    const annotMode = el.doc.documentElement.getAttribute('data-mode') === 'annot';
     if (placeholder !== null)
-      placeholder.hidden = active || el.doc.getElementById('thumbs')?.hidden === false;
+      placeholder.hidden = active || annotMode || el.doc.getElementById('thumbs')?.hidden === false;
     if (active)
       select(state.selected);
     root.SigK.save?.syncButtons();

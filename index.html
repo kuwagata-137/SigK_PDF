@@ -112,6 +112,11 @@ body{
         <p class="empty" id="thumbs-empty">文書を開くと<br>ページの一覧が出ます</p>
         <!-- ツールモードのツール一覧（spec-2-1 確定事項1）。中身は tools.js が組む。 -->
         <div class="tools-list" id="tools-list" hidden></div>
+        <!-- 注釈モードの注釈一覧（spec-4-4 確定事項9・29）。中身は annotation-list.js が組む。 -->
+        <div class="annot-list" id="annot-list" hidden>
+          <div class="annot-rows" id="annot-rows"></div>
+          <p class="empty" id="annot-list-empty">文書を開くと注釈の一覧が出ます</p>
+        </div>
       </div>
       <!-- ページモードの操作（spec-1-5 確定事項50・51）。div ではなく button に
            してある。div のままではフォーカスが当たらず、キーボードから押せない。
@@ -616,6 +621,8 @@ body{
 <script src="renderer/annotate-note.js"></script>
 <script src="renderer/annotate-pointer.js"></script>
 <script src="renderer/annotation-props.js"></script>
+<script src="renderer/annotation-index.js"></script>
+<script src="renderer/annotation-list.js"></script>
 <script src="renderer/doc-info.js"></script>
 <script src="renderer/tabs.js"></script>
 <script src="renderer/recent-panel.js"></script>

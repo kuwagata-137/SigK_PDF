@@ -1048,10 +1048,17 @@ function installSmokeCheck(win) {
   //                              （種類は square / circle / line / arrow。spec-4-3 の完了判定）
   //   pen:0:100x500;120x480;150x510  ペンでページ 0 の pt の点列をなぞる（; 区切り）
   //   width:3                    線の太さ（選んでいればその図形、無ければ次に描く太さ）
+  //   note:0:100x700:本文|2行目    ノートの道具でページ 0 の pt (100,700) を押して付箋を置き、「本文」欄に打って確定する
+  //                              （| は改行。本文が無ければ空のまま。spec-4-4 の完了判定）
+  //   contents:直した本文         選んでいるノートの「本文」欄を打ち直して確定する
+  //   opacity:50                 不透明度（%）。選んでいればその注釈、無ければ道具の次の値
+  //   author:名前                「作成者」欄を打つ（ノートの道具を持っているとき）
+  //   list:1                     一覧の 1 行目（1 起点）を押す（該当箇所へ飛んで選ぶ）
   //
   // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
   // 例: SIGK_SMOKE_ANNOTATE=text:0:100x700:こんにちは|世界,size:18,drag:30x-20,edit:直した,save
   // 例: SIGK_SMOKE_ANNOTATE=shape:arrow:0:100x700-300x650,width:3,pen:0:100x500;120x480;150x510,undo,redo,save
+  // 例: SIGK_SMOKE_ANNOTATE=tool:note,author:総務,note:0:100x700:確認|2行目,color:#8ce99a,opacity:50,tool:shape,shape:square:0:100x500-300x400,opacity:50,list:1,undo,redo,save
   const annotateScript = (target, spec) => `(async () => {
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const SigK = window.SigK;
@@ -1084,6 +1091,18 @@ function installSmokeCheck(win) {
       await wait(100);
       if (commit)
         node.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      return true;
+    };
+    // 右パネルの「本文」欄に打って Ctrl+Enter で確定する（spec-4-4 確定事項4）。
+    const typeContents = async (body) => {
+      const field = document.getElementById('props-contents');
+      if (field === null || document.getElementById('props-contents-row').hidden)
+        return false;
+      field.focus();
+      field.value = body.split('|').join(LF);
+      await wait(100);
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+      await wait(100);
       return true;
     };
     const applied = [];
@@ -1143,6 +1162,28 @@ function installSmokeCheck(win) {
         SigK.annotate.setFontSize(Number(arg));
       } else if (name === 'width') {
         SigK.annotate.setLineWidth(Number(arg));
+      } else if (name === 'note') {
+        const [page, point, ...words] = arg.split(':');
+        const [x, y] = point.split('x').map(Number);
+        SigK.annotate.setTool('note');
+        const [sx, sy] = screenPoint(Number(page), x, y);
+        for (const type of ['mousedown', 'mouseup'])
+          mouse(type, pageNode(Number(page)), sx, sy);
+        await wait(150);
+        if (words.length > 0)
+          await typeContents(words.join(':'));
+      } else if (name === 'contents') {
+        await typeContents(arg);
+      } else if (name === 'opacity') {
+        SigK.annotate.setOpacity(Number(arg) / 100);
+      } else if (name === 'author') {
+        const field = document.getElementById('props-author');
+        field.value = arg;
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+      } else if (name === 'list') {
+        const row = document.querySelectorAll('#annot-rows .annot-row')[Number(arg) - 1];
+        row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        await wait(500);
       } else if (name === 'shape') {
         const [kind, page, span] = arg.split(':');
         const [from, to] = span.split('-').map((point) => point.split('x').map(Number));
@@ -1174,6 +1215,11 @@ function installSmokeCheck(win) {
           const [ox, oy] = SigK.freeTextGeometry.frameOrigin(entry.rect, entry.rotation);
           const [sx, sy] = screenPoint(index, ox, oy);
           grab = [sx + 3 * scale, sy + 3 * scale];
+        } else if (entry.kind === 'note') {
+          // 付箋は画面の箱の真ん中を掴む（倍率に依らず一定の大きさ。spec-4-4 確定事項11）。
+          const box = SigK.noteGraphics.boxOf(entry, viewportOf(index));
+          const base = pageNode(index).getBoundingClientRect();
+          grab = [base.left + box.x + box.width / 2, base.top + box.y + box.height / 2];
         } else {
           // 図形は線の上（矩形・楕円は箱の内側でよい。直線・矢印・ペンは最初の点）を掴む。
           const at = entry.paths ? entry.paths[0][0] : [(entry.rect[0] + entry.rect[2]) / 2, (entry.rect[1] + entry.rect[3]) / 2];
@@ -1260,6 +1306,21 @@ function installSmokeCheck(win) {
       propsWidthVisible: document.getElementById('props-width-row').hidden === false,
       propsShapeKind: [...document.querySelectorAll('#props-shape-kinds button.on')].map((button) => button.dataset.kind).join(''),
       propsShapeVisible: document.getElementById('props-shape-row').hidden === false,
+      // ノート・不透明度・一覧（spec-4-4 の完了判定）。置いたもの、読み込んだもの（表示のみを含む）、一覧の行、右パネル。
+      notes: annots.added.filter((entry) => entry.kind === 'note').map((entry) => ({ src: entry.src, text: entry.text, author: entry.author, color: entry.color, opacity: entry.opacity, rect: entry.rect.map(round) })),
+      importedNotes: importedEntries.filter((entry) => entry.kind === 'note').map((entry) => ({ ref: entry.ref, src: entry.src, text: entry.text, author: entry.author, color: entry.color, rect: entry.rect.map(round) })),
+      readonly: importedEntries.filter((entry) => entry.readonly === true).map((entry) => ({ ref: entry.ref, src: entry.src, subtype: entry.subtype })),
+      opacities: annots.added.map((entry) => entry.opacity),
+      noteGroups: [...document.querySelectorAll('.annot-layer')].map((svg) => svg.querySelectorAll('g[data-kind="note"] g.note').length),
+      listRows: [...document.querySelectorAll('#annot-rows .annot-row')].map((row) => [row.dataset.key, row.querySelector('.pg').textContent, row.querySelector('.tx').textContent, row.classList.contains('on'), row.classList.contains('readonly')]),
+      listVisible: document.getElementById('annot-list').hidden === false,
+      sideTitle: document.getElementById('side-title').textContent,
+      propsContents: document.getElementById('props-contents').value,
+      propsContentsVisible: document.getElementById('props-contents-row').hidden === false,
+      propsAuthor: document.getElementById('props-author').value,
+      propsAuthorVisible: document.getElementById('props-author-row').hidden === false,
+      propsOpacity: document.getElementById('props-opacity').value,
+      propsOpacityVisible: document.getElementById('props-opacity-row').hidden === false,
       drafts: document.querySelectorAll('.annot-draft').length,
       frames: document.querySelectorAll('.annot-frame').length,
       propsKind: document.getElementById('props-kind').textContent,

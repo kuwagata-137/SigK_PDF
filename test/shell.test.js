@@ -108,8 +108,10 @@ test('ツールレールのクリックでモードが変わる', async (t) => {
   document.querySelector('.rail-item[data-mode="annot"]').dispatchEvent(new document.defaultView.MouseEvent('click'));
 
   assert.equal(document.documentElement.getAttribute('data-mode'), 'annot');
-  // 塊①のサイドパネルはサムネイル（spec-4-1 確定事項3）。注釈一覧は塊④。
-  assert.equal(document.getElementById('side-title').textContent, 'サムネイル');
+  // 注釈モードのサイドパネルは注釈の一覧（spec-4-4 確定事項9）。
+  assert.equal(document.getElementById('side-title').textContent, '注釈');
+  assert.equal(document.getElementById('annot-list').hidden, false);
+  assert.equal(document.getElementById('thumbs-empty').hidden, true);
   // 右のプロパティは注釈モードで出る（CSS が持つ。要素はある）。
   assert.notEqual(document.getElementById('props'), null);
   assert.equal(document.getElementById('props-kind').textContent, '–');
