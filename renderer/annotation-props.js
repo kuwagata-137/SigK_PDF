@@ -261,12 +261,14 @@
     select.addEventListener('change', () => annotate().setOpacity(Number(select.value)));
   }
 
-  // 「本文」欄。欄の外を押す（blur）か Ctrl+Enter で確定、Esc は欄を離れる（＝確定）。
+  // 「本文」欄。欄の外を押す（blur）か Ctrl+Enter で確定、Esc は欄を離れる（＝確定）。キーの側でも確定を
+  // 呼ぶのは、窓が非活性のとき Chromium が blur() で活性要素を変えても blur イベントを流さないため（起動確認で実測）。
   function bindContents(textarea) {
     textarea.addEventListener('blur', () => annotate().setContents(textarea.value));
     textarea.addEventListener('keydown', (event) => {
       if ((event.key === 'Enter' && event.ctrlKey) || event.key === 'Escape') {
         event.preventDefault();
+        annotate().setContents(textarea.value);
         textarea.blur();
       }
     });
