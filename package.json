@@ -47,6 +47,7 @@
       "pdf-write.js",
       "launch-args.js",
       "task-runner.js",
+      "smoke-window.js",
       "worker/**",
       "index.html",
       "renderer/**",
