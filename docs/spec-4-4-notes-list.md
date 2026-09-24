@@ -152,7 +152,7 @@ Text は全部拾う（論点3）ので表示のみにはならない。
 |---|---|---|
 | 15 | entry（ノート） | `{ id, src, kind: 'note', color, opacity, rect, quads: [箱の四角], text（本文。空でもよい）, author（作成者。文字列） }`。`KINDS` に `note` を足し、`isNoteKind` を公開する。`validEntry` はノートなら `text` が文字列（空を許す）・`author` が文字列か未設定・`quads.length === 1`。塊②のテキストの `text`（空を許さない）とは kind で分ける |
 | 16 | entry（表示のみ） | `{ ref, src, kind: 'other', subtype, color, opacity: 1, rect, quads, text, author, readonly: true }`。`KINDS` には入れない（`addAnnot` で足せない）。`imported` にだけ現れ、`annotsOnPage`・`findAnnot` は今までどおり返す。`removeAnnot` は `ref` で消せる。**`updateAnnot`・`recolorAnnot` は `readonly` なら何もしない** |
-| 17 | 変える口 | `updateAnnot` の `PATCH_FIELDS` に **`opacity`** を足し（0〜1 の有限数）、`text` の検証を kind で分ける（ノートは空を許す）。`copyEntry`・`sameEntry`・`toSaveEntry` に `author`（ノートだけ）を足す。`opacity` は既に全経路を通っている（`spec-4-1`。レンダラーが 1 を入れていただけ） |
+| 17 | 変える口 | `updateAnnot` の `PATCH_FIELDS` に **`opacity`** を足し（0〜1 の有限数）、`text` の検証を kind で分ける（ノートは空を許す）。`copyEntry`・`sameEntry`・`toSaveEntry` に `author`（ノートだけ）を足す。`opacity` は既に全経路を通っている（`spec-4-1`。レンダラーが 1 を入れていただけ）。**2026-09-24 訂正**: テキストだけは保存で通っていなかった（`worker/free-text-appearance.js` が常に不透明度 1 を返し、`/CA 1` で書かれていた）。`spec-4-5` 確定事項45 で直した |
 | 18 | 履歴 | 「置く」「動かす」「本文を変える」「色を変える」「不透明度を変える」「消す」で 1 世代ずつ、塊①の `commitAnnots` に載せる。本文は確定のときだけ（打鍵ごとには積まない） |
 | 19 | 保存の形 | `toSaveSpec` はノートを `{ src, kind: 'note', color, opacity, rect, text, author }` で写す（`quads` は落とす）。図形・テキストの `opacity` は今までどおり写る |
 | 20 | 読み込み（論点3・4） | 文書を開いたとき、`Text` → `note`（`rect` の左上 `(x1, y2)` から 20×20 を作り直す。`color` 無しは黄・`contentsObj.str`（`\r\n`・`\r` は `\n` に）・`titleObj.str`）。**`/AP` の有無を問わず拾い、`noView` で pdf.js に描かせず自前で描く**（`/AP` の無いものは今まで見えていなかった）。`Popup` は拾わない（描かれない）。**事前調査 D の markup 注釈のうち塊①〜④で拾えなかったものは `readonly` の entry にして `imported` に入れる**（`noView` は付けない。pdf.js が描き続ける）。それ以外（Link・Widget・Popup 等）は拾わない |
@@ -167,7 +167,7 @@ Text は全部拾う（論点3）ので表示のみにはならない。
 | 24 | `/Popup` | 間接オブジェクト `/Type /Annot /Subtype /Popup /Rect [x2 + 2, y2 − 100, x2 + 182, y2] /Parent ref /Open false /F 28 /P`。ノートの直後に同じ `/Annots` へ並べる。紙の外にはみ出しても切らない（ビューアが自分で収める）。消すときは `annotation-remove.js` の既存経路が実体と参照を外す（事前調査 B） |
 | 25 | 外観 `/AP /N` | Form XObject。`BBox` ＝ `/Rect`、`Matrix` 無し、`Resources: { ExtGState: { GS } }`（`CA`・`ca` ＝ 不透明度）。塊①〜③と同じ包み方。フォントは要らない |
 | 26 | `op-annotate.js` | `kindFields` に `note` の分岐（確定事項23）。`addAnnotation` は `F` を外観の `flags`（無ければ 4）にし、`popupRect` があれば `/Popup` を一緒に足す（確定事項24）。`validAdd` は `noteAppearanceOf(entry) !== null`。`applyAnnotations` の流れ（検証 → フォント → 外観 → 消す → 足す）は変えない |
-| 27 | 不透明度の保存 | 図形・ペン・テキストは `opacity` が `/CA` と ExtGState に既に通っている（塊①〜③）。ノートも同じ。読み直して `/CA` と `/AP` の `/ExtGState /GS /CA /ca` が同じ値になることをテストで見る |
+| 27 | 不透明度の保存 | 図形・ペン・テキストは `opacity` が `/CA` と ExtGState に既に通っている（塊①〜③）。ノートも同じ。読み直して `/CA` と `/AP` の `/ExtGState /GS /CA /ca` が同じ値になることをテストで見る。**2026-09-24 訂正**: テキストは通っていなかった（テストも図形とノートだけだった）。`spec-4-5` 確定事項45 で直し、テキストのテストを足した |
 
 ### E. 注釈一覧（事前調査 D・E。論点4・6・7）
 
@@ -367,7 +367,7 @@ Text は全部拾う（論点3）ので表示のみにはならない。
 | 3 | 付箋は倍率・回転に依らず同じ大きさ・上向きで、`/Rect` の左上を基準に置かれる | ✅ | `note-graphics.test.js`（倍率 1 と 2 で 26.67px、回転 90 でも左上から右下）、起動確認 `rotated.pdf`（2 ページ目に置く → 保存 → `/Rect [67.09 646.17 87.09 666.17]` → 開き直しで同じ） |
 | 4 | 一覧がページ順に出て、行を押すと該当箇所へ飛んで選ばれ、紙の上で選んだものは一覧でも光る。並べ替えで p.N が追従 | ✅ | `annotation-index.test.js`（ページ順・上から下・左から右・並べ替え）、`annotation-list.test.js`（行・`.on` の同期・行を押すと `select`＋`scrollIntoView`・未描画は `goToPage`＋`onPageRendered`）、起動確認 `list:1`（一覧から選んで `drag:` で動かせた） |
 | 5 | 表示のみの注釈が一覧に出て、選ぶと枠だけ出て、消せる | ✅ | `annotation-import.test.js`・`annotation-layer.test.js`・`annotate-note.test.js`（枠だけ・色と不透明度は断る・紙の上で当たらない・`remove: ['17R']`）、起動確認 `annotated.pdf`（一覧 1 行目の Line を消して保存 → `/Annots` から消え、FreeText・Stamp は残り、Link は一覧に出ない） |
-| 6 | 不透明度が図形・ペン・テキスト・ノートに効き、画面・印刷・保存で同じ値 | ✅ | `annotate-note.test.js`（行の出し入れ・道具ごとに覚える・選んだ注釈は 1 世代・層の `opacity`）、`annotation-layer.test.js`（`paint` の `globalAlpha`）、`op-annotate.test.js`（`/CA` と ExtGState が同じ値）、起動確認（ノート 0.5・矩形 0.5 → 保存 → `/CA 0.5`・`/GS << /CA 0.5 /ca 0.5 >>`） |
+| 6 | 不透明度が図形・ペン・テキスト・ノートに効き、画面・印刷・保存で同じ値 | ✅ | `annotate-note.test.js`（行の出し入れ・道具ごとに覚える・選んだ注釈は 1 世代・層の `opacity`）、`annotation-layer.test.js`（`paint` の `globalAlpha`）、`op-annotate.test.js`（`/CA` と ExtGState が同じ値）、起動確認（ノート 0.5・矩形 0.5 → 保存 → `/CA 0.5`・`/GS << /CA 0.5 /ca 0.5 >>`）。**2026-09-24 訂正**: テキストの保存は確かめておらず、実際は `/CA 1` で書かれていた（画面と印刷には効いていた）。`spec-4-5` 確定事項45 で直した |
 | 7 | 保存で `/Text` が `/Contents`・`/T`・`/M`・`/CreationDate`・`/C`・`/CA`・`/F 28`・`/Name /Comment`・`/AP /N`・`/Popup` 付きで書かれ、開き直しても直せる。他のツールのノート（`/AP` の無いものを含む）も見えて直せる | ✅ | `op-annotate.test.js`・`pdf-task.test.js`（読み直して辞書・Popup・抽出）、起動確認（保存 → 開き直しで `importedNotes` に本文・作成者・色。`annotated.pdf` の `/AP` の無いノートの本文を直して保存 → 元と Popup が消え、写しが `/AP`・`/Popup` 付きで書かれた） |
 | 8 | `/Rotate 90` のページでも置いた位置に保存され、開き直しても同じ位置・上向き | ✅ | 起動確認 `rotated.pdf`（判定3）、`note-graphics.test.js`（回転した viewport） |
 | 9 | 印刷のプレビューに未保存のノートと不透明度が映る | ✅ | `annotation-layer.test.js`・`note-graphics.test.js`（`paint` が 20pt × 倍率で描く）、起動確認 `SIGK_SMOKE_PRINT=1`（未保存の 50% のノートがある状態で印刷の準備が通る。`error: null`・1,240×1,754 の画像） |

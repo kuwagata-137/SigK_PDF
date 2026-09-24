@@ -492,6 +492,17 @@ test('note と図形の不透明度は /CA と外観の ExtGState に同じ値�
   assert.equal(pick(extGStateOf(saved, squareAnnot.dict).gs, '/ca').asNumber(), 0.25);
 });
 
+test('text の不透明度も /CA と外観の ExtGState に同じ値で書かれる（決定40 ⑥）', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [text({ opacity: 0.5 })] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  const [freeText] = annotsOf(saved, 0);
+  assert.equal(nameOf(freeText.dict, '/Subtype'), '/FreeText');
+  assert.equal(pick(freeText.dict, '/CA').asNumber(), 0.5);
+  assert.equal(pick(extGStateOf(saved, freeText.dict).gs, '/CA').asNumber(), 0.5);
+  assert.equal(pick(extGStateOf(saved, freeText.dict).gs, '/ca').asNumber(), 0.5);
+});
+
 test('note を remove で消すと辞書・外観・ポップアップの 3 つが消える', async () => {
   const doc = await makeDoc(1);
   await applyAnnotations(doc, { add: [note()] }, TOOLS, { now: NOW });

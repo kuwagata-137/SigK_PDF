@@ -611,6 +611,69 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .toimage-range-row .err{color:var(--danger); font-size:11.5px; flex-basis:100%}
 .toimage-range-row .err[hidden]{display:none}
 
+/* ── 透かし（spec-4-5 確定事項2〜6。モック screenshots/phase4-watermark.png） ── */
+/* 左に対象・透かし・ページの 3 節、右に幅 280px のプレビュー（スクロールしても上に留まる）。節の枠・
+   対象の行・ラジオ・範囲の欄・色の丸は分割・PDF→画像・注釈の右パネルのものをそのまま使う。 */
+.wm-body{flex:1; min-height:0; overflow:auto; margin:0 24px; display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:14px; align-items:start}
+.wm-col{display:flex; flex-direction:column; gap:14px}
+.wm-opts{display:grid; grid-template-columns:96px 1fr; row-gap:11px; column-gap:12px; align-items:center}
+.wm-opts .k{color:var(--muted); font-size:12px}
+.wm-opts .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.wm-opts .sub{color:var(--muted); font-size:11.5px}
+.wm-opts .k[hidden],.wm-opts .row[hidden],.wm-opts .swatches[hidden],.wm-img[hidden]{display:none}
+.wm-img{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.wm-img .name{font-weight:600}
+.wm-img .meta{color:var(--muted); font-size:12px}
+.wm-img .act{padding:0 12px; height:28px}
+.wm-img .note{flex-basis:100%; color:var(--muted); font-size:11.5px}
+.wm-img .note.error{color:var(--danger)}
+.wm-img .note[hidden]{display:none}
+/* 位置の格子（3×3。論点3）。選んだ升目を塗る。 */
+.wm-grid{display:grid; grid-template-columns:repeat(3, 18px); grid-template-rows:repeat(3, 18px); gap:3px; padding:3px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2)}
+.wm-cell{padding:0; border-radius:4px; background:var(--surface); border:1px solid var(--border); cursor:pointer}
+.wm-cell:hover{border-color:var(--accent)}
+.wm-cell.on{background:var(--accent); border-color:var(--accent)}
+.wm-cell:focus-visible{outline:2px solid var(--primary); outline-offset:1px}
+.split-sec > .fit-note{margin:8px 0 0; color:var(--muted); font-size:11.5px; line-height:1.5}
+/* プレビュー。紙の絵（canvas）の上に透かしの SVG を重ねる。 */
+.wm-preview{position:sticky; top:0}
+.wm-preview .page-box{display:grid; place-items:center; min-height:320px; padding:14px 0 6px; background:var(--canvas); border-radius:8px}
+.wm-page{position:relative; width:198px; height:280px; background:var(--page); box-shadow:var(--page-shadow); overflow:hidden}
+.wm-canvas,.wm-canvas canvas{position:absolute; inset:0; width:100%; height:100%}
+.wm-overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+.wm-preview-empty{position:absolute; inset:0; margin:0; display:grid; place-items:center; padding:0 16px; text-align:center; color:var(--muted); font-size:12px}
+.wm-preview-empty[hidden]{display:none}
+.wm-preview .cap{margin:8px 2px 0; min-height:1.5em; color:var(--muted); font-size:11.5px; text-align:center}
+.wm-preview .nav{display:flex; justify-content:center; gap:6px; margin-top:6px}
+.wm-preview .nav .act{width:28px; height:24px}
+
+/* ── フラット化（spec-4-5 確定事項7〜10。モック screenshots/phase4-flatten.png・-confirm.png） ── */
+/* 焼き込む注釈のまとまりごとの件数と合計、残すもの、失うもの。アイコンの色はモックのとおり。 */
+.fl-status{margin:0; color:var(--muted); font-size:12px}
+.fl-status[hidden],.fl-list[hidden],.fl-keep[hidden],.fl-warn[hidden]{display:none}
+.fl-list{display:grid; grid-template-columns:18px 1fr auto; row-gap:6px; column-gap:10px; align-items:center; max-width:520px}
+.fl-row{display:contents}
+.fl-list .ic{width:18px; height:18px; display:grid; place-items:center; color:#8b93a1}
+.fl-list .ic.markup,.fl-list .ic.note{color:#c9a100}
+.fl-list .ic.text{color:#d92c2c}
+.fl-list .ic.shape{color:#2c5cd9}
+.fl-list .n{font-variant-numeric:tabular-nums; color:var(--text); text-align:right}
+.fl-list .total{grid-column:1 / -1; border-top:1px solid var(--border); padding-top:7px; display:flex; justify-content:space-between; font-weight:600}
+.fl-keep{margin:12px 0 0; padding:10px 12px; border-radius:8px; background:var(--surface-2); color:var(--muted); font-size:12px; line-height:1.75; max-width:560px}
+.fl-keep b{color:var(--text); font-weight:600; margin-right:1em}
+.fl-warn{margin:10px 0 0; color:var(--text); font-size:12px; line-height:1.7; max-width:560px}
+.fl-warn::before{content:'！'; color:var(--danger); font-weight:700; margin-right:4px}
+
+/* フラット化の確認（確定事項10）。既存のダイアログと同じ枠。 */
+#confirm-flatten{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(460px, 88vw);
+}
+#confirm-flatten::backdrop{background:rgba(16,24,40,.34)}
+#confirm-flatten .dlg-text + .dlg-text{margin-top:8px}
+#confirm-flatten .dlg-text[hidden]{display:none}
+
 /* 同名確認の3択（確定事項27）。既存のダイアログと同じ枠。 */
 #confirm-replace{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);

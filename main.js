@@ -24,6 +24,8 @@ const { createImageIo } = require('./image-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
+const { smokeWindowMode } = require('./smoke-window.js');
+const smokeRewrite = require('./smoke-rewrite.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -120,7 +122,12 @@ function hardenWebContents(contents) {
   contents.on('will-attach-webview', (event) => event.preventDefault());
 }
 
-function createMainWindow() {
+// hidden は窓を出さない起動確認（SIGK_SMOKE_HIDDEN。spec-4-5 確定事項46）。offscreen 描画にする。
+// 出していない普通の窓は Chromium が描画を 1 秒に 1 回まで間引き（実測 1 fps。backgroundThrottling や
+// 起動スイッチでは変わらなかった）、ページの描画を固定の時間で待つ起動確認の操作が間に合わないため
+// （offscreen なら 60 fps で描け、capturePage も撮れる）。ready-to-show でも出さず（maximize も窓を
+// 出すので呼ばない）、閉じるときに窓の位置を常用の settings.json へ書かない。
+function createMainWindow({ hidden = false } = {}) {
   const saved = settings.get();
   const workAreas = screen.getAllDisplays().map((display) => display.workArea);
   const bounds = clampWindowBounds(saved.window, workAreas);
@@ -136,10 +143,17 @@ function createMainWindow() {
     backgroundColor: '#eef1f5',
     show: false,
     title: 'SigK PDF',
-    webPreferences: buildWebPreferences({ preloadPath: path.join(ROOT_DIR, 'preload.js') }),
+    webPreferences: {
+      ...buildWebPreferences({ preloadPath: path.join(ROOT_DIR, 'preload.js') }),
+      ...(hidden ? { offscreen: true } : {}),
+    },
   });
+  if (hidden)
+    win.webContents.setFrameRate(60);
 
   win.once('ready-to-show', () => {
+    if (hidden)
+      return;
     if (saved.window.maximized)
       win.maximize();
     win.show();
@@ -160,6 +174,8 @@ function createMainWindow() {
       return;
     }
 
+    if (hidden)
+      return;
     const normal = win.getNormalBounds();
     settings.set({
       window: { width: normal.width, height: normal.height, x: normal.x, y: normal.y, maximized: win.isMaximized() },
@@ -336,6 +352,9 @@ function registerIpc() {
   // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
   ipcMain.handle('pdf:pickImageSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
   ipcMain.handle('pdf:inspectImage', (_event, filePath) => imageIo.inspect(filePath));
+  // 透かしにする画像を 1 枚選ぶ・丸ごと読む（spec-4-5 確定事項35・36）。
+  ipcMain.handle('pdf:pickWatermarkImage', (_event, options = {}) => imageIo.pickWatermark(mainWindow, options));
+  ipcMain.handle('pdf:readWatermarkImage', (_event, filePath) => imageIo.readWatermark(filePath));
   // PDF→画像（spec-3-3 確定事項19）。レンダラーが描いた 1 ページぶんを書く。
   ipcMain.handle('image:write', (_event, target, bytes) => imageIo.write(target, bytes));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
@@ -451,8 +470,10 @@ function memorySnapshot() {
   };
 }
 
-function installSmokeCheck(win) {
+function installSmokeCheck(win, mode) {
   const problems = [];
+  if (mode.warning !== null)
+    problems.push(mode.warning);
 
   // 実メモリの山を捉える。開く・編集する・保存するのどこで一番使うかは
   // 事前に分からないので、始めから終わりまで一定の間隔で見ておく。
@@ -468,10 +489,10 @@ function installSmokeCheck(win) {
   const memoryTimer = perfPath === undefined ? null : setInterval(snapshotMemory, 200);
   memoryTimer?.unref?.();
 
-  if (process.env.SIGK_SMOKE_DISPLAY) {
+  if (mode.display !== null) {
     if (win.isMaximized())
       win.unmaximize();
-    moveToDisplay(win, process.env.SIGK_SMOKE_DISPLAY);
+    moveToDisplay(win, mode.display);
   }
   win.webContents.on('console-message', (event) => {
     if (event.level === 'error')
@@ -509,6 +530,25 @@ function installSmokeCheck(win) {
       activeRailColor: getComputedStyle(document.querySelector('.rail-item.active')).color,
       viewClient: { w: document.getElementById('view').clientWidth, h: document.getElementById('view').clientHeight },
     };
+  })()`;
+
+  // 窓を出さない起動確認（SIGK_SMOKE_HIDDEN）でも描画が回っているかを見る（spec-4-5 確定事項46）。
+  // 隠れたページでは Chromium が requestAnimationFrame を止めたり間引いたりすることがあるので、
+  // 1 秒の間に何回回ったかを返す。
+  const windowStateScript = `(async () => {
+    const frames = await new Promise((resolve) => {
+      let count = 0;
+      let running = true;
+      const tick = () => {
+        if (!running)
+          return;
+        count += 1;
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      setTimeout(() => { running = false; resolve(count); }, 1000);
+    });
+    return { visibilityState: document.visibilityState, raf: frames > 0, framesPerSecond: frames };
   })()`;
 
   // SIGK_SMOKE_TABS=<path1>,<path2> を付けると、2つの PDF をタブで開き、
@@ -1942,6 +1982,8 @@ function installSmokeCheck(win) {
       let launch = null;
       let drag = null;
       let drop = null;
+      let watermark = null;
+      let flatten = null;
       let perfOpen = null;
       const memoryAtRest = perfPath === undefined ? null : snapshotMemory();
       let memoryAfterOpen = null;
@@ -2109,6 +2151,36 @@ function installSmokeCheck(win) {
           // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項19・20）。
           toImage.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
         }
+        // 透かし・フラット化（spec-4-5 確定事項48・49。操作列と出力は smoke-rewrite.js の頭に）。
+        // 出力の省略時は一時フォルダーへ。前回の出力は先に消す（書けたことを取り違えない）。
+        if (process.env.SIGK_SMOKE_WATERMARK) {
+          const source = path.resolve(process.env.SIGK_SMOKE_WATERMARK);
+          const target = process.env.SIGK_SMOKE_WATERMARK_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_WATERMARK_OUT)
+            : path.join(app.getPath('temp'), 'sigk-smoke-watermark.pdf');
+          fs.rmSync(target, { force: true });
+          watermark = await win.webContents.executeJavaScript(smokeRewrite.watermarkScript({
+            source, target, ops: process.env.SIGK_SMOKE_WATERMARK_OPS ?? 'text:社外秘', stay: process.env.SIGK_SMOKE_WATERMARK_STAY === '1',
+          }));
+          watermark.target = target;
+          if (watermark.ok === true)
+            watermark.written = await smokeRewrite.inspectWatermarked(target, ROOT_DIR);
+          watermark.tempLeft = fs.existsSync(require('./pdf-write.js').tempPathFor(target));
+        }
+        if (process.env.SIGK_SMOKE_FLATTEN) {
+          const source = path.resolve(process.env.SIGK_SMOKE_FLATTEN);
+          const target = process.env.SIGK_SMOKE_FLATTEN_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_FLATTEN_OUT)
+            : path.join(app.getPath('temp'), 'sigk-smoke-flatten.pdf');
+          fs.rmSync(target, { force: true });
+          flatten = await win.webContents.executeJavaScript(smokeRewrite.flattenScript({
+            source, target, stay: process.env.SIGK_SMOKE_FLATTEN_STAY ?? null,
+          }));
+          flatten.target = target;
+          if (flatten.ok === true)
+            flatten.written = await smokeRewrite.inspectFlattened(source, target, ROOT_DIR);
+          flatten.tempLeft = fs.existsSync(require('./pdf-write.js').tempPathFor(target));
+        }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
           const boxes = await dispatchPageDrag(from, to);
@@ -2121,13 +2193,23 @@ function installSmokeCheck(win) {
       } catch (err) {
         problems.push(`executeJavaScript: ${err.message}`);
       }
+      let windowState = null;
+      try {
+        windowState = { hidden: mode.hidden, visible: win.isVisible(), ...(await win.webContents.executeJavaScript(windowStateScript)) };
+      } catch (err) {
+        problems.push(`windowState: ${err.message}`);
+      }
       let screenshot = null;
+      let shot = null;
       if (process.env.SIGK_SMOKE_SHOT) {
         try {
           const image = await win.webContents.capturePage();
           screenshot = path.resolve(process.env.SIGK_SMOKE_SHOT);
           fs.mkdirSync(path.dirname(screenshot), { recursive: true });
           fs.writeFileSync(screenshot, image.toPNG());
+          shot = { isEmpty: image.isEmpty(), ...image.getSize() };
+          if (shot.isEmpty)
+            problems.push('capturePage: 空の画像が返りました');
         } catch (err) {
           problems.push(`capturePage: ${err.message}`);
         }
@@ -2176,8 +2258,12 @@ function installSmokeCheck(win) {
         launch,
         drag,
         drop,
+        watermark,
+        flatten,
         perf,
+        window: windowState,
         screenshot,
+        shot,
         problems,
       }));
       // destroy ではなく close を使う。設定の保存を通す経路と同じにするため。
@@ -2212,10 +2298,11 @@ function start() {
   applySecurity(session.defaultSession);
   buildAppMenu();
   registerIpc();
-  mainWindow = createMainWindow();
+  const smokeMode = smokeWindowMode(process.env);
+  mainWindow = createMainWindow({ hidden: smokeMode.hidden });
 
-  if (process.env.SIGK_SMOKE === '1')
-    installSmokeCheck(mainWindow);
+  if (smokeMode.smoke)
+    installSmokeCheck(mainWindow, smokeMode);
 
   // 1つ目のプロセス自身の引数も同じ経路に載せる。
   queueLaunch(process.argv);

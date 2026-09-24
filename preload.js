@@ -69,6 +69,11 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   // 画像の形式と画素数を先頭バイトから読む（spec-3-1 確定事項4）。
   // { ok, kind, width, height, name, size } / { error }。
   inspectImage: (filePath) => ipcRenderer.invoke('pdf:inspectImage', filePath),
+  // 透かしにする画像（PNG・JPEG）を 1 本選ばせる（spec-4-5 確定事項35）。{ path } / { canceled }。
+  pickWatermarkImage: (options) => ipcRenderer.invoke('pdf:pickWatermarkImage', options),
+  // 透かしの画像を丸ごと読む（プレビュー用。spec-4-5 確定事項36）。
+  // { ok, kind, width, height, name, size, bytes } / { error, kind? }。
+  readWatermarkImage: (filePath) => ipcRenderer.invoke('pdf:readWatermarkImage', filePath),
 
   // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。
   // レンダラーの keydown には頼らない。viewer-controls.js の handleKey が
