@@ -91,6 +91,7 @@ function freeTextAppearanceOf(entry, measure) {
     return null;
   const { fontSize, rotation } = entry;
   const rgb = parseColor(entry.color);
+  const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
 
   const rect = widenRight(entry.rect, rotation, RIGHT_SLACK).map((value) => Math.round(value * 100) / 100);
   const { matrix, clip, first } = frameOf(rect, rotation);
@@ -110,7 +111,7 @@ function freeTextAppearanceOf(entry, measure) {
     da: `/${measure.name} ${num(fontSize)} Tf ${num(rgb[0])} ${num(rgb[1])} ${num(rgb[2])} rg`,
     subtype: 'FreeText',
     rgb,
-    opacity: 1,
+    opacity: alpha,
     lines,
   };
 }

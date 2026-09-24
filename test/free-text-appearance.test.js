@@ -66,6 +66,15 @@ test('textBlockOps は起点から余白とベースラインを下げて行を�
   assert.deepEqual(textBlockOps({ lines: ['a'], fontSize: 12, rgb: [0, 0, 0], origin: [0, 0] }, measure).filter((op) => op === 'T*'), []);
 });
 
+test('freeTextAppearanceOf は entry の不透明度を 0〜1 に丸めて返す（無い・数でなければ 1。決定40 ⑥）', () => {
+  assert.equal(freeTextAppearanceOf(textEntry({ opacity: 0.5 }), measure).opacity, 0.5);
+  assert.equal(freeTextAppearanceOf(textEntry({ opacity: 0.25 }), measure).opacity, 0.25);
+  assert.equal(freeTextAppearanceOf(textEntry({ opacity: 1.5 }), measure).opacity, 1);
+  assert.equal(freeTextAppearanceOf(textEntry({ opacity: -1 }), measure).opacity, 0);
+  assert.equal(freeTextAppearanceOf(textEntry({ opacity: undefined }), measure).opacity, 1);
+  assert.equal(freeTextAppearanceOf(textEntry({ opacity: '0.5' }), measure).opacity, 1);
+});
+
 test('freeTextAppearanceOf は回転なしの外観と /DA を組む', () => {
   const appearance = freeTextAppearanceOf(textEntry(), measure);
   assert.deepEqual(appearance.bbox, [100, 700, 201, 720.5]);
