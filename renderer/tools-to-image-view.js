@@ -27,19 +27,7 @@
   // ---- 対象 ----
 
   function renderTarget() {
-    const src = tool().source();
-    el.file.hidden = src === null;
-    el.empty.hidden = src !== null;
-    if (src === null)
-      return;
-    el.name.textContent = src.name;
-    el.file.title = src.path;
-    el.pages.textContent = src.pending ? '…' : (src.pageCount === null ? '' : `${src.pageCount} ページ`);
-    el.file.classList.toggle('blocked', src.blocked !== null);
-    const note = src.blocked ?? src.note;
-    el.note.textContent = note ?? '';
-    el.note.hidden = note === null || note === undefined;
-    el.note.classList.toggle('error', src.blocked !== null);
+    root.SigK.sourcePicker.render(el, tool().source());
   }
 
   // ---- 出力の例と要約（確定事項30） ----

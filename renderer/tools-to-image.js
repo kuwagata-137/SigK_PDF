@@ -12,14 +12,13 @@
   // ファイルを読み直して描くので、画面上の並べ替え・回転・削除は結果に映らない
   // （確定事項1・13）。未保存のタブを対象にすることは止めず、注意だけ出す。
 
-  const NOTE_UNSAVED = '未保存の編集は反映されません';
-  const NOTE_FIRST_ONLY = '1つ目のファイルだけを対象にしました。';
+  // 対象の欄は source-picker.js（spec-4-5 確定事項34）。
+  const { NOTE_UNSAVED, NOTE_FIRST_ONLY } = root.SigK.sourcePicker;
   const PICK_TITLE = '画像にする PDF を選ぶ';
   // 帯の文言「画像にしています」「画像にするのを中止しました」の頭（確定事項17・20）。
   const LABEL = '画像に';
 
   const state = {
-    source: null,          // { path, name, pageCount, sizes, blocked, note, pending }
     mode: 'all', range: '',
     format: 'png', dpi: 150,
     folder: null, folderTouched: false,
@@ -28,7 +27,6 @@
   let el = null;
 
   const banner = () => root.SigK.viewBanner;
-  const tabs = () => root.SigK.tabs;
   const view = () => root.SigK.toolsToImageView;
   const planner = () => root.SigK.imageExportPlan;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
@@ -48,69 +46,30 @@
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
   }
 
-  const source = () => (state.source === null ? null : { ...state.source, sizes: state.source.sizes === null ? null : [...state.source.sizes] });
+  // ---- 対象（確定事項1〜5。source-picker.js） ----
+
+  const field = root.SigK.sourcePicker.create({
+    inspect: (filePath) => root.SigK.toolSource.inspectPdfPages(filePath),
+    pick: ({ defaultPath }) => {
+      const api = root.pdfAPI;
+      if (api?.available !== true || typeof api.pickToolSource !== 'function')
+        return null;
+      return api.pickToolSource({ defaultPath, title: PICK_TITLE });
+    },
+    dirtyMessage: '未保存の編集は画像に反映されません。保存してから画像にし直してください。',
+    emptyFields: { sizes: null },
+    fieldsOf: (info) => ({ sizes: info.sizes }),
+    onSelect: (filePath) => {
+      if (!state.folderTouched)
+        state.folder = dirOf(filePath);
+    },
+    onChange: () => view()?.render(),
+  });
+
+  const source = () => field.source();
   const settings = () => ({ mode: state.mode, range: state.range, format: state.format, dpi: state.dpi, folder: state.folder });
-
-  // ---- 対象（確定事項1〜5） ----
-
-  async function setSource(filePath, { dirty = false } = {}) {
-    if (typeof filePath !== 'string' || filePath === '')
-      return false;
-    const next = { path: filePath, name: baseName(filePath), pageCount: null, sizes: null, blocked: null, note: dirty ? NOTE_UNSAVED : null, pending: true };
-    state.source = next;
-    if (!state.folderTouched)
-      state.folder = dirOf(filePath);
-    view()?.render();
-
-    const info = await root.SigK.toolSource.inspectPdfPages(filePath);
-    if (state.source !== next)
-      return false;   // 読んでいる間に差し替えられた
-    next.pending = false;
-    if (info.reason !== undefined)
-      next.blocked = `${info.error}。選び直してください`;
-    else {
-      next.pageCount = info.pageCount;
-      next.sizes = info.sizes;
-      next.name = info.name;
-    }
-    view()?.render();
-    return true;
-  }
-
-  async function useOpenTab() {
-    const open = tabs()?.list() ?? [];
-    const active = open.find((tab) => tab.active) ?? open[0];
-    if (active === undefined || typeof active.path !== 'string') {
-      banner().show('開いているファイルがありません。');
-      return false;
-    }
-    const dirty = tabs().isDirty(active.id) === true;
-    const ok = await setSource(active.path, { dirty });
-    if (dirty)
-      banner().show('未保存の編集は画像に反映されません。保存してから画像にし直してください。');
-    return ok;
-  }
-
-  async function pickFile() {
-    const api = root.pdfAPI;
-    if (api?.available !== true || typeof api.pickToolSource !== 'function')
-      return false;
-    const picked = await api.pickToolSource({ defaultPath: state.source?.path, title: PICK_TITLE });
-    if (picked?.canceled === true || typeof picked?.path !== 'string')
-      return false;
-    return setSource(picked.path);
-  }
-
-  // ドロップの受け口。対象は1つなので先頭だけ使う（確定事項1）。
-  async function addPaths(paths) {
-    const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
-    if (incoming.length === 0)
-      return false;
-    const ok = await setSource(incoming[0]);
-    if (incoming.length > 1)
-      banner().show(NOTE_FIRST_ONLY);
-    return ok;
-  }
+  // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う。確定事項1）。
+  const { setSource, useOpenTab, pickFile, addPaths } = field;
 
   // ---- ページ・形式・出力（確定事項6〜11・15） ----
 
@@ -168,10 +127,11 @@
   // いまの設定から計画を組む。対象が決まっていなければ ready: false（error は null）、
   // 入力に誤りがあれば ready: false と error、組めれば pages・names・targets。
   function currentPlan() {
-    const planned = planner().planExport(settings(), state.source);
+    const src = source();
+    const planned = planner().planExport(settings(), src);
     if (!planned.ready)
       return planned;
-    const folder = state.folder ?? dirOf(state.source.path);
+    const folder = state.folder ?? dirOf(src.path);
     return { ...planned, folder, targets: planned.names.map((name) => joinPath(folder, name)) };
   }
 
@@ -273,7 +233,7 @@
     if (!canRun())
       return { error: '画像にできる状態ではありません。' };
     const current = currentPlan();
-    const src = state.source;
+    const src = source();
     if (current.targets.some((target) => pathKey(target) === pathKey(src.path))) {
       banner().show('出力先に元のファイルと同じファイルは選べません。');
       return { error: '出力先に元のファイルと同じファイルは選べません。' };

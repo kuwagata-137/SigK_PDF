@@ -10,12 +10,11 @@
   // 分割はファイルを読み直して分けるので、画面上の並べ替え・回転・削除は結果に
   // 映らない（確定事項3）。未保存のタブを対象にすることは止めず、注意だけ出す。
 
-  const NOTE_UNSAVED = '未保存の編集は反映されません';
-  // 右クリック起動で複数本が届いたときの文言。Phase 5 で見直す（確定事項6）。
-  const NOTE_FIRST_ONLY = '1つ目のファイルだけを対象にしました。';
+  // 対象の欄は source-picker.js（spec-4-5 確定事項34）。右クリック起動で複数本が届いたときの
+  // 文言 NOTE_FIRST_ONLY は Phase 5 で見直す（確定事項6）。
+  const { NOTE_UNSAVED, NOTE_FIRST_ONLY } = root.SigK.sourcePicker;
 
   const state = {
-    source: null,          // { path, name, pageCount, blocked, note, pending }
     mode: 'every', every: '1', at: '', range: '',
     folder: null, folderTouched: false, rule: 'seq',
     running: false,
@@ -23,7 +22,6 @@
   let el = null;
 
   const banner = () => root.SigK.viewBanner;
-  const tabs = () => root.SigK.tabs;
   const view = () => root.SigK.toolsSplitView;
   const planner = () => root.SigK.splitPlan;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
@@ -44,68 +42,28 @@
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
   }
 
-  const source = () => (state.source === null ? null : { ...state.source });
+  // ---- 対象（確定事項1〜5。source-picker.js） ----
+
+  const field = root.SigK.sourcePicker.create({
+    inspect: (filePath) => root.SigK.toolSource.inspectPdf(filePath),
+    pick: ({ defaultPath }) => {
+      const api = root.pdfAPI;
+      if (api?.available !== true || typeof api.pickSplitSource !== 'function')
+        return null;
+      return api.pickSplitSource({ defaultPath });
+    },
+    dirtyMessage: '未保存の編集は分割に反映されません。保存してから分割し直してください。',
+    onSelect: (filePath) => {
+      if (!state.folderTouched)
+        state.folder = dirOf(filePath);
+    },
+    onChange: () => view()?.render(),
+  });
+
+  const source = () => field.source();
   const settings = () => ({ mode: state.mode, every: state.every, at: state.at, range: state.range, folder: state.folder, rule: state.rule });
-
-  // ---- 対象（確定事項1〜5） ----
-
-  async function setSource(filePath, { dirty = false } = {}) {
-    if (typeof filePath !== 'string' || filePath === '')
-      return false;
-    const next = { path: filePath, name: baseName(filePath), pageCount: null, blocked: null, note: dirty ? NOTE_UNSAVED : null, pending: true };
-    state.source = next;
-    if (!state.folderTouched)
-      state.folder = dirOf(filePath);
-    view()?.render();
-
-    const info = await root.SigK.toolSource.inspectPdf(filePath);
-    if (state.source !== next)
-      return false;   // 読んでいる間に差し替えられた
-    next.pending = false;
-    if (info.reason !== undefined)
-      next.blocked = `${info.error}。選び直してください`;
-    else {
-      next.pageCount = info.pageCount;
-      next.name = info.name;
-    }
-    view()?.render();
-    return true;
-  }
-
-  async function useOpenTab() {
-    const open = tabs()?.list() ?? [];
-    const active = open.find((tab) => tab.active) ?? open[0];
-    if (active === undefined || typeof active.path !== 'string') {
-      banner().show('開いているファイルがありません。');
-      return false;
-    }
-    const dirty = tabs().isDirty(active.id) === true;
-    const ok = await setSource(active.path, { dirty });
-    if (dirty)
-      banner().show('未保存の編集は分割に反映されません。保存してから分割し直してください。');
-    return ok;
-  }
-
-  async function pickFile() {
-    const api = root.pdfAPI;
-    if (api?.available !== true || typeof api.pickSplitSource !== 'function')
-      return false;
-    const picked = await api.pickSplitSource({ defaultPath: state.source?.path });
-    if (picked?.canceled === true || typeof picked?.path !== 'string')
-      return false;
-    return setSource(picked.path);
-  }
-
-  // ドロップと `--split` の受け口。対象は1つなので先頭だけ使う（確定事項2・6）。
-  async function addPaths(paths) {
-    const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
-    if (incoming.length === 0)
-      return false;
-    const ok = await setSource(incoming[0]);
-    if (incoming.length > 1)
-      banner().show(NOTE_FIRST_ONLY);
-    return ok;
-  }
+  // ドロップと `--split` の受け口は addPaths（対象は1つなので先頭だけ使う。確定事項2・6）。
+  const { setSource, useOpenTab, pickFile, addPaths } = field;
 
   async function useFromLaunch(paths) {
     root.SigK.shell.setMode(el.doc, 'tools');
@@ -162,7 +120,7 @@
   // いまの設定から計画を組む。対象が決まっていなければ ready: false（error は null）、
   // 入力に誤りがあれば ready: false と error、組めれば parts・names・targets。
   function currentPlan() {
-    const src = state.source;
+    const src = source();
     if (src === null || src.pending || src.blocked !== null || src.pageCount === null)
       return { ready: false, error: null };
     const planned = planner().planSplit({ mode: state.mode, every: state.every, at: state.at, range: state.range }, src.pageCount);
@@ -216,7 +174,7 @@
     if (!canRun())
       return { error: '分割できる状態ではありません。' };
     const current = currentPlan();
-    const src = state.source;
+    const src = source();
     if (current.targets.some((target) => pathKey(target) === pathKey(src.path))) {
       banner().show('出力先に元のファイルと同じファイルは選べません。');
       return { error: '出力先に元のファイルと同じファイルは選べません。' };
