@@ -611,6 +611,42 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .toimage-range-row .err{color:var(--danger); font-size:11.5px; flex-basis:100%}
 .toimage-range-row .err[hidden]{display:none}
 
+/* ── 透かし（spec-4-5 確定事項2〜6。モック screenshots/phase4-watermark.png） ── */
+/* 左に対象・透かし・ページの 3 節、右に幅 280px のプレビュー（スクロールしても上に留まる）。節の枠・
+   対象の行・ラジオ・範囲の欄・色の丸は分割・PDF→画像・注釈の右パネルのものをそのまま使う。 */
+.wm-body{flex:1; min-height:0; overflow:auto; margin:0 24px; display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:14px; align-items:start}
+.wm-col{display:flex; flex-direction:column; gap:14px}
+.wm-opts{display:grid; grid-template-columns:96px 1fr; row-gap:11px; column-gap:12px; align-items:center}
+.wm-opts .k{color:var(--muted); font-size:12px}
+.wm-opts .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.wm-opts .sub{color:var(--muted); font-size:11.5px}
+.wm-opts .k[hidden],.wm-opts .row[hidden],.wm-opts .swatches[hidden],.wm-img[hidden]{display:none}
+.wm-img{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.wm-img .name{font-weight:600}
+.wm-img .meta{color:var(--muted); font-size:12px}
+.wm-img .act{padding:0 12px; height:28px}
+.wm-img .note{flex-basis:100%; color:var(--muted); font-size:11.5px}
+.wm-img .note.error{color:var(--danger)}
+.wm-img .note[hidden]{display:none}
+/* 位置の格子（3×3。論点3）。選んだ升目を塗る。 */
+.wm-grid{display:grid; grid-template-columns:repeat(3, 18px); grid-template-rows:repeat(3, 18px); gap:3px; padding:3px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2)}
+.wm-cell{padding:0; border-radius:4px; background:var(--surface); border:1px solid var(--border); cursor:pointer}
+.wm-cell:hover{border-color:var(--accent)}
+.wm-cell.on{background:var(--accent); border-color:var(--accent)}
+.wm-cell:focus-visible{outline:2px solid var(--primary); outline-offset:1px}
+.split-sec > .fit-note{margin:8px 0 0; color:var(--muted); font-size:11.5px; line-height:1.5}
+/* プレビュー。紙の絵（canvas）の上に透かしの SVG を重ねる。 */
+.wm-preview{position:sticky; top:0}
+.wm-preview .page-box{display:grid; place-items:center; min-height:320px; padding:14px 0 6px; background:var(--canvas); border-radius:8px}
+.wm-page{position:relative; width:198px; height:280px; background:var(--page); box-shadow:var(--page-shadow); overflow:hidden}
+.wm-canvas,.wm-canvas canvas{position:absolute; inset:0; width:100%; height:100%}
+.wm-overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+.wm-preview-empty{position:absolute; inset:0; margin:0; display:grid; place-items:center; padding:0 16px; text-align:center; color:var(--muted); font-size:12px}
+.wm-preview-empty[hidden]{display:none}
+.wm-preview .cap{margin:8px 2px 0; min-height:1.5em; color:var(--muted); font-size:11.5px; text-align:center}
+.wm-preview .nav{display:flex; justify-content:center; gap:6px; margin-top:6px}
+.wm-preview .nav .act{width:28px; height:24px}
+
 /* 同名確認の3択（確定事項27）。既存のダイアログと同じ枠。 */
 #confirm-replace{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);

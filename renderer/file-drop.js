@@ -26,13 +26,37 @@
     return typeof name === 'string' && /\.(png|jpe?g|bmp|gif|tiff?)$/i.test(name);
   }
 
+  // 透かしの画面が受ける画像（spec-4-5 確定事項37。論点7）。PDF と一緒に受ける。
+  function isWatermarkImageName(name) {
+    return typeof name === 'string' && /\.(png|jpe?g)$/i.test(name);
+  }
+
+  // いまドロップを受けるツール。ツールモードでなければ null。
+  function selectedTool() {
+    return root.SigK.tools?.isToolsMode() === true ? root.SigK.tools.selected() : null;
+  }
+
   // いまドロップを受ける画面が画像を欲しがっているか。変換画面を選んでいるときだけ真。
   function wantsImages() {
-    return root.SigK.tools?.isToolsMode() === true && root.SigK.tools.selected() === 'convert';
+    return selectedTool() === 'convert';
   }
 
   function isAcceptedName(name) {
-    return wantsImages() ? isImageName(name) : isPdfName(name);
+    const tool = selectedTool();
+    if (tool === 'convert')
+      return isImageName(name);
+    if (tool === 'watermark')
+      return isPdfName(name) || isWatermarkImageName(name);
+    return isPdfName(name);
+  }
+
+  // 受けられるものが 1 つも無かったときの文言。
+  function rejectionFor(tool) {
+    if (tool === 'convert')
+      return '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。';
+    if (tool === 'watermark')
+      return 'PDF か画像（PNG・JPEG）を落としてください。';
+    return 'PDF ファイルではありません。PDF を落としてください。';
   }
 
   // ファイルを運んでいるドラッグかどうか。文字の選択をドラッグしただけで
@@ -81,9 +105,7 @@
 
     const accepted = files.filter((file) => isAcceptedName(file?.name));
     if (accepted.length === 0) {
-      complain(wantsImages()
-        ? '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。'
-        : 'PDF ファイルではありません。PDF を落としてください。');
+      complain(rejectionFor(selectedTool()));
       return false;
     }
 
@@ -94,10 +116,11 @@
     }
 
     // ツールモードでは選んでいるツールの画面が受け取る（spec-2-1 確定事項12・
-    // spec-2-2 確定事項2・spec-3-1 確定事項2・spec-3-3 確定事項1）。タブに開くのではなく、
-    // 結合なら一覧の末尾へ足し、分割と PDF→画像なら対象にし、変換なら画像として一覧へ足す。
+    // spec-2-2 確定事項2・spec-3-1 確定事項2・spec-3-3 確定事項1・spec-4-5 確定事項37）。タブに開くのではなく、
+    // 結合なら一覧の末尾へ足し、分割と PDF→画像なら対象にし、変換なら画像として一覧へ足し、
+    // 透かしなら PDF を対象に・画像を透かしの画像にする。表に無いツールは結合へ落ちる。
     if (root.SigK.tools?.isToolsMode() === true) {
-      const tools = { split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert, toImage: root.SigK.toolsToImage };
+      const tools = { split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert, toImage: root.SigK.toolsToImage, watermark: root.SigK.toolsWatermark };
       const tool = tools[root.SigK.tools.selected()] ?? root.SigK.toolsMerge;
       if (tool !== undefined) {
         await tool.addPaths(paths);

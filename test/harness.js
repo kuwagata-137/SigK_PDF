@@ -209,6 +209,8 @@ function createPdfjsStub({
           // （spec-1-6 確定事項93）ので、これが無いと写像を確かめられない。
           docId: document.id,
           rotate,
+          // 本物の page.view（CropBox。紙の座標）。透かしのプレビューが置き方の基準に使う（spec-4-5 確定事項12）。
+          view: [0, 0, size.width, size.height],
           // 本物と同じく、rotation は絶対値として置き換える。既定値はページ
           // 自身の rotate である（spec-1-5 の事前調査）。
           getViewport: ({ scale, rotation = rotate }) => {
