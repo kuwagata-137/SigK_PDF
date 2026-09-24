@@ -173,6 +173,35 @@ test('保存先を選ばなければ何も起きない', async (t) => {
   assert.equal(shell.taskCalls.length, 0);
 });
 
+test('出力先が元のファイル自身なら、何も書かずに帯で断る（確定事項96）', async (t) => {
+  // 書けば元が選んだページだけに置き換わり、.bak も残らない（makeBackup: false）。
+  const shell = await withOpenDocument(t, { savePathResults: [{ path: 'c:/work/A.PDF' }] });
+  shell.SigK.pageGrid.setSelection([0]);
+
+  const result = await runAndAccept(shell);
+  assert.equal(result.error, '出力先に元のファイルと同じファイルは選べません。');
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(shell.SigK.viewBanner.text(), result.error);
+});
+
+test('出力先が別のタブで開いていれば、何も書かずに帯で断る（確定事項96）', async (t) => {
+  const X = 'C:\\work\\x.pdf';
+  const shell = await withOpenDocument(t, {
+    files: { [A]: makeSource({ path: A, name: 'a.pdf', size: 1024, mtimeMs: 1000 }), [X]: makeSource({ path: X }) },
+    savePathResults: [{ path: X }],
+  });
+  // x.pdf も開いてから a.pdf へ戻る。抽出するのは a.pdf のページ。
+  await shell.SigK.tabs.openPath(X);
+  await shell.SigK.tabs.openPath(A);
+  await shell.flush();
+  shell.SigK.pageGrid.setSelection([0]);
+
+  const result = await runAndAccept(shell);
+  assert.equal(result.error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(shell.SigK.viewBanner.text(), result.error);
+});
+
 test('抽出しても、タブも未保存の印も動かない', async (t) => {
   const shell = await withOpenDocument(t, {
     taskResults: [okResult()],

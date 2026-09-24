@@ -150,9 +150,13 @@
     return found;
   }
 
-  // 戻り値は { targets } / { canceled }。3択は1回だけ出し、「別名で保存」は
-  // フォルダーを選び直してもう一度確かめる。
+  // 戻り値は { targets } / { canceled } / { error }。3択は1回だけ出し、「別名で保存」は
+  // フォルダーを選び直してもう一度確かめる。タブで開いている出力先は3択より前に断る
+  // （確定事項42）。3択のあとで見ると、置き換えてよいかを聞いておいて断ることになる。
   async function resolveTargets(targets) {
+    const refused = root.SigK.outputTarget.refusalForFolder(targets);
+    if (refused !== null)
+      return { error: refused };
     const found = await countExisting(targets);
     if (found.length === 0)
       return { targets };
@@ -183,6 +187,10 @@
     const resolved = await resolveTargets(current.targets);
     if (resolved.canceled === true)
       return { canceled: true };
+    if (resolved.error !== undefined) {
+      banner().show(resolved.error);
+      return { error: resolved.error };
+    }
     const targets = resolved.targets;
 
     state.running = true;

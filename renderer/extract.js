@@ -8,7 +8,7 @@
   // ため。確定事項9）。ここが受け持つのは
   //   ① 選択を plan の並びへ写す
   //   ② 失うものを確認させる（確定事項48）
-  //   ③ 出力先を決める（確定事項49）
+  //   ③ 出力先を決める（確定事項49・96）
   //   ④ 終わったあと**何もしない**（確定事項50）
   // の4つである。
   //
@@ -40,7 +40,8 @@
   }
 
   // 既定の出力名は `<元の名前>_抽出.pdf`（確定事項49）。同じフォルダーを既定にし、
-  // 同名の確認は OS のダイアログに委ねる（確定事項22 と同じ）。
+  // 同名の確認は OS のダイアログに委ねる（確定事項22 と同じ）。元のファイル自身と
+  // タブで開いているファイルは、選ばれたあとで断る（確定事項96）。
   function defaultTargetFor(file) {
     const source = file?.path;
     if (typeof source !== 'string' || source === '')
@@ -76,6 +77,13 @@
       return { canceled: true };
     if (typeof picked?.path !== 'string')
       return { error: picked?.error ?? '保存先を決められませんでした。' };
+    // 元のファイル自身と、タブで開いているファイルへは書かない（確定事項96）。元へ書くと
+    // 選んだページだけに置き換わり（.bak も作らない）、ほかのタブは古い内容のまま残る。
+    const refused = root.SigK.outputTarget.refusalFor(picked.path, { source: view.file.path });
+    if (refused !== null) {
+      banner().show(refused);
+      return { error: refused };
+    }
 
     const result = await root.SigK.save.runTask({
       kind: 'extract',

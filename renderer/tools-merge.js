@@ -250,6 +250,13 @@
       banner().show('出力先に入力ファイルと同じファイルは選べません。');
       return { error: '出力先に入力ファイルと同じファイルは選べません。' };
     }
+    // タブで開いているファイルへは書かない（確定事項45）。書いたあとの openPath は、
+    // そのタブを読み直さずに前へ出すだけで、古い内容のまま残るため。
+    const refused = root.SigK.outputTarget.refusalFor(target);
+    if (refused !== null) {
+      banner().show(refused);
+      return { error: refused };
+    }
 
     state.running = true;
     list()?.render();

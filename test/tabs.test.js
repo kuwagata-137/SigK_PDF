@@ -114,6 +114,17 @@ test('同じファイルは2枚にせず、既にあるタブへ切り替える'
   assert.equal(SigK.tabs.count(), 2);
 });
 
+test('findByPath は開いているタブを list() と同じ形で返し、開いていなければ null を返す', async (t) => {
+  const { SigK } = await withTabs(t, [A, B]);
+  const [tabA, tabB] = SigK.tabs.list();
+
+  // 書き出す先の検査（output-target.js）が使う。openPath と同じく大文字小文字と区切りの向きを区別しない。
+  assert.deepEqual(structuredClone(SigK.tabs.findByPath('c:/work/A.PDF')), { id: tabA.id, path: A, name: 'a.pdf', active: false });
+  assert.deepEqual(structuredClone(SigK.tabs.findByPath(B)), { id: tabB.id, path: B, name: 'b.pdf', active: true });
+  assert.equal(SigK.tabs.findByPath(C), null);
+  assert.equal(SigK.tabs.findByPath(null), null);
+});
+
 test('タブの × で閉じると右隣が選ばれる', async (t) => {
   const { document, SigK } = await withTabs(t, [A, B, C]);
   const ids = SigK.tabs.list().map((tab) => tab.id);

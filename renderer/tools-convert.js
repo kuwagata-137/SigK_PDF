@@ -272,9 +272,13 @@
     return found;
   }
 
-  // 3択は1回だけ出し、「別名で保存」はフォルダーを選び直してもう一度確かめる
-  // （分割の resolveTargets と同じ）。戻り値は { targets } / { canceled }。
+  // 3択は1回だけ出し、「別名で保存」はフォルダーを選び直してもう一度確かめる。タブで開いている
+  // 出力先は3択より前に断る（確定事項38）。分割の resolveTargets と同じで、戻り値は
+  // { targets } / { canceled } / { error }。
   async function resolveTargets(targets) {
+    const refused = root.SigK.outputTarget.refusalForFolder(targets);
+    if (refused !== null)
+      return { error: refused };
     const found = await countExisting(targets);
     if (found.length === 0)
       return { targets };
@@ -315,6 +319,12 @@
       banner().show('出力先に入力ファイルと同じファイルは選べません。');
       return { error: '出力先に入力ファイルと同じファイルは選べません。' };
     }
+    // タブで開いているファイルへは書かない（確定事項38。結合と同じ）。
+    const refused = root.SigK.outputTarget.refusalFor(target);
+    if (refused !== null) {
+      banner().show(refused);
+      return { error: refused };
+    }
 
     const current = currentPlan();
     const result = await runTask({
@@ -337,6 +347,10 @@
     const resolved = await resolveTargets(current.targets);
     if (resolved.canceled === true)
       return { canceled: true };
+    if (resolved.error !== undefined) {
+      banner().show(resolved.error);
+      return { error: resolved.error };
+    }
     const targets = resolved.targets;
 
     const result = await runTask({

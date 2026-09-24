@@ -305,6 +305,28 @@ test('出力先が入力の1つと同じなら断る', async (t) => {
   assert.equal(bannerText(shell), '出力先に入力ファイルと同じファイルは選べません。');
 });
 
+test('出力先がタブで開いていれば、何も書かずに帯で断る（確定事項45）', async (t) => {
+  // 書いても openPath はそのタブを読み直さず、古い内容のまま前へ出すだけになるため。
+  const X = 'C:\\work\\x.pdf';
+  const shell = await createMergeShell(t, {
+    files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [X]: makeSource({ path: X }) },
+    savePathResults: [{ path: 'c:/work/X.PDF' }],
+  });
+  const { SigK, document: doc } = shell;
+  await SigK.tabs.openPath(X);
+  SigK.shell.setMode(doc, 'tools');
+  await SigK.toolsMerge.addPaths([A, B]);
+
+  const result = await SigK.toolsMerge.run();
+  assert.equal(result.error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(shell.taskCalls.length, 0, 'ワーカーへ渡さない');
+  assert.equal(bannerText(shell), result.error);
+  // 結合画面に留まり、タブも一覧もそのまま。
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
+  assert.equal(SigK.tabs.count(), 1);
+  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
+});
+
 test('実行中は一覧の操作と実行ボタンが押せず、進捗はファイル単位で出る', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

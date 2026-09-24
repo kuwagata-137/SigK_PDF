@@ -164,6 +164,34 @@ test('保存先を選ばなければ何も起きない', async (t) => {
   assert.equal(shell.taskCalls.length, 0);
 });
 
+test('名前を付けて保存の保存先が別のタブで開いていれば、何も書かずに帯で断る（確定事項97）', async (t) => {
+  // 保存するとこのタブが保存先へ移る（確定事項26）ので、同じパスのタブが 2 枚になってしまう。
+  const shell = await withOpenDocument(t, {
+    files: { [A]: makeSource({ path: A, name: 'a.pdf', size: 1024, mtimeMs: 1000 }), [B]: makeSource({ path: B }) },
+    savePathResults: [{ path: 'c:/work/B.PDF' }],
+  });
+  await shell.SigK.tabs.openPath(B);
+  await shell.SigK.tabs.openPath(A);
+  await shell.flush();
+
+  const result = await shell.SigK.save.saveAsActive();
+  assert.equal(result.error, '保存先のファイルは別のタブで開いています。そのタブを閉じるか、別の名前を選んでください。');
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(shell.SigK.viewBanner.text(), result.error);
+  assert.deepEqual(plain(shell.SigK.tabs.list().map((tab) => tab.path)), [A, B]);
+});
+
+test('名前を付けて保存で映しているファイル自身を選ぶのは断らない', async (t) => {
+  const shell = await withOpenDocument(t, {
+    taskResults: [okResult()],
+    savePathResults: [{ path: A }],
+  });
+
+  const result = await shell.SigK.save.saveAsActive();
+  assert.equal(result.ok, true);
+  assert.equal(shell.taskCalls[0].spec.target, A);
+});
+
 test('進捗は帯に段の番号つきで出て、中止ボタンが付く', async (t) => {
   // 進捗を見るあいだ run を待たせる。
   let release = null;
