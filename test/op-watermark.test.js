@@ -163,7 +163,7 @@ test('PNG の透かしは画像を 1 回だけ埋め、透過（SMask）を保�
   assert.equal(images, 2);   // 本体と SMask の 2 つ。ページ数ぶんは増えない
 });
 
-test('JPEG の透かしも埋められ、BMP は PNG か JPEG を選ぶよう断る', async () => {
+test('JPEG の透かしも埋められ、BMP は PNG か JPEG を選ぶよう、プログレッシブの JPEG は使えないと断る', async () => {
   const doc = await makeDoc(1);
   const mark = { type: 'image', image: 'photo.jpg', opacity: 0.3, angle: 45, size: 'large', position: 'center' };
   const jpeg = makeJpeg({ width: 32, height: 16 });
@@ -171,6 +171,9 @@ test('JPEG の透かしも埋められ、BMP は PNG か JPEG を選ぶよう断
   const bmp = fs.readFileSync(fixturePath('image-rgb.bmp'));
   assert.deepEqual(await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile: async () => new Uint8Array(bmp) }),
     { error: 'PNG か JPEG の画像を選んでください。' });
+  const progressive = makeJpeg({ width: 32, height: 16, marker: 0xc2 });
+  assert.deepEqual(await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile: async () => new Uint8Array(progressive) }),
+    { error: 'この JPEG は透かしに使えません（プログレッシブ形式）。' });
 });
 
 test('画像を読めなければ断る', async () => {

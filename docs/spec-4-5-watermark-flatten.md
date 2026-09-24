@@ -385,6 +385,66 @@ Phase 4 の最後の塊。**ツールモードに「透かし」と「フラッ�
 
 ---
 
-## 実装の記録
+## 実装の記録（2026-09-24・`claude/phase-4-watermark-flatten` ブランチ）
 
-（実装後に書く）
+テスト 1,330 → 1,473 件。仕様書から変えた点・足した点は次のとおり。
+
+| 項目 | 仕様書 | 実装 | 理由 |
+|---|---|---|---|
+| 隠した窓の描き方（確定事項46） | 既定の `capturePage()`。rAF が止まるなら `setBackgroundThrottling(false)` | **起動確認の窓だけ offscreen 描画**（`webPreferences.offscreen: true`＋`setFrameRate(60)`）。結果の JSON は `window`（`hidden`・`visible`・`visibilityState`・`raf`・`framesPerSecond`）と `shot`（`isEmpty`・`width`・`height`） | 出していない普通の窓は Chromium が描画を 1 秒に 1 回まで間引き（実測 1 fps）、`setBackgroundThrottling(false)` も `--disable-renderer-backgrounding` などの起動スイッチも効かなかった。ページの描画を固定の時間で待つ注釈の起動確認が落ちた。offscreen なら 60〜62 fps で描け、`capturePage` も撮れる |
+| ワーカーの分け方（確定事項47） | `tool-tasks.js` と「役割の分かる名前のモジュール」 | `pdf-io.js`（pdf-lib の道具・load と save の設定・読めなかったときの文言・差し込む元の読み口）・`tool-tasks.js`（kind の表 `TOOL_TASKS` と結合・分割）・`convert-task.js`（画像→PDF）・`rewrite-task.js`（1 本を読んで別の 1 本へ書く 5 段の枠。透かし・フラット化・件数の下見）。`pdf-task.js` は 487 → 200 行 | 1 ファイル 200 行の目安に収める。透かし・フラット化は表に足すだけで載る |
+| 透かし・フラット化の口（確定事項23・29・32・33） | `op-watermark.js` の `runWatermark(spec, deps)`、`op-flatten.js` の `runFlatten`・`previewFlatten` | `op-watermark.js` は読み込んだ文書に当てる `applyWatermark(doc, { pages, mark }, TOOLS, deps)`、`op-flatten.js` は `flattenDocument(doc, TOOLS, { dryRun })`（件数の下見は `dryRun` で同じ関数を通す）。読む・書く・進捗は `rewrite-task.js` の `runWatermark`・`runFlatten`・`runFlattenPreview` | 読む・書く枠を 2 つの道具で 1 本にし、`op-*` のテストは文書だけを見れば済む |
+| 行列の置き場 | `flatten-geometry.js` に `multiply` | `worker/pdf-matrix.js`（積・点の写像・`/Rotate` の寄せ方・小数 4 桁の書き方）を足し、透かしとフラット化で共有。`flatten-geometry.js` は `placementMatrix`・`noRotateMatrix`・`bakeMatrix` | 同じ式の写しを 2 つ持たない |
+| 外観の純関数（確定事項20〜22） | `outlineOf` → `{ ops, width, height }`、`imageMarkOf({ aspect, opacity })` | `outlineOf` は字形の外接の箱 `inkBox` も返す（`/BBox` を広げるため）。`imageMarkOf({ width, height, opacity })` | 縦横比を呼ぶ側で作らない |
+| フラット化の結果（確定事項27・32・33） | 下見は `{ ok, bake, keep, notes }`、実行は `{ ok, baked, kept, pages }`。判定は bake・draw-note・keep | どちらも `summarize` の `{ ok, baked, kept, notes, bake, keep }`（実行はこれに書いた先の `path`・`bytes`・`signature` が付く）。判定に `popup`（親に従う）を足した | 画面の件数と焼いた件数を同じ形で突き合わせられる |
+| 画像の口（確定事項35・36） | `pdfAPI.pickImageSource`・`readImage`（IPC `pdf:pickImageSource`・`pdf:readImage`） | **`pdfAPI.pickWatermarkImage`・`readWatermarkImage`**（IPC `pdf:pickWatermarkImage`・`pdf:readWatermarkImage`）。読む口はプログレッシブの JPEG もワーカーと同じ文言で断る。戻り値に `size` を足した | 既存の `pickImageSources`（複数選択・変換用の題名）と紛らわしい。フィルターと題名は透かし専用なので、用途の分かる名前にした |
+| 共通部品（確定事項34） | `create(...)` が `render(elements)` を含めて返す | `create({ inspect, pick, dirtyMessage, emptyFields, fieldsOf, onSelect, onChange })` は `{ source, setSource, useOpenTab, pickFile, addPaths }` を返し、描き方は状態を持たない `SigK.sourcePicker.render(elements, source)` として別に置いた。`emptyFields`・`fieldsOf` は PDF→画像のページの寸法（`sizes`）のため | 各画面の描き直しの流れから呼ぶため |
+| 出力の部品 | 画面ごと | `renderer/rewrite-output.js`（保存ダイアログ・断る出力先・書けた後の始末）を足し、透かし・フラット化で共用 | 写しを 2 本にしない |
+| フラット化の画面 | `tools-flatten.js` 1 本 | `tools-flatten.js`（状態と指揮）と `tools-flatten-view.js`（件数・残すもの・失うものの描画）に分けた | 1 ファイル 200 行の目安 |
+| 確認の戻り値（確定事項10） | `'flatten'`／`'cancel'` | `true`／`false` | 抽出の確認（`confirm-extract.js`）と同じ形 |
+| 帯の文言（確定事項44） | 中止は「透かしを入れるのを中止しました」 | 透かしは実行中「透かしを追加しています」・中止「透かしの追加を中止しました。」。フラット化は実行中「フラット化しています」・中止「フラット化を中止しました。」。件数の下見の間は「注釈を確認しています」を出し、数え終えたら下げる（中止は「注釈を数えるのを中止しました。」） | 帯は `save.runTask` の label から「<label>しています」を組む形なので、それに合わせた。下見の結果は画面の節に出るので帯は残さない |
+| 起動確認の指定（確定事項48・49） | 操作列に `source:` と `run` | 対象は `SIGK_SMOKE_WATERMARK=<PDF>`・`SIGK_SMOKE_FLATTEN=<PDF>` で渡す。透かしの操作列は `SIGK_SMOKE_WATERMARK_OPS`（`text:`・`image:`・`size:`・`color:`・`opacity:<%>`・`angle:`・`pos:`・`pages:`・`preview:`）。止め方は `SIGK_SMOKE_WATERMARK_STAY=1`・`SIGK_SMOKE_FLATTEN_STAY=screen\|confirm`。スクリプトと書き出した PDF の読み返しは `smoke-rewrite.js` に置いた | 既存の結合・分割の起動確認と同じ形。`main.js` は 2,000 行を超えているので足さない |
+| 検体（確定事項49・「既存への追記」） | `rotations.pdf`・`annotation-flags.pdf`。本アプリの注釈は `SIGK_SMOKE_ANNOTATE` で保存したもの | **`page-boxes.pdf`**（`/Rotate` 0・90・180・270 と CropBox が内側のページ。Resources を共有）と **`sigk-annotated.pdf`**（保存と同じ `op-annotate` の経路で本アプリの注釈 8 件を載せる）を pretest で生成（`test/fixtures/page-boxes.js`・`annotations.js`）。`/Matrix`・`/AS`・Hidden・NoView・Print 無し・墨消しの指定・直に並ぶ辞書などの境目は、`test/op-flatten.test.js` がその場で文書を組んで見る | 画素差は本アプリの注釈を載せた検体で測るほうが意味がある。境目の形はテストの中で組むほうが、何を見ているかが読める |
+| アイコンのテスト | — | `test/shell.test.js` のアイコンの検査から、プレビューの重ね描きの SVG（`.wm-overlay`）を除いた | アイコンではない |
+| 画面テストの差し替え | — | `test/harness.js` の pdf.js の差し替えに本物と同じ `page.view` を、口の差し替えに `pickWatermarkImage`・`readWatermarkImage` を足した | プレビューが CropBox を読むため |
+| 使わなくなったもの | — | `file-drop.js` の `wantsImages` を消した（受ける拡張子をツールごとに引く形にしたため） | — |
+
+依存は増やしていない（`THIRD-PARTY-NOTICES.md` は変えていない）。
+
+### 完了判定の結果
+
+| # | 判定 | 結果 | 確かめ方 |
+|---|---|---|---|
+| 1 | ツール一覧に「透かし」「フラット化」が並び、画面がモックのとおり。プレビューが設定に追従し、書き出した結果と同じ位置・向き・大きさ | ✅ | `tools.test.js`（6 つ）・`tools-watermark.test.js`・`watermark-preview.test.js`（ページ送り・透かしを入れないページ・SVG の `transform`）、`watermark-geometry.test.js`（画面側の式がワーカーと 3,888 通りで同じ行列）、実機の画面 `screenshots/phase4-watermark-app.png`・`phase4-flatten-app.png`（モックと同じ配置。「出力」の節は無い） |
+| 2 | 文字の透かしを指定どおりに新しいファイルへ書き、新しいタブで開く。透かしの文字が検索・選択・コピーに出ず、フォントも増えない | ✅ | `op-watermark.test.js`（対象ページだけに `SigKWM`・フォントは増えない）、`tools-watermark.test.js`（spec の完全一致・新しいタブ）、起動確認 `page-boxes.pdf`（5 ページすべてに `SigKWM`・フォント 1 つのまま・pdf.js の `getTextContent` に「社外秘」が出ない）・`mixed-size.pdf`（赤・50%・水平・右上・大・1〜2 ページ → 3 ページ目には入らない） |
+| 3 | 画像の透かし（PNG・JPEG。ドロップでも）。PNG の透過が保たれ、BMP・GIF・TIFF は断る | ✅ | `op-watermark.test.js`（PNG の SMask・JPEG・BMP とプログレッシブの JPEG は断る）、`image-io.test.js`（1 本選択・フィルター・読む口の断り）、`tools-watermark.test.js`（画像の欄・ドロップで種類が「画像」に）、起動確認 `rotated.pdf`（`image-alpha.png`・小・50%・水平・右下） |
+| 4 | 回転・大きさ違い・CropBox が内側のページでも、指定した位置に表示の向きで上向き。XObject は文書に 1 つで、Resources を共有してもキーが増えない | ✅ | `watermark-layout.test.js`（4 つの回転 × 9 か所 × 3 つの大きさ × 2 つの向き × 箱と形の違いの全組み合わせで、四隅が紙に収まり、端は縁から余白ちょうど）、`op-watermark.test.js`（`/Rotate 90` の行列・共有した Resources でキー 1 つ・名前の衝突で `SigKWM1`）、起動確認 `page-boxes.pdf`（XObject 1 つ。描いた画像で回転したページも表示の向きで左下から右上へ）・`mixed-size.pdf`（A5 のページ） |
+| 5 | 実行前に確認（既定はキャンセル・「焼き込む」は危険色）。焼いた注釈は注釈として残らず（リンクは残る）、見た目は焼き込み前と同じ（差が 64 を超える画素が 0.1% 未満） | ✅ | `confirm-flatten.test.js`・`tools-flatten.test.js`（キャンセルなら焼かない）、`op-flatten.test.js`、起動確認（確認の既定のフォーカスがキャンセル・`danger`。`sigk-annotated.pdf` の 8 件を焼き、差は 1 ページ目で 89／2,005,644 画素＝0.0044%、2・3 ページ目は 0） |
+| 6 | 外観の無いノートは付箋として焼き、外観の無い他の注釈・表示されていない注釈・働きを持つ注釈は残す。焼いたノートの本文・作成者・Popup はファイルに残らない | ✅ | `op-flatten.test.js`（`annotated.pdf` と、その場で組んだ境目の文書。ノートの `/Contents` がファイルのどこにも無い）、`flatten-selection.test.js`（種類と `/F` の表）、起動確認 `annotated.pdf`（ノート 2 件とスタンプを焼き、直線・テキスト・リンクは注釈のまま。ノートの本文は残らない） |
+| 7 | 入力と同じ出力先・タブで開いている出力先は断る。同名は OS の確認。パスワード付き・壊れた PDF は実行できない。中止で書きかけが残らない。未保存のタブには注意書き | ✅ | `rewrite-output.test.js`・`tools-watermark.test.js`・`tools-flatten.test.js`（断る出力先・パスワード付きと壊れた対象はパスワードを聞かずに断る・中止の帯・未保存の注意書き）、`op-watermark.test.js`・`op-flatten.test.js`（読めない元・壊れた元を断る）、`task-runner.test.js`（中止・失敗で `target` の書きかけを消す。透かし・フラット化の spec も `target` で書く）、起動確認（書いた後に一時ファイルが残らない `tempLeft: false`）。同名の確認は結合と同じ OS の保存ダイアログ |
+| 8 | テキスト注釈を不透明度 50% で保存すると `/CA` と外観の ExtGState が 0.5 | ✅ | `free-text-appearance.test.js`・`op-annotate.test.js`（先に落ちるのを見てから直した）、隠した窓の起動確認 `SIGK_SMOKE_ANNOTATE`（`/CA 0.5`・外観の `ca 0.5`） |
+| 9 | 分割・PDF→画像の画面を共通部品に差し替えても、既存のテストが 1 行も変えずに通る | ✅ | `tools-split.test.js`・`tools-to-image.test.js` は `main`（`2a717ce`）から無変更で通る。起動確認で分割（3 本）と PDF→画像（3 枚）も動いた |
+| 10 | `npm test` が緑（`TZ=UTC` でも）。配布物でも `SIGK_SMOKE=1 SIGK_SMOKE_HIDDEN=1` で起動確認が通り、窓が出ない | ✅ | 1,473 件緑（`TZ=UTC` も）。`dist/win-unpacked/SigK PDF.exe` で `SIGK_SMOKE_WATERMARK`・`SIGK_SMOKE_FLATTEN`（`problems: []`・`window.hidden: true`・61 fps。開発ツリーと同じ結果） |
+| 11 | 他のビューアで透かし・焼き込んだ注釈・テキスト注釈の不透明度が同じに見える | ⏳ | **ユーザーの目視待ち**（塊①判定10〜塊④判定12 と同じ扱い） |
+
+### 実測（Windows 11 実機・開発ツリーと配布物。窓を出さない起動確認）
+
+| 項目 | 値 |
+|---|---|
+| 透かし（`save.runTask` を呼んでから結果が返るまで。ワーカーの起動を含む） | 文字・`page-boxes.pdf` 5 ページ: 開発ツリー 498ms／配布物 301ms。文字・`mixed-size.pdf` 2 ページ: 672ms。画像・`rotated.pdf` 3 ページ: 282ms |
+| 透かしで増えるバイト数 | 文字: `page-boxes.pdf` 2,761 → 5,394B（+2,633B）、`mixed-size.pdf` 1,481 → 4,627B（+3,146B）。画像: `rotated.pdf` 1,507 → 3,171B（+1,664B。`image-alpha.png` を 1 回埋めた分を含む） |
+| フラット化（同上） | `sigk-annotated.pdf` 8 件: 開発ツリー 244ms／配布物 225ms（10,478 → 6,702B。注釈の辞書・Popup・ノートの本文が消え、外観は残る）。`annotated.pdf` 3 件を焼き 3 件を残す: 257ms（4,560 → 3,005B） |
+| 件数の下見（`flatten-preview`。ワーカーの中） | 6ms（どちらの検体も） |
+| 焼き込み前後の画素差（pdf.js で 2 倍に描き、差が 64 を超える画素） | `sigk-annotated.pdf`: 1 ページ目 89／2,005,644（0.0044%）、2・3 ページ目 0。`annotated.pdf`: 1 ページ目 1,035（0.052%。外観の無いノートを付箋として描き起こした分で、意図した差）、2・3 ページ目 0 |
+| 隠した窓の描画 | 60〜62 fps（offscreen。出していない普通の窓は 1 fps） |
+| 配布物 | `SigK PDF Setup 0.1.0.exe` 115.7MB（塊④ 115.7MB）、`app.asar` 14.27MB（塊④ 14.12MB） |
+
+`npm start`（窓を出す通常の起動）は、ユーザー全体のルール「動作確認で別アプリの窓を出さない」により回していない。同じ開発ツリーを隠した窓の起動確認で通したことをその代わりとした。
+
+### 目視の残り（判定11。塊①判定10・塊②判定11・塊③判定12・塊④判定12 と同じ扱い）
+
+透かしを入れた PDF を他のビューアで開き、透かしが同じ位置・向き・濃さで見え、文字として選べないこと（回転したページでも）。
+フラット化した PDF を他のビューアで開き、注釈がページの一部として同じ見え方で残り、注釈の一覧に出ないこと。
+テキスト注釈を不透明度 50% で保存した PDF が、他のビューアでも同じ濃さに見えること。
+検体は、本アプリで `test/fixtures/page-boxes.pdf` に透かしを、`test/fixtures/sigk-annotated.pdf` にフラット化をかけて作れる
+（どちらも `npm test` の前処理で生成される）。

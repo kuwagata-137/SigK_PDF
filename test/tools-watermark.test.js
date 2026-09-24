@@ -8,7 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, makeSource, makeDroppedFile, makeDataTransfer } = require('./harness.js');
+const { createShell, makeSource, createPdfjsStub, makeDroppedFile, makeDataTransfer } = require('./harness.js');
 
 const A = 'C:\\work\\a.pdf';
 const B = 'C:\\work\\b.pdf';
@@ -79,6 +79,19 @@ test('「ファイルを選ぶ」は題名付きで 1 本選ばせ、読めた�
   assert.equal(byId(shell, 'wm-name').textContent, 'a.pdf');
   assert.equal(summary(shell), '3 ページに文字の透かしを入れます');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), null);
+});
+
+test('パスワード付き・壊れた PDF はパスワードを聞かずに断り、実行できない', async (t) => {
+  for (const [pdfjs, pattern] of [[createPdfjsStub({ password: 'secret' }), /パスワード付き/], [createPdfjsStub({ openError: new Error('broken') }), /開けません/]]) {
+    const shell = await createWatermarkShell(t, { pdfjs });
+    await shell.SigK.toolsWatermark.setSource(A);
+    await shell.flush();
+    assert.match(shell.SigK.toolsWatermark.source().blocked, pattern);
+    assert.equal(shell.SigK.passwordPrompt.isOpen?.() ?? false, false);
+    assert.equal(shell.SigK.toolsWatermark.canRun(), false);
+    assert.equal(summary(shell), '対象の PDF を選び直してください。');
+    assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
+  }
 });
 
 test('欄の操作が設定に届き、ワーカーへ渡す spec に写る', async (t) => {

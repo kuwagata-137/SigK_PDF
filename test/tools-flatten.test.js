@@ -8,7 +8,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, makeSource, makeDroppedFile, makeDataTransfer } = require('./harness.js');
+const { createShell, makeSource, createPdfjsStub, makeDroppedFile, makeDataTransfer } = require('./harness.js');
 
 const A = 'C:\\work\\a.pdf';
 const B = 'C:\\work\\b.pdf';
@@ -93,6 +93,18 @@ test('数えられなければ理由を出して実行できない', async (t) =
   assert.equal(byId(shell, 'fl-status').textContent, 'この PDF は内容が壊れているため保存できません。');
   assert.equal(summary(shell), 'この PDF は内容が壊れているため保存できません。');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
+});
+
+test('パスワード付き・壊れた PDF はパスワードを聞かずに断り、数えずに実行できない', async (t) => {
+  for (const [pdfjs, pattern] of [[createPdfjsStub({ password: 'secret' }), /パスワード付き/], [createPdfjsStub({ openError: new Error('broken') }), /開けません/]]) {
+    const shell = await createFlattenShell(t, { pdfjs });
+    await withSource(shell);
+    assert.match(shell.SigK.toolsFlatten.source().blocked, pattern);
+    assert.equal(shell.SigK.passwordPrompt.isOpen?.() ?? false, false);
+    assert.equal(shell.taskCalls.length, 0, '読めない対象はワーカーで数えない');
+    assert.equal(shell.SigK.toolsFlatten.canRun(), false);
+    assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
+  }
 });
 
 test('実行は保存ダイアログ → 確認（既定はキャンセル）→ 焼き込み。書けたら新しいタブで開く', async (t) => {
