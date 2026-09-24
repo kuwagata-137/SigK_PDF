@@ -99,6 +99,9 @@
     root.SigK.toolsWatermark.init(doc, win);
     root.SigK.toolsWatermarkView.init(doc, win);
     root.SigK.watermarkPreview.init(doc, win);
+    root.SigK.confirmFlatten.init(doc, win);
+    root.SigK.toolsFlatten.init(doc, win);
+    root.SigK.toolsFlattenView.init(doc, win);
     // パスワードの入力は viewer.open() の途中から呼ばれる。先に用意しておく。
     root.SigK.passwordPrompt.init(doc, win);
     // 保存は、未保存の確認（3択の「保存」）からも呼ばれる。確認より先に用意する。

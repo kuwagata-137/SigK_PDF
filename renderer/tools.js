@@ -9,7 +9,7 @@
   //
   // 一覧に載せるのは動くツールだけである。塊① の結合、塊② の分割（spec-2-2
   // 確定事項39）、塊④ の画像→PDF（spec-3-1 確定事項34）、塊⑥ の PDF→画像
-  // （spec-3-3 確定事項28）、Phase 4 塊⑤ の透かし（spec-4-5 確定事項1）。ツールモードに入った
+  // （spec-3-3 確定事項28）、Phase 4 塊⑤ の透かしとフラット化（spec-4-5 確定事項1）。ツールモードに入った
   // 時点では結合を選んだ状態にする（確定事項1・3。最後に使ったツールは覚えない。
   // 覚えるかどうかは Phase 6 の設定画面で決める）。
   //
@@ -22,6 +22,7 @@
     { id: 'convert', label: '画像→PDF', hint: '画像を PDF に', icon: 'convert' },
     { id: 'toImage', label: 'PDF→画像', hint: 'PDF のページを画像に', icon: 'toImage' },
     { id: 'watermark', label: '透かし', hint: '文字や画像を重ねる', icon: 'watermark' },
+    { id: 'flatten', label: 'フラット化', hint: '注釈を焼き込む', icon: 'flatten' },
   ];
 
   const state = { selected: 'merge' };

@@ -36,11 +36,6 @@
     return root.SigK.tools?.isToolsMode() === true ? root.SigK.tools.selected() : null;
   }
 
-  // いまドロップを受ける画面が画像を欲しがっているか。変換画面を選んでいるときだけ真。
-  function wantsImages() {
-    return selectedTool() === 'convert';
-  }
-
   function isAcceptedName(name) {
     const tool = selectedTool();
     if (tool === 'convert')
@@ -118,9 +113,12 @@
     // ツールモードでは選んでいるツールの画面が受け取る（spec-2-1 確定事項12・
     // spec-2-2 確定事項2・spec-3-1 確定事項2・spec-3-3 確定事項1・spec-4-5 確定事項37）。タブに開くのではなく、
     // 結合なら一覧の末尾へ足し、分割と PDF→画像なら対象にし、変換なら画像として一覧へ足し、
-    // 透かしなら PDF を対象に・画像を透かしの画像にする。表に無いツールは結合へ落ちる。
+    // 透かしなら PDF を対象に・画像を透かしの画像にし、フラット化なら対象にする。表に無いツールは結合へ落ちる。
     if (root.SigK.tools?.isToolsMode() === true) {
-      const tools = { split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert, toImage: root.SigK.toolsToImage, watermark: root.SigK.toolsWatermark };
+      const tools = {
+        split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert, toImage: root.SigK.toolsToImage,
+        watermark: root.SigK.toolsWatermark, flatten: root.SigK.toolsFlatten,
+      };
       const tool = tools[root.SigK.tools.selected()] ?? root.SigK.toolsMerge;
       if (tool !== undefined) {
         await tool.addPaths(paths);

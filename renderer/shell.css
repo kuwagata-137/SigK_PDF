@@ -647,6 +647,33 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .wm-preview .nav{display:flex; justify-content:center; gap:6px; margin-top:6px}
 .wm-preview .nav .act{width:28px; height:24px}
 
+/* ── フラット化（spec-4-5 確定事項7〜10。モック screenshots/phase4-flatten.png・-confirm.png） ── */
+/* 焼き込む注釈のまとまりごとの件数と合計、残すもの、失うもの。アイコンの色はモックのとおり。 */
+.fl-status{margin:0; color:var(--muted); font-size:12px}
+.fl-status[hidden],.fl-list[hidden],.fl-keep[hidden],.fl-warn[hidden]{display:none}
+.fl-list{display:grid; grid-template-columns:18px 1fr auto; row-gap:6px; column-gap:10px; align-items:center; max-width:520px}
+.fl-row{display:contents}
+.fl-list .ic{width:18px; height:18px; display:grid; place-items:center; color:#8b93a1}
+.fl-list .ic.markup,.fl-list .ic.note{color:#c9a100}
+.fl-list .ic.text{color:#d92c2c}
+.fl-list .ic.shape{color:#2c5cd9}
+.fl-list .n{font-variant-numeric:tabular-nums; color:var(--text); text-align:right}
+.fl-list .total{grid-column:1 / -1; border-top:1px solid var(--border); padding-top:7px; display:flex; justify-content:space-between; font-weight:600}
+.fl-keep{margin:12px 0 0; padding:10px 12px; border-radius:8px; background:var(--surface-2); color:var(--muted); font-size:12px; line-height:1.75; max-width:560px}
+.fl-keep b{color:var(--text); font-weight:600; margin-right:1em}
+.fl-warn{margin:10px 0 0; color:var(--text); font-size:12px; line-height:1.7; max-width:560px}
+.fl-warn::before{content:'！'; color:var(--danger); font-weight:700; margin-right:4px}
+
+/* フラット化の確認（確定事項10）。既存のダイアログと同じ枠。 */
+#confirm-flatten{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(460px, 88vw);
+}
+#confirm-flatten::backdrop{background:rgba(16,24,40,.34)}
+#confirm-flatten .dlg-text + .dlg-text{margin-top:8px}
+#confirm-flatten .dlg-text[hidden]{display:none}
+
 /* 同名確認の3択（確定事項27）。既存のダイアログと同じ枠。 */
 #confirm-replace{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);
