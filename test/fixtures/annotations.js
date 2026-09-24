@@ -62,4 +62,32 @@ async function buildAnnotatedPdf(threePagesBytes) {
   return doc.save({ addDefaultPage: false, useObjectStreams: false });
 }
 
-module.exports = { buildAnnotatedPdf };
+// 本アプリで付けた注釈を載せた検体（spec-4-5 確定事項49。フラット化の起動確認の画素差）。
+// three-pages.pdf の 1 ページ目に、保存と同じ経路（worker/op-annotate.js）でハイライト・下線・
+// テキスト（50%）・矩形（50%）・楕円・矢印・ペン・ノート（75%）を付ける。回転の無いページなので、
+// 焼き込み前後を pdf.js で描いた見た目は縁のにじみを除いて同じになるはずである（spec-4-5 事前調査 D）。
+async function buildSigkAnnotatedPdf(threePagesBytes) {
+  const fontkit = require('@pdf-lib/fontkit');
+  const { PDFArray, PDFRef } = require('pdf-lib');
+  const { applyAnnotations } = require('../../worker/op-annotate.js');
+  const { createFontSource } = require('../../worker/font-embed.js');
+  const doc = await PDFDocument.load(threePagesBytes, { updateMetadata: false });
+  doc.setTitle('本アプリの注釈を載せた3ページ');
+  const add = [
+    { src: 0, kind: 'highlight', color: '#ffe45a', opacity: 1, quads: [[48, 790, 140, 790, 48, 774, 140, 774]], rect: [48, 774, 140, 790] },
+    { src: 0, kind: 'underline', color: '#2c5cd9', opacity: 1, quads: [[48, 760, 232, 760, 48, 748, 232, 748]], rect: [48, 748, 232, 760] },
+    { src: 0, kind: 'text', color: '#d92c2c', opacity: 0.5, rect: [100, 600, 300, 620.5], text: 'テキスト注釈', fontSize: 12, rotation: 0 },
+    { src: 0, kind: 'square', color: '#d92c2c', opacity: 0.5, rect: [100, 480, 300, 560], lineWidth: 3 },
+    { src: 0, kind: 'circle', color: '#2f9e5a', opacity: 1, rect: [340, 480, 500, 560], lineWidth: 2 },
+    { src: 0, kind: 'arrow', color: '#2c5cd9', opacity: 1, rect: [98.5, 243.55, 301.5, 301.5], lineWidth: 3, paths: [[[100, 300], [300, 250]]] },
+    { src: 0, kind: 'ink', color: '#1c2430', opacity: 1, rect: [319, 249, 401, 301], lineWidth: 2, paths: [[[320, 260], [350, 290], [390, 255]]] },
+    { src: 0, kind: 'note', color: '#ffe45a', opacity: 0.75, rect: [520, 780, 540, 800], text: 'メモ', author: '総務' },
+  ];
+  const tools = { PDFName, PDFString, PDFHexString, PDFArray, PDFRef };
+  const result = await applyAnnotations(doc, { add }, tools, { fontSource: createFontSource({ fontkit }) });
+  if (result.ok !== true)
+    throw new Error(result.error);
+  return doc.save({ addDefaultPage: false, useObjectStreams: false });
+}
+
+module.exports = { buildAnnotatedPdf, buildSigkAnnotatedPdf };

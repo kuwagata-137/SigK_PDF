@@ -25,6 +25,7 @@ const { addRecent, removeRecent, normalizeList } = require('./recent-documents.j
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
 const { smokeWindowMode } = require('./smoke-window.js');
+const smokeRewrite = require('./smoke-rewrite.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -1981,6 +1982,8 @@ function installSmokeCheck(win, mode) {
       let launch = null;
       let drag = null;
       let drop = null;
+      let watermark = null;
+      let flatten = null;
       let perfOpen = null;
       const memoryAtRest = perfPath === undefined ? null : snapshotMemory();
       let memoryAfterOpen = null;
@@ -2148,6 +2151,36 @@ function installSmokeCheck(win, mode) {
           // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項19・20）。
           toImage.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
         }
+        // 透かし・フラット化（spec-4-5 確定事項48・49。操作列と出力は smoke-rewrite.js の頭に）。
+        // 出力の省略時は一時フォルダーへ。前回の出力は先に消す（書けたことを取り違えない）。
+        if (process.env.SIGK_SMOKE_WATERMARK) {
+          const source = path.resolve(process.env.SIGK_SMOKE_WATERMARK);
+          const target = process.env.SIGK_SMOKE_WATERMARK_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_WATERMARK_OUT)
+            : path.join(app.getPath('temp'), 'sigk-smoke-watermark.pdf');
+          fs.rmSync(target, { force: true });
+          watermark = await win.webContents.executeJavaScript(smokeRewrite.watermarkScript({
+            source, target, ops: process.env.SIGK_SMOKE_WATERMARK_OPS ?? 'text:社外秘', stay: process.env.SIGK_SMOKE_WATERMARK_STAY === '1',
+          }));
+          watermark.target = target;
+          if (watermark.ok === true)
+            watermark.written = await smokeRewrite.inspectWatermarked(target, ROOT_DIR);
+          watermark.tempLeft = fs.existsSync(require('./pdf-write.js').tempPathFor(target));
+        }
+        if (process.env.SIGK_SMOKE_FLATTEN) {
+          const source = path.resolve(process.env.SIGK_SMOKE_FLATTEN);
+          const target = process.env.SIGK_SMOKE_FLATTEN_OUT
+            ? path.resolve(process.env.SIGK_SMOKE_FLATTEN_OUT)
+            : path.join(app.getPath('temp'), 'sigk-smoke-flatten.pdf');
+          fs.rmSync(target, { force: true });
+          flatten = await win.webContents.executeJavaScript(smokeRewrite.flattenScript({
+            source, target, stay: process.env.SIGK_SMOKE_FLATTEN_STAY ?? null,
+          }));
+          flatten.target = target;
+          if (flatten.ok === true)
+            flatten.written = await smokeRewrite.inspectFlattened(source, target, ROOT_DIR);
+          flatten.tempLeft = fs.existsSync(require('./pdf-write.js').tempPathFor(target));
+        }
         if (process.env.SIGK_SMOKE_DRAG) {
           const [from, to] = process.env.SIGK_SMOKE_DRAG.split('-').map((value) => Number(value.trim()));
           const boxes = await dispatchPageDrag(from, to);
@@ -2225,6 +2258,8 @@ function installSmokeCheck(win, mode) {
         launch,
         drag,
         drop,
+        watermark,
+        flatten,
         perf,
         window: windowState,
         screenshot,
