@@ -23,20 +23,7 @@ const POSITIONS = Object.freeze([
   'bottom-left', 'bottom', 'bottom-right',
 ]);
 
-// 行列の数は小数 4 桁（cos 45° ＝ 0.7071 を 2 桁に丸めると 0.71 になり粗い。事前調査 A）。
-function num4(value) {
-  const text = value.toFixed(4);
-  const trimmed = text.includes('.') ? text.replace(/\.?0+$/, '') : text;
-  return trimmed === '-0' ? '0' : trimmed;
-}
-
-// ページの /Rotate を 0・90・180・270 に寄せる。90 の倍数でなければ 0（pdf.js と同じ扱い）。
-function normalizeRotation(rotate) {
-  if (!Number.isFinite(rotate))
-    return 0;
-  const value = ((Math.round(rotate) % 360) + 360) % 360;
-  return value % 90 === 0 ? value : 0;
-}
+const { normalizeRotation } = require('./pdf-matrix.js');
 
 function isBox(box) {
   return Array.isArray(box) && box.length === 4 && box.every(Number.isFinite)
@@ -104,11 +91,7 @@ function placementOf({ box, rotate = 0, width, height, angle, size, position }) 
   return [cos, sin, -sin, cos, x, y];
 }
 
-function matrixText(matrix) {
-  return matrix.map(num4).join(' ');
-}
-
 module.exports = {
   SIZE_RATIOS, MARGIN_RATIO, ANGLES, POSITIONS,
-  num4, normalizeRotation, displaySize, outerSize, placementOf, matrixText,
+  displaySize, outerSize, placementOf,
 };

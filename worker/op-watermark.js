@@ -8,7 +8,8 @@
 // 文字は字形の輪郭で描き（glyph-outline.js。論点1）、フォントは埋めない。画像は PNG・JPEG だけを
 // 1 回だけ埋める（論点7。PNG の透過は SMask で保たれる。事前調査 B）。
 
-const { ANGLES, SIZE_RATIOS, POSITIONS, placementOf, matrixText } = require('./watermark-layout.js');
+const { ANGLES, SIZE_RATIOS, POSITIONS, placementOf } = require('./watermark-layout.js');
+const { matrixText } = require('./pdf-matrix.js');
 const { outlineOf } = require('./glyph-outline.js');
 const { isOpacity, textMarkOf, imageMarkOf } = require('./watermark-appearance.js');
 const { parseColor } = require('./annotation-appearance.js');

@@ -7,7 +7,7 @@
 // 画像は幅 100 の箱に縦横比で置く。不透明度は /GS（ExtGState の ca・CA）で当てる。
 
 const { num, parseColor } = require('./annotation-appearance.js');
-const { num4 } = require('./watermark-layout.js');
+const { num4 } = require('./pdf-matrix.js');
 
 // 画像の素の箱の幅（文字の大きさ 100 と桁を揃える）。
 const IMAGE_WIDTH = 100;

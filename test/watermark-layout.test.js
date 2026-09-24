@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const {
   SIZE_RATIOS, MARGIN_RATIO, ANGLES, POSITIONS,
-  num4, normalizeRotation, displaySize, outerSize, placementOf, matrixText,
+  displaySize, outerSize, placementOf,
 } = require('../worker/watermark-layout.js');
 
 const A4 = [0, 0, 595.28, 841.89];
@@ -140,18 +140,8 @@ test('形が違えば null', () => {
   assert.equal(placementOf({ ...ok, position: 'middle' }), null);
 });
 
-test('/Rotate は 90 の倍数に寄せ、そうでなければ 0', () => {
-  assert.equal(normalizeRotation(-90), 270);
-  assert.equal(normalizeRotation(450), 90);
-  assert.equal(normalizeRotation(180), 180);
-  assert.equal(normalizeRotation(45), 0);
-  assert.equal(normalizeRotation(undefined), 0);
-});
-
-test('行列の数は小数 4 桁で、-0 は 0 と書く', () => {
-  assert.equal(num4(Math.SQRT1_2), '0.7071');
-  assert.equal(num4(-0.00001), '0');
-  assert.equal(num4(12), '12');
-  assert.equal(num4(1.5), '1.5');
-  assert.equal(matrixText([Math.SQRT1_2, Math.SQRT1_2, -Math.SQRT1_2, Math.SQRT1_2, 297.64, 420.945]), '0.7071 0.7071 -0.7071 0.7071 297.64 420.945');
+test('90 の倍数でない /Rotate は 0 とみなして置く', () => {
+  const ok = { box: A4, ...TEXT, angle: 0, size: 'medium', position: 'center' };
+  assert.deepEqual(placementOf({ ...ok, rotate: 45 }), placementOf({ ...ok, rotate: 0 }));
+  assert.deepEqual(placementOf({ ...ok, rotate: -90 }), placementOf({ ...ok, rotate: 270 }));
 });

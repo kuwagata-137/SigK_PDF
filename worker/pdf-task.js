@@ -163,7 +163,8 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
 // メインへ進捗を送りながら回す。
 //
 // insert-preview だけは5段を回さない。ファイルを書かず、読むのも差し込む元
-// 1本だけなので、進捗を出す間もなく終わる（実測で数ミリ秒）。
+// 1本だけなので、進捗を出す間もなく終わる（実測で数ミリ秒）。フラット化の件数の下見
+// （flatten-preview）も同じくファイルを書かず、進捗を送らない（tool-tasks.js）。
 // ツールの kind（TOOL_TASKS）はその実行関数へ、それ以外は保存へ回す。
 async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   const started = Date.now();

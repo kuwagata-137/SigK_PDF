@@ -1,9 +1,10 @@
 'use strict';
 
-// ツールモードの実行（結合・分割・変換・透かし）。pdf-task.js の runTask が kind で引く表 TOOL_TASKS を持つ。
+// ツールモードの実行。pdf-task.js の runTask が kind で引く表 TOOL_TASKS を持ち、結合と分割はここに、
+// 変換は convert-task.js に、透かし・フラット化（1 本を読んで別の 1 本へ書く）は rewrite-task.js にある。
 // spec-4-5 確定事項47 で pdf-task.js から切り出した（結合・分割・変換の中身は変えていない）。
 //
-// require しても I/O は起きない（同梱フォントの口は、文字の透かしを入れるときに初めて読む）。
+// require しても I/O は起きない（透かしの同梱フォントは、文字の透かしを入れるときに初めて読む）。
 // メインとの結線（parentPort）と、注釈の同梱フォントの口は pdf-task.js に残してある。
 
 const fs = require('node:fs');
@@ -11,18 +12,10 @@ const path = require('node:path');
 
 const { mergeDocuments } = require('./op-merge.js');
 const { splitDocument } = require('./op-split.js');
-const { applyWatermark } = require('./op-watermark.js');
 const { runConvert } = require('./convert-task.js');
-const { runRewrite } = require('./rewrite-task.js');
-const { createFontSource } = require('./font-embed.js');
+const { runWatermark, runFlatten, runFlattenPreview } = require('./rewrite-task.js');
 const { writeDocument } = require('../pdf-write.js');
-const {
-  PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
-  describeLoadFailure, describeSourceReadFailure, insertReader,
-} = require('./pdf-io.js');
-
-// 透かしの文字の輪郭に使う同梱フォント（spec-4-5 確定事項20）。
-const fontSource = createFontSource();
+const { PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure } = require('./pdf-io.js');
 
 // 複数の入力を1つへ結合する（spec-2-1 確定事項22・29〜34）。
 //
@@ -156,20 +149,19 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
   return { ok: true, written: split.written, targets, pages: split.pages, labeled: split.labeled };
 }
 
-// 1 本の PDF に透かしを入れて別のファイルへ書く（spec-4-5 確定事項20〜26）。画像はパスから読み直す
-// （画像→PDF と同じ insertReader。必ず toBytes() を通す）。
-function runWatermark(spec, deps = {}) {
-  return runRewrite(spec, (doc, { fsLike }) => applyWatermark(doc, spec, TOOLS, {
-    fontSource: deps.fontSource ?? fontSource,
-    readFile: insertReader(fsLike).readFile,
-  }), deps);
-}
-
 // runTask が kind で引く表。表に無い kind は保存（runSave）へ落ちる（pdf-task.js）。
-const TOOL_TASKS = Object.freeze({ merge: runMerge, split: runSplit, convert: runConvert, watermark: runWatermark });
+// flatten-preview はファイルを書かず、進捗も送らない（差し込みの下見と同じ）。
+const TOOL_TASKS = Object.freeze({
+  merge: runMerge,
+  split: runSplit,
+  convert: runConvert,
+  watermark: runWatermark,
+  flatten: runFlatten,
+  'flatten-preview': runFlattenPreview,
+});
 
 function isToolKind(kind) {
   return typeof kind === 'string' && Object.hasOwn(TOOL_TASKS, kind);
 }
 
-module.exports = { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert, runWatermark };
+module.exports = { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert, runWatermark, runFlatten, runFlattenPreview };
