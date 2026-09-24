@@ -346,6 +346,42 @@ test('出力先に入力の画像と同じファイルは選べない', async (t
   assert.equal(shell.taskCalls.length, 0);
 });
 
+test('「まとめる」の出力先がタブで開いていれば、何も書かずに帯で断る（確定事項38）', async (t) => {
+  const shell = await createConvertShell(t, {
+    files: { [OUT]: makeSource({ path: OUT }) },
+    savePathResults: [{ path: OUT }],
+  });
+  const { SigK, document: doc } = shell;
+  await SigK.tabs.openPath(OUT);
+  SigK.shell.setMode(doc, 'tools');
+  await SigK.toolsConvert.addPaths([A]);
+
+  const result = await SigK.toolsConvert.run();
+  assert.equal(result.error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(bannerText(shell), result.error);
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
+});
+
+test('「画像ごと」の出力先がタブで開いていれば、同名の3択を出す前に断る（確定事項38）', async (t) => {
+  const openOut = `${DIR}\\b.pdf`;
+  const shell = await createConvertShell(t, {
+    files: { [openOut]: makeSource({ path: openOut }) },
+    existingPaths: [`${DIR}\\a.pdf`, openOut],
+  });
+  const { SigK, document: doc } = shell;
+  await SigK.tabs.openPath(openOut);
+  SigK.shell.setMode(doc, 'tools');
+  await SigK.toolsConvert.addPaths([A, B]);
+  pick(shell, 'output', 'each');
+
+  const result = await SigK.toolsConvert.run();
+  assert.equal(result.error, '出力先の「b.pdf」はタブで開いています。タブを閉じるか、フォルダを変えてください。');
+  assert.equal(doc.getElementById('confirm-replace').open, false, '置き換えてよいかは聞かない');
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(bannerText(shell), result.error);
+});
+
 test('「画像ごと」は出力先を組んで渡し、終わったら帯に「フォルダを開く」を出す', async (t) => {
   const shell = await createConvertShell(t, {
     taskResults: [{ ok: true, written: 2, targets: [`${DIR}\\a.pdf`, `${DIR}\\b.pdf`], pages: 2 }],

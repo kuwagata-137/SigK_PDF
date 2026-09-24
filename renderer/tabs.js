@@ -33,12 +33,29 @@
     return state.list.find((tab) => tab.id === id) ?? null;
   }
 
+  // そのパスを開いているタブ。開く経路（確定事項4）と書き出す先の検査が同じ規則で引く。
+  function tabFor(filePath) {
+    const key = pathKey(filePath);
+    return key === null ? null : state.list.find((tab) => pathKey(tab.path) === key) ?? null;
+  }
+
   function indexOf(id) {
     return state.list.findIndex((tab) => tab.id === id);
   }
 
+  function describe(tab) {
+    return { id: tab.id, path: tab.path, name: tab.name, active: tab.id === state.activeId };
+  }
+
   function list() {
-    return state.list.map((tab) => ({ id: tab.id, path: tab.path, name: tab.name, active: tab.id === state.activeId }));
+    return state.list.map(describe);
+  }
+
+  // 書き出す先がタブで開いているかを、書き出す側が確かめる口（output-target.js）。
+  // 見つかれば list() と同じ形で返す。
+  function findByPath(filePath) {
+    const tab = tabFor(filePath);
+    return tab === null ? null : describe(tab);
   }
 
   // そのタブに未保存の編集があるか（spec-1-5 確定事項49）。
@@ -203,9 +220,8 @@
     }
 
     // 同じファイルは2枚にしない（確定事項4）。
-    const key = pathKey(source.path);
-    const existing = key === null ? null : state.list.find((tab) => pathKey(tab.path) === key);
-    if (existing !== null && existing !== undefined) {
+    const existing = tabFor(source.path);
+    if (existing !== null) {
       activate(existing.id);
       return true;
     }
@@ -253,10 +269,10 @@
       return false;
     }
 
-    // 開いている同じファイルなら、読み直さずに切り替える。
-    const key = pathKey(filePath);
-    const existing = key === null ? null : state.list.find((tab) => pathKey(tab.path) === key);
-    if (existing !== null && existing !== undefined) {
+    // 開いている同じファイルなら、読み直さずに切り替える。書き出したファイルをこの口で
+    // 開く経路は、書く前に出力先がタブで開いていないことを確かめてある（output-target.js）。
+    const existing = tabFor(filePath);
+    if (existing !== null) {
       activate(existing.id);
       return true;
     }
@@ -419,6 +435,7 @@
     TITLE,
     init,
     list,
+    findByPath,
     activeId: () => state.activeId,
     count: () => state.list.length,
     openSource,

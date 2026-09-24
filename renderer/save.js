@@ -294,6 +294,13 @@
       return { canceled: true };
     if (typeof picked?.path !== 'string')
       return { error: picked?.error ?? '保存先を決められませんでした。' };
+    // 別のタブで開いているファイルへは保存しない（確定事項97）。保存するとこのタブが
+    // そこへ移り（確定事項26）、同じパスのタブが 2 枚になるため。
+    const refused = root.SigK.outputTarget.refusalForSaveAs(picked.path);
+    if (refused !== null) {
+      banner().show(refused);
+      return { error: refused };
+    }
 
     return writeTo({
       source: view.file.path,

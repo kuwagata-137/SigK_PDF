@@ -258,6 +258,45 @@ test('同名があれば3択を1回だけ出す。上書きは全件、中止は
   assert.equal(SigK.toolsSplit.settings().folder, OUT_DIR);
 });
 
+// ---- タブで開いている出力先（確定事項42） ----
+
+test('出力先のどれかがタブで開いていれば、同名の3択を出す前に断る', async (t) => {
+  const shell = await createSplitShell(t, {
+    files: { [A]: makeSource({ path: A }), [A_TARGETS[1]]: makeSource({ path: A_TARGETS[1] }) },
+    existingPaths: [A_TARGETS[0], A_TARGETS[1]],
+  });
+  const { document: doc, SigK } = shell;
+  await SigK.tabs.openPath(A_TARGETS[1]);
+  SigK.shell.setMode(doc, 'tools');
+  await SigK.toolsSplit.setSource(A);
+
+  const result = await SigK.toolsSplit.run();
+  assert.equal(result.error, '出力先の「a_002.pdf」はタブで開いています。タブを閉じるか、フォルダを変えてください。');
+  assert.equal(SigK.confirmReplace.isOpen(), false, '置き換えてよいかは聞かない');
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(bannerText(shell), result.error);
+});
+
+test('「別名で保存」で選び直したフォルダーの出力先がタブで開いていても断る', async (t) => {
+  const outTargets = targetsFor(OUT_DIR, ['a_001.pdf', 'a_002.pdf', 'a_003.pdf']);
+  const shell = await createSplitShell(t, {
+    files: { [A]: makeSource({ path: A }), [outTargets[0]]: makeSource({ path: outTargets[0] }) },
+    existingPaths: [A_TARGETS[0]],
+    folderResults: [{ path: OUT_DIR }],
+  });
+  const { document: doc, SigK } = shell;
+  await SigK.tabs.openPath(outTargets[0]);
+  SigK.shell.setMode(doc, 'tools');
+  await SigK.toolsSplit.setSource(A);
+
+  const pending = SigK.toolsSplit.run();
+  await shell.flush();
+  doc.getElementById('confirm-replace-rename').click();
+  const result = await pending;
+  assert.equal(result.error, '出力先の「a_001.pdf」はタブで開いています。タブを閉じるか、フォルダを変えてください。');
+  assert.equal(shell.taskCalls.length, 0);
+});
+
 test('中止と失敗は帯で伝え、中止では書き出し済みの本数を添える', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
