@@ -50,7 +50,8 @@ function widenRight(rect, rotation, slack) {
   }
 }
 
-// 行のブロックを描く演算子列。origin は（回転後の座標での）箱の左上。塊⑤の透かしも同じ口。
+// 行のブロックを描く演算子列。origin は（回転後の座標での）箱の左上。
+// 透かしの文字はここを通さず、字形の輪郭で描く（glyph-outline.js。spec-4-5 論点1）。
 function textBlockOps({ lines, fontSize, rgb, origin }, measure) {
   const ops = [
     'BT',
