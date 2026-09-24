@@ -6,88 +6,34 @@
 // write の5段を回す。段の切り替わりごとに進捗を送る。pdf-lib の save() に進捗の
 // 口が無いため、段の中では進まない（実測）。
 //
-// pdf-lib は vendor から読む。配布物に node_modules は入っていない（docs/07 決定18）。
-// asar の中からでも require できることは実測で確かめた（spec-1-6 事前調査 A）。
+// pdf-lib は vendor から読む（pdf-io.js。配布物に node_modules は入っていない。docs/07 決定18）。
+// ツールモードの実行（結合・分割・変換）は tool-tasks.js にあり、runTask が kind で振り分ける
+// （spec-4-5 確定事項47）。ここに残るのは保存・抽出・差し込みの下見である。
 //
 // 本体（runSave）は process.parentPort に触れない。テストから直接呼べるように
 // するためで、メッセージの結線はファイルの末尾だけに閉じてある。
 
 const fs = require('node:fs');
-const path = require('node:path');
 
 const { applyPlan } = require('./op-pages.js');
 const { extractPages } = require('./op-extract.js');
-const { mergeDocuments } = require('./op-merge.js');
-const { splitDocument } = require('./op-split.js');
-const { loadImage, convertToSingle, convertToEach } = require('./op-convert.js');
 const { buildPreview, prepareInserts } = require('./op-insert.js');
 const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
 const { applyAnnotations } = require('./op-annotate.js');
 const { createFontSource } = require('./font-embed.js');
 const { writeDocument } = require('../pdf-write.js');
-const { toBytes } = require('../file-io.js');
-
-const pdfLib = require(path.join(__dirname, '..', 'vendor', 'pdf-lib.min.js'));
-const { PDFDocument } = pdfLib;
-
-// 低レベルの組み立てに要る道具。ページラベル・しおり・差し込みの層へ渡す
-// （vendor へのパスをあちらに持たせない）。
-const TOOLS = {
-  PDFDocument,
-  PDFPage: pdfLib.PDFPage,
-  PDFName: pdfLib.PDFName,
-  PDFHexString: pdfLib.PDFHexString,
-  PDFImage: pdfLib.PDFImage,               // 画素列の埋め込み（pixel-image.js。spec-3-2 確定事項18）
-  PngEmbedder: pdfLib.PngEmbedder,
-  rgb: pdfLib.rgb,
-  PDFString: pdfLib.PDFString,             // 注釈の /NM・/M・/Contents（op-annotate.js。spec-4-1 確定事項25）
-  PDFArray: pdfLib.PDFArray,
-  PDFRef: pdfLib.PDFRef,
-};
+const {
+  PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
+  describeLoadFailure, describeSourceReadFailure, insertReader,
+} = require('./pdf-io.js');
+const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./tool-tasks.js');
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
 
 // テキスト注釈の同梱フォント（spec-4-2 確定事項22・23）。読むのはテキストのある保存の
 // 初回だけで、ワーカーは保存ごとに fork される新プロセスなので 1 回きりである。
 const fontSource = createFontSource();
-
-// save() のオプション（spec-1-6 事前調査 B）。
-//
-//   updateFieldAppearances: false … 既定 true のままだと、getForm() を通った文書で
-//     /AP を持たない和文の欄の見た目を WinAnsi で作り直そうとして失敗する。
-//     このワーカーは getForm() を呼ばないので今は牙を剥かないが、明示して塞いでおく。
-//   addDefaultPage: false … 0ページのときに白紙 A4 を勝手に生やさない。
-//     0ページは applyPlan が先に断るので、ここは二重の備えである。
-const SAVE_OPTIONS = { updateFieldAppearances: false, addDefaultPage: false };
-
-// load のオプション。updateMetadata は **load 側**にある。save へ渡しても効かず、
-// 既定のままだと読み込んだ時点で Producer が pdf-lib へ書き換わる（実測 B）。
-const LOAD_OPTIONS = { updateMetadata: false };
-
-// 例外の型を選ばずに握る。pdf-lib は内容が欠けた PDF で素の TypeError を投げる
-// ことがあり、そのまま画面へ出しても意味が通らない（確定事項11）。
-function describeLoadFailure(error) {
-  if (/encrypted/i.test(String(error?.message ?? '')))
-    return 'パスワードで保護された PDF は保存できません。';
-  return 'この PDF は内容が壊れているため保存できません。';
-}
-
-// file-io.js にも同じ役目の describeReadFailure があるが、あちらは「開くとき」の文言で、
-// こちらは「保存しようとしたら元が無くなっていた」文言である。取り違えないよう名前を分ける。
-function describeSourceReadFailure(error) {
-  switch (error?.code) {
-    case 'ENOENT':
-      return '元のファイルが見つかりません。移動または削除された可能性があります。';
-    case 'EACCES':
-    case 'EPERM':
-      return '元のファイルを読む権限がありません。';
-    case 'EBUSY':
-      return '元のファイルが他のプログラムで使われています。';
-    default:
-      return '元のファイルを読めませんでした。';
-  }
-}
 
 // apply の段。開いた文書をその場で並べ替える（上書き・名前を付けて保存）。
 //
@@ -132,14 +78,6 @@ async function applyForExtract(doc, pages, annotations) {
     return extracted;
   rebuildLabels(extracted.doc, pages, labelsBefore, TOOLS);
   return { ok: true, doc: extracted.doc, pages: extracted.pages, pruned: { outlines: 0, names: 0 } };
-}
-
-// 差し込む元をディスクから読む口。**必ず toBytes() を通す**（確定事項55）。
-// embedJpg は byteOffset≠0 の Uint8Array を必ず拒否し、readFileSync は 4KB 未満の
-// ファイルでプール Buffer を返すためである。書き落とすと「小さい JPEG だけ
-// 挿入できない」という再現しにくい不具合になる。
-function insertReader(fsLike) {
-  return { readFile: async (target) => toBytes(await fsLike.promises.readFile(target)) };
 }
 
 // 差し込むページを1つの PDF として組み立てて返す（確定事項93・94）。
@@ -222,233 +160,11 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   };
 }
 
-// 複数の入力を1つへ結合する（spec-2-1 確定事項22・29〜34）。
-//
-// 5段の名前は保存と同じだが、入力が複数あるので read と apply はファイル単位で
-// 刻む（advance(phase, done, total)）。load は apply の中で1本ずつ行い、複製し
-// 終えた入力から手放す（op-merge.js）。「load」の段は入り口の合図だけを送る。
-//
-// 入力は読むだけなので、退避（.bak）も外部変更の照合も要らない。出力先が入力の
-// 1つと同じ経路はレンダラーが先に断る（確定事項24）。ここは黙って書く。
-async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { inputs, target } = spec ?? {};
-  if (!Array.isArray(inputs) || inputs.length === 0)
-    return { error: '結合するファイルがありません。' };
-  if (typeof target !== 'string')
-    return { error: '保存先が決まっていません。' };
-  if (inputs.some((input) => typeof input?.path !== 'string'))
-    return { error: '結合するファイルの場所が分かりません。' };
-
-  const nameOf = (input) => input.name ?? path.basename(input.path);
-
-  advance('read', 0, inputs.length);
-  const bytes = [];
-  for (const [index, input] of inputs.entries()) {
-    try {
-      bytes.push(await fsLike.promises.readFile(input.path));
-    } catch (error) {
-      return { error: `「${nameOf(input)}」${describeSourceReadFailure(error)}` };
-    }
-    advance('read', index + 1, inputs.length);
-  }
-
-  advance('load');
-  advance('apply', 0, inputs.length);
-  const entries = inputs.map((input, index) => ({
-    name: nameOf(input),
-    pages: input.pages ?? null,
-    load: async () => {
-      const doc = await PDFDocument.load(bytes[index], LOAD_OPTIONS);
-      bytes[index] = null;
-      return doc;
-    },
-  }));
-  const merged = await mergeDocuments(entries, TOOLS, {
-    describeLoadFailure,
-    onProgress: (done, total) => advance('apply', done, total),
-  });
-  if (merged.ok !== true)
-    return merged;
-
-  advance('save');
-  let output;
-  try {
-    output = await merged.doc.save(SAVE_OPTIONS);
-  } catch (error) {
-    return { error: '結合した内容を組み立てられませんでした。' };
-  }
-
-  advance('write');
-  const written = await writeDocument(target, Buffer.from(output), { makeBackup: false, expect: null, fsLike });
-  if (written.ok !== true)
-    return written;
-
-  return {
-    ok: true,
-    path: written.path,
-    bytes: written.bytes,
-    pages: merged.pages,
-    inputs: inputs.length,
-    labeled: merged.labeled,
-    signature: written.signature,
-  };
-}
-
-// 1つの入力を複数へ分ける（spec-2-2 確定事項24〜26・36）。
-//
-// 5段の名前は保存と同じだが、出力が複数あるので **write を part 単位**で刻む
-// （advance('write', done, total)）。apply と save は入り口の合図だけを送る。
-// part ごとに save() → writeDocument を済ませてから次へ進み、書き終えた文書は
-// 手放す（事前調査 A。時間はほぼ writeDocument の回数に比例する）。
-//
-// 入力は読むだけなので退避も照合も要らない。途中で書けなかったら、そこで止めて
-// 書き終えた分は残す（確定事項26）。書きかけの一時ファイルの後始末は
-// task-runner.js が spec.targets で行う。
-async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { source, parts } = spec ?? {};
-  if (typeof source !== 'string')
-    return { error: '分割するファイルが決まっていません。' };
-  if (!Array.isArray(parts) || parts.length === 0)
-    return { error: '分割するページがありません。' };
-  if (parts.some((part) => typeof part?.target !== 'string'))
-    return { error: '出力先が決まっていません。' };
-
-  advance('read');
-  let bytes;
-  try {
-    bytes = await fsLike.promises.readFile(source);
-  } catch (error) {
-    return { error: describeSourceReadFailure(error) };
-  }
-
-  advance('load');
-  let doc;
-  try {
-    doc = await PDFDocument.load(bytes, LOAD_OPTIONS);
-  } catch (error) {
-    return { error: describeLoadFailure(error) };
-  }
-
-  advance('apply');
-  advance('save');
-  advance('write', 0, parts.length);
-  const targets = parts.map((part) => part.target);
-  const split = await splitDocument(doc, parts.map((part) => part.pages), TOOLS, {
-    onPart: async (index, out) => {
-      let output;
-      try {
-        output = await out.save(SAVE_OPTIONS);
-      } catch (error) {
-        return { error: `${index + 1} / ${parts.length} 本目の内容を組み立てられませんでした。` };
-      }
-      const written = await writeDocument(targets[index], Buffer.from(output), { makeBackup: false, expect: null, fsLike });
-      if (written.ok !== true)
-        return { error: `${index + 1} / ${parts.length} 本目を書けませんでした。${written.error ?? ''}` };
-      return { ok: true };
-    },
-    onProgress: (done, total) => advance('write', done, total),
-  });
-  if (split.ok !== true)
-    return split;
-
-  return { ok: true, written: split.written, targets, pages: split.pages, labeled: split.labeled };
-}
-
-// 画像を PDF にする（spec-3-1 確定事項22〜25・29）。
-//
-// output が 'single' なら結合の型（apply を画像単位で刻み、1本書く）、'each' なら分割の型
-// （write を出力単位で刻み、書き終えた分は残す）。読み口は差し込みと同じ insertReader で、
-// 必ず toBytes() を通す（4KB 未満の JPEG が byteOffset≠0 で埋め込めない。確定事項31）。
-// 1ファイル＝1エントリ。layouts はページ数ぶん（TIFF 以外は1つ。spec-3-2 確定事項20）。
-// 塊④ までの `layout`（1つ）も受ける。
-function convertEntries(images, reader) {
-  return images.map((image) => ({
-    name: image.name ?? path.basename(image.path),
-    layouts: Array.isArray(image.layouts) ? image.layouts : [image.layout],
-    load: () => loadImage(image.path, reader),
-  }));
-}
-
-async function runConvertSingle(spec, entries, { fsLike, advance }) {
-  const { target } = spec;
-  if (typeof target !== 'string')
-    return { error: '保存先が決まっていません。' };
-
-  advance('read');
-  advance('load');
-  advance('apply', 0, entries.reduce((sum, entry) => sum + entry.layouts.length, 0), 'ページ');
-  const converted = await convertToSingle(entries, TOOLS, { onProgress: (done, total) => advance('apply', done, total, 'ページ') });
-  if (converted.ok !== true)
-    return converted;
-
-  advance('save');
-  let output;
-  try {
-    output = await converted.doc.save(SAVE_OPTIONS);
-  } catch (error) {
-    return { error: '変換した内容を組み立てられませんでした。' };
-  }
-
-  advance('write');
-  // Buffer.from(Uint8Array) は複製する。100 ページの写真では出力が数百 MB になり得るので、
-  // 複製せずに同じメモリを指す Buffer で書く（spec-3-2 実測）。
-  const written = await writeDocument(target, Buffer.from(output.buffer, output.byteOffset, output.byteLength), { makeBackup: false, expect: null, fsLike });
-  if (written.ok !== true)
-    return written;
-  return { ok: true, path: written.path, bytes: written.bytes, pages: converted.pages, inputs: entries.length, signature: written.signature };
-}
-
-async function runConvertEach(spec, entries, { fsLike, advance }) {
-  const targets = spec.images.map((image) => image.target);
-  if (targets.some((target) => typeof target !== 'string'))
-    return { error: '出力先が決まっていません。' };
-
-  advance('read');
-  advance('load');
-  advance('apply');
-  advance('save');
-  advance('write', 0, entries.length);
-  const converted = await convertToEach(entries, TOOLS, {
-    onPart: async (index, doc) => {
-      let output;
-      try {
-        output = await doc.save(SAVE_OPTIONS);
-      } catch (error) {
-        return { error: `${index + 1} / ${entries.length} 本目の内容を組み立てられませんでした。` };
-      }
-      const written = await writeDocument(targets[index], Buffer.from(output.buffer, output.byteOffset, output.byteLength), { makeBackup: false, expect: null, fsLike });
-      if (written.ok !== true)
-        return { error: `${index + 1} / ${entries.length} 本目を書けませんでした。${written.error ?? ''}` };
-      return { ok: true };
-    },
-    onProgress: (done, total) => advance('write', done, total),
-  });
-  if (converted.ok !== true)
-    return converted;
-  return { ok: true, written: converted.written, targets, pages: converted.pages };
-}
-
-async function runConvert(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { images, output = 'single' } = spec ?? {};
-  if (!Array.isArray(images) || images.length === 0)
-    return { error: '変換する画像がありません。' };
-  if (images.some((image) => typeof image?.path !== 'string'))
-    return { error: '変換する画像の場所が分かりません。' };
-  if (images.some((image) => (image?.layout === undefined || image.layout === null) && !(Array.isArray(image?.layouts) && image.layouts.length > 0)))
-    return { error: '紙の大きさが決まっていません。' };
-  if (output !== 'single' && output !== 'each')
-    return { error: '出力の方式が決まっていません。' };
-
-  const entries = convertEntries(images, insertReader(fsLike));
-  return output === 'each'
-    ? runConvertEach(spec, entries, { fsLike, advance })
-    : runConvertSingle(spec, entries, { fsLike, advance });
-}
-
 // メインへ進捗を送りながら回す。
 //
 // insert-preview だけは5段を回さない。ファイルを書かず、読むのも差し込む元
 // 1本だけなので、進捗を出す間もなく終わる（実測で数ミリ秒）。
+// ツールの kind（TOOL_TASKS）はその実行関数へ、それ以外は保存へ回す。
 async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   const started = Date.now();
   const progress = (phase, done, total, unit) => send(
@@ -456,12 +172,8 @@ async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   let result;
   if (spec?.kind === 'insert-preview')
     result = await runInsertPreview(spec, { fsLike });
-  else if (spec?.kind === 'merge')
-    result = await runMerge(spec, { fsLike, advance: progress });
-  else if (spec?.kind === 'split')
-    result = await runSplit(spec, { fsLike, advance: progress });
-  else if (spec?.kind === 'convert')
-    result = await runConvert(spec, { fsLike, advance: progress });
+  else if (isToolKind(spec?.kind))
+    result = await TOOL_TASKS[spec.kind](spec, { fsLike, advance: progress });
   else
     result = await runSave(spec, { fsLike, advance: progress });
   return { ...result, ms: Date.now() - started };
