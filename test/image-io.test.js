@@ -5,7 +5,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, inspectImage, pickImageSources, createImageIo } = require('../image-io.js');
+const {
+  MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, WATERMARK_IMAGE_FILTERS, WATERMARK_IMAGE_TITLE, WATERMARK_KIND_ERROR,
+  inspectImage, pickImageSources, pickWatermarkImage, readWatermarkImage, createImageIo,
+} = require('../image-io.js');
 const { makePng, makeJpeg, GIF89A, WEBP } = require('./fixtures/images.js');
 const { makeTiff } = require('./fixtures/tiff.js');
 const { makeBmp, rgbaGradient } = require('./fixtures/bmp.js');
@@ -150,9 +153,67 @@ test('pickImageSources は画像のフィルターで複数選択させ、親の
   assert.deepEqual(await pickImageSources({ dialogLike: { showOpenDialog: async () => ({ canceled: false, filePaths: [] }) } }), { canceled: true });
 });
 
+// ---- 透かしの画像（spec-4-5 確定事項35・36） ----
+
+test('pickWatermarkImage は PNG・JPEG のフィルターと題名で 1 本だけ選ばせる', async () => {
+  const calls = [];
+  const dialogLike = {
+    showOpenDialog: async (...args) => {
+      calls.push(args);
+      return { canceled: false, filePaths: [IN_A] };
+    },
+  };
+  assert.deepEqual(await pickWatermarkImage({ dialogLike, defaultPath: 'C:/in' }), { path: IN_A });
+  assert.equal(calls[0].length, 1, '親が無ければ options だけ');
+  assert.deepEqual(calls[0][0], { title: WATERMARK_IMAGE_TITLE, properties: ['openFile'], filters: WATERMARK_IMAGE_FILTERS, defaultPath: 'C:/in' });
+  assert.deepEqual(WATERMARK_IMAGE_FILTERS, [{ name: 'PNG・JPEG 画像', extensions: ['png', 'jpg', 'jpeg'] }]);
+  const parent = { id: 1 };
+  await pickWatermarkImage({ dialogLike, parentWindow: parent });
+  assert.equal(calls[1][0], parent, '親があれば先頭に渡す');
+  assert.deepEqual(await pickWatermarkImage({ dialogLike: { showOpenDialog: async () => ({ canceled: true }) } }), { canceled: true });
+  assert.deepEqual(await pickWatermarkImage({ dialogLike: { showOpenDialog: async () => ({ canceled: false, filePaths: [''] }) } }), { canceled: true });
+});
+
+test('readWatermarkImage は PNG・JPEG を丸ごと読み、形式と画素数と中身を返す', async () => {
+  const png = makePng({ width: 40, height: 20, alpha: 0x80 });
+  const jpeg = makeJpeg({ width: 32, height: 16 });
+  const { fsLike } = fsFor({ [IN_A]: { bytes: png }, [IN_B]: { bytes: jpeg } });
+  const read = await readWatermarkImage(IN_A, { fsLike });
+  assert.equal(read.ok, true);
+  assert.deepEqual([read.kind, read.width, read.height, read.name, read.size], ['png', 40, 20, 'a.png', png.length]);
+  assert.ok(read.bytes instanceof Uint8Array);
+  assert.equal(read.bytes.length, png.length);
+  assert.equal((await readWatermarkImage(IN_B, { fsLike })).kind, 'jpeg');
+});
+
+test('readWatermarkImage は PNG・JPEG 以外とプログレッシブの JPEG を、ワーカーと同じ文言で断る', async () => {
+  const bmp = makeBmp({ width: 2, height: 2, pixels: rgbaGradient(2, 2) });
+  const { fsLike } = fsFor({
+    'C:/in/c.bmp': { bytes: bmp },
+    'C:/in/d.gif': { bytes: GIF89A },
+    'C:/in/e.jpg': { bytes: makeJpeg({ width: 8, height: 8, marker: 0xc2 }) },
+    'C:/in/f.png': { bytes: Buffer.from('not an image') },
+  });
+  assert.deepEqual(await readWatermarkImage('C:/in/c.bmp', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'bmp' });
+  assert.deepEqual(await readWatermarkImage('C:/in/d.gif', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'gif' });
+  assert.deepEqual(await readWatermarkImage('C:/in/e.jpg', { fsLike }), { error: 'この JPEG は透かしに使えません（プログレッシブ形式）。', kind: 'jpeg' });
+  assert.deepEqual(await readWatermarkImage('C:/in/f.png', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: null });
+  assert.equal(WATERMARK_KIND_ERROR, 'PNG か JPEG の画像を選んでください。');
+});
+
+test('readWatermarkImage は無い・フォルダー・大きすぎるものを読む前に断る', async () => {
+  const { fsLike } = fsFor({ 'C:/in/dir': { dir: true }, [IN_A]: { bytes: makePng({ width: 4, height: 4 }) } });
+  assert.match((await readWatermarkImage('C:/in/none.png', { fsLike })).error, /見つかりません/);
+  assert.equal((await readWatermarkImage('C:/in/dir', { fsLike })).error, 'ファイルではありません。');
+  assert.match((await readWatermarkImage(IN_A, { fsLike, maxBytes: 10 })).error, /大きすぎます/);
+  assert.equal((await readWatermarkImage('', { fsLike })).error, 'ファイルが指定されていません。');
+});
+
 test('createImageIo は inspect と pickSources をまとめる', async () => {
   const io = createImageIo({ dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [IN_A] }) } });
   assert.deepEqual(await io.pickSources(null, {}), { paths: [IN_A] });
+  assert.deepEqual(await io.pickWatermark(null, {}), { path: IN_A });
+  assert.match((await io.readWatermark('C:/in/none.png')).error, /見つかりません/);
   assert.equal(io.MAX_IMAGE_BYTES, MAX_IMAGE_BYTES);
   assert.match((await io.inspect('C:/in/none.png')).error, /見つかりません/);
 });

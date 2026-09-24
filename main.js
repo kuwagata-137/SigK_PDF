@@ -351,6 +351,9 @@ function registerIpc() {
   // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
   ipcMain.handle('pdf:pickImageSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
   ipcMain.handle('pdf:inspectImage', (_event, filePath) => imageIo.inspect(filePath));
+  // 透かしにする画像を 1 枚選ぶ・丸ごと読む（spec-4-5 確定事項35・36）。
+  ipcMain.handle('pdf:pickWatermarkImage', (_event, options = {}) => imageIo.pickWatermark(mainWindow, options));
+  ipcMain.handle('pdf:readWatermarkImage', (_event, filePath) => imageIo.readWatermark(filePath));
   // PDF→画像（spec-3-3 確定事項19）。レンダラーが描いた 1 ページぶんを書く。
   ipcMain.handle('image:write', (_event, target, bytes) => imageIo.write(target, bytes));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
