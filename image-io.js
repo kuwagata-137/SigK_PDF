@@ -18,7 +18,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { inspectImageBytes } = require('./worker/image-format.js');
+const { detectFormat, isProgressiveJpeg, inspectImageBytes } = require('./worker/image-format.js');
 const { toBytes, describeReadFailure } = require('./file-io.js');
 const { writeDocument } = require('./pdf-write.js');
 
@@ -97,6 +97,55 @@ async function pickImageSources({ dialogLike, parentWindow = null, defaultPath =
   return { paths: result.filePaths.filter((entry) => typeof entry === 'string' && entry.length > 0) };
 }
 
+// ---- 透かしの画像（spec-4-5 確定事項35・36。論点7） ----
+//
+// 透かしにできるのは PNG と JPEG だけ（GIF・BMP・TIFF は読み込みで透過が白く塗られ、白い四角が
+// 重なるため）。受け付けるかどうかは先頭バイトで判定し、文言はワーカー（worker/op-watermark.js）と揃える。
+
+const WATERMARK_IMAGE_FILTERS = [{ name: 'PNG・JPEG 画像', extensions: ['png', 'jpg', 'jpeg'] }];
+const WATERMARK_IMAGE_TITLE = '透かしにする画像を選ぶ';
+const WATERMARK_KIND_ERROR = 'PNG か JPEG の画像を選んでください。';
+
+// 透かしにする画像を 1 枚選ばせる。戻り値 { path } / { canceled }。
+async function pickWatermarkImage({ dialogLike, parentWindow = null, defaultPath = undefined }) {
+  const options = { title: WATERMARK_IMAGE_TITLE, properties: ['openFile'], filters: WATERMARK_IMAGE_FILTERS, defaultPath };
+  // showOpenDialog(options) と showOpenDialog(window, options) は別の呼び出しである（pickImageSources と同じ）。
+  const result = parentWindow === null
+    ? await dialogLike.showOpenDialog(options)
+    : await dialogLike.showOpenDialog(parentWindow, options);
+  const [filePath] = Array.isArray(result?.filePaths) ? result.filePaths : [];
+  if (result?.canceled === true || typeof filePath !== 'string' || filePath === '')
+    return { canceled: true };
+  return { path: filePath };
+}
+
+// 透かしの画像を丸ごと読む（画面のプレビューに出すため。書くときはワーカーがパスから読み直す）。
+// 戻り値 { ok, path, name, size, kind, width, height, bytes } / { error, kind? }。
+async function readWatermarkImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_BYTES, onError = () => {} } = {}) {
+  if (typeof filePath !== 'string' || filePath === '')
+    return { error: 'ファイルが指定されていません。' };
+  try {
+    const stat = await fsLike.promises.stat(filePath);
+    if (!stat.isFile())
+      return { error: 'ファイルではありません。' };
+    if (stat.size > maxBytes)
+      return { error: `ファイルが大きすぎます。${Math.floor(maxBytes / 1024 / 1024)}MB までに対応しています。` };
+    const bytes = toBytes(await fsLike.promises.readFile(filePath));
+    const kind = detectFormat(bytes);
+    if (kind !== 'png' && kind !== 'jpeg')
+      return { error: WATERMARK_KIND_ERROR, kind };
+    if (kind === 'jpeg' && isProgressiveJpeg(bytes))
+      return { error: 'この JPEG は透かしに使えません（プログレッシブ形式）。', kind };
+    const inspected = inspectImageBytes(bytes);
+    if (inspected.ok !== true)
+      return { error: inspected.error, kind };
+    return { ok: true, path: filePath, name: path.basename(filePath), size: stat.size, kind, width: inspected.width, height: inspected.height, bytes };
+  } catch (error) {
+    onError({ message: '透かしの画像を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });
+    return { error: describeReadFailure(error) };
+  }
+}
+
 // PDF→画像が書き出す拡張子（spec-3-3 確定事項11・19）。レンダラーが組んだ出力先を
 // そのまま書くので、画像以外の名前が来たら断る防具を置く。
 const IMAGE_WRITE_EXTENSIONS = ['.png', '.jpg', '.jpeg'];
@@ -127,8 +176,15 @@ function createImageIo({ dialog, onError = () => {} }) {
     inspect: (filePath) => inspectImage(filePath, { onError }),
     pickSources: (parentWindow = null, { defaultPath } = {}) =>
       pickImageSources({ dialogLike: dialog, parentWindow, defaultPath }),
+    pickWatermark: (parentWindow = null, { defaultPath } = {}) =>
+      pickWatermarkImage({ dialogLike: dialog, parentWindow, defaultPath }),
+    readWatermark: (filePath) => readWatermarkImage(filePath, { onError }),
     write: (target, bytes) => writeImage(target, bytes),
   };
 }
 
-module.exports = { MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, IMAGE_WRITE_EXTENSIONS, inspectImage, pickImageSources, isImageWritePath, writeImage, createImageIo };
+module.exports = {
+  MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, IMAGE_WRITE_EXTENSIONS,
+  WATERMARK_IMAGE_FILTERS, WATERMARK_IMAGE_TITLE, WATERMARK_KIND_ERROR,
+  inspectImage, pickImageSources, pickWatermarkImage, readWatermarkImage, isImageWritePath, writeImage, createImageIo,
+};

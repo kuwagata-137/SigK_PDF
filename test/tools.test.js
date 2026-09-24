@@ -24,10 +24,10 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(doc.getElementById('side-title').textContent, 'ツール');
   // サイドパネルはツール一覧が使う。「文書を開くと…」の案内は出さない。
   assert.equal(doc.getElementById('thumbs-empty').hidden, true);
-  // 一覧は「結合」「分割」「画像→PDF」「PDF→画像」で、入った時点では結合が選ばれている
-  // （確定事項1・3、spec-2-2 確定事項39、spec-3-1 確定事項34、spec-3-3 確定事項28）。
+  // 一覧は「結合」「分割」「画像→PDF」「PDF→画像」「透かし」「フラット化」で、入った時点では結合が選ばれている
+  // （確定事項1・3、spec-2-2 確定事項39、spec-3-1 確定事項34、spec-3-3 確定事項28、spec-4-5 確定事項1）。
   const items = [...doc.querySelectorAll('#tools-list .tool-item')];
-  assert.deepEqual(items.map((item) => item.dataset.tool), ['merge', 'split', 'convert', 'toImage']);
+  assert.deepEqual(items.map((item) => item.dataset.tool), ['merge', 'split', 'convert', 'toImage', 'watermark', 'flatten']);
   assert.equal(items[0].classList.contains('active'), true);
   assert.equal(SigK.tools.selected(), 'merge');
   assert.equal(SigK.tools.panelFor('merge').hidden, false);

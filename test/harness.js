@@ -209,6 +209,8 @@ function createPdfjsStub({
           // （spec-1-6 確定事項93）ので、これが無いと写像を確かめられない。
           docId: document.id,
           rotate,
+          // 本物の page.view（CropBox。紙の座標）。透かしのプレビューが置き方の基準に使う（spec-4-5 確定事項12）。
+          view: [0, 0, size.width, size.height],
           // 本物と同じく、rotation は絶対値として置き換える。既定値はページ
           // 自身の rotate である（spec-1-5 の事前調査）。
           getViewport: ({ scale, rotation = rotate }) => {
@@ -411,6 +413,10 @@ async function createShell({
   // write の結果を仕込まなければ、書けたことにして { ok, path, bytes } を返す。
   toolSourceResults = [],
   imageWriteResults = [],
+  // pdfAPI.pickWatermarkImage() が返すものの並びと、readWatermarkImage() が返す画像
+  // （パス → { kind, width, height, bytes? } か { error, kind? }）（spec-4-5 確定事項35・36）。
+  watermarkImageResults = [],
+  watermarkImages = {},
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -442,6 +448,7 @@ async function createShell({
   const folderCalls = [];
   const imageSourceCalls = [];
   const toolSourceCalls = [];
+  const watermarkImageCalls = [];
   // imageAPI.write() に届いた { target, bytes } の並び（spec-3-3 確定事項19）。
   const imageWrites = [];
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
@@ -518,6 +525,20 @@ async function createShell({
           return { error: info.error };
         const frames = Array.isArray(info.frames) ? info.frames : [{ width: info.width, height: info.height }];
         return { ok: true, path: filePath, name: filePath.split(/[\\/]/).pop(), size: info.size ?? 1000, kind: info.kind, width: info.width, height: info.height, pages: frames.length, frames };
+      },
+      // 透かしの画像（spec-4-5 確定事項35・36）。本物は先頭バイトで PNG・JPEG を見分ける。ここは仕込んだ答えを返す。
+      pickWatermarkImage: async (options) => {
+        watermarkImageCalls.push(structuredClone(options ?? {}));
+        return watermarkImageResults.shift() ?? { canceled: true };
+      },
+      readWatermarkImage: async (filePath) => {
+        const image = watermarkImages[filePath];
+        if (image === undefined)
+          return { error: 'ファイルが見つかりません。' };
+        if (image.error !== undefined)
+          return { error: image.error, kind: image.kind ?? null };
+        const bytes = image.bytes ?? new window.Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+        return { ok: true, path: filePath, name: filePath.split(/[\\/]/).pop(), size: bytes.length, kind: image.kind, width: image.width, height: image.height, bytes };
       },
     };
     // エクスプローラーからの起動要求（spec-1-6 確定事項77・80）。
@@ -666,6 +687,9 @@ async function createShell({
     toolSourceCalls,
     imageWrites,
     imageWriteResults,
+    // pdfAPI.pickWatermarkImage() に届いたオプションと、readWatermarkImage が返す画像（spec-4-5）。
+    watermarkImageCalls,
+    watermarkImages,
     showInFolderCalls,
     // pdfAPI.exists() が「ある」と答えるパス。テストから足したり消したりできる。
     existingPaths,

@@ -19,7 +19,9 @@ Phase 4 の2つ目の塊。**注釈モードで「テキスト」の道具を選
 
 同時に「日本語フォントの埋め込み基盤」（ロードマップ 4-1）を作る。pdf-lib の標準14書体は WinAnsi しか扱えず日本語を
 描けないため（`docs/02` 1-4）、Noto Sans JP を同梱し、保存のたびに使った文字だけをサブセットにして埋め込む。この基盤は
-塊⑤のテキスト透かし（F-05-8）も同じ口を使う。
+塊⑤のテキスト透かし（F-05-8）も同じ口を使う。**2026-09-24 訂正**: Phase 4 塊⑤の透かしは、この口（`textBlockOps`・
+埋め込み）を使わず、同梱フォントの字形の輪郭をパスとして描く形になった（`spec-4-5` 論点1。文字として書くと透かしの文字が
+本アプリの検索・選択・コピーに混ざるため）。同梱フォントそのもの（`createFontSource`）は透かしも使う。
 
 塊①（`spec-4-1`）で固めた土台 — 注釈の持ち方（`{ added, removed }`）・1本の履歴・dirty・SVG の層・右パネル・
 `/Annots` への書き込み・保存後の開き直し — はそのまま使い、テキストという新しい種類（`kind: 'text'`）を載せる。
@@ -191,7 +193,7 @@ B の検体を Browser パネルの pdf.js で開いた。
 | 24 | 2 回目以降の保存（論点4） | 保存ごとに、その保存で足したテキストの分だけの 1 サブセット（辞書 1 組＋`FontFile2` 1 本。事前調査 B）。前回までの注釈は触らない。編集・削除で古い `/AP` を消してもフォント本体は残る（他の注釈と共有かもしれないので消さない）。増分は既知の限界として書く |
 | 25 | 注釈の辞書 | `/Type /Annot`・`/Subtype /FreeText`・`/Rect`・**`/Contents`（`PDFHexString.fromText`。UTF-16BE。改行は `\n`）**・**`/DA (/SigKJP <size> Tf r g b rg)`**・`/Border [0 0 0]`・`/Rotate <rotation>`（0 のときは書かない）・`/F 4`・`/NM sigk-…`・`/P`・`/M`・`/CA 1`・`/AP << /N ref >>`。**書かないもの**: `/C`（ビューアによっては箱の背景色に使う）・`/DS`・`/RC`・`/IT`・`/Q`・`/QuadPoints`。`PDFString.of` は 1 バイト文字用で日本語が壊れるので使わない |
 | 26 | 外観 `/AP /N` | Form XObject。`BBox` ＝ `/Rect`、`Matrix` 無し（塊①と同じ「紙の座標をそのまま書く」流儀）、`Resources: { Font: { SigKJP: fontRef }, ExtGState: { GS } }`。content は pdf.js と同じ式: `q` → `rotation` の `cm`（90: `0 1 -1 0`、180: `-1 0 0 -1`、270: `0 -1 1 0`）→ 回転後の座標での `re W n` → `BT rg Tf TL Td <hex> Tj (T* <hex> Tj)… ET Q`。1 行目のベースラインは枠の上端から `PADDING + BASELINE × size` |
-| 27 | 純関数の境界 | `worker/free-text-appearance.js` は pdf-lib を知らず、`measure` を受け取って content stream の文字列と `bbox`・`da` を返す。`frameOf(rect, rotation)`（4 方向の `cm`・clip・起点）と `textBlockOps({ lines, fontSize, rgb, origin, matrix }, measure)` を分けて公開し、塊⑤の透かし（任意の角度の行列）も同じ口に載せる |
+| 27 | 純関数の境界 | `worker/free-text-appearance.js` は pdf-lib を知らず、`measure` を受け取って content stream の文字列と `bbox`・`da` を返す。`frameOf(rect, rotation)`（4 方向の `cm`・clip・起点）と `textBlockOps({ lines, fontSize, rgb, origin, matrix }, measure)` を分けて公開し、塊⑤の透かし（任意の角度の行列）も同じ口に載せる。**2026-09-24 訂正**: 実物の `textBlockOps` は `matrix` を受けない（`{ lines, fontSize, rgb, origin }`。回転は外側の `cm` で当てる）。塊⑤の透かしはこの口を使わず、字形の輪郭で描いた（`spec-4-5` 論点1） |
 | 28 | 消すとき | `annotation-remove.js`（`op-annotate.js` から切り出す）の `deleteAnnot` は塊①と同じく `/AP /N` と `/Popup` を消す。フォントは消さない（確定事項24） |
 
 ### E. 印刷・PDF→画像（`spec-4-1` E と同じ）

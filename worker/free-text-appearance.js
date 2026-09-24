@@ -50,7 +50,8 @@ function widenRight(rect, rotation, slack) {
   }
 }
 
-// 行のブロックを描く演算子列。origin は（回転後の座標での）箱の左上。塊⑤の透かしも同じ口。
+// 行のブロックを描く演算子列。origin は（回転後の座標での）箱の左上。
+// 透かしの文字はここを通さず、字形の輪郭で描く（glyph-outline.js。spec-4-5 論点1）。
 function textBlockOps({ lines, fontSize, rgb, origin }, measure) {
   const ops = [
     'BT',
@@ -91,6 +92,7 @@ function freeTextAppearanceOf(entry, measure) {
     return null;
   const { fontSize, rotation } = entry;
   const rgb = parseColor(entry.color);
+  const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
 
   const rect = widenRight(entry.rect, rotation, RIGHT_SLACK).map((value) => Math.round(value * 100) / 100);
   const { matrix, clip, first } = frameOf(rect, rotation);
@@ -110,7 +112,7 @@ function freeTextAppearanceOf(entry, measure) {
     da: `/${measure.name} ${num(fontSize)} Tf ${num(rgb[0])} ${num(rgb[1])} ${num(rgb[2])} rg`,
     subtype: 'FreeText',
     rgb,
-    opacity: 1,
+    opacity: alpha,
     lines,
   };
 }
