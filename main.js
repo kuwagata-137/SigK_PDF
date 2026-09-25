@@ -24,8 +24,10 @@ const { createImageIo } = require('./image-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
+const { createLaunchBatcher } = require('./launch-batch.js');
 const { smokeWindowMode } = require('./smoke-window.js');
 const smokeRewrite = require('./smoke-rewrite.js');
+const smokeLaunch = require('./smoke-launch.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -65,6 +67,9 @@ let dirtyTabCount = 0;
 // いないから」である。`did-finish-load` を合図に送った分まで消えた（実測で7通中5通）。
 let launchReady = false;
 const pendingLaunch = [];
+// 同じ操作の束の印は、メインに届いた時刻で付ける（spec-5-1 確定事項3）。溜めている間も
+// 届いた時刻で決まるので、画面の準備を待つ間に束が割れることはない。
+const launchBatcher = createLaunchBatcher();
 // 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
 let allowClose = false;
 
@@ -225,17 +230,16 @@ function sendLaunch(request) {
   mainWindow?.webContents.send('shell:launch', request);
 }
 
-// 起動引数を1件の要求にして流す。
+// 起動引数を1件の要求にし、同じ操作の束の印を付けて流す（spec-5-1 確定事項1・3〜5）。
 //
-// **集約はしない**（確定事項78）。`open` はパスが届くたびにタブを1枚足せば済む。
-// 集約が要るのは merge・split・toPdf で、いずれも Phase 2 以降である。
-// `PENDING_WINDOW_MS` も Phase 5 のままにする（400ms では短いことは実測済み。docs/03）。
+// 右クリックで N 個選ぶと、シェルは N 本のプロセスを起こし、要求は 1 件ずつ届く。
+// **静まるのを待ってまとめることはしない。**届くたびにすぐ渡し、束の印（`batch`）を
+// 見て画面が一覧へまとめる（`renderer/launch.js`）。パスの無い要求は渡さない。
 function queueLaunch(argv) {
   const request = parseLaunchArgs(argv, { isFile: isExistingFile });
-  // 塊⑤ で扱うのは open だけである。ほかの意図は黙って捨てる。
-  if (request === null || request.intent !== 'open' || request.paths.length === 0)
+  if (request === null || request.paths.length === 0)
     return;
-  sendLaunch(request);
+  sendLaunch(launchBatcher.assign(request));
 }
 
 function requestOpen(filePath = null) {
@@ -1385,27 +1389,6 @@ function installSmokeCheck(win, mode) {
     return count;
   }
 
-  // SIGK_SMOKE_LAUNCH=<待ち時間ms> を付けると、起動引数から開けたかを報告する
-  // （spec-1-6 確定事項72〜80）。`--open <絶対パス>` と一緒に使う。
-  //
-  // **ここでしか分からないことが2つある。**実機の argv がどう届くか（並べ替えと
-  // `--allow-file-access-from-files` の差し込み）と、レンダラーが購読を始めるまで
-  // 保持した要求が本当に流れるかである。テストは argv を手で組み、購読の順番も
-  // スタブで見ているので、この2つは通しでしか確かめられない。
-  // 待ち時間を長くすると、その間に2つ目のプロセスを起こせる。**`second-instance`
-  // の argv は並べ替えられる**ので、そこを通してこそ確定事項73 を確かめられる。
-  const launchScript = (waitMs) => `(async () => {
-    await new Promise((resolve) => setTimeout(resolve, ${waitMs}));
-    const state = window.SigK.viewer.getState();
-    return {
-      tabCount: window.SigK.tabs.count(),
-      names: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
-      openedName: state.file && state.file.name,
-      pageCount: state.pageCount,
-      message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
-    };
-  })()`;
-
   // SIGK_SMOKE_SAVE=<出力先> を付けると、保存の経路を丸ごと1回通す
   // （spec-1-6 の完了判定8）。SIGK_SMOKE_PDF と一緒に使う。
   //
@@ -1993,10 +1976,10 @@ function installSmokeCheck(win, mode) {
         if (process.env.SIGK_SMOKE_THROW === '1')
           await win.webContents.executeJavaScript('setTimeout(() => { throw new Error("起動確認の意図的な例外"); }, 0); true');
         shell = await win.webContents.executeJavaScript(readShellState);
-        // 起動引数はいちばん先に効くので、ほかの経路より前に見る。
+        // 起動引数はいちばん先に効くので、ほかの経路より前に見る（スクリプトと使い方は smoke-launch.js）。
         if (process.env.SIGK_SMOKE_LAUNCH) {
           const waitMs = Math.max(300, Number(process.env.SIGK_SMOKE_LAUNCH) || 900);
-          launch = await win.webContents.executeJavaScript(launchScript(waitMs));
+          launch = await win.webContents.executeJavaScript(smokeLaunch.launchScript(waitMs));
         }
         // 実測は温まっていない状態で採りたいので、ほかの経路より前に置く。
         if (perfPath !== undefined) {
@@ -2323,8 +2306,13 @@ process.on('unhandledRejection', (reason) => {
 });
 
 // 2つ目以降のプロセスは窓を開かず、引数だけを1つ目へ渡して終わる（確定事項80）。
+//
+// **`app.quit()` ではなく `app.exit(0)` で終わる**（spec-5-1 確定事項6）。引数の転送は
+// requestSingleInstanceLock の中で済んでいる。`app.quit()` は Chromium の準備を待ってから
+// 終わるので、右クリックで 10 個選ぶと 10 本が約 2 秒ずつ残った（事前調査 A4。exit なら約 0.6 秒）。
+// ロックを取る位置を前へ出しても約 20ms しか縮まないので、位置は動かさない。
 if (!app.requestSingleInstanceLock()) {
-  app.quit();
+  app.exit(0);
 } else {
   app.on('second-instance', (_event, argv) => {
     queueLaunch(argv);

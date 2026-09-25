@@ -200,6 +200,23 @@ test('入力と同じ出力先と、タブで開いている出力先は断っ�
   assert.equal(shell.taskCalls.length, 0);
 });
 
+test('保存ダイアログを開いている間も実行中と数え、やめれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  let answer;
+  const dialog = new Promise((resolve) => { answer = resolve; });
+  const shell = await createWatermarkShell(t, { savePathResults: [dialog] });
+  await withSource(shell);
+
+  const running = shell.SigK.toolsWatermark.run();
+  await shell.flush();
+  assert.equal(shell.SigK.toolsWatermark.isRunning(), true);
+  assert.equal(shell.SigK.toolsWatermark.canRun(), false);
+
+  answer({ canceled: true });
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(shell.SigK.toolsWatermark.isRunning(), false);
+  assert.equal(shell.SigK.toolsWatermark.canRun(), true);
+});
+
 test('保存ダイアログをやめたら何もしない。中止は帯で伝える', async (t) => {
   const shell = await createWatermarkShell(t, { savePathResults: [{ canceled: true }, { path: OUT }], taskResults: [{ canceled: true }] });
   await withSource(shell);

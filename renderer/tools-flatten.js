@@ -98,9 +98,21 @@
     return !state.running && root.SigK.save?.isBusy() !== true && status().ready === true;
   }
 
+  // 保存ダイアログ・焼き込みの確認・書いた後の始末まで実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: 'フラット化できる状態ではありません。' };
+    state.running = true;
+    view()?.render();
+    try {
+      return await runConfirmed();
+    } finally {
+      state.running = false;
+      view()?.render();
+    }
+  }
+
+  async function runConfirmed() {
     const src = source();
     const counts = state.census.result;
     const chosen = await root.SigK.rewriteOutput.chooseTarget({ sourcePath: src.path, defaultPath: defaultTarget(src.path), title: SAVE_TITLE });
@@ -110,15 +122,7 @@
     if (!agreed)
       return { canceled: true };
 
-    state.running = true;
-    view()?.render();
-    let result;
-    try {
-      result = await root.SigK.save.runTask({ kind: 'flatten', label: RUN_LABEL, source: src.path, target: chosen.target });
-    } finally {
-      state.running = false;
-      view()?.render();
-    }
+    const result = await root.SigK.save.runTask({ kind: 'flatten', label: RUN_LABEL, source: src.path, target: chosen.target });
     return root.SigK.rewriteOutput.finish(result, chosen.target, {
       canceled: 'フラット化を中止しました。',
       failed: 'フラット化できませんでした。',

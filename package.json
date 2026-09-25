@@ -46,9 +46,11 @@
       "recent-documents.js",
       "pdf-write.js",
       "launch-args.js",
+      "launch-batch.js",
       "task-runner.js",
       "smoke-window.js",
       "smoke-rewrite.js",
+      "smoke-launch.js",
       "worker/**",
       "index.html",
       "renderer/**",
@@ -69,7 +71,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "SigK PDF"
-    }
+      "shortcutName": "SigK PDF",
+      "include": "build/installer.nsh",
+      "packElevateHelper": false
+    },
+    "publish": null
   }
 }

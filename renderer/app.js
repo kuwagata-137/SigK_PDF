@@ -128,11 +128,14 @@
     root.SigK.recentPanel.init(doc, win);
     root.SigK.fileDrop.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
-    // 起動要求の受け口は**タブ層より後**に置く。開く先が要るためである。
-    // 購読を始めた時点でメインが溜めていた要求を流してくる（確定事項77）。
-    root.SigK.launch.init(doc, win);
     showAppVersion(doc);
-    restoreUi(doc);
+    // 起動要求の受け口は**タブ層より後**、かつ**前回の見た目の復元が返った後**に結線する。
+    // 購読を始めた時点でメインが溜めていた要求を流してくる（確定事項77）が、復元より先に
+    // 結線すると、その要求で切り替えたモードを、後から返る復元が保存されたモードへ戻して
+    // しまう（spec-5-1 確定事項14）。復元は失敗しても受け口は結線する。
+    root.SigK.app.ready = restoreUi(doc)
+      .catch(() => null)
+      .then(() => root.SigK.launch.init(doc, win));
 
     return true;
   }

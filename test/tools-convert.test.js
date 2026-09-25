@@ -127,6 +127,33 @@ test('addFromLaunch はツールモードへ切り替えて変換を選び、末
   assert.deepEqual(names(shell), ['a.png', 'b.jpg']);
 });
 
+test('右クリックの束はファイル名の順に並び、注記は束につき 1 回。実行済みの一覧は次の束で置き換える（spec-5-1 確定事項16〜18）', async (t) => {
+  const note = 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+  const shell = await createShell({
+    imageInfos: INFOS,
+    files: { [OUT]: makeSource({ path: OUT }) },
+    savePathResults: [{ path: OUT }],
+    taskResults: [{ ok: true, path: OUT, pages: 2, inputs: 2 }],
+  });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  const { SigK } = shell;
+
+  await SigK.toolsConvert.addFromLaunch([C], { batch: { id: 1, first: true } });
+  await SigK.toolsConvert.addFromLaunch([A], { batch: { id: 1, first: false } });
+  assert.deepEqual(names(shell), ['a.png', 'c.png']);
+  assert.equal(bannerText(shell), note);
+  SigK.viewBanner.show('ほかの知らせ');
+  await SigK.toolsConvert.addFromLaunch([B], { batch: { id: 1, first: false } });
+  assert.deepEqual(names(shell), ['a.png', 'b.jpg', 'c.png']);
+  assert.equal(bannerText(shell), 'ほかの知らせ');
+
+  assert.equal((await SigK.toolsConvert.run()).ok, true);
+  await SigK.toolsConvert.addFromLaunch([B], { batch: { id: 2, first: true } });
+  assert.deepEqual(names(shell), ['b.jpg'], '実行し終えた一覧は置き換える');
+  assert.equal(SigK.tools.selected(), 'convert');
+});
+
 test('読めない画像は行に印と文言が付き、実行できない', async (t) => {
   const shell = await createConvertShell(t, {
     imageInfos: {
@@ -467,6 +494,24 @@ test('中止と失敗は帯で伝え、画像ごとの中止では書き出し�
   const failed = await SigK.toolsConvert.run();
   assert.match(failed.error, /a\.png/);
   assert.equal(bannerText(shell), failed.error);
+});
+
+test('保存ダイアログを開いている間も実行中と数え、やめれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  let answer;
+  const dialog = new Promise((resolve) => { answer = resolve; });
+  const shell = await createConvertShell(t, { savePathResults: [dialog] });
+  const { SigK } = shell;
+  await SigK.toolsConvert.addPaths([A, B]);
+
+  const running = SigK.toolsConvert.run();
+  await shell.flush();
+  assert.equal(SigK.toolsConvert.isRunning(), true);
+  assert.equal(SigK.toolsConvert.canRun(), false);
+
+  answer({ canceled: true });
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(SigK.toolsConvert.isRunning(), false);
+  assert.equal(SigK.toolsConvert.canRun(), true);
 });
 
 test('実行中は一覧と設定と実行ボタンが押せず、進捗はファイル数で出る', async (t) => {

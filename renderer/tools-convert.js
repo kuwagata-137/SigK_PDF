@@ -10,19 +10,24 @@
   // 結合（tools-merge.js）と分割（tools-split.js）の両方に似る。行を並べるところは
   // 結合、設定から計画を組んで同名を確かめるところは分割と同じ作法にしてある。
 
+  // executed は「最後の実行が成功し、その後に一覧を変えていない」（spec-5-1 確定事項18）。
+  // 用紙・出力の設定は一覧ではないので、変えても下ろさない。
   const state = {
     rows: [], seq: 0,
     paper: 'a4', orientation: 'auto', margin: 'normal', output: 'single',
     folder: null, folderTouched: false,
-    running: false,
+    running: false, executed: false,
   };
   let el = null;
+  let launchBatch = null;
 
   const banner = () => root.SigK.viewBanner;
   const tabs = () => root.SigK.tabs;
   const list = () => root.SigK.toolsConvertList;
   const view = () => root.SigK.toolsConvertView;
   const plan = () => root.SigK.convertPlan;
+  const intake = () => root.SigK.launchIntake;
+  const batches = () => (launchBatch ??= intake().createBatchTracker());
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
 
   function pathKey(filePath) {
@@ -63,11 +68,17 @@
     return { error: `${info.error}。外してください` };
   }
 
-  async function addPaths(paths) {
-    const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
+  const validPaths = (paths) => (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
+  const limitMessage = () => `変換できるのは ${plan().MAX_INPUTS} ファイルまでです。`;
+
+  // batch を渡すと、右クリックの束の行として、同じ束の中でファイル名の順の位置へ入れる
+  // （spec-5-1 確定事項16。結合と同じ）。渡さなければ末尾へ足す。
+  async function addPaths(paths, { batch = null, limitNotice = true } = {}) {
+    const incoming = validPaths(paths);
     const room = plan().MAX_INPUTS - state.rows.length;
     if (incoming.length > room) {
-      banner().show(`変換できるのは ${plan().MAX_INPUTS} ファイルまでです。`);
+      if (limitNotice)
+        banner().show(limitMessage());
       if (room <= 0)
         return [];
     }
@@ -85,10 +96,14 @@
         frames: null,
         blocked: null,
         pending: true,
+        batch,
       };
-      state.rows.push(row);
+      const at = batch === null ? state.rows.length : intake().insertAt(state.rows, batch, filePath);
+      state.rows.splice(at, 0, row);
       added.push(row);
     }
+    if (added.length > 0)
+      state.executed = false;
     // 出力フォルダーの既定は先頭画像の場所。ユーザーが変えたあとは追従しない（確定事項20）。
     if (!state.folderTouched && state.rows.length > 0)
       state.folder = dirOf(state.rows[0].path);
@@ -123,11 +138,24 @@
     return addPaths(picked.paths);
   }
 
-  // `--to-pdf` の受け口（確定事項2・9）。呼ぶ側は Phase 5 で作る。
-  async function addFromLaunch(paths) {
-    root.SigK.shell.setMode(el.doc, 'tools');
-    root.SigK.tools.select('convert');
-    return addPaths(paths);
+  // `--to-pdf` の受け口（確定事項2・9・spec-5-1 確定事項9・16〜19・21）。結合の addFromLaunch と
+  // 同じ決まりで、束の最初でだけ画面を切り替え、束の行をファイル名の順に並べる。
+  async function addFromLaunch(paths, { batch } = {}) {
+    const { id, starts } = batches().enter(batch);
+    if (starts) {
+      root.SigK.shell.setMode(el.doc, 'tools');
+      root.SigK.tools.select('convert');
+      if (intake().planIntake({ count: state.rows.length, executed: state.executed }) === 'replace')
+        clear();
+    }
+    const incoming = validPaths(paths);
+    const overflow = incoming.length > plan().MAX_INPUTS - state.rows.length;
+    const ids = await addPaths(incoming, { batch: id, limitNotice: false });
+    if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
+      banner().show(intake().NOTE_NAME_ORDER);
+    if (overflow && batches().once('limit'))
+      banner().show(limitMessage());
+    return ids;
   }
 
   // ---- 並べ替える・外す（確定事項8） ----
@@ -143,6 +171,7 @@
       return false;
     const [row] = state.rows.splice(from, 1);
     state.rows.splice(to, 0, row);
+    state.executed = false;
     redraw();
     return true;
   }
@@ -162,12 +191,14 @@
     if (from < 0)
       return false;
     state.rows.splice(from, 1);
+    state.executed = false;
     redraw();
     return true;
   }
 
   function clear() {
     state.rows = [];
+    state.executed = false;
     redraw();
     return true;
   }
@@ -296,10 +327,18 @@
 
   // ---- 実行（確定事項19・20・22〜27） ----
 
+  // 保存ダイアログ・同名の 3 択・書いた後の始末まで実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '変換できる状態ではありません。' };
-    return state.output === 'each' ? runEach() : runSingle();
+    state.running = true;
+    redraw();
+    try {
+      return await (state.output === 'each' ? runEach() : runSingle());
+    } finally {
+      state.running = false;
+      redraw();
+    }
   }
 
   // 1つの PDF にまとめる（確定事項19）。保存先は OS の保存ダイアログが決め、
@@ -361,15 +400,8 @@
     return finishEach(result, targets);
   }
 
-  async function runTask(spec) {
-    state.running = true;
-    redraw();
-    try {
-      return await root.SigK.save.runTask({ kind: 'convert', label: '変換', ...spec });
-    } finally {
-      state.running = false;
-      redraw();
-    }
+  function runTask(spec) {
+    return root.SigK.save.runTask({ kind: 'convert', label: '変換', ...spec });
   }
 
   async function finishSingle(result, target) {
@@ -382,6 +414,7 @@
       return result ?? { error: '変換できませんでした。' };
     }
 
+    state.executed = true;
     const count = state.rows.length;
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
@@ -412,6 +445,7 @@
       banner().show(result?.error ?? '変換できませんでした。');
       return result ?? { error: '変換できませんでした。' };
     }
+    state.executed = true;
     banner().show(`${result.written} ファイルに変換しました`, {
       autoHideMs: 0,
       tone: 'info',

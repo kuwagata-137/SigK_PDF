@@ -323,6 +323,23 @@ test('中止と失敗は帯で伝え、中止では書き出し済みの本数�
   assert.equal(bannerText(shell), failed.error);
 });
 
+test('同名の 3 択を出している間も実行中と数え、中止すれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  const shell = await createSplitShell(t, { existingPaths: [A_TARGETS[0]] });
+  const { document: doc, SigK } = shell;
+  await SigK.toolsSplit.setSource(A);
+
+  const running = SigK.toolsSplit.run();
+  await shell.flush();
+  assert.equal(SigK.confirmReplace.isOpen(), true);
+  assert.equal(SigK.toolsSplit.isRunning(), true);
+  assert.equal(SigK.toolsSplit.canRun(), false);
+
+  doc.getElementById('confirm-replace-cancel').click();
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(SigK.toolsSplit.isRunning(), false);
+  assert.equal(SigK.toolsSplit.canRun(), true);
+});
+
 test('実行中は入力と実行ボタンが押せず、進捗は本数で出る', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
@@ -352,7 +369,7 @@ test('実行中は入力と実行ボタンが押せず、進捗は本数で出�
 
 // ---- --split への備え（確定事項6） ----
 
-test('useFromLaunch はツールモードへ切り替えて分割を選び、先頭の1本を対象にする', async (t) => {
+test('useFromLaunch はツールモードへ切り替えて分割を選び、名前の順で先頭の1本を対象にする（spec-5-1 確定事項20）', async (t) => {
   const shell = await createShell({ files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) } });
   t.after(() => shell.cleanup());
   await shell.flush();
@@ -362,6 +379,35 @@ test('useFromLaunch はツールモードへ切り替えて分割を選び、先
   assert.equal(await SigK.toolsSplit.useFromLaunch([B, A]), true);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(SigK.tools.selected(), 'split');
-  assert.equal(SigK.toolsSplit.source().path, B);
+  assert.equal(SigK.toolsSplit.source().path, A);
   assert.equal(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY);
+});
+
+test('右クリックの束では、後から届いたパスが名前の順で前なら対象を差し替え、帯は束につき 1 回（spec-5-1 確定事項20）', async (t) => {
+  const C = 'C:\\work\\c.pdf';
+  const shell = await createShell({ files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }) } });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  const { SigK, document: doc } = shell;
+
+  // シェルは 1 ファイル 1 本で起こすので、分割にも 1 本ずつ届く（子の Single は効かない。事前調査 A2）。
+  await SigK.toolsSplit.useFromLaunch([B], { batch: { id: 1, first: true } });
+  assert.equal(SigK.toolsSplit.source().path, B);
+  assert.notEqual(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY, '1 本だけなら帯は出さない');
+
+  await SigK.toolsSplit.useFromLaunch([A], { batch: { id: 1, first: false } });
+  assert.equal(SigK.toolsSplit.source().path, A, '名前の順で前なので差し替える');
+  assert.equal(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY);
+
+  SigK.viewBanner.show('ほかの知らせ');
+  SigK.shell.setMode(doc, 'view');
+  await SigK.toolsSplit.useFromLaunch([C], { batch: { id: 1, first: false } });
+  assert.equal(SigK.toolsSplit.source().path, A, '名前の順で後ろなので差し替えない');
+  assert.equal(bannerText(shell), 'ほかの知らせ', '帯は束につき 1 回');
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view', '束の 2 件目以降は画面を切り替えない');
+
+  // 次の束は、今の対象に関わらずその束の先頭で決め直す。
+  await SigK.toolsSplit.useFromLaunch([C], { batch: { id: 2, first: true } });
+  assert.equal(SigK.toolsSplit.source().path, C);
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
 });

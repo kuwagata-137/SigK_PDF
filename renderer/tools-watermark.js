@@ -134,24 +134,28 @@
     return !state.running && root.SigK.save?.isBusy() !== true && currentPlan().ready === true;
   }
 
+  // 保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '透かしを入れられる状態ではありません。' };
+    state.running = true;
+    view()?.render();
+    try {
+      return await runPlanned();
+    } finally {
+      state.running = false;
+      view()?.render();
+    }
+  }
+
+  async function runPlanned() {
     const planned = currentPlan();
     const src = source();
     const chosen = await root.SigK.rewriteOutput.chooseTarget({ sourcePath: src.path, defaultPath: planner().defaultTarget(src.path), title: SAVE_TITLE });
     if (chosen.target === undefined)
       return chosen;
 
-    state.running = true;
-    view()?.render();
-    let result;
-    try {
-      result = await root.SigK.save.runTask({ ...planned.spec, target: chosen.target });
-    } finally {
-      state.running = false;
-      view()?.render();
-    }
+    const result = await root.SigK.save.runTask({ ...planned.spec, target: chosen.target });
     return root.SigK.rewriteOutput.finish(result, chosen.target, {
       canceled: '透かしの追加を中止しました。',
       failed: '透かしを入れられませんでした。',

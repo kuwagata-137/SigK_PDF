@@ -12,14 +12,18 @@
 
   const MAX_INPUTS = 100;
   const NOTE_UNSAVED = '未保存の編集は反映されません';
-  const NOTE_LAUNCH_ORDER = null;   // 右クリック起動の並び順の注記。文言は Phase 5（確定事項17）。
 
-  const state = { rows: [], seq: 0, running: false, launchNote: false };
+  // executed は「最後の実行が成功し、その後に一覧を変えていない」（spec-5-1 確定事項18）。
+  // 右クリックの束が届いたとき、実行し終えた一覧なら置き換える。
+  const state = { rows: [], seq: 0, running: false, executed: false };
   let el = null;
+  let launchBatch = null;
 
   const banner = () => root.SigK.viewBanner;
   const tabs = () => root.SigK.tabs;
   const list = () => root.SigK.toolsMergeList;
+  const intake = () => root.SigK.launchIntake;
+  const batches = () => (launchBatch ??= intake().createBatchTracker());
 
   function pathKey(filePath) {
     return typeof filePath === 'string' ? filePath.replace(/\//g, '\\').toLowerCase() : null;
@@ -49,11 +53,16 @@
 
   // ---- 足す・外す・並べ替える ----
 
-  async function addPaths(paths, { dirty = () => false } = {}) {
-    const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
+  const validPaths = (paths) => (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
+
+  // batch を渡すと、右クリックの束の行として、同じ束の中でファイル名の順の位置へ入れる
+  // （spec-5-1 確定事項16）。渡さなければ末尾へ足す。
+  async function addPaths(paths, { dirty = () => false, batch = null, limitNotice = true } = {}) {
+    const incoming = validPaths(paths);
     const room = MAX_INPUTS - state.rows.length;
     if (incoming.length > room) {
-      banner().show(`結合できるのは ${MAX_INPUTS} ファイルまでです。`);
+      if (limitNotice)
+        banner().show(limitMessage());
       if (room <= 0)
         return [];
     }
@@ -71,10 +80,14 @@
         blocked: null,
         note: dirty(filePath) === true ? NOTE_UNSAVED : null,
         pending: true,
+        batch,
       };
-      state.rows.push(row);
+      const at = batch === null ? state.rows.length : intake().insertAt(state.rows, batch, filePath);
+      state.rows.splice(at, 0, row);
       added.push(row);
     }
+    if (added.length > 0)
+      state.executed = false;
     list()?.render();
 
     await Promise.all(added.map(async (row) => {
@@ -122,14 +135,28 @@
     return addPaths(picked.paths);
   }
 
-  // `--merge` の受け口（確定事項39）。塊① では呼ぶ側を作らない。
-  async function addFromLaunch(paths) {
-    root.SigK.shell.setMode(el.doc, 'tools');
-    root.SigK.tools.select('merge');
-    state.launchNote = true;
-    const ids = await addPaths(paths);
-    if (NOTE_LAUNCH_ORDER !== null)
-      banner().show(NOTE_LAUNCH_ORDER);
+  function limitMessage() {
+    return `結合できるのは ${MAX_INPUTS} ファイルまでです。`;
+  }
+
+  // `--merge` の受け口（確定事項39・spec-5-1 確定事項9・16〜19・21）。右クリックで N 個選ぶと
+  // 1 件ずつ届くので、束の最初でだけ画面を切り替え、一覧を置き換えるか後ろに足すかを決める。
+  // 束の行はファイル名の順の位置へ入れ、注記と上限の帯は束につき 1 回だけ出す。
+  async function addFromLaunch(paths, { batch } = {}) {
+    const { id, starts } = batches().enter(batch);
+    if (starts) {
+      root.SigK.shell.setMode(el.doc, 'tools');
+      root.SigK.tools.select('merge');
+      if (intake().planIntake({ count: state.rows.length, executed: state.executed }) === 'replace')
+        clear();
+    }
+    const incoming = validPaths(paths);
+    const overflow = incoming.length > MAX_INPUTS - state.rows.length;
+    const ids = await addPaths(incoming, { batch: id, limitNotice: false });
+    if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
+      banner().show(intake().NOTE_NAME_ORDER);
+    if (overflow && batches().once('limit'))
+      banner().show(limitMessage());
     return ids;
   }
 
@@ -140,6 +167,7 @@
     row.range = String(text ?? '');
     row.error = null;
     row.pages = null;
+    state.executed = false;
     if (row.pageCount !== null) {
       const parsed = root.SigK.pageRange.parsePageRange(row.range, row.pageCount);
       if (parsed.error !== undefined)
@@ -162,6 +190,7 @@
       return false;
     const [row] = state.rows.splice(from, 1);
     state.rows.splice(to, 0, row);
+    state.executed = false;
     list()?.render();
     return true;
   }
@@ -181,12 +210,14 @@
     if (from < 0)
       return false;
     state.rows.splice(from, 1);
+    state.executed = false;
     list()?.render();
     return true;
   }
 
   function clear() {
     state.rows = [];
+    state.executed = false;
     list()?.render();
     return true;
   }
@@ -232,10 +263,22 @@
     return resolveTarget(picked.path);
   }
 
+  // 保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12）。ダイアログの間に
+  // 右クリックの束が一覧へ入ると、戻ってから読む一覧に混ざって出力が変わるため、束は預かられる。
   async function run() {
     if (!canRun())
       return { error: '結合できる状態ではありません。' };
+    state.running = true;
+    list()?.render();
+    try {
+      return await runChosen();
+    } finally {
+      state.running = false;
+      list()?.render();
+    }
+  }
 
+  async function runChosen() {
     const picked = await root.pdfAPI.pickSavePath({
       defaultPath: defaultTargetFor(state.rows[0].path),
       title: '結合した PDF を保存',
@@ -258,20 +301,12 @@
       return { error: refused };
     }
 
-    state.running = true;
-    list()?.render();
-    let result;
-    try {
-      result = await root.SigK.save.runTask({
-        kind: 'merge',
-        label: '結合',
-        inputs: state.rows.map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
-        target,
-      });
-    } finally {
-      state.running = false;
-      list()?.render();
-    }
+    const result = await root.SigK.save.runTask({
+      kind: 'merge',
+      label: '結合',
+      inputs: state.rows.map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
+      target,
+    });
     return finish(result, target);
   }
 
@@ -285,6 +320,7 @@
       return result ?? { error: '結合できませんでした。' };
     }
 
+    state.executed = true;
     const count = state.rows.length;
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
