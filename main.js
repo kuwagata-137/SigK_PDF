@@ -27,6 +27,7 @@ const { parseLaunchArgs } = require('./launch-args.js');
 const { createLaunchBatcher } = require('./launch-batch.js');
 const { smokeWindowMode } = require('./smoke-window.js');
 const smokeRewrite = require('./smoke-rewrite.js');
+const smokeLaunch = require('./smoke-launch.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -1388,27 +1389,6 @@ function installSmokeCheck(win, mode) {
     return count;
   }
 
-  // SIGK_SMOKE_LAUNCH=<待ち時間ms> を付けると、起動引数から開けたかを報告する
-  // （spec-1-6 確定事項72〜80）。`--open <絶対パス>` と一緒に使う。
-  //
-  // **ここでしか分からないことが2つある。**実機の argv がどう届くか（並べ替えと
-  // `--allow-file-access-from-files` の差し込み）と、レンダラーが購読を始めるまで
-  // 保持した要求が本当に流れるかである。テストは argv を手で組み、購読の順番も
-  // スタブで見ているので、この2つは通しでしか確かめられない。
-  // 待ち時間を長くすると、その間に2つ目のプロセスを起こせる。**`second-instance`
-  // の argv は並べ替えられる**ので、そこを通してこそ確定事項73 を確かめられる。
-  const launchScript = (waitMs) => `(async () => {
-    await new Promise((resolve) => setTimeout(resolve, ${waitMs}));
-    const state = window.SigK.viewer.getState();
-    return {
-      tabCount: window.SigK.tabs.count(),
-      names: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
-      openedName: state.file && state.file.name,
-      pageCount: state.pageCount,
-      message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
-    };
-  })()`;
-
   // SIGK_SMOKE_SAVE=<出力先> を付けると、保存の経路を丸ごと1回通す
   // （spec-1-6 の完了判定8）。SIGK_SMOKE_PDF と一緒に使う。
   //
@@ -1996,10 +1976,10 @@ function installSmokeCheck(win, mode) {
         if (process.env.SIGK_SMOKE_THROW === '1')
           await win.webContents.executeJavaScript('setTimeout(() => { throw new Error("起動確認の意図的な例外"); }, 0); true');
         shell = await win.webContents.executeJavaScript(readShellState);
-        // 起動引数はいちばん先に効くので、ほかの経路より前に見る。
+        // 起動引数はいちばん先に効くので、ほかの経路より前に見る（スクリプトと使い方は smoke-launch.js）。
         if (process.env.SIGK_SMOKE_LAUNCH) {
           const waitMs = Math.max(300, Number(process.env.SIGK_SMOKE_LAUNCH) || 900);
-          launch = await win.webContents.executeJavaScript(launchScript(waitMs));
+          launch = await win.webContents.executeJavaScript(smokeLaunch.launchScript(waitMs));
         }
         // 実測は温まっていない状態で採りたいので、ほかの経路より前に置く。
         if (perfPath !== undefined) {

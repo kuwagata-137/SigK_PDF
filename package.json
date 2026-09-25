@@ -50,6 +50,7 @@
       "task-runner.js",
       "smoke-window.js",
       "smoke-rewrite.js",
+      "smoke-launch.js",
       "worker/**",
       "index.html",
       "renderer/**",
