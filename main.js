@@ -2326,8 +2326,13 @@ process.on('unhandledRejection', (reason) => {
 });
 
 // 2つ目以降のプロセスは窓を開かず、引数だけを1つ目へ渡して終わる（確定事項80）。
+//
+// **`app.quit()` ではなく `app.exit(0)` で終わる**（spec-5-1 確定事項6）。引数の転送は
+// requestSingleInstanceLock の中で済んでいる。`app.quit()` は Chromium の準備を待ってから
+// 終わるので、右クリックで 10 個選ぶと 10 本が約 2 秒ずつ残った（事前調査 A4。exit なら約 0.6 秒）。
+// ロックを取る位置を前へ出しても約 20ms しか縮まないので、位置は動かさない。
 if (!app.requestSingleInstanceLock()) {
-  app.quit();
+  app.exit(0);
 } else {
   app.on('second-instance', (_event, argv) => {
     queueLaunch(argv);
