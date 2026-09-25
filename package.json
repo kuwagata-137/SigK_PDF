@@ -70,7 +70,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "SigK PDF"
-    }
+      "shortcutName": "SigK PDF",
+      "include": "build/installer.nsh",
+      "packElevateHelper": false
+    },
+    "publish": null
   }
 }
