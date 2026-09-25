@@ -417,6 +417,9 @@ async function createShell({
   // （パス → { kind, width, height, bytes? } か { error, kind? }）（spec-4-5 確定事項35・36）。
   watermarkImageResults = [],
   watermarkImages = {},
+  // shellAPI.ready() を受けたときに流す起動要求の並び。メインが準備前に溜めていた要求を、
+  // ready を合図に流すのを真似る（spec-1-6 確定事項77・spec-5-1 確定事項14 の競合）。
+  launchOnReady = [],
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -457,6 +460,11 @@ async function createShell({
   // 見たいので、呼ばれた順そのものを控える。
   const launchHandlers = [];
   const shellCalls = [];
+  const readyLaunches = [];
+  let readyFired = () => {};
+  const launchesFired = launchOnReady.length === 0
+    ? Promise.resolve()
+    : new Promise((resolve) => { readyFired = resolve; });
   let recentList = [...recent];
   let savedUi = structuredClone(ui);
 
@@ -548,7 +556,17 @@ async function createShell({
         shellCalls.push('onLaunch');
         launchHandlers.push(callback);
       },
-      ready: () => shellCalls.push('ready'),
+      // 実機のメインは shell:ready を受けてから、溜めていた要求を送る。画面に届くのは次のタスク以降。
+      ready: () => {
+        shellCalls.push('ready');
+        if (launchOnReady.length === 0)
+          return;
+        window.setTimeout(() => {
+          for (const request of launchOnReady)
+            readyLaunches.push(...launchHandlers.map((handler) => handler(request)));
+          readyFired();
+        }, 0);
+      },
       showInFolder: async (filePath) => {
         showInFolderCalls.push(filePath);
         return { ok: true };
@@ -570,7 +588,14 @@ async function createShell({
     };
     window.settingsAPI = {
       available: true,
-      getUi: async () => ({ ok: true, ui: structuredClone(savedUi) }),
+      // 返すのは呼ばれた時点の値（メインは届いた順に答える）。起動要求を流す場面では、答えが
+      // 要求より後に届く実機の順を真似て、次のタスクまで遅らせる（spec-5-1 確定事項14）。
+      getUi: async () => {
+        const ui = structuredClone(savedUi);
+        if (launchOnReady.length > 0)
+          await new Promise((resolve) => window.setTimeout(resolve, 0));
+        return { ok: true, ui };
+      },
       setUi: async (patch) => {
         uiCalls.push(structuredClone(patch));
         savedUi = {
@@ -650,6 +675,8 @@ async function createShell({
   }
 
   await waitForReady(window);
+  // 起動要求の受け口は、前回の見た目の復元が返ってから結線される（spec-5-1 確定事項14）。
+  await window.SigK?.app?.ready;
 
   return {
     dom,
@@ -696,6 +723,11 @@ async function createShell({
     shellCalls,
     // メインから起動要求が届いたことにする。
     fireLaunch: (request) => launchHandlers.map((handler) => handler(request)),
+    // launchOnReady で流した要求が、画面に当て終わるのを待つ。
+    launchSettled: async () => {
+      await launchesFired;
+      return Promise.all(readyLaunches);
+    },
     // ワーカーからの進捗を流す。
     fireProgress: (progress) => progressHandlers.forEach((handler) => handler(progress)),
     // メニューの「保存」「名前を付けて保存…」から届く合図。

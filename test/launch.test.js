@@ -214,6 +214,39 @@ test('保存やツールの処理の途中（save.isBusy）は預かる', async 
   assert.equal(await held, 1);
 });
 
+// ---- 起動直後の競合（spec-5-1 確定事項14） ----
+//
+// メインは ready を受けたときに、準備前に溜めていた要求を流す。受け口が前回の見た目の
+// 復元（restoreUi）より先に結線されていると、要求で切り替えたモードを、後から返る復元が
+// 保存されたモードへ戻してしまう。
+
+async function withReadyLaunch(t, { ui, requests }) {
+  const shell = await createShell({
+    files: { [A]: makeSource({ path: A, name: 'a.pdf' }) },
+    ui: { mode: ui, pageLayout: 'single', sidePanel: { open: true, width: 240 } },
+    launchOnReady: requests,
+  });
+  t.after(() => shell.cleanup());
+  await shell.launchSettled();
+  await shell.flush();
+  return shell;
+}
+
+test('【要】前回を閲覧モードで閉じていても、右クリックの「結合」から起きればツールモードのまま', async (t) => {
+  const shell = await withReadyLaunch(t, { ui: 'view', requests: [request('merge', [A], 1)] });
+
+  assert.equal(mode(shell), 'tools');
+  assert.equal(shell.SigK.tools.selected(), 'merge');
+  assert.deepEqual(mergeNames(shell), ['a.pdf']);
+});
+
+test('【要】前回をツールモードで閉じていても、「SigK PDF で開く」から起きれば閲覧モードでタブが見える', async (t) => {
+  const shell = await withReadyLaunch(t, { ui: 'tools', requests: [request('open', [A], 1)] });
+
+  assert.equal(mode(shell), 'view');
+  assert.deepEqual(tabPaths(shell), [A]);
+});
+
 test('メインから届いた要求でも開く', async (t) => {
   const shell = await withShell(t);
 
