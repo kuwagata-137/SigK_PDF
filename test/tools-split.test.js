@@ -323,6 +323,23 @@ test('中止と失敗は帯で伝え、中止では書き出し済みの本数�
   assert.equal(bannerText(shell), failed.error);
 });
 
+test('同名の 3 択を出している間も実行中と数え、中止すれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  const shell = await createSplitShell(t, { existingPaths: [A_TARGETS[0]] });
+  const { document: doc, SigK } = shell;
+  await SigK.toolsSplit.setSource(A);
+
+  const running = SigK.toolsSplit.run();
+  await shell.flush();
+  assert.equal(SigK.confirmReplace.isOpen(), true);
+  assert.equal(SigK.toolsSplit.isRunning(), true);
+  assert.equal(SigK.toolsSplit.canRun(), false);
+
+  doc.getElementById('confirm-replace-cancel').click();
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(SigK.toolsSplit.isRunning(), false);
+  assert.equal(SigK.toolsSplit.canRun(), true);
+});
+
 test('実行中は入力と実行ボタンが押せず、進捗は本数で出る', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

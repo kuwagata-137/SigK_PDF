@@ -229,9 +229,21 @@
     }
   }
 
+  // 同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '画像にできる状態ではありません。' };
+    state.running = true;
+    view()?.render();
+    try {
+      return await runPlanned();
+    } finally {
+      state.running = false;
+      view()?.render();
+    }
+  }
+
+  async function runPlanned() {
     const current = currentPlan();
     const src = source();
     if (current.targets.some((target) => pathKey(target) === pathKey(src.path))) {
@@ -249,18 +261,10 @@
       return { canceled: true };
     const targets = resolved.targets;
 
-    state.running = true;
-    view()?.render();
-    let result;
-    try {
-      result = await root.SigK.save.runLocal({
-        label: LABEL,
-        run: (frame) => exportPages({ plan: current, targets, src, frame }),
-      });
-    } finally {
-      state.running = false;
-      view()?.render();
-    }
+    const result = await root.SigK.save.runLocal({
+      label: LABEL,
+      run: (frame) => exportPages({ plan: current, targets, src, frame }),
+    });
     return finish(result, targets);
   }
 

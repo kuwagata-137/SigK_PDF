@@ -131,6 +131,26 @@ test('実行は保存ダイアログ → 確認（既定はキャンセル）→
   assert.equal(shell.SigK.viewBanner.text(), '注釈 12 件を焼き込みました');
 });
 
+test('保存ダイアログと確認の間も実行中と数え、キャンセルすれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  let answer;
+  const dialog = new Promise((resolve) => { answer = resolve; });
+  const shell = await createFlattenShell(t, { taskResults: [CENSUS], savePathResults: [dialog] });
+  await withSource(shell);
+
+  const running = shell.SigK.toolsFlatten.run();
+  await settle(shell);
+  assert.equal(shell.SigK.toolsFlatten.isRunning(), true, '保存ダイアログの間');
+  answer({ path: OUT });
+  await settle(shell);
+  assert.equal(byId(shell, 'confirm-flatten').open, true);
+  assert.equal(shell.SigK.toolsFlatten.isRunning(), true, '確認の間');
+
+  byId(shell, 'confirm-flatten-cancel').click();
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(shell.SigK.toolsFlatten.isRunning(), false);
+  assert.equal(shell.SigK.toolsFlatten.canRun(), true);
+});
+
 test('確認でキャンセルすれば焼き込まない', async (t) => {
   const shell = await createFlattenShell(t, { taskResults: [CENSUS], savePathResults: [{ path: OUT }] });
   await withSource(shell);

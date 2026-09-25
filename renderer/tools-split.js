@@ -174,9 +174,21 @@
 
   // ---- 実行（確定事項20・23〜32） ----
 
+  // 同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '分割できる状態ではありません。' };
+    state.running = true;
+    view()?.render();
+    try {
+      return await runPlanned();
+    } finally {
+      state.running = false;
+      view()?.render();
+    }
+  }
+
+  async function runPlanned() {
     const current = currentPlan();
     const src = source();
     if (current.targets.some((target) => pathKey(target) === pathKey(src.path))) {
@@ -193,22 +205,14 @@
     }
     const targets = resolved.targets;
 
-    state.running = true;
-    view()?.render();
-    let result;
-    try {
-      result = await root.SigK.save.runTask({
-        kind: 'split',
-        label: '分割',
-        source: src.path,
-        name: src.name,
-        parts: current.parts.map((pages, index) => ({ pages, target: targets[index] })),
-        targets,
-      });
-    } finally {
-      state.running = false;
-      view()?.render();
-    }
+    const result = await root.SigK.save.runTask({
+      kind: 'split',
+      label: '分割',
+      source: src.path,
+      name: src.name,
+      parts: current.parts.map((pages, index) => ({ pages, target: targets[index] })),
+      targets,
+    });
     return finish(result, targets);
   }
 

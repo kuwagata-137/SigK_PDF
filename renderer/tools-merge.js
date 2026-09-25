@@ -232,10 +232,22 @@
     return resolveTarget(picked.path);
   }
 
+  // 保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12）。ダイアログの間に
+  // 右クリックの束が一覧へ入ると、戻ってから読む一覧に混ざって出力が変わるため、束は預かられる。
   async function run() {
     if (!canRun())
       return { error: '結合できる状態ではありません。' };
+    state.running = true;
+    list()?.render();
+    try {
+      return await runChosen();
+    } finally {
+      state.running = false;
+      list()?.render();
+    }
+  }
 
+  async function runChosen() {
     const picked = await root.pdfAPI.pickSavePath({
       defaultPath: defaultTargetFor(state.rows[0].path),
       title: '結合した PDF を保存',
@@ -258,20 +270,12 @@
       return { error: refused };
     }
 
-    state.running = true;
-    list()?.render();
-    let result;
-    try {
-      result = await root.SigK.save.runTask({
-        kind: 'merge',
-        label: '結合',
-        inputs: state.rows.map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
-        target,
-      });
-    } finally {
-      state.running = false;
-      list()?.render();
-    }
+    const result = await root.SigK.save.runTask({
+      kind: 'merge',
+      label: '結合',
+      inputs: state.rows.map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
+      target,
+    });
     return finish(result, target);
   }
 

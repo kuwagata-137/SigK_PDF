@@ -282,6 +282,23 @@ test('JPEG と 300dpi は形式・品質・scale がそのまま描画に渡る'
   assert.deepEqual([...shell.pdfjs.cleanups], [2]);
 });
 
+test('同名の 3 択を出している間も実行中と数え、中止すれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  const shell = await createToImageShell(t, { existingPaths: [A_TARGETS[0]] });
+  const { document: doc, SigK } = shell;
+  await SigK.toolsToImage.setSource(A);
+
+  const running = SigK.toolsToImage.run();
+  await shell.flush();
+  assert.equal(SigK.confirmReplace.isOpen(), true);
+  assert.equal(SigK.toolsToImage.isRunning(), true);
+  assert.equal(SigK.toolsToImage.canRun(), false);
+
+  doc.getElementById('confirm-replace-cancel').click();
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(SigK.toolsToImage.isRunning(), false);
+  assert.equal(SigK.toolsToImage.canRun(), true);
+});
+
 test('同名があれば3択を1回だけ出す。上書きは全件、中止は何もしない、別名はフォルダーを選び直す', async (t) => {
   const shell = await createToImageShell(t, {
     existingPaths: [A_TARGETS[0], A_TARGETS[2]],

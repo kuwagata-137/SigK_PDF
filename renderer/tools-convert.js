@@ -296,10 +296,18 @@
 
   // ---- 実行（確定事項19・20・22〜27） ----
 
+  // 保存ダイアログ・同名の 3 択・書いた後の始末まで実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '変換できる状態ではありません。' };
-    return state.output === 'each' ? runEach() : runSingle();
+    state.running = true;
+    redraw();
+    try {
+      return await (state.output === 'each' ? runEach() : runSingle());
+    } finally {
+      state.running = false;
+      redraw();
+    }
   }
 
   // 1つの PDF にまとめる（確定事項19）。保存先は OS の保存ダイアログが決め、
@@ -361,15 +369,8 @@
     return finishEach(result, targets);
   }
 
-  async function runTask(spec) {
-    state.running = true;
-    redraw();
-    try {
-      return await root.SigK.save.runTask({ kind: 'convert', label: '変換', ...spec });
-    } finally {
-      state.running = false;
-      redraw();
-    }
+  function runTask(spec) {
+    return root.SigK.save.runTask({ kind: 'convert', label: '変換', ...spec });
   }
 
   async function finishSingle(result, target) {

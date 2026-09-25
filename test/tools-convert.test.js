@@ -469,6 +469,24 @@ test('中止と失敗は帯で伝え、画像ごとの中止では書き出し�
   assert.equal(bannerText(shell), failed.error);
 });
 
+test('保存ダイアログを開いている間も実行中と数え、やめれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  let answer;
+  const dialog = new Promise((resolve) => { answer = resolve; });
+  const shell = await createConvertShell(t, { savePathResults: [dialog] });
+  const { SigK } = shell;
+  await SigK.toolsConvert.addPaths([A, B]);
+
+  const running = SigK.toolsConvert.run();
+  await shell.flush();
+  assert.equal(SigK.toolsConvert.isRunning(), true);
+  assert.equal(SigK.toolsConvert.canRun(), false);
+
+  answer({ canceled: true });
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(SigK.toolsConvert.isRunning(), false);
+  assert.equal(SigK.toolsConvert.canRun(), true);
+});
+
 test('実行中は一覧と設定と実行ボタンが押せず、進捗はファイル数で出る', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

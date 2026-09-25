@@ -358,6 +358,27 @@ test('実行中は一覧の操作と実行ボタンが押せず、進捗はフ�
   assert.equal(runButton(shell).hasAttribute('aria-disabled'), false);
 });
 
+test('保存ダイアログを開いている間も実行中と数え、やめれば下ろす（spec-5-1 確定事項12）', async (t) => {
+  // 右クリックの束は、実行中なら預かられる。ダイアログの間に一覧へ入ると、戻ってから
+  // 読む一覧に混ざって出力が変わるため、run() の開始から実行中と数える。
+  let answer;
+  const dialog = new Promise((resolve) => { answer = resolve; });
+  const shell = await createMergeShell(t, { savePathResults: [dialog] });
+  const { SigK } = shell;
+  await SigK.toolsMerge.addPaths([A]);
+
+  const running = SigK.toolsMerge.run();
+  await shell.flush();
+  assert.equal(SigK.toolsMerge.isRunning(), true);
+  assert.equal(SigK.toolsMerge.canRun(), false);
+  assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
+
+  answer({ canceled: true });
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(SigK.toolsMerge.isRunning(), false);
+  assert.equal(SigK.toolsMerge.canRun(), true);
+});
+
 test('中止と失敗は帯で伝え、タブは開かない', async (t) => {
   const shell = await createMergeShell(t, {
     savePathResults: [{ path: OUT }, { path: OUT }],
