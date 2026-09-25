@@ -16,7 +16,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseLaunchArgs } = require('../launch-args.js');
+const { EXTENSIONS, parseLaunchArgs } = require('../launch-args.js');
 
 const EXE = 'C:\\Program Files\\SigK PDF\\SigK PDF.exe';
 const A = 'C:\\work\\a.pdf';
@@ -69,7 +69,7 @@ test('相対パス・存在しないファイル・意図に合わない拡張�
   assert.deepEqual(parseLaunchArgs([EXE, '--open', A], only()), { intent: 'open', paths: [] },
     '実在しないファイルは落ちる');
   assert.equal(parseLaunchArgs([EXE, 'C:\\work\\photo.jpg'], only('C:\\work\\photo.jpg')), null,
-    'open に画像は渡せない（Phase 5 で toPdf を足すときに決める）');
+    '裸の画像は受けない（exe へ画像を落としても開かない。spec-5-1 確定事項2）');
 });
 
 test('拡張子は大文字でも通る', () => {
@@ -91,6 +91,21 @@ test('意図ごとに受け付ける拡張子が違う', () => {
     { intent: 'toPdf', paths: [photo] });
   assert.deepEqual(parseLaunchArgs([EXE, '--split', photo], only(photo)),
     { intent: 'split', paths: [] }, '分割に画像は渡せない');
+});
+
+test('画像→PDF は画像 7 拡張子を受け、PDF は受けない（spec-5-1 確定事項2）', () => {
+  const images = ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'TIFF'].map((ext) => `C:\\work\\photo.${ext}`);
+  assert.deepEqual(parseLaunchArgs([EXE, '--to-pdf', ...images], only(...images)),
+    { intent: 'toPdf', paths: images });
+  assert.deepEqual(parseLaunchArgs([EXE, '--to-pdf', A], only(A)), { intent: 'toPdf', paths: [] },
+    'PDF は画像→PDF に渡せない（右クリックの項目も画像にしか出ない）');
+});
+
+test('画像→PDF の拡張子は、変換画面のファイル選択（image-io.js）と同じ一覧である', () => {
+  const { IMAGE_FILTERS } = require('../image-io.js');
+  const picker = IMAGE_FILTERS.flatMap((filter) => filter.extensions).map((ext) => `.${ext}`);
+
+  assert.deepEqual([...EXTENSIONS.toPdf].sort(), [...picker].sort());
 });
 
 test('意図のスイッチだけでも要求として返す', () => {

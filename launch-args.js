@@ -33,14 +33,18 @@ const INTENTS = {
 };
 
 // 意図ごとに受け付ける拡張子。意図に合わないものを掴まないための2つ目の条件。
+// 画像→PDF は変換画面のファイル選択（image-io.js の IMAGE_FILTERS）と同じ 7 つで、
+// 右クリックの項目もこの 7 つにだけ出す（build/installer.nsh。spec-5-1 確定事項2・24）。
+// 3 か所の一致はテストが見張る。
 const EXTENSIONS = {
   open: ['.pdf'],
   merge: ['.pdf'],
   split: ['.pdf'],
-  toPdf: ['.pdf', '.png', '.jpg', '.jpeg'],
+  toPdf: ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff'],
 };
 
 // 裸のパスは「開く」として扱う（確定事項76）。exe へのドラッグ＆ドロップに備える。
+// 開くのは PDF だけなので、画像を落としても受けない（spec-5-1 確定事項2）。
 const DEFAULT_INTENT = 'open';
 
 function splitTokens(args) {

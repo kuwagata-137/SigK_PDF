@@ -24,6 +24,7 @@ const { createImageIo } = require('./image-io.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
+const { createLaunchBatcher } = require('./launch-batch.js');
 const { smokeWindowMode } = require('./smoke-window.js');
 const smokeRewrite = require('./smoke-rewrite.js');
 
@@ -65,6 +66,9 @@ let dirtyTabCount = 0;
 // いないから」である。`did-finish-load` を合図に送った分まで消えた（実測で7通中5通）。
 let launchReady = false;
 const pendingLaunch = [];
+// 同じ操作の束の印は、メインに届いた時刻で付ける（spec-5-1 確定事項3）。溜めている間も
+// 届いた時刻で決まるので、画面の準備を待つ間に束が割れることはない。
+const launchBatcher = createLaunchBatcher();
 // 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
 let allowClose = false;
 
@@ -225,17 +229,16 @@ function sendLaunch(request) {
   mainWindow?.webContents.send('shell:launch', request);
 }
 
-// 起動引数を1件の要求にして流す。
+// 起動引数を1件の要求にし、同じ操作の束の印を付けて流す（spec-5-1 確定事項1・3〜5）。
 //
-// **集約はしない**（確定事項78）。`open` はパスが届くたびにタブを1枚足せば済む。
-// 集約が要るのは merge・split・toPdf で、いずれも Phase 2 以降である。
-// `PENDING_WINDOW_MS` も Phase 5 のままにする（400ms では短いことは実測済み。docs/03）。
+// 右クリックで N 個選ぶと、シェルは N 本のプロセスを起こし、要求は 1 件ずつ届く。
+// **静まるのを待ってまとめることはしない。**届くたびにすぐ渡し、束の印（`batch`）を
+// 見て画面が一覧へまとめる（`renderer/launch.js`）。パスの無い要求は渡さない。
 function queueLaunch(argv) {
   const request = parseLaunchArgs(argv, { isFile: isExistingFile });
-  // 塊⑤ で扱うのは open だけである。ほかの意図は黙って捨てる。
-  if (request === null || request.intent !== 'open' || request.paths.length === 0)
+  if (request === null || request.paths.length === 0)
     return;
-  sendLaunch(request);
+  sendLaunch(launchBatcher.assign(request));
 }
 
 function requestOpen(filePath = null) {
