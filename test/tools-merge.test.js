@@ -468,3 +468,121 @@ test('addFromLaunch はツールモードへ切り替えて結合を選び、末
   assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
   assert.equal(SigK.toolsMerge.canRun(), true);
 });
+
+// ---- 右クリックの束（spec-5-1 確定事項9・16〜19） ----
+
+const NOTE_NAME_ORDER = 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+const first = (id) => ({ batch: { id, first: true } });
+const next = (id) => ({ batch: { id, first: false } });
+
+async function createLaunchShell(t, options = {}) {
+  const shell = await createShell({
+    files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }), [OUT]: makeSource({ path: OUT }) },
+    ...options,
+  });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  return shell;
+}
+
+test('束の行はファイル名の順の位置へ入り、注記は行が 2 つになったときに束につき 1 回', async (t) => {
+  const shell = await createLaunchShell(t);
+  const { SigK, document: doc } = shell;
+
+  await SigK.toolsMerge.addFromLaunch([C], first(1));
+  assert.deepEqual(names(shell), ['c.pdf']);
+  assert.notEqual(bannerText(shell), NOTE_NAME_ORDER, '1 つだけなら注記は出さない');
+
+  await SigK.toolsMerge.addFromLaunch([A], next(1));
+  assert.deepEqual(names(shell), ['a.pdf', 'c.pdf']);
+  assert.equal(bannerText(shell), NOTE_NAME_ORDER);
+
+  SigK.viewBanner.show('ほかの知らせ');
+  SigK.shell.setMode(doc, 'view');
+  await SigK.toolsMerge.addFromLaunch([B], next(1));
+  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf', 'c.pdf']);
+  assert.equal(bannerText(shell), 'ほかの知らせ', '注記は束につき 1 回');
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view', '束の 2 件目以降は画面を切り替えない');
+  assert.deepEqual(rows(shell).map((row) => row.batch), [1, 1, 1]);
+});
+
+test('アプリの中で足した行は束に入らず、束はその後ろにまとまる。注記も出さない', async (t) => {
+  const shell = await createLaunchShell(t);
+  const { SigK } = shell;
+  SigK.shell.setMode(shell.document, 'tools');
+
+  await SigK.toolsMerge.addPaths([C, B]);
+  assert.notEqual(bannerText(shell), NOTE_NAME_ORDER);
+  await SigK.toolsMerge.addFromLaunch([B], first(4));
+  await SigK.toolsMerge.addFromLaunch([A], next(4));
+  assert.deepEqual(names(shell), ['c.pdf', 'b.pdf', 'a.pdf', 'b.pdf'], '実行していない一覧には後ろに足す');
+  assert.deepEqual(rows(shell).map((row) => row.batch), [null, null, 4, 4]);
+});
+
+test('束の最初で、実行済みの一覧は置き換え、それ以外は後ろに足す（論点3）', async (t) => {
+  const shell = await createLaunchShell(t, {
+    savePathResults: [{ path: OUT }, { canceled: true }],
+    taskResults: [{ ok: true, path: OUT, pages: 6 }],
+  });
+  const { SigK, document: doc } = shell;
+
+  await SigK.toolsMerge.addFromLaunch([B, A], first(1));
+  assert.equal((await SigK.toolsMerge.run()).ok, true);
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view', '結合した PDF を開いて閲覧へ');
+
+  await SigK.toolsMerge.addFromLaunch([C], first(2));
+  assert.deepEqual(names(shell), ['c.pdf'], '実行し終えた一覧は置き換える');
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
+
+  // 保存ダイアログをやめた（実行し終えていない）一覧には足す。
+  assert.deepEqual(plain(await SigK.toolsMerge.run()), { canceled: true });
+  await SigK.toolsMerge.addFromLaunch([A], first(3));
+  assert.deepEqual(names(shell), ['c.pdf', 'a.pdf']);
+});
+
+test('実行した後に一覧を変えれば、実行済みではなくなる', async (t) => {
+  const edits = {
+    外す: (SigK) => SigK.toolsMerge.remove(SigK.toolsMerge.rows()[0].id),
+    並べ替える: (SigK) => SigK.toolsMerge.move(SigK.toolsMerge.rows()[0].id, 1),
+    範囲を変える: (SigK) => SigK.toolsMerge.setRange(SigK.toolsMerge.rows()[0].id, '1'),
+    足す: (SigK) => SigK.toolsMerge.addPaths([C]),
+  };
+  for (const [label, edit] of Object.entries(edits)) {
+    const shell = await createLaunchShell(t, {
+      savePathResults: [{ path: OUT }],
+      taskResults: [{ ok: true, path: OUT, pages: 6 }],
+    });
+    const { SigK } = shell;
+    await SigK.toolsMerge.addPaths([A, B]);
+    assert.equal((await SigK.toolsMerge.run()).ok, true);
+    await edit(SigK);
+    const before = SigK.toolsMerge.rows().length;
+
+    await SigK.toolsMerge.addFromLaunch([C], first(9));
+    assert.equal(SigK.toolsMerge.rows().length, before + 1, `${label}: 置き換えずに足す`);
+  }
+});
+
+test('上限を超えた分は入れず、上限の帯は束につき 1 回', async (t) => {
+  const files = {};
+  const many = [];
+  for (let index = 0; index < 99; index += 1) {
+    const filePath = `C:\\work\\m${index}.pdf`;
+    files[filePath] = makeSource({ path: filePath });
+    many.push(filePath);
+  }
+  const shell = await createLaunchShell(t, { files: { ...files, [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }) } });
+  const { SigK } = shell;
+  SigK.shell.setMode(shell.document, 'tools');
+  await SigK.toolsMerge.addPaths(many);
+
+  await SigK.toolsMerge.addFromLaunch([A], first(1));
+  assert.equal(SigK.toolsMerge.rows().length, 100);
+  await SigK.toolsMerge.addFromLaunch([B], next(1));
+  assert.equal(SigK.toolsMerge.rows().length, 100);
+  assert.equal(bannerText(shell), '結合できるのは 100 ファイルまでです。');
+
+  SigK.viewBanner.show('ほかの知らせ');
+  await SigK.toolsMerge.addFromLaunch([C], next(1));
+  assert.equal(bannerText(shell), 'ほかの知らせ', '上限の帯は束につき 1 回');
+});

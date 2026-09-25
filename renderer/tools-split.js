@@ -11,7 +11,7 @@
   // 映らない（確定事項3）。未保存のタブを対象にすることは止めず、注意だけ出す。
 
   // 対象の欄は source-picker.js（spec-4-5 確定事項34）。右クリック起動で複数本が届いたときの
-  // 文言 NOTE_FIRST_ONLY は Phase 5 で見直す（確定事項6）。
+  // 文言 NOTE_FIRST_ONLY は、Phase 5 で見直して変えないことにした（spec-5-1 確定事項20）。
   const { NOTE_UNSAVED, NOTE_FIRST_ONLY } = root.SigK.sourcePicker;
 
   const state = {
@@ -20,9 +20,12 @@
     running: false,
   };
   let el = null;
+  let launchBatch = null;
 
   const banner = () => root.SigK.viewBanner;
   const view = () => root.SigK.toolsSplitView;
+  const intake = () => root.SigK.launchIntake;
+  const batches = () => (launchBatch ??= intake().createBatchTracker());
   const planner = () => root.SigK.splitPlan;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
 
@@ -62,13 +65,28 @@
 
   const source = () => field.source();
   const settings = () => ({ mode: state.mode, every: state.every, at: state.at, range: state.range, folder: state.folder, rule: state.rule });
-  // ドロップと `--split` の受け口は addPaths（対象は1つなので先頭だけ使う。確定事項2・6）。
+  // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う。確定事項2）。`--split` は useFromLaunch。
   const { setSource, useOpenTab, pickFile, addPaths } = field;
 
-  async function useFromLaunch(paths) {
-    root.SigK.shell.setMode(el.doc, 'tools');
-    root.SigK.tools.select('split');
-    return addPaths(paths);
+  // `--split` の受け口（確定事項6・spec-5-1 確定事項9・20・21）。右クリックで N 個選ぶと、分割にも
+  // 1 本ずつ届く（子の MultiSelectModel=Single は効かない。事前調査 A2）。束の中でファイル名の順に
+  // 先頭の 1 本を対象にし、後から届いたパスが前なら差し替える。帯は束につき 1 回。
+  async function useFromLaunch(paths, { batch } = {}) {
+    const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
+    if (incoming.length === 0)
+      return false;
+    const { starts } = batches().enter(batch);
+    if (starts) {
+      root.SigK.shell.setMode(el.doc, 'tools');
+      root.SigK.tools.select('split');
+    }
+    const first = [...incoming].sort(intake().compareNames)[0];
+    const current = source();
+    const replace = starts || current === null || intake().compareNames(first, current.path) < 0;
+    const ok = replace ? await setSource(first) : true;
+    if ((incoming.length > 1 || !starts) && batches().once('first-only'))
+      banner().show(NOTE_FIRST_ONLY);
+    return ok;
   }
 
   // ---- 分け方と出力（確定事項7〜19） ----
