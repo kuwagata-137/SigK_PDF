@@ -154,6 +154,111 @@ test('右クリックの束はファイル名の順に並び、注記は束に�
   assert.equal(SigK.tools.selected(), 'convert');
 });
 
+// ---- 右クリックの束の続き（spec-5-1 確定事項16〜19。test/tools-merge.test.js の同じ名前のテストに揃える） ----
+
+const NOTE_NAME_ORDER = 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+const first = (id) => ({ batch: { id, first: true } });
+const next = (id) => ({ batch: { id, first: false } });
+
+// 変換し終えたら出力を開くので、出力の PDF も仕込んでおく。
+async function createLaunchShell(t, options = {}) {
+  const shell = await createShell({
+    files: { [OUT]: makeSource({ path: OUT }) },
+    ...options,
+    imageInfos: { ...INFOS, ...(options.imageInfos ?? {}) },
+  });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  return shell;
+}
+
+// 「まとめる」で変換し終えた（実行済みの）一覧 a.png・b.jpg。
+async function createExecutedShell(t) {
+  const shell = await createLaunchShell(t, {
+    savePathResults: [{ path: OUT }],
+    taskResults: [{ ok: true, path: OUT, pages: 2, inputs: 2 }],
+  });
+  await shell.SigK.toolsConvert.addPaths([A, B]);
+  assert.equal((await shell.SigK.toolsConvert.run()).ok, true);
+  return shell;
+}
+
+test('アプリの中で足した行は束に入らず、束はその後ろにまとまる。注記も出さない', async (t) => {
+  const shell = await createLaunchShell(t);
+  const { SigK } = shell;
+  SigK.shell.setMode(shell.document, 'tools');
+
+  await SigK.toolsConvert.addPaths([C, B]);
+  assert.notEqual(bannerText(shell), NOTE_NAME_ORDER);
+  await SigK.toolsConvert.addFromLaunch([B], first(4));
+  await SigK.toolsConvert.addFromLaunch([A], next(4));
+  assert.deepEqual(names(shell), ['c.png', 'b.jpg', 'a.png', 'b.jpg'], '実行していない一覧には後ろに足す');
+  assert.deepEqual(rows(shell).map((row) => row.batch), [null, null, 4, 4]);
+});
+
+test('保存ダイアログをやめた（実行し終えていない）一覧には、次の束を後ろに足す（論点3）', async (t) => {
+  const shell = await createLaunchShell(t, { savePathResults: [{ canceled: true }] });
+  const { SigK } = shell;
+
+  await SigK.toolsConvert.addFromLaunch([C, B], first(1));
+  assert.deepEqual(names(shell), ['b.jpg', 'c.png']);
+  assert.deepEqual(plain(await SigK.toolsConvert.run()), { canceled: true });
+
+  await SigK.toolsConvert.addFromLaunch([A], first(2));
+  assert.deepEqual(names(shell), ['b.jpg', 'c.png', 'a.png'], '前の束と混ぜて並べ直さない');
+  assert.deepEqual(rows(shell).map((row) => row.batch), [1, 1, 2]);
+});
+
+test('実行した後に一覧を変えれば、実行済みではなくなる', async (t) => {
+  const edits = {
+    外す: (SigK) => SigK.toolsConvert.remove(SigK.toolsConvert.rows()[0].id),
+    並べ替える: (SigK) => SigK.toolsConvert.move(SigK.toolsConvert.rows()[0].id, 1),
+    足す: (SigK) => SigK.toolsConvert.addPaths([C]),
+  };
+  for (const [label, edit] of Object.entries(edits)) {
+    const { SigK } = await createExecutedShell(t);
+    await edit(SigK);
+    const before = SigK.toolsConvert.rows().length;
+
+    await SigK.toolsConvert.addFromLaunch([C], first(9));
+    assert.equal(SigK.toolsConvert.rows().length, before + 1, `${label}: 置き換えずに足す`);
+  }
+});
+
+test('用紙・向き・余白・出力のしかた・出力フォルダーを変えても、実行済みのまま（spec-5-1 確定事項18）', async (t) => {
+  const shell = await createExecutedShell(t);
+  const { SigK } = shell;
+  assert.equal(SigK.toolsConvert.setPaper('a3'), true);
+  assert.equal(SigK.toolsConvert.setOrientation('landscape'), true);
+  assert.equal(SigK.toolsConvert.setMargin('narrow'), true);
+  assert.equal(SigK.toolsConvert.setOutput('each'), true);
+  assert.equal(SigK.toolsConvert.setFolder(OTHER_DIR), true);
+
+  await SigK.toolsConvert.addFromLaunch([C], first(9));
+  assert.deepEqual(names(shell), ['c.png'], '設定は一覧ではないので、次の束で置き換える');
+});
+
+test('上限を超えた分は入れず、上限の帯は束につき 1 回', async (t) => {
+  const shell = await createLaunchShell(t);
+  const { SigK } = shell;
+  const many = Array.from({ length: 99 }, (_, index) => `${DIR}\\m${index}.png`);
+  for (const path of many)
+    shell.imageInfos[path] = { kind: 'png', width: 100, height: 100 };
+  SigK.shell.setMode(shell.document, 'tools');
+  await SigK.toolsConvert.addPaths(many);
+
+  await SigK.toolsConvert.addFromLaunch([A], first(1));
+  assert.equal(rows(shell).length, 100);
+  await SigK.toolsConvert.addFromLaunch([B], next(1));
+  assert.equal(rows(shell).length, 100);
+  assert.equal(bannerText(shell), '変換できるのは 100 ファイルまでです。');
+
+  SigK.viewBanner.show('ほかの知らせ');
+  await SigK.toolsConvert.addFromLaunch([C], next(1));
+  assert.equal(rows(shell).length, 100);
+  assert.equal(bannerText(shell), 'ほかの知らせ', '上限の帯は束につき 1 回');
+});
+
 test('読めない画像は行に印と文言が付き、実行できない', async (t) => {
   const shell = await createConvertShell(t, {
     imageInfos: {
