@@ -169,16 +169,23 @@
   function applyShapeKind(kind) {
     if (presets().isShapeKind(kind))
       state.shapeKind = kind;
+    syncBar();
     root.SigK.annotationProps?.refresh();
     return getShapeKind();
   }
 
-  // 次に描く種類。描いた図形の種類は変えない（確定事項7）。
+  // 道具の段の図形のボタンの印を、いまの種類に揃える（spec-4b-1a 確定事項5）。
+  function syncBar() {
+    root.SigK.editBar?.sync(annotate()?.getTool() ?? null, getShapeKind());
+  }
+
+  // 次に描く種類。道具の段の図形のボタンが決める。描いた図形の種類は変えない（確定事項7）。
   function setShapeKind(kind) {
     if (!presets().isShapeKind(kind))
       return false;
     state.shapeKind = kind;
     root.SigK.shell?.persist?.({ annotShapeKind: kind });
+    syncBar();
     root.SigK.annotationProps?.refresh();
     return true;
   }

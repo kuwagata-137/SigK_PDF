@@ -8,7 +8,7 @@
   // 実態に合わせるだけである。選んでいる注釈があればその注釈、無ければ「次に付ける
   // 注釈」（持っている道具）の種類と色を見せる。色の丸を押すと annotate.setColor、
   // 「文字の大きさ」は annotate.setFontSize、「線の太さ」は annotate.setLineWidth、
-  // 「図形の種類」は annotate.setShapeKind、「不透明度」は annotate.setOpacity、
+  // 「不透明度」は annotate.setOpacity、
   // 「この注釈を削除」は annotate.remove へ流す。表示のみの注釈は種類名に「（表示のみ）」を添え、
   // 色の丸を出さない。ノートの「本文」「作成者」の行は annotation-note-rows.js が持つ。
 
@@ -28,9 +28,6 @@
 
   // 「本文」の行に出す文字数の上限。
   const TEXT_PREVIEW = 200;
-
-  // 「図形の種類」のボタンのアイコン（assets/icons.js）。
-  const SHAPE_ICONS = Object.freeze({ square: 'shapeSquare', circle: 'shapeCircle', line: 'shapeLine', arrow: 'shapeArrow' });
 
   let el = null;
 
@@ -115,13 +112,6 @@
     el.width.value = String(width);
   }
 
-  // 「図形の種類」の行。図形の道具を持ち、何も選んでいないときだけ出す。
-  function setShapeRow(kind) {
-    el.shapeRow.hidden = kind === null;
-    for (const button of el.shapeKinds.querySelectorAll('button'))
-      button.classList.toggle('on', button.dataset.kind === kind);
-  }
-
   function percentOf(value) {
     return `${Math.round(value * 100)}%`;
   }
@@ -179,7 +169,6 @@
     setSizeRow(isText ? entry.fontSize : null);
     setWidthRow(isDrawnKind(entry.kind) ? entry.lineWidth : null);
     setOpacityRow(!readonly && isOpacityKind(entry.kind) ? entry.opacity : null);
-    setShapeRow(null);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象の文字';
     setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
@@ -209,7 +198,9 @@
       return true;
     }
     const tool = annotate().getTool();
-    el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[tool]}（次に付ける）`;
+    // 図形は道具の段で選んだ種類の名前を出す（「四角（次に付ける）」。spec-4b-1a 確定事項8）。
+    const label = tool === 'shape' ? annotate().TOOL_LABELS[annotate().getShapeKind()] : annotate().TOOL_LABELS[tool];
+    el.kind.textContent = tool === null ? '–' : `${label}（次に付ける）`;
     if (tool === null)
       el.colors.replaceChildren();
     else
@@ -218,7 +209,6 @@
     setSizeRow(tool === 'text' ? annotate().getFontSize() : null);
     setWidthRow(tool === 'shape' || tool === 'pen' ? annotate().getLineWidth() : null);
     setOpacityRow(tool !== null && presets().OPACITY_TOOLS.includes(tool) ? annotate().getOpacity(tool) : null);
-    setShapeRow(tool === 'shape' ? annotate().getShapeKind() : null);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
     el.hint.textContent = hintFor(tool);
@@ -253,21 +243,6 @@
     select.addEventListener('change', () => onChange(Number(select.value)));
   }
 
-  // 「図形の種類」の 4 つのボタン（spec-4-3 確定事項2）。
-  function fillShapeKinds(doc, container) {
-    container.replaceChildren(...presets().SHAPE_KINDS.map((kind) => {
-      const button = doc.createElement('button');
-      button.type = 'button';
-      button.dataset.kind = kind;
-      button.title = presets().TOOL_LABELS[kind];
-      button.setAttribute('aria-label', button.title);
-      if (root.SigK.icons?.has(SHAPE_ICONS[kind]))
-        button.append(root.SigK.icons.create(doc, SHAPE_ICONS[kind], { size: 20, strokeWidth: 1.75 }));
-      button.addEventListener('click', () => annotate().setShapeKind(kind));
-      return button;
-    }));
-  }
-
   function init(doc, win) {
     if (win.__sigkAnnotationPropsReady === true)
       return false;
@@ -289,8 +264,6 @@
       size: doc.getElementById('props-size'),
       widthRow: doc.getElementById('props-width-row'),
       width: doc.getElementById('props-width'),
-      shapeRow: doc.getElementById('props-shape-row'),
-      shapeKinds: doc.getElementById('props-shape-kinds'),
       hint: doc.getElementById('props-hint'),
       remove: doc.getElementById('props-delete'),
       opacityRow: doc.getElementById('props-opacity-row'),
@@ -298,7 +271,6 @@
     };
     fillSelect(doc, el.size, presets().FONT_SIZES, (size) => annotate().setFontSize(size));
     fillSelect(doc, el.width, presets().LINE_WIDTHS, (width) => annotate().setLineWidth(width));
-    fillShapeKinds(doc, el.shapeKinds);
     fillOpacities(doc, el.opacity);
     // 本文と作成者の行（annotation-note-rows.js）。refresh より先に結ぶ。
     root.SigK.annotationNoteRows?.init(doc, win);

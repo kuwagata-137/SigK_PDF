@@ -702,14 +702,24 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .annot-list .empty{margin:14px 0 0}
 
 /* ── 注釈モード（spec-4-1 確定事項1〜5・37） ────────────────── */
-/* レールの道具。モードの 4 つの下に区切り線を引き、注釈モードのときだけ出す。
-   道具は .active で押している状態を見せる（モードの縦棒は出さない）。 */
-.annot-only{display:none}
-html[data-mode="annot"] .annot-only{display:flex}
-.rail-sep{height:1px; flex:0 0 1px; background:var(--border); margin:6px 12px}
-.rail-item.tool.active{color:var(--accent); background:var(--select)}
-.rail-item.tool.active::before{display:none}
-.rail-item.tool[aria-disabled="true"]{pointer-events:none}
+/* 編集の道具の段（spec-4b-1a 確定事項1〜6。モック screenshots/phase4b-style.png）。ツールバーの下の 1 段で、
+   編集モードのときだけ出す（ほかのモードでは場所も取らない）。CheckListMaker の画像エディタと同じく、35px の
+   四角いボタンの下に名前を置く。押している道具は青い地に白いアイコン、名前も青。 */
+#edit-bar{
+  display:none; flex:0 0 auto; align-items:flex-start; gap:5px; padding:6px 14px 5px;
+  background:var(--surface); border-bottom:1px solid var(--border); position:relative; z-index:4;
+}
+html[data-mode="annot"] #edit-bar{display:flex}
+.edit-item{display:inline-flex; flex-direction:column; align-items:center; min-width:48px}
+.edit-tool{
+  width:35px; height:35px; display:inline-flex; align-items:center; justify-content:center; padding:0;
+  border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--text); cursor:pointer;
+}
+.edit-tool:hover{background:var(--surface-2)}
+.edit-tool.active{background:var(--primary); color:#fff; border-color:var(--primary)}
+.edit-name{margin-top:3px; font-size:10.5px; line-height:1.1; white-space:nowrap; color:var(--muted)}
+.edit-tool.active + .edit-name{color:var(--primary)}
+.edit-sep{width:1px; align-self:stretch; margin:3px 3px 16px; background:var(--border)}
 
 /* 紙の上に重ねる注釈の層（確定事項5）。canvas のあと・テキストレイヤーの前。
    ハイライトは multiply で文字を残す。当たり判定は annotate.js が四角で行うので

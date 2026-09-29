@@ -60,8 +60,12 @@ const REPORT = `
     shapeGroups: [...document.querySelectorAll('.annot-layer')].map((svg) => svg.querySelectorAll('g.shape').length),
     propsWidth: document.getElementById('props-width').value,
     propsWidthVisible: document.getElementById('props-width-row').hidden === false,
-    propsShapeKind: [...document.querySelectorAll('#props-shape-kinds button.on')].map((button) => button.dataset.kind).join(''),
-    propsShapeVisible: document.getElementById('props-shape-row').hidden === false,
+    // 道具の段（spec-4b-1a 確定事項1〜6・39）。見えているか・ボタンの数・押している道具（図形は種類）。
+    editBar: {
+      visible: getComputedStyle(document.getElementById('edit-bar')).display !== 'none',
+      buttons: document.querySelectorAll('#edit-bar .edit-tool').length,
+      pressed: [...document.querySelectorAll('#edit-bar .edit-tool.active')].map((el) => el.dataset.shape ?? el.dataset.tool),
+    },
     // ノート・不透明度・一覧（spec-4-4 の完了判定）。置いたもの、読み込んだもの（表示のみを含む）、一覧の行、右パネル。
     notes: annots.added.filter((entry) => entry.kind === 'note').map((entry) => ({ src: entry.src, text: entry.text, author: entry.author, color: entry.color, opacity: entry.opacity, rect: entry.rect.map(round) })),
     importedNotes: importedEntries.filter((entry) => entry.kind === 'note').map((entry) => ({ ref: entry.ref, src: entry.src, text: entry.text, author: entry.author, color: entry.color, rect: entry.rect.map(round) })),
@@ -81,7 +85,7 @@ const REPORT = `
     frames: document.querySelectorAll('.annot-frame').length,
     propsKind: document.getElementById('props-kind').textContent,
     propsVisible: getComputedStyle(document.getElementById('props')).display !== 'none',
-    railTools: [...document.querySelectorAll('.rail-item.tool')].filter((el) => getComputedStyle(el).display !== 'none').length,
+    railItems: [...document.querySelectorAll('#rail .lbl')].map((el) => el.textContent),
     banner: SigK.viewBanner.text(),
     save: saveResult,
     alignment,

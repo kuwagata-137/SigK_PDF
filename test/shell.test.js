@@ -68,17 +68,20 @@ test('画面の骨組みが組み上がる', async (t) => {
     assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
 });
 
-test('ツールレールは4つのモードを持つ', async (t) => {
+test('ツールレールは 4 つのモードだけを持ち、編集の道具は道具の段に並ぶ', async (t) => {
   const { document, SigK } = await withShell(t);
 
   const modes = [...document.querySelectorAll('.rail-item[data-mode]')].map((el) => el.dataset.mode);
 
   // SigK は jsdom 側のレルムに居るため、配列をこちら側へ写してから比べる。
   assert.deepEqual(modes, [...SigK.shell.MODES]);
-  // 注釈の道具はモードではない（spec-4-1 確定事項1、spec-4-2 確定事項1、spec-4-3 確定事項1、spec-4-4 確定事項1）。7 つ全部押せる。
-  const tools = [...document.querySelectorAll('.rail-item.tool')];
-  assert.deepEqual(tools.filter((el) => el.getAttribute('aria-disabled') !== 'true').map((el) => el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'shape', 'pen', 'note']);
-  assert.equal(tools.filter((el) => el.getAttribute('aria-disabled') === 'true').length, 0);
+  assert.deepEqual([...document.querySelectorAll('#rail .lbl')].map((el) => el.textContent), ['閲覧', 'ページ編集', '編集', 'ツール']);
+  // 編集の道具はレールではなく、ツールバーの下の段に並ぶ（spec-4b-1a 確定事項1〜3・11）。図形は 4 つに分かれる。
+  assert.equal(document.querySelectorAll('#rail .rail-item').length, 4);
+  const tools = [...document.querySelectorAll('#edit-bar .edit-tool')];
+  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'arrow', 'line', 'square', 'circle', 'pen', 'note']);
+  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['ハイライト', '下線', '取り消し線', 'テキスト', '矢印', '直線', '四角', '丸', 'ペン', 'ノート']);
+  assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 3);
 });
 
 test('既定は閲覧モードでサイドパネルが開いている', async (t) => {

@@ -94,7 +94,7 @@ const plain = (value) => structuredClone(value);
 
 // ---- 画面（確定事項1〜4） ----
 
-test('注釈モードに入るとレールに道具が並び、プロパティは「次に付ける注釈」を待つ', async (t) => {
+test('編集モードに入ると道具の段が出て、プロパティは「次に付ける書き込み」を待つ', async (t) => {
   const shell = await withOpenDocument(t);
   const { document, SigK } = shell;
   assert.equal(document.documentElement.getAttribute('data-mode'), 'annot');
@@ -111,10 +111,11 @@ test('注釈モードに入るとレールに道具が並び、プロパティ�
 test('道具はトグルで、持つとプロパティに種類と色が出る', async (t) => {
   const shell = await withOpenDocument(t);
   const { document, SigK } = shell;
-  const button = document.querySelector('.rail-item.tool[data-tool="highlight"]');
+  const button = document.querySelector('#edit-bar .edit-tool[data-tool="highlight"]');
   button.dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(SigK.annotate.getTool(), 'highlight');
   assert.equal(button.classList.contains('active'), true);
+  assert.equal(button.getAttribute('aria-pressed'), 'true');
   assert.equal(document.getElementById('props-kind').textContent, 'ハイライト（次に付ける）');
   const swatches = [...document.querySelectorAll('#props-colors .swatch')];
   assert.deepEqual(swatches.map((s) => s.dataset.color), ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8']);
@@ -122,9 +123,9 @@ test('道具はトグルで、持つとプロパティに種類と色が出る',
 
   button.dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(SigK.annotate.getTool(), null);
-  // 塊④でレールの 7 つが全部押せる（灰色の位置取りは無い）。
-  assert.equal(document.querySelector('.rail-item.tool[aria-disabled="true"]'), null);
-  document.querySelector('.rail-item.tool[data-tool="note"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  assert.equal(button.classList.contains('active'), false);
+  assert.equal(button.getAttribute('aria-pressed'), 'false');
+  document.querySelector('#edit-bar .edit-tool[data-tool="note"]').dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(SigK.annotate.getTool(), 'note');
   assert.equal(document.getElementById('props-kind').textContent, 'ノート（次に付ける）');
   SigK.annotate.setTool(null);
@@ -165,7 +166,7 @@ test('先に文字を選んでから道具を押しても付き、道具は持�
   const shell = await withOpenDocument(t);
   const { document, SigK } = shell;
   selectText(shell, 0, 1, 1, { charFrom: 1, charTo: 3 });
-  document.querySelector('.rail-item.tool[data-tool="underline"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  document.querySelector('#edit-bar .edit-tool[data-tool="underline"]').dispatchEvent(new shell.window.MouseEvent('click'));
 
   const entry = SigK.viewer.getAnnotations().added[0];
   assert.equal(entry.kind, 'underline');

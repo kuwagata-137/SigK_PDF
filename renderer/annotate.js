@@ -51,8 +51,8 @@
   function syncTools() {
     if (state.doc === null)
       return;
-    for (const item of state.doc.querySelectorAll('.rail-item.tool[data-tool]'))
-      item.classList.toggle('active', item.dataset.tool === state.tool);
+    // 道具の段の押している印（spec-4b-1a 確定事項1〜5。edit-bar.js）。図形は種類まで見る。
+    root.SigK.editBar?.sync(state.tool, root.SigK.annotateShape?.getShapeKind() ?? null);
     // CSS がカーソルを変えるための印（テキストの道具で紙の上は text。spec-4-2 確定事項1）。
     if (state.tool === null)
       state.doc.documentElement.removeAttribute('data-tool');
@@ -281,12 +281,7 @@
     state.doc = doc;
     state.win = win;
 
-    for (const item of doc.querySelectorAll('.rail-item.tool[data-tool]')) {
-      item.addEventListener('click', () => {
-        if (item.getAttribute('aria-disabled') !== 'true')
-          toggleTool(item.dataset.tool);
-      });
-    }
+    // 道具のボタンの結線は edit-bar.js が持つ（spec-4b-1a 確定事項37）。
     syncTools();
     return true;
   }

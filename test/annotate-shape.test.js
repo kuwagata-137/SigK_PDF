@@ -388,7 +388,6 @@ test('開くと Square と 2 点の PolyLine を読み込み、pdf.js には描�
   assert.equal(shell.document.getElementById('props-kind').textContent, '四角');
   assert.equal(shell.document.getElementById('props-width').value, '4');
   assert.equal(shell.document.getElementById('props-width-row').hidden, false);
-  assert.equal(shell.document.getElementById('props-shape-row').hidden, true);
   assert.equal(SigK.annotate.remove(), true);
   assert.deepEqual(plain(SigK.viewer.getAnnotations().removed), ['30R']);
   assert.deepEqual(plain(SigK.annotationState.toSaveSpec(SigK.viewer.getAnnotations())), { add: [], remove: ['30R'] });
@@ -396,35 +395,47 @@ test('開くと Square と 2 点の PolyLine を読み込み、pdf.js には描�
 
 // ---- 右パネル（確定事項2） ----
 
-test('右パネルは道具に応じて「図形の種類」「線の太さ」の行を出し入れする', async (t) => {
+test('道具の段の図形の 4 つのボタンで種類を選び、右パネルは種類の名前と「線の太さ」の行を出す', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
-  const shapeRow = document.getElementById('props-shape-row');
+  // 右パネルの「図形の種類」の行は無くなった（spec-4b-1a 確定事項8）。
+  assert.equal(document.getElementById('props-shape-row'), null);
   const widthRow = document.getElementById('props-width-row');
-  assert.equal(shapeRow.hidden, true);
   assert.equal(widthRow.hidden, true);
-  SigK.annotate.setTool('shape');
-  assert.equal(shapeRow.hidden, false);
+  const button = (shape) => document.querySelector(`#edit-bar .edit-tool[data-tool="shape"][data-shape="${shape}"]`);
+  button('square').click();
+  assert.equal(SigK.annotate.getTool(), 'shape');
+  assert.equal(SigK.annotateShape.getShapeKind(), 'square');
   assert.equal(widthRow.hidden, false);
-  assert.equal(document.getElementById('props-kind').textContent, '図形（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, '四角（次に付ける）');
   assert.equal(document.getElementById('props-width').value, '2');
-  const buttons = [...document.querySelectorAll('#props-shape-kinds button')];
-  assert.deepEqual(buttons.map((button) => button.dataset.kind), ['square', 'circle', 'line', 'arrow']);
-  assert.deepEqual(buttons.map((button) => button.classList.contains('on')), [true, false, false, false]);
-  assert.ok(buttons[0].querySelector('svg') !== null);
   assert.match(document.getElementById('props-hint').textContent, /ドラッグ/);
-  buttons[3].click();
+  const pressed = () => [...document.querySelectorAll('#edit-bar .edit-tool.active')].map((el) => el.dataset.shape ?? el.dataset.tool);
+  assert.deepEqual(pressed(), ['square']);
+  // 別の図形を押すと、道具は持ったまま種類だけ替わり、覚える。
+  button('arrow').click();
+  assert.equal(SigK.annotate.getTool(), 'shape');
   assert.equal(SigK.annotateShape.getShapeKind(), 'arrow');
-  assert.deepEqual(buttons.map((button) => button.classList.contains('on')), [false, false, false, true]);
+  assert.deepEqual(pressed(), ['arrow']);
+  assert.equal(document.getElementById('props-kind').textContent, '矢印（次に付ける）');
+  assert.equal(shell.uiCalls.at(-1).annotShapeKind, 'arrow');
+  drag(shell, [100, 700], [300, 650]);
+  assert.equal(SigK.viewer.getAnnotations().added.at(-1).kind, 'arrow');
+  SigK.annotate.select(null);
+  // 同じ図形をもう一度押すと離す。
+  button('arrow').click();
+  assert.equal(SigK.annotate.getTool(), null);
+  assert.deepEqual(pressed(), []);
   // 線の太さの select
+  button('circle').click();
   const width = document.getElementById('props-width');
   assert.deepEqual([...width.options].map((option) => option.value), ['1', '2', '3', '5', '8']);
   width.value = '5';
   width.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
   assert.equal(SigK.annotateShape.getLineWidth(), 5);
-  // ペンは種類の行が無い
-  SigK.annotate.setTool('pen');
-  assert.equal(shapeRow.hidden, true);
+  // ペンは種類の名前がそのまま
+  document.querySelector('#edit-bar .edit-tool[data-tool="pen"]').click();
+  assert.deepEqual(pressed(), ['pen']);
   assert.equal(widthRow.hidden, false);
   assert.equal(document.getElementById('props-kind').textContent, 'ペン（次に付ける）');
   assert.match(document.getElementById('props-hint').textContent, /なぞる/);
