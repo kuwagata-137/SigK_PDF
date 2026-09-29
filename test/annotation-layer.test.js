@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
 require('../renderer/markup-quads.js');
+require('../renderer/shape-style.js');
+require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/free-text-geometry.js');
 require('../renderer/free-text-shape.js');

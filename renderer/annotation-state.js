@@ -71,22 +71,29 @@
     return next;
   }
 
-  // 欄を変える（色・本文・大きさ・箱・線幅・点列・不透明度）。自前のものは書き換え、読み込んだものは消して
+  // 欄を変える（色・塗り・線種・本文・大きさ・箱・線幅・点列・不透明度）。自前のものは書き換え、読み込んだものは消して
   // 写しを足す（写しは自前の注釈になり、保存で /AP ごと書き直される）。表示のみのものは変えない。
+  // 当てた後の形が崩れるなら（線なしのまま塗りを無くす、など）何もしない（spec-4b-1b 確定事項21）。読み込んだものを
+  // 消してから写しを足せずに終わる、ということが無いように、写しの形を先に確かめる。
   function updateAnnot(annots, target, patch) {
     if (target?.readonly === true)
       return annots;
-    const kind = target?.kind ?? (annots?.added ?? []).find((entry) => entry.id === target?.id)?.kind;
-    const picked = entryModule().pickPatch(patch, kind);
+    const own = typeof target?.ref === 'string' ? null : (annots?.added ?? []).find((entry) => entry.id === target?.id);
+    const picked = entryModule().pickPatch(patch, target?.kind ?? own?.kind);
     if (picked === null)
       return annots;
-    if (typeof target?.ref === 'string') {
-      const copy = { ...target, ...picked, id: newId() };
+    if (own === null) {
+      const copy = entryModule().applyPatch({ ...target, id: newId() }, picked);
       delete copy.ref;
-      return addAnnot(removeAnnot(annots, target), copy);
+      return entryModule().validEntry(copy) ? addAnnot(removeAnnot(annots, target), copy) : annots;
     }
+    if (own === undefined)
+      return annots;
+    const updated = entryModule().applyPatch(own, picked);
+    if (!entryModule().validEntry(updated))
+      return annots;
     const next = cloneAnnots(annots);
-    next.added = next.added.map((entry) => (entry.id === target?.id ? entryModule().copyEntry({ ...entry, ...picked }) : entry));
+    next.added = next.added.map((entry) => (entry.id === own.id ? entryModule().copyEntry(updated) : entry));
     return next;
   }
 

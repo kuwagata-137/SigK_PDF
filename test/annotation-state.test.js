@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+require('../renderer/shape-style.js');
+require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/annotation-state.js');
 
@@ -362,6 +364,87 @@ test('toSaveSpec は図形を rect・lineWidth・paths で渡し、quads は落�
   assert.deepEqual(Object.keys(spec.add[2]).sort(), ['color', 'kind', 'lineWidth', 'opacity', 'paths', 'rect', 'src']);
   spec.add[2].paths[0][0][0] = 0;
   assert.equal(annots.added[2].paths[0][0][0], 100);
+});
+
+// ---- 図形の見た目: 塗り・線なし・線種（spec-4b-1b 確定事項16〜21・35） ----
+
+test('addAnnot は四角・丸の塗り・線なし・線種と、読み込んだ間隔・強さを写す', () => {
+  let annots = state.addAnnot(state.createAnnots(), shapeEntry({ color: null, fill: '#ffd966', lineStyle: 'cloudy', cloudIntensity: 2 }));
+  annots = state.addAnnot(annots, arrowEntry({ lineStyle: 'dashed', dash: [4, 2] }));
+  assert.equal(annots.added.length, 2);
+  const [square, arrow] = annots.added;
+  assert.equal(square.color, null);
+  assert.equal(square.fill, '#ffd966');
+  assert.equal(square.lineStyle, 'cloudy');
+  assert.equal(square.cloudIntensity, 2);
+  assert.deepEqual(arrow.dash, [4, 2]);
+  // 線と塗りを両方なしにはできない。直線は塗りも雲形も持てない。
+  assert.equal(state.addAnnot(state.createAnnots(), shapeEntry({ color: null })).added.length, 0);
+  assert.equal(state.addAnnot(state.createAnnots(), arrowEntry({ fill: '#ffd966' })).added.length, 0);
+  assert.equal(state.addAnnot(state.createAnnots(), arrowEntry({ lineStyle: 'cloudy' })).added.length, 0);
+});
+
+test('updateAnnot は塗り・線なし・線種を変え、当てた後の形が崩れるなら何もしない', () => {
+  const one = state.addAnnot(state.createAnnots(), shapeEntry({ fill: '#ffd966' }));
+  const id = one.added[0].id;
+  const noStroke = state.updateAnnot(one, { id }, { color: null });
+  assert.equal(noStroke.added[0].color, null);
+  // 線なしのまま塗りを無くすと、線も塗りも無くなるので断る。
+  assert.equal(state.updateAnnot(noStroke, { id }, { fill: null }), noStroke);
+  // 塗りと線を同時に替えるのはよい。
+  const swapped = state.updateAnnot(noStroke, { id }, { fill: null, color: '#4472c4' });
+  assert.equal(swapped.added[0].fill, null);
+  assert.equal(swapped.added[0].color, '#4472c4');
+  // 種類で選べない線種・塗りは断る。
+  const arrow = state.addAnnot(state.createAnnots(), arrowEntry());
+  const arrowId = arrow.added[0].id;
+  assert.equal(state.updateAnnot(arrow, { id: arrowId }, { lineStyle: 'cloudy' }), arrow);
+  assert.equal(state.updateAnnot(arrow, { id: arrowId }, { fill: '#ffd966' }), arrow);
+  assert.equal(state.updateAnnot(arrow, { id: arrowId }, { color: null }), arrow);
+  assert.equal(state.updateAnnot(arrow, { id: arrowId }, { lineStyle: 'dashed' }).added[0].lineStyle, 'dashed');
+});
+
+// 線種を替えたら、読み込んだ間隔と強さを捨て、雲形にしたときの強さは 1（確定事項18）。
+test('updateAnnot で線種を替えると、間隔と強さを整える', () => {
+  const one = state.addAnnot(state.createAnnots(), shapeEntry({ lineStyle: 'dashed', dash: [4, 2] }));
+  const id = one.added[0].id;
+  const cloudy = state.updateAnnot(one, { id }, { lineStyle: 'cloudy' });
+  assert.equal(cloudy.added[0].dash, undefined);
+  assert.equal(cloudy.added[0].cloudIntensity, 1);
+  const recolored = state.updateAnnot(one, { id }, { color: '#00b050' });
+  assert.deepEqual(recolored.added[0].dash, [4, 2], '線種を替えなければ間隔は残る');
+  const same = state.updateAnnot(one, { id }, { lineStyle: 'dashed' });
+  assert.equal(state.sameAnnots(one, same), true, '同じ線種なら変わらない');
+});
+
+// 読み込んだものは、写しの形を確かめてから元を消す（崩れる変更で元だけが消えないように）。
+test('updateAnnot は読み込んだ図形の写しの形が崩れるなら、元を消さない', () => {
+  const loaded = { ref: '31R', ...shapeEntry({ opacity: 1 }) };
+  const annots = state.createAnnots();
+  assert.equal(state.updateAnnot(annots, loaded, { color: null }), annots);
+  const next = state.updateAnnot(annots, loaded, { fill: '#a9ce91' });
+  assert.deepEqual(next.removed, ['31R']);
+  assert.equal(next.added[0].fill, '#a9ce91');
+});
+
+test('sameAnnots は塗り・線種・間隔・強さの違いを見る', () => {
+  const one = state.addAnnot(state.createAnnots(), shapeEntry());
+  const id = one.added[0].id;
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { fill: '#ffd966' })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { lineStyle: 'dashed' })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { lineStyle: 'solid' })), true, '実線は既定と同じ');
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { fill: null })), true, '塗りなしは既定と同じ');
+});
+
+test('toSaveSpec は既定と違う見た目の欄だけを載せる', () => {
+  let annots = state.addAnnot(state.createAnnots(), shapeEntry({ color: null, fill: '#ffd966', lineStyle: 'cloudy' }));
+  annots = state.addAnnot(annots, arrowEntry({ lineStyle: 'dashed', dash: [4, 2] }));
+  annots = state.addAnnot(annots, shapeEntry({ lineStyle: 'solid', fill: null }));
+  const spec = state.toSaveSpec(annots);
+  assert.deepEqual(spec.add[0], { src: 0, kind: 'square', color: null, opacity: 1, rect: SHAPE_RECT, lineWidth: 2, fill: '#ffd966', lineStyle: 'cloudy', cloudIntensity: 1 });
+  assert.equal(spec.add[1].lineStyle, 'dashed');
+  assert.deepEqual(spec.add[1].dash, [4, 2]);
+  assert.deepEqual(spec.add[2], { src: 0, kind: 'square', color: '#d92c2c', opacity: 1, rect: SHAPE_RECT, lineWidth: 2 });
 });
 
 // ---- ノートと不透明度、表示のみ（spec-4-4 確定事項15〜19） ----
