@@ -204,6 +204,19 @@
     return true;
   }
 
+  // 読み込みが終わった文書の注釈を届ける（spec-4b-1a 確定事項29）。表示中ならすぐ映し、別のタブへ退避して
+  // いればそのタブの退避分へ入れる（戻ると attach が映す）。どこにも無ければ（閉じられた）捨てる。
+  function deliverImported(doc, imported, options) {
+    if (doc !== null && doc !== undefined && state.doc === doc)
+      return setImported(imported, options);
+    return root.SigK.tabs?.deliverImported(doc, imported) === true;
+  }
+
+  // 文書がまだどこかで開かれているか（表示中か、退避しているタブ）。
+  function isLive(doc) {
+    return doc !== null && doc !== undefined && (state.doc === doc || root.SigK.tabs?.holds(doc) === true);
+  }
+
   function redrawAnnotations(options) {
     if (state.doc === null)
       return false;
@@ -773,8 +786,9 @@
       });
       syncDirty();
       controls()?.syncAll(el.doc, getState());
-      // ファイルにあるテキストマークアップを集める（spec-4-1 確定事項17）。待たない。
-      root.SigK.annotate?.importDocument(doc, () => state.doc === doc);
+      // ファイルにある注釈を集める（spec-4-1 確定事項17）。待たない。別のタブへ移っても、閉じられない限り
+      // そのタブへ届く（spec-4b-1a 確定事項29）。ファイルの控えは口が照合に使う（確定事項22）。
+      root.SigK.annotate?.importDocument(doc, { file: { ...state.file }, isAlive: () => isLive(doc) });
       return true;
     } catch (error) {
       setMessage(describeOpenFailure(error));
@@ -857,7 +871,7 @@
     syncDirty();
     controls()?.syncAll(el.doc, getState());
     render.scheduleUpdate();
-    root.SigK.annotate?.importDocument(doc, () => state.doc === doc);
+    root.SigK.annotate?.importDocument(doc, { file: { ...state.file }, isAlive: () => isLive(doc) });
     destroySession(previous);
     return true;
   }
@@ -930,6 +944,8 @@
     setAnnotations,
     getImported,
     setImported,
+    deliverImported,
+    isLive,
     redrawAnnotations,
     getBasePageCount,
     getTextLayer,

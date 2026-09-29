@@ -97,6 +97,22 @@
     return previous;
   }
 
+  // 退避しているタブのうち、その文書を持つもの（spec-4b-1a 確定事項29）。
+  function tabHolding(doc) {
+    if (doc === null || doc === undefined)
+      return null;
+    return state.list.find((tab) => tab.session !== null && tab.session !== undefined && tab.session.doc === doc) ?? null;
+  }
+
+  // 読み込みが終わった注釈を、退避しているタブへ入れる。タブへ戻ると viewer.attach が映す。
+  function deliverImported(doc, imported) {
+    const tab = tabHolding(doc);
+    if (tab === null)
+      return false;
+    tab.session.imported = imported;
+    return true;
+  }
+
   function restore(tab) {
     if (tab === null || tab === undefined)
       return false;
@@ -450,5 +466,7 @@
     cycle,
     render,
     revealActive,
+    holds: (doc) => tabHolding(doc) !== null,
+    deliverImported,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

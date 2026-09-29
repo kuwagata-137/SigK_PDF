@@ -299,7 +299,7 @@
     COLOR_NAMES,
     DEFAULT_COLORS,
     init,
-    importDocument: (doc, isCurrent) => root.SigK.annotationImport.importDocument(doc, isCurrent),
+    importDocument: (doc, options) => root.SigK.annotationImport.importDocument(doc, options),
     getTool: () => state.tool,
     setTool,
     toggleTool,
