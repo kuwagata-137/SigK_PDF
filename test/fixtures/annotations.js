@@ -25,8 +25,9 @@ function addAnnot(doc, page, fields, appearance = null) {
   const ctx = doc.context;
   const dict = { Type: 'Annot', ...fields, P: page.ref, M: PDFString.of("D:20260918090000+09'00'") };
   if (appearance !== null) {
+    const resources = appearance.resources === undefined ? {} : { Resources: appearance.resources };
     dict.AP = {
-      N: ctx.register(ctx.stream(appearance.content, { Type: 'XObject', Subtype: 'Form', FormType: 1, BBox: appearance.bbox })),
+      N: ctx.register(ctx.stream(appearance.content, { Type: 'XObject', Subtype: 'Form', FormType: 1, BBox: appearance.bbox, ...resources })),
     };
   }
   const ref = ctx.register(ctx.obj(dict));
@@ -100,30 +101,55 @@ async function buildSigkAnnotatedPdf(threePagesBytes) {
 //              （spec-4b-1b 確定事項36〜39）
 //   3 ページ目: 世代 1 の参照の矩形（不透明度 60%）と、/Annots に直に置いた辞書の矩形（読み込まない）
 // /RD の矩形の外観は、線を /Rect から /RD を引いた箱の内側に描く（規格の意味。spec-4b-1b 確定事項38）。
+// どの外観も辞書の中身（丸・塗り・線幅 0・破線・雲形・不透明度）のとおりに描く。spec-4b-1b から読み込んだものは SigK PDF が
+// 辞書から描き直すので、外観が辞書と食い違うと、開いただけで見た目が変わるように見える。雲の外観は SigK PDF の雲形の path を
+// 借りる（他のアプリの絵の代わり）。
 function strokeBox(rect, rgb, width) {
   const inset = width / 2;
   return { content: `${rgb.join(' ')} RG ${width} w ${rect[0] + inset} ${rect[1] + inset} ${rect[2] - rect[0] - width} ${rect[3] - rect[1] - width} re S`, bbox: rect };
 }
 
+// 楕円の path（箱を inset だけ内へ寄せ、右端から反時計回りのベジェ 4 本）。
+function ellipsePath([x1, y1, x2, y2], inset) {
+  const k = 0.5523;
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  const rx = (x2 - x1) / 2 - inset;
+  const ry = (y2 - y1) / 2 - inset;
+  const n = (value) => Math.round(value * 100) / 100;
+  const curve = (...values) => `${values.map(n).join(' ')} c`;
+  return [`${n(cx + rx)} ${n(cy)} m`,
+    curve(cx + rx, cy + ry * k, cx + rx * k, cy + ry, cx, cy + ry),
+    curve(cx - rx * k, cy + ry, cx - rx, cy + ry * k, cx - rx, cy),
+    curve(cx - rx, cy - ry * k, cx - rx * k, cy - ry, cx, cy - ry),
+    curve(cx + rx * k, cy - ry, cx + rx, cy - ry * k, cx + rx, cy), 'h'].join(' ');
+}
+
+// 半透明の外観（pdf.js は外観があれば /CA を当てないので、外観の中で薄める）。
+const HALF = { ExtGState: { GS0: { CA: 0.5, ca: 0.5 } } };
+
 async function buildStyledPdf(threePagesBytes) {
   const { PDFRef } = require('pdf-lib');
+  const { cloudPathOf } = require('../../worker/cloud-appearance.js');
   const doc = await PDFDocument.load(threePagesBytes, { updateMetadata: false });
   doc.setTitle('他のアプリの見た目を持つ注釈を載せた3ページ');
   const [page1, page2, page3] = doc.getPages();
-  const box = (rect, fields, rgb = [1, 0, 0], width = 2) => addAnnot(doc, page1, { Rect: rect, C: rgb, BS: { W: width, S: 'S' }, ...fields }, strokeBox(rect, rgb, width || 1));
-  box([60, 700, 200, 780], { Subtype: 'Square', CA: 0.5 });
-  box([220, 700, 360, 780], { Subtype: 'Circle', CA: 0.5 }, [0, 0, 1]);
-  box([380, 700, 520, 780], { Subtype: 'PolyLine', CA: 0.5, Vertices: [380, 710, 520, 770] }, [0, 0.5, 0]);
+  const box = (rect, fields, rgb = [1, 0, 0], width = 2, appearance = null) => addAnnot(doc, page1, { Rect: rect, C: rgb, BS: { W: width, S: 'S' }, ...fields },
+    appearance === null ? strokeBox(rect, rgb, width || 1) : { bbox: rect, ...appearance });
+  box([60, 700, 200, 780], { Subtype: 'Square', CA: 0.5 }, [1, 0, 0], 2, { content: `/GS0 gs ${strokeBox([60, 700, 200, 780], [1, 0, 0], 2).content}`, resources: HALF });
+  box([220, 700, 360, 780], { Subtype: 'Circle', CA: 0.5 }, [0, 0, 1], 2, { content: `/GS0 gs 0 0 1 RG 2 w ${ellipsePath([220, 700, 360, 780], 1)} S`, resources: HALF });
+  box([380, 700, 520, 780], { Subtype: 'PolyLine', CA: 0.5, Vertices: [380, 710, 520, 770] }, [0, 0.5, 0], 2,
+    { content: '/GS0 gs 0 0.5 0 RG 2 w 1 J 380 710 m 520 770 l S', resources: HALF });
   addNote(doc, page1, { rect: [540, 760, 560, 780], contents: '半透明のノート', author: 'other', color: [1, 1, 0], withAp: true });
-  box([60, 580, 200, 660], { Subtype: 'Square', IC: [1, 1, 0] });
-  box([220, 580, 360, 660], { Subtype: 'Square', IC: [0, 1, 0], BS: { W: 0 } }, [0, 0, 0], 0);
-  box([380, 580, 520, 660], { Subtype: 'Square', BS: { W: 2, S: 'D', D: [3, 2] } }, [0, 0, 1]);
-  box([60, 460, 200, 540], { Subtype: 'Circle', BE: { S: 'C', I: 1 } }, [1, 0, 0], 1);
+  box([60, 580, 200, 660], { Subtype: 'Square', IC: [1, 1, 0] }, [1, 0, 0], 2, { content: '1 0 0 RG 1 1 0 rg 2 w 61 581 138 78 re B' });
+  box([220, 580, 360, 660], { Subtype: 'Square', IC: [0, 1, 0], BS: { W: 0 } }, [0, 0, 0], 0, { content: '0 1 0 rg 220 580 140 80 re f' });
+  box([380, 580, 520, 660], { Subtype: 'Square', BS: { W: 2, S: 'D', D: [3, 2] } }, [0, 0, 1], 2, { content: '0 0 1 RG 2 w [3 2] 0 d 381 581 138 78 re S' });
+  const cloudCircle = cloudPathOf({ kind: 'circle', box: [60, 460, 200, 540], intensity: 1, lineWidth: 1 });
+  box([60, 460, 200, 540], { Subtype: 'Circle', BE: { S: 'C', I: 1 } }, [1, 0, 0], 1, { content: `1 0 0 RG 1 w 1 j\n${cloudCircle.ops}\nS` });
   addAnnot(doc, page1, { Subtype: 'Square', Rect: [220, 460, 360, 540], C: [1, 0, 0], BS: { W: 1, S: 'S' }, RD: [5, 5, 5, 5] },
     { content: strokeBox([225, 465, 355, 535], [1, 0, 0], 1).content, bbox: [220, 460, 360, 540] });
   box([380, 494, 520, 506], { Subtype: 'PolyLine', Vertices: [380, 500, 520, 500] }, [0, 0, 0], 12);
-  // 2 ページ目。雲の外観は SigK PDF の雲形の path を借りる（他のアプリの絵の代わり。読み込むと SigK PDF の描き方で描き直す）。
-  const { cloudPathOf } = require('../../worker/cloud-appearance.js');
+  // 2 ページ目。
   const cloud = cloudPathOf({ kind: 'square', box: [60, 600, 260, 760], intensity: 2, lineWidth: 2 });
   addAnnot(doc, page2, { Subtype: 'Square', Rect: [60, 600, 260, 760], C: [1, 0, 0], BS: { W: 2, S: 'S' }, BE: { S: 'C', I: 2 }, RD: Array(4).fill(cloud.margin) },
     { content: `1 0 0 RG 2 w 1 j\n${cloud.ops}\nS`, bbox: [60, 600, 260, 760] });
@@ -132,7 +158,7 @@ async function buildStyledPdf(threePagesBytes) {
   addAnnot(doc, page2, { Subtype: 'PolyLine', Rect: [59, 449, 261, 501], Vertices: [60, 500, 260, 450], C: [0, 0.5, 0], BS: { W: 2, S: 'D', D: [4, 2] } },
     { content: '0 0.5 0 RG 2 w [4 2] 0 d 60 500 m 260 450 l S', bbox: [59, 449, 261, 501] });
   addAnnot(doc, page2, { Subtype: 'Circle', Rect: [300, 450, 440, 550], IC: [0.8], BS: { W: 0 } },
-    { content: '0.8 g 300 450 140 100 re f', bbox: [300, 450, 440, 550] });
+    { content: `0.8 g ${ellipsePath([300, 450, 440, 550], 0)} f`, bbox: [300, 450, 440, 550] });
 
   // ノートの /CA は addNote が 1 で書くので、半透明に書き換える。
   const note = doc.context.lookup(annotsOf(doc, page1).get(3));
