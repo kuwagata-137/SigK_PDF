@@ -50,7 +50,7 @@ test('noteAppearanceOf は /Text の外観・辞書の欄・ポップアップ�
 
   const lines = appearance.content.split('\n');
   assert.equal(lines[0], '/GS gs');
-  assert.equal(lines[1], '1 0.89 0.35 rg 0.29 0.29 0.29 RG 1 w 1 j 1 J');
+  assert.equal(lines[1], '1 0.894 0.353 rg 0.29 0.29 0.29 RG 1 w 1 j 1 J');
   // 輪郭は左上 (x1, y2) を原点に y を下向きから紙の向きへ直す。最初の点は (100 + 3, 700 − 1.5)。
   assert.equal(lines[2], '103 698.5 m');
   assert.ok(lines.includes('h B'), '塗って線を引く');

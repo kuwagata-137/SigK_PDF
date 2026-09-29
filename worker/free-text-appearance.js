@@ -10,7 +10,7 @@
 // 回転した表示で置いた文字は pdf.js の FreeText エディタと同じ式で回す
 // （cm の回転行列と /Rotate。spec-4-2 事前調査 C）。
 
-const { num, parseColor } = require('./annotation-appearance.js');
+const { num, colorOps, parseColor } = require('./annotation-appearance.js');
 
 // 行の寸法。renderer/free-text-geometry.js に同じ値を持ち、一致はテストで見張る
 // （プロセスが違うので import できない）。ascent／descent は Noto Sans JP の hhea で、
@@ -55,7 +55,7 @@ function widenRight(rect, rotation, slack) {
 function textBlockOps({ lines, fontSize, rgb, origin }, measure) {
   const ops = [
     'BT',
-    `${num(rgb[0])} ${num(rgb[1])} ${num(rgb[2])} rg`,
+    `${colorOps(rgb)} rg`,
     `/${measure.name} ${num(fontSize)} Tf`,
     `${num(fontSize * LINE_HEIGHT)} TL`,
     `${num(origin[0] + PADDING)} ${num(origin[1] - PADDING - fontSize * BASELINE)} Td`,
@@ -109,7 +109,7 @@ function freeTextAppearanceOf(entry, measure) {
     content,
     bbox: rect,
     rect,
-    da: `/${measure.name} ${num(fontSize)} Tf ${num(rgb[0])} ${num(rgb[1])} ${num(rgb[2])} rg`,
+    da: `/${measure.name} ${num(fontSize)} Tf ${colorOps(rgb)} rg`,
     subtype: 'FreeText',
     rgb,
     opacity: alpha,

@@ -209,7 +209,7 @@ test('text は FreeText の辞書と外観・フォントのサブセット付�
   // /Contents は UTF-16BE で改行のまま
   assert.ok(pick(dict, '/Contents') instanceof PDFHexString);
   assert.equal(pick(dict, '/Contents').decodeText(), 'こんにちは\n世界');
-  assert.equal(pick(dict, '/DA').decodeText(), '/SigKJP 12 Tf 0.11 0.14 0.19 rg');
+  assert.equal(pick(dict, '/DA').decodeText(), '/SigKJP 12 Tf 0.11 0.141 0.188 rg');
   assert.deepEqual(numbersOf(saved, pick(dict, '/Border')), [0, 0, 0]);
   assert.equal(pick(dict, '/Rotate'), undefined);
   assert.equal(pick(dict, '/F').asNumber(), 4);
@@ -349,7 +349,7 @@ test('図形は Square・Circle・PolyLine・Ink の辞書と外観で書かれ�
   const squareAp = saved.context.lookup(pick(saved.context.lookup(pick(square, '/AP')), '/N'));
   assert.equal(nameOf(squareAp.dict, '/Subtype'), '/Form');
   assert.deepEqual(numbersOf(saved, pick(squareAp.dict, '/BBox')), [100, 600, 300, 700]);
-  assert.equal(contentOf(saved, squareAp), '/GS gs\n0.85 0.17 0.17 RG\n2 w 101 601 198 98 re S');
+  assert.equal(contentOf(saved, squareAp), '/GS gs\n0.851 0.173 0.173 RG\n2 w 101 601 198 98 re S');
   assert.equal(pick(saved.context.lookup(pick(squareAp.dict, '/Resources')), '/Font'), undefined);
   // 楕円
   assert.match(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(circle, '/AP')), '/N'))), /c\nh S$/);
@@ -361,14 +361,14 @@ test('図形は Square・Circle・PolyLine・Ink の辞書と外観で書かれ�
   assert.deepEqual(numbersOf(saved, pick(arrowDict, '/Vertices')), [100, 600, 300, 550]);
   assert.deepEqual(saved.context.lookup(pick(arrowDict, '/LE')).asArray().map((name) => name.asString()), ['/None', '/OpenArrow']);
   assert.equal(pick(saved.context.lookup(pick(arrowDict, '/BS')), '/W').asNumber(), 3);
-  assert.match(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(arrowDict, '/AP')), '/N'))), /^\/GS gs\n0\.17 0\.36 0\.85 RG\n3 w 1 J 1 j\n100 600 m 300 550 l S\n[\d.]+ [\d.]+ m 300 550 l [\d.]+ [\d.]+ l S$/);
+  assert.match(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(arrowDict, '/AP')), '/N'))), /^\/GS gs\n0\.173 0\.361 0\.851 RG\n3 w 1 J 1 j\n100 600 m 300 550 l S\n[\d.]+ [\d.]+ m 300 550 l [\d.]+ [\d.]+ l S$/);
   // ペン（2 ページ目）: /InkList は path ごとの平たい並び
   const [{ dict: inkDict }] = annotsOf(saved, 1);
   assert.equal(nameOf(inkDict, '/Subtype'), '/Ink');
   const inkList = saved.context.lookup(pick(inkDict, '/InkList')).asArray();
   assert.equal(inkList.length, 1);
   assert.deepEqual(numbersOf(saved, inkList[0]), [100, 500, 120, 480, 150, 510]);
-  assert.equal(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(inkDict, '/AP')), '/N'))), '/GS gs\n0.18 0.62 0.35 RG\n2 w 1 J 1 j\n100 500 m 120 480 l 150 510 l S');
+  assert.equal(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(inkDict, '/AP')), '/N'))), '/GS gs\n0.184 0.62 0.353 RG\n2 w 1 J 1 j\n100 500 m 120 480 l 150 510 l S');
   // フォントは埋まらない
   assert.equal(type0FontsOf(saved).length, 0);
 });

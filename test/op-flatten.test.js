@@ -164,7 +164,7 @@ test('境目: /Matrix・/AS・印刷の指定の無いもの・直に並ぶ辞�
   assert.equal(saved.context.lookup(refs.bare).dict.get(PDFName.of('Subtype')).encodedName, '/Form');
   // 外観の無いノートは本アプリの付箋（ノートの色）で描き起こす。
   const drawn = saved.context.lookup(xobjectOf(saved, 0, `${FLATTEN_PREFIX}5`));
-  assert.match(textOf(drawn), /0\.55 0\.9 0\.6 rg/);
+  assert.match(textOf(drawn), /0\.549 0\.902 0\.6 rg/);
 });
 
 test('/Rotate 90 のページのノートは /Rect の左上を軸に回して焼く（表示で上向き）', async () => {

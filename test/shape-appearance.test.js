@@ -42,7 +42,7 @@ test('Subtype は矩形 Square・楕円 Circle・直線と矢印 PolyLine・ペ�
 
 test('矩形は線幅の半分だけ内側に re S を書く', () => {
   const appearance = shapeAppearanceOf(square());
-  assert.equal(appearance.content, '/GS gs\n0.85 0.17 0.17 RG\n2 w 101 601 198 98 re S');
+  assert.equal(appearance.content, '/GS gs\n0.851 0.173 0.173 RG\n2 w 101 601 198 98 re S');
   assert.deepEqual(appearance.bbox, [100, 600, 300, 700]);
   assert.equal(appearance.subtype, 'Square');
   assert.equal(appearance.lineWidth, 2);
@@ -56,7 +56,7 @@ test('楕円はベジェ 4 本で、線幅の半分だけ内側に描く', () =>
   const appearance = shapeAppearanceOf(square({ kind: 'circle', rect: [330, 650, 500, 780], lineWidth: 3 }));
   assert.equal(appearance.subtype, 'Circle');
   assert.equal(appearance.content, [
-    '/GS gs', '0.85 0.17 0.17 RG', '3 w',
+    '/GS gs', '0.851 0.173 0.173 RG', '3 w',
     '498.5 715 m',
     '498.5 750.07 461.12 778.5 415 778.5 c',
     '368.88 778.5 331.5 750.07 331.5 715 c',
@@ -68,13 +68,13 @@ test('楕円はベジェ 4 本で、線幅の半分だけ内側に描く', () =>
 
 test('小さすぎる箱では線を内側に収めきれず、幅 0 で描く（負にならない）', () => {
   const appearance = shapeAppearanceOf(square({ rect: [100, 600, 101, 601], lineWidth: 8 }));
-  assert.equal(appearance.content, '/GS gs\n0.85 0.17 0.17 RG\n8 w 104 604 0 0 re S');
-  assert.match(shapeAppearanceOf(square({ kind: 'circle', rect: [100, 600, 101, 601], lineWidth: 8 })).content, /^\/GS gs\n0\.85 0\.17 0\.17 RG\n8 w\n100\.5 600\.5 m\n/);
+  assert.equal(appearance.content, '/GS gs\n0.851 0.173 0.173 RG\n8 w 104 604 0 0 re S');
+  assert.match(shapeAppearanceOf(square({ kind: 'circle', rect: [100, 600, 101, 601], lineWidth: 8 })).content, /^\/GS gs\n0\.851 0\.173 0\.173 RG\n8 w\n100\.5 600\.5 m\n/);
 });
 
 test('直線は丸い端の m l S で、/Vertices と /LE を返す', () => {
   const appearance = shapeAppearanceOf(line());
-  assert.equal(appearance.content, '/GS gs\n0.17 0.36 0.85 RG\n3 w 1 J 100 600 m 300 550 l S');
+  assert.equal(appearance.content, '/GS gs\n0.173 0.361 0.851 RG\n3 w 1 J 100 600 m 300 550 l S');
   assert.equal(appearance.subtype, 'PolyLine');
   assert.deepEqual(appearance.vertices, [100, 600, 300, 550]);
   assert.deepEqual(appearance.lineEndings, ['None', 'None']);
@@ -85,7 +85,7 @@ test('矢印は直線のあとに翼 2 本を丸い角で描き、/LE は終点�
   const appearance = shapeAppearanceOf(line({ kind: 'arrow', rect: [98.5, 543.55, 301.5, 601.5] }));
   const [left, right] = arrowHead([100, 600], [300, 550], 3);
   assert.equal(appearance.content, [
-    '/GS gs', '0.17 0.36 0.85 RG', '3 w 1 J 1 j',
+    '/GS gs', '0.173 0.361 0.851 RG', '3 w 1 J 1 j',
     '100 600 m 300 550 l S',
     `${left.map((v) => String(Math.round(v * 100) / 100)).join(' ')} m 300 550 l ${right.map((v) => String(Math.round(v * 100) / 100)).join(' ')} l S`,
   ].join('\n'));
@@ -96,7 +96,7 @@ test('矢印は直線のあとに翼 2 本を丸い角で描き、/LE は終点�
 test('ペンは path ごとに m l … S で、/InkList は平たい数の並び', () => {
   const appearance = shapeAppearanceOf(ink({ paths: [[[100, 500], [120, 480], [150, 510]], [[90, 505], [95.5, 506.25]]] }));
   assert.equal(appearance.content, [
-    '/GS gs', '0.18 0.62 0.35 RG', '2 w 1 J 1 j',
+    '/GS gs', '0.184 0.62 0.353 RG', '2 w 1 J 1 j',
     '100 500 m 120 480 l 150 510 l S',
     '90 505 m 95.5 506.25 l S',
   ].join('\n'));

@@ -79,14 +79,14 @@ test('freeTextAppearanceOf は回転なしの外観と /DA を組む', () => {
   const appearance = freeTextAppearanceOf(textEntry(), measure);
   assert.deepEqual(appearance.bbox, [100, 700, 201, 720.5]);
   assert.deepEqual(appearance.rect, [100, 700, 201, 720.5]);
-  assert.equal(appearance.da, '/SigKJP 12 Tf 0.11 0.14 0.19 rg');
+  assert.equal(appearance.da, '/SigKJP 12 Tf 0.11 0.141 0.188 rg');
   assert.equal(appearance.subtype, 'FreeText');
   assert.deepEqual(appearance.rgb, [28 / 255, 36 / 255, 48 / 255]);
   assert.equal(appearance.opacity, 1);
   assert.deepEqual(appearance.lines, ['こんにちは']);
   assert.equal(appearance.content, [
     'q', '/GS gs', '1 0 0 1 0 0 cm', '100 700 101 20.5 re W n',
-    'BT', '0.11 0.14 0.19 rg', '/SigKJP 12 Tf', '15 TL', '102 705.77 Td',
+    'BT', '0.11 0.141 0.188 rg', '/SigKJP 12 Tf', '15 TL', '102 705.77 Td',
     `<${measure.encode('こんにちは')}> Tj`, 'ET', 'Q',
   ].join('\n'));
 });
@@ -95,7 +95,7 @@ test('freeTextAppearanceOf は回転した表示で置いた文字を cm で回�
   const entry = textEntry({ rect: [40, 100, 79, 300], text: '回転した\n日本語', fontSize: 14, rotation: 90, color: '#d92c2c' });
   const appearance = freeTextAppearanceOf(entry, measure);
   assert.deepEqual(appearance.bbox, [40, 100, 79, 301]);
-  assert.equal(appearance.da, '/SigKJP 14 Tf 0.85 0.17 0.17 rg');
+  assert.equal(appearance.da, '/SigKJP 14 Tf 0.851 0.173 0.173 rg');
   const ops = appearance.content.split('\n');
   assert.equal(ops[2], '0 1 -1 0 0 0 cm');
   assert.equal(ops[3], '100 -79 201 39 re W n');
