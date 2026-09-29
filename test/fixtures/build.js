@@ -16,7 +16,7 @@ const { PDFDocument, StandardFonts, degrees, rgb } = require('pdf-lib');
 const { buildEncryptedPdf } = require('./standard-security.js');
 const { makePng } = require('./images.js');
 const { buildFormatImages } = require('./build-images.js');
-const { buildAnnotatedPdf, buildSigkAnnotatedPdf } = require('./annotations.js');
+const { buildAnnotatedPdf, buildSigkAnnotatedPdf, buildStyledPdf } = require('./annotations.js');
 const { buildPageBoxesPdf } = require('./page-boxes.js');
 
 const OUTPUT_DIR = __dirname;
@@ -144,6 +144,8 @@ async function buildOne(spec) {
 //   annotated.pdf … 他のツールが付けた注釈（/AP の無いノート・Line・FreeText・スタンプ・リンク）を
 //                   載せた 3 ページ（spec-4-4）。作り方は annotations.js に。
 //   sigk-annotated.pdf … 本アプリで付けた注釈を載せた 3 ページ（spec-4-5。フラット化の画素差）。annotations.js に。
+//   styled.pdf … 他のアプリの見た目（不透明度・塗り・線なし・破線・雲形・/RD・太い線）を持つ注釈と、世代 1 の参照・
+//                直に置いた辞書を載せた 3 ページ（spec-4b-1a。読み戻しの口と読み込み）。annotations.js に。
 //   page-boxes.pdf … /Rotate 0・90・180・270 と CropBox の内側のページ、Resources の共有（spec-4-5。
 //                   透かしの起動確認）。作り方は page-boxes.js に。
 const HANDMADE = {
@@ -151,6 +153,7 @@ const HANDMADE = {
   'broken.pdf': () => fs.readFileSync(fixturePath('three-pages.pdf')).subarray(0, 400),
   'annotated.pdf': () => buildAnnotatedPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
   'sigk-annotated.pdf': () => buildSigkAnnotatedPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
+  'styled.pdf': () => buildStyledPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
   'page-boxes.pdf': () => buildPageBoxesPdf(),
 };
 

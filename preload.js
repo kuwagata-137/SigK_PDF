@@ -157,6 +157,15 @@ contextBridge.exposeInMainWorld('printAPI', {
 // PDF→画像の書き出し（spec-3-3 確定事項19）。描くのはレンダラー（pdf.js の canvas）で、
 // ここは 1 ページぶんのバイト列をファイルに書くだけである。ほかのツールと向きが
 // 逆になる理由は worker/op-convert.js の頭にある。
+// 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。pdf.js が返さない欄（/CA・/IC・/BE・/RD など）を、
+// 開いたファイルの注釈についてワーカーで読む。帯も「実行中」の表示も出さない。
+contextBridge.exposeInMainWorld('annotationAPI', {
+  available: true,
+  // spec は { source, expect: { size, mtimeMs }, refs: ['12R', ...] }。
+  // { ok: true, details: { '12R': {...} } } / { ok: false, reason: 'invalid' | 'changed' | 'unreadable' | 'timeout' }
+  readDetails: (spec) => ipcRenderer.invoke('annotation:readDetails', spec),
+});
+
 contextBridge.exposeInMainWorld('imageAPI', {
   available: true,
   // { ok, path, bytes } / { error }

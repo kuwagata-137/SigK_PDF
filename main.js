@@ -51,6 +51,9 @@ protocol.registerSchemesAsPrivileged([PRIVILEGED_SCHEME]);
 app.setAppUserModelId('com.kuwagata.sigkpdf');
 
 const ROOT_DIR = __dirname;
+// 注釈の辞書の読み戻しの時間の上限（spec-4b-1a 確定事項21）と、タスクの名前に付ける連番。
+const ANNOTATION_DETAILS_TIMEOUT_MS = 10000;
+let annotationDetailsSerial = 0;
 
 let errorLog = null;
 let settings = null;
@@ -381,6 +384,23 @@ function registerIpc() {
     },
   }));
   ipcMain.handle('task:cancel', (_event, taskId) => taskRunner.cancel(taskId));
+
+  // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。保存や透かしと同じワーカーで読むが、帯も「実行中」の
+  // 表示も出さず、進捗も返さない。形の確かめはワーカーが持ち、ここはパスが実在するファイルかだけを見る。
+  // 10 秒で答えが無ければ打ち切る（開いたときに 1 回だけ呼ぶので、待たせすぎない）。
+  ipcMain.handle('annotation:readDetails', async (_event, spec) => {
+    if (typeof spec?.source !== 'string' || !isExistingFile(spec.source))
+      return { ok: false, reason: 'invalid' };
+    annotationDetailsSerial += 1;
+    const result = await taskRunner.run(`annotation-details-${annotationDetailsSerial}`, {
+      kind: 'annotation-details', source: spec.source, expect: spec.expect, refs: spec.refs,
+    }, { timeoutMs: ANNOTATION_DETAILS_TIMEOUT_MS });
+    if (result?.timedOut === true)
+      return { ok: false, reason: 'timeout' };
+    if (result?.ok === true)
+      return { ok: true, details: result.details ?? {} };
+    return { ok: false, reason: typeof result?.reason === 'string' ? result.reason : 'unreadable' };
+  });
 
   // 画面の見た目（モード・サイドパネルの開閉と幅）を覚える。
   // sandbox: true のため、fs に触るのはメインだけである（spec-1-3 確定事項32）。

@@ -210,3 +210,24 @@ test('結果が返らないまま done が来たら、そう言う', async () =>
   const result = await runner.run('t1', { target: 'a.pdf' }, {});
   assert.match(result.error, /結果が返りませんでした/);
 });
+
+// 時間の上限（spec-4b-1a 確定事項21）。注釈の辞書の読み戻しは、答えが無ければ 10 秒で打ち切る。
+test('timeoutMs を過ぎても答えが無ければ中止し、timedOut を添えて返す', async () => {
+  const { utilityProcess, forked } = fakeUtilityProcess(() => {});
+  const runner = createTaskRunner({ utilityProcess, workerPath: 'worker/pdf-task.js' });
+  const result = await runner.run('slow', { kind: 'annotation-details', source: 'a.pdf' }, { timeoutMs: 20 });
+  assert.deepEqual(result, { canceled: true, timedOut: true });
+  assert.equal(forked[0].killed, true);
+  assert.equal(runner.isRunning('slow'), false);
+});
+
+test('timeoutMs の前に終われば、時間切れの中止は起きない', async () => {
+  const { utilityProcess, forked } = fakeUtilityProcess(politeWorker({ ok: true, details: {} }));
+  const runner = createTaskRunner({ utilityProcess, workerPath: 'worker/pdf-task.js' });
+  const result = await runner.run('quick', { kind: 'annotation-details', source: 'a.pdf' }, { timeoutMs: 200 });
+  assert.deepEqual(result, { ok: true, details: {} });
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  // 終わったあとで中止が走っていれば、別の結果や二重の kill が起きる。
+  assert.equal(runner.isRunning('quick'), false);
+  assert.equal(forked.length, 1);
+});
