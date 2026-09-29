@@ -76,6 +76,10 @@ const REPORT = `
     listVisible: document.getElementById('annot-list').hidden === false,
     // 編集モードの左に出しているもの（spec-4b-1a 確定事項15〜17・39）と、描いたサムネイルの数。
     sideView: SigK.shell.getEditSide(),
+    // 読み込んだものの見た目（spec-4b-1a 確定事項24〜27・39）。不透明度・線幅・表示のみの見分けと、参照の形。
+    importedStyles: importedEntries.map((entry) => ({ ref: entry.ref, src: entry.src, kind: entry.kind, subtype: entry.subtype ?? null, color: entry.color, opacity: entry.opacity, lineWidth: entry.lineWidth ?? null, readonly: entry.readonly === true })),
+    // 最後に辞書の読み戻しの口を呼んだ様子（呼んだか・頼んだ件数・答えの件数・ms・理由）。
+    details: SigK.annotationDetails.lastRequest(),
     // 編集モードへ入る前と後の倍率と表示域（spec-4b-1a 確定事項19・39）。
     zoom: { before: zoomBefore, after: zoomAfter },
     sideThumbs: document.querySelectorAll('#thumbs .thumb').length,

@@ -32,12 +32,17 @@
 //   contents:直した本文         選んでいるノートの「本文」欄を打ち直して確定する
 //   opacity:50                 不透明度（%）。選んでいればその注釈、無ければ道具の次の値
 //   author:名前                「作成者」欄を打つ（ノートの道具を持っているとき）
-//   list:1                     一覧の 1 行目（1 起点）を押す（該当箇所へ飛んで選ぶ）
+//   list:1                     一覧の 1 行目（1 起点）を押す（該当箇所へ飛んで選ぶ。一覧を出していなければ先に出す）
+//   bar:square                 道具の段のボタンを押す（highlight・underline・strikeout・text・arrow・line・square・
+//                              circle・pen・note。spec-4b-1a 確定事項38）
+//   side:list                  左の見出しの切り替えを押す（thumbs か list）
+//   wait-details               書き込みの読み込み（辞書の読み戻しを含む）が終わるまで待つ
 //
 // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
 // 例: SIGK_SMOKE_ANNOTATE=text:0:100x700:こんにちは|世界,size:18,drag:30x-20,edit:直した,save
 // 例: SIGK_SMOKE_ANNOTATE=shape:arrow:0:100x700-300x650,width:3,pen:0:100x500;120x480;150x510,undo,redo,save
 // 例: SIGK_SMOKE_ANNOTATE=tool:note,author:総務,note:0:100x700:確認|2行目,color:#8ce99a,opacity:50,tool:shape,shape:square:0:100x500-300x400,opacity:50,list:1,undo,redo,save
+// 例: SIGK_SMOKE_ANNOTATE=bar:square,opacity:50,shape:square:0:100x700-300x600,bar:line,width:8,shape:line:0:100x200-300x200,save,wait-details
 
 const fs = require('node:fs');
 const path = require('node:path');

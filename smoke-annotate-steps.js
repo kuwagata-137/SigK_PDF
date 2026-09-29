@@ -139,6 +139,18 @@ const STEPS = `
       SigK.pageEdit.undo();
     } else if (name === 'redo') {
       SigK.pageEdit.redo();
+    } else if (name === 'bar') {
+      // 道具の段のボタン（spec-4b-1a 確定事項1〜5）。図形は種類で、ほかは道具の名前で引く。
+      const shapes = ['arrow', 'line', 'square', 'circle'];
+      const selector = shapes.includes(arg) ? '#edit-bar .edit-tool[data-shape="' + arg + '"]' : '#edit-bar .edit-tool[data-tool="' + arg + '"]:not([data-shape])';
+      document.querySelector(selector)?.click();
+    } else if (name === 'side') {
+      document.querySelector('#side-switch button[data-side="' + arg + '"]')?.click();
+      await wait(300);
+    } else if (name === 'wait-details') {
+      // 読み込み（辞書の読み戻しを含む。spec-4b-1a 確定事項30）が終わり、映し終えるまで待つ。
+      await SigK.annotationImport.settled();
+      await wait(300);
     } else if (name === 'save') {
       const started = performance.now();
       saveResult = await SigK.save.saveActive();
