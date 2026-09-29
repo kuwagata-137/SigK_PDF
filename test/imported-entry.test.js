@@ -6,26 +6,14 @@ const assert = require('node:assert/strict');
 require('../renderer/markup-quads.js');
 require('../renderer/free-text-geometry.js');
 require('../renderer/note-graphics.js');
+require('../renderer/imported-values.js');
+require('../renderer/imported-shape.js');
 require('../renderer/imported-entry.js');
 
 // ファイルにある注釈 1 件を自前の形にする層（spec-4-1 確定事項17、spec-4-3 確定事項13、spec-4-4 確定事項20）。
 // annotation-import.test.js から移した（spec-4b-1a 確定事項36）。
 
 const imp = globalThis.SigK.importedEntry;
-
-test('hexOf は 0〜255 の RGB を #rrggbb にし、無ければ黒', () => {
-  assert.equal(imp.hexOf(new Uint8ClampedArray([255, 230, 51])), '#ffe633');
-  assert.equal(imp.hexOf([0, 0, 0]), '#000000');
-  assert.equal(imp.hexOf(null), '#000000');
-  assert.equal(imp.hexOf([1]), '#000000');
-});
-
-test('quadsOf は 8 つずつ四角に切り、端数は捨てる', () => {
-  assert.deepEqual(imp.quadsOf(new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])), [[1, 2, 3, 4, 5, 6, 7, 8], [9, 10, 11, 12, 13, 14, 15, 16]]);
-  assert.deepEqual(imp.quadsOf([1, 2, 3]), []);
-  assert.deepEqual(imp.quadsOf(undefined), []);
-  assert.deepEqual(imp.quadsOf([1.234567, 2, 3, 4, 5, 6, 7, 8]), [[1.23, 2, 3, 4, 5, 6, 7, 8]]);
-});
 
 test('importedEntry はテキストマークアップだけを自前の形にする', () => {
   const entry = imp.importedEntry({ id: '86R', subtype: 'Underline', rect: [40, 600, 200, 612], quadPoints: [40, 612, 200, 612, 40, 600, 200, 600], color: [217, 44, 44] }, 3);
