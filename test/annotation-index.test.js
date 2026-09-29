@@ -92,3 +92,13 @@ test('labelOf と iconOf は種類ごとの名前とアイコン', () => {
   assert.equal(index.iconOf({ kind: 'other', subtype: 'Stamp' }), 'modeAnnot');
   assert.equal(index.iconOf({ kind: 'other', subtype: 'Ink' }), 'pen');
 });
+
+// 線なしの四角・丸は、行のアイコンを塗りの色で示す（spec-4b-1b 確定事項16）。
+test('rowsOf は線なしの四角・丸の行の色を塗りの色にする', () => {
+  const box = own({ id: 'e', kind: 'square', color: null, fill: '#ffff00', lineWidth: 2, rect: [100, 100, 200, 200], quads: [quadOfRect([100, 100, 200, 200])], text: '' });
+  const annots = state.addAnnot(state.createAnnots(), box);
+  assert.equal(annots.added.length, 1);
+  const [row] = index.rowsOf(annots, {}, [{ src: 0, rotate: 0 }]);
+  assert.equal(row.color, '#ffff00');
+  assert.equal(index.rowsOf(state.addAnnot(state.createAnnots(), { ...box, color: '#c00000' }), {}, [{ src: 0, rotate: 0 }])[0].color, '#c00000', '線があれば線の色');
+});

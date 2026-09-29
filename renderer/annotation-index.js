@@ -60,7 +60,8 @@
       title: titleOf(entry),
       label: labelOf(entry),
       icon: iconOf(entry),
-      color: entry.color,
+      // 線なしの四角・丸は塗りの色で示す（spec-4b-1b 確定事項16）。
+      color: entry.color ?? entry.fill ?? null,
     };
   }
 

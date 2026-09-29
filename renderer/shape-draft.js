@@ -9,17 +9,18 @@
   // 幾何は shape-geometry.js。正方形・正円・45° の判定は表示の座標で行う（90° 単位の回転なので
   // 紙でも同じ形になる。確定事項4）。
 
-  // { index, src, viewport, kind, start, current, points, shift, color, lineWidth, opacity }
+  // { index, src, viewport, kind, start, current, points, shift, color, lineWidth, opacity, fill, lineStyle }
   let draft = null;
 
   function geometry() {
     return root.SigK.shapeGeometry;
   }
 
-  // opacity は道具の「次に付ける不透明度」（spec-4b-1a 確定事項31）。描いている途中も確定後と同じ値で描く。
-  function begin({ index, src, viewport, kind, point, shift = false, color, lineWidth, opacity = 1 }) {
+  // opacity は道具の「次に付ける不透明度」（spec-4b-1a 確定事項31）。fill・lineStyle は次に付ける塗りと線種で、color は
+  // 四角・丸の線なしなら null（spec-4b-1b 確定事項42）。描いている途中も確定後と同じ見た目で描く。
+  function begin({ index, src, viewport, kind, point, shift = false, color, lineWidth, opacity = 1, fill = null, lineStyle = 'solid' }) {
     draft = {
-      index, src, viewport, kind, shift, color, lineWidth, opacity,
+      index, src, viewport, kind, shift, color, lineWidth, opacity, fill, lineStyle,
       start: [point[0], point[1]],
       current: [point[0], point[1]],
       points: [[point[0], point[1]]],
@@ -42,9 +43,21 @@
     return geometry().roundPoint(draft.viewport.convertToPdfPoint(point[0], point[1]));
   }
 
+  // 見た目の欄。塗りは四角・丸だけ、線種はその種類で選べるものだけ持たせる（直線・矢印の雲形は実線。雲形の強さは 1。
+  // spec-4b-1b 確定事項18・25）。
+  function styled(base) {
+    const style = root.SigK.shapeStyle;
+    let entry = base;
+    if (draft.fill !== null && style.isBoxedKind(draft.kind))
+      entry = { ...entry, fill: draft.fill };
+    if (draft.lineStyle !== 'solid' && style.lineStylesOf(draft.kind).includes(draft.lineStyle))
+      entry = style.restyle(entry, draft.lineStyle);
+    return entry;
+  }
+
   // 下書きを紙の座標の entry にする。points は表示の px の点列（ペンはここまでに間引いたもの）。
   function entryOf(points) {
-    const base = { src: draft.src, kind: draft.kind, color: draft.color, opacity: draft.opacity, lineWidth: draft.lineWidth };
+    const base = styled({ src: draft.src, kind: draft.kind, color: draft.color, opacity: draft.opacity, lineWidth: draft.lineWidth });
     if (draft.kind === 'square' || draft.kind === 'circle') {
       const box = geometry().boxOf(draft.start, draft.current, { square: draft.shift });
       const rect = geometry().boxOf(toPdf([box[0], box[1]]), toPdf([box[2], box[3]]));
