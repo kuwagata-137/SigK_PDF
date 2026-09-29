@@ -3,7 +3,7 @@
 
   // 注釈のプリセット（spec-4-1 確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜30、spec-4-4 確定事項36〜38）。DOM に触れない。
   //
-  // settings.js の ANNOT_COLORS・ANNOT_FONT_SIZES・ANNOT_LINE_WIDTHS・ANNOT_SHAPE_KINDS・ANNOT_OPACITIES と同じ並びで
+  // annotation-settings.js の ANNOT_COLORS・ANNOT_FONT_SIZES・ANNOT_LINE_WIDTHS・ANNOT_SHAPE_KINDS・ANNOT_OPACITIES と同じ並びで
   // あること（プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
   // 色と大きさの並びは自前で決めたもので、他社製品の意匠を写していない（docs/06）。
 
