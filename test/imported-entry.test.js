@@ -36,7 +36,7 @@ test('importedEntry はテキストマークアップだけを自前の形にす
 const BORDER = { width: 3, rawWidth: 3, style: 1, dashArray: [3] };
 
 test('importedEntry は Square・Circle を箱と線幅で拾う', () => {
-  const square = imp.importedEntry({ id: '12R', subtype: 'Square', rect: [100, 650, 300, 780], color: new Uint8ClampedArray([41, 112, 217]), borderStyle: { ...BORDER, width: 2 } }, 0);
+  const square = imp.importedEntry({ id: '12R', subtype: 'Square', rect: [100, 650, 300, 780], color: new Uint8ClampedArray([41, 112, 217]), borderStyle: { ...BORDER, width: 2, rawWidth: 2 } }, 0);
   assert.deepEqual(square, {
     ref: '12R', src: 0, kind: 'square', color: '#2970d9', opacity: 1, lineWidth: 2,
     rect: [100, 650, 300, 780], quads: [[100, 780, 300, 780, 100, 650, 300, 650]],
@@ -54,7 +54,7 @@ test('importedEntry は Square・Circle を箱と線幅で拾う', () => {
 });
 
 test('importedEntry は 2 点の PolyLine を直線か矢印として向きのまま拾う', () => {
-  const line = imp.importedEntry({ id: '24R', subtype: 'PolyLine', rect: [99, 299, 481, 331], color: [41, 153, 76], borderStyle: { ...BORDER, width: 2 }, vertices: new Float32Array([100, 330, 480, 300]), lineEndings: ['None', 'None'] }, 0);
+  const line = imp.importedEntry({ id: '24R', subtype: 'PolyLine', rect: [99, 299, 481, 331], color: [41, 153, 76], borderStyle: { ...BORDER, width: 2, rawWidth: 2 }, vertices: new Float32Array([100, 330, 480, 300]), lineEndings: ['None', 'None'] }, 0);
   assert.deepEqual(line, {
     ref: '24R', src: 0, kind: 'line', color: '#29994c', opacity: 1, lineWidth: 2,
     rect: [99, 299, 481, 331], quads: [[99, 331, 481, 331, 99, 299, 481, 299]], paths: [[[100, 330], [480, 300]]],
@@ -74,7 +74,7 @@ test('importedEntry は 2 点の PolyLine を直線か矢印として向きの�
 });
 
 test('importedEntry は Ink を path ごとの点列で拾い、2 点未満の path は捨てる', () => {
-  const ink = imp.importedEntry({ id: '20R', subtype: 'Ink', rect: [97.5, 347.5, 302.5, 412.5], color: [41, 112, 217], borderStyle: { ...BORDER, width: 5 }, inkLists: [new Float32Array([100, 380, 130, 410, 170, 360]), new Float32Array([1, 1]), new Float32Array([200.004, 400, 210, 390])], opacity: 1 }, 0);
+  const ink = imp.importedEntry({ id: '20R', subtype: 'Ink', rect: [97.5, 347.5, 302.5, 412.5], color: [41, 112, 217], borderStyle: { ...BORDER, width: 5, rawWidth: 5 }, inkLists: [new Float32Array([100, 380, 130, 410, 170, 360]), new Float32Array([1, 1]), new Float32Array([200.004, 400, 210, 390])], opacity: 1 }, 0);
   assert.deepEqual(ink, {
     ref: '20R', src: 0, kind: 'ink', color: '#2970d9', opacity: 1, lineWidth: 5,
     rect: [97.5, 347.5, 302.5, 412.5], quads: [[97.5, 412.5, 302.5, 412.5, 97.5, 347.5, 302.5, 347.5]],
@@ -130,4 +130,33 @@ test('importedEntry は他のツールの markup 注釈を表示のみの entry 
   // id が無ければ拾わない。
   assert.equal(imp.importedEntry({ subtype: 'Line', rect: [0, 0, 10, 10] }, 0), null);
   assert.deepEqual(imp.MARKUP_SUBTYPES.slice(0, 3), ['Text', 'FreeText', 'Line']);
+});
+
+// ---- 読み込まないものと、表示のみにするもの（spec-4b-1a 確定事項24） ----
+
+test('importedEntry は参照の形でない id（/Annots に直に置いた辞書）を読み込まない', () => {
+  const square = { subtype: 'Square', rect: [10, 10, 60, 40], color: [255, 0, 0], borderStyle: BORDER };
+  // pdf.js は直に置いた辞書を annot_<ページ>_<番号> と名付ける。消す指定をワーカーが読めず、保存ごと断られていた。
+  assert.equal(imp.importedEntry({ ...square, id: 'annot_p2_1' }, 0), null);
+  assert.equal(imp.importedEntry({ id: 'annot_p1_3', subtype: 'Stamp', rect: [0, 0, 10, 10] }, 0), null, '表示のみにもしない');
+  // 世代 1 の参照（12R1）は読み込む。
+  assert.equal(imp.importedEntry({ ...square, id: '52R1' }, 0).ref, '52R1');
+  assert.equal(imp.isRefId('12R'), true);
+  assert.equal(imp.isRefId('12R3'), true);
+  assert.equal(imp.isRefId('annot_p1_1'), false);
+  assert.equal(imp.isRefId('R12'), false);
+  assert.equal(imp.isRefId(12), false);
+});
+
+test('importedEntry は線幅 0 と実線でない線の図形・ペンを表示のみにする（まだ同じ見た目に描けないため）', () => {
+  const base = { id: '60R', subtype: 'Square', rect: [10, 10, 60, 40], color: [255, 0, 0] };
+  const noStroke = imp.importedEntry({ ...base, borderStyle: { width: 0, rawWidth: 1, style: 1, dashArray: [3] } }, 0);
+  assert.equal(noStroke.readonly, true);
+  assert.equal(noStroke.subtype, 'Square');
+  const dashed = imp.importedEntry({ ...base, borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [3, 2] } }, 0);
+  assert.equal(dashed.readonly, true);
+  const ink = imp.importedEntry({ id: '61R', subtype: 'Ink', rect: [0, 0, 50, 50], color: [0, 0, 0], borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [3] }, inkLists: [[1, 2, 3, 4]] }, 0);
+  assert.equal(ink.readonly, true);
+  // 実線で線幅のあるものは今までどおり直せる。
+  assert.equal(imp.importedEntry({ ...base, borderStyle: BORDER }, 0).readonly, undefined);
 });

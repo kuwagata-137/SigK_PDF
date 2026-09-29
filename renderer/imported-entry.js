@@ -31,6 +31,14 @@
   const DEFAULT_NOTE_COLOR = '#ffe45a';
   // 自分で付けたテキストの印（worker/font-embed.js の DA_FONT_NAME と同じ）。
   const OWN_FONT_NAME = 'SigKJP';
+  // pdf.js の id のうち、参照の形のもの（世代 0 は 12R、世代 1 以上は 12R1）。/Annots に直に置いた辞書は
+  // annot_… と名付けられ、ワーカーが参照に直せない（消すと保存ごと断られていた）ので読み込まない
+  // （spec-4b-1a 確定事項24）。pdf.js が描き続け、一覧には出ない。
+  const REF_ID = /^\d+R\d*$/;
+
+  function isRefId(id) {
+    return typeof id === 'string' && REF_ID.test(id);
+  }
 
   // 自分で付けたテキスト。/Rect と /Contents・/DA・/Rotate から組む（確定事項13）。
   function importedText(annotation, src) {
@@ -98,6 +106,8 @@
 
   // 自前で描ける形にする。拾えない markup 注釈は表示のみの entry、それ以外は null。
   function importedEntry(annotation, src) {
+    if (!isRefId(annotation?.id))
+      return null;
     return editableEntry(annotation, src) ?? readonlyEntry(annotation, src);
   }
 
@@ -126,5 +136,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.importedEntry = { SUBTYPES, MARKUP_SUBTYPES, OWN_FONT_NAME, importedEntry };
+  SigK.importedEntry = { SUBTYPES, MARKUP_SUBTYPES, OWN_FONT_NAME, isRefId, importedEntry };
 })(typeof window !== 'undefined' ? window : globalThis);

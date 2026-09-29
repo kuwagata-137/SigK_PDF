@@ -41,3 +41,28 @@ test('importedShape は拾えない形（色が無い・3 点以上の PolyLine�
   assert.equal(shape.importedShape({ id: '52R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 0, 10, 0], lineEndings: ['None', 'ClosedArrow'] }, 0), null);
   assert.equal(shape.importedShape({ id: '53R', subtype: 'Polygon', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER }, 0), null);
 });
+
+// ---- 線幅と線の形（spec-4b-1a 確定事項24。事前調査 A） ----
+
+test('importedShape の線幅は、pdf.js が /Rect に合わせて 1 に置き換える前の rawWidth を使う', () => {
+  // 水平な 2pt の直線は /Rect の高さがちょうど 2 なので、pdf.js は width を 1 に置き換える（今は保存して開き直すと 1pt に戻っていた）。
+  const line = shape.importedShape({ id: '70R', subtype: 'PolyLine', rect: [0, 4, 100, 6], color: [0, 0, 0], borderStyle: { width: 1, rawWidth: 2, style: 1 }, vertices: [0, 5, 100, 5], lineEndings: ['None', 'None'] }, 0);
+  assert.equal(line.lineWidth, 2);
+  const thick = shape.importedShape({ id: '71R', subtype: 'Square', rect: [0, 0, 30, 30], color: [0, 0, 0], borderStyle: { width: 1, rawWidth: 40, style: 1 } }, 0);
+  assert.equal(thick.lineWidth, 40);
+  // rawWidth が無い（古い形の偽物など）なら width。borderStyle が無ければ 1。
+  assert.equal(shape.lineWidthOf({ width: 4 }), 4);
+  assert.equal(shape.lineWidthOf(undefined), 1);
+  assert.equal(shape.lineWidthOf({ width: 0, rawWidth: 1 }), 0);
+});
+
+test('importedShape は線幅 0 と実線でない線に null を返す（imported-entry.js が表示のみにする）', () => {
+  const base = { id: '72R', subtype: 'Circle', rect: [0, 0, 30, 30], color: [0, 0, 0] };
+  assert.equal(shape.importedShape({ ...base, borderStyle: { width: 0, rawWidth: 1, style: 1 } }, 0), null);
+  assert.equal(shape.importedShape({ ...base, borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [3, 2] } }, 0), null);
+  assert.equal(shape.isSolidLine({ style: 1 }), true);
+  assert.equal(shape.isSolidLine({}), true, '線の形が無ければ実線');
+  assert.equal(shape.isSolidLine(undefined), true);
+  assert.equal(shape.isSolidLine({ style: 2 }), false);
+  assert.equal(shape.isSolidLine({ style: 4 }), false);
+});
