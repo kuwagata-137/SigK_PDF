@@ -226,10 +226,10 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 const DEFAULT_COLORS = { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430', shape: '#d92c2c', pen: '#d92c2c', note: '#ffe45a' };
 const DEFAULT_OPACITY = { text: 1, shape: 1, pen: 1, note: 1 };
 
-test('pickUi はモードとサイドパネルと注釈の色・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
+test('pickUi はモードとサイドパネルと編集モードの左と注釈の色・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '' });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '' });
 });
 
 // { sidePanel: { open: false } } を送っただけで幅が既定へ戻る、を防ぐ。
@@ -239,6 +239,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
   assert.deepEqual(mergeUi(current, { sidePanel: { open: false } }), {
     mode: 'view',
     pageLayout: 'single',
+    editSide: 'thumbs',
     sidePanel: { open: false, width: 300 },
     annotColors: DEFAULT_COLORS,
     annotFontSize: 12,
@@ -250,6 +251,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
   assert.deepEqual(mergeUi(current, { mode: 'annot' }), {
     mode: 'annot',
     pageLayout: 'single',
+    editSide: 'thumbs',
     sidePanel: { open: true, width: 300 },
     annotColors: DEFAULT_COLORS,
     annotFontSize: 12,
@@ -262,6 +264,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
   assert.deepEqual(mergeUi(current, { mode: 'zzz', sidePanel: { width: 9999 } }), {
     mode: 'view',
     pageLayout: 'single',
+    editSide: 'thumbs',
     sidePanel: { open: true, width: SIDE_PANEL_MAX },
     annotColors: DEFAULT_COLORS,
     annotFontSize: 12,
@@ -270,7 +273,22 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
   });
-  assert.deepEqual(mergeUi(current, null), current);
+  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs' });
+});
+
+// 編集モードの左に出すもの（spec-4b-1a 確定事項17）。既定はサムネイルで、使えない値は今の値か既定へ落ちる。
+test('editSide は thumbs か list だけを受け取り、既定は thumbs', () => {
+  const { EDIT_SIDES } = require('../settings.js');
+  require('../renderer/shell.js');
+  assert.deepEqual(EDIT_SIDES, [...globalThis.SigK.shell.EDIT_SIDES]);
+  assert.equal(DEFAULTS.editSide, 'thumbs');
+  assert.equal(mergeDefaults({ editSide: 'list' }).editSide, 'list');
+  assert.equal(mergeDefaults({ editSide: 'grid' }).editSide, 'thumbs');
+  const current = { mode: 'annot', pageLayout: 'single', editSide: 'list', sidePanel: { open: true, width: 300 } };
+  assert.equal(mergeUi(current, { editSide: 'thumbs' }).editSide, 'thumbs');
+  assert.equal(mergeUi(current, { editSide: 7 }).editSide, 'list');
+  assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).editSide, 'thumbs', '古い settings.json でも落ちない');
+  assert.equal(pickUi(mergeDefaults({ editSide: 'list' })).editSide, 'list');
 });
 
 // 注釈の色（spec-4-1 確定事項33・34）。プリセットに無い値は既定へ落ちる。

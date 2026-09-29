@@ -47,6 +47,8 @@
         sidePanelWidth: result.ui.sidePanel.width,
         // 見開き（spec-2-3 確定事項5）。古い settings.json には無いことがある。
         pageLayout: result.ui.pageLayout,
+        // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。
+        editSide: result.ui.editSide,
       });
       // 注釈の色と文字の大きさ（spec-4-1 確定事項34、spec-4-2 確定事項21）。古い settings.json には無いことがある。
       root.SigK.annotate?.applyColors(result.ui.annotColors);

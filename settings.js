@@ -22,6 +22,8 @@ const DEFAULTS = {
   // 閲覧モードのページの並べ方（spec-2-3 確定事項5）。'single' が縦1列、
   // 'facing' が見開き。アプリ全体の設定で、文書ごとには持たない。
   pageLayout: 'single',
+  // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。'thumbs' がサムネイル、'list' が注釈一覧。
+  editSide: 'thumbs',
   // 注釈の設定（色・文字の大きさ・線の太さ・図形の種類・不透明度・作成者）は annotation-settings.js が持つ。
   ...structuredClone(ANNOT_DEFAULTS),
   recent: [],
@@ -32,6 +34,8 @@ const DEFAULTS = {
 const UI_MODES = ['view', 'pages', 'annot', 'tools'];
 // ページの並べ方。renderer/shell.js の PAGE_LAYOUTS と同じ並びであること。
 const PAGE_LAYOUTS = ['single', 'facing'];
+// 編集モードの左に出すもの。renderer/shell.js の EDIT_SIDES と同じ並びであること。
+const EDIT_SIDES = ['thumbs', 'list'];
 
 const SIDE_PANEL_MIN = 180;
 const SIDE_PANEL_MAX = 420;
@@ -77,6 +81,7 @@ function mergeDefaults(raw) {
     },
     mode: isValidMode(raw.mode) ? raw.mode : DEFAULTS.mode,
     pageLayout: isValidPageLayout(raw.pageLayout) ? raw.pageLayout : DEFAULTS.pageLayout,
+    editSide: EDIT_SIDES.includes(raw.editSide) ? raw.editSide : DEFAULTS.editSide,
     ...pickAnnotSettings(raw),
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
@@ -97,6 +102,7 @@ function pickUi(settings) {
   return {
     mode: settings.mode,
     pageLayout: settings.pageLayout,
+    editSide: EDIT_SIDES.includes(settings.editSide) ? settings.editSide : DEFAULTS.editSide,
     sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
     ...pickAnnotSettings(settings),
   };
@@ -113,6 +119,9 @@ function mergeUi(current, patch) {
     pageLayout: isValidPageLayout(next.pageLayout)
       ? next.pageLayout
       : (isValidPageLayout(current.pageLayout) ? current.pageLayout : DEFAULTS.pageLayout),
+    editSide: EDIT_SIDES.includes(next.editSide)
+      ? next.editSide
+      : (EDIT_SIDES.includes(current.editSide) ? current.editSide : DEFAULTS.editSide),
     sidePanel: {
       open: pickBoolean(sidePanel.open, current.sidePanel.open),
       width: clampSidePanelWidth(pickNumber(sidePanel.width, current.sidePanel.width)),
@@ -254,6 +263,7 @@ module.exports = {
   DEFAULTS,
   UI_MODES,
   PAGE_LAYOUTS,
+  EDIT_SIDES,
   ANNOT_COLORS,
   ANNOT_FONT_SIZES,
   ANNOT_LINE_WIDTHS,

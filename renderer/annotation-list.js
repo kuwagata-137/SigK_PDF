@@ -26,7 +26,8 @@
 
   function isVisible() {
     const html = state.doc?.documentElement;
-    return html?.getAttribute('data-mode') === 'annot' && html.getAttribute('data-panel') === 'open';
+    // 編集モードで、左の切り替えが「注釈一覧」のときだけ（spec-4b-1a 確定事項16）。
+    return html?.getAttribute('data-mode') === 'annot' && html.getAttribute('data-panel') === 'open' && html.getAttribute('data-edit-side') === 'list';
   }
 
   function iconOf(doc, row) {

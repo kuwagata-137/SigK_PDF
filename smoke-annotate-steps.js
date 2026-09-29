@@ -74,6 +74,11 @@ const STEPS = `
       field.value = arg;
       field.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (name === 'list') {
+      // 編集モードの左は既定でサムネイル（spec-4b-1a 確定事項17）。一覧を出してから押す。
+      if (SigK.shell.getEditSide() !== 'list') {
+        document.querySelector('#side-switch button[data-side="list"]').click();
+        await wait(200);
+      }
       const row = document.querySelectorAll('#annot-rows .annot-row')[Number(arg) - 1];
       row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       await wait(500);

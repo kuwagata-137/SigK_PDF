@@ -617,6 +617,8 @@ async function createShell({
           mode: patch?.mode ?? savedUi.mode,
           // 見開きの選択（spec-2-3 確定事項5）。
           pageLayout: patch?.pageLayout ?? savedUi.pageLayout,
+          // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。
+          editSide: patch?.editSide ?? savedUi.editSide,
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
           // 注釈の色（spec-4-1 確定事項34）。種類ごとに重ねる。
           annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },

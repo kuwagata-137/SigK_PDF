@@ -4,14 +4,19 @@
   // 画面の枠組みの状態を持つ層。PDF の中身には触らない。
 
   const MODES = ['view', 'pages', 'annot', 'tools'];
-  // 注釈モードのサイドパネルは注釈の一覧（spec-4-4 確定事項9。塊①〜③はサムネイルだった）。
-  const MODE_TITLES = { view: 'サムネイル', pages: 'ページ', annot: '注釈一覧', tools: 'ツール' };
+  // サイドパネルの見出し。編集モード（annot）は見出しの文字を隠し、「サムネイル」「注釈一覧」の切り替えを出す
+  // （spec-4b-1a 確定事項15。spec-4-4 確定事項9 の「注釈モードは一覧」を改めた）。
+  const MODE_TITLES = { view: 'サムネイル', pages: 'ページ', annot: '', tools: 'ツール' };
+  // 編集モードの左に出すもの（spec-4b-1a 確定事項16・17）。settings.js の EDIT_SIDES と同じ並びであること。
+  const EDIT_SIDES = ['thumbs', 'list'];
   // ページの並べ方（spec-2-3 確定事項3・5）。settings.js の PAGE_LAYOUTS と同じ
   // 並びであること。プロセスが違うので import はできない。test/shell.test.js が見張る。
   const PAGE_LAYOUTS = ['single', 'facing'];
   const SIDE_PANEL_MIN = 180;
   const SIDE_PANEL_MAX = 420;
 
+  // 編集モードの左に出しているもの。
+  let editSide = 'thumbs';
   // いま当てている幅。ドラッグが終わった時点で覚えるのに使う。
   let sidePanelWidth = 240;
   // 保存してある値を当てている最中は書き戻さない。起動のたびに
@@ -31,6 +36,24 @@
     if (!api || api.available !== true)
       return false;
     api.setUi(patch)?.catch?.(() => {});
+    return true;
+  }
+
+  // 編集モードの左の切り替え（spec-4b-1a 確定事項15〜18）。既定はサムネイルで、選んだ側を覚える。
+  // 出し入れは html の data-edit-side と CSS、中身はサムネイルと一覧がそれぞれ見て描き直す。
+  function setEditSide(doc, side) {
+    if (!EDIT_SIDES.includes(side))
+      return false;
+    editSide = side;
+    doc.documentElement.setAttribute('data-edit-side', side);
+    for (const button of doc.querySelectorAll('#side-switch button[data-side]')) {
+      const on = button.dataset.side === side;
+      button.classList.toggle('on', on);
+      button.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    root.SigK.thumbnails?.refresh();
+    root.SigK.annotationList?.refresh();
+    persist({ editSide: side });
     return true;
   }
 
@@ -120,9 +143,11 @@
   }
 
   // 保存してあった見た目を当てる。当てる操作そのものは覚え直さない。
-  function applyUi(doc, { mode, panelOpen, sidePanelWidth: width, pageLayout } = {}) {
+  function applyUi(doc, { mode, panelOpen, sidePanelWidth: width, pageLayout, editSide: side } = {}) {
     restoring = true;
     try {
+      if (EDIT_SIDES.includes(side))
+        setEditSide(doc, side);
       if (isValidMode(mode))
         setMode(doc, mode);
       if (typeof panelOpen === 'boolean')
@@ -169,10 +194,13 @@
       return false;
     doc.documentElement.dataset.shellReady = 'true';
 
-    applyUi(doc, { mode: 'view', panelOpen: true, sidePanelWidth: 240, pageLayout: 'single', ...ui });
+    // 編集モードの左は、覚えた値が届くまでサムネイル（spec-4b-1a 確定事項17）。
+    applyUi(doc, { mode: 'view', panelOpen: true, sidePanelWidth: 240, pageLayout: 'single', ...ui, editSide: ui.editSide ?? 'thumbs' });
 
     for (const item of doc.querySelectorAll('.rail-item[data-mode]'))
       item.addEventListener('click', () => setMode(doc, item.dataset.mode));
+    for (const button of doc.querySelectorAll('#side-switch button[data-side]'))
+      button.addEventListener('click', () => setEditSide(doc, button.dataset.side));
 
     const collapse = doc.getElementById('side-collapse');
     if (collapse !== null) {
@@ -215,6 +243,7 @@
   SigK.shell = {
     MODES,
     MODE_TITLES,
+    EDIT_SIDES,
     PAGE_LAYOUTS,
     SIDE_PANEL_MIN,
     SIDE_PANEL_MAX,
@@ -225,6 +254,8 @@
     setSidePanelOpen,
     setSidePanelWidth,
     setPageLayout,
+    setEditSide,
+    getEditSide: () => editSide,
     persist,
     applyUi,
     setStatus,

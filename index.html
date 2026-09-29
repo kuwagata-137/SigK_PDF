@@ -111,6 +111,8 @@ body{
     <div id="side">
       <div class="side-head">
         <span id="side-title">サムネイル</span>
+        <!-- 編集モードの左の見出し（spec-4b-1a 確定事項15〜18）。見出しの文字の代わりに出す。結線は shell.js。 -->
+        <span class="side-switch" id="side-switch" role="group" aria-label="左に出すもの"><button type="button" data-side="thumbs" aria-pressed="true" class="on">サムネイル</button><button type="button" data-side="list" aria-pressed="false">注釈一覧</button></span>
         <span class="collapse" id="side-collapse" data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを閉じる"></span>
       </div>
       <!-- tabindex はプログラムから当てるためのもので、Tab 順には入れない。

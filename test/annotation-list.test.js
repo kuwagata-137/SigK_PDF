@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
 
 // サイドパネルの注釈一覧（spec-4-4 確定事項9・28〜32）。行の描画・選択の同期・行を押したときのジャンプ。
+// 編集モードの左は既定でサムネイルなので（spec-4b-1a 確定事項17）、見出しの切り替えで一覧を出してから見る。
 
 const A = 'C:\\work\\a.pdf';
 
@@ -35,6 +36,7 @@ async function withOpenDocument(t, options = {}) {
   await shell.SigK.tabs.openPath(A);
   await shell.flush();
   shell.SigK.shell.setMode(shell.document, 'annot');
+  shell.SigK.shell.setEditSide(shell.document, 'list');
   return shell;
 }
 
@@ -52,12 +54,15 @@ function pageNode(shell, index = 0) {
 
 const plain = (value) => structuredClone(value);
 
-test('文書が無ければ案内、注釈モード以外では隠れる', async (t) => {
+test('文書が無ければ案内、編集モードで注釈一覧を選んでいるときだけ出る', async (t) => {
   const shell = await withShell(t);
   const { document, SigK } = shell;
   const list = document.getElementById('annot-list');
   assert.equal(list.hidden, true);
   SigK.shell.setMode(document, 'annot');
+  assert.equal(list.hidden, true, '編集モードの既定はサムネイル');
+  assert.equal(document.getElementById('thumbs-empty').hidden, false, 'サムネイルの案内が出る');
+  document.querySelector('#side-switch button[data-side="list"]').click();
   assert.equal(list.hidden, false);
   assert.equal(document.getElementById('annot-list-empty').hidden, false);
   assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと書き込みの一覧が出ます');
@@ -71,7 +76,7 @@ test('文書が無ければ案内、注釈モード以外では隠れる', async
 test('開くと文書内の注釈がページ順に並び、行はアイコン・p.N・本文か種類名・表示のみの印', async (t) => {
   const shell = await withOpenDocument(t);
   const { document, SigK } = shell;
-  assert.equal(document.getElementById('side-title').textContent, '注釈一覧');
+  assert.equal(document.querySelector('#side-switch button[data-side="list"]').getAttribute('aria-pressed'), 'true');
   // 表示のみは本文（/Contents）があればそれ、無ければ種類名。
   assert.deepEqual(rows(shell).map(rowInfo), [
     ['17R', 'p.1', 'other line', true, false],

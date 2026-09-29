@@ -74,7 +74,9 @@ const REPORT = `
     noteGroups: [...document.querySelectorAll('.annot-layer')].map((svg) => svg.querySelectorAll('g[data-kind="note"] g.note').length),
     listRows: [...document.querySelectorAll('#annot-rows .annot-row')].map((row) => [row.dataset.key, row.querySelector('.pg').textContent, row.querySelector('.tx').textContent, row.classList.contains('on'), row.classList.contains('readonly')]),
     listVisible: document.getElementById('annot-list').hidden === false,
-    sideTitle: document.getElementById('side-title').textContent,
+    // 編集モードの左に出しているもの（spec-4b-1a 確定事項15〜17・39）と、描いたサムネイルの数。
+    sideView: SigK.shell.getEditSide(),
+    sideThumbs: document.querySelectorAll('#thumbs .thumb').length,
     propsContents: document.getElementById('props-contents').value,
     propsContentsVisible: document.getElementById('props-contents-row').hidden === false,
     propsAuthor: document.getElementById('props-author').value,

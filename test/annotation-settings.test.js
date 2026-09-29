@@ -17,8 +17,8 @@ const KEYS = ['annotColors', 'annotFontSize', 'annotLineWidth', 'annotShapeKind'
 test('settings.js の既定は、注釈のキーを annotation-settings.js の既定のまま同じ位置に持つ', () => {
   for (const key of KEYS)
     assert.deepEqual(settings.DEFAULTS[key], ANNOT_DEFAULTS[key]);
-  // settings.json に書くキーの並びは移す前と同じ（pageLayout の後ろ、recent の前）。
-  assert.deepEqual(Object.keys(settings.DEFAULTS), ['version', 'window', 'sidePanel', 'mode', 'pageLayout', ...KEYS, 'recent']);
+  // settings.json に書くキーの並びは移す前と同じ（画面の見た目の後ろ、recent の前）。
+  assert.deepEqual(Object.keys(settings.DEFAULTS), ['version', 'window', 'sidePanel', 'mode', 'pageLayout', 'editSide', ...KEYS, 'recent']);
   // 既定を複製して持つので、settings.js 側を書き換えても annotation-settings.js の既定は変わらない。
   assert.notEqual(settings.DEFAULTS.annotColors, ANNOT_DEFAULTS.annotColors);
   // 候補の一覧は settings.js からも同じものが引ける（プリセットとの一致の見張りが使う）。
