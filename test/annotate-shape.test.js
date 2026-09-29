@@ -94,7 +94,7 @@ test('図形の道具で紙をドラッグすると矩形が描かれ、1 世代
   assert.equal(added.length, 1);
   const entry = added[0];
   assert.equal(entry.kind, 'square');
-  assert.equal(entry.color, '#d92c2c');
+  assert.equal(entry.color, '#c00000');
   assert.equal(entry.lineWidth, 2);
   assert.equal(entry.src, 0);
   entry.rect.forEach((value, i) => near(value, [100, 600, 300, 700][i]));
@@ -200,7 +200,7 @@ test('ペンでなぞると間引いた点列の Ink が 1 つできる', async 
   assert.equal(added.length, 1);
   const ink = added[0];
   assert.equal(ink.kind, 'ink');
-  assert.equal(ink.color, '#d92c2c');
+  assert.equal(ink.color, '#c00000');
   assert.equal(ink.paths.length, 1);
   assert.ok(ink.paths[0].length >= 4 && ink.paths[0].length < 100, `点の数 ${ink.paths[0].length}`);
   ink.paths[0][0].forEach((value, i) => near(value, [100, 500][i]));
@@ -334,7 +334,9 @@ test('線の太さは選んでいる図形を変えて /Rect を作り直し、�
   // 選んでいなければ次の太さだけ
   SigK.annotate.select(null);
   assert.equal(SigK.annotate.setLineWidth(3), true);
-  assert.equal(SigK.annotate.setLineWidth(4), false);
+  // 1〜40 の整数の外は断る（spec-4b-1b 確定事項19）。
+  assert.equal(SigK.annotate.setLineWidth(41), false);
+  assert.equal(SigK.annotate.setLineWidth(2.5), false);
   drag(shell, [100, 400], [300, 400]);
   assert.equal(SigK.viewer.getAnnotations().added[1].lineWidth, 3);
   // 同じ太さなら履歴に積まない
@@ -346,20 +348,20 @@ test('線の太さは選んでいる図形を変えて /Rect を作り直し、�
 test('色は図形とペンで別々に覚え、選んでいる図形の色を変えられる', async (t) => {
   const shell = await withTool(t, 'shape');
   const { SigK } = shell;
-  assert.equal(SigK.annotate.setColor('#2c5cd9'), true);
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotColors: { shape: '#2c5cd9' } });
-  assert.equal(SigK.annotate.colorOf('pen'), '#d92c2c');
-  assert.equal(SigK.annotate.colorOf('ink'), '#d92c2c');
-  assert.equal(SigK.annotate.colorOf('arrow'), '#2c5cd9');
+  assert.equal(SigK.annotate.setColor('#4472c4'), true);
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotColors: { shape: '#4472c4' } });
+  assert.equal(SigK.annotate.colorOf('pen'), '#c00000');
+  assert.equal(SigK.annotate.colorOf('ink'), '#c00000');
+  assert.equal(SigK.annotate.colorOf('arrow'), '#4472c4');
   drag(shell, [100, 700], [300, 600]);
   const entry = SigK.viewer.getAnnotations().added[0];
-  assert.equal(entry.color, '#2c5cd9');
-  assert.equal(SigK.annotate.setColor('#2f9e5a'), true);
-  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#2f9e5a');
-  assert.equal(SigK.annotate.setColor('#ffe45a'), false);
+  assert.equal(entry.color, '#4472c4');
+  assert.equal(SigK.annotate.setColor('#00b050'), true);
+  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#00b050');
+  assert.equal(SigK.annotate.setColor('#ffd966'), false);
   SigK.annotate.setTool('pen');
   drag(shell, [100, 400], [200, 380], { via: [[150, 390]] });
-  assert.equal(SigK.viewer.getAnnotations().added[1].color, '#d92c2c');
+  assert.equal(SigK.viewer.getAnnotations().added[1].color, '#c00000');
 });
 
 test('覚えた太さと種類は起動時に戻る', async (t) => {

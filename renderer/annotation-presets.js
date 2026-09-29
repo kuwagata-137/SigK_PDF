@@ -1,11 +1,12 @@
 (function (root) {
   'use strict';
 
-  // 注釈のプリセット（spec-4-1 確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜30、spec-4-4 確定事項36〜38）。DOM に触れない。
+  // 注釈のプリセット（spec-4-1 確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜30、spec-4-4 確定事項36〜38、
+  // spec-4b-1b 確定事項14・19・20）。DOM に触れない。
   //
-  // annotation-settings.js の ANNOT_COLORS・ANNOT_FONT_SIZES・ANNOT_LINE_WIDTHS・ANNOT_SHAPE_KINDS・ANNOT_OPACITIES と同じ並びで
-  // あること（プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
-  // 色と大きさの並びは自前で決めたもので、他社製品の意匠を写していない（docs/06）。
+  // 既定の色・文字の大きさ・線の太さと不透明度の範囲・図形の種類は annotation-settings.js と同じであること（プロセスが違うので
+  // import はできない。test/settings.test.js が一致を見張る）。色はパレット（annotation-palette.js）から選び、既定の色は
+  // パレットの色（決定47 ⑧）。文字の大きさの並びは自前で決めたもので、他社製品の意匠を写していない（docs/06）。
 
   const MARKUP_TOOLS = Object.freeze(['highlight', 'underline', 'strikeout']);
   const TOOLS = Object.freeze([...MARKUP_TOOLS, 'text', 'shape', 'pen', 'note']);
@@ -26,19 +27,21 @@
   const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow']);
   const DEFAULT_SHAPE_KIND = 'square';
 
-  const SHAPE_COLORS = Object.freeze(['#d92c2c', '#2c5cd9', '#2f9e5a', '#1c2430']);
+  // 右パネルの色の候補の丸。今までの候補の色を、いちばん近いパレットの色へ置き換えた（spec-4b-1b 確定事項14。桃はそのまま）。
+  // 色の行をチップとパレットに作り替えるまでの間だけ使う。
+  const SHAPE_COLORS = Object.freeze(['#c00000', '#4472c4', '#00b050', '#222a35']);
   const COLORS = Object.freeze({
-    highlight: Object.freeze(['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8']),
-    underline: Object.freeze(['#d92c2c', '#2c5cd9', '#1c2430']),
-    strikeout: Object.freeze(['#d92c2c', '#2c5cd9', '#1c2430']),
-    text: Object.freeze(['#1c2430', '#d92c2c', '#2c5cd9']),
+    highlight: Object.freeze(['#ffd966', '#a9ce91', '#8faadc', '#ffa8c8']),
+    underline: Object.freeze(['#c00000', '#4472c4', '#222a35']),
+    strikeout: Object.freeze(['#c00000', '#4472c4', '#222a35']),
+    text: Object.freeze(['#222a35', '#c00000', '#4472c4']),
     shape: SHAPE_COLORS,
     pen: SHAPE_COLORS,
     // 付箋の塗り。ハイライトと同じ淡い 4 色（spec-4-4 確定事項37）。
-    note: Object.freeze(['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8']),
+    note: Object.freeze(['#ffd966', '#a9ce91', '#8faadc', '#ffa8c8']),
   });
   const COLOR_NAMES = Object.freeze({
-    '#ffe45a': '黄', '#8ce99a': '緑', '#8fbfff': '青', '#ffa8c8': '桃', '#d92c2c': '赤', '#2c5cd9': '青', '#2f9e5a': '緑', '#1c2430': '黒',
+    '#ffd966': '黄', '#a9ce91': '緑', '#8faadc': '青', '#ffa8c8': '桃', '#c00000': '赤', '#4472c4': '青', '#00b050': '緑', '#222a35': '黒',
   });
   // 既定は各プリセットの先頭。
   const DEFAULT_COLORS = Object.freeze(Object.fromEntries(TOOLS.map((kind) => [kind, COLORS[kind][0]])));
@@ -47,12 +50,17 @@
   const FONT_SIZES = Object.freeze([8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48]);
   const DEFAULT_FONT_SIZE = 12;
 
-  // 図形・ペンの線の太さ（pt。spec-4-3 確定事項29）。
+  // 図形・ペンの線の太さ（pt）。画面から選べるのは 1〜40 の整数（spec-4b-1b 確定事項19）。
+  // LINE_WIDTHS は右パネルの行をスライダーに作り替えるまでの間の候補。
+  const LINE_WIDTH_MIN = 1;
+  const LINE_WIDTH_MAX = 40;
   const LINE_WIDTHS = Object.freeze([1, 2, 3, 5, 8]);
   const DEFAULT_LINE_WIDTH = 2;
 
-  // 不透明度（spec-4-4 確定事項38）。対象はテキスト・図形・ペン・ノートで、道具ごとに最後の値を覚える。
-  // ハイライトは multiply で既に文字が透けるので対象にしない。
+  // 不透明度（spec-4-4 確定事項38、spec-4b-1b 確定事項20）。対象はテキスト・図形・ペン・ノートで、道具ごとに最後の値を覚える。
+  // 画面から選べるのは 0.1〜1。ハイライトは multiply で既に文字が透けるので対象にしない。
+  // OPACITIES は右パネルの行をスライダーに作り替えるまでの間の候補。
+  const OPACITY_MIN = 0.1;
   const OPACITIES = Object.freeze([1, 0.75, 0.5, 0.25]);
   const DEFAULT_OPACITY = 1;
   const OPACITY_TOOLS = Object.freeze(['text', 'shape', 'pen', 'note']);
@@ -73,16 +81,18 @@
     return FONT_SIZES.includes(size);
   }
 
+  // 画面から選べる線の太さか（1〜40 の整数）。読み込んだ小数の太さはここを通さない。
   function isLineWidth(width) {
-    return LINE_WIDTHS.includes(width);
+    return Number.isInteger(width) && width >= LINE_WIDTH_MIN && width <= LINE_WIDTH_MAX;
   }
 
   function isShapeKind(kind) {
     return SHAPE_KINDS.includes(kind);
   }
 
+  // 画面から選べる不透明度か（0.1〜1）。
   function isOpacity(value) {
-    return OPACITIES.includes(value);
+    return Number.isFinite(value) && value >= OPACITY_MIN && value <= 1;
   }
 
   // 不透明度を持てる種類か（引き出しが OPACITY_TOOLS のどれかになるもの）。
@@ -109,8 +119,11 @@
     DEFAULT_COLORS,
     FONT_SIZES,
     DEFAULT_FONT_SIZE,
+    LINE_WIDTH_MIN,
+    LINE_WIDTH_MAX,
     LINE_WIDTHS,
     DEFAULT_LINE_WIDTH,
+    OPACITY_MIN,
     OPACITIES,
     DEFAULT_OPACITY,
     OPACITY_TOOLS,

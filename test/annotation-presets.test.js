@@ -41,38 +41,54 @@ test('図形の種類は 4 つで、既定は矩形', () => {
   assert.equal(presets.isShapeKind('shape'), false);
 });
 
-test('色は種類ごとのプリセットで、既定はその先頭', () => {
+// 候補の丸の色は、今までの候補をいちばん近いパレットの色へ置き換えたもの。既定は先頭で、パレットの色（spec-4b-1b 確定事項14）。
+test('色は種類ごとのプリセットで、既定はその先頭のパレットの色', () => {
   assert.deepEqual(Object.keys(presets.COLORS), presets.TOOLS);
-  assert.deepEqual(presets.COLORS.text, ['#1c2430', '#d92c2c', '#2c5cd9']);
-  assert.deepEqual(presets.COLORS.shape, ['#d92c2c', '#2c5cd9', '#2f9e5a', '#1c2430']);
+  assert.deepEqual(presets.COLORS.text, ['#222a35', '#c00000', '#4472c4']);
+  assert.deepEqual(presets.COLORS.shape, ['#c00000', '#4472c4', '#00b050', '#222a35']);
   assert.deepEqual(presets.COLORS.pen, presets.COLORS.shape);
+  assert.deepEqual(presets.DEFAULT_COLORS, {
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
+  });
   for (const kind of presets.TOOLS)
     assert.equal(presets.DEFAULT_COLORS[kind], presets.COLORS[kind][0], kind);
   for (const color of Object.values(presets.COLORS).flat())
     assert.equal(typeof presets.COLOR_NAMES[color], 'string', color);
-  assert.equal(presets.isPresetColor('text', '#d92c2c'), true);
-  assert.equal(presets.isPresetColor('text', '#ffe45a'), false);
-  assert.equal(presets.isPresetColor('stamp', '#d92c2c'), false);
+  assert.equal(presets.isPresetColor('text', '#c00000'), true);
+  assert.equal(presets.isPresetColor('text', '#ffd966'), false);
+  assert.equal(presets.isPresetColor('stamp', '#c00000'), false);
+});
+
+// 既定の色と候補の丸の色は、桃を除いてパレットにある（spec-4b-1b 確定事項14）。
+test('既定の色と候補の丸の色は、桃を除いてパレットの色', () => {
+  require('../renderer/annotation-palette.js');
+  const palette = globalThis.SigK.annotationPalette;
+  for (const color of Object.values(presets.DEFAULT_COLORS))
+    assert.equal(palette.isPaletteColor(color), true, color);
+  for (const color of Object.values(presets.COLORS).flat().filter((value) => value !== '#ffa8c8'))
+    assert.equal(palette.isPaletteColor(color), true, color);
 });
 
 // ノートの色はハイライトと同じ淡い 4 色で、既定は黄（spec-4-4 確定事項37）。
 test('ノートの色は黄・緑・青・桃で既定は黄', () => {
-  assert.deepEqual(presets.COLORS.note, ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8']);
-  assert.equal(presets.DEFAULT_COLORS.note, '#ffe45a');
+  assert.deepEqual(presets.COLORS.note, ['#ffd966', '#a9ce91', '#8faadc', '#ffa8c8']);
+  assert.equal(presets.DEFAULT_COLORS.note, '#ffd966');
   assert.equal(presets.paletteOf('note'), 'note');
   assert.equal(presets.isPresetColor('note', '#ffa8c8'), true);
-  assert.equal(presets.isPresetColor('note', '#d92c2c'), false);
+  assert.equal(presets.isPresetColor('note', '#c00000'), false);
 });
 
-// 不透明度は 4 段で既定は 1。対象はテキスト・図形・ペン・ノート（spec-4-4 確定事項38）。
-test('不透明度は 4 段で既定は 1、対象は 4 つの道具', () => {
+// 不透明度は 10〜100% で既定は 1。対象はテキスト・図形・ペン・ノート（spec-4-4 確定事項38、spec-4b-1b 確定事項20）。
+test('不透明度は 0.1〜1 で既定は 1、対象は 4 つの道具', () => {
   assert.deepEqual(presets.OPACITIES, [1, 0.75, 0.5, 0.25]);
+  assert.equal(presets.OPACITY_MIN, 0.1);
   assert.equal(presets.DEFAULT_OPACITY, 1);
   assert.deepEqual(presets.OPACITY_TOOLS, ['text', 'shape', 'pen', 'note']);
   assert.deepEqual(presets.DEFAULT_OPACITIES, { text: 1, shape: 1, pen: 1, note: 1 });
-  assert.equal(presets.isOpacity(0.5), true);
-  assert.equal(presets.isOpacity(0.6), false);
-  assert.equal(presets.isOpacity('1'), false);
+  for (const value of [0.1, 0.35, 0.6, 1])
+    assert.equal(presets.isOpacity(value), true, String(value));
+  for (const value of [0.09, 0, 1.01, '1', NaN])
+    assert.equal(presets.isOpacity(value), false, String(value));
   for (const kind of ['text', 'square', 'circle', 'line', 'arrow', 'ink', 'note'])
     assert.equal(presets.isOpacityKind(kind), true, kind);
   for (const kind of ['highlight', 'underline', 'strikeout', 'other', undefined])
@@ -89,18 +105,22 @@ test('図形 4 種は shape の色、ペンは pen の色を引く', () => {
   assert.equal(presets.paletteOf('pen'), 'pen');
   assert.equal(presets.paletteOf('highlight'), 'highlight');
   assert.equal(presets.paletteOf('text'), 'text');
-  assert.equal(presets.isPresetColor('square', '#2f9e5a'), true);
-  assert.equal(presets.isPresetColor('ink', '#2f9e5a'), true);
-  assert.equal(presets.isPresetColor('ink', '#ffe45a'), false);
+  assert.equal(presets.isPresetColor('square', '#00b050'), true);
+  assert.equal(presets.isPresetColor('ink', '#00b050'), true);
+  assert.equal(presets.isPresetColor('ink', '#ffd966'), false);
 });
 
-test('線の太さは 5 段で既定は 2', () => {
+// 画面から選べる線の太さは 1〜40 の整数で、既定は 2（spec-4b-1b 確定事項19。論点4）。
+test('線の太さは 1〜40 の整数で既定は 2', () => {
   assert.deepEqual(presets.LINE_WIDTHS, [1, 2, 3, 5, 8]);
+  assert.equal(presets.LINE_WIDTH_MIN, 1);
+  assert.equal(presets.LINE_WIDTH_MAX, 40);
   assert.equal(presets.DEFAULT_LINE_WIDTH, 2);
   assert.ok(presets.LINE_WIDTHS.includes(presets.DEFAULT_LINE_WIDTH));
-  assert.equal(presets.isLineWidth(5), true);
-  assert.equal(presets.isLineWidth(4), false);
-  assert.equal(presets.isLineWidth('2'), false);
+  for (const width of [1, 4, 17, 40])
+    assert.equal(presets.isLineWidth(width), true, String(width));
+  for (const width of [0, 41, 2.5, '2'])
+    assert.equal(presets.isLineWidth(width), false, String(width));
 });
 
 test('文字の大きさは 14 段で既定は 12', () => {

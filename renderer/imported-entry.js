@@ -27,8 +27,8 @@
     return root.SigK.importedValues;
   }
 
-  // ノートの色が無いときの塗り（プリセットの黄）。
-  const DEFAULT_NOTE_COLOR = '#ffe45a';
+  // ノートの色が無いときの塗り（ノートの既定の黄。spec-4b-1b 確定事項14 でパレットの色にした）。
+  const DEFAULT_NOTE_COLOR = '#ffd966';
   // 自分で付けたテキストの印（worker/font-embed.js の DA_FONT_NAME と同じ）。
   const OWN_FONT_NAME = 'SigKJP';
   // pdf.js の id のうち、参照の形のもの（世代 0 は 12R、世代 1 以上は 12R1）。/Annots に直に置いた辞書は

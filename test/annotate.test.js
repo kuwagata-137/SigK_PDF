@@ -118,7 +118,7 @@ test('道具はトグルで、持つとプロパティに種類と色が出る',
   assert.equal(button.getAttribute('aria-pressed'), 'true');
   assert.equal(document.getElementById('props-kind').textContent, 'ハイライト（次に付ける）');
   const swatches = [...document.querySelectorAll('#props-colors .swatch')];
-  assert.deepEqual(swatches.map((s) => s.dataset.color), ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8']);
+  assert.deepEqual(swatches.map((s) => s.dataset.color), ['#ffd966', '#a9ce91', '#8faadc', '#ffa8c8']);
   assert.equal(swatches[0].classList.contains('on'), true);
 
   button.dispatchEvent(new shell.window.MouseEvent('click'));
@@ -144,7 +144,7 @@ test('道具を持って文字をなぞると、離した瞬間に付いて選�
   assert.equal(annots.added.length, 1);
   const entry = annots.added[0];
   assert.equal(entry.kind, 'highlight');
-  assert.equal(entry.color, '#ffe45a');
+  assert.equal(entry.color, '#ffd966');
   assert.equal(entry.src, 0);
   assert.equal(entry.text, 'あいうえお');
   assert.deepEqual(plain(entry.quads), [QUAD_FIRST]);
@@ -170,7 +170,7 @@ test('先に文字を選んでから道具を押しても付き、道具は持�
 
   const entry = SigK.viewer.getAnnotations().added[0];
   assert.equal(entry.kind, 'underline');
-  assert.equal(entry.color, '#d92c2c');
+  assert.equal(entry.color, '#c00000');
   assert.equal(entry.text, 'きく');
   // 2 文字目から 3 文字目まで: x は 50 + 60 × 1/5 〜 50 + 60 × 3/5。
   assert.deepEqual(plain(entry.quads[0]).slice(0, 4), [62, 690.8, 86, 690.8]);
@@ -287,34 +287,34 @@ test('色の丸で選んだ注釈の色が変わり、その色を覚える', as
   const shell = await withOneHighlight(t);
   const { document, SigK } = shell;
   clickAt(shell, 0, 80, 705);
-  document.querySelector('#props-colors .swatch[data-color="#8ce99a"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  document.querySelector('#props-colors .swatch[data-color="#a9ce91"]').dispatchEvent(new shell.window.MouseEvent('click'));
 
-  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#8ce99a');
-  assert.equal(layerOf(shell, 0).querySelector('polygon').getAttribute('fill'), '#8ce99a');
-  assert.deepEqual(plain(SigK.annotate.getColors()).highlight, '#8ce99a');
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotColors: { highlight: '#8ce99a' } });
+  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#a9ce91');
+  assert.equal(layerOf(shell, 0).querySelector('polygon').getAttribute('fill'), '#a9ce91');
+  assert.deepEqual(plain(SigK.annotate.getColors()).highlight, '#a9ce91');
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotColors: { highlight: '#a9ce91' } });
   // 1 世代積まれ、戻せる。
   SigK.pageEdit.undo();
-  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#ffe45a');
+  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#ffd966');
 });
 
 test('注釈を選んでいなければ、色の丸は道具の色（次に付ける色）を変える', async (t) => {
   const shell = await withOpenDocument(t);
   const { document, SigK } = shell;
   SigK.annotate.setTool('underline');
-  document.querySelector('#props-colors .swatch[data-color="#2c5cd9"]').dispatchEvent(new shell.window.MouseEvent('click'));
-  assert.equal(SigK.annotate.colorOf('underline'), '#2c5cd9');
+  document.querySelector('#props-colors .swatch[data-color="#4472c4"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  assert.equal(SigK.annotate.colorOf('underline'), '#4472c4');
   assert.equal(SigK.pageEdit.canUndo(), false, '編集ではない');
   selectText(shell, 0, 0, 0);
   mouse(shell, 'mouseup', document.querySelector('.pdf-page[data-page="1"]'), 10, 10);
-  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#2c5cd9');
+  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#4472c4');
 });
 
 test('覚えた色は起動時に戻る', async (t) => {
-  const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotColors: { highlight: '#ffa8c8', underline: '#1c2430', strikeout: '#d92c2c', text: '#2c5cd9', shape: '#2f9e5a', pen: '#1c2430' } } });
+  const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotColors: { highlight: '#ffa8c8', underline: '#222a35', strikeout: '#c00000', text: '#4472c4', shape: '#00b050', pen: '#222a35' } } });
   await shell.flush();
   // 覚えていない種類（ノート）は既定の色。
-  assert.deepEqual(plain(shell.SigK.annotate.getColors()), { highlight: '#ffa8c8', underline: '#1c2430', strikeout: '#d92c2c', text: '#2c5cd9', shape: '#2f9e5a', pen: '#1c2430', note: '#ffe45a' });
+  assert.deepEqual(plain(shell.SigK.annotate.getColors()), { highlight: '#ffa8c8', underline: '#222a35', strikeout: '#c00000', text: '#4472c4', shape: '#00b050', pen: '#222a35', note: '#ffd966' });
 });
 
 // ---- 履歴・dirty・タブ（確定事項15・19） ----
@@ -397,11 +397,11 @@ test('読み込んだ注釈は選んで消せ、色も変えられ、保存の�
   assert.equal(document.getElementById('props-kind').textContent, 'ハイライト');
   assert.equal(document.getElementById('props-text-row').hidden, true, '読み込んだものに文字は無い');
 
-  document.querySelector('#props-colors .swatch[data-color="#8fbfff"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  document.querySelector('#props-colors .swatch[data-color="#8faadc"]').dispatchEvent(new shell.window.MouseEvent('click'));
   let annots = SigK.viewer.getAnnotations();
   assert.deepEqual(plain(annots.removed), ['86R']);
   assert.equal(annots.added.length, 1);
-  assert.equal(annots.added[0].color, '#8fbfff');
+  assert.equal(annots.added[0].color, '#8faadc');
   assert.equal(SigK.annotate.getSelected(), annots.added[0].id, '選択は写しへ移る');
   assert.equal(layerOf(shell, 1).querySelectorAll('polygon').length, 1, '元は消え、写しだけが描かれる');
 

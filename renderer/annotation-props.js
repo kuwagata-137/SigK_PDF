@@ -102,7 +102,7 @@
       extra.remove();
     if (width === null)
       return;
-    if (!presets().isLineWidth(width)) {
+    if (!presets().LINE_WIDTHS.includes(width)) {
       const option = el.doc.createElement('option');
       option.value = String(width);
       option.textContent = `${width} pt`;
@@ -124,7 +124,7 @@
       extra.remove();
     if (value === null)
       return;
-    if (!presets().isOpacity(value)) {
+    if (!presets().OPACITIES.includes(value)) {
       const option = el.doc.createElement('option');
       option.value = String(value);
       option.textContent = percentOf(value);

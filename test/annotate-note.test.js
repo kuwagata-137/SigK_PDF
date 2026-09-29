@@ -86,7 +86,7 @@ test('ノートの道具で紙を押すと、押した点を中心に付箋が�
   assert.equal(added.length, 1);
   const entry = added[0];
   assert.equal(entry.kind, 'note');
-  assert.equal(entry.color, '#ffe45a');
+  assert.equal(entry.color, '#ffd966');
   assert.equal(entry.opacity, 1);
   assert.equal(entry.text, '');
   assert.equal(entry.author, '');
@@ -291,9 +291,9 @@ test('開くと /AP の有無を問わずノートを読み込み、自前の付
   assert.equal(annots.added[0].author, 'SigK 太郎');
   assert.equal(SigK.annotate.getSelected(), annots.added[0].id);
   // 色を変えると覚える。
-  document.querySelector('#props-colors .swatch[data-color="#8ce99a"]').dispatchEvent(new shell.window.MouseEvent('click'));
-  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#8ce99a');
-  assert.equal(SigK.annotate.colorOf('note'), '#8ce99a');
+  document.querySelector('#props-colors .swatch[data-color="#a9ce91"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#a9ce91');
+  assert.equal(SigK.annotate.colorOf('note'), '#a9ce91');
 });
 
 test('表示のみの注釈は一覧から選べて枠だけ出て消せるが、色・不透明度は変えられず紙の上では選べない', async (t) => {
@@ -367,11 +367,12 @@ test('「不透明度」の行は対象の道具と注釈で出て、道具ご�
   await shell.flush();
   assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotOpacity: { shape: 0.5 } });
   assert.equal(SigK.pageEdit.canUndo(), false, '編集ではない');
-  // 道具を持っていなければ断る。プリセット外も断る。
+  // 道具を持っていなければ断る。10〜100% の外も断る（spec-4b-1b 確定事項20）。
   SigK.annotate.setTool(null);
   assert.equal(SigK.annotate.setOpacity(0.25), false);
   SigK.annotate.setTool('note');
-  assert.equal(SigK.annotate.setOpacity(0.6), false);
+  assert.equal(SigK.annotate.setOpacity(0.05), false);
+  assert.equal(SigK.annotate.setOpacity(1.2), false);
   assert.equal(SigK.annotate.setOpacity(0.25), true);
   assert.equal(select.value, '0.25');
   // 次に置く付箋に付く。
@@ -406,10 +407,10 @@ test('選んでいる注釈の不透明度を変えると 1 世代積み、層�
   assert.equal(SigK.annotationState.sameAnnots(generation, SigK.viewer.getAnnotations()), true);
 });
 
-test('覚えた不透明度と作成者は起動時に戻り、プリセット外は捨てる', async (t) => {
-  const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotOpacity: { text: 0.5, shape: 0.9, pen: 0.25 }, annotAuthor: 'h.user' } });
+test('覚えた不透明度と作成者は起動時に戻り、10〜100% の外は捨てる', async (t) => {
+  const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotOpacity: { text: 0.5, shape: 0.05, pen: 0.35 }, annotAuthor: 'h.user' } });
   await shell.flush();
-  assert.deepEqual(plain(shell.SigK.annotateOpacity.getOpacities()), { text: 0.5, shape: 1, pen: 0.25, note: 1 });
+  assert.deepEqual(plain(shell.SigK.annotateOpacity.getOpacities()), { text: 0.5, shape: 1, pen: 0.35, note: 1 });
   assert.equal(shell.SigK.annotate.getAuthor(), 'h.user');
 });
 

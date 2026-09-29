@@ -96,7 +96,7 @@ test('importedEntry は Text（ノート）を /AP の有無を問わず拾い�
   // /AP の無いものは pdf.js が 22×22 に直して返す。左上 (60, 720) を基準に 20×20 へ。色が無ければ黄。改行は LF に揃える。
   const bare = imp.importedEntry({ id: '14R', subtype: 'Text', rect: [60, 698, 82, 720], color: null, contentsObj: { str: 'a\r\nb\rc' }, titleObj: { str: '' }, hasAppearance: false, name: 'Comment' }, 1);
   assert.deepEqual(bare.rect, [60, 700, 80, 720]);
-  assert.equal(bare.color, '#ffe45a');
+  assert.equal(bare.color, '#ffd966', 'ノートの既定の黄（spec-4b-1b 確定事項14）');
   assert.equal(bare.text, 'a\nb\nc');
   assert.equal(bare.author, '');
   assert.equal(bare.readonly, undefined);

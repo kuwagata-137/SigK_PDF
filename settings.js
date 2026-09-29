@@ -10,7 +10,8 @@ const path = require('node:path');
 const { DEFAULT_WINDOW, MIN_WINDOW } = require('./security-policy.js');
 const { normalizeList } = require('./recent-documents.js');
 const {
-  ANNOT_DEFAULTS, ANNOT_COLORS, ANNOT_FONT_SIZES, ANNOT_LINE_WIDTHS, ANNOT_SHAPE_KINDS, ANNOT_OPACITIES, ANNOT_AUTHOR_MAX,
+  ANNOT_DEFAULTS, ANNOT_FONT_SIZES, ANNOT_LINE_WIDTH_MIN, ANNOT_LINE_WIDTH_MAX, ANNOT_OPACITY_MIN, ANNOT_LINE_STYLES,
+  ANNOT_SHAPE_KINDS, ANNOT_AUTHOR_MAX,
   pickAnnotAuthor, pickAnnotSettings, mergeAnnotUi,
 } = require('./annotation-settings.js');
 
@@ -24,7 +25,8 @@ const DEFAULTS = {
   pageLayout: 'single',
   // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。'thumbs' がサムネイル、'list' が注釈一覧。
   editSide: 'thumbs',
-  // 注釈の設定（色・文字の大きさ・線の太さ・図形の種類・不透明度・作成者）は annotation-settings.js が持つ。
+  // 注釈の設定（色・塗り・線なし・線種・文字の大きさ・線の太さ・図形の種類・不透明度・作成者・色の移し替えの印）は
+  // annotation-settings.js が持つ。
   ...structuredClone(ANNOT_DEFAULTS),
   recent: [],
 };
@@ -99,12 +101,15 @@ function isValidPageLayout(layout) {
 // 画面の見た目に関する設定だけを取り出す。レンダラーへ渡すのはこれだけで、
 // ウィンドウの位置や履歴は渡さない（spec-1-3 確定事項33、spec-2-3 確定事項5）。
 function pickUi(settings) {
+  // 色の移し替えの印はメインだけが使う（spec-4b-1b 確定事項15）。レンダラーへは渡さない。
+  const annot = pickAnnotSettings(settings);
+  delete annot.annotPaletteVersion;
   return {
     mode: settings.mode,
     pageLayout: settings.pageLayout,
     editSide: EDIT_SIDES.includes(settings.editSide) ? settings.editSide : DEFAULTS.editSide,
     sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
-    ...pickAnnotSettings(settings),
+    ...annot,
   };
 }
 
@@ -264,11 +269,12 @@ module.exports = {
   UI_MODES,
   PAGE_LAYOUTS,
   EDIT_SIDES,
-  ANNOT_COLORS,
   ANNOT_FONT_SIZES,
-  ANNOT_LINE_WIDTHS,
+  ANNOT_LINE_WIDTH_MIN,
+  ANNOT_LINE_WIDTH_MAX,
+  ANNOT_OPACITY_MIN,
+  ANNOT_LINE_STYLES,
   ANNOT_SHAPE_KINDS,
-  ANNOT_OPACITIES,
   ANNOT_AUTHOR_MAX,
   SIDE_PANEL_MIN,
   SIDE_PANEL_MAX,

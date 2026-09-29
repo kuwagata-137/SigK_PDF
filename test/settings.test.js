@@ -223,13 +223,17 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 });
 
 // レンダラーへ渡すのは画面の見た目の設定だけである。ウィンドウの位置や履歴は渡さない。
-const DEFAULT_COLORS = { highlight: '#ffe45a', underline: '#d92c2c', strikeout: '#d92c2c', text: '#1c2430', shape: '#d92c2c', pen: '#d92c2c', note: '#ffe45a' };
+const DEFAULT_COLORS = { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966' };
+// 図形の塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。
+const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { shape: false }, annotLineStyles: { shape: 'solid' } };
 const DEFAULT_OPACITY = { text: 1, shape: 1, pen: 1, note: 1 };
 
-test('pickUi はモードとサイドパネルと編集モードの左と注釈の色・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
+test('pickUi はモードとサイドパネルと編集モードの左と注釈の色・塗り・線なし・線種・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '' });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, ...DEFAULT_SHAPE_STYLE, annotFontSize: 12, annotLineWidth: 2, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '' });
+  // 色の移し替えの印はメインだけが使い、レンダラーへは渡さない（spec-4b-1b 確定事項15）。
+  assert.equal('annotPaletteVersion' in ui, false);
 });
 
 // { sidePanel: { open: false } } を送っただけで幅が既定へ戻る、を防ぐ。
@@ -242,6 +246,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     editSide: 'thumbs',
     sidePanel: { open: false, width: 300 },
     annotColors: DEFAULT_COLORS,
+    ...DEFAULT_SHAPE_STYLE,
     annotFontSize: 12,
     annotLineWidth: 2,
     annotShapeKind: 'square',
@@ -254,6 +259,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     editSide: 'thumbs',
     sidePanel: { open: true, width: 300 },
     annotColors: DEFAULT_COLORS,
+    ...DEFAULT_SHAPE_STYLE,
     annotFontSize: 12,
     annotLineWidth: 2,
     annotShapeKind: 'square',
@@ -267,13 +273,14 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     editSide: 'thumbs',
     sidePanel: { open: true, width: SIDE_PANEL_MAX },
     annotColors: DEFAULT_COLORS,
+    ...DEFAULT_SHAPE_STYLE,
     annotFontSize: 12,
     annotLineWidth: 2,
     annotShapeKind: 'square',
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
   });
-  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs' });
+  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs', ...DEFAULT_SHAPE_STYLE });
 });
 
 // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。既定はサムネイルで、使えない値は今の値か既定へ落ちる。
@@ -291,27 +298,62 @@ test('editSide は thumbs か list だけを受け取り、既定は thumbs', ()
   assert.equal(pickUi(mergeDefaults({ editSide: 'list' })).editSide, 'list');
 });
 
-// 注釈の色（spec-4-1 確定事項33・34）。プリセットに無い値は既定へ落ちる。
-test('annotColors は種類ごとにプリセットの色だけを受け取る', () => {
+// 注釈の色（spec-4-1 確定事項33・34、spec-4b-1b 確定事項22）。パレットから選ぶので #rrggbb なら何でも受け取り、小文字にそろえる。
+test('annotColors は種類ごとに #rrggbb の色を受け取る', () => {
   assert.deepEqual(mergeDefaults({}).annotColors, DEFAULT_COLORS);
-  assert.deepEqual(mergeDefaults({ annotColors: { highlight: '#8ce99a', underline: 'red', strikeout: 5 } }).annotColors,
-    { ...DEFAULT_COLORS, highlight: '#8ce99a' });
+  assert.deepEqual(mergeDefaults({ annotPaletteVersion: 1, annotColors: { highlight: '#A9CE91', underline: 'red', strikeout: 5, text: '#123456' } }).annotColors,
+    { ...DEFAULT_COLORS, highlight: '#a9ce91', text: '#123456' });
   assert.deepEqual(mergeDefaults({ annotColors: 'x' }).annotColors, DEFAULT_COLORS);
 
-  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: { ...DEFAULT_COLORS, highlight: '#8fbfff' } };
+  const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: { ...DEFAULT_COLORS, highlight: '#8faadc' } };
   // 種類ごとに重ねる。下線だけ送っても、ハイライトの色は現在値のまま。
-  assert.deepEqual(mergeUi(current, { annotColors: { underline: '#2c5cd9' } }).annotColors,
-    { ...DEFAULT_COLORS, highlight: '#8fbfff', underline: '#2c5cd9' });
-  // テキストの色も同じ経路（spec-4-2 確定事項21）。ハイライトの色は使えない。
-  assert.equal(mergeUi(current, { annotColors: { text: '#d92c2c' } }).annotColors.text, '#d92c2c');
-  assert.equal(mergeUi(current, { annotColors: { text: '#ffe45a' } }).annotColors.text, '#1c2430');
-  // 図形とペンも同じ経路で、別々に覚える（spec-4-3 確定事項19）。
-  assert.equal(mergeUi(current, { annotColors: { shape: '#2f9e5a' } }).annotColors.shape, '#2f9e5a');
-  assert.equal(mergeUi(current, { annotColors: { shape: '#2f9e5a' } }).annotColors.pen, '#d92c2c');
-  assert.equal(mergeUi(current, { annotColors: { pen: '#ffe45a' } }).annotColors.pen, '#d92c2c');
-  assert.deepEqual(mergeUi(current, { annotColors: { highlight: '#123456' } }).annotColors, current.annotColors);
+  assert.deepEqual(mergeUi(current, { annotColors: { underline: '#4472c4' } }).annotColors,
+    { ...DEFAULT_COLORS, highlight: '#8faadc', underline: '#4472c4' });
+  // どの道具もパレットの色と「その他の色…」の色を使える（spec-4b-1b 論点2）。
+  assert.equal(mergeUi(current, { annotColors: { text: '#ffd966' } }).annotColors.text, '#ffd966');
+  // 図形とペンは同じ経路で、別々に覚える（spec-4-3 確定事項19）。
+  assert.equal(mergeUi(current, { annotColors: { shape: '#00b050' } }).annotColors.shape, '#00b050');
+  assert.equal(mergeUi(current, { annotColors: { shape: '#00b050' } }).annotColors.pen, '#c00000');
+  // 色でなければ今の値のまま。
+  assert.equal(mergeUi(current, { annotColors: { pen: 'blue' } }).annotColors.pen, '#c00000');
   // 古い settings.json（annotColors が無い）から来た current でも落ちない。
   assert.deepEqual(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).annotColors, DEFAULT_COLORS);
+});
+
+// 今までの候補の色は、読み込むときに 1 回だけパレットの色へ移る（spec-4b-1b 確定事項15）。保存すると印が残り、
+// 次に読んだときは移さない。
+test('古い settings.json の候補の色は、読み込むときに 1 回だけパレットの色へ移る', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'settings.json');
+  fs.writeFileSync(file, JSON.stringify({ mode: 'annot', annotColors: { highlight: '#8ce99a', shape: '#2c5cd9', pen: '#123456', note: '#ffa8c8' } }));
+  const store = createSettingsStore({ dir });
+  const loaded = store.load();
+  assert.equal(loaded.annotColors.highlight, '#a9ce91');
+  assert.equal(loaded.annotColors.shape, '#4472c4');
+  assert.equal(loaded.annotColors.pen, '#123456', '自分で選んだ色はそのまま');
+  assert.equal(loaded.annotColors.note, '#ffa8c8', '桃はそのまま');
+  assert.equal(loaded.annotPaletteVersion, 1);
+  // 移したあとに今までの候補と同じ色を選び直しても、次の読み込みでは移さない。
+  store.set(mergeUi(pickUi(store.get()), { annotColors: { shape: '#2c5cd9' } }));
+  assert.equal(store.get().annotPaletteVersion, 1);
+  assert.equal(store.save(), true);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 1);
+  const reopened = createSettingsStore({ dir }).load();
+  assert.equal(reopened.annotColors.shape, '#2c5cd9');
+  assert.equal(reopened.annotColors.highlight, '#a9ce91');
+});
+
+// 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。線と塗りを両方なしにはできない。
+test('annotFills・annotStrokeNone・annotLineStyles は図形の値を受け取り、種類ごとに重ねる', () => {
+  assert.deepEqual(mergeDefaults({}).annotFills, { shape: null });
+  assert.deepEqual(mergeDefaults({ annotFills: { shape: '#FFD966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'dashed' } }),
+    { ...mergeDefaults({}), annotFills: { shape: '#ffd966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'dashed' } });
+  assert.deepEqual(mergeDefaults({ annotStrokeNone: { shape: true } }).annotStrokeNone, { shape: false }, '塗りが無ければ線は消せない');
+  const current = { mode: 'annot', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotFills: { shape: '#ffd966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'cloudy' } };
+  assert.deepEqual(mergeUi(current, { annotLineStyles: { shape: 'dashed' } }).annotLineStyles, { shape: 'dashed' });
+  assert.deepEqual(mergeUi(current, { annotLineStyles: { shape: 'wavy' } }).annotLineStyles, { shape: 'cloudy' });
+  assert.deepEqual(mergeUi(current, { annotFills: { shape: null } }).annotStrokeNone, { shape: false });
+  assert.deepEqual(mergeUi(current, {}).annotStrokeNone, { shape: true });
 });
 
 // 文字の大きさ（spec-4-2 確定事項21・34）。プリセットに無い値は既定へ落ちる。
@@ -330,38 +372,38 @@ test('annotFontSize はプリセットの大きさだけを受け取る', () => 
   assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).annotFontSize, 12);
 });
 
-// プロセスが違うので import できない。並びがずれると、レンダラーで選べる
-// 色・大きさが設定側で弾かれる（またはその逆）。
-test('注釈の色と文字の大きさのプリセットが renderer/annotation-presets.js と一致する', () => {
+// プロセスが違うので import できない。ずれると、レンダラーで選べる色・大きさ・太さ・不透明度が設定側で弾かれる（またはその逆）。
+test('注釈の既定と文字の大きさ・太さ・不透明度の範囲が renderer/annotation-presets.js と一致する', () => {
   require('../renderer/annotation-presets.js');
   const presets = globalThis.SigK.annotationPresets;
-  const { ANNOT_COLORS, ANNOT_FONT_SIZES, ANNOT_LINE_WIDTHS, ANNOT_SHAPE_KINDS, ANNOT_OPACITIES } = require('../settings.js');
+  const { ANNOT_FONT_SIZES, ANNOT_LINE_WIDTH_MIN, ANNOT_LINE_WIDTH_MAX, ANNOT_OPACITY_MIN, ANNOT_SHAPE_KINDS } = require('../settings.js');
 
-  assert.deepEqual(ANNOT_COLORS, presets.COLORS);
   assert.deepEqual(DEFAULTS.annotColors, presets.DEFAULT_COLORS);
   assert.deepEqual(ANNOT_FONT_SIZES, presets.FONT_SIZES);
   assert.equal(DEFAULTS.annotFontSize, presets.DEFAULT_FONT_SIZE);
-  assert.deepEqual(ANNOT_LINE_WIDTHS, presets.LINE_WIDTHS);
+  assert.equal(ANNOT_LINE_WIDTH_MIN, presets.LINE_WIDTH_MIN);
+  assert.equal(ANNOT_LINE_WIDTH_MAX, presets.LINE_WIDTH_MAX);
   assert.equal(DEFAULTS.annotLineWidth, presets.DEFAULT_LINE_WIDTH);
   assert.deepEqual(ANNOT_SHAPE_KINDS, presets.SHAPE_KINDS);
   assert.equal(DEFAULTS.annotShapeKind, presets.DEFAULT_SHAPE_KIND);
-  assert.deepEqual(ANNOT_OPACITIES, presets.OPACITIES);
+  assert.equal(ANNOT_OPACITY_MIN, presets.OPACITY_MIN);
   assert.deepEqual(DEFAULTS.annotOpacity, presets.DEFAULT_OPACITIES);
   assert.deepEqual(Object.keys(DEFAULTS.annotOpacity), presets.OPACITY_TOOLS);
 });
 
-// 不透明度は道具ごとにプリセットの値だけを受け取る（spec-4-4 確定事項21・38）。
-test('annotOpacity は道具ごとにプリセットの値だけを受け取る', () => {
+// 不透明度は道具ごとに 0.1〜1 を受け取り、小数 2 桁にそろえる（spec-4-4 確定事項21、spec-4b-1b 確定事項27）。
+test('annotOpacity は道具ごとに 0.1〜1 の値を受け取る', () => {
   assert.deepEqual(DEFAULTS.annotOpacity, DEFAULT_OPACITY);
   assert.deepEqual(mergeDefaults({}).annotOpacity, DEFAULT_OPACITY);
-  assert.deepEqual(mergeDefaults({ annotOpacity: { shape: 0.5, note: 0.6, text: '1', pen: null } }).annotOpacity,
-    { text: 1, shape: 0.5, pen: 1, note: 1 });
+  assert.deepEqual(mergeDefaults({ annotOpacity: { shape: 0.5, note: 0.6, text: '1', pen: 0.05 } }).annotOpacity,
+    { text: 1, shape: 0.5, pen: 1, note: 0.6 });
   assert.deepEqual(mergeDefaults({ annotOpacity: 0.5 }).annotOpacity, DEFAULT_OPACITY);
 
   const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS, annotOpacity: { ...DEFAULT_OPACITY, shape: 0.75 } };
   // 1 つだけ送っても他は戻らない（色と同じ）。
   assert.deepEqual(mergeUi(current, { annotOpacity: { pen: 0.25 } }).annotOpacity, { text: 1, shape: 0.75, pen: 0.25, note: 1 });
-  assert.deepEqual(mergeUi(current, { annotOpacity: { shape: 0.3 } }).annotOpacity, current.annotOpacity);
+  assert.deepEqual(mergeUi(current, { annotOpacity: { shape: 0.35 } }).annotOpacity, { ...current.annotOpacity, shape: 0.35 });
+  assert.deepEqual(mergeUi(current, { annotOpacity: { shape: 1.5 } }).annotOpacity, current.annotOpacity);
   assert.deepEqual(mergeUi(current, { annotOpacity: { highlight: 0.5 } }).annotOpacity, current.annotOpacity);
   assert.deepEqual(mergeUi(current, {}).annotOpacity, current.annotOpacity);
   // 古い settings.json（annotOpacity が無い）から来た current でも落ちない。
@@ -395,12 +437,15 @@ test('fillAuthor は空の作成者だけを OS のユーザー名で埋める',
   assert.equal(ui.annotAuthor, '', '元は変えない');
 });
 
-test('annotLineWidth と annotShapeKind はプリセットの値だけを受け取る', () => {
+// 線の太さは 1〜40 の整数（spec-4b-1b 確定事項26）、図形の種類は 4 つのどれか。
+test('annotLineWidth は 1〜40 の整数、annotShapeKind は図形の 4 種を受け取る', () => {
   assert.equal(DEFAULTS.annotLineWidth, 2);
   assert.equal(DEFAULTS.annotShapeKind, 'square');
   assert.equal(mergeDefaults({}).annotLineWidth, 2);
   assert.equal(mergeDefaults({ annotLineWidth: 5 }).annotLineWidth, 5);
-  assert.equal(mergeDefaults({ annotLineWidth: 4 }).annotLineWidth, 2);
+  assert.equal(mergeDefaults({ annotLineWidth: 17 }).annotLineWidth, 17);
+  assert.equal(mergeDefaults({ annotLineWidth: 41 }).annotLineWidth, 2);
+  assert.equal(mergeDefaults({ annotLineWidth: 2.5 }).annotLineWidth, 2);
   assert.equal(mergeDefaults({ annotLineWidth: '3' }).annotLineWidth, 2);
   assert.equal(mergeDefaults({}).annotShapeKind, 'square');
   assert.equal(mergeDefaults({ annotShapeKind: 'arrow' }).annotShapeKind, 'arrow');
@@ -409,7 +454,8 @@ test('annotLineWidth と annotShapeKind はプリセットの値だけを受け�
 
   const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 12, annotLineWidth: 3, annotShapeKind: 'circle' };
   assert.equal(mergeUi(current, { annotLineWidth: 8 }).annotLineWidth, 8);
-  assert.equal(mergeUi(current, { annotLineWidth: 9 }).annotLineWidth, 3);
+  assert.equal(mergeUi(current, { annotLineWidth: 40 }).annotLineWidth, 40);
+  assert.equal(mergeUi(current, { annotLineWidth: 0 }).annotLineWidth, 3);
   assert.equal(mergeUi(current, {}).annotLineWidth, 3);
   assert.equal(mergeUi(current, { annotShapeKind: 'line' }).annotShapeKind, 'line');
   assert.equal(mergeUi(current, { annotShapeKind: 'pen' }).annotShapeKind, 'circle');
