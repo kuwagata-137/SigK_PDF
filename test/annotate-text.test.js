@@ -435,3 +435,13 @@ test('painterFor はテキストを fillText で描く', async (t) => {
   painter(ctx, SigK.viewer.getTextLayer(0).viewport);
   assert.deepEqual(calls.filter((call) => call[0] === 'fillText').map((call) => call[1]), ['こんにちは']);
 });
+
+// 次に付ける不透明度（spec-4b-1a 確定事項31。事前調査 E で見つけた不具合）。
+test('次に付ける不透明度が、置いたテキストに効く', async (t) => {
+  const shell = await withTextTool(t);
+  const { SigK } = shell;
+  assert.equal(SigK.annotate.setOpacity(0.75), true);
+  const entry = placeAndCommit(shell, { text: '薄い文字' });
+  assert.equal(entry.opacity, 0.75);
+  assert.equal(pageNode(shell, 0).querySelector(`.annot-layer g[data-annot="${entry.id}"]`).getAttribute('opacity'), '0.75');
+});

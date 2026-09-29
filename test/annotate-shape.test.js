@@ -445,3 +445,36 @@ test('プリセットに無い太さの図形を選ぶと、その値の選択�
   SigK.annotate.setTool('pen');
   assert.equal(width.querySelectorAll('option').length, 5);
 });
+
+// ---- 次に付ける不透明度（spec-4b-1a 確定事項31・32。事前調査 E で見つけた不具合） ----
+
+test('次に付ける不透明度が、図形とペンの下書きと描いたものに効く', async (t) => {
+  const shell = await withTool(t, 'shape');
+  const { SigK, document } = shell;
+  assert.equal(SigK.annotate.setOpacity(0.5), true);
+  // 描いている途中の下書きも同じ不透明度で描く
+  const viewport = viewportOf(shell);
+  const [sx, sy] = viewport.convertToViewportPoint(100, 700);
+  mouse(shell, 'mousedown', pageNode(shell), sx, sy);
+  const [mx, my] = viewport.convertToViewportPoint(200, 650);
+  mouse(shell, 'mousemove', document.body, mx, my);
+  assert.equal(pageNode(shell).querySelector('.annot-draft').getAttribute('opacity'), '0.5');
+  mouse(shell, 'mouseup', pageNode(shell), mx, my);
+  const square = SigK.viewer.getAnnotations().added.at(-1);
+  assert.equal(square.opacity, 0.5);
+  assert.equal(pageNode(shell).querySelector(`.annot-layer g[data-annot="${square.id}"]`).getAttribute('opacity'), '0.5');
+
+  // ペンは図形と別に覚える
+  SigK.annotate.select(null);
+  SigK.annotate.setTool('pen');
+  assert.equal(SigK.annotate.setOpacity(0.25), true);
+  drag(shell, [100, 500], [200, 510], { via: [[130, 480], [160, 520]] });
+  const ink = SigK.viewer.getAnnotations().added.at(-1);
+  assert.equal(ink.kind, 'ink');
+  assert.equal(ink.opacity, 0.25);
+  // 図形の道具へ戻ると、図形の値のまま
+  SigK.annotate.select(null);
+  SigK.annotate.setTool('shape');
+  drag(shell, [300, 300], [400, 250]);
+  assert.equal(SigK.viewer.getAnnotations().added.at(-1).opacity, 0.5);
+});

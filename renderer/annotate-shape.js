@@ -71,7 +71,7 @@
     const src = viewer()?.getPlan()[index]?.src;
     if (kind === null || !isOpen() || viewport === null || !Number.isInteger(src))
       return false;
-    return draft().begin({ index, src, viewport, kind, point, shift, color: annotate().colorOf(kind), lineWidth: getLineWidth() });
+    return draft().begin({ index, src, viewport, kind, point, shift, color: annotate().colorOf(kind), lineWidth: getLineWidth(), opacity: annotate().getOpacity(kind) });
   }
 
   function updateDraft(point, shift = false) {

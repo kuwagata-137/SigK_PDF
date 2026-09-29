@@ -125,10 +125,13 @@
     return group;
   }
 
-  // 描いている途中の図形（spec-4-3 確定事項3）。当たり判定の鍵は持たせない。
+  // 描いている途中の図形（spec-4-3 確定事項3）。当たり判定の鍵は持たせない。不透明度は確定後と同じに付ける
+  // （spec-4b-1a 確定事項32）。
   function draftOf(doc, draft, viewport) {
     const group = doc.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'annot-draft');
+    if (draft.opacity !== undefined && draft.opacity < 1)
+      group.setAttribute('opacity', String(draft.opacity));
     group.append(root.SigK.shapeGraphics.svgOf(doc, draft, viewport));
     return group;
   }
