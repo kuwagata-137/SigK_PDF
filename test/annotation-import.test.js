@@ -7,6 +7,7 @@ require('../renderer/markup-quads.js');
 require('../renderer/free-text-geometry.js');
 require('../renderer/note-graphics.js');
 require('../renderer/imported-values.js');
+require('../renderer/shape-style.js');
 require('../renderer/imported-shape.js');
 require('../renderer/imported-entry.js');
 require('../renderer/annotation-details.js');
@@ -117,14 +118,34 @@ test('口に頼むのは四角・丸・直線・矢印・テキスト・ノー�
   assert.equal(delivered[0].imported, imported);
 });
 
-test('塗り・雲形・/RD の四角と丸は表示のみにし、pdf.js に描かせたままにする', async (t) => {
-  const answer = { ok: true, details: { '30R': { ca: 1, interior: [1, 1, 0] }, '31R': { cloudy: true }, '32R': { rectDifference: [5, 5, 5, 5] }, '33R': { ca: 0.5, rectDifference: [0, 0, 0, 0] } } };
+// spec-4b-1a では塗り・雲形・/RD の四角と丸を表示のみにしていた。spec-4b-1b から直せる形で当て、pdf.js には描かせない
+// （確定事項36〜38）。描けないもの（崩れた /RD）と、線も塗りも無いものは表示のみのまま。
+test('塗り・雲形・/RD の四角と丸は直せる形で当て、描けないものと線も塗りも無いものは表示のみにする', async (t) => {
+  const answer = { ok: true, details: {
+    '30R': { ca: 1, interior: [1, 1, 0] },
+    '31R': { cloudy: true, cloudIntensity: 2 },
+    '32R': { rectDifference: [5, 5, 5, 5] },
+    '33R': { ca: 0.5, rectDifference: [0, 0, 0, 0] },
+    '34R': { rectDifference: [30, 0, 30, 0] },
+    '35R': { interior: null },
+  } };
   stubs(t, { answer });
-  const doc = makeDoc([[square('30R'), square('31R', { subtype: 'Circle' }), square('32R'), square('33R')]]);
+  const doc = makeDoc([[square('30R'), square('31R', { subtype: 'Circle' }), square('32R'), square('33R'), square('34R'), square('35R', { color: null })]]);
   const imported = await imp.importDocument(doc, { file: FILE });
-  assert.deepEqual(imported[0].map((entry) => [entry.ref, entry.readonly === true, entry.subtype ?? null]), [['30R', true, 'Square'], ['31R', true, 'Circle'], ['32R', true, 'Square'], ['33R', false, null]]);
-  assert.deepEqual([...doc.storage.keys()], ['33R'], 'noView は直せるものにだけ付ける');
+  assert.deepEqual(imported[0].map((entry) => [entry.ref, entry.readonly === true]),
+    [['30R', false], ['31R', false], ['32R', false], ['33R', false], ['34R', true], ['35R', true]]);
+  assert.equal(imported[0][0].fill, '#ffff00');
+  assert.deepEqual([imported[0][1].lineStyle, imported[0][1].cloudIntensity], ['cloudy', 2]);
+  assert.deepEqual(imported[0][2].rect, [15, 15, 55, 35]);
   assert.equal(imported[0][3].opacity, 0.5);
+  assert.deepEqual([...doc.storage.keys()], ['30R', '31R', '32R', '33R'], 'noView は直せるものにだけ付ける');
+});
+
+// 口が使えなくても、線も塗りも無いもの（/C の無い四角）は表示のみにそろえる（塗りが分からないまま直せる形にしない）。
+test('口の答えが無くても、線の見えない四角は表示のみにする', async (t) => {
+  stubs(t, { answer: { ok: false, reason: 'timeout' } });
+  const imported = await imp.importDocument(makeDoc([[square('30R', { color: null }), square('31R')]]), { file: FILE });
+  assert.deepEqual(imported[0].map((entry) => [entry.ref, entry.readonly === true]), [['30R', true], ['31R', false]]);
 });
 
 test('口が使えない・断られたときは、pdf.js の値のまま読む', async (t) => {

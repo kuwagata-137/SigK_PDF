@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
 require('../renderer/imported-values.js');
+require('../renderer/shape-style.js');
 require('../renderer/imported-shape.js');
 
 // 図形・ペン（Square・Circle・Ink と 2 点の PolyLine）の 1 件を自前の形にする層（spec-4-3 確定事項13）。
@@ -35,8 +36,8 @@ test('importedShape は 2 点の PolyLine を直線か矢印に、Ink を点列�
   assert.deepEqual(ink.paths, [[[1, 2], [3, 4], [5, 6]]], '2 点未満の path は捨てる');
 });
 
-test('importedShape は拾えない形（色が無い・3 点以上の PolyLine・閉じた矢じり・知らない種類）に null を返す', () => {
-  assert.equal(shape.importedShape({ id: '50R', subtype: 'Square', rect: [0, 0, 10, 10], color: null, borderStyle: BORDER }, 0), null);
+test('importedShape は拾えない形（線の見えない直線・3 点以上の PolyLine・閉じた矢じり・知らない種類）に null を返す', () => {
+  assert.equal(shape.importedShape({ id: '50R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: null, borderStyle: BORDER, vertices: [0, 0, 10, 0], lineEndings: ['None', 'None'] }, 0), null);
   assert.equal(shape.importedShape({ id: '51R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 0, 5, 5, 10, 0], lineEndings: ['None', 'None'] }, 0), null);
   assert.equal(shape.importedShape({ id: '52R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 0, 10, 0], lineEndings: ['None', 'ClosedArrow'] }, 0), null);
   assert.equal(shape.importedShape({ id: '53R', subtype: 'Polygon', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER }, 0), null);
@@ -56,13 +57,49 @@ test('importedShape の線幅は、pdf.js が /Rect に合わせて 1 に置き�
   assert.equal(shape.lineWidthOf({ width: 0, rawWidth: 1 }), 0);
 });
 
-test('importedShape は線幅 0 と実線でない線に null を返す（imported-entry.js が表示のみにする）', () => {
-  const base = { id: '72R', subtype: 'Circle', rect: [0, 0, 30, 30], color: [0, 0, 0] };
-  assert.equal(shape.importedShape({ ...base, borderStyle: { width: 0, rawWidth: 1, style: 1 } }, 0), null);
-  assert.equal(shape.importedShape({ ...base, borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [3, 2] } }, 0), null);
+// 線の見えない四角・丸（/C が無いか線幅 0）は線なしの候補にする。塗りは口の答えで当て、無ければ表示のみ
+// （annotation-details.js。spec-4b-1b 確定事項36）。線幅 0 のものは、線を戻したときの太さを既定の 2pt にする。
+test('importedShape は線の見えない四角・丸を線なしの候補にする', () => {
+  const base = { id: '72R', subtype: 'Circle', rect: [0, 0, 30, 30] };
+  const noColor = shape.importedShape({ ...base, color: null, borderStyle: BORDER }, 0);
+  assert.equal(noColor.color, null);
+  assert.equal(noColor.lineWidth, 3, '/C が無くても /BS /W は太さとして持つ');
+  const zeroWidth = shape.importedShape({ ...base, color: [0, 0, 0], borderStyle: { width: 0, rawWidth: 1, style: 1 } }, 0);
+  assert.equal(zeroWidth.color, null);
+  assert.equal(zeroWidth.lineWidth, 2);
+  assert.equal(shape.importedShape({ id: '73R', subtype: 'Ink', rect: [0, 0, 50, 50], color: [0, 0, 0], borderStyle: { width: 0, style: 1 }, inkLists: [[1, 2, 3, 4]] }, 0), null);
+});
+
+// 破線は間隔を線の太さの倍数で持つ（3:2 なら持たない）。描けない線の形は拾わない（spec-4b-1b 確定事項37）。
+test('importedShape は破線を線種と間隔の倍数で読み、描けない線の形に null を返す', () => {
+  const base = { id: '74R', subtype: 'Circle', rect: [0, 0, 30, 30], color: [0, 0, 0] };
+  const custom = shape.importedShape({ ...base, borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [3, 2] } }, 0);
+  assert.equal(custom.lineStyle, 'dashed');
+  assert.deepEqual(custom.dash, [1.5, 1]);
+  const standard = shape.importedShape({ ...base, borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [6, 4] } }, 0);
+  assert.equal(standard.lineStyle, 'dashed');
+  assert.equal('dash' in standard, false, '3:2 は既定なので持たない');
+  const empty = shape.importedShape({ ...base, borderStyle: { width: 2, style: 2, dashArray: [] } }, 0);
+  assert.equal('lineStyle' in empty, false, '空の間隔は実線');
+  const line = shape.importedShape({ id: '75R', subtype: 'PolyLine', rect: [0, 0, 100, 10], color: [0, 0, 0], borderStyle: { width: 2, style: 2, dashArray: [4, 2] }, vertices: [0, 5, 100, 5], lineEndings: ['None', 'OpenArrow'] }, 0);
+  assert.deepEqual([line.kind, line.lineStyle, line.dash], ['arrow', 'dashed', [2, 1]]);
+  assert.equal(shape.importedShape({ ...base, borderStyle: { width: 1, style: 2, dashArray: [1000] } }, 0), null, '範囲の外の間隔');
+  assert.equal(shape.importedShape({ ...base, borderStyle: { width: 2, style: 3 } }, 0), null, '立体');
+  assert.equal(shape.importedShape({ ...base, borderStyle: { width: 2, style: 5 } }, 0), null, '下線');
+  assert.equal(shape.importedShape({ id: '76R', subtype: 'Ink', rect: [0, 0, 50, 50], color: [0, 0, 0], borderStyle: { width: 2, style: 2, dashArray: [3] }, inkLists: [[1, 2, 3, 4]] }, 0), null, 'ペンは実線だけ');
   assert.equal(shape.isSolidLine({ style: 1 }), true);
   assert.equal(shape.isSolidLine({}), true, '線の形が無ければ実線');
   assert.equal(shape.isSolidLine(undefined), true);
   assert.equal(shape.isSolidLine({ style: 2 }), false);
-  assert.equal(shape.isSolidLine({ style: 4 }), false);
+});
+
+test('dashRatiosOf は間隔を線の太さの倍数にし、3:2 なら null、空なら []、範囲の外は undefined', () => {
+  assert.deepEqual(shape.dashRatiosOf([4, 2], 2), [2, 1]);
+  assert.deepEqual(shape.dashRatiosOf([3], 1), [3], 'pdf.js の既定の [3] は 3 倍の線と間');
+  assert.equal(shape.dashRatiosOf([6, 4], 2), null);
+  assert.equal(shape.dashRatiosOf([3.01, 2], 1), null, '差 0.01 以内は 3:2');
+  assert.deepEqual(shape.dashRatiosOf(undefined, 1), [3], '間隔が無ければ pdf.js の既定の [3]');
+  assert.deepEqual(shape.dashRatiosOf([], 2), []);
+  assert.equal(shape.dashRatiosOf([0, 0], 1), undefined);
+  assert.deepEqual(shape.dashRatiosOf(new Float32Array([4, 2]), 4), [1, 0.5]);
 });

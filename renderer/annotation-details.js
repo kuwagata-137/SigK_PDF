@@ -5,8 +5,8 @@
   //
   // needsDetails・refsOf・applyDetails・readonlyOf は純関数。requestDetails は annotationAPI.readDetails
   // （ワーカーが辞書を直に読む口）を 1 本ずつ順番に呼ぶ。答えの欄は worker/annotation-dict-reader.js の detailsOf。
-  // ①-a で当てるのは不透明度（/CA）だけで、SigK PDF がまだ同じ見た目に描けないもの（四角・丸の塗り・雲形・/RD）は
-  // 表示のみにする。①-b で塗り・線なし・破線・雲形・/RD を直せる形で当てる。
+  // 当てるのは不透明度（/CA）と、四角・丸の塗り（/IC）・雲形（/BE の強さ）・/RD（spec-4b-1b 確定事項36〜38）。破線と線なしは
+  // pdf.js の値で imported-shape.js が読む。描けないもの（雲形の破線・崩れた /RD）と、線も塗りも無いものは表示のみにする。
 
   // 口が要る種類。pdf.js が不透明度（/CA）を返さないもの（事前調査 A）。ハイライト・下線・取り消し線・ペンは
   // pdf.js が返すので要らない。
@@ -63,20 +63,57 @@
     return Array.isArray(values) && values.some((value) => value !== 0);
   }
 
-  // 答えを 1 件に当てる（確定事項26）。答えが無ければそのまま（pdf.js の値。確定事項27）。
-  function applyDetails(entry, detail) {
-    if (detail === undefined || detail === null)
-      return entry;
-    const boxed = entry.kind === 'square' || entry.kind === 'circle';
-    const filled = Array.isArray(detail.interior) && detail.interior.length > 0;
-    if (boxed && (filled || detail.cloudy === true || hasNonZero(detail.rectDifference)))
-      return readonlyOf(entry);
-    if (!Number.isFinite(detail.ca))
-      return entry;
+  // /RD（規格の順で 左・上・右・下）の形。どれも 0 以上で、左右の和が幅より、上下の和が高さより小さい（確定事項38）。
+  function validDifference(difference, [x1, y1, x2, y2]) {
+    return Array.isArray(difference) && difference.length === 4 && difference.every((value) => Number.isFinite(value) && value >= 0)
+      && difference[0] + difference[2] < x2 - x1 && difference[1] + difference[3] < y2 - y1;
+  }
+
+  function insideOf([x1, y1, x2, y2], [left, top, right, bottom]) {
+    return [x1 + left, y1 + bottom, x2 - right, y2 - top].map((value) => Math.round(value * 100) / 100);
+  }
+
+  // 四角・丸の塗り・雲形・/RD（確定事項36・38）。描けないもの（雲形の破線・崩れた /RD）は null。雲形の箱は /Rect のまま
+  // （他のアプリの外観も /Rect の中に描かれる）で、弧は SigK PDF の描き方で描き直す（決定47 ⑯）。
+  function withBoxDetails(entry, detail) {
+    const next = { ...entry };
+    const fill = root.SigK.importedValues.hexOfComponents(detail.interior);
+    if (fill !== null)
+      next.fill = fill;
+    const difference = detail.rectDifference;
+    if (difference !== null && difference !== undefined && !validDifference(difference, entry.rect))
+      return null;
+    if (detail.cloudy === true && Number.isFinite(detail.cloudIntensity) && detail.cloudIntensity > 0) {
+      if (entry.lineStyle === 'dashed')
+        return null;
+      next.lineStyle = 'cloudy';
+      next.cloudIntensity = Math.min(2, detail.cloudIntensity);
+      return next;
+    }
+    if (hasNonZero(difference)) {
+      next.rect = insideOf(entry.rect, difference);
+      next.quads = [root.SigK.freeTextGeometry.quadOfRect(next.rect)];
+    }
+    return next;
+  }
+
+  function withDetails(entry, detail) {
+    const next = entry.kind === 'square' || entry.kind === 'circle' ? withBoxDetails(entry, detail) : entry;
+    if (next === null || !Number.isFinite(detail.ca))
+      return next;
     // 不透明度 0（見えない）は直す形にしない。pdf.js が描くまま（見えないまま）にする。
-    if (detail.ca <= 0)
+    return detail.ca <= 0 ? null : { ...next, opacity: Math.min(1, detail.ca) };
+  }
+
+  // 答えを 1 件に当てる（spec-4b-1a 確定事項26、spec-4b-1b 確定事項36〜38）。答えが無ければ pdf.js の値のまま（①-a 確定事項27）。
+  // どちらでも、線も塗りも無いもの（線の見えない四角・丸で塗りが分からないもの）は表示のみにする。
+  function applyDetails(entry, detail) {
+    if (entry.readonly === true)
+      return entry;
+    const next = detail === undefined || detail === null ? entry : withDetails(entry, detail);
+    if (next === null || (next.color === null && (next.fill ?? null) === null))
       return readonlyOf(entry);
-    return { ...entry, opacity: Math.min(1, detail.ca) };
+    return next;
   }
 
   // 口を呼べない理由。呼べるなら null。
