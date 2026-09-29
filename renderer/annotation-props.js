@@ -8,10 +8,9 @@
   // 実態に合わせるだけである。選んでいる注釈があればその注釈、無ければ「次に付ける
   // 注釈」（持っている道具）の種類と色を見せる。色の丸を押すと annotate.setColor、
   // 「文字の大きさ」は annotate.setFontSize、「線の太さ」は annotate.setLineWidth、
-  // 「図形の種類」は annotate.setShapeKind、「本文」（ノート。blur か Ctrl+Enter で確定）は
-  // annotate.setContents、「作成者」は annotate.setAuthor、「不透明度」は annotate.setOpacity、
+  // 「図形の種類」は annotate.setShapeKind、「不透明度」は annotate.setOpacity、
   // 「この注釈を削除」は annotate.remove へ流す。表示のみの注釈は種類名に「（表示のみ）」を添え、
-  // 色の丸を出さない。
+  // 色の丸を出さない。ノートの「本文」「作成者」の行は annotation-note-rows.js が持つ。
 
   const HINTS = Object.freeze({
     selected: 'Delete で消せます。Esc で選択を解除します。Ctrl+Z で元に戻せます。',
@@ -45,6 +44,10 @@
 
   function presets() {
     return root.SigK.annotationPresets;
+  }
+
+  function noteRows() {
+    return root.SigK.annotationNoteRows;
   }
 
   function isDrawnKind(kind) {
@@ -141,23 +144,6 @@
     el.opacity.value = String(value);
   }
 
-  // 「本文」の行（ノートを選んでいるときだけ）。書いている最中は値を触らない。
-  function setContentsRow(text) {
-    el.contentsRow.hidden = text === null;
-    if (text !== null && el.doc.activeElement !== el.contents)
-      el.contents.value = text;
-  }
-
-  // 「作成者」の行。ノートの道具なら編集でき、ノートを選んでいれば読み取り。
-  function setAuthorRow(author, { editable }) {
-    el.authorRow.hidden = author === null;
-    if (author === null)
-      return;
-    el.author.readOnly = !editable;
-    if (el.doc.activeElement !== el.author)
-      el.author.value = author;
-  }
-
   function previewOf(text) {
     const flat = text.replace(/\s*\n\s*/g, ' ');
     return flat.length > TEXT_PREVIEW ? `${flat.slice(0, TEXT_PREVIEW)}…` : flat;
@@ -189,8 +175,7 @@
       el.colors.replaceChildren();
     else
       renderSwatches(entry.kind, entry.color);
-    setContentsRow(isNote ? entry.text : null);
-    setAuthorRow(isNote ? (entry.author ?? '') : null, { editable: false });
+    noteRows()?.render({ text: isNote ? entry.text : null, author: isNote ? (entry.author ?? '') : null, editable: false });
     setSizeRow(isText ? entry.fontSize : null);
     setWidthRow(isDrawnKind(entry.kind) ? entry.lineWidth : null);
     setOpacityRow(!readonly && isOpacityKind(entry.kind) ? entry.opacity : null);
@@ -229,8 +214,7 @@
       el.colors.replaceChildren();
     else
       renderSwatches(tool, annotate().colorOf(tool));
-    setContentsRow(null);
-    setAuthorRow(tool === 'note' ? annotate().getAuthor() : null, { editable: true });
+    noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
     setSizeRow(tool === 'text' ? annotate().getFontSize() : null);
     setWidthRow(tool === 'shape' || tool === 'pen' ? annotate().getLineWidth() : null);
     setOpacityRow(tool !== null && presets().OPACITY_TOOLS.includes(tool) ? annotate().getOpacity(tool) : null);
@@ -242,12 +226,9 @@
     return true;
   }
 
-  // 「本文」欄にフォーカスを移す（置いた直後・ダブルクリック・Enter）。出ていなければ何もしない。
+  // 「本文」欄にフォーカスを移す（置いた直後・ダブルクリック・Enter）。行は annotation-note-rows.js が持つ。
   function focusContents() {
-    if (el === null || el.contentsRow.hidden)
-      return false;
-    el.contents.focus();
-    return true;
+    return noteRows()?.focusContents() === true;
   }
 
   // 「不透明度」の選択肢（100%・75%・50%・25%）。
@@ -259,19 +240,6 @@
       return option;
     }));
     select.addEventListener('change', () => annotate().setOpacity(Number(select.value)));
-  }
-
-  // 「本文」欄。欄の外を押す（blur）か Ctrl+Enter で確定、Esc は欄を離れる（＝確定）。キーの側でも確定を
-  // 呼ぶのは、窓が非活性のとき Chromium が blur() で活性要素を変えても blur イベントを流さないため（起動確認で実測）。
-  function bindContents(textarea) {
-    textarea.addEventListener('blur', () => annotate().setContents(textarea.value));
-    textarea.addEventListener('keydown', (event) => {
-      if ((event.key === 'Enter' && event.ctrlKey) || event.key === 'Escape') {
-        event.preventDefault();
-        annotate().setContents(textarea.value);
-        textarea.blur();
-      }
-    });
   }
 
   // 選択肢はプリセットから 1 度だけ組む（spec-4-2 確定事項34、spec-4-3 確定事項29）。
@@ -325,10 +293,6 @@
       shapeKinds: doc.getElementById('props-shape-kinds'),
       hint: doc.getElementById('props-hint'),
       remove: doc.getElementById('props-delete'),
-      contentsRow: doc.getElementById('props-contents-row'),
-      contents: doc.getElementById('props-contents'),
-      authorRow: doc.getElementById('props-author-row'),
-      author: doc.getElementById('props-author'),
       opacityRow: doc.getElementById('props-opacity-row'),
       opacity: doc.getElementById('props-opacity'),
     };
@@ -336,8 +300,8 @@
     fillSelect(doc, el.width, presets().LINE_WIDTHS, (width) => annotate().setLineWidth(width));
     fillShapeKinds(doc, el.shapeKinds);
     fillOpacities(doc, el.opacity);
-    bindContents(el.contents);
-    el.author.addEventListener('change', () => annotate().setAuthor(el.author.value));
+    // 本文と作成者の行（annotation-note-rows.js）。refresh より先に結ぶ。
+    root.SigK.annotationNoteRows?.init(doc, win);
     el.remove.addEventListener('click', () => {
       if (el.remove.getAttribute('aria-disabled') !== 'true')
         annotate().remove();
