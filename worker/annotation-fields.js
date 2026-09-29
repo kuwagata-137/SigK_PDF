@@ -15,15 +15,24 @@ function timestamp(now) {
   return `D:${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${sign}${hours}'${minutes}'`;
 }
 
-// 図形・ペンの欄（spec-4-3 確定事項21）。線の色 /C・線幅 /BS /W と /Border、直線・矢印は /Vertices（と矢印の /LE）、
-// ペンは /InkList。塗り /IC は書かない。
+// 図形・ペンの欄（spec-4-3 確定事項21、spec-4b-1b 確定事項32〜34）。線の色 /C は線があるときだけ、塗り /IC は塗りが
+// あるときだけ書く。線幅は /BS /W と /Border に選んだ太さを書き（線なしでも。/C が無ければ枠は透明で、開き直したときに
+// 太さが戻る）、破線は /BS /S /D と /D に間隔を書く。雲形は /BE（と描けたときは /RD）。直線・矢印は /Vertices（と矢印の
+// /LE）、ペンは /InkList。
 function shapeFields(appearance, { PDFName, PDFString }) {
   const fields = {
-    C: appearance.rgb,
-    BS: { W: appearance.lineWidth, S: 'S' },
+    BS: appearance.dash ? { W: appearance.lineWidth, S: 'D', D: appearance.dash } : { W: appearance.lineWidth, S: 'S' },
     Border: [0, 0, appearance.lineWidth],
     Contents: PDFString.of(''),
   };
+  if (appearance.rgb !== null)
+    fields.C = appearance.rgb;
+  if (appearance.fillRgb)
+    fields.IC = appearance.fillRgb;
+  if (appearance.cloudIntensity !== undefined)
+    fields.BE = { S: 'C', I: appearance.cloudIntensity };
+  if (appearance.rectDifference !== undefined)
+    fields.RD = appearance.rectDifference;
   if (appearance.vertices !== undefined) {
     fields.Vertices = appearance.vertices;
     if (appearance.lineEndings[1] !== 'None')

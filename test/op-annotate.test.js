@@ -522,3 +522,49 @@ test('note の形が違えば何も書かずに断る', async () => {
   assert.deepEqual(await applyAnnotations(doc, { add: [note({ rect: [120, 700, 100, 680] })] }, TOOLS, { now: NOW }), { error: '書き込み 1 の形が読めません。' });
   assert.equal(annotsOf(doc, 0).length, 0);
 });
+
+// ---- 塗り・線なし・線種・透明グループ（spec-4b-1b 確定事項29〜35） ----
+
+// 不透明度が 1 未満の図形は、中身を透明グループの Form に入れて不透明で描き、外側で /GS を当てて重ねる（確定事項31。事前調査 D）。
+test('不透明度が 1 未満の図形の外観は、透明グループの Form を /GS gs で重ねる', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [shape({ opacity: 0.5, fill: '#ffd966' }), shape({ rect: [100, 400, 300, 500] })] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const [grouped, plain] = annotsOf(saved, 0);
+  const { normal, resources, gs } = extGStateOf(saved, grouped.dict);
+  assert.equal(contentOf(saved, normal), 'q /GS gs /G0 Do Q');
+  assert.equal(pick(gs, '/ca').asNumber(), 0.5);
+  assert.equal(pick(grouped.dict, '/CA').asNumber(), 0.5);
+  const inner = saved.context.lookup(pick(saved.context.lookup(pick(resources, '/XObject')), '/G0'));
+  assert.equal(nameOf(saved.context.lookup(pick(inner.dict, '/Group')), '/S'), '/Transparency');
+  assert.deepEqual(numbersOf(saved, pick(inner.dict, '/BBox')), [100, 600, 300, 700]);
+  assert.equal(contentOf(saved, inner), '0.851 0.173 0.173 RG\n1 0.851 0.4 rg\n2 w 101 601 198 98 re B');
+  // 不透明なものは今までどおり 1 つの Form
+  assert.equal(pick(extGStateOf(saved, plain.dict).resources, '/XObject'), undefined);
+});
+
+// 塗り・線なし・破線・雲形は辞書の欄に書かれ、読み直せる（確定事項32〜34）。
+test('塗り・線なし・破線・雲形は /IC・/C の有無・/BS・/BE・/RD に書かれる', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [
+    shape({ color: null, fill: '#a9ce91', lineWidth: 5 }),
+    shape({ lineStyle: 'dashed', dash: [4, 2], lineWidth: 1.5 }),
+    shape({ kind: 'circle', lineStyle: 'cloudy', cloudIntensity: 2 }),
+    arrow({ lineStyle: 'dashed' }),
+  ] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const [noStroke, dashed, cloudy, dashedArrow] = annotsOf(saved, 0).map(({ dict }) => dict);
+  const bsOf = (dict) => saved.context.lookup(pick(dict, '/BS'));
+  assert.equal(pick(noStroke, '/C'), undefined);
+  assert.deepEqual(numbersOf(saved, pick(noStroke, '/IC')).map((v) => Math.round(v * 1000) / 1000), [0.663, 0.808, 0.569]);
+  assert.equal(pick(bsOf(noStroke), '/W').asNumber(), 5);
+  assert.equal(nameOf(bsOf(dashed), '/S'), '/D');
+  assert.deepEqual(numbersOf(saved, pick(bsOf(dashed), '/D')), [6, 3]);
+  const be = saved.context.lookup(pick(cloudy, '/BE'));
+  assert.equal(nameOf(be, '/S'), '/C');
+  assert.equal(pick(be, '/I').asNumber(), 2);
+  const rd = numbersOf(saved, pick(cloudy, '/RD'));
+  assert.deepEqual(rd, [11.5, 11.5, 11.5, 11.5], '/RD は 4 つとも同じ余白（弧の半径 10.5 ＋ 線幅の半分）');
+  assert.deepEqual(numbersOf(saved, pick(cloudy, '/Rect')), [100, 600, 300, 700], '/Rect は箱そのもの');
+  assert.deepEqual(numbersOf(saved, pick(bsOf(dashedArrow), '/D')), [9, 6]);
+});

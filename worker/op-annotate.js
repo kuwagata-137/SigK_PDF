@@ -24,7 +24,13 @@ const { embedBundledFont, FONT_ERROR } = require('./font-embed.js');
 const { parseRef, annotsOf, removeAnnotations } = require('./annotation-remove.js');
 const { timestamp, kindFields, popupDict } = require('./annotation-fields.js');
 
-// 外観の Form XObject。テキストは Resources にフォントも付ける。
+function formStream(context, content, bbox, extra) {
+  return context.register(context.stream(content, { Type: 'XObject', Subtype: 'Form', FormType: 1, BBox: bbox, ...extra }));
+}
+
+// 外観の Form XObject。テキストは Resources にフォントも付ける。group の立った外観（不透明度が 1 未満の図形・ペン）は、
+// 中身を透明グループの Form に入れて不透明で描き、外側で /GS の不透明度を当てて重ねる（spec-4b-1b 確定事項31。
+// 塗りと線、矢印の軸と矢じり、ペンの線どうしが重なっても濃くならない。事前調査 D）。
 function appearanceStream(context, appearance, font) {
   const gs = { Type: 'ExtGState', CA: appearance.opacity, ca: appearance.opacity };
   if (appearance.blend)
@@ -32,13 +38,11 @@ function appearanceStream(context, appearance, font) {
   const resources = { ExtGState: { GS: gs } };
   if (font !== null)
     resources.Font = { [font.measure.name]: font.font.ref };
-  return context.register(context.stream(appearance.content, {
-    Type: 'XObject',
-    Subtype: 'Form',
-    FormType: 1,
-    BBox: appearance.bbox,
-    Resources: resources,
-  }));
+  if (appearance.group === true) {
+    resources.XObject = { G0: formStream(context, appearance.content, appearance.bbox, { Group: { S: 'Transparency' }, Resources: {} }) };
+    return formStream(context, 'q /GS gs /G0 Do Q', appearance.bbox, { Resources: resources });
+  }
+  return formStream(context, appearance.content, appearance.bbox, { Resources: resources });
 }
 
 function appendAnnots(page, context, PDFName, refs) {

@@ -66,10 +66,14 @@ test('楕円はベジェ 4 本で、線幅の半分だけ内側に描く', () =>
   ].join('\n'));
 });
 
-test('小さすぎる箱では線を内側に収めきれず、幅 0 で描く（負にならない）', () => {
+// 線が箱より太いと何も描かれなかった（事前調査 D）。描く線幅を短い辺の半分で頭打ちにし、線で箱をすべて覆う。
+// /BS /W には選んだ太さを書く（spec-4b-1b 確定事項30）。
+test('線が箱より太いときは、描く線幅を短い辺の半分で頭打ちにして箱を覆う', () => {
   const appearance = shapeAppearanceOf(square({ rect: [100, 600, 101, 601], lineWidth: 8 }));
-  assert.equal(appearance.content, '/GS gs\n0.851 0.173 0.173 RG\n8 w 104 604 0 0 re S');
-  assert.match(shapeAppearanceOf(square({ kind: 'circle', rect: [100, 600, 101, 601], lineWidth: 8 })).content, /^\/GS gs\n0\.851 0\.173 0\.173 RG\n8 w\n100\.5 600\.5 m\n/);
+  assert.equal(appearance.content, '/GS gs\n0.851 0.173 0.173 RG\n0.5 w 100.25 600.25 0.5 0.5 re S');
+  assert.equal(appearance.lineWidth, 8);
+  assert.match(shapeAppearanceOf(square({ kind: 'circle', rect: [100, 600, 101, 601], lineWidth: 8 })).content, /^\/GS gs\n0\.851 0\.173 0\.173 RG\n0\.5 w\n100\.75 600\.5 m\n/);
+  assert.equal(shapeAppearanceOf(square({ rect: [60, 300, 90, 330], lineWidth: 40 })).content, '/GS gs\n0.851 0.173 0.173 RG\n15 w 67.5 307.5 15 15 re S');
 });
 
 test('直線は丸い端の m l S で、/Vertices と /LE を返す', () => {
@@ -137,4 +141,123 @@ test('形が違えば null', () => {
   assert.equal(shapeAppearanceOf(square({ kind: 'stamp' })), null);
   assert.equal(shapeAppearanceOf(line({ paths: [] })), null);
   assert.equal(shapeAppearanceOf(square({ color: '#12345' })), null);
+});
+
+// ---- 塗り・線なし・線種・透明グループ（spec-4b-1b 確定事項29〜35） ----
+
+test('塗りは線と同じ path を B で塗り、/IC に渡す色を返す', () => {
+  const appearance = shapeAppearanceOf(square({ fill: '#ffd966' }));
+  assert.equal(appearance.content, '/GS gs\n0.851 0.173 0.173 RG\n1 0.851 0.4 rg\n2 w 101 601 198 98 re B');
+  assert.deepEqual(appearance.fillRgb.map((v) => Math.round(v * 1000) / 1000), [1, 0.851, 0.4]);
+  assert.match(shapeAppearanceOf(square({ kind: 'circle', fill: '#ffd966' })).content, /1 0\.851 0\.4 rg\n2 w\n[\s\S]*c\nh B$/);
+  assert.equal(shapeAppearanceOf(square()).fillRgb, null);
+});
+
+// 線なしは箱そのものを f で塗る。/C を書かないよう rgb は null（確定事項29・34）。
+test('線なしは箱そのものを塗り、線の色は null', () => {
+  const appearance = shapeAppearanceOf(square({ color: null, fill: '#a9ce91' }));
+  assert.equal(appearance.content, '/GS gs\n0.663 0.808 0.569 rg\n100 600 200 100 re f');
+  assert.equal(appearance.rgb, null);
+  assert.equal(appearance.lineWidth, 2, '線を戻したときの太さは持つ');
+  assert.match(shapeAppearanceOf(square({ kind: 'circle', color: null, fill: '#a9ce91' })).content, /rg\n300 650 m\n[\s\S]*c\nh f$/);
+  assert.equal(shapeAppearanceOf(square({ color: null })), null, '線も塗りも無いものは書かない');
+});
+
+// 破線の間隔は線の太さの 3:2 倍（読み込んだ間隔はその倍数）。端は切りっぱなし、矢じりは実線（確定事項32）。
+test('破線は線の太さの倍数の間隔を d で書き、矢印の矢じりは実線で描く', () => {
+  const dashed = shapeAppearanceOf(square({ lineStyle: 'dashed' }));
+  assert.equal(dashed.content, '/GS gs\n0.851 0.173 0.173 RG\n2 w [6 4] 0 d 101 601 198 98 re S');
+  assert.deepEqual(dashed.dash, [6, 4]);
+  assert.deepEqual(shapeAppearanceOf(square({ lineStyle: 'dashed', dash: [4, 2], lineWidth: 1.5 })).dash, [6, 3]);
+  assert.equal(shapeAppearanceOf(line({ lineStyle: 'dashed' })).content, '/GS gs\n0.173 0.361 0.851 RG\n3 w [9 6] 0 d 100 600 m 300 550 l S');
+  const arrowAppearance = shapeAppearanceOf(line({ kind: 'arrow', lineStyle: 'dashed' }));
+  const lines = arrowAppearance.content.split('\n');
+  assert.deepEqual(lines.slice(0, 5), [
+    '/GS gs', '0.173 0.361 0.851 RG', '3 w [9 6] 0 d', '100 600 m 300 550 l S', '[] 0 d 1 J 1 j',
+  ]);
+  assert.match(lines[5], / m 300 550 l [\d.]+ [\d.]+ l S$/);
+  assert.equal(shapeAppearanceOf(square()).dash, null);
+});
+
+// 雲形は雲の path を描き、/BE の強さと /RD の余白（4 つとも同じ値）を返す（確定事項33）。
+test('雲形は雲の path に線を引き、強さと /RD の余白を返す', () => {
+  const { cloudPathOf } = require('../worker/cloud-appearance.js');
+  const cloud = cloudPathOf({ kind: 'square', box: [100, 600, 300, 700], intensity: 1, lineWidth: 2 });
+  const appearance = shapeAppearanceOf(square({ lineStyle: 'cloudy' }));
+  assert.equal(appearance.content, `/GS gs\n0.851 0.173 0.173 RG\n2 w 1 j\n${cloud.ops}\nS`);
+  assert.equal(appearance.cloudIntensity, 1);
+  assert.deepEqual(appearance.rectDifference, [6, 6, 6, 6]);
+  assert.deepEqual(appearance.bbox, [100, 600, 300, 700], '外観の箱と /Rect は箱そのもの');
+  const strong = shapeAppearanceOf(square({ lineStyle: 'cloudy', cloudIntensity: 2, fill: '#ffd966' }));
+  assert.equal(strong.cloudIntensity, 2);
+  assert.match(strong.content, /rg\n2 w 1 j\n[\s\S]*\nh\nB$/);
+  const filledOnly = shapeAppearanceOf(square({ lineStyle: 'cloudy', color: null, fill: '#ffd966' }));
+  assert.match(filledOnly.content, /^\/GS gs\n1 0\.851 0\.4 rg\n1 j\n[\d.]+ [\d.]+ m\n[\s\S]*\nh\nf$/);
+  // 描けないほど小さな箱の雲形は、普通の四角で描いて /BE だけを書く。
+  const tiny = shapeAppearanceOf(square({ lineStyle: 'cloudy', rect: [100, 600, 200, 605] }));
+  assert.equal(tiny.content, '/GS gs\n0.851 0.173 0.173 RG\n2 w 101 601 98 3 re S');
+  assert.equal(tiny.cloudIntensity, 1);
+  assert.equal(tiny.rectDifference, undefined);
+});
+
+// 不透明度が 1 未満なら透明グループで包む（外側の /GS gs は op-annotate.js が書く。確定事項31）。
+test('不透明度が 1 未満なら group を立て、中身に /GS gs を書かない', () => {
+  const half = shapeAppearanceOf(square({ opacity: 0.5, fill: '#ffd966' }));
+  assert.equal(half.group, true);
+  assert.equal(half.content, '0.851 0.173 0.173 RG\n1 0.851 0.4 rg\n2 w 101 601 198 98 re B');
+  assert.equal(shapeAppearanceOf(square()).group, false);
+  assert.equal(shapeAppearanceOf(ink({ opacity: 0.25 })).group, true);
+});
+
+test('isShapeEntry は見た目の欄の決まりも見る', () => {
+  assert.equal(isShapeEntry(square({ color: null, fill: '#ffd966' })), true);
+  assert.equal(isShapeEntry(square({ color: null })), false);
+  assert.equal(isShapeEntry(square({ fill: 'yellow' })), false);
+  assert.equal(isShapeEntry(line({ fill: '#ffd966' })), false);
+  assert.equal(isShapeEntry(line({ color: null })), false);
+  assert.equal(isShapeEntry(line({ lineStyle: 'cloudy' })), false);
+  assert.equal(isShapeEntry(ink({ lineStyle: 'dashed' })), false);
+  assert.equal(isShapeEntry(square({ lineStyle: 'solid', dash: [3, 2] })), false);
+  assert.equal(isShapeEntry(square({ lineStyle: 'dashed', dash: [0, 0] })), false);
+  assert.equal(isShapeEntry(square({ lineStyle: 'cloudy', cloudIntensity: 3 })), false);
+});
+
+// 見た目の欄の決まりは renderer/shape-style.js と同じ（プロセスが違うので読み込み合わない）。
+test('見た目の欄の決まりは画面（shape-style.js）と同じ', () => {
+  require('../renderer/shape-style.js');
+  const screen = globalThis.SigK.shapeStyle;
+  const rules = require('../worker/shape-style-rules.js');
+  assert.deepEqual(rules.DEFAULT_DASH, screen.DEFAULT_DASH);
+  assert.equal(rules.DEFAULT_CLOUD_INTENSITY, screen.DEFAULT_CLOUD_INTENSITY);
+  assert.deepEqual(rules.LINE_STYLES, screen.LINE_STYLES);
+  const cases = [
+    square(), square({ color: null, fill: '#ffd966' }), square({ color: null }), square({ fill: '#FFD966' }), square({ fill: 'x' }),
+    square({ lineStyle: 'cloudy', cloudIntensity: 2 }), square({ lineStyle: 'cloudy', cloudIntensity: 2.5 }), square({ lineStyle: 'wavy' }),
+    square({ lineStyle: 'dashed', dash: [4, 2] }), square({ lineStyle: 'dashed', dash: [] }), square({ lineStyle: 'solid', dash: [4, 2] }),
+    line(), line({ lineStyle: 'dashed' }), line({ lineStyle: 'cloudy' }), line({ fill: '#ffd966' }), line({ color: null }),
+    ink(), ink({ lineStyle: 'dashed' }), ink({ lineStyle: 'solid' }),
+  ];
+  for (const entry of cases)
+    assert.equal(rules.styleOf(entry) !== null, screen.validStyle(entry), JSON.stringify(entry));
+  for (const kind of ['square', 'circle', 'line', 'arrow', 'ink'])
+    assert.deepEqual(rules.lineStylesOf(kind), [...screen.lineStylesOf(kind)], kind);
+});
+
+// 四角・丸の輪郭は画面（shape-outline.js）と同じ点（破線の切れ目の位置がそろう。確定事項41）。
+test('四角・丸の輪郭は画面の点列と同じ始点・同じ向き', () => {
+  require('../renderer/shape-outline.js');
+  const outline = globalThis.SigK.shapeOutline;
+  const fmt = (value) => String(Math.round(value * 100) / 100);
+  for (const [rect, lineWidth] of [[[100, 600, 300, 700], 2], [[10.5, 20.25, 70.75, 40], 3], [[60, 300, 90, 330], 40]]) {
+    const width = outline.drawWidthOf(rect, lineWidth);
+    const squareOps = shapeAppearanceOf(square({ rect, lineWidth, lineStyle: 'dashed' })).content.split('\n').at(-1);
+    const rectPoints = outline.rectOutline(rect, width).slice(0, 4).map((segment) => segment.points[0]);
+    const [x, y] = rectPoints[0];
+    const expected = `${fmt(x)} ${fmt(y)} ${fmt(rectPoints[1][0] - x)} ${fmt(rectPoints[2][1] - y)} re S`;
+    assert.ok(squareOps.endsWith(expected), `${squareOps} / ${expected}`);
+    const circleLines = shapeAppearanceOf(square({ kind: 'circle', rect, lineWidth })).content.split('\n');
+    const bezier = outline.ellipseOutline(rect, width).slice(0, 5)
+      .map((segment, index) => `${segment.points.flat().map(fmt).join(' ')} ${index === 0 ? 'm' : 'c'}`);
+    assert.deepEqual(circleLines.slice(3, 8), bezier);
+  }
 });
