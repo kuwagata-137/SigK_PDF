@@ -53,8 +53,12 @@ const annotateScript = (target, spec) => `(async () => {
 
   await SigK.tabs.openPath(${JSON.stringify(target)});
   await wait(700);
+  // 編集モードへ入る前と後の倍率と表示域（spec-4b-1a 確定事項19。「幅」で開くので、表示域が変われば倍率も変わるはず）。
+  const viewSize = () => ({ zoom: SigK.viewer.getState().zoom, fit: SigK.viewer.getState().fit, width: document.getElementById('view').clientWidth, height: document.getElementById('view').clientHeight });
+  const zoomBefore = viewSize();
   SigK.shell.setMode(document, 'annot');
   await wait(400);
+  const zoomAfter = viewSize();
   const importedBefore = Object.values(SigK.viewer.getImported()).reduce((sum, list) => sum + list.length, 0);
 
   const pageNode = (index) => document.querySelector('.pdf-page[data-page="' + (index + 1) + '"]');

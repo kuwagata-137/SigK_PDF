@@ -517,3 +517,19 @@ test('前回の左の切り替え（一覧）で開き、復元そのものは�
   assert.equal(document.getElementById('annot-list').hidden, false);
   assert.deepEqual(uiCalls, []);
 });
+
+// モードを替えると表示域が変わる（編集モードの道具の段と右パネル）。追従していれば倍率を計算し直す（spec-4b-1a 確定事項19）。
+test('モードを替えるたびに、ビューアへ表示域の追従を頼む', async (t) => {
+  const { document, SigK, flush } = await withShell(t);
+  await flush();
+  const original = SigK.viewer.refit;
+  let calls = 0;
+  SigK.viewer.refit = () => { calls += 1; return original(); };
+  t.after(() => { SigK.viewer.refit = original; });
+  SigK.shell.setMode(document, 'annot');
+  assert.equal(calls, 1);
+  SigK.shell.setMode(document, 'view');
+  assert.equal(calls, 2);
+  SigK.shell.setMode(document, 'zzz');
+  assert.equal(calls, 2, '使えないモードでは何もしない');
+});

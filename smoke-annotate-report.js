@@ -4,7 +4,7 @@
 // 2,000 行を超えた main.js から移した（spec-4b-1a 確定事項36。中身は変えていない）。
 //
 // 埋め込む先のスクリプトにある SigK・pageNode・viewportOf・round・editorNode・importedBefore・
-// applied・saveResult を使う。
+// applied・saveResult・zoomBefore・zoomAfter を使う。
 
 const REPORT = `
   // 回転したページで、span の横位置が item の横位置と合っているか（確定事項31）。
@@ -76,6 +76,8 @@ const REPORT = `
     listVisible: document.getElementById('annot-list').hidden === false,
     // 編集モードの左に出しているもの（spec-4b-1a 確定事項15〜17・39）と、描いたサムネイルの数。
     sideView: SigK.shell.getEditSide(),
+    // 編集モードへ入る前と後の倍率と表示域（spec-4b-1a 確定事項19・39）。
+    zoom: { before: zoomBefore, after: zoomAfter },
     sideThumbs: document.querySelectorAll('#thumbs .thumb').length,
     propsContents: document.getElementById('props-contents').value,
     propsContentsVisible: document.getElementById('props-contents-row').hidden === false,

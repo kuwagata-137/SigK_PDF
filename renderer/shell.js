@@ -97,6 +97,10 @@
     // 注釈モードを離れたら注釈の選択を解除する。入ったら同じ帯を出す（spec-4-1 確定事項8・9）。
     root.SigK.annotate?.onModeChanged(mode);
 
+    // 編集モードの道具の段と右パネルの出し入れで表示域が変わる。「幅」「全体」で追従していれば倍率を計算し直す
+    // （spec-4b-1a 確定事項19。今までは右パネルの 260px ぶん紙がはみ出たままになっていた）。
+    root.SigK.viewer?.refit();
+
     persist({ mode });
     return true;
   }
