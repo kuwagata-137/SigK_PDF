@@ -385,7 +385,7 @@ test('開くと Square と 2 点の PolyLine を読み込み、pdf.js には描�
   assert.equal(svg.querySelector('g[data-annot="32R"]'), null);
   // 選ぶとプロパティに種類・太さ・ページが出て、削除できる
   SigK.annotate.select('30R');
-  assert.equal(shell.document.getElementById('props-kind').textContent, '矩形');
+  assert.equal(shell.document.getElementById('props-kind').textContent, '四角');
   assert.equal(shell.document.getElementById('props-width').value, '4');
   assert.equal(shell.document.getElementById('props-width-row').hidden, false);
   assert.equal(shell.document.getElementById('props-shape-row').hidden, true);

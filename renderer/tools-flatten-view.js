@@ -61,16 +61,16 @@
     if (keep.functional > 0)
       lines.push(`リンク・フォームの欄など ${keep.functional} 件はそのまま残します。`);
     if (keep.noAppearance > 0)
-      lines.push(`見た目の情報を持たない注釈 ${keep.noAppearance} 件（直線・テキストなど）は焼き込めないため、注釈のまま残します。`);
+      lines.push(`見た目の情報を持たない書き込み ${keep.noAppearance} 件（直線・テキストなど）は焼き込めないため、書き込みのまま残します。`);
     if (keep.hidden > 0)
-      lines.push(`表示されていない注釈 ${keep.hidden} 件は、注釈のまま残します。`);
+      lines.push(`表示されていない書き込み ${keep.hidden} 件は、書き込みのまま残します。`);
     return lines.join('');
   }
 
   function renderCensus() {
     const census = tool().census();
     const result = census?.result ?? null;
-    el.status.textContent = census === null ? '' : (census.pending ? '数えています…' : (census.error ?? (result.baked > 0 ? '' : '焼き込める注釈がありません。')));
+    el.status.textContent = census === null ? '' : (census.pending ? '数えています…' : (census.error ?? (result.baked > 0 ? '' : '焼き込める書き込みがありません。')));
     el.status.hidden = el.status.textContent === '';
     el.list.hidden = result === null || !(result.baked > 0);
     if (!el.list.hidden)

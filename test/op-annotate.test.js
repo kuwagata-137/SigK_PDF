@@ -159,9 +159,9 @@ test('remove で消し、同じ保存で add も足せる', async () => {
 
 test('形が違えば何も書かずに断る', async () => {
   const doc = await makeDoc(1);
-  assert.deepEqual(await applyAnnotations(doc, { add: [markup({ src: 3 })] }, TOOLS), { error: '注釈 1 のページ番号が文書に合いません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), markup({ kind: 'stamp' })] }, TOOLS), { error: '注釈 2 の形が読めません。' });
-  assert.deepEqual(await applyAnnotations(doc, { remove: ['abc'] }, TOOLS), { error: '消す注釈の指定が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [markup({ src: 3 })] }, TOOLS), { error: '書き込み 1 のページ番号が文書に合いません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), markup({ kind: 'stamp' })] }, TOOLS), { error: '書き込み 2 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { remove: ['abc'] }, TOOLS), { error: '消す書き込みの指定が読めません。' });
   assert.deepEqual(annotsOf(await roundTrip(doc), 0), []);
 });
 
@@ -287,9 +287,9 @@ test('フォントを読めなければ text のある保存だけ断り、何�
 
 test('text の形が違えば断る', async () => {
   const doc = await makeDoc(1);
-  assert.deepEqual(await applyAnnotations(doc, { add: [text({ text: '' })] }, TOOLS, { now: NOW, fontSource }), { error: '注釈 1 の形が読めません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [text({ rotation: 45 })] }, TOOLS, { now: NOW, fontSource }), { error: '注釈 1 の形が読めません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), text({ fontSize: 0 })] }, TOOLS, { now: NOW, fontSource }), { error: '注釈 2 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [text({ text: '' })] }, TOOLS, { now: NOW, fontSource }), { error: '書き込み 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [text({ rotation: 45 })] }, TOOLS, { now: NOW, fontSource }), { error: '書き込み 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [markup(), text({ fontSize: 0 })] }, TOOLS, { now: NOW, fontSource }), { error: '書き込み 2 の形が読めません。' });
   assert.equal(type0FontsOf(doc).length, 0);
 });
 
@@ -386,9 +386,9 @@ test('図形とテキストを同じ保存で足すとフォントは 1 つで�
 
 test('図形の形が違えば何も書かずに断る', async () => {
   const doc = await makeDoc(1);
-  assert.deepEqual(await applyAnnotations(doc, { add: [shape({ lineWidth: 0 })] }, TOOLS), { error: '注釈 1 の形が読めません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [arrow({ paths: [[[1, 2]]] })] }, TOOLS), { error: '注釈 1 の形が読めません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [shape(), ink({ src: 0, paths: [] })] }, TOOLS), { error: '注釈 2 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [shape({ lineWidth: 0 })] }, TOOLS), { error: '書き込み 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [arrow({ paths: [[[1, 2]]] })] }, TOOLS), { error: '書き込み 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [shape(), ink({ src: 0, paths: [] })] }, TOOLS), { error: '書き込み 2 の形が読めません。' });
   assert.equal(annotsOf(await roundTrip(doc), 0).length, 0);
 });
 
@@ -518,7 +518,7 @@ test('note を remove で消すと辞書・外観・ポップアップの 3 つ�
 
 test('note の形が違えば何も書かずに断る', async () => {
   const doc = await makeDoc(1);
-  assert.deepEqual(await applyAnnotations(doc, { add: [note({ text: 5 })] }, TOOLS, { now: NOW }), { error: '注釈 1 の形が読めません。' });
-  assert.deepEqual(await applyAnnotations(doc, { add: [note({ rect: [120, 700, 100, 680] })] }, TOOLS, { now: NOW }), { error: '注釈 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [note({ text: 5 })] }, TOOLS, { now: NOW }), { error: '書き込み 1 の形が読めません。' });
+  assert.deepEqual(await applyAnnotations(doc, { add: [note({ rect: [120, 700, 100, 680] })] }, TOOLS, { now: NOW }), { error: '書き込み 1 の形が読めません。' });
   assert.equal(annotsOf(doc, 0).length, 0);
 });

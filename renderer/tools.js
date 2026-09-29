@@ -22,7 +22,7 @@
     { id: 'convert', label: '画像→PDF', hint: '画像を PDF に', icon: 'convert' },
     { id: 'toImage', label: 'PDF→画像', hint: 'PDF のページを画像に', icon: 'toImage' },
     { id: 'watermark', label: '透かし', hint: '文字や画像を重ねる', icon: 'watermark' },
-    { id: 'flatten', label: 'フラット化', hint: '注釈を焼き込む', icon: 'flatten' },
+    { id: 'flatten', label: 'フラット化', hint: '書き込みを焼き込む', icon: 'flatten' },
   ];
 
   const state = { selected: 'merge' };

@@ -370,7 +370,7 @@ test('注釈の形が読めなければ書かずに断る', async () => {
       annotations: { add: [{ ...MARKUP, src: 9 }], remove: [] },
       makeBackup: false,
     });
-    assert.equal(result.error, '注釈 1 のページ番号が文書に合いません。');
+    assert.equal(result.error, '書き込み 1 のページ番号が文書に合いません。');
     assert.equal(fs.statSync(source).mtimeMs, before);
   } finally { ws.cleanup(); }
 });

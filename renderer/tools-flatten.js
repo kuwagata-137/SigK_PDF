@@ -12,7 +12,7 @@
   const PICK_TITLE = 'フラット化する PDF を選ぶ';
   const SAVE_TITLE = 'フラット化した PDF を保存';
   // 帯の文言「<label>しています」の頭（save.js の runTask）。
-  const COUNT_LABEL = '注釈を確認';
+  const COUNT_LABEL = '書き込みを確認';
   const RUN_LABEL = 'フラット化';
 
   const banner = () => root.SigK.viewBanner;
@@ -67,7 +67,7 @@
     if (result?.ok === true)
       next.result = result;
     else
-      next.error = result?.canceled === true ? '注釈を数えるのを中止しました。' : (result?.error ?? '注釈を数えられませんでした。');
+      next.error = result?.canceled === true ? '書き込みを数えるのを中止しました。' : (result?.error ?? '書き込みを数えられませんでした。');
     // 数え終えたら「注釈を確認しています」の帯を下げる（結果は画面の節に出る）。
     if (banner().text().startsWith(`${COUNT_LABEL}しています`))
       banner().hide();
@@ -86,12 +86,12 @@
     if (src.blocked !== null)
       return { ready: false, error: '対象の PDF を選び直してください。' };
     if (state.census === null || state.census.pending)
-      return { ready: false, error: '注釈を数えています…' };
+      return { ready: false, error: '書き込みを数えています…' };
     if (state.census.error !== null)
       return { ready: false, error: state.census.error };
     if (!(state.census.result.baked > 0))
-      return { ready: false, error: '焼き込める注釈がありません。' };
-    return { ready: true, error: null, summary: `注釈 ${state.census.result.baked} 件を焼き込みます` };
+      return { ready: false, error: '焼き込める書き込みがありません。' };
+    return { ready: true, error: null, summary: `書き込み ${state.census.result.baked} 件を焼き込みます` };
   }
 
   function canRun() {
@@ -126,7 +126,7 @@
     return root.SigK.rewriteOutput.finish(result, chosen.target, {
       canceled: 'フラット化を中止しました。',
       failed: 'フラット化できませんでした。',
-      done: `注釈 ${result?.baked ?? counts.baked} 件を焼き込みました`,
+      done: `書き込み ${result?.baked ?? counts.baked} 件を焼き込みました`,
     });
   }
 

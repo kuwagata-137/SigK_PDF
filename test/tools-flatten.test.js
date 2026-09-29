@@ -49,7 +49,7 @@ async function withSource(shell) {
 test('一覧に「フラット化」が並び、対象が無いうちは実行できない', async (t) => {
   const shell = await createFlattenShell(t);
   const item = shell.document.querySelector('#tools-list .tool-item[data-tool="flatten"]');
-  assert.match(item.textContent, /フラット化注釈を焼き込む/);
+  assert.match(item.textContent, /フラット化書き込みを焼き込む/);
   assert.equal(shell.SigK.tools.panelFor('flatten').hidden, false);
   assert.equal(summary(shell), '焼き込む PDF を決めてください。');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
@@ -66,9 +66,9 @@ test('対象を決めるとワーカーで数え、まとまりごとの件数�
   ]);
   assert.equal(byId(shell, 'fl-list').querySelector('.total').textContent, '合計12 件');
   assert.equal(byId(shell, 'fl-keep-text').textContent,
-    'リンク・フォームの欄など 1 件はそのまま残します。見た目の情報を持たない注釈 2 件（直線・テキストなど）は焼き込めないため、注釈のまま残します。');
+    'リンク・フォームの欄など 1 件はそのまま残します。見た目の情報を持たない書き込み 2 件（直線・テキストなど）は焼き込めないため、書き込みのまま残します。');
   assert.equal(byId(shell, 'fl-warn').textContent, 'ノート 2 件は付箋の絵だけが残り、本文と作成者は書き出したファイルに残りません。');
-  assert.equal(summary(shell), '注釈 12 件を焼き込みます');
+  assert.equal(summary(shell), '書き込み 12 件を焼き込みます');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), null);
   // 数え終えたら「注釈を確認しています」の帯は下げる。
   assert.equal(shell.SigK.viewBanner.isVisible(), false);
@@ -80,10 +80,10 @@ test('0 件のまとまりと文は出さない。焼くものが無ければ実
   });
   await withSource(shell);
   assert.equal(byId(shell, 'fl-list').hidden, true);
-  assert.equal(byId(shell, 'fl-status').textContent, '焼き込める注釈がありません。');
+  assert.equal(byId(shell, 'fl-status').textContent, '焼き込める書き込みがありません。');
   assert.equal(byId(shell, 'fl-keep-text').textContent, 'リンク・フォームの欄など 1 件はそのまま残します。');
   assert.equal(byId(shell, 'fl-warn').hidden, true);
-  assert.equal(summary(shell), '焼き込める注釈がありません。');
+  assert.equal(summary(shell), '焼き込める書き込みがありません。');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
 });
 
@@ -119,7 +119,7 @@ test('実行は保存ダイアログ → 確認（既定はキャンセル）→
   assert.equal(shell.SigK.confirmFlatten.isOpen(), true);
   assert.equal(shell.document.activeElement?.id, 'confirm-flatten-cancel');
   assert.equal(byId(shell, 'confirm-flatten-text').textContent,
-    '注釈 12 件をページの内容として焼き込み、「a_フラット化.pdf」に書き出します。書き出したファイルでは、これらの注釈を選んだり直したりできません。元のファイルは変わりません。');
+    '書き込み 12 件をページの内容として焼き込み、「a_フラット化.pdf」に書き出します。書き出したファイルでは、これらの書き込みを選んだり直したりできません。元のファイルは変わりません。');
   assert.equal(byId(shell, 'confirm-flatten-notes').textContent, 'ノート 2 件の本文と作成者は、書き出したファイルに残りません。');
   assert.equal(shell.taskCalls.length, 1, '確認の前にはワーカーへ渡さない');
   byId(shell, 'confirm-flatten-ok').click();
@@ -128,7 +128,7 @@ test('実行は保存ダイアログ → 確認（既定はキャンセル）→
   assert.equal(result.ok, true);
   assert.deepEqual(plain(shell.taskCalls[1].spec), { kind: 'flatten', source: A, target: OUT });
   assert.equal(shell.SigK.tabs.list().some((tab) => tab.path === OUT), true);
-  assert.equal(shell.SigK.viewBanner.text(), '注釈 12 件を焼き込みました');
+  assert.equal(shell.SigK.viewBanner.text(), '書き込み 12 件を焼き込みました');
 });
 
 test('保存ダイアログと確認の間も実行中と数え、キャンセルすれば下ろす（spec-5-1 確定事項12）', async (t) => {

@@ -74,7 +74,7 @@
     const open = view?.getState().open === true;
     const rows = open ? index().rowsOf(view.getAnnotations(), view.getImported(), view.getPlan()) : [];
     el.rows.replaceChildren(...rows.map((row) => rowElement(el.doc, row)));
-    el.empty.textContent = open ? '注釈はありません' : '文書を開くと注釈の一覧が出ます';
+    el.empty.textContent = open ? '書き込みはありません' : '文書を開くと書き込みの一覧が出ます';
     el.empty.hidden = rows.length > 0;
     // サムネイルの「文書を開くと…」の案内はここでは出さない（ツールモードと同じ）。
     const placeholder = el.doc.getElementById('thumbs-empty');

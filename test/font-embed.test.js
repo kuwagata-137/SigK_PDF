@@ -130,7 +130,7 @@ test('createFontSource はフォントを一度だけ読み、読めなければ
 
   const missing = createFontSource({ fsLike: { readFileSync: () => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); } }, fontkit });
   assert.deepEqual(missing.load(), { ok: false, error: FONT_ERROR });
-  assert.equal(FONT_ERROR, '日本語フォントを読めなかったため、テキスト注釈を保存できません。');
+  assert.equal(FONT_ERROR, '日本語フォントを読めなかったため、テキストの書き込みを保存できません。');
 });
 
 test('embedBundledFont はサブセットのフォントと「文字を知る口」を返す', async () => {

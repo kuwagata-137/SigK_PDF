@@ -78,11 +78,11 @@ body{
       </div>
       <div class="rail-item" data-mode="pages">
         <span data-icon="modePages" data-icon-size="21"></span>
-        <span class="lbl">ページ</span>
+        <span class="lbl">ページ編集</span>
       </div>
       <div class="rail-item" data-mode="annot">
         <span data-icon="modeAnnot" data-icon-size="21"></span>
-        <span class="lbl">注釈</span>
+        <span class="lbl">編集</span>
       </div>
       <div class="rail-item" data-mode="tools">
         <span data-icon="modeTools" data-icon-size="21"></span>
@@ -115,7 +115,7 @@ body{
         <!-- 注釈モードの注釈一覧（spec-4-4 確定事項9・29）。中身は annotation-list.js が組む。 -->
         <div class="annot-list" id="annot-list" hidden>
           <div class="annot-rows" id="annot-rows"></div>
-          <p class="empty" id="annot-list-empty">文書を開くと注釈の一覧が出ます</p>
+          <p class="empty" id="annot-list-empty">文書を開くと書き込みの一覧が出ます</p>
         </div>
       </div>
       <!-- ページモードの操作（spec-1-5 確定事項50・51）。div ではなく button に
@@ -489,7 +489,7 @@ body{
         <div class="tool-panel" data-tool="flatten" hidden>
           <div class="tools-head">
             <h2>フラット化</h2>
-            <span class="hint">注釈をページの内容として焼き込み、新しいファイルに書き出します。元のファイルは変えません。</span>
+            <span class="hint">書き込みをページの内容として焼き込み、新しいファイルに書き出します。元のファイルは変えません。</span>
           </div>
           <div class="split-body">
             <section class="split-sec">
@@ -500,7 +500,7 @@ body{
                   <span class="pages" id="fl-pages"></span>
                   <span class="note" id="fl-note" hidden></span>
                 </div>
-                <p class="empty" id="fl-empty">「開いているファイル」か「ファイルを選ぶ…」で、注釈を焼き込む PDF を決めてください。PDF をここへドロップしてもかまいません。</p>
+                <p class="empty" id="fl-empty">「開いているファイル」か「ファイルを選ぶ…」で、書き込みを焼き込む PDF を決めてください。PDF をここへドロップしてもかまいません。</p>
                 <div class="btns">
                   <button type="button" class="act" id="fl-use-open"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているファイル</button>
                   <button type="button" class="act" id="fl-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
@@ -508,12 +508,12 @@ body{
               </div>
             </section>
             <section class="split-sec">
-              <h3>焼き込む注釈</h3>
+              <h3>焼き込むもの</h3>
               <p class="fl-status" id="fl-status" hidden></p>
               <div class="fl-list" id="fl-list" hidden></div>
               <p class="fl-keep" id="fl-keep" hidden><b>焼き込まずに残すもの</b><span id="fl-keep-text"></span></p>
               <p class="fl-warn" id="fl-warn" hidden></p>
-              <p class="fit-note">ファイルを読み直して焼き込むので、未保存の注釈は反映されません。「実行…」を押すと保存先を尋ねます。</p>
+              <p class="fit-note">ファイルを読み直して焼き込むので、未保存の書き込みは反映されません。「実行…」を押すと保存先を尋ねます。</p>
             </section>
           </div>
           <div class="merge-foot">
@@ -563,7 +563,7 @@ body{
         <p class="props-hint" id="props-hint"></p>
       </div>
       <div class="props-actions">
-        <button type="button" class="act danger wide" id="props-delete" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>この注釈を削除</button>
+        <button type="button" class="act danger wide" id="props-delete" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>削除</button>
       </div>
     </div>
   </div>
@@ -661,9 +661,9 @@ body{
   <!-- フラット化の確認（spec-4-5 確定事項10・docs/04 第7章）。「焼き込む」だけを danger で塗り、
        既定のフォーカスは安全側の「キャンセル」に置く（中身は confirm-flatten.js）。 -->
   <dialog id="confirm-flatten">
-    <div class="dlg-head"><span>注釈を焼き込みますか</span></div>
+    <div class="dlg-head"><span>書き込みを焼き込みますか</span></div>
     <div class="dlg-body">
-      <p class="dlg-text" id="confirm-flatten-text">注釈をページの内容として焼き込みます。</p>
+      <p class="dlg-text" id="confirm-flatten-text">書き込みをページの内容として焼き込みます。</p>
       <p class="dlg-text" id="confirm-flatten-notes" hidden></p>
     </div>
     <div class="dlg-foot">

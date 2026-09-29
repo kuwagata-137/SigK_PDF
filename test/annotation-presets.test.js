@@ -15,7 +15,7 @@ test('道具は 7 つで、マークアップは先頭の 3 つ', () => {
   assert.deepEqual(presets.MARKUP_TOOLS, ['highlight', 'underline', 'strikeout']);
   assert.deepEqual(presets.TOOL_LABELS, {
     highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', shape: '図形', pen: 'ペン', note: 'ノート',
-    square: '矩形', circle: '楕円', line: '直線', arrow: '矢印', ink: 'ペン',
+    square: '四角', circle: '丸', line: '直線', arrow: '矢印', ink: 'ペン',
   });
 });
 
@@ -29,7 +29,7 @@ test('表示のみの注釈の種類名は subtype から引ける', () => {
   assert.equal(presets.READONLY_LABELS.Text, 'ノート');
   assert.equal(presets.readonlyLabelOf('Stamp'), 'スタンプ');
   assert.equal(presets.readonlyLabelOf('Screen'), 'Screen');
-  assert.equal(presets.readonlyLabelOf(undefined), '注釈');
+  assert.equal(presets.readonlyLabelOf(undefined), '書き込み');
   assert.ok(Object.isFrozen(presets.READONLY_LABELS));
 });
 

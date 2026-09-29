@@ -109,7 +109,7 @@ test('ツールレールのクリックでモードが変わる', async (t) => {
 
   assert.equal(document.documentElement.getAttribute('data-mode'), 'annot');
   // 注釈モードのサイドパネルは注釈の一覧（spec-4-4 確定事項9）。
-  assert.equal(document.getElementById('side-title').textContent, '注釈');
+  assert.equal(document.getElementById('side-title').textContent, '注釈一覧');
   assert.equal(document.getElementById('annot-list').hidden, false);
   assert.equal(document.getElementById('thumbs-empty').hidden, true);
   // 右のプロパティは注釈モードで出る（CSS が持つ。要素はある）。

@@ -60,7 +60,7 @@ test('文書が無ければ案内、注釈モード以外では隠れる', async
   SigK.shell.setMode(document, 'annot');
   assert.equal(list.hidden, false);
   assert.equal(document.getElementById('annot-list-empty').hidden, false);
-  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと注釈の一覧が出ます');
+  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと書き込みの一覧が出ます');
   assert.equal(document.getElementById('thumbs-empty').hidden, true);
   assert.equal(rows(shell).length, 0);
   SigK.shell.setMode(document, 'view');
@@ -71,7 +71,7 @@ test('文書が無ければ案内、注釈モード以外では隠れる', async
 test('開くと文書内の注釈がページ順に並び、行はアイコン・p.N・本文か種類名・表示のみの印', async (t) => {
   const shell = await withOpenDocument(t);
   const { document, SigK } = shell;
-  assert.equal(document.getElementById('side-title').textContent, '注釈');
+  assert.equal(document.getElementById('side-title').textContent, '注釈一覧');
   // 表示のみは本文（/Contents）があればそれ、無ければ種類名。
   assert.deepEqual(rows(shell).map(rowInfo), [
     ['17R', 'p.1', 'other line', true, false],
@@ -110,7 +110,7 @@ test('注釈が無い文書では「注釈はありません」', async (t) => {
   const shell = await withOpenDocument(t, { stub: { annotations: {} } });
   assert.equal(rows(shell).length, 0);
   assert.equal(shell.document.getElementById('annot-list-empty').hidden, false);
-  assert.equal(shell.document.getElementById('annot-list-empty').textContent, '注釈はありません');
+  assert.equal(shell.document.getElementById('annot-list-empty').textContent, '書き込みはありません');
 });
 
 test('紙の上で選ぶと行が光り、解除で消える', async (t) => {
@@ -190,5 +190,5 @@ test('文書を閉じると案内に戻る', async (t) => {
   await SigK.tabs.closeCurrent?.() ?? SigK.viewer.close();
   await shell.flush();
   assert.equal(rows(shell).length, 0);
-  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと注釈の一覧が出ます');
+  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと書き込みの一覧が出ます');
 });

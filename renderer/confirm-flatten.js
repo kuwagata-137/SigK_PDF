@@ -38,8 +38,8 @@
     if (pending !== null)
       return pending.promise;
 
-    el.text.textContent = `注釈 ${count} 件をページの内容として焼き込み、「${name}」に書き出します。`
-      + '書き出したファイルでは、これらの注釈を選んだり直したりできません。元のファイルは変わりません。';
+    el.text.textContent = `書き込み ${count} 件をページの内容として焼き込み、「${name}」に書き出します。`
+      + '書き出したファイルでは、これらの書き込みを選んだり直したりできません。元のファイルは変わりません。';
     el.notes.textContent = notes > 0 ? `ノート ${notes} 件の本文と作成者は、書き出したファイルに残りません。` : '';
     el.notes.hidden = !(notes > 0);
 

@@ -22,7 +22,7 @@ const FONTKIT_PATH = path.join(__dirname, '..', 'vendor', 'fontkit.umd.min.js');
 // （pdf.js は defaultAppearanceData.fontName にこの名をそのまま返す。spec-4-2 事前調査 C）。
 const DA_FONT_NAME = 'SigKJP';
 const FONT_BASE_NAME = 'NotoSansJP-Regular';
-const FONT_ERROR = '日本語フォントを読めなかったため、テキスト注釈を保存できません。';
+const FONT_ERROR = '日本語フォントを読めなかったため、テキストの書き込みを保存できません。';
 
 // fontkit の TTF サブセットは、loca が短い形式（合計 64KB 未満）のとき奇数長のグリフを詰めず、
 // offsets を半分にする段で切り捨てて以降のグリフが 1 バイトずれる（spec-4-2 事前調査 B 不具合1）。

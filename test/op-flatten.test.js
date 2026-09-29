@@ -232,7 +232,7 @@ test('runTask の kind: flatten は焼くものが無ければ断って書かな
   try {
     const target = path.join(dir, 'out.pdf');
     const none = await runTask({ kind: 'flatten', source: fixturePath('three-pages.pdf'), target });
-    assert.equal(none.error, '焼き込める注釈がありません。');
+    assert.equal(none.error, '焼き込める書き込みがありません。');
     assert.equal(fs.existsSync(target), false);
     const broken = await runTask({ kind: 'flatten-preview', source: fixturePath('broken.pdf') });
     assert.equal(broken.error, 'この PDF は内容が壊れているため保存できません。');
