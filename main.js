@@ -1730,6 +1730,8 @@ function installSmokeCheck(win, mode) {
           annotate.bytesAdded = annotate.bytesOnDisk - bytesBefore;
           // 保存先に埋まったフォント（/Type0）の数。テキストのある保存で 1 度だけ埋まることの証拠。
           annotate.fonts = annotate.save === null ? null : await smokeAnnotate.countEmbeddedFonts(annotateTarget);
+          // 保存先の図形・ペンの見た目の欄（spec-4b-1b 完了判定6。/C・/IC・/CA・/BS・/BE・/RD と透明グループ）。
+          annotate.written = annotate.save === null ? null : await smokeAnnotate.inspectAnnotations(annotateTarget);
         }
         if (process.env.SIGK_SMOKE_SAVE && saveSource !== undefined) {
           const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);

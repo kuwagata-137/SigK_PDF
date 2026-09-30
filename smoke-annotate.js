@@ -2,7 +2,8 @@
 
 // 起動確認の注釈の経路（spec-4-1〜4-4 の完了判定）。main.js の installSmokeCheck が使う。
 // 2,000 行を超えた main.js から移した（spec-4b-1a 確定事項36。中身は変えていない）。操作ごとの分岐は
-// smoke-annotate-steps.js、結果を組む部分は smoke-annotate-report.js にある。
+// smoke-annotate-steps.js、見た目の操作と保存先の見た目の欄は smoke-annotate-style.js（spec-4b-1b）、
+// 結果を組む部分は smoke-annotate-report.js にある。
 //
 // SIGK_SMOKE_ANNOTATE=<操作列> を付けると、注釈の経路を通す（spec-4-1 の完了判定）。
 // 文書は SIGK_SMOKE_ANNOTATE_OUT（省略時は一時フォルダー）へ複製してタブで開く
@@ -12,7 +13,7 @@
 //   page:2                     2 ページ目（1 起点）へ移る
 //   select:1:0-1               1 ページ目（0 起点）の span 0〜1 を選ぶ
 //   highlight / underline / strikeout   道具を押す（選んでいれば付く）
-//   color:#8ce99a              色の丸を押す
+//   color:#c00000              色を当てる（選んでいればその書き込み、無ければ次に付ける色）
 //   click:0:80x705             ページ 0 の pt (80,705) を押して離す（選ぶ）
 //   delete / esc / undo / redo / save
 //   rotate:0                   ページ 0 を右へ 90 度（保存後に開き直す経路の確認用）
@@ -37,18 +38,22 @@
 //                              circle・pen・note。spec-4b-1a 確定事項38）
 //   side:list                  左の見出しの切り替えを押す（thumbs か list）
 //   wait-details               書き込みの読み込み（辞書の読み戻しを含む）が終わるまで待つ
+//   fill: stroke: style: chip: palette: other: slide:   見た目の操作（smoke-annotate-style.js の冒頭）
+// 各操作のあとに、履歴がいくつ進んだか（historyDelta）を控える。
 //
 // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
 // 例: SIGK_SMOKE_ANNOTATE=text:0:100x700:こんにちは|世界,size:18,drag:30x-20,edit:直した,save
 // 例: SIGK_SMOKE_ANNOTATE=shape:arrow:0:100x700-300x650,width:3,pen:0:100x500;120x480;150x510,undo,redo,save
 // 例: SIGK_SMOKE_ANNOTATE=tool:note,author:総務,note:0:100x700:確認|2行目,color:#8ce99a,opacity:50,tool:shape,shape:square:0:100x500-300x400,opacity:50,list:1,undo,redo,save
 // 例: SIGK_SMOKE_ANNOTATE=bar:square,opacity:50,shape:square:0:100x700-300x600,bar:line,width:8,shape:line:0:100x200-300x200,save,wait-details
+// 例: SIGK_SMOKE_ANNOTATE=bar:square,palette:fill:3x8,stroke:none,style:cloudy,shape:square:0:100x700-300x600,slide:opacity:80;50;35,save,wait-details
 
 const fs = require('node:fs');
 const path = require('node:path');
 
 const { REPORT } = require('./smoke-annotate-report.js');
 const { STEPS } = require('./smoke-annotate-steps.js');
+const { STYLE_STEPS, inspectAnnotations } = require('./smoke-annotate-style.js');
 
 const annotateScript = (target, spec) => `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -109,8 +114,9 @@ const annotateScript = (target, spec) => `(async () => {
     const [name, ...rest] = step.split(':');
     const arg = rest.join(':');
     const t0 = performance.now();
-${STEPS}
-    applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected() });
+    const historyBefore = SigK.pageEdit.getHistoryState().at;
+${STEPS}${STYLE_STEPS}
+    applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected(), historyDelta: SigK.pageEdit.getHistoryState().at - historyBefore });
     await wait(120);
   }
 
@@ -130,4 +136,4 @@ async function countEmbeddedFonts(file) {
   return count;
 }
 
-module.exports = { annotateScript, countEmbeddedFonts };
+module.exports = { annotateScript, countEmbeddedFonts, inspectAnnotations };

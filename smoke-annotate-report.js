@@ -80,6 +80,31 @@ const REPORT = `
     importedStyles: importedEntries.map((entry) => ({ ref: entry.ref, src: entry.src, kind: entry.kind, subtype: entry.subtype ?? null, color: entry.color, opacity: entry.opacity, lineWidth: entry.lineWidth ?? null, readonly: entry.readonly === true })),
     // 最後に辞書の読み戻しの口を呼んだ様子（呼んだか・頼んだ件数・答えの件数・ms・理由）。
     details: SigK.annotationDetails.lastRequest(),
+    // 見た目（spec-4b-1b の完了判定 2〜7）。描いたもの・読み込んだものの線・塗り・線種・破線の倍数・雲形の強さ・太さ・不透明度。
+    styles: annots.added.filter((entry) => entry.lineWidth !== undefined).map((entry) => ({ id: entry.id, kind: entry.kind, color: entry.color, fill: entry.fill ?? null, lineStyle: entry.lineStyle ?? 'solid', dash: entry.dash ?? null, cloudIntensity: entry.cloudIntensity ?? null, lineWidth: entry.lineWidth, opacity: entry.opacity, rect: entry.rect.map(round) })),
+    importedLooks: importedEntries.filter((entry) => entry.lineWidth !== undefined).map((entry) => ({ ref: entry.ref, kind: entry.kind, color: entry.color, fill: entry.fill ?? null, lineStyle: entry.lineStyle ?? 'solid', dash: entry.dash ?? null, cloudIntensity: entry.cloudIntensity ?? null, lineWidth: entry.lineWidth, opacity: entry.opacity, readonly: entry.readonly === true })),
+    // 右パネルの見た目の行（出している行・色の行の見出し・チップの値・押している線種・太さと不透明度・ヒント）。
+    propsRows: {
+      shown: ['color', 'fill', 'style', 'width', 'size', 'opacity'].filter((row) => !document.getElementById('props-' + row + '-row').hidden),
+      colorLabel: document.getElementById('props-color-label').textContent,
+      color: document.getElementById('props-color-name').textContent,
+      fill: document.getElementById('props-fill-name').textContent,
+      style: [...document.querySelectorAll('#props-style button.on')].map((button) => button.dataset.style),
+      width: document.getElementById('props-width').value,
+      opacity: document.getElementById('props-opacity').value,
+      hint: document.getElementById('props-hint').textContent,
+    },
+    // パレットの窓（開いているか・見出し・印の付いた色・色の数・［なし］・位置と、右パネルの左端）。
+    popover: (() => {
+      const pop = document.getElementById('color-pop');
+      const box = pop.getBoundingClientRect();
+      const none = pop.querySelector('.foot .none');
+      return {
+        open: !pop.hidden, title: pop.querySelector('.ttl')?.textContent ?? null, marked: [...pop.querySelectorAll('.cell.on')].map((cell) => cell.dataset.color),
+        cells: pop.querySelectorAll('.cell').length, none: none === null ? null : { hidden: none.hidden, label: none.textContent, disabled: none.getAttribute('aria-disabled') === 'true' },
+        box: { left: round(box.left), top: round(box.top), width: round(box.width), height: round(box.height) }, propsLeft: round(document.getElementById('props').getBoundingClientRect().left),
+      };
+    })(),
     // 編集モードへ入る前と後の倍率と表示域（spec-4b-1a 確定事項19・39）。
     zoom: { before: zoomBefore, after: zoomAfter },
     sideThumbs: document.querySelectorAll('#thumbs .thumb').length,
