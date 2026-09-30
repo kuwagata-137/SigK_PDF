@@ -107,6 +107,18 @@ test('保存に成功すると未保存でなくなる', async (t) => {
   assert.match(shell.SigK.viewBanner.text(), /保存しました/);
 });
 
+// 帯の既定の色は失敗の赤（--danger）である。成功は失敗ではないので、進捗と同じ
+// 知らせの色で出す（spec-1-6 確定事項6・30）。
+test('保存に成功した知らせは、失敗の赤ではなく知らせの色で出す', async (t) => {
+  const shell = await withOpenDocument(t, { taskResults: [okResult()] });
+  edit(shell.SigK);
+
+  await shell.SigK.save.saveActive();
+
+  assert.equal(shell.SigK.viewBanner.text(), '保存しました。');
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
+});
+
 test('編集していなければ、上書き保存は何もしない', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [okResult()] });
 
