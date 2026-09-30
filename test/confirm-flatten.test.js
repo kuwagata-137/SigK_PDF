@@ -33,7 +33,7 @@ test('件数と書き出す先を名指しし、ノートがあれば失うも�
   const shell = await openShell(t);
   shell.SigK.confirmFlatten.ask({ count: 5, name: 'x.pdf', notes: 0 });
   assert.equal(byId(shell, 'confirm-flatten-text').textContent,
-    '注釈 5 件をページの内容として焼き込み、「x.pdf」に書き出します。書き出したファイルでは、これらの注釈を選んだり直したりできません。元のファイルは変わりません。');
+    '書き込み 5 件をページの内容として焼き込み、「x.pdf」に書き出します。書き出したファイルでは、これらの書き込みを選んだり直したりできません。元のファイルは変わりません。');
   assert.equal(byId(shell, 'confirm-flatten-notes').hidden, true);
   byId(shell, 'confirm-flatten-cancel').click();
   shell.SigK.confirmFlatten.ask({ count: 5, name: 'x.pdf', notes: 2 });

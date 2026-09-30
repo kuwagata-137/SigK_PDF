@@ -22,7 +22,7 @@
     { id: 'convert', label: '画像→PDF', hint: '画像を PDF に', icon: 'convert' },
     { id: 'toImage', label: 'PDF→画像', hint: 'PDF のページを画像に', icon: 'toImage' },
     { id: 'watermark', label: '透かし', hint: '文字や画像を重ねる', icon: 'watermark' },
-    { id: 'flatten', label: 'フラット化', hint: '注釈を焼き込む', icon: 'flatten' },
+    { id: 'flatten', label: 'フラット化', hint: '書き込みを焼き込む', icon: 'flatten' },
   ];
 
   const state = { selected: 'merge' };
@@ -82,12 +82,13 @@
     const active = isToolsMode();
     el.list.hidden = !active;
     el.view.hidden = !active;
-    // サイドパネルはツール一覧が使う。「文書を開くと…」の案内は、ツールモードでは
-    // 出さず、抜けたときはサムネイルが無ければ戻す。
+    // サイドパネルはツール一覧が使う。「文書を開くと…」の案内は、ツールモードと、編集モードで注釈一覧を
+    // 選んでいるとき（spec-4b-1a 確定事項16）は出さず、それ以外はサムネイルが無ければ戻す。
     const placeholder = el.doc.getElementById('thumbs-empty');
-    const annotMode = el.doc.documentElement.getAttribute('data-mode') === 'annot';
+    const html = el.doc.documentElement;
+    const listShown = html.getAttribute('data-mode') === 'annot' && html.getAttribute('data-edit-side') === 'list';
     if (placeholder !== null)
-      placeholder.hidden = active || annotMode || el.doc.getElementById('thumbs')?.hidden === false;
+      placeholder.hidden = active || listShown || el.doc.getElementById('thumbs')?.hidden === false;
     if (active)
       select(state.selected);
     root.SigK.save?.syncButtons();

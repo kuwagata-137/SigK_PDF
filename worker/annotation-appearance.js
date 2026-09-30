@@ -17,6 +17,18 @@ function num(value) {
   return text.includes('.') ? text.replace(/\.?0+$/, '') : text;
 }
 
+// 色の成分の書き方。8bit の色が往復するよう小数 3 桁にし、末尾の 0 は落とす（spec-4b-1a 確定事項34）。
+// 2 桁では、pdf.js が外観の rg から読むテキストの色が保存のたびに 1 段ずれた（#d92c2c → #d92b2b）。
+function colorNum(value) {
+  const text = value.toFixed(3);
+  return text.includes('.') ? text.replace(/\.?0+$/, '') : text;
+}
+
+// 0〜1 の成分の並びを、rg・RG の前に置く形（空白区切り）にする。
+function colorOps(rgb) {
+  return rgb.map(colorNum).join(' ');
+}
+
 // '#rrggbb' → 0〜1 の RGB。読めなければ null。
 function parseColor(color) {
   const match = /^#([0-9a-f]{6})$/i.exec(color ?? '');
@@ -61,8 +73,8 @@ function appearanceOf({ kind, quads, rect, color, opacity = 1 }) {
   const alpha = Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 1;
   const lines = ['/GS gs'];
   lines.push(kind === 'highlight'
-    ? `${num(rgb[0])} ${num(rgb[1])} ${num(rgb[2])} rg`
-    : `${num(rgb[0])} ${num(rgb[1])} ${num(rgb[2])} RG`);
+    ? `${colorOps(rgb)} rg`
+    : `${colorOps(rgb)} RG`);
   for (const quad of quads)
     lines.push(quadOps(kind, quad));
   return {
@@ -75,4 +87,4 @@ function appearanceOf({ kind, quads, rect, color, opacity = 1 }) {
   };
 }
 
-module.exports = { KINDS, SUBTYPES, num, parseColor, appearanceOf };
+module.exports = { KINDS, SUBTYPES, num, colorNum, colorOps, parseColor, appearanceOf };

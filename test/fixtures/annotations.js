@@ -90,4 +90,43 @@ async function buildSigkAnnotatedPdf(threePagesBytes) {
   return doc.save({ addDefaultPage: false, useObjectStreams: false });
 }
 
-module.exports = { buildAnnotatedPdf, buildSigkAnnotatedPdf };
+// 他のアプリが付けた「見た目を持つ」注釈を載せた検体（spec-4b-1a 確定事項24〜26・完了判定8）。three-pages.pdf から作る。
+// pdf.js が返さない欄（/CA・/IC・/BE・/RD）と、pdf.js が 1 に置き換える太い線、参照の形の違いを 1 つの文書で確かめる。
+//
+//   1 ページ目: 不透明度 50% の矩形・楕円・2 点の PolyLine・ノート（直せる。不透明度は読み戻しで知る）、塗りのある矩形、
+//              線幅 0 の矩形、破線の矩形、雲形の楕円、/RD の矩形（どれも表示のみ）、高さ 12 の箱に 12pt の水平な直線
+//   3 ページ目: 世代 1 の参照の矩形（不透明度 60%）と、/Annots に直に置いた辞書の矩形（読み込まない）
+function strokeBox(rect, rgb, width) {
+  const inset = width / 2;
+  return { content: `${rgb.join(' ')} RG ${width} w ${rect[0] + inset} ${rect[1] + inset} ${rect[2] - rect[0] - width} ${rect[3] - rect[1] - width} re S`, bbox: rect };
+}
+
+async function buildStyledPdf(threePagesBytes) {
+  const { PDFRef } = require('pdf-lib');
+  const doc = await PDFDocument.load(threePagesBytes, { updateMetadata: false });
+  doc.setTitle('他のアプリの見た目を持つ注釈を載せた3ページ');
+  const [page1, , page3] = doc.getPages();
+  const box = (rect, fields, rgb = [1, 0, 0], width = 2) => addAnnot(doc, page1, { Rect: rect, C: rgb, BS: { W: width, S: 'S' }, ...fields }, strokeBox(rect, rgb, width || 1));
+  box([60, 700, 200, 780], { Subtype: 'Square', CA: 0.5 });
+  box([220, 700, 360, 780], { Subtype: 'Circle', CA: 0.5 }, [0, 0, 1]);
+  box([380, 700, 520, 780], { Subtype: 'PolyLine', CA: 0.5, Vertices: [380, 710, 520, 770] }, [0, 0.5, 0]);
+  addNote(doc, page1, { rect: [540, 760, 560, 780], contents: '半透明のノート', author: 'other', color: [1, 1, 0], withAp: true });
+  box([60, 580, 200, 660], { Subtype: 'Square', IC: [1, 1, 0] });
+  box([220, 580, 360, 660], { Subtype: 'Square', IC: [0, 1, 0], BS: { W: 0 } }, [0, 0, 0], 0);
+  box([380, 580, 520, 660], { Subtype: 'Square', BS: { W: 2, S: 'D', D: [3, 2] } }, [0, 0, 1]);
+  box([60, 460, 200, 540], { Subtype: 'Circle', BE: { S: 'C', I: 1 } }, [1, 0, 0], 1);
+  box([220, 460, 360, 540], { Subtype: 'Square', RD: [5, 5, 5, 5] }, [1, 0, 0], 1);
+  box([380, 494, 520, 506], { Subtype: 'PolyLine', Vertices: [380, 500, 520, 500] }, [0, 0, 0], 12);
+  // ノートの /CA は addNote が 1 で書くので、半透明に書き換える。
+  const note = doc.context.lookup(annotsOf(doc, page1).get(3));
+  note.set(PDFName.of('CA'), doc.context.obj(0.5));
+
+  const context = doc.context;
+  const gen1 = PDFRef.of(context.nextRef().objectNumber, 1);
+  context.assign(gen1, context.obj({ Type: 'Annot', Subtype: 'Square', Rect: [60, 700, 200, 780], C: [0, 0, 1], CA: 0.6, BS: { W: 5, S: 'S' }, P: page3.ref, F: 4 }));
+  annotsOf(doc, page3).push(gen1);
+  annotsOf(doc, page3).push(context.obj({ Type: 'Annot', Subtype: 'Square', Rect: [220, 700, 360, 780], C: [1, 0, 0], CA: 0.4, BS: { W: 3, S: 'S' }, F: 4 }));
+  return doc.save({ addDefaultPage: false, useObjectStreams: false });
+}
+
+module.exports = { buildAnnotatedPdf, buildSigkAnnotatedPdf, buildStyledPdf };

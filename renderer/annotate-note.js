@@ -8,7 +8,7 @@
   // page-edit.commitAnnots（1 本の履歴）に結ぶ。付箋の幾何は note-graphics.js、押し離しの振り分けは
   // annotate-pointer.js、道具と選択は annotate.js、「本文」欄そのものは annotation-props.js が持つ。
 
-  // 作成者の長さの上限（settings.js の ANNOT_AUTHOR_MAX と同じ。プロセスが違うので import できない）。
+  // 作成者の長さの上限（annotation-settings.js の ANNOT_AUTHOR_MAX と同じ。プロセスが違うので import できない）。
   const AUTHOR_MAX = 100;
 
   const state = { doc: null, author: '' };

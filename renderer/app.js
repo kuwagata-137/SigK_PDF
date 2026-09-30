@@ -47,6 +47,8 @@
         sidePanelWidth: result.ui.sidePanel.width,
         // 見開き（spec-2-3 確定事項5）。古い settings.json には無いことがある。
         pageLayout: result.ui.pageLayout,
+        // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。
+        editSide: result.ui.editSide,
       });
       // 注釈の色と文字の大きさ（spec-4-1 確定事項34、spec-4-2 確定事項21）。古い settings.json には無いことがある。
       root.SigK.annotate?.applyColors(result.ui.annotColors);
@@ -110,13 +112,15 @@
     // 検索バーと印刷は、ツールバーの結線とキー操作から呼ばれる。先に用意しておく。
     root.SigK.findBar.init(doc, win);
     root.SigK.print.init(doc, win);
-    // 注釈モード（spec-4-1・spec-4-2）。レールの道具・マークアップ・テキストの入力欄・
+    // 注釈モード（spec-4-1・spec-4-2、画面では「編集」）。道具の段・マークアップ・テキストの入力欄・
     // ページビューの押し離し・右のプロパティ。
     root.SigK.annotate.init(doc, win);
     root.SigK.annotateMarkup.init(doc, win);
     root.SigK.freeTextEditor.init(doc, win);
     root.SigK.annotateText.init(doc, win);
     root.SigK.annotateShape.init(doc, win);
+    // 道具の段（spec-4b-1a 確定事項1〜7）。図形の種類を読むので annotateShape の後。
+    root.SigK.editBar.init(doc, win);
     root.SigK.annotateOpacity.init(doc, win);
     root.SigK.annotateNote.init(doc, win);
     root.SigK.annotatePointer.init(doc, win);

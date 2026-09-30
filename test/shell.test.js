@@ -68,17 +68,20 @@ test('画面の骨組みが組み上がる', async (t) => {
     assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
 });
 
-test('ツールレールは4つのモードを持つ', async (t) => {
+test('ツールレールは 4 つのモードだけを持ち、編集の道具は道具の段に並ぶ', async (t) => {
   const { document, SigK } = await withShell(t);
 
   const modes = [...document.querySelectorAll('.rail-item[data-mode]')].map((el) => el.dataset.mode);
 
   // SigK は jsdom 側のレルムに居るため、配列をこちら側へ写してから比べる。
   assert.deepEqual(modes, [...SigK.shell.MODES]);
-  // 注釈の道具はモードではない（spec-4-1 確定事項1、spec-4-2 確定事項1、spec-4-3 確定事項1、spec-4-4 確定事項1）。7 つ全部押せる。
-  const tools = [...document.querySelectorAll('.rail-item.tool')];
-  assert.deepEqual(tools.filter((el) => el.getAttribute('aria-disabled') !== 'true').map((el) => el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'shape', 'pen', 'note']);
-  assert.equal(tools.filter((el) => el.getAttribute('aria-disabled') === 'true').length, 0);
+  assert.deepEqual([...document.querySelectorAll('#rail .lbl')].map((el) => el.textContent), ['閲覧', 'ページ編集', '編集', 'ツール']);
+  // 編集の道具はレールではなく、ツールバーの下の段に並ぶ（spec-4b-1a 確定事項1〜3・11）。図形は 4 つに分かれる。
+  assert.equal(document.querySelectorAll('#rail .rail-item').length, 4);
+  const tools = [...document.querySelectorAll('#edit-bar .edit-tool')];
+  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'arrow', 'line', 'square', 'circle', 'pen', 'note']);
+  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['ハイライト', '下線', '取り消し線', 'テキスト', '矢印', '直線', '四角', '丸', 'ペン', 'ノート']);
+  assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 3);
 });
 
 test('既定は閲覧モードでサイドパネルが開いている', async (t) => {
@@ -108,10 +111,12 @@ test('ツールレールのクリックでモードが変わる', async (t) => {
   document.querySelector('.rail-item[data-mode="annot"]').dispatchEvent(new document.defaultView.MouseEvent('click'));
 
   assert.equal(document.documentElement.getAttribute('data-mode'), 'annot');
-  // 注釈モードのサイドパネルは注釈の一覧（spec-4-4 確定事項9）。
-  assert.equal(document.getElementById('side-title').textContent, '注釈');
-  assert.equal(document.getElementById('annot-list').hidden, false);
-  assert.equal(document.getElementById('thumbs-empty').hidden, true);
+  // 編集モードの左は、見出しの文字の代わりに切り替えを出し、既定はサムネイル（spec-4b-1a 確定事項15〜17）。
+  assert.equal(document.getElementById('side-title').textContent, '');
+  assert.equal(document.documentElement.getAttribute('data-edit-side'), 'thumbs');
+  assert.equal(document.querySelector('#side-switch button[data-side="thumbs"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(document.getElementById('annot-list').hidden, true);
+  assert.equal(document.getElementById('thumbs-empty').hidden, false);
   // 右のプロパティは注釈モードで出る（CSS が持つ。要素はある）。
   assert.notEqual(document.getElementById('props'), null);
   assert.equal(document.getElementById('props-kind').textContent, '–');
@@ -471,4 +476,60 @@ test('PDF→画像のレンダラーが index.html から読み込まれ、画�
   const svg = SigK.icons.create(document, 'toImage');
   assert.equal(svg.getAttribute('viewBox'), '0 0 24 24');
   assert.ok(svg.childNodes.length > 0);
+});
+
+// --- 編集モードの左の切り替え（spec-4b-1a 確定事項15〜18） ---
+
+test('編集モードの左は既定でサムネイル。切り替えを押すと一覧に替わり、選んだ側を覚える', async (t) => {
+  const { document, SigK, flush, uiCalls, savedUi } = await withShell(t);
+  await flush();
+  const html = document.documentElement;
+  const button = (side) => document.querySelector(`#side-switch button[data-side="${side}"]`);
+  assert.equal(html.getAttribute('data-edit-side'), 'thumbs');
+  assert.equal(SigK.shell.getEditSide(), 'thumbs');
+  assert.deepEqual([...document.querySelectorAll('#side-switch button')].map((el) => el.textContent), ['サムネイル', '注釈一覧']);
+
+  SigK.shell.setMode(document, 'annot');
+  button('list').click();
+  assert.equal(html.getAttribute('data-edit-side'), 'list');
+  assert.equal(button('list').getAttribute('aria-pressed'), 'true');
+  assert.equal(button('list').classList.contains('on'), true);
+  assert.equal(button('thumbs').getAttribute('aria-pressed'), 'false');
+  assert.deepEqual(uiCalls.at(-1), { editSide: 'list' });
+  assert.equal(savedUi().editSide, 'list');
+  // 使えない値は当たらず、覚えもしない。
+  const calls = uiCalls.length;
+  assert.equal(SigK.shell.setEditSide(document, 'grid'), false);
+  assert.equal(uiCalls.length, calls);
+  // モードを離れて戻っても、選んだ側のまま。
+  SigK.shell.setMode(document, 'view');
+  SigK.shell.setMode(document, 'annot');
+  assert.equal(html.getAttribute('data-edit-side'), 'list');
+});
+
+test('前回の左の切り替え（一覧）で開き、復元そのものは覚え直さない', async (t) => {
+  const { document, flush, uiCalls } = await withShell(t, {
+    ui: { mode: 'annot', pageLayout: 'single', editSide: 'list', sidePanel: { open: true, width: 240 } },
+  });
+  await flush();
+  assert.equal(document.documentElement.getAttribute('data-edit-side'), 'list');
+  assert.equal(document.querySelector('#side-switch button[data-side="list"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(document.getElementById('annot-list').hidden, false);
+  assert.deepEqual(uiCalls, []);
+});
+
+// モードを替えると表示域が変わる（編集モードの道具の段と右パネル）。追従していれば倍率を計算し直す（spec-4b-1a 確定事項19）。
+test('モードを替えるたびに、ビューアへ表示域の追従を頼む', async (t) => {
+  const { document, SigK, flush } = await withShell(t);
+  await flush();
+  const original = SigK.viewer.refit;
+  let calls = 0;
+  SigK.viewer.refit = () => { calls += 1; return original(); };
+  t.after(() => { SigK.viewer.refit = original; });
+  SigK.shell.setMode(document, 'annot');
+  assert.equal(calls, 1);
+  SigK.shell.setMode(document, 'view');
+  assert.equal(calls, 2);
+  SigK.shell.setMode(document, 'zzz');
+  assert.equal(calls, 2, '使えないモードでは何もしない');
 });

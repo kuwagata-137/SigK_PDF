@@ -385,10 +385,9 @@ test('開くと Square と 2 点の PolyLine を読み込み、pdf.js には描�
   assert.equal(svg.querySelector('g[data-annot="32R"]'), null);
   // 選ぶとプロパティに種類・太さ・ページが出て、削除できる
   SigK.annotate.select('30R');
-  assert.equal(shell.document.getElementById('props-kind').textContent, '矩形');
+  assert.equal(shell.document.getElementById('props-kind').textContent, '四角');
   assert.equal(shell.document.getElementById('props-width').value, '4');
   assert.equal(shell.document.getElementById('props-width-row').hidden, false);
-  assert.equal(shell.document.getElementById('props-shape-row').hidden, true);
   assert.equal(SigK.annotate.remove(), true);
   assert.deepEqual(plain(SigK.viewer.getAnnotations().removed), ['30R']);
   assert.deepEqual(plain(SigK.annotationState.toSaveSpec(SigK.viewer.getAnnotations())), { add: [], remove: ['30R'] });
@@ -396,35 +395,47 @@ test('開くと Square と 2 点の PolyLine を読み込み、pdf.js には描�
 
 // ---- 右パネル（確定事項2） ----
 
-test('右パネルは道具に応じて「図形の種類」「線の太さ」の行を出し入れする', async (t) => {
+test('道具の段の図形の 4 つのボタンで種類を選び、右パネルは種類の名前と「線の太さ」の行を出す', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
-  const shapeRow = document.getElementById('props-shape-row');
+  // 右パネルの「図形の種類」の行は無くなった（spec-4b-1a 確定事項8）。
+  assert.equal(document.getElementById('props-shape-row'), null);
   const widthRow = document.getElementById('props-width-row');
-  assert.equal(shapeRow.hidden, true);
   assert.equal(widthRow.hidden, true);
-  SigK.annotate.setTool('shape');
-  assert.equal(shapeRow.hidden, false);
+  const button = (shape) => document.querySelector(`#edit-bar .edit-tool[data-tool="shape"][data-shape="${shape}"]`);
+  button('square').click();
+  assert.equal(SigK.annotate.getTool(), 'shape');
+  assert.equal(SigK.annotateShape.getShapeKind(), 'square');
   assert.equal(widthRow.hidden, false);
-  assert.equal(document.getElementById('props-kind').textContent, '図形（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, '四角（次に付ける）');
   assert.equal(document.getElementById('props-width').value, '2');
-  const buttons = [...document.querySelectorAll('#props-shape-kinds button')];
-  assert.deepEqual(buttons.map((button) => button.dataset.kind), ['square', 'circle', 'line', 'arrow']);
-  assert.deepEqual(buttons.map((button) => button.classList.contains('on')), [true, false, false, false]);
-  assert.ok(buttons[0].querySelector('svg') !== null);
   assert.match(document.getElementById('props-hint').textContent, /ドラッグ/);
-  buttons[3].click();
+  const pressed = () => [...document.querySelectorAll('#edit-bar .edit-tool.active')].map((el) => el.dataset.shape ?? el.dataset.tool);
+  assert.deepEqual(pressed(), ['square']);
+  // 別の図形を押すと、道具は持ったまま種類だけ替わり、覚える。
+  button('arrow').click();
+  assert.equal(SigK.annotate.getTool(), 'shape');
   assert.equal(SigK.annotateShape.getShapeKind(), 'arrow');
-  assert.deepEqual(buttons.map((button) => button.classList.contains('on')), [false, false, false, true]);
+  assert.deepEqual(pressed(), ['arrow']);
+  assert.equal(document.getElementById('props-kind').textContent, '矢印（次に付ける）');
+  assert.equal(shell.uiCalls.at(-1).annotShapeKind, 'arrow');
+  drag(shell, [100, 700], [300, 650]);
+  assert.equal(SigK.viewer.getAnnotations().added.at(-1).kind, 'arrow');
+  SigK.annotate.select(null);
+  // 同じ図形をもう一度押すと離す。
+  button('arrow').click();
+  assert.equal(SigK.annotate.getTool(), null);
+  assert.deepEqual(pressed(), []);
   // 線の太さの select
+  button('circle').click();
   const width = document.getElementById('props-width');
   assert.deepEqual([...width.options].map((option) => option.value), ['1', '2', '3', '5', '8']);
   width.value = '5';
   width.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
   assert.equal(SigK.annotateShape.getLineWidth(), 5);
-  // ペンは種類の行が無い
-  SigK.annotate.setTool('pen');
-  assert.equal(shapeRow.hidden, true);
+  // ペンは種類の名前がそのまま
+  document.querySelector('#edit-bar .edit-tool[data-tool="pen"]').click();
+  assert.deepEqual(pressed(), ['pen']);
   assert.equal(widthRow.hidden, false);
   assert.equal(document.getElementById('props-kind').textContent, 'ペン（次に付ける）');
   assert.match(document.getElementById('props-hint').textContent, /なぞる/);
@@ -444,4 +455,37 @@ test('プリセットに無い太さの図形を選ぶと、その値の選択�
   SigK.annotate.select(null);
   SigK.annotate.setTool('pen');
   assert.equal(width.querySelectorAll('option').length, 5);
+});
+
+// ---- 次に付ける不透明度（spec-4b-1a 確定事項31・32。事前調査 E で見つけた不具合） ----
+
+test('次に付ける不透明度が、図形とペンの下書きと描いたものに効く', async (t) => {
+  const shell = await withTool(t, 'shape');
+  const { SigK, document } = shell;
+  assert.equal(SigK.annotate.setOpacity(0.5), true);
+  // 描いている途中の下書きも同じ不透明度で描く
+  const viewport = viewportOf(shell);
+  const [sx, sy] = viewport.convertToViewportPoint(100, 700);
+  mouse(shell, 'mousedown', pageNode(shell), sx, sy);
+  const [mx, my] = viewport.convertToViewportPoint(200, 650);
+  mouse(shell, 'mousemove', document.body, mx, my);
+  assert.equal(pageNode(shell).querySelector('.annot-draft').getAttribute('opacity'), '0.5');
+  mouse(shell, 'mouseup', pageNode(shell), mx, my);
+  const square = SigK.viewer.getAnnotations().added.at(-1);
+  assert.equal(square.opacity, 0.5);
+  assert.equal(pageNode(shell).querySelector(`.annot-layer g[data-annot="${square.id}"]`).getAttribute('opacity'), '0.5');
+
+  // ペンは図形と別に覚える
+  SigK.annotate.select(null);
+  SigK.annotate.setTool('pen');
+  assert.equal(SigK.annotate.setOpacity(0.25), true);
+  drag(shell, [100, 500], [200, 510], { via: [[130, 480], [160, 520]] });
+  const ink = SigK.viewer.getAnnotations().added.at(-1);
+  assert.equal(ink.kind, 'ink');
+  assert.equal(ink.opacity, 0.25);
+  // 図形の道具へ戻ると、図形の値のまま
+  SigK.annotate.select(null);
+  SigK.annotate.setTool('shape');
+  drag(shell, [300, 300], [400, 250]);
+  assert.equal(SigK.viewer.getAnnotations().added.at(-1).opacity, 0.5);
 });

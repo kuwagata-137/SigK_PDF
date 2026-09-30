@@ -244,3 +244,15 @@ test('paint はノートを note-graphics に委ね、表示のみは描かな�
   assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'globalAlpha' && value === 0.75));
   assert.equal(calls.filter((call) => call[0] === 'save').length, 1, '表示のみは描かない');
 });
+
+// 描いている途中の下書きも、確定後と同じ不透明度で描く（spec-4b-1a 確定事項32）。
+test('下書きの group に不透明度が付く（1 なら付けない）', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport());
+  const draft = { ...SQUARE, id: undefined, opacity: 0.25 };
+  layer.draw(svg, [], viewport(), { draft });
+  assert.equal(svg.lastElementChild.getAttribute('class'), 'annot-draft');
+  assert.equal(svg.lastElementChild.getAttribute('opacity'), '0.25');
+  layer.draw(svg, [], viewport(), { draft: { ...draft, opacity: 1 } });
+  assert.equal(svg.lastElementChild.getAttribute('opacity'), null);
+});

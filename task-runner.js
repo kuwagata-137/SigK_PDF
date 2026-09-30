@@ -73,7 +73,8 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
   //   中止       { canceled: true }
   //   外部で変更 { changed: true, current }
   //   失敗       { error: '人が読める文言' }
-  function run(taskId, spec, { onProgress = () => {} } = {}) {
+  //   時間切れ   { canceled: true, timedOut: true }（timeoutMs を渡したときだけ）
+  function run(taskId, spec, { onProgress = () => {}, timeoutMs = null } = {}) {
     if (running.has(taskId))
       return Promise.resolve({ error: 'この文書はすでに保存中です。' });
 
@@ -87,13 +88,23 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
         return;
       }
 
-      const entry = { child, spec, canceled: false, settled: false };
+      const entry = { child, spec, canceled: false, settled: false, timedOut: false, timer: null };
       running.set(taskId, entry);
+
+      // 時間の上限（spec-4b-1a 確定事項21。注釈の辞書の読み戻しは 10 秒で打ち切る）。中止と同じ手で落とす。
+      if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+        entry.timer = setTimeout(() => {
+          entry.timedOut = true;
+          cancel(taskId);
+        }, timeoutMs);
+      }
 
       async function settle(result) {
         if (entry.settled)
           return;
         entry.settled = true;
+        if (entry.timer !== null)
+          clearTimeout(entry.timer);
         running.delete(taskId);
         try { child.kill(); } catch { /* すでに死んでいることがある */ }
         // 成功以外は書きかけが残り得る。中止でも失敗でも消す。
@@ -124,7 +135,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
         if (entry.settled)
           return;
         if (entry.canceled) {
-          settle({ canceled: true });
+          settle(entry.timedOut ? { canceled: true, timedOut: true } : { canceled: true });
           return;
         }
         onError({ message: 'ワーカーが異常終了しました', context: { taskId, source: spec?.source } });

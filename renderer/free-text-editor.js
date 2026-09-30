@@ -110,7 +110,7 @@
       return false;
     const node = state.doc.createElement('textarea');
     node.className = 'free-text-editor';
-    node.setAttribute('aria-label', 'テキスト注釈');
+    node.setAttribute('aria-label', 'テキストの書き込み');
     node.spellcheck = false;
     node.wrap = 'off';
     node.rows = 1;

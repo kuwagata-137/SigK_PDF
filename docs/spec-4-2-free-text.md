@@ -45,6 +45,9 @@ Phase 4 の2つ目の塊。**注釈モードで「テキスト」の道具を選
 | `annotate.js` 344 行の分割（押し離し・テキストの操作・プリセットを別モジュールへ。`docs/07` 積み残し） | `page-render.js` 270 行の分割（積み残しのまま） |
 | 起動確認 `SIGK_SMOKE_ANNOTATE` にテキストの操作を足す | 差し込んだページ・暗号化 PDF・サムネイル・PDF→画像の扱いの変更（塊①と同じ） |
 
+**2026-09-28 追記（`docs/07` 決定46）**: 右の列のうち、自動折り返し・箱の大きさの手動変更・太字・斜体・枠線・背景色・
+引き出し線（吹き出し。`/IT`・`/CL`）は Phase 4B 塊④で、自由な色は塊①で、複数選択は塊③で見直す。それ以外は今のまま入れない。
+
 ---
 
 ## 事前調査（2026-09-16・Windows 11 実機・Node 22・Electron 44・pdf.js 6.3.289・pdf-lib 1.17.1・@pdf-lib/fontkit 1.1.1・fixtures のみ）
@@ -192,7 +195,7 @@ B の検体を Browser パネルの pdf.js で開いた。
 | 23 | `applyAnnotations` の async 化 | `applyAnnotations(doc, { add, remove }, tools, { now, fontSource })` を `async` にし、検証 → フォント（要るときだけ）→ 外観 → `removeAnnotations` → `addAnnotation` → **`await font.embed()`** の順。呼び出し元 `pdf-task.js` の `applyForSave`／`applyForExtract` は `await` を足すだけ（既に async）。`fontSource` は `pdf-task.js` が `createFontSource({ fsLike })` で作って渡す（vendor・assets へのパスを op 層に持たせない） |
 | 24 | 2 回目以降の保存（論点4） | 保存ごとに、その保存で足したテキストの分だけの 1 サブセット（辞書 1 組＋`FontFile2` 1 本。事前調査 B）。前回までの注釈は触らない。編集・削除で古い `/AP` を消してもフォント本体は残る（他の注釈と共有かもしれないので消さない）。増分は既知の限界として書く |
 | 25 | 注釈の辞書 | `/Type /Annot`・`/Subtype /FreeText`・`/Rect`・**`/Contents`（`PDFHexString.fromText`。UTF-16BE。改行は `\n`）**・**`/DA (/SigKJP <size> Tf r g b rg)`**・`/Border [0 0 0]`・`/Rotate <rotation>`（0 のときは書かない）・`/F 4`・`/NM sigk-…`・`/P`・`/M`・`/CA 1`・`/AP << /N ref >>`。**書かないもの**: `/C`（ビューアによっては箱の背景色に使う）・`/DS`・`/RC`・`/IT`・`/Q`・`/QuadPoints`。`PDFString.of` は 1 バイト文字用で日本語が壊れるので使わない |
-| 26 | 外観 `/AP /N` | Form XObject。`BBox` ＝ `/Rect`、`Matrix` 無し（塊①と同じ「紙の座標をそのまま書く」流儀）、`Resources: { Font: { SigKJP: fontRef }, ExtGState: { GS } }`。content は pdf.js と同じ式: `q` → `rotation` の `cm`（90: `0 1 -1 0`、180: `-1 0 0 -1`、270: `0 -1 1 0`）→ 回転後の座標での `re W n` → `BT rg Tf TL Td <hex> Tj (T* <hex> Tj)… ET Q`。1 行目のベースラインは枠の上端から `PADDING + BASELINE × size` |
+| 26 | 外観 `/AP /N` | Form XObject。`BBox` ＝ `/Rect`、`Matrix` 無し（塊①と同じ「紙の座標をそのまま書く」流儀）、`Resources: { Font: { SigKJP: fontRef }, ExtGState: { GS } }`。content は pdf.js と同じ式: `q` → `rotation` の `cm`（90: `0 1 -1 0`、180: `-1 0 0 -1`、270: `0 -1 1 0`）→ 回転後の座標での `re W n` → `BT rg Tf TL Td <hex> Tj (T* <hex> Tj)… ET Q`。1 行目のベースラインは枠の上端から `PADDING + BASELINE × size`。**2026-09-29 追記（`spec-4b-1a`）**: 外観の色の成分（`rg` と `/DA`）を小数 3 桁で書く。2 桁では pdf.js が外観から読む文字色が保存のたびに 1 段ずれた（`#d92c2c` → `#d92b2b`）。次に付ける不透明度もテキストに効くようにした（確定事項31・34） |
 | 27 | 純関数の境界 | `worker/free-text-appearance.js` は pdf-lib を知らず、`measure` を受け取って content stream の文字列と `bbox`・`da` を返す。`frameOf(rect, rotation)`（4 方向の `cm`・clip・起点）と `textBlockOps({ lines, fontSize, rgb, origin, matrix }, measure)` を分けて公開し、塊⑤の透かし（任意の角度の行列）も同じ口に載せる。**2026-09-24 訂正**: 実物の `textBlockOps` は `matrix` を受けない（`{ lines, fontSize, rgb, origin }`。回転は外側の `cm` で当てる）。塊⑤の透かしはこの口を使わず、字形の輪郭で描いた（`spec-4-5` 論点1） |
 | 28 | 消すとき | `annotation-remove.js`（`op-annotate.js` から切り出す）の `deleteAnnot` は塊①と同じく `/AP /N` と `/Popup` を消す。フォントは消さない（確定事項24） |
 

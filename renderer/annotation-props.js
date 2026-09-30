@@ -8,30 +8,26 @@
   // 実態に合わせるだけである。選んでいる注釈があればその注釈、無ければ「次に付ける
   // 注釈」（持っている道具）の種類と色を見せる。色の丸を押すと annotate.setColor、
   // 「文字の大きさ」は annotate.setFontSize、「線の太さ」は annotate.setLineWidth、
-  // 「図形の種類」は annotate.setShapeKind、「本文」（ノート。blur か Ctrl+Enter で確定）は
-  // annotate.setContents、「作成者」は annotate.setAuthor、「不透明度」は annotate.setOpacity、
+  // 「不透明度」は annotate.setOpacity、
   // 「この注釈を削除」は annotate.remove へ流す。表示のみの注釈は種類名に「（表示のみ）」を添え、
-  // 色の丸を出さない。
+  // 色の丸を出さない。ノートの「本文」「作成者」の行は annotation-note-rows.js が持つ。
 
   const HINTS = Object.freeze({
     selected: 'Delete で消せます。Esc で選択を解除します。Ctrl+Z で元に戻せます。',
     tool: '文字をなぞると付きます。先に文字を選んでから道具を押しても付きます。',
-    none: 'レールの道具を選ぶか、文字を選んでから道具を押してください。',
+    none: '上の道具を選ぶか、文字を選んでから道具を押してください。',
     text: '紙の上を押すと、そこに文字を置けます。Enter で改行、枠の外を押すか Ctrl+Enter で確定します。',
     textSelected: 'ダブルクリックか Enter で直せます。掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     shape: '紙の上をドラッグすると描けます。Shift を押しながらで正方形・正円・45° 刻みになります。Esc で道具を離します。',
-    pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの注釈になります。Esc で道具を離します。',
+    pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの書き込みになります。Esc で道具を離します。',
     shapeSelected: '掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     note: '紙の上を押すと、そこに付箋を置けます。本文は「本文」の欄に書きます。Esc で道具を離します。',
     noteSelected: '本文は欄の外を押すか Ctrl+Enter で確定します。掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
-    readonly: '他のツールで付けた注釈です。Delete で消せます。編集はできません。',
+    readonly: '他のアプリで付けた書き込みです。Delete で消せます。直すことはできません。',
   });
 
   // 「本文」の行に出す文字数の上限。
   const TEXT_PREVIEW = 200;
-
-  // 「図形の種類」のボタンのアイコン（assets/icons.js）。
-  const SHAPE_ICONS = Object.freeze({ square: 'shapeSquare', circle: 'shapeCircle', line: 'shapeLine', arrow: 'shapeArrow' });
 
   let el = null;
 
@@ -45,6 +41,10 @@
 
   function presets() {
     return root.SigK.annotationPresets;
+  }
+
+  function noteRows() {
+    return root.SigK.annotationNoteRows;
   }
 
   function isDrawnKind(kind) {
@@ -112,13 +112,6 @@
     el.width.value = String(width);
   }
 
-  // 「図形の種類」の行。図形の道具を持ち、何も選んでいないときだけ出す。
-  function setShapeRow(kind) {
-    el.shapeRow.hidden = kind === null;
-    for (const button of el.shapeKinds.querySelectorAll('button'))
-      button.classList.toggle('on', button.dataset.kind === kind);
-  }
-
   function percentOf(value) {
     return `${Math.round(value * 100)}%`;
   }
@@ -139,23 +132,6 @@
       el.opacity.append(option);
     }
     el.opacity.value = String(value);
-  }
-
-  // 「本文」の行（ノートを選んでいるときだけ）。書いている最中は値を触らない。
-  function setContentsRow(text) {
-    el.contentsRow.hidden = text === null;
-    if (text !== null && el.doc.activeElement !== el.contents)
-      el.contents.value = text;
-  }
-
-  // 「作成者」の行。ノートの道具なら編集でき、ノートを選んでいれば読み取り。
-  function setAuthorRow(author, { editable }) {
-    el.authorRow.hidden = author === null;
-    if (author === null)
-      return;
-    el.author.readOnly = !editable;
-    if (el.doc.activeElement !== el.author)
-      el.author.value = author;
   }
 
   function previewOf(text) {
@@ -189,12 +165,10 @@
       el.colors.replaceChildren();
     else
       renderSwatches(entry.kind, entry.color);
-    setContentsRow(isNote ? entry.text : null);
-    setAuthorRow(isNote ? (entry.author ?? '') : null, { editable: false });
+    noteRows()?.render({ text: isNote ? entry.text : null, author: isNote ? (entry.author ?? '') : null, editable: false });
     setSizeRow(isText ? entry.fontSize : null);
     setWidthRow(isDrawnKind(entry.kind) ? entry.lineWidth : null);
     setOpacityRow(!readonly && isOpacityKind(entry.kind) ? entry.opacity : null);
-    setShapeRow(null);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象の文字';
     setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
@@ -224,17 +198,17 @@
       return true;
     }
     const tool = annotate().getTool();
-    el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[tool]}（次に付ける）`;
+    // 図形は道具の段で選んだ種類の名前を出す（「四角（次に付ける）」。spec-4b-1a 確定事項8）。
+    const label = tool === 'shape' ? annotate().TOOL_LABELS[annotate().getShapeKind()] : annotate().TOOL_LABELS[tool];
+    el.kind.textContent = tool === null ? '–' : `${label}（次に付ける）`;
     if (tool === null)
       el.colors.replaceChildren();
     else
       renderSwatches(tool, annotate().colorOf(tool));
-    setContentsRow(null);
-    setAuthorRow(tool === 'note' ? annotate().getAuthor() : null, { editable: true });
+    noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
     setSizeRow(tool === 'text' ? annotate().getFontSize() : null);
     setWidthRow(tool === 'shape' || tool === 'pen' ? annotate().getLineWidth() : null);
     setOpacityRow(tool !== null && presets().OPACITY_TOOLS.includes(tool) ? annotate().getOpacity(tool) : null);
-    setShapeRow(tool === 'shape' ? annotate().getShapeKind() : null);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
     el.hint.textContent = hintFor(tool);
@@ -242,12 +216,9 @@
     return true;
   }
 
-  // 「本文」欄にフォーカスを移す（置いた直後・ダブルクリック・Enter）。出ていなければ何もしない。
+  // 「本文」欄にフォーカスを移す（置いた直後・ダブルクリック・Enter）。行は annotation-note-rows.js が持つ。
   function focusContents() {
-    if (el === null || el.contentsRow.hidden)
-      return false;
-    el.contents.focus();
-    return true;
+    return noteRows()?.focusContents() === true;
   }
 
   // 「不透明度」の選択肢（100%・75%・50%・25%）。
@@ -261,19 +232,6 @@
     select.addEventListener('change', () => annotate().setOpacity(Number(select.value)));
   }
 
-  // 「本文」欄。欄の外を押す（blur）か Ctrl+Enter で確定、Esc は欄を離れる（＝確定）。キーの側でも確定を
-  // 呼ぶのは、窓が非活性のとき Chromium が blur() で活性要素を変えても blur イベントを流さないため（起動確認で実測）。
-  function bindContents(textarea) {
-    textarea.addEventListener('blur', () => annotate().setContents(textarea.value));
-    textarea.addEventListener('keydown', (event) => {
-      if ((event.key === 'Enter' && event.ctrlKey) || event.key === 'Escape') {
-        event.preventDefault();
-        annotate().setContents(textarea.value);
-        textarea.blur();
-      }
-    });
-  }
-
   // 選択肢はプリセットから 1 度だけ組む（spec-4-2 確定事項34、spec-4-3 確定事項29）。
   function fillSelect(doc, select, values, onChange) {
     select.replaceChildren(...values.map((value) => {
@@ -283,21 +241,6 @@
       return option;
     }));
     select.addEventListener('change', () => onChange(Number(select.value)));
-  }
-
-  // 「図形の種類」の 4 つのボタン（spec-4-3 確定事項2）。
-  function fillShapeKinds(doc, container) {
-    container.replaceChildren(...presets().SHAPE_KINDS.map((kind) => {
-      const button = doc.createElement('button');
-      button.type = 'button';
-      button.dataset.kind = kind;
-      button.title = presets().TOOL_LABELS[kind];
-      button.setAttribute('aria-label', button.title);
-      if (root.SigK.icons?.has(SHAPE_ICONS[kind]))
-        button.append(root.SigK.icons.create(doc, SHAPE_ICONS[kind], { size: 20, strokeWidth: 1.75 }));
-      button.addEventListener('click', () => annotate().setShapeKind(kind));
-      return button;
-    }));
   }
 
   function init(doc, win) {
@@ -321,23 +264,16 @@
       size: doc.getElementById('props-size'),
       widthRow: doc.getElementById('props-width-row'),
       width: doc.getElementById('props-width'),
-      shapeRow: doc.getElementById('props-shape-row'),
-      shapeKinds: doc.getElementById('props-shape-kinds'),
       hint: doc.getElementById('props-hint'),
       remove: doc.getElementById('props-delete'),
-      contentsRow: doc.getElementById('props-contents-row'),
-      contents: doc.getElementById('props-contents'),
-      authorRow: doc.getElementById('props-author-row'),
-      author: doc.getElementById('props-author'),
       opacityRow: doc.getElementById('props-opacity-row'),
       opacity: doc.getElementById('props-opacity'),
     };
     fillSelect(doc, el.size, presets().FONT_SIZES, (size) => annotate().setFontSize(size));
     fillSelect(doc, el.width, presets().LINE_WIDTHS, (width) => annotate().setLineWidth(width));
-    fillShapeKinds(doc, el.shapeKinds);
     fillOpacities(doc, el.opacity);
-    bindContents(el.contents);
-    el.author.addEventListener('change', () => annotate().setAuthor(el.author.value));
+    // 本文と作成者の行（annotation-note-rows.js）。refresh より先に結ぶ。
+    root.SigK.annotationNoteRows?.init(doc, win);
     el.remove.addEventListener('click', () => {
       if (el.remove.getAttribute('aria-disabled') !== 'true')
         annotate().remove();

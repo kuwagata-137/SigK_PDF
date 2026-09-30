@@ -26,7 +26,8 @@
 
   function isVisible() {
     const html = state.doc?.documentElement;
-    return html?.getAttribute('data-mode') === 'annot' && html.getAttribute('data-panel') === 'open';
+    // 編集モードで、左の切り替えが「注釈一覧」のときだけ（spec-4b-1a 確定事項16）。
+    return html?.getAttribute('data-mode') === 'annot' && html.getAttribute('data-panel') === 'open' && html.getAttribute('data-edit-side') === 'list';
   }
 
   function iconOf(doc, row) {
@@ -74,7 +75,7 @@
     const open = view?.getState().open === true;
     const rows = open ? index().rowsOf(view.getAnnotations(), view.getImported(), view.getPlan()) : [];
     el.rows.replaceChildren(...rows.map((row) => rowElement(el.doc, row)));
-    el.empty.textContent = open ? '注釈はありません' : '文書を開くと注釈の一覧が出ます';
+    el.empty.textContent = open ? '書き込みはありません' : '文書を開くと書き込みの一覧が出ます';
     el.empty.hidden = rows.length > 0;
     // サムネイルの「文書を開くと…」の案内はここでは出さない（ツールモードと同じ）。
     const placeholder = el.doc.getElementById('thumbs-empty');

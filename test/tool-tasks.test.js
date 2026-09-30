@@ -8,14 +8,16 @@ const pdfTask = require('../worker/pdf-task.js');
 
 // ツールの実行は tool-tasks.js にあり、pdf-task.js の runTask が kind で引く（spec-4-5 確定事項47）。
 
-test('TOOL_TASKS は結合・分割・変換・透かし・フラット化（と件数の下見）の実行関数を kind で引く', () => {
-  assert.deepEqual(Object.keys(TOOL_TASKS), ['merge', 'split', 'convert', 'watermark', 'flatten', 'flatten-preview']);
+test('TOOL_TASKS は結合・分割・変換・透かし・フラット化（と件数の下見）・注釈の辞書の読み戻しの実行関数を kind で引く', () => {
+  assert.deepEqual(Object.keys(TOOL_TASKS), ['merge', 'split', 'convert', 'watermark', 'flatten', 'flatten-preview', 'annotation-details']);
   assert.equal(TOOL_TASKS.merge, runMerge);
   assert.equal(TOOL_TASKS.split, runSplit);
   assert.equal(TOOL_TASKS.convert, runConvert);
   assert.equal(TOOL_TASKS.watermark, runWatermark);
   assert.equal(TOOL_TASKS.flatten, runFlatten);
   assert.equal(TOOL_TASKS['flatten-preview'], runFlattenPreview);
+  // 注釈の辞書の読み戻し（spec-4b-1a 確定事項22）。
+  assert.equal(TOOL_TASKS['annotation-details'], require('../worker/annotation-dict-reader.js').runAnnotationDetails);
   assert.equal(Object.isFrozen(TOOL_TASKS), true);
 });
 

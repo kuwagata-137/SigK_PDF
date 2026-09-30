@@ -61,8 +61,10 @@
       return false;
     const html = el.doc.documentElement;
     const mode = html.getAttribute('data-mode');
-    // 注釈モードのサイドパネルは注釈の一覧が使う（spec-4-4 確定事項9）。
-    return (mode === 'view' || mode === 'pages') && html.getAttribute('data-panel') === 'open';
+    // 編集モード（annot）は、左の切り替えでサムネイルを選んでいるときだけ（spec-4b-1a 確定事項16。
+    // spec-4-4 確定事項9 では一覧だけだった）。
+    const shown = mode === 'view' || mode === 'pages' || (mode === 'annot' && html.getAttribute('data-edit-side') !== 'list');
+    return shown && html.getAttribute('data-panel') === 'open';
   }
 
   // 列数はページモードだけ自動で増やす（確定事項23・28）。閲覧モードの
@@ -156,10 +158,11 @@
     el.list.replaceChildren();
     el.list.hidden = true;
     el.list.style.height = '';
-    // ツールモードと注釈モードではサイドパネルを別の一覧が使う（spec-2-1 確定事項1、spec-4-4 確定事項9）。
-    // 「文書を開くと…」の案内はそこでは出さない。
-    const mode = el.list.ownerDocument.documentElement.getAttribute('data-mode');
-    el.empty.hidden = mode === 'tools' || mode === 'annot';
+    // ツールモードと、編集モードで一覧を選んでいるときは、サイドパネルを別の一覧が使う（spec-2-1 確定事項1、
+    // spec-4b-1a 確定事項16）。「文書を開くと…」の案内はそこでは出さない。
+    const html = el.list.ownerDocument.documentElement;
+    const mode = html.getAttribute('data-mode');
+    el.empty.hidden = mode === 'tools' || (mode === 'annot' && html.getAttribute('data-edit-side') === 'list');
   }
 
   // ---- 描画 ----
@@ -402,8 +405,12 @@
         discard();
       return false;
     }
-    if (state.doc === null)
+    // 文書が無ければ「文書を開くと…」の案内。編集モードで注釈一覧からサムネイルへ戻したときも出し直す
+    // （spec-4b-1a 確定事項16）。
+    if (state.doc === null) {
+      el.empty.hidden = false;
       return false;
+    }
     // 畳んでいる間に文書が変わっていることがある。枠が無ければここで作る。
     if (state.layout.pages.length === 0)
       build();

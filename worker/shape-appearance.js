@@ -8,7 +8,7 @@
 // （プロセスが違うので import できない）。楕円はベジェ 4 本（κ = 0.5523）。
 // 線は矩形・楕円の /Rect の内側に収める（線幅の半分だけ内へ。画面の描き方と同じ）。
 
-const { num, parseColor } = require('./annotation-appearance.js');
+const { num, colorOps, parseColor } = require('./annotation-appearance.js');
 
 const KAPPA = 0.5523;
 const ARROW_MIN_LENGTH = 9;
@@ -134,7 +134,7 @@ function shapeAppearanceOf(entry) {
     return null;
   const rgb = parseColor(entry.color);
   const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
-  const content = ['/GS gs', `${point(rgb)} RG`, opsOf(entry)].join('\n');
+  const content = ['/GS gs', `${colorOps(rgb)} RG`, opsOf(entry)].join('\n');
   return {
     content,
     bbox: entry.rect.map(round),

@@ -8,7 +8,7 @@
 // （プロセスが違うので import できない）。絵は 20×20・y 下向きの座標で持ち、ここで
 // /Rect の左上 (x1, y2) を原点に紙の向き（y 上向き）へ直す。
 
-const { num, parseColor } = require('./annotation-appearance.js');
+const { num, colorOps, parseColor } = require('./annotation-appearance.js');
 
 // 付箋の大きさ（pt）。画面は 20 × 96/72 px で固定、印刷は 20 × 倍率（確定事項40）。
 const ICON_SIZE = 20;
@@ -74,7 +74,7 @@ function noteAppearanceOf(entry) {
   const to = mapper(entry.rect);
   const content = [
     '/GS gs',
-    `${rgb.map(num).join(' ')} rg ${STROKE_RGB.map(num).join(' ')} RG 1 w 1 j 1 J`,
+    `${colorOps(rgb)} rg ${colorOps(STROKE_RGB)} RG 1 w 1 j 1 J`,
     ...outlineOps(to),
     'h B',
     ...lineOps(to),

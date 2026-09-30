@@ -393,6 +393,9 @@ async function createShell({
   printResult = { ok: true, canceled: false, reason: null },
   // taskAPI.run() が返すものの並び。1本ずつ取り出す（spec-1-6）。
   taskResults = [],
+  // annotationAPI.readDetails() が返すものの並び（spec-4b-1a 確定事項20）。1 本ずつ取り出し、無ければ
+  // { ok: true, details: {} }（読めたが、足す欄が無い）を返す。
+  detailsResults = [],
   // pdfAPI.pickSavePath() が返すものの並び。
   savePathResults = [],
   // pdfAPI.pickInsertSource() が返すものの並び（spec-1-6 確定事項53）。
@@ -441,6 +444,8 @@ async function createShell({
   const closeAnswers = [];
   // taskAPI.run() に届いた spec の並びと、進捗を流す口（spec-1-6）。
   const taskCalls = [];
+  // annotationAPI.readDetails() に届いた spec の並び（spec-4b-1a 確定事項20）。
+  const detailsCalls = [];
   const taskCancels = [];
   const progressHandlers = [];
   const saveRequestHandlers = [];
@@ -586,6 +591,16 @@ async function createShell({
       },
       onProgress: (callback) => progressHandlers.push(callback),
     };
+    // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。実際に読むのはワーカーなので、ここは届いた spec と
+    // 返す結果だけを扱う。
+    window.annotationAPI = {
+      available: true,
+      readDetails: async (spec) => {
+        detailsCalls.push(structuredClone(spec ?? {}));
+        const next = detailsResults.shift();
+        return typeof next === 'function' ? next(spec) : (next ?? { ok: true, details: {} });
+      },
+    };
     window.settingsAPI = {
       available: true,
       // 返すのは呼ばれた時点の値（メインは届いた順に答える）。起動要求を流す場面では、答えが
@@ -602,6 +617,8 @@ async function createShell({
           mode: patch?.mode ?? savedUi.mode,
           // 見開きの選択（spec-2-3 確定事項5）。
           pageLayout: patch?.pageLayout ?? savedUi.pageLayout,
+          // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。
+          editSide: patch?.editSide ?? savedUi.editSide,
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
           // 注釈の色（spec-4-1 確定事項34）。種類ごとに重ねる。
           annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },
@@ -700,6 +717,9 @@ async function createShell({
     taskCalls,
     // taskAPI.cancel() に届いた taskId の並び。
     taskCancels,
+    // annotationAPI.readDetails() に届いた spec の並びと、返す結果の並び（テストから足せる）。
+    detailsCalls,
+    detailsResults,
     // pdfAPI.pickSavePath() に届いたオプションの並び。
     savePathCalls,
     insertSourceCalls,

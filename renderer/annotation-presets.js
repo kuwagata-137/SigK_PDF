@@ -3,7 +3,7 @@
 
   // 注釈のプリセット（spec-4-1 確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜30、spec-4-4 確定事項36〜38）。DOM に触れない。
   //
-  // settings.js の ANNOT_COLORS・ANNOT_FONT_SIZES・ANNOT_LINE_WIDTHS・ANNOT_SHAPE_KINDS・ANNOT_OPACITIES と同じ並びで
+  // annotation-settings.js の ANNOT_COLORS・ANNOT_FONT_SIZES・ANNOT_LINE_WIDTHS・ANNOT_SHAPE_KINDS・ANNOT_OPACITIES と同じ並びで
   // あること（プロセスが違うので import はできない。test/settings.test.js が一致を見張る）。
   // 色と大きさの並びは自前で決めたもので、他社製品の意匠を写していない（docs/06）。
 
@@ -12,12 +12,12 @@
   // 道具と、注釈の種類（kind）の表示名。図形の道具（shape）は 4 種の kind を描き分ける。
   const TOOL_LABELS = Object.freeze({
     highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', shape: '図形', pen: 'ペン', note: 'ノート',
-    square: '矩形', circle: '楕円', line: '直線', arrow: '矢印', ink: 'ペン',
+    square: '四角', circle: '丸', line: '直線', arrow: '矢印', ink: 'ペン',
   });
   // 「表示のみ」の注釈（他のツールが付け、読み込んで直せないもの）の種類名。pdf.js の subtype で引く
   // （spec-4-4 確定事項36）。無ければ subtype をそのまま見せる。
   const READONLY_LABELS = Object.freeze({
-    Text: 'ノート', FreeText: 'テキスト', Line: '直線', Square: '矩形', Circle: '楕円', Polygon: '多角形', PolyLine: '折れ線',
+    Text: 'ノート', FreeText: 'テキスト', Line: '直線', Square: '四角', Circle: '丸', Polygon: '多角形', PolyLine: '折れ線',
     Highlight: 'ハイライト', Underline: '下線', Squiggly: '波線', StrikeOut: '取り消し線', Stamp: 'スタンプ', Caret: '挿入記号',
     Ink: 'ペン', FileAttachment: '添付ファイル', Sound: '音声', Redact: '墨消し',
   });
@@ -92,7 +92,7 @@
 
   function readonlyLabelOf(subtype) {
     if (typeof subtype !== 'string' || subtype === '')
-      return '注釈';
+      return '書き込み';
     return READONLY_LABELS[subtype] ?? subtype;
   }
 

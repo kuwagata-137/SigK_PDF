@@ -84,7 +84,7 @@ function runWatermark(spec, deps = {}) {
 function runFlatten(spec, deps = {}) {
   return runRewrite(spec, (doc) => {
     const result = flattenDocument(doc, TOOLS);
-    return result.baked > 0 ? result : { error: '焼き込める注釈がありません。' };
+    return result.baked > 0 ? result : { error: '焼き込める書き込みがありません。' };
   }, deps);
 }
 

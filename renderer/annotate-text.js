@@ -137,7 +137,8 @@
       src: draft.src,
       kind: 'text',
       color: draft.color,
-      opacity: 1,
+      // 道具の「次に付ける不透明度」（spec-4b-1a 確定事項31。今までは 1 に固定していた）。
+      opacity: annotate().getOpacity('text'),
       text,
       fontSize: draft.fontSize,
       rotation: draft.rotation,
