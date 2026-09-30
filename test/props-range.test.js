@@ -1,0 +1,69 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { JSDOM } = require('jsdom');
+
+require('../renderer/props-range.js');
+
+// 右パネルのスライダーと数値欄の組（spec-4b-1b 確定事項7・8）。
+
+const range = globalThis.SigK.propsRange;
+
+function makePair() {
+  const { window } = new JSDOM('<!doctype html><input type="range" id="r" min="1" max="40" step="1" value="2"><input type="number" id="n" value="2">');
+  const calls = [];
+  const [slider, number] = ['r', 'n'].map((id) => window.document.getElementById(id));
+  range.bind(slider, number, {
+    min: 1, max: 40,
+    onPreview: (value) => calls.push(['preview', value]),
+    onCommit: (value) => calls.push(['commit', value]),
+  });
+  return { window, slider, number, calls };
+}
+
+test('clampOf は数値欄の値を範囲の端へ寄せ、小数を四捨五入し、読めなければ null', () => {
+  assert.equal(range.clampOf('0', 1, 40), 1);
+  assert.equal(range.clampOf('41', 1, 40), 40);
+  assert.equal(range.clampOf('35.4', 10, 100), 35);
+  assert.equal(range.clampOf(' 12 ', 1, 40), 12);
+  assert.equal(range.clampOf('', 1, 40), null);
+  assert.equal(range.clampOf('abc', 1, 40), null);
+});
+
+test('スライダーを動かしている間は数値欄を追わせて下見し、離すと確定する', () => {
+  const { window, slider, number, calls } = makePair();
+  slider.value = '7';
+  slider.dispatchEvent(new window.Event('input'));
+  slider.value = '9';
+  slider.dispatchEvent(new window.Event('input'));
+  assert.equal(number.value, '9');
+  slider.dispatchEvent(new window.Event('change'));
+  assert.deepEqual(calls, [['preview', 7], ['preview', 9], ['commit', 9]]);
+});
+
+test('数値欄は Enter か欄の外で確定し、範囲の外は端へ、読めなければ元の値へ戻す', () => {
+  const { window, slider, number, calls } = makePair();
+  number.value = '41';
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter' }));
+  assert.deepEqual([number.value, slider.value], ['40', '40']);
+  number.value = '3.4';
+  number.dispatchEvent(new window.Event('change'));
+  assert.equal(number.value, '3');
+  number.value = '';
+  number.dispatchEvent(new window.Event('change'));
+  assert.equal(number.value, '3', '空は元の値へ戻し、確定しない');
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'a' }));
+  assert.deepEqual(calls, [['commit', 40], ['commit', 3]]);
+});
+
+test('show は値を見せるが、打っている途中の数値欄は上書きしない', () => {
+  const { window, slider, number } = makePair();
+  range.show(slider, number, 1.5);
+  assert.equal(number.value, '1.5', '読み込んだ小数はそのまま');
+  number.focus();
+  number.value = '1';
+  range.show(slider, number, 8);
+  assert.deepEqual([slider.value, number.value], ['8', '1']);
+  window.close();
+});

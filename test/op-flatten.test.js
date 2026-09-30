@@ -182,6 +182,18 @@ test('/Rotate 90 のページのノートは /Rect の左上を軸に回して�
   assert.equal(lastContentOf(await roundTrip(loaded), 0), `q ${matrixText(expected)} cm /${FLATTEN_PREFIX}1 Do Q`);
 });
 
+// 色（/C）も外観も無いノートは、ノートの既定の黄（#ffd966。spec-4b-1b 確定事項14）で描き起こす。
+test('色も外観も無いノートは、ノートの既定の黄で描き起こす', async () => {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([595.28, 841.89]);
+  const note = doc.context.register(doc.context.obj({ Type: 'Annot', Subtype: 'Text', Rect: [100, 700, 120, 720], F: 28, P: page.ref }));
+  page.node.set(PDFName.of('Annots'), doc.context.obj([note]));
+  const loaded = await roundTrip(doc);
+  flattenDocument(loaded, TOOLS);
+  const saved = await roundTrip(loaded);
+  assert.match(textOf(saved.context.lookup(xobjectOf(saved, 0, `${FLATTEN_PREFIX}1`))), /1 0\.851 0\.4 rg/);
+});
+
 test('ページに同じ名前があれば、空いている名前を使う', async () => {
   const doc = await load(fs.readFileSync(fixturePath('annotated.pdf')));
   const taken = form(doc, '0 0 m', [0, 0, 1, 1]);

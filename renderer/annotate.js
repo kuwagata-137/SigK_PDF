@@ -10,19 +10,18 @@
   // annotate-pointer.js、文字の選択からマークアップを作るのは annotate-markup.js、
   // テキストの置く・直す・動かすは annotate-text.js、図形・ペンの描く・動かす・太さは
   // annotate-shape.js、ノートの置く・動かす・本文・作成者は annotate-note.js、不透明度は
-  // annotate-opacity.js、サイドパネルの一覧は annotation-list.js が持つ。ここが握るのは
-  // 「いまの道具」「選んでいる注釈」「次に付ける色と文字の大きさ」だけである。
+  // annotate-opacity.js、色・塗り・線なし・線種は annotate-color.js、スライダーの下見は annotate-preview.js、
+  // サイドパネルの一覧は annotation-list.js が持つ。ここが握るのは「いまの道具」「選んでいる注釈」
+  // 「次に付ける文字の大きさ」だけである。
 
   // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
-  // 色は種類ごとの引き出し（paletteOf。図形 4 種は shape、ペンは pen）で引く。
-  const { TOOLS, MARKUP_TOOLS, TOOL_LABELS, COLORS, COLOR_NAMES, DEFAULT_COLORS, DEFAULT_FONT_SIZE, isFontSize, paletteOf } = root.SigK.annotationPresets;
+  const { TOOLS, MARKUP_TOOLS, TOOL_LABELS, DEFAULT_COLORS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
 
   const state = {
     doc: null,
     win: null,
     tool: null,
     selected: null,
-    colors: { ...DEFAULT_COLORS },
     fontSize: DEFAULT_FONT_SIZE,
   };
 
@@ -83,27 +82,12 @@
     return setTool(state.tool === tool ? null : tool) !== null;
   }
 
-  function colorOf(kind) {
-    const palette = paletteOf(kind);
-    return state.colors[palette] ?? DEFAULT_COLORS[palette];
+  function annotateColor() {
+    return root.SigK.annotateColor;
   }
 
-  function applyColors(colors) {
-    for (const kind of TOOLS) {
-      if (COLORS[kind].includes(colors?.[kind]))
-        state.colors[kind] = colors[kind];
-    }
-    props()?.refresh();
-    return { ...state.colors };
-  }
-
-  function rememberColor(kind, color) {
-    const palette = paletteOf(kind);
-    if (!COLORS[palette]?.includes(color))
-      return false;
-    state.colors[palette] = color;
-    root.SigK.shell?.persist?.({ annotColors: { [palette]: color } });
-    return true;
+  function nextStyle() {
+    return root.SigK.annotateNextStyle;
   }
 
   // 次に置くテキストの文字の大きさ（spec-4-2 確定事項21・34）。
@@ -143,8 +127,9 @@
     return annotationState().findAnnot(viewer().getAnnotations(), viewer().getImported(), state.selected);
   }
 
-  // 選ぶ。一覧の行も揃える（spec-4-4 確定事項31）。
+  // 選ぶ。一覧の行も揃える（spec-4-4 確定事項31）。スライダーの下見は捨てる（spec-4b-1b 確定事項8）。
   function select(key) {
+    root.SigK.annotatePreview?.cancel();
     state.selected = key ?? null;
     if (state.selected !== null && selectedEntry() === null)
       state.selected = null;
@@ -196,38 +181,18 @@
     return true;
   }
 
-  // 色を変える。注釈を選んでいればその注釈、選んでいなければ道具の色（次に付ける色）。
-  function setColor(color) {
-    const entry = selectedEntry();
-    if (entry === null) {
-      const kind = state.tool;
-      if (kind === null || !rememberColor(kind, color))
-        return false;
-      props()?.refresh();
-      return true;
-    }
-    // 表示のみと、プリセットの無い種類は変えられない（spec-4-4 確定事項32）。
-    if (entry.readonly === true || COLORS[paletteOf(entry.kind)]?.includes(color) !== true)
-      return false;
-    const before = state.selected;
-    const annots = annotationState().recolorAnnot(viewer().getAnnotations(), entry, color);
-    // 読み込んだものは写しに変わる（確定事項17）。選択はその写しへ移す。
-    const after = entry.ref !== undefined ? annots.added.at(-1).id : before;
-    state.selected = after;
-    rememberColor(entry.kind, color);
-    root.SigK.pageEdit.commitAnnots(annots, { annot: { before, after } });
-    props()?.refresh();
-    return true;
-  }
-
   // 開いているテキストの入力欄を確定して閉じる（spec-4-2 確定事項8）。
   function finishEditing() {
     return root.SigK.annotateText?.finishEditing() === true;
   }
 
-  // Esc。描いている途中なら捨て、入力欄が開いていれば確定、選んでいる注釈があれば解除、
-  // 無ければ道具を離す（確定事項7、spec-4-3 確定事項3）。
+  // Esc。パレットの窓が開いていれば閉じ、スライダーの下見があれば捨て（spec-4b-1b 確定事項6・8）、描いている途中なら捨て、
+  // 入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を離す（確定事項7、spec-4-3 確定事項3）。
   function escape() {
+    if (root.SigK.colorPopover?.close({ restoreFocus: true }) === true)
+      return true;
+    if (root.SigK.annotatePreview?.cancel() === true)
+      return true;
     if (root.SigK.annotateShape?.cancelDraft() === true)
       return true;
     if (finishEditing())
@@ -290,8 +255,6 @@
   SigK.annotate = {
     TOOLS,
     TOOL_LABELS,
-    COLORS,
-    COLOR_NAMES,
     DEFAULT_COLORS,
     init,
     importDocument: (doc, options) => root.SigK.annotationImport.importDocument(doc, options),
@@ -299,9 +262,20 @@
     setTool,
     toggleTool,
     isMarkupTool,
-    getColors: () => ({ ...state.colors }),
-    colorOf,
-    applyColors,
+    // 色・塗り・線なし・線種（次に付ける値は annotate-next-style.js、当てるのは annotate-color.js。spec-4b-1b）。
+    getColors: () => nextStyle().getColors(),
+    colorOf: (kind) => nextStyle().colorOf(kind),
+    fillOf: (kind) => nextStyle().fillOf(kind),
+    lineStyleOf: (kind) => nextStyle().lineStyleOf(kind),
+    nextStyleOf: (kind) => nextStyle().nextStyleOf(kind),
+    applyColors: (colors) => nextStyle().applyColors(colors),
+    applyFills: (fills) => nextStyle().applyFills(fills),
+    applyStrokeNone: (values) => nextStyle().applyStrokeNone(values),
+    applyLineStyles: (lineStyles) => nextStyle().applyLineStyles(lineStyles),
+    setColor: (color) => annotateColor().setColor(color),
+    setStrokeNone: () => annotateColor().setStrokeNone(),
+    setFill: (color) => annotateColor().setFill(color),
+    setLineStyle: (lineStyle) => annotateColor().setLineStyle(lineStyle),
     getFontSize,
     applyFontSize,
     rememberFontSize,
@@ -325,7 +299,6 @@
     select,
     hitTest,
     remove,
-    setColor,
     escape,
     painterFor,
     onModeChanged,

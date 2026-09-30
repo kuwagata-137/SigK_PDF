@@ -55,6 +55,7 @@
       "smoke-annotate.js",
       "smoke-annotate-steps.js",
       "smoke-annotate-report.js",
+      "smoke-annotate-style.js",
       "worker/**",
       "index.html",
       "renderer/**",

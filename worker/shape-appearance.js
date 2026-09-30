@@ -1,14 +1,15 @@
 'use strict';
 
-// 図形・ペン注釈の外観（/AP /N）の中身を組む純粋層（spec-4-3 確定事項20〜22・30）。
+// 図形・ペン注釈の外観（/AP /N）の中身を組む純粋層（spec-4-3 確定事項20〜22・30、spec-4b-1b 確定事項29〜35）。
 //
-// annotation-appearance.js と同じく pdf-lib を知らない。content stream は文字列で返し、
-// Form XObject と注釈の辞書に包むのは op-annotate.js の仕事である。
-// 矢じりの寸法と翼の式は renderer/shape-geometry.js と同じもので、一致はテストで見張る
-// （プロセスが違うので import できない）。楕円はベジェ 4 本（κ = 0.5523）。
-// 線は矩形・楕円の /Rect の内側に収める（線幅の半分だけ内へ。画面の描き方と同じ）。
+// pdf-lib を知らない。content stream を文字列で返し、Form XObject と辞書に包むのは op-annotate.js。矢じりは
+// renderer/shape-geometry.js、四角・丸の輪郭は renderer/shape-outline.js、雲形は renderer/cloud-geometry.js と同じ式で、
+// 一致はテストで見張る（プロセスが違うので import できない）。四角・丸の線は /Rect の内側に収め、描く線幅は短い辺の半分で
+// 頭打ちにする。見た目の欄の決まりは shape-style-rules.js。不透明度が 1 未満なら透明グループで包むよう group を立てる。
 
-const { num, colorOps, parseColor } = require('./annotation-appearance.js');
+const { num, colorOps } = require('./annotation-appearance.js');
+const { cloudPathOf } = require('./cloud-appearance.js');
+const { BOXED_KINDS, styleOf } = require('./shape-style-rules.js');
 
 const KAPPA = 0.5523;
 const ARROW_MIN_LENGTH = 9;
@@ -34,7 +35,7 @@ function isPoint(point) {
   return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
 }
 
-// 点列は 1 本以上で各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（renderer/annotation-entry.js と同じ約束）。
+// 点列は 1 本以上で各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（renderer/annotation-entry-rules.js と同じ約束）。
 function validPaths(kind, paths) {
   if (!Array.isArray(paths) || paths.length === 0)
     return false;
@@ -43,74 +44,109 @@ function validPaths(kind, paths) {
   return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
 }
 
-// 図形・ペンの entry の形。線幅が正、/Rect が 4 つの数、色が #rrggbb、点列は種類ごとの形。
+// 図形・ペンの entry の形。線幅が正、/Rect が 4 つの数、見た目の欄が決まりどおり、点列は種類ごとの形。
 function isShapeEntry(entry) {
   if (!KINDS.includes(entry?.kind) || !Number.isFinite(entry.lineWidth) || entry.lineWidth <= 0)
     return false;
   if (!Array.isArray(entry.rect) || entry.rect.length !== 4 || !entry.rect.every(Number.isFinite))
     return false;
-  if (parseColor(entry.color) === null)
+  if (styleOf(entry) === null)
     return false;
-  return entry.kind === 'square' || entry.kind === 'circle' ? true : validPaths(entry.kind, entry.paths);
+  return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
 }
 
 function point(values) {
   return values.map(num).join(' ');
 }
 
-// 矩形: 線幅の半分だけ内側の re。小さすぎる箱では幅 0（負にしない）。
-function squareOps([x1, y1, x2, y2], width) {
-  const half = width / 2;
-  const inner = [Math.max(0, x2 - x1 - width), Math.max(0, y2 - y1 - width)];
-  return `${num(width)} w ${point([x1 + half, y1 + half])} ${point(inner)} re S`;
+function dashOps(dash) {
+  return `[${dash.map(num).join(' ')}] 0 d`;
 }
 
-// 楕円: 箱の中心を保ち、線幅の半分だけ内側の半径でベジェ 4 本。
-function circleOps([x1, y1, x2, y2], width) {
-  const rx = Math.max(0, (x2 - x1 - width) / 2);
-  const ry = Math.max(0, (y2 - y1 - width) / 2);
+// 四角・丸を描く線幅。短い辺の半分で頭打ちにする（線が箱より太くても、箱をすべて覆う。確定事項30）。
+function drawWidthOf([x1, y1, x2, y2], lineWidth) {
+  return Math.max(0, Math.min(lineWidth, Math.min(x2 - x1, y2 - y1) / 2));
+}
+
+// 四角の path（inset だけ内側の re。小さすぎる箱では幅 0 で、負にしない）。
+function rectPath([x1, y1, x2, y2], inset) {
+  const inner = [Math.max(0, x2 - x1 - inset * 2), Math.max(0, y2 - y1 - inset * 2)];
+  return `${point([x1 + inset, y1 + inset])} ${point(inner)} re`;
+}
+
+// 楕円の path（箱の中心を保ち、inset だけ内側の半径でベジェ 4 本。右端から反時計回り）。
+function ellipsePath([x1, y1, x2, y2], inset) {
+  const rx = Math.max(0, (x2 - x1) / 2 - inset);
+  const ry = Math.max(0, (y2 - y1) / 2 - inset);
   const cx = (x1 + x2) / 2;
   const cy = (y1 + y2) / 2;
   const kx = rx * KAPPA;
   const ky = ry * KAPPA;
   return [
-    `${num(width)} w`,
     `${point([cx + rx, cy])} m`,
     `${point([cx + rx, cy + ky, cx + kx, cy + ry, cx, cy + ry])} c`,
     `${point([cx - kx, cy + ry, cx - rx, cy + ky, cx - rx, cy])} c`,
     `${point([cx - rx, cy - ky, cx - kx, cy - ry, cx, cy - ry])} c`,
     `${point([cx + kx, cy - ry, cx + rx, cy - ky, cx + rx, cy])} c`,
-    'h S',
   ].join('\n');
+}
+
+// 四角・丸（spec-4b-1b 確定事項29〜33）。線があれば描く線幅の半分だけ内側の path に線を引き、塗りがあれば同じ path を塗る。
+// 線なしなら箱そのものを塗る。雲形は雲の path（線なしでも書き込みの太さで組む）を同じように塗って線を引く。
+function boxOps(entry, style) {
+  const width = drawWidthOf(entry.rect, entry.lineWidth);
+  const paint = style.stroke !== null && style.fill !== null ? 'B' : (style.stroke !== null ? 'S' : 'f');
+  const lines = [];
+  if (style.stroke !== null)
+    lines.push(`${colorOps(style.stroke)} RG`);
+  if (style.fill !== null)
+    lines.push(`${colorOps(style.fill)} rg`);
+  const cloud = style.cloudIntensity === null ? null
+    : cloudPathOf({ kind: entry.kind, box: entry.rect, intensity: style.cloudIntensity, lineWidth: entry.lineWidth });
+  if (cloud !== null) {
+    lines.push(`${style.stroke !== null ? `${num(cloud.drawWidth)} w ` : ''}1 j`, cloud.ops, paint);
+    return { ops: lines.join('\n'), cloud };
+  }
+  const inset = style.stroke !== null ? width / 2 : 0;
+  const head = style.stroke !== null ? [`${num(width)} w`, ...(style.dash !== null ? [dashOps(style.dash)] : [])] : [];
+  if (entry.kind === 'square')
+    lines.push([...head, rectPath(entry.rect, inset), paint].join(' '));
+  else
+    lines.push(...(head.length > 0 ? [head.join(' ')] : []), ellipsePath(entry.rect, inset), `h ${paint}`);
+  return { ops: lines.join('\n'), cloud: null };
 }
 
 function pathOps(path) {
   return `${path.map((at, index) => `${point(at)} ${index === 0 ? 'm' : 'l'}`).join(' ')} S`;
 }
 
-// 直線: 丸い端の 1 本。
-function lineOps([from, to], width) {
-  return `${num(width)} w 1 J ${pathOps([from, to])}`;
+// 直線: 実線は丸い端の 1 本、破線は切りっぱなしの端（確定事項32）。
+function lineOps([from, to], width, style) {
+  const head = style.dash !== null ? `${num(width)} w ${dashOps(style.dash)}` : `${num(width)} w 1 J`;
+  return `${colorOps(style.stroke)} RG\n${head} ${pathOps([from, to])}`;
 }
 
-// 矢印: 直線のあとに終点の翼 2 本（丸い角）。
-function arrowOps([from, to], width) {
+// 矢印: 直線のあとに終点の翼 2 本（丸い角）。破線でも矢じりは実線で描く。
+function arrowOps([from, to], width, style) {
   const [left, right] = arrowHead(from, to, width);
-  return [`${num(width)} w 1 J 1 j`, pathOps([from, to]), pathOps([left, to, right])].join('\n');
+  if (style.dash === null)
+    return [`${colorOps(style.stroke)} RG`, `${num(width)} w 1 J 1 j`, pathOps([from, to]), pathOps([left, to, right])].join('\n');
+  return [`${colorOps(style.stroke)} RG`, `${num(width)} w ${dashOps(style.dash)}`, pathOps([from, to]),
+    '[] 0 d 1 J 1 j', pathOps([left, to, right])].join('\n');
 }
 
 // ペン: path ごとの折れ線（丸い端と角）。
-function inkOps(paths, width) {
-  return [`${num(width)} w 1 J 1 j`, ...paths.map(pathOps)].join('\n');
+function inkOps(paths, width, style) {
+  return [`${colorOps(style.stroke)} RG`, `${num(width)} w 1 J 1 j`, ...paths.map(pathOps)].join('\n');
 }
 
-function opsOf(entry) {
+function opsOf(entry, style) {
   switch (entry.kind) {
-    case 'square': return squareOps(entry.rect, entry.lineWidth);
-    case 'circle': return circleOps(entry.rect, entry.lineWidth);
-    case 'line': return lineOps(entry.paths[0], entry.lineWidth);
-    case 'arrow': return arrowOps(entry.paths[0], entry.lineWidth);
-    default: return inkOps(entry.paths, entry.lineWidth);
+    case 'square':
+    case 'circle': return boxOps(entry, style);
+    case 'line': return { ops: lineOps(entry.paths[0], entry.lineWidth, style), cloud: null };
+    case 'arrow': return { ops: arrowOps(entry.paths[0], entry.lineWidth, style), cloud: null };
+    default: return { ops: inkOps(entry.paths, entry.lineWidth, style), cloud: null };
   }
 }
 
@@ -127,19 +163,33 @@ function fieldsOf(entry) {
   return {};
 }
 
-// 外観の中身。戻り値は { content, bbox, subtype, rgb, opacity, lineWidth, vertices?, lineEndings?, inkList? }。
-// 形が違えば null。
+// 見た目の辞書の欄（annotation-fields.js が /IC・/BS・/BE・/RD にする）。雲形は /RD に余白を 4 つ（どちらの順で読まれても
+// 同じ意味）、描けないほど小さな箱の雲形は /BE だけを書く（確定事項33）。
+function styleFieldsOf(style, cloud) {
+  const fields = { fillRgb: style.fill, dash: style.dash === null ? null : style.dash.map(round) };
+  if (style.cloudIntensity !== null)
+    fields.cloudIntensity = style.cloudIntensity;
+  if (cloud !== null)
+    fields.rectDifference = Array(4).fill(round(cloud.margin));
+  return fields;
+}
+
+// 外観の中身。戻り値は { content, group, bbox, subtype, rgb, fillRgb, dash, opacity, lineWidth, cloudIntensity?, rectDifference?,
+// vertices?, lineEndings?, inkList? }。rgb は線が無ければ null。形が違えば null。
 function shapeAppearanceOf(entry) {
   if (!isShapeEntry(entry))
     return null;
-  const rgb = parseColor(entry.color);
+  const style = styleOf(entry);
   const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
-  const content = ['/GS gs', `${colorOps(rgb)} RG`, opsOf(entry)].join('\n');
+  const { ops, cloud } = opsOf(entry, style);
+  const group = alpha < 1;
   return {
-    content,
+    content: group ? ops : `/GS gs\n${ops}`,
+    group,
     bbox: entry.rect.map(round),
     subtype: SUBTYPES[entry.kind],
-    rgb,
+    rgb: style.stroke,
+    ...styleFieldsOf(style, cloud),
     opacity: alpha,
     lineWidth: round(entry.lineWidth),
     ...fieldsOf(entry),

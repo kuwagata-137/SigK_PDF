@@ -41,47 +41,54 @@ test('図形の種類は 4 つで、既定は矩形', () => {
   assert.equal(presets.isShapeKind('shape'), false);
 });
 
-test('色は種類ごとのプリセットで、既定はその先頭', () => {
-  assert.deepEqual(Object.keys(presets.COLORS), presets.TOOLS);
-  assert.deepEqual(presets.COLORS.text, ['#1c2430', '#d92c2c', '#2c5cd9']);
-  assert.deepEqual(presets.COLORS.shape, ['#d92c2c', '#2c5cd9', '#2f9e5a', '#1c2430']);
-  assert.deepEqual(presets.COLORS.pen, presets.COLORS.shape);
-  for (const kind of presets.TOOLS)
-    assert.equal(presets.DEFAULT_COLORS[kind], presets.COLORS[kind][0], kind);
-  for (const color of Object.values(presets.COLORS).flat())
-    assert.equal(typeof presets.COLOR_NAMES[color], 'string', color);
-  assert.equal(presets.isPresetColor('text', '#d92c2c'), true);
-  assert.equal(presets.isPresetColor('text', '#ffe45a'), false);
-  assert.equal(presets.isPresetColor('stamp', '#d92c2c'), false);
+// 色は右パネルのチップとパレットで選ぶ（spec-4b-1b 確定事項2・6）。既定の色は今までの既定をいちばん近いパレットの色へ
+// 置き換えたもので、どれもパレットにある（確定事項14）。候補の丸の並びはやめた。
+test('既定の色は道具ごとのパレットの色', () => {
+  require('../renderer/annotation-palette.js');
+  const palette = globalThis.SigK.annotationPalette;
+  assert.deepEqual(presets.DEFAULT_COLORS, {
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
+  });
+  assert.deepEqual(Object.keys(presets.DEFAULT_COLORS), presets.TOOLS);
+  for (const color of Object.values(presets.DEFAULT_COLORS))
+    assert.equal(palette.isPaletteColor(color), true, color);
+  assert.equal('COLORS' in presets, false);
+  assert.equal('COLOR_NAMES' in presets, false);
+  assert.equal('isPresetColor' in presets, false);
 });
 
-// ノートの色はハイライトと同じ淡い 4 色で、既定は黄（spec-4-4 確定事項37）。
-test('ノートの色は黄・緑・青・桃で既定は黄', () => {
-  assert.deepEqual(presets.COLORS.note, ['#ffe45a', '#8ce99a', '#8fbfff', '#ffa8c8']);
-  assert.equal(presets.DEFAULT_COLORS.note, '#ffe45a');
+// 図形の道具の次に付ける塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。settings.js との一致は settings.test.js。
+test('図形の塗り・線なし・線種の既定は、塗りなし・線あり・実線', () => {
+  assert.deepEqual(presets.DEFAULT_FILLS, { shape: null });
+  assert.deepEqual(presets.DEFAULT_STROKE_NONE, { shape: false });
+  assert.deepEqual(presets.DEFAULT_LINE_STYLES, { shape: 'solid' });
+});
+
+// ノートの既定の色は黄（spec-4-4 確定事項37、spec-4b-1b 確定事項14）。
+test('ノートの既定の色は黄', () => {
+  assert.equal(presets.DEFAULT_COLORS.note, '#ffd966');
   assert.equal(presets.paletteOf('note'), 'note');
-  assert.equal(presets.isPresetColor('note', '#ffa8c8'), true);
-  assert.equal(presets.isPresetColor('note', '#d92c2c'), false);
 });
 
-// 不透明度は 4 段で既定は 1。対象はテキスト・図形・ペン・ノート（spec-4-4 確定事項38）。
-test('不透明度は 4 段で既定は 1、対象は 4 つの道具', () => {
-  assert.deepEqual(presets.OPACITIES, [1, 0.75, 0.5, 0.25]);
+// 不透明度は 10〜100% で既定は 1。対象はテキスト・図形・ペン・ノート（spec-4-4 確定事項38、spec-4b-1b 確定事項20）。
+test('不透明度は 0.1〜1 で既定は 1、対象は 4 つの道具', () => {
+  assert.equal('OPACITIES' in presets, false, '選択肢の並びはやめた（スライダーと数値欄）');
+  assert.equal(presets.OPACITY_MIN, 0.1);
   assert.equal(presets.DEFAULT_OPACITY, 1);
   assert.deepEqual(presets.OPACITY_TOOLS, ['text', 'shape', 'pen', 'note']);
   assert.deepEqual(presets.DEFAULT_OPACITIES, { text: 1, shape: 1, pen: 1, note: 1 });
-  assert.equal(presets.isOpacity(0.5), true);
-  assert.equal(presets.isOpacity(0.6), false);
-  assert.equal(presets.isOpacity('1'), false);
+  for (const value of [0.1, 0.35, 0.6, 1])
+    assert.equal(presets.isOpacity(value), true, String(value));
+  for (const value of [0.09, 0, 1.01, '1', NaN])
+    assert.equal(presets.isOpacity(value), false, String(value));
   for (const kind of ['text', 'square', 'circle', 'line', 'arrow', 'ink', 'note'])
     assert.equal(presets.isOpacityKind(kind), true, kind);
   for (const kind of ['highlight', 'underline', 'strikeout', 'other', undefined])
     assert.equal(presets.isOpacityKind(kind), false, String(kind));
-  assert.ok(Object.isFrozen(presets.OPACITIES));
   assert.ok(Object.isFrozen(presets.OPACITY_TOOLS));
 });
 
-test('図形 4 種は shape の色、ペンは pen の色を引く', () => {
+test('図形 4 種は shape の値、ペンは pen の値を引く', () => {
   for (const kind of presets.SHAPE_KINDS)
     assert.equal(presets.paletteOf(kind), 'shape', kind);
   assert.equal(presets.paletteOf('ink'), 'pen');
@@ -89,18 +96,18 @@ test('図形 4 種は shape の色、ペンは pen の色を引く', () => {
   assert.equal(presets.paletteOf('pen'), 'pen');
   assert.equal(presets.paletteOf('highlight'), 'highlight');
   assert.equal(presets.paletteOf('text'), 'text');
-  assert.equal(presets.isPresetColor('square', '#2f9e5a'), true);
-  assert.equal(presets.isPresetColor('ink', '#2f9e5a'), true);
-  assert.equal(presets.isPresetColor('ink', '#ffe45a'), false);
 });
 
-test('線の太さは 5 段で既定は 2', () => {
-  assert.deepEqual(presets.LINE_WIDTHS, [1, 2, 3, 5, 8]);
+// 画面から選べる線の太さは 1〜40 の整数で、既定は 2（spec-4b-1b 確定事項19。論点4）。
+test('線の太さは 1〜40 の整数で既定は 2', () => {
+  assert.equal('LINE_WIDTHS' in presets, false, '選択肢の並びはやめた（スライダーと数値欄）');
+  assert.equal(presets.LINE_WIDTH_MIN, 1);
+  assert.equal(presets.LINE_WIDTH_MAX, 40);
   assert.equal(presets.DEFAULT_LINE_WIDTH, 2);
-  assert.ok(presets.LINE_WIDTHS.includes(presets.DEFAULT_LINE_WIDTH));
-  assert.equal(presets.isLineWidth(5), true);
-  assert.equal(presets.isLineWidth(4), false);
-  assert.equal(presets.isLineWidth('2'), false);
+  for (const width of [1, 4, 17, 40])
+    assert.equal(presets.isLineWidth(width), true, String(width));
+  for (const width of [0, 41, 2.5, '2'])
+    assert.equal(presets.isLineWidth(width), false, String(width));
 });
 
 test('文字の大きさは 14 段で既定は 12', () => {
@@ -115,9 +122,9 @@ test('文字の大きさは 14 段で既定は 12', () => {
 test('プリセットは凍結されている', () => {
   assert.ok(Object.isFrozen(presets.TOOLS));
   assert.ok(Object.isFrozen(presets.SHAPE_KINDS));
-  assert.ok(Object.isFrozen(presets.COLORS));
-  assert.ok(Object.isFrozen(presets.COLORS.text));
-  assert.ok(Object.isFrozen(presets.COLORS.shape));
+  assert.ok(Object.isFrozen(presets.DEFAULT_COLORS));
+  assert.ok(Object.isFrozen(presets.DEFAULT_FILLS));
+  assert.ok(Object.isFrozen(presets.DEFAULT_STROKE_NONE));
+  assert.ok(Object.isFrozen(presets.DEFAULT_LINE_STYLES));
   assert.ok(Object.isFrozen(presets.FONT_SIZES));
-  assert.ok(Object.isFrozen(presets.LINE_WIDTHS));
 });

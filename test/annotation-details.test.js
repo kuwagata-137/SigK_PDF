@@ -3,9 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+require('../renderer/free-text-geometry.js');
+require('../renderer/imported-values.js');
 require('../renderer/annotation-details.js');
 
-// 注釈の辞書の読み戻しを当てる層（spec-4b-1a 確定事項25〜27）。純関数と、口を 1 本ずつ呼ぶ順番待ちを見る。
+// 注釈の辞書の読み戻しを当てる層（spec-4b-1a 確定事項25〜27、spec-4b-1b 確定事項36〜39）。純関数と、口を 1 本ずつ呼ぶ順番待ちを見る。
 // 読み込みの流れの中での使われ方は annotation-import.test.js が見る。
 
 const details = globalThis.SigK.annotationDetails;
@@ -39,18 +41,59 @@ test('applyDetails は不透明度を当て、答えが無ければそのまま'
   assert.equal(details.applyDetails(entry('line'), { ca: 0.5, interior: [1, 0, 0] }).readonly, undefined);
 });
 
-test('applyDetails は四角・丸の塗り・雲形・0 でない /RD と、不透明度 0 を表示のみにする', () => {
-  const readonly = (kind, detail) => details.applyDetails(entry(kind), detail);
-  assert.deepEqual(readonly('square', { interior: [1, 1, 0] }), {
-    ref: '30R', src: 0, kind: 'other', subtype: 'Square', color: '#ff0000', opacity: 1,
+// 塗りは灰・CMYK を RGB に直して当てる（確定事項36・39）。直線・矢印の /IC は開いた矢じりに効かないので当てない。
+test('applyDetails は四角・丸の塗りを当て、灰と CMYK は RGB に直す', () => {
+  const apply = (kind, detail, extra) => details.applyDetails(entry(kind, extra), detail);
+  assert.equal(apply('square', { interior: [1, 1, 0] }).fill, '#ffff00');
+  assert.equal(apply('circle', { interior: [0.8] }).fill, '#cccccc');
+  assert.equal(apply('square', { interior: [0, 0, 1, 0] }).fill, '#ffff00');
+  assert.equal(apply('square', { interior: [0, 0, 0, 0.25] }).fill, '#bfbfbf');
+  assert.equal(apply('square', { interior: [] }).fill, undefined, '空の /IC は塗りなし');
+  assert.equal(apply('square', { interior: [1, 0] }).fill, undefined, '成分の数が合わなければ塗りなし');
+  assert.equal(apply('line', { interior: [1, 0, 0] }).fill, undefined);
+  assert.equal(apply('square', { interior: [1, 1, 0] }).readonly, undefined);
+});
+
+// 雲形は強さ（2 まで）を当て、箱は /Rect のまま（確定事項38。決定47 ⑯）。強さ 0 か無いものは雲形でない。
+test('applyDetails は雲形の強さを当て、雲形の破線は表示のみにする', () => {
+  const apply = (kind, detail, extra) => details.applyDetails(entry(kind, extra), detail);
+  const cloudy = apply('circle', { cloudy: true, cloudIntensity: 1, rectDifference: [10, 10, 10, 10] });
+  assert.equal(cloudy.lineStyle, 'cloudy');
+  assert.equal(cloudy.cloudIntensity, 1);
+  assert.deepEqual(cloudy.rect, [10, 10, 60, 40], '雲形の箱は /Rect のまま');
+  assert.equal(apply('square', { cloudy: true, cloudIntensity: 3 }).cloudIntensity, 2);
+  assert.equal(apply('square', { cloudy: true, cloudIntensity: 0 }).lineStyle, undefined);
+  assert.equal(apply('square', { cloudy: true, cloudIntensity: null }).lineStyle, undefined);
+  assert.equal(apply('square', { cloudy: true, cloudIntensity: 1 }, { lineStyle: 'dashed' }).readonly, true);
+  assert.equal(apply('square', { cloudy: true, cloudIntensity: 1, rectDifference: [40, 0, 40, 0] }).readonly, true, '雲形でも崩れた /RD は表示のみ');
+});
+
+// 雲形でない四角・丸の /RD（規格の順で 左・上・右・下）は、/Rect から引いた箱を使う（確定事項38）。
+test('applyDetails は /RD を引いた箱を当て、崩れた /RD は表示のみにする', () => {
+  const apply = (kind, detail) => details.applyDetails(entry(kind), detail);
+  const inset = apply('square', { rectDifference: [1, 2, 3, 4] });
+  assert.deepEqual(inset.rect, [11, 14, 57, 38]);
+  assert.deepEqual(inset.quads, [[11, 38, 57, 38, 11, 14, 57, 14]]);
+  assert.deepEqual(apply('square', { rectDifference: [0, 0, 0, 0] }).rect, [10, 10, 60, 40]);
+  assert.deepEqual(apply('square', { rectDifference: [30, 0, 30, 0] }), details.readonlyOf(entry('square')), '左右の和が幅以上');
+  assert.equal(apply('circle', { rectDifference: [0, 15, 0, 15] }).readonly, true, '上下の和が高さ以上');
+  assert.equal(apply('square', { rectDifference: [-1, 0, 0, 0] }).readonly, true);
+  assert.equal(apply('square', { rectDifference: [1, 2, 3] }).readonly, true);
+});
+
+// 線なし（/C が無いか線幅 0 の四角・丸）は塗りがあれば直せ、無ければ答えが無くても表示のみ（確定事項36）。
+test('applyDetails は線も塗りも無いものと、不透明度 0 を表示のみにする', () => {
+  assert.equal(details.applyDetails(entry('square', { color: null }), { interior: [1, 1, 0] }).color, null);
+  assert.equal(details.applyDetails(entry('square', { color: null }), { interior: null }).readonly, true);
+  assert.equal(details.applyDetails(entry('circle', { color: null }), undefined).readonly, true);
+  assert.deepEqual(details.applyDetails(entry('square', { color: null }), {}), {
+    ref: '30R', src: 0, kind: 'other', subtype: 'Square', color: null, opacity: 1,
     quads: [[10, 40, 60, 40, 10, 10, 60, 10]], rect: [10, 10, 60, 40], text: '', author: '', readonly: true,
   });
-  assert.equal(readonly('circle', { cloudy: true }).subtype, 'Circle');
-  assert.equal(readonly('square', { rectDifference: [0, 5, 0, 0] }).readonly, true);
-  assert.equal(readonly('square', { rectDifference: [0, 0, 0, 0] }).readonly, undefined, '/RD が 0 なら直せる');
-  assert.equal(readonly('square', { interior: [] }).readonly, undefined, '空の /IC は塗りなし');
-  assert.equal(readonly('note', { ca: 0 }).subtype, 'Text');
+  assert.equal(details.applyDetails(entry('note'), { ca: 0 }).subtype, 'Text');
   assert.equal(details.readonlyOf(entry('arrow', { text: undefined })).subtype, 'PolyLine');
+  const readonly = details.readonlyOf(entry('square'));
+  assert.equal(details.applyDetails(readonly, { interior: [1, 0, 0] }), readonly, '表示のみのものは変えない');
 });
 
 test('requestDetails は口を呼べないとき呼ばずに理由を返す', async (t) => {

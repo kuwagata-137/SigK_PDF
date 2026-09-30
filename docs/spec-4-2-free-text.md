@@ -219,7 +219,7 @@ B の検体を Browser パネルの pdf.js で開いた。
 | # | 項目 | 決定 |
 |---|---|---|
 | 34 | 文字の大きさ | `[8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48]` pt の `<select>`。既定 **12**。`ui.annotFontSize` に覚える |
-| 35 | 色 | 黒 `#1c2430`・赤 `#d92c2c`・青 `#2c5cd9`（下線と同じ 3 色）。既定 **黒**。`ui.annotColors.text` に覚える。`ANNOT_COLORS` と `annotation-presets.js` の一致を `settings.test.js` が見張る |
+| 35 | 色 | 黒 `#1c2430`・赤 `#d92c2c`・青 `#2c5cd9`（下線と同じ 3 色）。既定 **黒**。`ui.annotColors.text` に覚える。`ANNOT_COLORS` と `annotation-presets.js` の一致を `settings.test.js` が見張る **2026-09-30 追記（`spec-4b-1b`）**: 候補の丸はやめ、色のチップとパレットで選ぶ（色の行の見出しは「文字の色」）。既定は `#222a35`（確定事項1・2・14） |
 
 ---
 

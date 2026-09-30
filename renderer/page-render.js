@@ -98,7 +98,9 @@
       const entries = Number.isInteger(src)
         ? root.SigK.annotationState.annotsOnPage(state.annots, state.imported, src)
         : [];
-      layer.draw(entry.annots.svg, entries, entry.annots.viewport, {
+      // スライダーを動かしている間は、選んだ書き込みを下見の値で描く（spec-4b-1b 確定事項8）。
+      const preview = root.SigK.annotatePreview;
+      layer.draw(entry.annots.svg, preview === undefined ? entries : entries.map(preview.previewFor), entry.annots.viewport, {
         selected: root.SigK.annotate?.getSelected() ?? null,
         editing: root.SigK.freeTextEditor?.editingKey() ?? null,
         // 描いている途中の図形（spec-4-3 確定事項3）。

@@ -105,7 +105,7 @@ test('テキストの道具で紙を押すと入力欄が開き、枠の外を�
   const viewport = SigK.viewer.getTextLayer(0).viewport;
   const scale = viewport.scale;
   assert.equal(parseFloat(node.style.fontSize), 12 * scale);
-  assert.equal(node.style.color, 'rgb(28, 36, 48)');
+  assert.equal(node.style.color, 'rgb(34, 42, 53)');
   // 左上は押した点から枠線ぶんだけ外側
   const [px, py] = viewport.convertToViewportPoint(100, 700);
   assert.equal(parseFloat(node.style.left), px - SigK.freeTextEditor.BORDER);
@@ -126,7 +126,7 @@ test('テキストの道具で紙を押すと入力欄が開き、枠の外を�
   assert.equal(entry.kind, 'text');
   assert.equal(entry.text, 'こんにちは\n世界');
   assert.equal(entry.fontSize, 12);
-  assert.equal(entry.color, '#1c2430');
+  assert.equal(entry.color, '#222a35');
   assert.equal(entry.rotation, 0);
   assert.equal(entry.src, 0);
   assert.deepEqual(plain(entry.rect), [100, 700 - 34, 164, 700]);
@@ -306,19 +306,20 @@ test('文字の大きさは選んだ注釈を変え、次に置く大きさと�
   assert.equal(SigK.annotate.setFontSize(13), false);
 });
 
-test('覚えた文字の大きさは起動時に戻り、色の丸はテキストの色を変える', async (t) => {
-  const shell = await withTextTool(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotColors: { text: '#2c5cd9' }, annotFontSize: 24 } });
+test('覚えた文字の大きさは起動時に戻り、パレットでテキストの色を変えられる', async (t) => {
+  const shell = await withTextTool(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotColors: { text: '#4472c4' }, annotFontSize: 24 } });
   const { SigK, document } = shell;
   await shell.flush();
   assert.equal(SigK.annotate.getFontSize(), 24);
-  assert.equal(SigK.annotate.colorOf('text'), '#2c5cd9');
+  assert.equal(SigK.annotate.colorOf('text'), '#4472c4');
   const entry = placeAndCommit(shell);
   assert.equal(entry.fontSize, 24);
-  assert.equal(entry.color, '#2c5cd9');
-  const swatches = [...document.querySelectorAll('#props-colors .swatch')];
-  assert.deepEqual(swatches.map((s) => s.dataset.color), ['#1c2430', '#d92c2c', '#2c5cd9']);
-  swatches[1].click();
-  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#d92c2c');
+  assert.equal(entry.color, '#4472c4');
+  // 色の行はテキストだと「文字の色」（spec-4b-1b 確定事項1）。
+  assert.equal(document.getElementById('props-color-label').textContent, '文字の色');
+  assert.equal(document.getElementById('props-color-name').textContent, '#4472C4');
+  shell.pickColor('props-color', '#c00000');
+  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#c00000');
   assert.equal(document.getElementById('props-text-label').textContent, '本文');
   assert.equal(document.getElementById('props-text').textContent, '「こんにちは」');
   assert.match(document.getElementById('props-hint').textContent, /ダブルクリック/);

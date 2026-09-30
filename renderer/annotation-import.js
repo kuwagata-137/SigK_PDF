@@ -67,7 +67,8 @@
     const answer = refs.length === 0 ? null : await details().requestDetails(file, refs);
     if (!isAlive())
       return null;
-    const applied = answer?.ok === true ? applyAll(imported, answer.details) : imported;
+    // 答えが無くても当てる（線も塗りも無いものを表示のみにそろえる。spec-4b-1b 確定事項36）。
+    const applied = applyAll(imported, answer?.ok === true ? answer.details : {});
     markNoView(doc, applied);
     root.SigK.viewer?.deliverImported(doc, applied, { rerender: Object.keys(applied).map(Number) });
     // 自前のテキストがあれば画面のフォントを先読みする（spec-4-2 確定事項33）。

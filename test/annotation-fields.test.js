@@ -89,3 +89,30 @@ test('popupDict は親を指す閉じたポップアップを、印刷・拡大�
   assert.deepEqual(popup.get(PDFName.of('Rect')).asArray().map((value) => value instanceof PDFNumber && value.asNumber()), [120, 600, 300, 700]);
   assert.equal(String(popup.get(PDFName.of('Open'))), 'false');
 });
+
+// 塗り・線なし・破線・雲形の欄（spec-4b-1b 確定事項32〜34）。線なしは /C を書かず、/BS /W と /Border には選んだ太さを書く
+// （/C の無い枠は透明で、開き直したときに太さが戻る）。
+test('shapeFields は塗りを /IC、破線を /BS /S /D と /D、雲形を /BE と /RD に書き、線なしは /C を書かない', () => {
+  const filled = shapeFields({ rgb: [1, 0, 0], fillRgb: [1, 0.851, 0.4], dash: null, lineWidth: 2 }, TOOLS);
+  assert.deepEqual(filled.C, [1, 0, 0]);
+  assert.deepEqual(filled.IC, [1, 0.851, 0.4]);
+  assert.deepEqual(filled.BS, { W: 2, S: 'S' });
+
+  const noStroke = shapeFields({ rgb: null, fillRgb: [0.663, 0.808, 0.569], dash: null, lineWidth: 5 }, TOOLS);
+  assert.equal('C' in noStroke, false);
+  assert.deepEqual(noStroke.IC, [0.663, 0.808, 0.569]);
+  assert.deepEqual(noStroke.BS, { W: 5, S: 'S' });
+  assert.deepEqual(noStroke.Border, [0, 0, 5]);
+
+  const dashed = shapeFields({ rgb: [0, 0, 1], fillRgb: null, dash: [6, 4], lineWidth: 2 }, TOOLS);
+  assert.deepEqual(dashed.BS, { W: 2, S: 'D', D: [6, 4] });
+  assert.equal('IC' in dashed, false);
+  assert.deepEqual(dashed.Border, [0, 0, 2], '/Border には間隔を書かない（/BS があれば使われない）');
+
+  const cloudy = shapeFields({ rgb: [1, 0, 0], fillRgb: null, dash: null, lineWidth: 2, cloudIntensity: 1, rectDifference: [6, 6, 6, 6] }, TOOLS);
+  assert.deepEqual(cloudy.BE, { S: 'C', I: 1 });
+  assert.deepEqual(cloudy.RD, [6, 6, 6, 6]);
+  const tinyCloud = shapeFields({ rgb: [1, 0, 0], fillRgb: null, dash: null, lineWidth: 2, cloudIntensity: 2 }, TOOLS);
+  assert.deepEqual(tinyCloud.BE, { S: 'C', I: 2 });
+  assert.equal('RD' in tinyCloud, false);
+});

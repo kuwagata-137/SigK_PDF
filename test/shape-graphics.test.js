@@ -6,9 +6,14 @@ const { JSDOM } = require('jsdom');
 
 require('../renderer/free-text-geometry.js');
 require('../renderer/shape-geometry.js');
+require('../renderer/shape-style.js');
+require('../renderer/shape-outline.js');
+require('../renderer/cloud-geometry.js');
+require('../renderer/shape-figure.js');
 require('../renderer/shape-graphics.js');
 
-// 画面の図形・ペン（spec-4-3 確定事項8・11・25）。SVG の要素と、印刷用の canvas 2D の描き手。
+// 画面の図形・ペン（spec-4-3 確定事項8・11・25、spec-4b-1b 確定事項29〜33・40〜42）。SVG の要素と、印刷用の canvas 2D の描き手。
+// 部品の幾何は shape-figure.test.js で見る。
 
 const graphics = globalThis.SigK.shapeGraphics;
 const geo = globalThis.SigK.shapeGeometry;
@@ -42,17 +47,13 @@ function num(value) {
   return Math.round(value * 100) / 100;
 }
 
-function recordingContext(calls) {
+// 呼ばれた口と代入を calls に残す ctx。fixed の名前（canvas など）はその値を返す。
+function recordingContext(calls, fixed = {}) {
   return new Proxy({}, {
-    get: (_target, name) => (...args) => { calls.push([name, ...args]); },
+    get: (_target, name) => (name in fixed ? fixed[name] : (...args) => { calls.push([name, ...args]); }),
     set: (_target, name, value) => { calls.push(['set', name, value]); return true; },
   });
 }
-
-test('viewBoxOf は紙の座標の箱を表示の px の箱にする（回転しても min/max で組む）', () => {
-  assert.deepEqual(graphics.viewBoxOf([100, 600, 300, 700], viewport({ scale: 2 })), { x: 200, y: 283.78, width: 400, height: 200 });
-  assert.deepEqual(graphics.viewBoxOf([100, 600, 300, 700], viewport({ rotation: 90 })), { x: 600, y: 100, width: 100, height: 200 });
-});
 
 test('svgOf は矩形を線幅の半分だけ内側の <rect> にし、線の属性は <g> に付ける', () => {
   const g = graphics.svgOf(makeDoc(), SQUARE, viewport({ scale: 2 }));
@@ -139,4 +140,114 @@ test('paint は canvas 2D に同じ絵を描く', () => {
   calls.length = 0;
   graphics.paint(ctx, { ...LINE, opacity: 0.5 }, viewport());
   assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'globalAlpha' && value === 0.5));
+});
+
+// ---- 塗り・線なし・線幅の頭打ち・破線・雲形（spec-4b-1b 確定事項29〜33・41） ----
+
+test('svgOf は塗りを <g> の fill に、線なしを stroke="none" にし、線なしは箱そのものを塗る', () => {
+  const filled = graphics.svgOf(makeDoc(), { ...SQUARE, fill: '#ffff00' }, viewport({ scale: 2 }));
+  assert.deepEqual([filled.getAttribute('stroke'), filled.getAttribute('fill')], ['#d92c2c', '#ffff00']);
+  const noStroke = graphics.svgOf(makeDoc(), { ...CIRCLE, color: null, fill: '#ffff00' }, viewport({ scale: 2 }));
+  assert.deepEqual([noStroke.getAttribute('stroke'), noStroke.getAttribute('fill')], ['none', '#ffff00']);
+  const ellipse = noStroke.querySelector('ellipse');
+  assert.deepEqual(['cx', 'cy', 'rx', 'ry'].map((name) => ellipse.getAttribute(name)), ['400', '383.78', '200', '100']);
+});
+
+test('svgOf は太い線の四角の線幅を短い辺の半分で頭打ちにする（確定事項30）', () => {
+  const g = graphics.svgOf(makeDoc(), { ...SQUARE, lineWidth: 40, rect: [100, 600, 130, 620] }, viewport());
+  assert.equal(g.getAttribute('stroke-width'), '10');
+  const rect = g.querySelector('rect');
+  assert.deepEqual(['x', 'y', 'width', 'height'].map((name) => rect.getAttribute(name)), ['105', '226.89', '20', '10']);
+});
+
+test('svgOf は破線の四角を保存と同じ点列の <path> にし、間隔と切りっぱなしの端を付ける（確定事項41）', () => {
+  const g = graphics.svgOf(makeDoc(), { ...SQUARE, lineStyle: 'dashed' }, viewport({ scale: 2 }));
+  assert.equal(g.children.length, 1);
+  const path = g.querySelector('path');
+  assert.equal(path.getAttribute('d'), 'M202,481.78 L598,481.78 L598,285.78 L202,285.78 Z');
+  assert.equal(path.getAttribute('stroke-dasharray'), '12 8');
+  assert.equal(path.getAttribute('stroke-linecap'), 'butt');
+});
+
+test('svgOf は雲形を丸い角の <path> にし、破線の矢印は軸だけ破線で矢じりは実線にする', () => {
+  const cloud = graphics.svgOf(makeDoc(), { ...SQUARE, rect: [60, 600, 260, 760], lineStyle: 'cloudy', cloudIntensity: 2 }, viewport());
+  assert.equal(cloud.getAttribute('stroke-linejoin'), 'round');
+  const d = cloud.querySelector('path').getAttribute('d');
+  assert.match(d, /^M[\d.]+,[\d.]+ C/);
+  assert.equal(d.endsWith(' Z'), true);
+  assert.equal(cloud.querySelector('path').hasAttribute('stroke-dasharray'), false);
+
+  const arrow = graphics.svgOf(makeDoc(), { ...ARROW, lineStyle: 'dashed' }, viewport());
+  assert.equal(arrow.getAttribute('stroke-linecap'), 'round');
+  const axis = arrow.querySelector('path');
+  assert.equal(axis.getAttribute('d'), 'M100,241.89 L300,291.89');
+  assert.equal(axis.getAttribute('stroke-dasharray'), '9 6');
+  assert.equal(axis.getAttribute('stroke-linecap'), 'butt');
+  const head = arrow.querySelector('polyline');
+  assert.equal(head.hasAttribute('stroke-dasharray'), false);
+  assert.equal(head.hasAttribute('stroke-linecap'), false);
+});
+
+test('paint は塗りを先に、線をあとに描き、線なしは線を引かない', () => {
+  const calls = [];
+  graphics.paint(recordingContext(calls), { ...SQUARE, fill: '#ffff00' }, viewport({ scale: 2 }));
+  const names = calls.map(([name]) => name);
+  assert.ok(names.includes('fillRect') && names.indexOf('fillRect') < names.indexOf('strokeRect'));
+  assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'fillStyle' && value === '#ffff00'));
+
+  calls.length = 0;
+  graphics.paint(recordingContext(calls), { ...CIRCLE, color: null, fill: '#ffff00' }, viewport({ scale: 2 }));
+  assert.equal(calls.filter(([name]) => name === 'fill').length, 1);
+  assert.equal(calls.filter(([name]) => name === 'stroke').length, 0);
+  assert.equal(calls.some(([name, key]) => name === 'set' && key === 'strokeStyle'), false);
+});
+
+test('paint は破線に間隔を当てて矢じりでは外し、雲形は同じ点列を bezierCurveTo で引く', () => {
+  const calls = [];
+  graphics.paint(recordingContext(calls), { ...ARROW, lineStyle: 'dashed' }, viewport());
+  assert.deepEqual(calls.filter(([name]) => name === 'setLineDash').map(([, dash]) => dash), [[9, 6], []]);
+  assert.deepEqual(calls.filter(([name, key]) => name === 'set' && key === 'lineCap').map(([, , value]) => value), ['butt', 'round']);
+  assert.equal(calls.filter(([name]) => name === 'stroke').length, 2);
+
+  calls.length = 0;
+  const entry = { ...SQUARE, rect: [60, 600, 260, 760], lineStyle: 'cloudy', cloudIntensity: 2 };
+  graphics.paint(recordingContext(calls), entry, viewport());
+  const cloud = globalThis.SigK.cloudGeometry.cloudOf({ kind: 'square', box: entry.rect, intensity: 2, lineWidth: 2 });
+  assert.equal(calls.filter(([name]) => name === 'bezierCurveTo').length, cloud.segments.filter((segment) => segment.op === 'C').length);
+  assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'lineJoin' && value === 'round'));
+  assert.equal(calls.filter(([name]) => name === 'closePath').length, 1);
+});
+
+// 不透明度が 1 未満なら、図形の外接だけの別の canvas に不透明で描いてから alpha で重ねる（確定事項40。塗りと線が重なっても
+// 濃くならない）。
+test('paint は半透明の図形を別の canvas に描いてから重ね、ページの外に出る分は切る', () => {
+  const calls = [];
+  const layerCalls = [];
+  const made = [];
+  const doc = {
+    createElement: (tag) => {
+      const canvas = { tag, width: 0, height: 0, getContext: () => { made.push([canvas.width, canvas.height]); return recordingContext(layerCalls); } };
+      return canvas;
+    },
+  };
+  const page = { width: 1191, height: 1684, ownerDocument: doc };
+  graphics.paint(recordingContext(calls, { canvas: page }), { ...SQUARE, fill: '#ffff00', opacity: 0.5 }, viewport({ scale: 2 }));
+  // 外接は rect 202〜598 × 285.78〜481.78 に、線幅 4 と余白 2 を足したもの。
+  assert.deepEqual(made, [[408, 209]]);
+  assert.deepEqual(layerCalls[0], ['translate', -196, -279]);
+  assert.ok(layerCalls.some(([name]) => name === 'fillRect'));
+  assert.ok(layerCalls.some(([name]) => name === 'strokeRect'));
+  assert.equal(layerCalls.some(([name, key]) => name === 'set' && key === 'globalAlpha'), false, '別の canvas には不透明で描く');
+  assert.deepEqual(calls.map(([name, ...rest]) => (name === 'drawImage' ? [name, rest[1], rest[2]] : [name, ...rest])), [
+    ['save'], ['set', 'globalAlpha', 0.5], ['drawImage', 196, 279], ['restore'],
+  ]);
+  const image = calls.find(([name]) => name === 'drawImage')[1];
+  assert.deepEqual([image.width, image.height], [0, 0], '描いたら手放す');
+
+  // 不透明なら別の canvas を作らない。ページの外の図形は作らずに（描く所が無い）そのまま描く。
+  calls.length = 0;
+  graphics.paint(recordingContext(calls, { canvas: page }), { ...SQUARE, fill: '#ffff00' }, viewport({ scale: 2 }));
+  graphics.paint(recordingContext(calls, { canvas: page }), { ...SQUARE, rect: [700, 600, 800, 700], opacity: 0.5 }, viewport({ scale: 2 }));
+  assert.equal(made.length, 1);
+  assert.equal(calls.filter(([name]) => name === 'strokeRect').length, 2);
 });

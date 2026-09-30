@@ -7,6 +7,7 @@ require('../renderer/markup-quads.js');
 require('../renderer/free-text-geometry.js');
 require('../renderer/note-graphics.js');
 require('../renderer/imported-values.js');
+require('../renderer/shape-style.js');
 require('../renderer/imported-shape.js');
 require('../renderer/imported-entry.js');
 
@@ -47,9 +48,10 @@ test('importedEntry は Square・Circle を箱と線幅で拾う', () => {
   assert.equal(circle.lineWidth, 3);
   assert.equal(circle.opacity, 0.5);
   assert.deepEqual(circle.rect, [330, 650, 500, 780]);
-  // 線幅が無ければ 1、/C が無ければ直せない（表示のみ）
+  // 線幅が無ければ 1。/C が無い四角は線なしの候補（塗りが無ければ読み戻しで表示のみ。spec-4b-1b 確定事項36）、直線は表示のみ。
   assert.equal(imp.importedEntry({ id: '1R', subtype: 'Square', rect: [0, 0, 10, 10], color: [0, 0, 0] }, 0).lineWidth, 1);
-  assert.equal(imp.importedEntry({ id: '1R', subtype: 'Square', rect: [0, 0, 10, 10], color: null, borderStyle: BORDER }, 0).readonly, true);
+  assert.equal(imp.importedEntry({ id: '1R', subtype: 'Square', rect: [0, 0, 10, 10], color: null, borderStyle: BORDER }, 0).color, null);
+  assert.equal(imp.importedEntry({ id: '2R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: null, borderStyle: BORDER, vertices: [0, 0, 10, 0], lineEndings: ['None', 'None'] }, 0).readonly, true);
   assert.equal(imp.importedEntry({ id: '1R', subtype: 'Square', rect: [0, 0, 10], color: [0, 0, 0] }, 0), null);
 });
 
@@ -96,7 +98,7 @@ test('importedEntry は Text（ノート）を /AP の有無を問わず拾い�
   // /AP の無いものは pdf.js が 22×22 に直して返す。左上 (60, 720) を基準に 20×20 へ。色が無ければ黄。改行は LF に揃える。
   const bare = imp.importedEntry({ id: '14R', subtype: 'Text', rect: [60, 698, 82, 720], color: null, contentsObj: { str: 'a\r\nb\rc' }, titleObj: { str: '' }, hasAppearance: false, name: 'Comment' }, 1);
   assert.deepEqual(bare.rect, [60, 700, 80, 720]);
-  assert.equal(bare.color, '#ffe45a');
+  assert.equal(bare.color, '#ffd966', 'ノートの既定の黄（spec-4b-1b 確定事項14）');
   assert.equal(bare.text, 'a\nb\nc');
   assert.equal(bare.author, '');
   assert.equal(bare.readonly, undefined);
@@ -148,15 +150,20 @@ test('importedEntry は参照の形でない id（/Annots に直に置いた辞�
   assert.equal(imp.isRefId(12), false);
 });
 
-test('importedEntry は線幅 0 と実線でない線の図形・ペンを表示のみにする（まだ同じ見た目に描けないため）', () => {
+// spec-4b-1a では線幅 0 と実線でない線を表示のみにしていた。spec-4b-1b から、線幅 0 の四角・丸は線なしの候補、破線は
+// 直せる破線として読む（確定事項36・37）。描けない線の形（ペンの破線・立体）は表示のみのまま。
+test('importedEntry は線幅 0 の四角を線なしの候補に、破線を直せる破線にし、描けない線の形を表示のみにする', () => {
   const base = { id: '60R', subtype: 'Square', rect: [10, 10, 60, 40], color: [255, 0, 0] };
   const noStroke = imp.importedEntry({ ...base, borderStyle: { width: 0, rawWidth: 1, style: 1, dashArray: [3] } }, 0);
-  assert.equal(noStroke.readonly, true);
-  assert.equal(noStroke.subtype, 'Square');
+  assert.equal(noStroke.readonly, undefined);
+  assert.equal(noStroke.color, null);
   const dashed = imp.importedEntry({ ...base, borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [3, 2] } }, 0);
-  assert.equal(dashed.readonly, true);
+  assert.equal(dashed.readonly, undefined);
+  assert.equal(dashed.lineStyle, 'dashed');
+  assert.deepEqual(dashed.dash, [1.5, 1]);
   const ink = imp.importedEntry({ id: '61R', subtype: 'Ink', rect: [0, 0, 50, 50], color: [0, 0, 0], borderStyle: { width: 2, rawWidth: 2, style: 2, dashArray: [3] }, inkLists: [[1, 2, 3, 4]] }, 0);
   assert.equal(ink.readonly, true);
+  assert.equal(imp.importedEntry({ ...base, borderStyle: { width: 2, style: 3 } }, 0).readonly, true, '立体');
   // 実線で線幅のあるものは今までどおり直せる。
   assert.equal(imp.importedEntry({ ...base, borderStyle: BORDER }, 0).readonly, undefined);
 });

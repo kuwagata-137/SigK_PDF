@@ -98,3 +98,31 @@ test('ペンは途中の点が slop を超えていれば、押した点へ戻�
   assert.ok(entry !== null);
   assert.equal(entry.paths[0].length, 3);
 });
+
+// 下書きも選んだ塗り・線種で描く（spec-4b-1b 確定事項42）。塗りは四角・丸だけ、線種はその種類で選べるものだけ（直線の雲形は
+// 実線）。雲形の強さは 1。
+test('下書きの entry は、四角・丸に塗りと線種を持たせ、選べない線種は実線にする', () => {
+  require('../renderer/shape-style.js');
+  begin('square', [200, 283.78], { color: null, fill: '#ffff00', lineStyle: 'cloudy' });
+  draft.update([600, 483.78]);
+  const box = draft.draftFor(0);
+  assert.deepEqual([box.color, box.fill, box.lineStyle, box.cloudIntensity], [null, '#ffff00', 'cloudy', 1]);
+  draft.cancel();
+
+  begin('line', [200, 283.78], { fill: '#ffff00', lineStyle: 'cloudy' });
+  draft.update([600, 483.78]);
+  const cloudyLine = draft.draftFor(0);
+  assert.equal('fill' in cloudyLine, false);
+  assert.equal('lineStyle' in cloudyLine, false);
+  draft.cancel();
+
+  begin('arrow', [200, 283.78], { lineStyle: 'dashed' });
+  const dashed = draft.finish([600, 483.78], false, 4);
+  assert.equal(dashed.lineStyle, 'dashed');
+  assert.equal('dash' in dashed, false, '描いた破線は既定の 3:2（dash を持たない）');
+
+  begin('ink', [200, 283.78], { lineStyle: 'dashed' });
+  draft.update([260, 300]);
+  assert.equal('lineStyle' in draft.draftFor(0), false, 'ペンは実線だけ');
+  draft.cancel();
+});

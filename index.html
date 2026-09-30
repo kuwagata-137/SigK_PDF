@@ -560,14 +560,22 @@ body{
       <div class="side-head"><span>プロパティ</span></div>
       <div class="props-body">
         <div class="prop"><span class="k">種類</span><span class="v" id="props-kind">–</span></div>
-        <div class="prop"><span class="k">色</span><div class="swatches" id="props-colors"></div></div>
-        <!-- ノートの本文・作成者と不透明度（spec-4-4 確定事項3〜5）。中身と出し入れは annotation-props.js。
-             .props-field の中のキーは欄のもの（viewer-controls.js が素通しする）。 -->
+        <!-- 色・塗り・線種・線の太さ・不透明度（spec-4b-1b 確定事項1〜9）。中身と出し入れは annotation-style-rows.js。
+             色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
+        <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
+          <div class="chip-row"><button type="button" class="chip" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-color-name"></span></div></div>
+        <div class="prop" id="props-fill-row" hidden><span class="k">塗り</span>
+          <div class="chip-row"><button type="button" class="chip" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-fill-name"></span></div></div>
+        <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>
+        <!-- .props-field の中のキーは欄のもの（viewer-controls.js が素通しする）。 -->
+        <div class="prop" id="props-width-row" hidden><span class="k">線の太さ</span>
+          <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
+        <div class="prop" id="props-size-row" hidden><span class="k">文字の大きさ</span><select class="props-select" id="props-size" aria-label="文字の大きさ"></select></div>
+        <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span>
+          <div class="range"><input type="range" class="props-field" id="props-opacity-range" min="10" max="100" step="1" aria-label="不透明度"><input type="number" class="props-field" id="props-opacity" min="10" max="100" step="1" aria-label="不透明度（%）"><span class="unit">%</span></div></div>
+        <!-- ノートの本文・作成者（spec-4-4 確定事項3・4）。中身と出し入れは annotation-note-rows.js。 -->
         <div class="prop" id="props-contents-row" hidden><span class="k">本文</span><textarea class="props-textarea props-field" id="props-contents" rows="3" aria-label="本文"></textarea></div>
         <div class="prop" id="props-author-row" hidden><span class="k">作成者</span><input class="props-input props-field" id="props-author" type="text" maxlength="100" aria-label="作成者"></div>
-        <div class="prop" id="props-size-row" hidden><span class="k">文字の大きさ</span><select class="props-select" id="props-size" aria-label="文字の大きさ"></select></div>
-        <div class="prop" id="props-width-row" hidden><span class="k">線の太さ</span><select class="props-select" id="props-width" aria-label="線の太さ"></select></div>
-        <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span><select class="props-select" id="props-opacity" aria-label="不透明度"></select></div>
         <div class="prop" id="props-page-row" hidden><span class="k">ページ</span><span class="v" id="props-page"></span></div>
         <div class="prop" id="props-text-row" hidden><span class="k" id="props-text-label">対象の文字</span><span class="v" id="props-text"></span></div>
         <p class="props-hint" id="props-hint"></p>
@@ -577,6 +585,9 @@ body{
       </div>
     </div>
   </div>
+
+  <!-- 色のパレットの窓（spec-4b-1b 確定事項6）。右パネルの左、紙の上に重ねて開く。中身は color-popover.js が組む。 -->
+  <div class="color-pop" id="color-pop" role="dialog" aria-label="色" hidden></div>
 
   <div id="status">
     <span id="status-file" title="文書情報を表示 (Ctrl+I)">文書なし</span><span class="sep">│</span>
@@ -722,7 +733,10 @@ body{
 <script src="renderer/viewer-layout.js"></script>
 <script src="renderer/page-plan.js"></script>
 <script src="renderer/annotation-presets.js"></script>
+<script src="renderer/annotation-palette.js"></script>
 <script src="renderer/free-text-geometry.js"></script>
+<script src="renderer/shape-style.js"></script>
+<script src="renderer/annotation-entry-rules.js"></script>
 <script src="renderer/annotation-entry.js"></script>
 <script src="renderer/annotation-state.js"></script>
 <script src="renderer/edit-history.js"></script>
@@ -731,6 +745,9 @@ body{
 <script src="renderer/markup-selection.js"></script>
 <script src="renderer/free-text-shape.js"></script>
 <script src="renderer/shape-geometry.js"></script>
+<script src="renderer/shape-outline.js"></script>
+<script src="renderer/cloud-geometry.js"></script>
+<script src="renderer/shape-figure.js"></script>
 <script src="renderer/shape-graphics.js"></script>
 <script src="renderer/note-graphics.js"></script>
 <script src="renderer/annotation-layer.js"></script>
@@ -795,9 +812,16 @@ body{
 <script src="renderer/shape-draft.js"></script>
 <script src="renderer/annotate-shape.js"></script>
 <script src="renderer/annotate-opacity.js"></script>
+<script src="renderer/annotate-next-style.js"></script>
+<script src="renderer/annotate-color.js"></script>
+<script src="renderer/annotate-preview.js"></script>
 <script src="renderer/annotate-note.js"></script>
 <script src="renderer/annotate-pointer.js"></script>
 <script src="renderer/annotation-note-rows.js"></script>
+<script src="renderer/color-popover.js"></script>
+<script src="renderer/props-range.js"></script>
+<script src="renderer/annotation-style-rows.js"></script>
+<script src="renderer/annotation-hints.js"></script>
 <script src="renderer/annotation-props.js"></script>
 <script src="renderer/annotation-index.js"></script>
 <script src="renderer/annotation-list.js"></script>

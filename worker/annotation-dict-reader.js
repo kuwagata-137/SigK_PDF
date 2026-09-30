@@ -42,7 +42,8 @@ function nameOf(context, value) {
   return typeof item?.encodedName === 'string' ? item.encodedName.slice(1) : null;
 }
 
-// 1 つの注釈の辞書から、画面が要る欄を読む（確定事項23）。無い欄は null（cloudy は false）。
+// 1 つの注釈の辞書から、画面が要る欄を読む（確定事項23）。無い欄は null（cloudy は false）。雲形の強さ /BE /I は
+// spec-4b-1b 確定事項38 で足した（規格の既定は 0 で、効果が無い）。
 function detailsOf(dict, context) {
   const border = context.lookup(pick(dict, '/BS'));
   const effect = context.lookup(pick(dict, '/BE'));
@@ -54,6 +55,7 @@ function detailsOf(dict, context) {
     borderStyle: nameOf(context, pick(border, '/S')),
     dash: numbersOf(context, pick(border, '/D')),
     cloudy: nameOf(context, pick(effect, '/S')) === 'C',
+    cloudIntensity: numberOf(context, pick(effect, '/I')),
     rectDifference: numbersOf(context, pick(dict, '/RD')),
   };
 }

@@ -57,7 +57,7 @@ test('styled.pdf の不透明度・塗り・線幅 0・破線・雲形・/RD・�
   assert.equal(result.ok, true);
   const at = (key) => result.details[ids[key]];
 
-  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, rectDifference: null });
+  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, cloudIntensity: null, rectDifference: null });
   assert.equal(at('0:Circle@220,700').ca, 0.5);
   assert.equal(at('0:PolyLine@380,700').ca, 0.5);
   assert.equal(at('0:Text@540,760').ca, 0.5, 'ノートの不透明度も読める（pdf.js は返さない）');
@@ -66,8 +66,16 @@ test('styled.pdf の不透明度・塗り・線幅 0・破線・雲形・/RD・�
   assert.equal(at('0:Square@380,580').borderStyle, 'D');
   assert.deepEqual(at('0:Square@380,580').dash, [3, 2]);
   assert.equal(at('0:Circle@60,460').cloudy, true);
+  assert.equal(at('0:Circle@60,460').cloudIntensity, 1, '雲形の強さ /BE /I（spec-4b-1b 確定事項38）');
   assert.deepEqual(at('0:Square@220,460').rectDifference, [5, 5, 5, 5]);
   assert.equal(at('0:PolyLine@380,494').borderWidth, 12, 'pdf.js が 1 に置き換える太い線も元の値で読める');
+  // 2 ページ目（spec-4b-1b）: 強さ 2 の雲形と /RD、CMYK と灰の塗り、線の無い楕円。
+  assert.equal(at('1:Square@60,600').cloudIntensity, 2);
+  assert.deepEqual(at('1:Square@60,600').rectDifference, [10, 10, 10, 10]);
+  assert.deepEqual(at('1:Square@300,600').interior, [0, 0, 1, 0]);
+  assert.deepEqual(at('1:Circle@300,450').interior, [0.8]);
+  assert.equal(at('1:Circle@300,450').stroke, null);
+  assert.deepEqual(at('1:PolyLine@59,449').dash, [4, 2]);
   // 世代 1 の参照（3 ページ目）も読める。直に置いた辞書は id が無いので頼めない。
   assert.match(ids['0:Square@60,700'], /^\d+R$/);
   assert.match(ids['2:Square@60,700'], /^\d+R1$/);

@@ -18,8 +18,8 @@ const { IDENTITY, matrixText } = require('./pdf-matrix.js');
 const { ICON_SIZE, noteAppearanceOf } = require('./note-appearance.js');
 
 const FLATTEN_PREFIX = 'SigKF';
-// 色の無いノートは黄（本アプリの読み込みと同じ。spec-4-4 確定事項20）。
-const DEFAULT_NOTE_COLOR = '#ffe45a';
+// 色の無いノートは黄（本アプリの読み込みと同じ。spec-4-4 確定事項20）。spec-4b-1b 確定事項14 でノートの既定の色に合わせた。
+const DEFAULT_NOTE_COLOR = '#ffd966';
 
 const isRef = (value) => typeof value?.objectNumber === 'number';
 // ストリームは getContents を持つ（PDFDict も中身を dict という Map で持つので、dict の有無では見分けられない）。

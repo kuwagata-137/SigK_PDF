@@ -622,6 +622,10 @@ async function createShell({
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
           // 注釈の色（spec-4-1 確定事項34）。種類ごとに重ねる。
           annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },
+          // 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。種類ごとに重ねる。
+          annotFills: { ...(savedUi.annotFills ?? {}), ...(patch?.annotFills ?? {}) },
+          annotStrokeNone: { ...(savedUi.annotStrokeNone ?? {}), ...(patch?.annotStrokeNone ?? {}) },
+          annotLineStyles: { ...(savedUi.annotLineStyles ?? {}), ...(patch?.annotLineStyles ?? {}) },
           // テキストの文字の大きさ（spec-4-2 確定事項21）。
           annotFontSize: patch?.annotFontSize ?? savedUi.annotFontSize,
           // 図形・ペンの線の太さと図形の種類（spec-4-3 確定事項19）。
@@ -784,6 +788,27 @@ async function createShell({
       });
       node.dispatchEvent(event);
       return event;
+    },
+    // 右パネルの色・塗りのチップ（chipId）を押してパレットの窓を開き、色（#rrggbb）か［なし］（null）を押す
+    // （spec-4b-1b 確定事項6）。窓が開かないか、その色が無ければ落とす。
+    pickColor: (chipId, color) => {
+      window.document.getElementById(chipId).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      const pop = window.document.getElementById('color-pop');
+      if (pop.hidden)
+        throw new Error(`パレットの窓が開かない: ${chipId}`);
+      const target = color === null ? pop.querySelector('.foot .none') : pop.querySelector(`.cell[data-color="${color}"]`);
+      if (target === null)
+        throw new Error(`パレットに無い: ${color}`);
+      target.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    },
+    // 右パネルのスライダー（rangeId）を values の順に動かし（input）、最後の値で離す（change。spec-4b-1b 確定事項8）。
+    slide: (rangeId, values) => {
+      const range = window.document.getElementById(rangeId);
+      for (const value of values) {
+        range.value = String(value);
+        range.dispatchEvent(new window.Event('input', { bubbles: true }));
+      }
+      range.dispatchEvent(new window.Event('change', { bubbles: true }));
     },
     // サイドパネルを縦にスクロールしたことにする。
     scrollSide: (top) => {

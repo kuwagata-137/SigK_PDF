@@ -3,11 +3,11 @@
 
   // 不透明度の指揮（spec-4-4 確定事項5・21・38）。
   //
-  // 右パネルの「不透明度」の値を、選んでいる注釈（テキスト・図形・ペン・ノート）に当てて 1 世代積むか、
-  // 選んでいなければ道具ごとに「次に付ける値」として覚える（色と同じ流儀。settings.json の ui.annotOpacity）。
-  // 対象外の種類（ハイライト・下線・取り消し線・表示のみ）は断る。annotate.js から委譲で公開する。
+  // 右パネルの「不透明度」の値（spec-4b-1b 確定事項7・8。10〜100% のスライダーと数値欄）を、選んでいる注釈（テキスト・図形・
+  // ペン・ノート）に当てて 1 世代積むか、選んでいなければ道具ごとに「次に付ける値」として覚える（色と同じ流儀。settings.json の
+  // ui.annotOpacity）。対象外の種類（ハイライト・下線・取り消し線・表示のみ）は断る。annotate.js から委譲で公開する。
 
-  const { OPACITIES, OPACITY_TOOLS, DEFAULT_OPACITIES, isOpacity, isOpacityKind, paletteOf } = root.SigK.annotationPresets;
+  const { OPACITY_TOOLS, DEFAULT_OPACITIES, isOpacity, isOpacityKind, paletteOf } = root.SigK.annotationPresets;
 
   const state = { opacities: { ...DEFAULT_OPACITIES } };
 
@@ -57,11 +57,15 @@
   }
 
   // 選んでいる注釈の不透明度を変えて 1 世代積む。読み込んだものは写しに変わり、選択はその写しへ移す。
+  // 形が崩れて updateAnnot が断ったなら何もしない。
   function updateSelected(entry, value) {
+    const annots = viewer().getAnnotations();
+    const next = annotationState().updateAnnot(annots, entry, { opacity: value });
+    if (next === annots)
+      return;
     const before = annotate().getSelected();
-    const annots = annotationState().updateAnnot(viewer().getAnnotations(), entry, { opacity: value });
-    const after = entry.ref !== undefined ? annots.added.at(-1).id : before;
-    root.SigK.pageEdit.commitAnnots(annots, { annot: { before, after } });
+    const after = entry.ref !== undefined ? next.added.at(-1).id : before;
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
     annotate().select(after);
   }
 
@@ -94,5 +98,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateOpacity = { OPACITIES, init, opacityOf, getOpacities, applyOpacities, rememberOpacity, setOpacity, isOpacityKind };
+  SigK.annotateOpacity = { init, opacityOf, getOpacities, applyOpacities, rememberOpacity, setOpacity, isOpacityKind };
 })(typeof window !== 'undefined' ? window : globalThis);

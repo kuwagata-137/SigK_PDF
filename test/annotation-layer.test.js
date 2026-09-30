@@ -5,10 +5,15 @@ const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
 require('../renderer/markup-quads.js');
+require('../renderer/shape-style.js');
+require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/free-text-geometry.js');
 require('../renderer/free-text-shape.js');
 require('../renderer/shape-geometry.js');
+require('../renderer/shape-outline.js');
+require('../renderer/cloud-geometry.js');
+require('../renderer/shape-figure.js');
 require('../renderer/shape-graphics.js');
 require('../renderer/annotation-layer.js');
 
@@ -186,6 +191,20 @@ test('draw は下書き（draft）を最後に annot-draft として描き、当
   assert.equal(svg.children[1].getAttribute('class'), 'annot-frame');
   // 無ければ描かない
   assert.equal(layer.draw(svg, [HIGHLIGHT], viewport(), { draft: null }), 1);
+});
+
+// 描いている途中も選んだ線種と塗りで描く（spec-4b-1b 確定事項42。雲形はドラッグの間も雲形）。
+test('draw は下書きを選んだ線種と塗りで描く', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport());
+  const draft = { ...SQUARE, id: undefined, color: null, fill: '#ffff00', lineStyle: 'cloudy', cloudIntensity: 1, opacity: 0.5 };
+  layer.draw(svg, [], viewport(), { draft });
+  const group = svg.lastElementChild;
+  assert.equal(group.getAttribute('class'), 'annot-draft');
+  assert.equal(group.getAttribute('opacity'), '0.5');
+  const shape = group.querySelector('g.shape.square');
+  assert.deepEqual([shape.getAttribute('stroke'), shape.getAttribute('fill')], ['none', '#ffff00']);
+  assert.equal(shape.querySelector('path') !== null && shape.querySelector('rect') === null, true);
 });
 
 test('paint は図形を shape-graphics に委ねる', () => {

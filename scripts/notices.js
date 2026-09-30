@@ -125,6 +125,18 @@ const BUNDLED_ASSETS = [
   },
 ];
 
+// ほかのソフトウェアから写した値（コードではなく値と式）。許諾条項は MIT の雛形に著作権表示を入れて掲げる。
+// 書き込みの色のパレットを CheckListMaker の画像エディタと同じ値にすると決めたのは spec-4b-1b 確定事項10〜12（docs/07 決定47 ②）である。
+const ADOPTED_VALUES = [
+  {
+    name: 'CheckListMaker（色のパレットの値）',
+    license: 'MIT',
+    note: '書き込みの色のパレット（テーマの色 10・標準の色 10 と、濃淡 5 段を作る割合と式）は、CheckListMaker の画像エディタ'
+      + '（`index.html`、コミット `eef4a35`）と同じ値である。`renderer/annotation-palette.js` に写した。コードとコメントは写していない。',
+    copyright: 'Copyright (c) 2026 CheckListMaker contributors',
+  },
+];
+
 // 開発時だけ使い、配布物には入らないもの。名称と種別のみ挙げる。
 const DEV_ONLY = ['electron-builder', 'jsdom'];
 
@@ -234,6 +246,18 @@ function build() {
     '```',
   ].join('\n'));
 
+  const adoptedSections = ADOPTED_VALUES.map((entry) => [
+    `### ${entry.name}`,
+    '',
+    `- ライセンス: ${entry.license}`,
+    '',
+    entry.note,
+    '',
+    '```',
+    MIT_TEMPLATE(entry.copyright),
+    '```',
+  ].join('\n'));
+
   const devList = DEV_ONLY.map((pkg) => {
     const manifest = readManifest(pkg);
     return `| ${pkg} | ${manifest.version} | ${manifest.license} |`;
@@ -265,6 +289,12 @@ ${componentSections.join('\n\n')}
 
 ${assetSections.join('\n\n')}
 
+## 取り込んだ値
+
+コードではなく、ほかのソフトウェアと同じ値や式を使っているものである。
+
+${adoptedSections.join('\n\n')}
+
 ## 開発時にのみ用いるもの
 
 配布物には含まれないため、全文は掲げず名称と種別のみを挙げる。
@@ -285,14 +315,14 @@ MIT License。全文は \`LICENSE\` を参照のこと。
 `;
 
   fs.writeFileSync(OUTPUT, body, 'utf8');
-  return { path: OUTPUT, bundled: BUNDLED.length, components: BUNDLED_COMPONENTS.length, assets: BUNDLED_ASSETS.length, copyleft };
+  return { path: OUTPUT, bundled: BUNDLED.length, components: BUNDLED_COMPONENTS.length, assets: BUNDLED_ASSETS.length, adopted: ADOPTED_VALUES.length, copyleft };
 }
 
-module.exports = { BUNDLED, BUNDLED_COMPONENTS, BUNDLED_ASSETS, DEV_ONLY, findCopyleft, build };
+module.exports = { BUNDLED, BUNDLED_COMPONENTS, BUNDLED_ASSETS, ADOPTED_VALUES, DEV_ONLY, findCopyleft, build };
 
 if (require.main === module) {
   const result = build();
-  console.log(`同梱 ${result.bundled} 件＋構成部品 ${result.components} 件＋資産 ${result.assets} 件の告知を書き出しました: ${path.relative(ROOT, result.path)}`);
+  console.log(`同梱 ${result.bundled} 件＋構成部品 ${result.components} 件＋資産 ${result.assets} 件＋取り込んだ値 ${result.adopted} 件の告知を書き出しました: ${path.relative(ROOT, result.path)}`);
   if (result.copyleft.length > 0) {
     console.error('GPL / AGPL のパッケージが見つかりました。同梱の可否を確認してください。');
     console.error(result.copyleft.join('\n'));
