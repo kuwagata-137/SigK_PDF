@@ -152,7 +152,7 @@
     const overflow = incoming.length > plan().MAX_INPUTS - state.rows.length;
     const ids = await addPaths(incoming, { batch: id, limitNotice: false });
     if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
-      banner().show(intake().NOTE_NAME_ORDER);
+      banner().show(intake().NOTE_NAME_ORDER, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
     if (overflow && batches().once('limit'))
       banner().show(limitMessage());
     return ids;
@@ -406,7 +406,8 @@
 
   async function finishSingle(result, target) {
     if (result?.canceled === true) {
-      banner().show('変換を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('変換を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
@@ -414,17 +415,18 @@
       return result ?? { error: '変換できませんでした。' };
     }
 
+    // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
     state.executed = true;
     const count = state.rows.length;
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show('変換しました。タブが多すぎるため開いていません。');
+      banner().show('変換しました。タブが多すぎるため開いていません。', { tone: 'info' });
       return result;
     }
     const opened = await tabs().openPath(target);
     if (opened)
       root.SigK.shell.setMode(el.doc, 'view');
-    banner().show(`${count} ファイルを変換しました（${result.pages} ページ）`, 2500);
+    banner().show(`${count} ファイルを変換しました（${result.pages} ページ）`, { autoHideMs: 2500, tone: 'info' });
     return result;
   }
 
@@ -438,7 +440,8 @@
   function finishEach(result, targets) {
     if (result?.canceled === true) {
       const written = writtenBeforeCancel();
-      banner().show(written > 0 ? `変換を中止しました。${written} ファイルは書き出し済みです。` : '変換を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show(written > 0 ? `変換を中止しました。${written} ファイルは書き出し済みです。` : '変換を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

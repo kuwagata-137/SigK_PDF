@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { createShell, makeSource, makeDroppedFile, makeDataTransfer } = require('./harness.js');
 
@@ -174,4 +176,29 @@ test('従来どおり show(text) と show(text, 数値) で呼べる', async (t)
   shell.SigK.viewBanner.show('すぐ消える', 20);
   await sleep(shell.window, 60);
   assert.equal(shell.SigK.viewBanner.isVisible(), false);
+});
+
+// --- 注意・お知らせの黄色（決定49） ---
+
+test('注意・お知らせは黄色の帯（data-tone="warn"）で出せる', async (t) => {
+  const shell = await withOpenDocument(t);
+
+  shell.SigK.viewBanner.show('1つ目のファイルだけを対象にしました。', { tone: 'warn' });
+
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'warn');
+  assert.equal(shell.SigK.viewBanner.text(), '1つ目のファイルだけを対象にしました。');
+});
+
+// jsdom は CSS を当てないので、見た目の決まりは文字で確かめる。data-tone を付けても
+// shell.css に規則が無ければ、既定の赤のまま出てしまう。
+test('黄色の帯の見た目が shell.css と色の定義にあり、文字は本文の色で書く', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'shell.css'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+  const rule = css.match(/#view-banner\[data-tone="warn"\]\{([^}]*)\}/);
+  assert.notEqual(rule, null, 'shell.css に #view-banner[data-tone="warn"] の規則が無い');
+  assert.match(rule[1], /background:var\(--warn\)/);
+  // 黄色の上では白い文字が読みにくい。
+  assert.match(rule[1], /color:var\(--text\)/);
+  assert.match(html, /--warn:#[0-9a-f]{6}/i, 'index.html の :root に --warn が無い');
 });

@@ -202,7 +202,8 @@
     if (result?.changed === true) {
       const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
       if (!ok) {
-        banner().show('保存を取りやめました。');
+        // 自分で「やめる」を選んだので赤く塗らない（決定49）。
+        banner().show('保存を取りやめました。', { tone: 'info' });
         return { canceled: true };
       }
       // 了承されたので、照合を外してもう一度回す。
@@ -210,7 +211,8 @@
     }
 
     if (result?.canceled === true) {
-      banner().show('保存を中止しました。元のファイルは変更していません。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('保存を中止しました。元のファイルは変更していません。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
@@ -236,7 +238,8 @@
         signature: result.signature ?? null,
       });
     }
-    banner().show('保存しました。', 2500);
+    // 成功は失敗ではないので赤く塗らない（確定事項6・30、決定48）。帯の既定の色は失敗の赤である。
+    banner().show('保存しました。', { autoHideMs: 2500, tone: 'info' });
     return result;
   }
 

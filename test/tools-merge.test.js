@@ -39,6 +39,7 @@ const names = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.nam
 const rows = (shell) => plain(shell.SigK.toolsMerge.rows());
 const runButton = (shell) => shell.document.getElementById('merge-run');
 const bannerText = (shell) => shell.document.getElementById('view-banner').textContent;
+const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
 
 // ---- 足す ----
 
@@ -88,11 +89,14 @@ test('「開いているファイルを追加」はタブの並びで未追加�
   assert.equal(rows[1].note, '未保存の編集は反映されません');
   assert.equal(rowNodes(shell)[1].querySelector('.note').textContent, '未保存の編集は反映されません');
   assert.match(bannerText(shell), /未保存の編集は結合に反映されません/);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
 
   // すべて入っていれば帯で伝える。
   await SigK.toolsMerge.addOpenTabs();
   assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
   assert.match(bannerText(shell), /すべて一覧に入っています/);
+  assert.equal(bannerTone(shell), 'warn');
 });
 
 test('開いているファイルが無ければ帯で伝える', async (t) => {
@@ -284,6 +288,8 @@ test('実行は保存先を聞き、ワーカーへ inputs と target を渡し�
   assert.equal(SigK.tabs.list()[0].path, OUT);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
   assert.equal(bannerText(shell), '2 ファイルを結合しました（5 ページ）');
+  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  assert.equal(bannerTone(shell), 'info');
   assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
   // 最近使ったファイルには openPath が足す（確定事項38）。
   assert.equal(shell.recentCalls.some((call) => call.kind === 'add' && call.entry.path === OUT), true);
@@ -388,6 +394,8 @@ test('中止と失敗は帯で伝え、タブは開かない', async (t) => {
   await SigK.toolsMerge.addPaths([A]);
   assert.deepEqual(plain(await SigK.toolsMerge.run()), { canceled: true });
   assert.equal(bannerText(shell), '結合を中止しました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(bannerTone(shell), 'info');
   const failed = await SigK.toolsMerge.run();
   assert.match(failed.error, /b\.pdf/);
   assert.equal(bannerText(shell), failed.error);
@@ -418,6 +426,8 @@ test('タブが上限なら開かずに帯で伝え、最近使ったファイ�
   await SigK.toolsMerge.run();
   assert.equal(SigK.tabs.count(), 20);
   assert.equal(bannerText(shell), '結合しました。タブが多すぎるため開いていません。');
+  // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
+  assert.equal(bannerTone(shell), 'info');
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(shell.recentList()[0].path, OUT);
 });
@@ -496,6 +506,8 @@ test('束の行はファイル名の順の位置へ入り、注記は行が 2 �
   await SigK.toolsMerge.addFromLaunch([A], next(1));
   assert.deepEqual(names(shell), ['a.pdf', 'c.pdf']);
   assert.equal(bannerText(shell), NOTE_NAME_ORDER);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
 
   SigK.viewBanner.show('ほかの知らせ');
   SigK.shell.setMode(doc, 'view');

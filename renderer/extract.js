@@ -99,7 +99,8 @@
     });
 
     if (result?.canceled === true) {
-      banner().show('抽出を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('抽出を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
@@ -107,7 +108,8 @@
       return result ?? { error: '抽出できませんでした。' };
     }
 
-    banner().show(`${result.pages} ページを抽出しました。`, 2500);
+    // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+    banner().show(`${result.pages} ページを抽出しました。`, { autoHideMs: 2500, tone: 'info' });
     return result;
   }
 

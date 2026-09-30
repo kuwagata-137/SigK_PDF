@@ -50,22 +50,24 @@
   // 書いたあとの後始末。messages は { canceled, failed, done }（帯の文言）。
   async function finish(result, target, { canceled, failed, done }) {
     if (result?.canceled === true) {
-      banner().show(canceled);
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show(canceled, { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
       banner().show(result?.error ?? failed);
       return result ?? { error: failed };
     }
+    // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show(`${done}。タブが多すぎるため開いていません。`);
+      banner().show(`${done}。タブが多すぎるため開いていません。`, { tone: 'info' });
       return result;
     }
     const opened = await tabs().openPath(target);
     if (opened)
       root.SigK.shell.setMode(root.document, 'view');
-    banner().show(done, 2500);
+    banner().show(done, { autoHideMs: 2500, tone: 'info' });
     return result;
   }
 

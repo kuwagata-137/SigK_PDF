@@ -31,6 +31,7 @@ async function createSplitShell(t, options = {}) {
 const plain = (value) => structuredClone(value);
 const runButton = (shell) => shell.document.getElementById('split-run');
 const bannerText = (shell) => shell.SigK.viewBanner.text();
+const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
 const exampleText = (shell) => shell.document.getElementById('split-example').textContent;
 const fire = (shell, id, value) => {
   const input = shell.document.getElementById(id);
@@ -90,6 +91,8 @@ test('「開いているファイル」はアクティブなタブを対象に�
   assert.equal(SigK.toolsSplit.source().note, '未保存の編集は反映されません');
   assert.equal(doc.getElementById('split-note').textContent, '未保存の編集は反映されません');
   assert.match(bannerText(shell), /未保存の編集は分割に反映されません/);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
 });
 
 test('開いているファイルが無ければ帯で伝える', async (t) => {
@@ -108,6 +111,8 @@ test('分割を選んでいるときの PDF のドロップは対象になり、
   assert.equal(SigK.tabs.count(), 0, 'タブには開かない');
   assert.equal(SigK.toolsMerge.rows().length, 0, '結合の一覧には足さない');
   assert.equal(bannerText(shell), '1つ目のファイルだけを対象にしました。');
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
 });
 
 test('対象を差し替えても分け方と出力の設定は残る', async (t) => {
@@ -308,6 +313,8 @@ test('中止と失敗は帯で伝え、中止では書き出し済みの本数�
 
   assert.deepEqual(plain(await SigK.toolsSplit.run()), { canceled: true });
   assert.equal(bannerText(shell), '分割を中止しました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(bannerTone(shell), 'info');
 
   // 走っている間に1本目だけ書き終えてから中止された。本数は進捗から取る
   // （出力先の有無で数えると、上書き前からあったファイルまで数える）。
@@ -381,6 +388,8 @@ test('useFromLaunch はツールモードへ切り替えて分割を選び、名
   assert.equal(SigK.tools.selected(), 'split');
   assert.equal(SigK.toolsSplit.source().path, A);
   assert.equal(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY);
+  // 右クリックから届いたときの注記も黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
 });
 
 test('右クリックの束では、後から届いたパスが名前の順で前なら対象を差し替え、帯は束につき 1 回（spec-5-1 確定事項20）', async (t) => {

@@ -130,6 +130,8 @@ test('差し込むと plan にその位置の要素が増える', async (t) => {
   assert.equal(shell.SigK.viewer.getState().pageCount, 4);
   assert.equal(shell.SigK.viewer.isDirty(), true);
   assert.match(shell.SigK.viewBanner.text(), /1 ページを差し込みました/);
+  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
 test('差し込んだページは、別の文書から引かれる', async (t) => {
@@ -227,6 +229,16 @@ test('ファイルを選ばなければ何も起きない', async (t) => {
   assert.deepEqual(plain(await shell.SigK.insert.run()), { canceled: true });
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(shell.SigK.viewer.getState().pageCount, 3);
+});
+
+test('組み立ての途中で中止したら、何も差し込まずに青い帯で知らせる', async (t) => {
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: PHOTO }], taskResults: [{ canceled: true }] });
+
+  assert.deepEqual(plain(await shell.SigK.insert.run()), { canceled: true });
+  assert.equal(shell.SigK.viewer.getState().pageCount, 3);
+  assert.equal(shell.SigK.viewBanner.text(), '差し込みを中止しました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
 test('断られたら、ワーカーの文言をそのまま帯に出す', async (t) => {

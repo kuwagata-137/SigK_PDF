@@ -47,6 +47,7 @@ const names = (shell) => plain(shell.SigK.toolsConvert.rows().map((row) => row.n
 const rows = (shell) => plain(shell.SigK.toolsConvert.rows());
 const runButton = (shell) => shell.document.getElementById('convert-run');
 const bannerText = (shell) => shell.document.getElementById('view-banner').textContent;
+const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
 const exampleText = (shell) => shell.document.getElementById('convert-example').textContent;
 const cell = (shell, index, selector) => rowNodes(shell)[index].querySelector(selector).textContent;
 const radio = (shell, name, value) => shell.document.querySelector(`input[name="convert-${name}"][value="${value}"]`);
@@ -143,6 +144,8 @@ test('右クリックの束はファイル名の順に並び、注記は束に�
   await SigK.toolsConvert.addFromLaunch([A], { batch: { id: 1, first: false } });
   assert.deepEqual(names(shell), ['a.png', 'c.png']);
   assert.equal(bannerText(shell), note);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
   SigK.viewBanner.show('ほかの知らせ');
   await SigK.toolsConvert.addFromLaunch([B], { batch: { id: 1, first: false } });
   assert.deepEqual(names(shell), ['a.png', 'b.jpg', 'c.png']);
@@ -456,9 +459,40 @@ test('「まとめる」は保存先を聞き、1本ぶんの spec を渡して�
   assert.deepEqual(plain(spec.images[1].layouts.map((layout) => layout.page)), [{ width: 595.28, height: 841.89 }], 'A4 縦');
   assert.equal(spec.images[0].layouts[0].allowUpscale, true);
 
-  // 開いたタブへ移り、帯で知らせる。
+  // 開いたタブへ移り、帯で知らせる。成功は失敗ではないので赤く塗らない（決定48）。
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
   assert.equal(bannerText(shell), '2 ファイルを変換しました（2 ページ）');
+  assert.equal(bannerTone(shell), 'info');
+});
+
+test('「まとめる」でタブが上限なら開かずに帯で伝え、最近使ったファイルへ足す', async (t) => {
+  const files = {};
+  const paths = [];
+  for (let index = 0; index < 20; index += 1) {
+    const filePath = `C:\\work\\t${index}.pdf`;
+    files[filePath] = makeSource({ path: filePath });
+    paths.push(filePath);
+  }
+  const shell = await createConvertShell(t, {
+    files,
+    savePathResults: [{ path: OUT }],
+    taskResults: [{ ok: true, path: OUT, pages: 2, inputs: 2 }],
+  });
+  const { SigK } = shell;
+  for (const filePath of paths)
+    await SigK.tabs.openPath(filePath);
+  assert.equal(SigK.tabs.count(), 20);
+  SigK.shell.setMode(shell.document, 'tools');
+  SigK.tools.select('convert');
+
+  await SigK.toolsConvert.addPaths([A, B]);
+  await SigK.toolsConvert.run();
+  assert.equal(SigK.tabs.count(), 20);
+  assert.equal(bannerText(shell), '変換しました。タブが多すぎるため開いていません。');
+  // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
+  assert.equal(bannerTone(shell), 'info');
+  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
+  assert.equal(shell.recentList()[0].path, OUT);
 });
 
 test('「まとめる」で保存先を取り消せば何も起きない', async (t) => {
@@ -586,6 +620,8 @@ test('中止と失敗は帯で伝え、画像ごとの中止では書き出し�
   // まとめるの中止は本数を添えない（書きかけの一時ファイルだけが消える）。
   assert.deepEqual(plain(await SigK.toolsConvert.run()), { canceled: true });
   assert.equal(bannerText(shell), '変換を中止しました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(bannerTone(shell), 'info');
 
   // 画像ごとの中止は、書き終えた本数を進捗（write の done）から取る。
   pick(shell, 'output', 'each');
@@ -595,6 +631,7 @@ test('中止と失敗は帯で伝え、画像ごとの中止では書き出し�
   release({ canceled: true });
   assert.deepEqual(plain(await running), { canceled: true });
   assert.equal(bannerText(shell), '変換を中止しました。1 ファイルは書き出し済みです。');
+  assert.equal(bannerTone(shell), 'info');
 
   const failed = await SigK.toolsConvert.run();
   assert.match(failed.error, /a\.png/);

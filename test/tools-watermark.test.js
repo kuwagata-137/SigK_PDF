@@ -252,6 +252,25 @@ test('透かしを選んでいるときのドロップは、PDF を対象に、P
   assert.equal(bannerText(shell), 'PDF か画像（PNG・JPEG）を落としてください。');
 });
 
+test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、黄色の帯で知らせる', async (t) => {
+  const LOGO2 = 'C:\\work\\logo2.png';
+  const shell = await createWatermarkShell(t, {
+    watermarkImages: {
+      [LOGO]: { kind: 'png', width: 400, height: 200 },
+      [LOGO2]: { kind: 'png', width: 200, height: 200 },
+    },
+  });
+  const { SigK } = shell;
+
+  assert.equal(await SigK.toolsWatermark.addPaths([LOGO, LOGO2]), true);
+  await shell.flush();
+
+  assert.equal(SigK.toolsWatermark.image().path, LOGO);
+  assert.equal(bannerText(shell), SigK.toolsWatermark.NOTE_FIRST_IMAGE);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(byId(shell, 'view-banner').getAttribute('data-tone'), 'warn');
+});
+
 test('「開いているファイル」が未保存なら注意書きと帯を出す', async (t) => {
   const shell = await createWatermarkShell(t);
   const { document: doc, SigK } = shell;

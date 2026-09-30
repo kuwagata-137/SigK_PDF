@@ -351,6 +351,8 @@ test('中止は次のページの前で止まり、書き出し済みの枚数�
   assert.deepEqual(plain(result), { canceled: true, written: 1 });
   assert.equal(gates.length, 1, '2 ページ目は描かない');
   assert.equal(bannerText(shell), '画像にするのを中止しました。1 ファイルは書き出し済みです。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
   assert.equal(shell.pdfjs.documents.at(-1).destroyed, true, '中止でも文書を畳む');
   assert.equal(SigK.save.isBusy(), false);
 });

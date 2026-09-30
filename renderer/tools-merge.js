@@ -114,14 +114,15 @@
       banner().show('開いているファイルがありません。');
       return [];
     }
+    // 注意・お知らせは黄色の帯で出す（決定49）。
     if (fresh.length === 0) {
-      banner().show('開いているファイルはすべて一覧に入っています。');
+      banner().show('開いているファイルはすべて一覧に入っています。', { tone: 'warn' });
       return [];
     }
     const dirtyIds = new Set(fresh.filter((tab) => tabs().isDirty(tab.id)).map((tab) => pathKey(tab.path)));
     const ids = await addPaths(fresh.map((tab) => tab.path), { dirty: (filePath) => dirtyIds.has(pathKey(filePath)) });
     if (dirtyIds.size > 0)
-      banner().show('未保存の編集は結合に反映されません。保存してから結合し直してください。');
+      banner().show('未保存の編集は結合に反映されません。保存してから結合し直してください。', { tone: 'warn' });
     return ids;
   }
 
@@ -154,7 +155,7 @@
     const overflow = incoming.length > MAX_INPUTS - state.rows.length;
     const ids = await addPaths(incoming, { batch: id, limitNotice: false });
     if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
-      banner().show(intake().NOTE_NAME_ORDER);
+      banner().show(intake().NOTE_NAME_ORDER, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
     if (overflow && batches().once('limit'))
       banner().show(limitMessage());
     return ids;
@@ -312,7 +313,8 @@
 
   async function finish(result, target) {
     if (result?.canceled === true) {
-      banner().show('結合を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('結合を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
@@ -320,17 +322,18 @@
       return result ?? { error: '結合できませんでした。' };
     }
 
+    // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
     state.executed = true;
     const count = state.rows.length;
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show('結合しました。タブが多すぎるため開いていません。');
+      banner().show('結合しました。タブが多すぎるため開いていません。', { tone: 'info' });
       return result;
     }
     const opened = await tabs().openPath(target);
     if (opened)
       root.SigK.shell.setMode(el.doc, 'view');
-    banner().show(`${count} ファイルを結合しました（${result.pages} ページ）`, 2500);
+    banner().show(`${count} ファイルを結合しました（${result.pages} ページ）`, { autoHideMs: 2500, tone: 'info' });
     return result;
   }
 
