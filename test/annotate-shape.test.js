@@ -358,7 +358,10 @@ test('色は図形とペンで別々に覚え、選んでいる図形の色を�
   assert.equal(entry.color, '#4472c4');
   assert.equal(SigK.annotate.setColor('#00b050'), true);
   assert.equal(SigK.viewer.getAnnotations().added[0].color, '#00b050');
-  assert.equal(SigK.annotate.setColor('#ffd966'), false);
+  // 色はパレットの外（「その他の色…」）でも受け、小文字でそろえる。色の形でなければ断る（spec-4b-1b 確定事項13・22）。
+  assert.equal(SigK.annotate.setColor('#FFA8C8'), true);
+  assert.equal(SigK.viewer.getAnnotations().added[0].color, '#ffa8c8');
+  assert.equal(SigK.annotate.setColor('red'), false);
   SigK.annotate.setTool('pen');
   drag(shell, [100, 400], [200, 380], { via: [[150, 390]] });
   assert.equal(SigK.viewer.getAnnotations().added[1].color, '#c00000');
@@ -428,35 +431,49 @@ test('道具の段の図形の 4 つのボタンで種類を選び、右パネ�
   button('arrow').click();
   assert.equal(SigK.annotate.getTool(), null);
   assert.deepEqual(pressed(), []);
-  // 線の太さの select
+  // 線の太さはスライダーと数値欄（spec-4b-1b 確定事項7）。数値欄は Enter か欄の外で確定し、範囲の外は端へ、小数は四捨五入。
   button('circle').click();
   const width = document.getElementById('props-width');
-  assert.deepEqual([...width.options].map((option) => option.value), ['1', '2', '3', '5', '8']);
-  width.value = '5';
-  width.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+  assert.deepEqual([width.min, width.max, width.step], ['1', '40', '1']);
+  shell.slide('props-width-range', [7, 5]);
   assert.equal(SigK.annotateShape.getLineWidth(), 5);
-  // ペンは種類の名前がそのまま
+  assert.equal(width.value, '5');
+  width.value = '41';
+  width.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(SigK.annotateShape.getLineWidth(), 40);
+  assert.equal(width.value, '40');
+  width.value = '3.4';
+  width.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+  assert.equal(SigK.annotateShape.getLineWidth(), 3);
+  // 丸の道具は線の色・塗り・線種（実線・破線・雲形）を出す。
+  assert.equal(document.getElementById('props-color-label').textContent, '線の色');
+  assert.equal(document.getElementById('props-fill-row').hidden, false);
+  assert.deepEqual([...document.querySelectorAll('#props-style button:not([hidden])')].map((el) => el.dataset.style), ['solid', 'dashed', 'cloudy']);
+  // ペンは種類の名前がそのまま。塗りと線種は無い。
   document.querySelector('#edit-bar .edit-tool[data-tool="pen"]').click();
   assert.deepEqual(pressed(), ['pen']);
   assert.equal(widthRow.hidden, false);
   assert.equal(document.getElementById('props-kind').textContent, 'ペン（次に付ける）');
   assert.match(document.getElementById('props-hint').textContent, /なぞる/);
-  // 色の丸は 4 つ
-  assert.equal(document.querySelectorAll('#props-colors .swatch').length, 4);
+  assert.equal(document.getElementById('props-color-label').textContent, '線の色');
+  assert.equal(document.getElementById('props-fill-row').hidden, true);
+  assert.equal(document.getElementById('props-style-row').hidden, true);
   SigK.annotate.setTool(null);
   assert.equal(widthRow.hidden, true);
 });
 
-test('プリセットに無い太さの図形を選ぶと、その値の選択肢が足される', async (t) => {
+// 読み込んだ小数の太さはそのまま見せ、動かすと整数になる（spec-4b-1b 確定事項7）。
+test('読み込んだ小数の太さは数値欄にそのまま出て、スライダーで直すと整数になる', async (t) => {
   const shell = await withShell(t, { stub: { annotations: { 0: [{ id: '33R', subtype: 'Circle', rect: [0, 0, 50, 50], color: new Uint8ClampedArray([0, 0, 0]), borderStyle: { width: 1.5 } }] } } });
   const { SigK, document } = shell;
   SigK.annotate.select('33R');
   const width = document.getElementById('props-width');
   assert.equal(width.value, '1.5');
-  assert.equal(width.querySelectorAll('option').length, 6);
-  SigK.annotate.select(null);
-  SigK.annotate.setTool('pen');
-  assert.equal(width.querySelectorAll('option').length, 5);
+  shell.slide('props-width-range', [3]);
+  const entry = SigK.viewer.getAnnotations().added.at(-1);
+  assert.equal(entry.lineWidth, 3);
+  assert.equal(SigK.annotate.getSelected(), entry.id, '選択は写しへ移る');
+  assert.equal(width.value, '3');
 });
 
 // ---- 次に付ける不透明度（spec-4b-1a 確定事項31・32。事前調査 E で見つけた不具合） ----

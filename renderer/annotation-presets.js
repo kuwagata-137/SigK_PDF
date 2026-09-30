@@ -27,54 +27,37 @@
   const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow']);
   const DEFAULT_SHAPE_KIND = 'square';
 
-  // 右パネルの色の候補の丸。今までの候補の色を、いちばん近いパレットの色へ置き換えた（spec-4b-1b 確定事項14。桃はそのまま）。
-  // 色の行をチップとパレットに作り替えるまでの間だけ使う。
-  const SHAPE_COLORS = Object.freeze(['#c00000', '#4472c4', '#00b050', '#222a35']);
-  const COLORS = Object.freeze({
-    highlight: Object.freeze(['#ffd966', '#a9ce91', '#8faadc', '#ffa8c8']),
-    underline: Object.freeze(['#c00000', '#4472c4', '#222a35']),
-    strikeout: Object.freeze(['#c00000', '#4472c4', '#222a35']),
-    text: Object.freeze(['#222a35', '#c00000', '#4472c4']),
-    shape: SHAPE_COLORS,
-    pen: SHAPE_COLORS,
-    // 付箋の塗り。ハイライトと同じ淡い 4 色（spec-4-4 確定事項37）。
-    note: Object.freeze(['#ffd966', '#a9ce91', '#8faadc', '#ffa8c8']),
+  // 道具ごとの既定の色。今までの既定の色を、いちばん近いパレットの色へ置き換えた（spec-4b-1b 確定事項14）。色は右パネルの
+  // チップからパレット（annotation-palette.js）か「その他の色…」で選び、#rrggbb なら何でも受ける。
+  const DEFAULT_COLORS = Object.freeze({
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
   });
-  const COLOR_NAMES = Object.freeze({
-    '#ffd966': '黄', '#a9ce91': '緑', '#8faadc': '青', '#ffa8c8': '桃', '#c00000': '赤', '#4472c4': '青', '#00b050': '緑', '#222a35': '黒',
-  });
-  // 既定は各プリセットの先頭。
-  const DEFAULT_COLORS = Object.freeze(Object.fromEntries(TOOLS.map((kind) => [kind, COLORS[kind][0]])));
+  // 図形の道具の、次に付ける塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。塗りなし・線あり・実線。
+  const DEFAULT_FILLS = Object.freeze({ shape: null });
+  const DEFAULT_STROKE_NONE = Object.freeze({ shape: false });
+  const DEFAULT_LINE_STYLES = Object.freeze({ shape: 'solid' });
 
   // テキストの文字の大きさ（pt）。
   const FONT_SIZES = Object.freeze([8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48]);
   const DEFAULT_FONT_SIZE = 12;
 
-  // 図形・ペンの線の太さ（pt）。画面から選べるのは 1〜40 の整数（spec-4b-1b 確定事項19）。
-  // LINE_WIDTHS は右パネルの行をスライダーに作り替えるまでの間の候補。
+  // 図形・ペンの線の太さ（pt）。画面から選べるのは 1〜40 の整数（spec-4b-1b 確定事項19。右パネルのスライダーと数値欄）。
   const LINE_WIDTH_MIN = 1;
   const LINE_WIDTH_MAX = 40;
-  const LINE_WIDTHS = Object.freeze([1, 2, 3, 5, 8]);
   const DEFAULT_LINE_WIDTH = 2;
 
   // 不透明度（spec-4-4 確定事項38、spec-4b-1b 確定事項20）。対象はテキスト・図形・ペン・ノートで、道具ごとに最後の値を覚える。
-  // 画面から選べるのは 0.1〜1。ハイライトは multiply で既に文字が透けるので対象にしない。
-  // OPACITIES は右パネルの行をスライダーに作り替えるまでの間の候補。
+  // 画面から選べるのは 0.1〜1（右パネルでは 10〜100%）。ハイライトは multiply で既に文字が透けるので対象にしない。
   const OPACITY_MIN = 0.1;
-  const OPACITIES = Object.freeze([1, 0.75, 0.5, 0.25]);
   const DEFAULT_OPACITY = 1;
   const OPACITY_TOOLS = Object.freeze(['text', 'shape', 'pen', 'note']);
   const DEFAULT_OPACITIES = Object.freeze(Object.fromEntries(OPACITY_TOOLS.map((tool) => [tool, DEFAULT_OPACITY])));
 
-  // 色のプリセットを引く鍵。図形 4 種は 'shape' の色を共有し、ペン（ink）は 'pen'（確定事項28）。
+  // 道具ごとの値（色・不透明度）を引く鍵。図形 4 種は 'shape' を共有し、ペン（ink）は 'pen'（spec-4-3 確定事項28）。
   function paletteOf(kind) {
     if (SHAPE_KINDS.includes(kind))
       return 'shape';
     return kind === 'ink' ? 'pen' : kind;
-  }
-
-  function isPresetColor(kind, color) {
-    return COLORS[paletteOf(kind)]?.includes(color) === true;
   }
 
   function isFontSize(size) {
@@ -114,22 +97,20 @@
     READONLY_LABELS,
     SHAPE_KINDS,
     DEFAULT_SHAPE_KIND,
-    COLORS,
-    COLOR_NAMES,
     DEFAULT_COLORS,
+    DEFAULT_FILLS,
+    DEFAULT_STROKE_NONE,
+    DEFAULT_LINE_STYLES,
     FONT_SIZES,
     DEFAULT_FONT_SIZE,
     LINE_WIDTH_MIN,
     LINE_WIDTH_MAX,
-    LINE_WIDTHS,
     DEFAULT_LINE_WIDTH,
     OPACITY_MIN,
-    OPACITIES,
     DEFAULT_OPACITY,
     OPACITY_TOOLS,
     DEFAULT_OPACITIES,
     paletteOf,
-    isPresetColor,
     isFontSize,
     isLineWidth,
     isShapeKind,

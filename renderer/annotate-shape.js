@@ -48,15 +48,17 @@
     return root.SigK.freeTextEditor?.pageOf(index)?.viewport ?? viewer()?.getTextLayer(index)?.viewport ?? null;
   }
 
-  // 道具が描く種類。「図形」は右パネルで選んだ種類、「ペン」は ink。
+  // 道具が描く種類。「図形」は道具の段で選んだ種類、「ペン」は ink。ほかの道具は null。
   function kindOfTool(tool) {
     if (tool === 'pen')
       return 'ink';
     return tool === 'shape' ? getShapeKind() : null;
   }
 
-  // 履歴に積んで選び直す（annotate-text.js と同じ約束）。
-  function commit(next, { before, target }) {
+  // 履歴に積んで選び直す（annotate-text.js と同じ約束）。形が崩れて updateAnnot が断った（annots のまま）なら何もしない。
+  function commit(next, { before, target, annots = null }) {
+    if (next === annots)
+      return false;
     const after = target === null || target.ref !== undefined ? next.added.at(-1).id : before;
     root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
     annotate().select(after);
@@ -71,7 +73,9 @@
     const src = viewer()?.getPlan()[index]?.src;
     if (kind === null || !isOpen() || viewport === null || !Number.isInteger(src))
       return false;
-    return draft().begin({ index, src, viewport, kind, point, shift, color: annotate().colorOf(kind), lineWidth: getLineWidth(), opacity: annotate().getOpacity(kind) });
+    // 色・塗り・線種は次に付ける値（線なしなら色は null。spec-4b-1b 確定事項42）。
+    const look = annotate().nextStyleOf(kind);
+    return draft().begin({ index, src, viewport, kind, point, shift, ...look, lineWidth: getLineWidth(), opacity: annotate().getOpacity(kind) });
   }
 
   function updateDraft(point, shift = false) {
@@ -123,8 +127,8 @@
     const entry = findEntry(key);
     if (entry === null || !annotationState().isDrawnKind(entry.kind))
       return false;
-    const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, shifted(entry, delta));
-    return commit(next, { before: key, target: entry });
+    const annots = viewer().getAnnotations();
+    return commit(annotationState().updateAnnot(annots, entry, shifted(entry, delta)), { before: key, target: entry, annots });
   }
 
   // ---- 線の太さと図形の種類（確定事項7・19・27・29） ----
@@ -153,9 +157,10 @@
     if (!presets().isLineWidth(width))
       return false;
     const entry = annotate().selectedEntry();
-    if (entry !== null && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
+    if (entry !== null && entry.readonly !== true && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
       const patch = { lineWidth: width, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width }) };
-      commit(annotationState().updateAnnot(viewer().getAnnotations(), entry, patch), { before: annotate().getSelected(), target: entry });
+      const annots = viewer().getAnnotations();
+      commit(annotationState().updateAnnot(annots, entry, patch), { before: annotate().getSelected(), target: entry, annots });
     }
     rememberLineWidth(width);
     root.SigK.annotationProps?.refresh();

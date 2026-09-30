@@ -291,7 +291,7 @@ test('開くと /AP の有無を問わずノートを読み込み、自前の付
   assert.equal(annots.added[0].author, 'SigK 太郎');
   assert.equal(SigK.annotate.getSelected(), annots.added[0].id);
   // 色を変えると覚える。
-  document.querySelector('#props-colors .swatch[data-color="#a9ce91"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  shell.pickColor('props-color', '#a9ce91');
   assert.equal(SigK.viewer.getAnnotations().added[0].color, '#a9ce91');
   assert.equal(SigK.annotate.colorOf('note'), '#a9ce91');
 });
@@ -301,7 +301,7 @@ test('表示のみの注釈は一覧から選べて枠だけ出て消せるが�
   const { SigK, document } = shell;
   assert.equal(SigK.annotate.select('17R'), '17R');
   assert.equal(document.getElementById('props-kind').textContent, '直線（表示のみ）');
-  assert.equal(document.querySelectorAll('#props-colors .swatch').length, 0);
+  assert.equal(document.getElementById('props-color-row').hidden, true);
   assert.equal(document.getElementById('props-opacity-row').hidden, true);
   assert.equal(document.getElementById('props-contents-row').hidden, true);
   assert.equal(document.getElementById('props-text').textContent, '「other line」');
@@ -351,15 +351,15 @@ test('「不透明度」の行は対象の道具と注釈で出て、道具ご�
   const shell = await withShell(t);
   const { SigK, document } = shell;
   const row = document.getElementById('props-opacity-row');
-  const select = document.getElementById('props-opacity');
+  const number = document.getElementById('props-opacity');
   assert.equal(row.hidden, true);
   SigK.annotate.setTool('highlight');
   assert.equal(row.hidden, true);
   SigK.annotate.setTool('shape');
   assert.equal(row.hidden, false);
-  assert.deepEqual([...select.options].map((option) => [option.value, option.textContent]), [['1', '100%'], ['0.75', '75%'], ['0.5', '50%'], ['0.25', '25%']]);
-  select.value = '0.5';
-  select.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+  // 10〜100% のスライダーと数値欄（spec-4b-1b 確定事項7）。
+  assert.deepEqual([number.min, number.max, number.value], ['10', '100', '100']);
+  shell.slide('props-opacity-range', [80, 50]);
   assert.equal(SigK.annotate.getOpacity('shape'), 0.5);
   assert.equal(SigK.annotate.getOpacity('square'), 0.5);
   assert.equal(SigK.annotate.getOpacity('pen'), 1);
@@ -374,7 +374,7 @@ test('「不透明度」の行は対象の道具と注釈で出て、道具ご�
   assert.equal(SigK.annotate.setOpacity(0.05), false);
   assert.equal(SigK.annotate.setOpacity(1.2), false);
   assert.equal(SigK.annotate.setOpacity(0.25), true);
-  assert.equal(select.value, '0.25');
+  assert.equal(number.value, '25');
   // 次に置く付箋に付く。
   clickAt(shell, 200, 600);
   assert.equal(SigK.viewer.getAnnotations().added[0].opacity, 0.25);
@@ -385,10 +385,8 @@ test('選んでいる注釈の不透明度を変えると 1 世代積み、層�
   const { SigK, document } = shell;
   clickAt(shell, 200, 600);
   const entry = SigK.viewer.getAnnotations().added[0];
-  const select = document.getElementById('props-opacity');
-  assert.equal(select.value, '1');
-  select.value = '0.5';
-  select.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+  assert.equal(document.getElementById('props-opacity').value, '100');
+  shell.slide('props-opacity-range', [70, 50]);
   assert.equal(SigK.viewer.getAnnotations().added[0].opacity, 0.5);
   assert.equal(pageNode(shell).querySelector(`.annot-layer g[data-annot="${entry.id}"]`).getAttribute('opacity'), '0.5');
   assert.equal(SigK.annotate.getOpacity('note'), 0.5, '変えた値は次の値にもなる');
@@ -414,14 +412,13 @@ test('覚えた不透明度と作成者は起動時に戻り、10〜100% の外�
   assert.equal(shell.SigK.annotate.getAuthor(), 'h.user');
 });
 
-test('読み込んだ注釈のプリセットに無い不透明度は選択肢の末尾に出る', async (t) => {
+test('読み込んだ注釈の不透明度は、スライダーと数値欄に % で出る', async (t) => {
   const shell = await withShell(t, { stub: { annotations: { 0: [{ id: '31R', subtype: 'Ink', rect: [58, 298, 222, 362], color: new Uint8ClampedArray([43, 92, 217]), borderStyle: { width: 3 }, inkLists: [new Float32Array([60, 300, 100, 360, 140, 300])], opacity: 0.6 }] } } });
   const { SigK, document } = shell;
   SigK.annotate.select('31R');
-  const select = document.getElementById('props-opacity');
-  assert.equal(select.value, '0.6');
-  assert.equal(select.querySelector('option[data-extra]').textContent, '60%');
+  assert.equal(document.getElementById('props-opacity').value, '60');
+  assert.equal(document.getElementById('props-opacity-range').value, '60');
   SigK.annotate.select(null);
   SigK.annotate.setTool('pen');
-  assert.equal(select.querySelector('option[data-extra]'), null);
+  assert.equal(document.getElementById('props-opacity').value, '100');
 });

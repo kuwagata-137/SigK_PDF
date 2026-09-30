@@ -788,14 +788,61 @@ html[data-mode="annot"] #props{display:flex}
 }
 .swatch.on{box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--accent)}
 .props-hint{margin:0; color:var(--muted); font-size:11.5px; line-height:1.7}
-/* 図形の種類（spec-4-3 確定事項2）。4 つのボタンで、押しているものを強調する。 */
+/* 線種（spec-4b-1b 確定事項5）。40×30 のボタンで、押しているものを強調する。 */
 .props-kinds{display:flex; gap:4px}
 .props-kinds button{
   width:40px; height:30px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2);
   display:grid; place-items:center; color:var(--muted); cursor:pointer; padding:0;
 }
+.props-kinds button[hidden]{display:none}
 .props-kinds button:hover{color:var(--text)}
 .props-kinds button.on{border-color:var(--accent); color:var(--accent); background:var(--select); box-shadow:inset 0 0 0 1px var(--accent)}
+/* 色と塗りのチップ（spec-4b-1b 確定事項2・3。モック）。押すとパレットの窓が開く。「なし」は白地に赤の斜線。 */
+.chip-row{display:flex; align-items:center; gap:8px}
+.chip-row .name{font-size:12px; color:var(--muted)}
+.chip{
+  height:28px; padding:0 7px 0 4px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2);
+  display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-size:12px; color:var(--muted);
+}
+.chip .sw{width:44px; height:18px; border-radius:4px; border:1px solid rgba(16,24,40,.18); position:relative; overflow:hidden}
+.chip .sw.none{background:#fff}
+.chip .sw.none::after{content:""; position:absolute; left:50%; top:-12px; bottom:-12px; width:2px; margin-left:-1px; background:var(--danger); transform:rotate(66deg)}
+.chip .caret{font-size:9px; color:var(--muted)}
+.chip.open{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+/* 線の太さと不透明度（確定事項7）。スライダー＋数値欄＋単位。 */
+.range{display:flex; align-items:center; gap:8px}
+.range input[type=range]{flex:1; min-width:0; accent-color:var(--accent); margin:0}
+.range input[type=number]{
+  width:52px; height:28px; padding:0 6px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2);
+  font:13px inherit; font-family:inherit; color:var(--text); text-align:right;
+}
+.range .unit{font-size:12px; color:var(--muted); width:16px}
+/* 色のパレットの窓（確定事項6。モック screenshots/phase4b-style-palette.png）。位置は color-popover.js が決める。 */
+.color-pop{
+  position:fixed; z-index:30; width:268px; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  box-shadow:var(--shadow); padding:10px 12px 12px;
+}
+.color-pop[hidden]{display:none}
+.color-pop .ttl{font-size:11px; color:var(--muted); letter-spacing:.04em; margin:0 0 8px}
+.color-pop .sub{font-size:11px; color:var(--muted); margin:10px 0 6px}
+.color-pop .ttl + .sub{margin-top:0}
+.color-pop .grid{display:grid; grid-template-columns:repeat(10,20px); gap:4px}
+.color-pop .grid.shades{gap:0 4px; margin-top:6px}
+.color-pop .cell{width:20px; height:20px; border:1px solid rgba(16,24,40,.14); border-radius:3px; padding:0; cursor:pointer}
+.color-pop .grid.shades .cell{border-radius:0}
+.color-pop .cell.on{box-shadow:0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); position:relative; z-index:1}
+.color-pop .foot{display:flex; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--border)}
+.color-pop .foot button{
+  flex:1; height:28px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2); font-size:12px;
+  color:var(--text); display:inline-flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;
+}
+.color-pop .foot button[hidden]{display:none}
+.color-pop .foot button[aria-disabled="true"]{cursor:default}
+.color-pop .mini{width:14px; height:14px; border-radius:50%; border:1px solid rgba(16,24,40,.18)}
+.color-pop .mini.none{background:#fff; position:relative; overflow:hidden}
+.color-pop .mini.none::after{content:""; position:absolute; left:50%; top:-2px; bottom:-2px; width:1.5px; margin-left:-.75px; background:var(--danger); transform:rotate(45deg)}
+.color-pop .mini.other{background:conic-gradient(#c00000,#ffc000,#ffff00,#00b050,#00b0f0,#0070c0,#7030a0,#c00000)}
+.color-pop .other-input{position:absolute; left:0; bottom:0; width:0; height:0; opacity:0; pointer-events:none; border:0; padding:0}
 /* 文字の大きさ・線の太さ（spec-4-2 確定事項2・34、spec-4-3 確定事項2・29）。 */
 .props-select{
   font:13px inherit; font-family:inherit; width:110px; height:28px; padding:0 8px;

@@ -161,6 +161,13 @@
     shapeLine: [['path', { d: 'M5 18L19 6' }]],
     shapeArrow: [['path', { d: 'M5 18L19 6M12 6h7v7' }]],
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
+    // 右パネルの「線種」（spec-4b-1b 確定事項5。モックの絵を 24 の格子に置き直した）。
+    lineSolid: [['path', { d: 'M4 12h16', 'stroke-width': 2 }]],
+    lineDashed: [['path', { d: 'M4 12h16', 'stroke-width': 2, 'stroke-dasharray': '4 3', 'stroke-linecap': 'butt' }]],
+    lineCloudy: [['path', {
+      d: 'M5 15A3 3 0 0 1 7 9.5A3.2 3.2 0 0 1 12 7.5A3.2 3.2 0 0 1 17 9.5A3 3 0 0 1 19 15A2.6 2.6 0 0 1 16 17A3 3 0 0 1 12 17.5A3 3 0 0 1 8 17A2.6 2.6 0 0 1 5 15Z',
+      'stroke-width': 1.6,
+    }]],
   };
 
   function has(name) {

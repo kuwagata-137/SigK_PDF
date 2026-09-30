@@ -389,6 +389,10 @@ test('注釈の既定と文字の大きさ・太さ・不透明度の範囲が r
   assert.equal(ANNOT_OPACITY_MIN, presets.OPACITY_MIN);
   assert.deepEqual(DEFAULTS.annotOpacity, presets.DEFAULT_OPACITIES);
   assert.deepEqual(Object.keys(DEFAULTS.annotOpacity), presets.OPACITY_TOOLS);
+  // 図形の塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。
+  assert.deepEqual(DEFAULTS.annotFills, presets.DEFAULT_FILLS);
+  assert.deepEqual(DEFAULTS.annotStrokeNone, presets.DEFAULT_STROKE_NONE);
+  assert.deepEqual(DEFAULTS.annotLineStyles, presets.DEFAULT_LINE_STYLES);
 });
 
 // 不透明度は道具ごとに 0.1〜1 を受け取り、小数 2 桁にそろえる（spec-4-4 確定事項21、spec-4b-1b 確定事項27）。

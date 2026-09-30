@@ -117,9 +117,12 @@ test('道具はトグルで、持つとプロパティに種類と色が出る',
   assert.equal(button.classList.contains('active'), true);
   assert.equal(button.getAttribute('aria-pressed'), 'true');
   assert.equal(document.getElementById('props-kind').textContent, 'ハイライト（次に付ける）');
-  const swatches = [...document.querySelectorAll('#props-colors .swatch')];
-  assert.deepEqual(swatches.map((s) => s.dataset.color), ['#ffd966', '#a9ce91', '#8faadc', '#ffa8c8']);
-  assert.equal(swatches[0].classList.contains('on'), true);
+  // 色は今の色のチップ 1 つ（spec-4b-1b 確定事項2）。ハイライトには塗り・線種・太さ・不透明度の行を出さない。
+  assert.equal(document.getElementById('props-color-row').hidden, false);
+  assert.equal(document.getElementById('props-color-label').textContent, '色');
+  assert.equal(document.getElementById('props-color-name').textContent, '#FFD966');
+  for (const row of ['props-fill-row', 'props-style-row', 'props-width-row', 'props-opacity-row'])
+    assert.equal(document.getElementById(row).hidden, true, row);
 
   button.dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(SigK.annotate.getTool(), null);
@@ -283,11 +286,11 @@ test('Esc は選択を解除し、次に道具を離す', async (t) => {
   assert.equal(SigK.annotate.getTool(), null);
 });
 
-test('色の丸で選んだ注釈の色が変わり、その色を覚える', async (t) => {
+test('パレットで選んだ注釈の色が変わり、その色を覚える', async (t) => {
   const shell = await withOneHighlight(t);
-  const { document, SigK } = shell;
+  const { SigK } = shell;
   clickAt(shell, 0, 80, 705);
-  document.querySelector('#props-colors .swatch[data-color="#a9ce91"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  shell.pickColor('props-color', '#a9ce91');
 
   assert.equal(SigK.viewer.getAnnotations().added[0].color, '#a9ce91');
   assert.equal(layerOf(shell, 0).querySelector('polygon').getAttribute('fill'), '#a9ce91');
@@ -298,11 +301,12 @@ test('色の丸で選んだ注釈の色が変わり、その色を覚える', as
   assert.equal(SigK.viewer.getAnnotations().added[0].color, '#ffd966');
 });
 
-test('注釈を選んでいなければ、色の丸は道具の色（次に付ける色）を変える', async (t) => {
+test('注釈を選んでいなければ、パレットの色は道具の色（次に付ける色）を変える', async (t) => {
   const shell = await withOpenDocument(t);
   const { document, SigK } = shell;
   SigK.annotate.setTool('underline');
-  document.querySelector('#props-colors .swatch[data-color="#4472c4"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  shell.pickColor('props-color', '#4472c4');
+  assert.equal(document.getElementById('props-color-name').textContent, '#4472C4');
   assert.equal(SigK.annotate.colorOf('underline'), '#4472c4');
   assert.equal(SigK.pageEdit.canUndo(), false, '編集ではない');
   selectText(shell, 0, 0, 0);
@@ -397,7 +401,7 @@ test('読み込んだ注釈は選んで消せ、色も変えられ、保存の�
   assert.equal(document.getElementById('props-kind').textContent, 'ハイライト');
   assert.equal(document.getElementById('props-text-row').hidden, true, '読み込んだものに文字は無い');
 
-  document.querySelector('#props-colors .swatch[data-color="#8faadc"]').dispatchEvent(new shell.window.MouseEvent('click'));
+  shell.pickColor('props-color', '#8faadc');
   let annots = SigK.viewer.getAnnotations();
   assert.deepEqual(plain(annots.removed), ['86R']);
   assert.equal(annots.added.length, 1);

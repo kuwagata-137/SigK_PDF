@@ -52,6 +52,10 @@
       });
       // 注釈の色と文字の大きさ（spec-4-1 確定事項34、spec-4-2 確定事項21）。古い settings.json には無いことがある。
       root.SigK.annotate?.applyColors(result.ui.annotColors);
+      // 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。
+      root.SigK.annotate?.applyFills(result.ui.annotFills);
+      root.SigK.annotate?.applyStrokeNone(result.ui.annotStrokeNone);
+      root.SigK.annotate?.applyLineStyles(result.ui.annotLineStyles);
       root.SigK.annotate?.applyFontSize(result.ui.annotFontSize);
       root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
       root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);

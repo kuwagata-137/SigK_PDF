@@ -226,9 +226,10 @@
       return;
     if (handleFindPrintKey(event))
       return;
-    // テキストの入力欄と右パネルの「本文」「作成者」の中のキーは欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4）。
-    // Ctrl+Z は素の取り消し、Delete・Esc・PageUp 等も奪わない。Esc と Ctrl+Enter は欄自身が確定に使う。
-    if (event.target?.closest?.('.free-text-editor, .props-field'))
+    // テキストの入力欄と右パネルの欄（「本文」「作成者」・太さと不透明度のスライダーと数値欄）、色のパレットの窓の中のキーは
+    // 欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4、spec-4b-1b 確定事項6・7）。Ctrl+Z は素の取り消し、Delete・Esc・
+    // PageUp 等も奪わない。Esc と Ctrl+Enter は欄自身が確定に使い、パレットの窓は Esc で自分を閉じる。
+    if (event.target?.closest?.('.free-text-editor, .props-field, .color-pop'))
       return;
     if (handlePageEditKey(event, doc))
       return;

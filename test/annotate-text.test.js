@@ -306,7 +306,7 @@ test('文字の大きさは選んだ注釈を変え、次に置く大きさと�
   assert.equal(SigK.annotate.setFontSize(13), false);
 });
 
-test('覚えた文字の大きさは起動時に戻り、色の丸はテキストの色を変える', async (t) => {
+test('覚えた文字の大きさは起動時に戻り、パレットでテキストの色を変えられる', async (t) => {
   const shell = await withTextTool(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotColors: { text: '#4472c4' }, annotFontSize: 24 } });
   const { SigK, document } = shell;
   await shell.flush();
@@ -315,9 +315,10 @@ test('覚えた文字の大きさは起動時に戻り、色の丸はテキス�
   const entry = placeAndCommit(shell);
   assert.equal(entry.fontSize, 24);
   assert.equal(entry.color, '#4472c4');
-  const swatches = [...document.querySelectorAll('#props-colors .swatch')];
-  assert.deepEqual(swatches.map((s) => s.dataset.color), ['#222a35', '#c00000', '#4472c4']);
-  swatches[1].click();
+  // 色の行はテキストだと「文字の色」（spec-4b-1b 確定事項1）。
+  assert.equal(document.getElementById('props-color-label').textContent, '文字の色');
+  assert.equal(document.getElementById('props-color-name').textContent, '#4472C4');
+  shell.pickColor('props-color', '#c00000');
   assert.equal(SigK.viewer.getAnnotations().added[0].color, '#c00000');
   assert.equal(document.getElementById('props-text-label').textContent, '本文');
   assert.equal(document.getElementById('props-text').textContent, '「こんにちは」');
