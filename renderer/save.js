@@ -236,7 +236,7 @@
         signature: result.signature ?? null,
       });
     }
-    // 成功は失敗ではないので赤く塗らない（確定事項6・30）。帯の既定の色は失敗の赤である。
+    // 成功は失敗ではないので赤く塗らない（確定事項6・30、決定48）。帯の既定の色は失敗の赤である。
     banner().show('保存しました。', { autoHideMs: 2500, tone: 'info' });
     return result;
   }

@@ -114,7 +114,8 @@
     const after = numbers.map((_number, index) => at + index);
     root.SigK.pageEdit.commit(next, { before: [], after });
 
-    banner().show(`${numbers.length} ページを差し込みました。`, 2500);
+    // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+    banner().show(`${numbers.length} ページを差し込みました。`, { autoHideMs: 2500, tone: 'info' });
     return { ok: true, pages: numbers.length, at };
   }
 

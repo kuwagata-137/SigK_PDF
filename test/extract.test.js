@@ -221,6 +221,8 @@ test('抽出しても、タブも未保存の印も動かない', async (t) => {
   assert.equal(shell.recentCalls.some((call) => call.kind === 'add' && call.entry.path === OUT), false,
     '抽出したファイルは開かないので、最近使ったファイルにも載せない');
   assert.match(shell.SigK.viewBanner.text(), /抽出しました/);
+  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
 test('失敗したら、ワーカーの文言をそのまま帯に出す', async (t) => {

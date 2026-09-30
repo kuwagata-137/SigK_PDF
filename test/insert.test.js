@@ -130,6 +130,8 @@ test('差し込むと plan にその位置の要素が増える', async (t) => {
   assert.equal(shell.SigK.viewer.getState().pageCount, 4);
   assert.equal(shell.SigK.viewer.isDirty(), true);
   assert.match(shell.SigK.viewBanner.text(), /1 ページを差し込みました/);
+  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
 test('差し込んだページは、別の文書から引かれる', async (t) => {

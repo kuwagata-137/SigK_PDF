@@ -414,17 +414,18 @@
       return result ?? { error: '変換できませんでした。' };
     }
 
+    // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
     state.executed = true;
     const count = state.rows.length;
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show('変換しました。タブが多すぎるため開いていません。');
+      banner().show('変換しました。タブが多すぎるため開いていません。', { tone: 'info' });
       return result;
     }
     const opened = await tabs().openPath(target);
     if (opened)
       root.SigK.shell.setMode(el.doc, 'view');
-    banner().show(`${count} ファイルを変換しました（${result.pages} ページ）`, 2500);
+    banner().show(`${count} ファイルを変換しました（${result.pages} ページ）`, { autoHideMs: 2500, tone: 'info' });
     return result;
   }
 

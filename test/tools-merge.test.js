@@ -39,6 +39,7 @@ const names = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.nam
 const rows = (shell) => plain(shell.SigK.toolsMerge.rows());
 const runButton = (shell) => shell.document.getElementById('merge-run');
 const bannerText = (shell) => shell.document.getElementById('view-banner').textContent;
+const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
 
 // ---- 足す ----
 
@@ -284,6 +285,8 @@ test('実行は保存先を聞き、ワーカーへ inputs と target を渡し�
   assert.equal(SigK.tabs.list()[0].path, OUT);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
   assert.equal(bannerText(shell), '2 ファイルを結合しました（5 ページ）');
+  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  assert.equal(bannerTone(shell), 'info');
   assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
   // 最近使ったファイルには openPath が足す（確定事項38）。
   assert.equal(shell.recentCalls.some((call) => call.kind === 'add' && call.entry.path === OUT), true);
@@ -418,6 +421,8 @@ test('タブが上限なら開かずに帯で伝え、最近使ったファイ�
   await SigK.toolsMerge.run();
   assert.equal(SigK.tabs.count(), 20);
   assert.equal(bannerText(shell), '結合しました。タブが多すぎるため開いていません。');
+  // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
+  assert.equal(bannerTone(shell), 'info');
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(shell.recentList()[0].path, OUT);
 });

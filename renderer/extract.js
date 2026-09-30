@@ -107,7 +107,8 @@
       return result ?? { error: '抽出できませんでした。' };
     }
 
-    banner().show(`${result.pages} ページを抽出しました。`, 2500);
+    // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+    banner().show(`${result.pages} ページを抽出しました。`, { autoHideMs: 2500, tone: 'info' });
     return result;
   }
 

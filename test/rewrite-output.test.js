@@ -56,6 +56,8 @@ test('finish は中止と失敗を帯で伝え、書けたら新しいタブで�
   assert.equal(shell.SigK.tabs.list()[0].path, OUT);
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'view');
   assert.equal(shell.SigK.viewBanner.text(), '書きました');
+  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
 test('タブが上限なら開かず、「最近使ったファイル」に足して帯で伝える', async (t) => {
@@ -63,6 +65,8 @@ test('タブが上限なら開かず、「最近使ったファイル」に足�
   shell.SigK.tabs.count = () => shell.SigK.tabs.MAX_TABS;
   await shell.SigK.rewriteOutput.finish({ ok: true }, OUT, MESSAGES);
   assert.equal(shell.SigK.viewBanner.text(), '書きました。タブが多すぎるため開いていません。');
+  // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
   assert.equal(shell.recentCalls.some((call) => JSON.stringify(call).includes('a_x.pdf')), true);
   assert.equal(shell.SigK.tabs.list().length, 0);
 });
