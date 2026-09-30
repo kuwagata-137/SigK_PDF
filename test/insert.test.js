@@ -231,6 +231,16 @@ test('ファイルを選ばなければ何も起きない', async (t) => {
   assert.equal(shell.SigK.viewer.getState().pageCount, 3);
 });
 
+test('組み立ての途中で中止したら、何も差し込まずに青い帯で知らせる', async (t) => {
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: PHOTO }], taskResults: [{ canceled: true }] });
+
+  assert.deepEqual(plain(await shell.SigK.insert.run()), { canceled: true });
+  assert.equal(shell.SigK.viewer.getState().pageCount, 3);
+  assert.equal(shell.SigK.viewBanner.text(), '差し込みを中止しました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
+});
+
 test('断られたら、ワーカーの文言をそのまま帯に出す', async (t) => {
   const shell = await withOpenDocument(t, {
     insertSourceResults: [{ path: 'C:\\work\\a.gif' }],

@@ -14,9 +14,12 @@
   // 塊⑤ で2つ足した。**操作ボタン**（保存中の「中止」を押させる場所）と、
   // **色**（進捗まで赤いと失敗に見える）である。文字だけを出す従来の呼び方
   // show(text) と show(text, 20) はそのまま動く。
+  //
+  // 色は 3 つ（決定48・49）。既定の danger（赤）は失敗と断り、info（青）は進捗・成功・
+  // 中止、warn（黄）は注意・お知らせに使う。
 
   const AUTO_HIDE_MS = 6000;
-  const TONES = ['danger', 'info'];
+  const TONES = ['danger', 'info', 'warn'];
 
   const state = { timer: 0 };
 

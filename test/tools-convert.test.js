@@ -144,6 +144,8 @@ test('右クリックの束はファイル名の順に並び、注記は束に�
   await SigK.toolsConvert.addFromLaunch([A], { batch: { id: 1, first: false } });
   assert.deepEqual(names(shell), ['a.png', 'c.png']);
   assert.equal(bannerText(shell), note);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
   SigK.viewBanner.show('ほかの知らせ');
   await SigK.toolsConvert.addFromLaunch([B], { batch: { id: 1, first: false } });
   assert.deepEqual(names(shell), ['a.png', 'b.jpg', 'c.png']);
@@ -618,6 +620,8 @@ test('中止と失敗は帯で伝え、画像ごとの中止では書き出し�
   // まとめるの中止は本数を添えない（書きかけの一時ファイルだけが消える）。
   assert.deepEqual(plain(await SigK.toolsConvert.run()), { canceled: true });
   assert.equal(bannerText(shell), '変換を中止しました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(bannerTone(shell), 'info');
 
   // 画像ごとの中止は、書き終えた本数を進捗（write の done）から取る。
   pick(shell, 'output', 'each');
@@ -627,6 +631,7 @@ test('中止と失敗は帯で伝え、画像ごとの中止では書き出し�
   release({ canceled: true });
   assert.deepEqual(plain(await running), { canceled: true });
   assert.equal(bannerText(shell), '変換を中止しました。1 ファイルは書き出し済みです。');
+  assert.equal(bannerTone(shell), 'info');
 
   const failed = await SigK.toolsConvert.run();
   assert.match(failed.error, /a\.png/);

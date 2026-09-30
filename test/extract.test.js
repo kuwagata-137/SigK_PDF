@@ -247,6 +247,8 @@ test('中止したら、そのことを帯に出す', async (t) => {
 
   assert.deepEqual(plain(await runAndAccept(shell)), { canceled: true });
   assert.match(shell.SigK.viewBanner.text(), /抽出を中止しました/);
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
 test('文書を開いていなければ抽出しない', async (t) => {

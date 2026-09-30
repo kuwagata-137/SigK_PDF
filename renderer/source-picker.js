@@ -65,7 +65,7 @@
       const dirty = tabs().isDirty(active.id) === true;
       const ok = await setSource(active.path, { dirty });
       if (dirty)
-        banner().show(dirtyMessage);
+        banner().show(dirtyMessage, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
       return ok;
     }
 
@@ -83,7 +83,7 @@
         return false;
       const ok = await setSource(incoming[0]);
       if (incoming.length > 1)
-        banner().show(NOTE_FIRST_ONLY);
+        banner().show(NOTE_FIRST_ONLY, { tone: 'warn' });
       return ok;
     }
 

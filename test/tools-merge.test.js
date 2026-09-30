@@ -89,11 +89,14 @@ test('「開いているファイルを追加」はタブの並びで未追加�
   assert.equal(rows[1].note, '未保存の編集は反映されません');
   assert.equal(rowNodes(shell)[1].querySelector('.note').textContent, '未保存の編集は反映されません');
   assert.match(bannerText(shell), /未保存の編集は結合に反映されません/);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
 
   // すべて入っていれば帯で伝える。
   await SigK.toolsMerge.addOpenTabs();
   assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
   assert.match(bannerText(shell), /すべて一覧に入っています/);
+  assert.equal(bannerTone(shell), 'warn');
 });
 
 test('開いているファイルが無ければ帯で伝える', async (t) => {
@@ -391,6 +394,8 @@ test('中止と失敗は帯で伝え、タブは開かない', async (t) => {
   await SigK.toolsMerge.addPaths([A]);
   assert.deepEqual(plain(await SigK.toolsMerge.run()), { canceled: true });
   assert.equal(bannerText(shell), '結合を中止しました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(bannerTone(shell), 'info');
   const failed = await SigK.toolsMerge.run();
   assert.match(failed.error, /b\.pdf/);
   assert.equal(bannerText(shell), failed.error);
@@ -501,6 +506,8 @@ test('束の行はファイル名の順の位置へ入り、注記は行が 2 �
   await SigK.toolsMerge.addFromLaunch([A], next(1));
   assert.deepEqual(names(shell), ['a.pdf', 'c.pdf']);
   assert.equal(bannerText(shell), NOTE_NAME_ORDER);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(bannerTone(shell), 'warn');
 
   SigK.viewBanner.show('ほかの知らせ');
   SigK.shell.setMode(doc, 'view');

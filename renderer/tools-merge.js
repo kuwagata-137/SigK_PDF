@@ -114,14 +114,15 @@
       banner().show('開いているファイルがありません。');
       return [];
     }
+    // 注意・お知らせは黄色の帯で出す（決定49）。
     if (fresh.length === 0) {
-      banner().show('開いているファイルはすべて一覧に入っています。');
+      banner().show('開いているファイルはすべて一覧に入っています。', { tone: 'warn' });
       return [];
     }
     const dirtyIds = new Set(fresh.filter((tab) => tabs().isDirty(tab.id)).map((tab) => pathKey(tab.path)));
     const ids = await addPaths(fresh.map((tab) => tab.path), { dirty: (filePath) => dirtyIds.has(pathKey(filePath)) });
     if (dirtyIds.size > 0)
-      banner().show('未保存の編集は結合に反映されません。保存してから結合し直してください。');
+      banner().show('未保存の編集は結合に反映されません。保存してから結合し直してください。', { tone: 'warn' });
     return ids;
   }
 
@@ -154,7 +155,7 @@
     const overflow = incoming.length > MAX_INPUTS - state.rows.length;
     const ids = await addPaths(incoming, { batch: id, limitNotice: false });
     if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
-      banner().show(intake().NOTE_NAME_ORDER);
+      banner().show(intake().NOTE_NAME_ORDER, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
     if (overflow && batches().once('limit'))
       banner().show(limitMessage());
     return ids;
@@ -312,7 +313,8 @@
 
   async function finish(result, target) {
     if (result?.canceled === true) {
-      banner().show('結合を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('結合を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

@@ -202,7 +202,8 @@
     if (result?.changed === true) {
       const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
       if (!ok) {
-        banner().show('保存を取りやめました。');
+        // 自分で「やめる」を選んだので赤く塗らない（決定49）。
+        banner().show('保存を取りやめました。', { tone: 'info' });
         return { canceled: true };
       }
       // 了承されたので、照合を外してもう一度回す。
@@ -210,7 +211,8 @@
     }
 
     if (result?.canceled === true) {
-      banner().show('保存を中止しました。元のファイルは変更していません。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('保存を中止しました。元のファイルは変更していません。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

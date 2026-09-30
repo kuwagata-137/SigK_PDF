@@ -85,7 +85,7 @@
     const replace = starts || current === null || intake().compareNames(first, current.path) < 0;
     const ok = replace ? await setSource(first) : true;
     if ((incoming.length > 1 || !starts) && batches().once('first-only'))
-      banner().show(NOTE_FIRST_ONLY);
+      banner().show(NOTE_FIRST_ONLY, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
     return ok;
   }
 
@@ -244,7 +244,8 @@
   function finish(result, targets) {
     if (result?.canceled === true) {
       const written = writtenBeforeCancel();
-      banner().show(written > 0 ? `分割を中止しました。${written} ファイルは書き出し済みです。` : '分割を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show(written > 0 ? `分割を中止しました。${written} ファイルは書き出し済みです。` : '分割を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

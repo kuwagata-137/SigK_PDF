@@ -152,7 +152,7 @@
     const overflow = incoming.length > plan().MAX_INPUTS - state.rows.length;
     const ids = await addPaths(incoming, { batch: id, limitNotice: false });
     if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
-      banner().show(intake().NOTE_NAME_ORDER);
+      banner().show(intake().NOTE_NAME_ORDER, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
     if (overflow && batches().once('limit'))
       banner().show(limitMessage());
     return ids;
@@ -406,7 +406,8 @@
 
   async function finishSingle(result, target) {
     if (result?.canceled === true) {
-      banner().show('変換を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('変換を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
@@ -439,7 +440,8 @@
   function finishEach(result, targets) {
     if (result?.canceled === true) {
       const written = writtenBeforeCancel();
-      banner().show(written > 0 ? `変換を中止しました。${written} ファイルは書き出し済みです。` : '変換を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show(written > 0 ? `変換を中止しました。${written} ファイルは書き出し済みです。` : '変換を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

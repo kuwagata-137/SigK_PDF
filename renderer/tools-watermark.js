@@ -97,7 +97,7 @@
     if (images.length > 0) {
       ok = (await setImage(images[0])) || ok;
       if (images.length > 1)
-        banner().show(NOTE_FIRST_IMAGE);
+        banner().show(NOTE_FIRST_IMAGE, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
     }
     return ok;
   }

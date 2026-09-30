@@ -112,6 +112,8 @@ test('addPaths は空の項目を除いて先頭だけを対象にし、2 本以
   assert.equal(await field.addPaths(['', B, A]), true);
   assert.equal(field.source().path, B);
   assert.equal(shell.SigK.viewBanner.text(), shell.SigK.sourcePicker.NOTE_FIRST_ONLY);
+  // 注意・お知らせは黄色の帯で出す（決定49）。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'warn');
 });
 
 test('render は対象の有無・読んでいる間・読めないときを欄に写す', async (t) => {

@@ -271,7 +271,8 @@
   function finish(result, targets) {
     if (result?.canceled === true) {
       const written = result.written ?? 0;
-      banner().show(written > 0 ? `画像にするのを中止しました。${written} ファイルは書き出し済みです。` : '画像にするのを中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show(written > 0 ? `画像にするのを中止しました。${written} ファイルは書き出し済みです。` : '画像にするのを中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

@@ -50,7 +50,8 @@
   // 書いたあとの後始末。messages は { canceled, failed, done }（帯の文言）。
   async function finish(result, target, { canceled, failed, done }) {
     if (result?.canceled === true) {
-      banner().show(canceled);
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show(canceled, { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

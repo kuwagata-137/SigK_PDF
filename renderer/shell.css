@@ -265,8 +265,8 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* 場所はファイル名の下に添えるだけなので、末尾から省いてよい。 */
 .recent-path{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
-/* 失敗を伝える帯（spec-1-2 確定事項20）。文書を開いたままでも読めるよう
-   上端に出す。押せば消え、出さなければ数秒で自動的に消える。 */
+/* 知らせの帯（spec-1-2 確定事項20）。既定の色は失敗の赤で、data-tone で塗り替える。
+   文書を開いたままでも読めるよう上端に出す。押せば消え、出さなければ数秒で自動的に消える。 */
 #view-banner{
   position:absolute; top:0; left:0; right:0; z-index:3;
   padding:9px 16px; text-align:center; font-size:12.5px;
@@ -274,8 +274,10 @@ html[data-panel="collapsed"] #side-resizer{display:none}
   box-shadow:0 2px 8px rgba(16,24,40,.24); cursor:pointer;
 }
 #view-banner[hidden]{display:none}
-/* 進捗は失敗ではないので赤く塗らない（spec-1-6 確定事項6）。 */
+/* 進捗・成功・中止は失敗ではないので赤く塗らない（spec-1-6 確定事項6・決定48・49）。 */
 #view-banner[data-tone="info"]{background:var(--accent)}
+/* 注意・お知らせは黄色（決定49）。黄色の上では白い文字が読みにくいので本文の色で書く。 */
+#view-banner[data-tone="warn"]{background:var(--warn); color:var(--text)}
 #view-banner .banner-text{vertical-align:middle}
 /* 保存中の「中止」。帯の中に置く（確定事項8）。 */
 #view-banner .banner-action{

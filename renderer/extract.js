@@ -99,7 +99,8 @@
     });
 
     if (result?.canceled === true) {
-      banner().show('抽出を中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('抽出を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

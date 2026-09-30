@@ -81,7 +81,8 @@
     });
 
     if (built?.canceled === true) {
-      banner().show('差し込みを中止しました。');
+      // 自分で止めたので赤く塗らない（決定49）。
+      banner().show('差し込みを中止しました。', { tone: 'info' });
       return built;
     }
     if (built?.ok !== true) {

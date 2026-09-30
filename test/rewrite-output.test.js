@@ -47,6 +47,8 @@ test('finish は中止と失敗を帯で伝え、書けたら新しいタブで�
   shell.SigK.shell.setMode(shell.document, 'tools');
   await finish({ canceled: true }, OUT, MESSAGES);
   assert.equal(shell.SigK.viewBanner.text(), 'やめました。');
+  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
   await finish({ error: 'ワーカーの文言' }, OUT, MESSAGES);
   assert.equal(shell.SigK.viewBanner.text(), 'ワーカーの文言');
   await finish(undefined, OUT, MESSAGES);
