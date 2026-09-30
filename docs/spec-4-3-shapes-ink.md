@@ -140,7 +140,7 @@ B で書いた検体（Square・Circle・Line・Line＋矢じり・PolyLine・Po
 | 10 | `rect` と `quads` | 矩形・楕円は `rect` が箱そのもの。直線・矢印・ペンは「描く点（矢じりの 2 つの翼を含む）の外接に線幅の半分を足したもの」。`quads` はどれも `rect` の四隅を 1 つ（`freeTextGeometry.quadOfRect`。塊①の選択枠・検証がそのまま通る）。太さを変えると `rect`・`quads` を作り直す |
 | 11 | 回転 | 図形は紙に描いたものなので、紙と一緒に回る。`/Rotate` は書かず、entry にも回転を持たない。矢じりの翼は紙の座標で計算してから表示へ直す（保存の外観と同じ点になる）。楕円は紙の座標の箱を表示へ直した箱に描く（90° 単位なので軸に沿ったまま） |
 | 12 | 当たり判定 | 矩形・楕円は箱の内側（`markupQuads.hitTest`。塊①と同じ）。直線・矢印・ペンは **線分からの距離**（矢じりの 2 本を含む）が `線幅 / 2 + 3px相当（3 / 倍率 pt）` 以下。`annotate.hitTest` が kind で分ける（`shapeGeometry.hitsPath`） |
-| 13 | 読み込み（論点5） | 文書を開いたとき、`Square` → `square`、`Circle` → `circle`、`Ink` → `ink`、**`PolyLine` は頂点が 2 つのものだけ**（`lineEndings` が `[None, None]` なら `line`、`[None, OpenArrow]` なら `arrow`。それ以外は拾わない）。`Line`・Polygon・3 点以上の PolyLine は拾わない（pdf.js が描く。表示のみ）。欄は `color`（`/C`。無ければ拾わない）・`lineWidth`（`borderStyle.width`。無ければ 1）・`rect`・`paths`（`vertices`／`inkLists`。小数 2 桁に丸める。2 点未満の path は捨て、path が無ければ拾わない）。拾ったものは `noView` で pdf.js に描かせず自前で描く（塊①と同じ）。**2026-09-29 追記（`spec-4b-1a`）**: 線幅は pdf.js が /Rect に合わせて 1 に置き換える前の `rawWidth` を使う（水平な太い直線が保存して開き直すと 1pt に戻っていた）。線幅 0 と実線でない線（破線など）の図形・ペンは表示のみにする（確定事項24） |
+| 13 | 読み込み（論点5） | 文書を開いたとき、`Square` → `square`、`Circle` → `circle`、`Ink` → `ink`、**`PolyLine` は頂点が 2 つのものだけ**（`lineEndings` が `[None, None]` なら `line`、`[None, OpenArrow]` なら `arrow`。それ以外は拾わない）。`Line`・Polygon・3 点以上の PolyLine は拾わない（pdf.js が描く。表示のみ）。欄は `color`（`/C`。無ければ拾わない）・`lineWidth`（`borderStyle.width`。無ければ 1）・`rect`・`paths`（`vertices`／`inkLists`。小数 2 桁に丸める。2 点未満の path は捨て、path が無ければ拾わない）。拾ったものは `noView` で pdf.js に描かせず自前で描く（塊①と同じ）。**2026-09-29 追記（`spec-4b-1a`）**: 線幅は pdf.js が /Rect に合わせて 1 に置き換える前の `rawWidth` を使う（水平な太い直線が保存して開き直すと 1pt に戻っていた）。線幅 0 と実線でない線（破線など）の図形・ペンは表示のみにする（確定事項24） **2026-09-30 追記（`spec-4b-1b`）**: 線の見えない四角・丸（`/C` が無いか線幅 0）は線なしとして読み、塗りがあれば直せる。破線は間隔を線の太さの倍数で持って直せ、雲形（`/BE`）と `/RD` も直せる。描けないもの（雲形の破線・崩れた `/RD`・ペンの破線）と、線も塗りも無いものは表示のみ（確定事項36〜39） |
 
 ### C. 注釈の持ち方と履歴（`spec-4-2` C を広げる）
 
@@ -175,8 +175,8 @@ B で書いた検体（Square・Circle・Line・Line＋矢じり・PolyLine・Po
 | # | 項目 | 決定 |
 |---|---|---|
 | 27 | 道具と種類 | `TOOLS` に `shape`・`pen` を足す。`TOOL_LABELS` に `shape: '図形'`・`pen: 'ペン'`・`square: '矩形'`・`circle: '楕円'`・`line: '直線'`・`arrow: '矢印'`・`ink: 'ペン'`。`SHAPE_KINDS = ['square', 'circle', 'line', 'arrow']`、既定の種類は `square` |
-| 28 | 色 | 図形・ペンとも **赤 `#d92c2c`・青 `#2c5cd9`・緑 `#2f9e5a`・黒 `#1c2430`**、既定 **赤**。`COLORS.shape`・`COLORS.pen`（同じ並び。覚える値は別）。4 種の図形と `ink` は `paletteOf(kind)` で `shape`／`pen` の色を引く。`COLOR_NAMES` に `#2f9e5a: '緑'` |
-| 29 | 線の太さ | `LINE_WIDTHS = [1, 2, 3, 5, 8]` pt の `<select>`。既定 **2**。図形とペンで共通。`ui.annotLineWidth` に覚える。`settings.js` の `ANNOT_LINE_WIDTHS`・`ANNOT_SHAPE_KINDS`・`ANNOT_COLORS.shape/pen` と `annotation-presets.js` の一致を `settings.test.js` が見張る |
+| 28 | 色 | 図形・ペンとも **赤 `#d92c2c`・青 `#2c5cd9`・緑 `#2f9e5a`・黒 `#1c2430`**、既定 **赤**。`COLORS.shape`・`COLORS.pen`（同じ並び。覚える値は別）。4 種の図形と `ink` は `paletteOf(kind)` で `shape`／`pen` の色を引く。`COLOR_NAMES` に `#2f9e5a: '緑'` **2026-09-30 追記（`spec-4b-1b`）**: 候補の丸はやめ、色のチップとパレットで選ぶ（見出しは「線の色」）。既定は `#c00000`。四角・丸には塗り（`/IC`）と線なし、四角・丸・直線・矢印には線種（実線・破線。四角・丸は雲形も）を足した（確定事項2〜5・14・16〜18） |
+| 29 | 線の太さ | `LINE_WIDTHS = [1, 2, 3, 5, 8]` pt の `<select>`。既定 **2**。図形とペンで共通。`ui.annotLineWidth` に覚える。`settings.js` の `ANNOT_LINE_WIDTHS`・`ANNOT_SHAPE_KINDS`・`ANNOT_COLORS.shape/pen` と `annotation-presets.js` の一致を `settings.test.js` が見張る **2026-09-30 追記（`spec-4b-1b`）**: `<select>` をやめ、1〜40pt の整数のスライダーと数値欄にした。動かしている間は下見、離すと 1 世代。描く線幅は四角・丸の短い辺の半分で頭打ちにする（確定事項7・8・19・30） |
 | 30 | 矢じり（論点6） | 終点に開いた矢じり。翼の長さは `max(9pt, 線幅 × 6)`、開きは 30°。線と同じ太さ・色・丸い端と角。`/LE [/None /OpenArrow]` |
 
 ---
