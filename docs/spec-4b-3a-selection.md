@@ -1,7 +1,8 @@
 # 仕様書: Phase 4B 塊③-a 書き込みの選択と複数選択
 
 起草日: 2026-10-01
-ステータス: **確定**（2026-10-01。着手の 6 件は `docs/07` 決定52、事前調査とモックのあとで伺った論点 12 件は決定53）。実装はこれから
+ステータス: **確定**（2026-10-01。着手の 6 件は `docs/07` 決定52、事前調査とモックのあとで伺った論点 12 件は決定53）。**実装済み**（2026-10-01。
+末尾の「実装の記録」。確定事項B3・J1・J4 は実装で補った）
 関連: `docs/05_開発ロードマップ.md` Phase 4B（4B-3）／`docs/01_製品要件定義.md` F-05-13・F-05-20／`docs/04_UI設計.md` 4-3・第8章／
 `docs/07_開発計画の決定事項.md` 決定39・46・47・52・53／`docs/spec-1-5-page-edit.md`（履歴の単位）／`docs/spec-4-1-text-markup.md`（道具の持ち越し）／
 `docs/spec-4-4-notes-list.md`（注釈一覧）／`docs/spec-4b-1b-annotation-style.md`（見た目の設定・下見）／`docs/spec-4b-2-transform.md`（枠とつまみ）
@@ -401,3 +402,64 @@ rotated（回ったページでの Shift の向き）。
 
 - 道具の段が塊⑤⑥で 960px を超える（事前調査 D）→ 塊⑤⑥の事前調査で。
 - ページをまたぐ複数選択は入れない（決定52 ②）。要望が出たら見直す。
+
+---
+
+## 実装の記録（2026-10-01・`claude/phase-4b-selection` ブランチ）
+
+テスト 1,803 → 1,922 件（`TZ=UTC` でも緑）。開発ツリーと配布物（`npm run dist` の `win-unpacked`）の起動確認も通った（窓を出さない起動確認）。
+
+| コミット | 中身 |
+|---|---|
+| `349ffd3` | 振る舞いを変えない分割（`annotate-tools`・`annotate-select`・`annotate-draw`・`viewer-keys`・`frame-graphics`・`annotation-moves`） |
+| `16e65d5` | 選択を鍵の並びに（`annotation-selection`・`annotate-select`）・複数の枠・一覧の光らせ方・履歴の配列 |
+| `0af51ed` | 左ボタンだけで描く・置く・掴む・選ぶ。入力欄の中の押下の守り。紙の上の Ctrl＋クリック |
+| `0bcfdda` | 注釈一覧の Ctrl＋クリック・Shift＋クリック |
+| `3b9ad65` | Backspace・右パネルの「削除」でまとめて消す。2 件以上の右パネルの土台（`annotation-bulk-props`） |
+| `aba1746` | 「選択」の道具 |
+| `a7d7c8f` | 範囲選択（`annotation-marquee`・`annotate-marquee`） |
+| `91aabe2` | まとめて動かす（`annotation-bulk`・`annotate-bulk`・`annotate-grab` を複数に）・Shift |
+| `cc2d282` | Ctrl＋ドラッグで写し（`annotation-ghosts`）。押し離しの判断を `annotate-press` へ分割 |
+| `d32b8c2` | まとめた見た目の設定と「混在」（`annotation-style-patch`・`annotation-chip-rows`） |
+| `a038c67` | 同じ欄を続けて変えたら 1 世代（`commitAnnots` の gesture・`editHistory.amendTop`） |
+| `7e3497c` | `page-edit` から回転・削除・結線を `page-actions` へ分割、畳む判断を `editHistory.record` へ（振る舞いは変えない） |
+| `8f536f0` | 起動確認（`smoke-annotate-select.js`）と画面写真 `screenshots/phase4b-3-app-multi.png` |
+
+### 仕様書から足したこと・変えたこと（起草者の判断）
+
+- **Ctrl を押して書き込みの無い所を押したときは、選択を変えないだけでなく、テキスト・ノートも置かない**（確定事項B3 の補い。Ctrl は選択の
+  足し引きに使うため）。四角・ペンの道具を持っていても描き始めない。
+- **線なしは、線の色と同じ欄として続けた変更に畳む**（確定事項J1 の補い。線なしは線の色のパレットの［なし］で選ぶため）。
+- **「保存で忘れる」（確定事項J4）は `viewer.markSaved` から `pageEdit.forgetGesture` を呼んで行う**（上書き保存・名前を付けて保存の両方）。
+- 描かない道具の一覧（`POINTER_TOOLS`）は、③-a では「選択」だけ。「ハンド」は ③-b で足す。
+- 200 行を超えた・超えそうになったファイルを分けた: `annotate-pointer.js` → `annotate-press.js`（押した・離したときの判断）、`page-edit.js` →
+  `page-actions.js`（回転・削除・結線）、`annotation-style-rows.js` → `annotation-chip-rows.js`（チップとパレットの窓）。続けた変更を畳むかどうかの
+  判断は履歴の層（`edit-history.record`）に置いた。
+- 起動確認の操作ごとの控えに、選んでいる件数（`count`）を足した。
+
+### 完了判定の結果
+
+| # | 判定 | 結果 | 確かめ方 |
+|---|---|---|---|
+| 1 | 紙の上の Ctrl＋クリック | ✅ | `annotate-buttons.test.js`・`annotate-select.test.js`。起動確認の `ctrl-click`（同じページで 3 件に増え、見開きで左のページを押すと 1 件に替わった） |
+| 2 | 範囲選択 | ✅ | `annotate-marquee.test.js`・`annotation-marquee.test.js`。起動確認の `marquee`（2 件） |
+| 3 | まとめて動かす・写し | ✅ | `annotate-grab.test.js`・`annotation-ghosts.test.js`・`annotation-bulk.test.js`。起動確認の `move:…:shift`・`:ctrl`・`:ctrl-late` |
+| 4 | まとめた見た目の設定と混在 | ✅ | `annotate-bulk.test.js`・`annotation-style-patch.test.js`。起動確認の右パネル（見出し「書き込み 3 件（四角・丸）」、線の色は「混在」、太さは空の「–」） |
+| 5 | まとめて消す | ✅ | `viewer-keys.test.js`・`annotation-bulk-props.test.js`。起動確認の `key:Backspace` |
+| 6 | 1 世代と続けた変更 | ✅ | `page-edit-gesture.test.js`・`edit-history.test.js`。起動確認で色を 2 回続けた 2 回目の世代の増えが 0 |
+| 7 | 注釈一覧 | ✅ | `annotation-list.test.js`（7 件足した）。起動確認の `list-ctrl` |
+| 8 | 右・中のボタン・入力欄 | ✅ | `annotate-buttons.test.js`（修正前は 10 件中 9 件が赤）。事前調査の試作を直した後のコードで流し直し、右ボタンで引いても何も描かれず、直しているテキストの入力欄の中を押しても掴まないことを実機で確かめた |
+| 9 | 回ったページ・見開き | ✅ | 起動確認（rotated の 90° 回った 2 ページ目で、Shift の動きが紙の片方の軸だけになった。見開きで右のページの範囲選択・まとめて動かす） |
+| 10 | テストと起動確認 | ✅ | `npm test` 1,922 件・`TZ=UTC` も緑。開発ツリーと配布物の起動確認 |
+| 11 | 他社製品名 | ✅ | `16dac36..HEAD` で足した行とコミットメッセージを検索して 0 件 |
+| 12 | 他のビューアでの見え方 | Phase 5 塊③ | 写しは新しい注釈なので、保存の形は塊①②と同じ |
+
+### 既知の限界
+
+- 描きかけの途中で右ボタンを押しても何も起きない（描きかけは続き、左を離したときに描かれる）。取りやめて道具を切り替える左＋右は ③-b。
+- 範囲選択の途中では、どれが選ばれるかの下見を出さない（離したときに枠が出る）。
+- 複数選択はページをまたがない（決定52 ②）。矢印キーで動かす・整列・まとめた大きさの変更は無い。
+- 写しの絵は、引いている途中で書き込みの層が描き直されると消え、次にマウスを動かしたときに描き直す。
+- 一覧の Shift＋クリックの起点は一覧の中だけで覚える（紙の上で選んでも起点は動かない）。
+- 高さ 800px の窓では右パネルのヒントが下に隠れる（塊②からの既知の限界。複数選択のヒントも同じ）。
+- 道具の段は塊⑤⑥で 960px を超える見込み（事前調査 D）。
