@@ -6,7 +6,7 @@
   // 位置は表示の座標（.pdf-page 基準の CSS px）。四角・丸は、回す前の箱の紙の +x・+y（上）の向きを表示へ直した単位ベクトル
   // ux・uy を作り、箱の中心 C から「ux × 横 ＋ uy × 縦」で置く（回転とページの回転を一度に扱える。余白とつまみの離れは px）。
   // つまみの id は紙の向きで付ける: 角は x1y1（左下）・x2y1・x1y2・x2y2（右上）、辺の中点は x1・x2・y1（下）・y2（上）、回転は rotate、
-  // 直線・矢印の端は start・end。
+  // 直線・矢印の端は start・end。回転のつまみは上の辺の外で、見える範囲から出るときだけ下の辺の外。
 
   // 枠の余白（px。今の選択の枠と同じ）・つまみの半径・回転のつまみの半径と枠からの離れ・当たりの半径・辺のつまみを隠す長さ。
   const FRAME_PADDING = 3;
@@ -75,7 +75,12 @@
     return RESIZE_CURSORS[Math.round(degrees / 45) % 4];
   }
 
-  function boxHandles(entry, viewport) {
+  // 中心 at・半径 r の丸が、見える範囲 room（{ left, top, right, bottom }。表示の座標）に収まるか。room が無ければ収まるとみなす。
+  function fits(at, room, r) {
+    return room === null || (at[0] - r >= room.left && at[1] - r >= room.top && at[0] + r <= room.right && at[1] + r <= room.bottom);
+  }
+
+  function boxHandles(entry, viewport, room) {
     const frame = boxFrameOf(entry, viewport);
     const w = frame.halfWidth + FRAME_PADDING;
     const h = frame.halfHeight + FRAME_PADDING;
@@ -89,10 +94,13 @@
       if (across >= EDGE_HANDLE_MIN)
         handles.push(handle(id, 'edge', sign));
     }
-    handles.push({ id: 'rotate', kind: 'rotate', at: place(frame, 0, h + ROTATE_GAP), cursor: 'rotate' });
+    // 回転のつまみは回す前の箱の上の辺の外。そこが見える範囲から出て、下の辺の外なら収まるときだけ下の辺の外に出す
+    // （1 ページ目の上端の近くの図形でも見えて押せるように。回し方は押した点の向きの変化なので、どちらでも同じに回る）。
+    const side = !fits(place(frame, 0, h + ROTATE_GAP), room, ROTATE_RADIUS) && fits(place(frame, 0, -(h + ROTATE_GAP)), room, ROTATE_RADIUS) ? -1 : 1;
+    handles.push({ id: 'rotate', kind: 'rotate', at: place(frame, 0, side * (h + ROTATE_GAP)), cursor: 'rotate' });
     return {
       frame: { type: 'polygon', points: [[-w, h], [w, h], [w, -h], [-w, -h]].map(([lx, ly]) => place(frame, lx, ly)) },
-      stem: { from: place(frame, 0, h), to: place(frame, 0, h + ROTATE_GAP - ROTATE_RADIUS) },
+      stem: { from: place(frame, 0, side * h), to: place(frame, 0, side * (h + ROTATE_GAP - ROTATE_RADIUS)) },
       handles,
     };
   }
@@ -106,11 +114,12 @@
     };
   }
 
-  // 枠とつまみ。つまみを出さない書き込みは null（annotation-frame.js が今の四角の枠を描く）。
-  function handlesOf(entry, viewport) {
+  // 枠とつまみ。つまみを出さない書き込みは null（annotation-frame.js が今の四角の枠を描く）。room はつまみが見える範囲
+  // （表示の座標。annotation-frame.js が表示域から求める。null ならどこでも見えるとみなす）。
+  function handlesOf(entry, viewport, room = null) {
     if (!hasHandles(entry))
       return null;
-    return isBoxed(entry) ? boxHandles(entry, viewport) : lineHandles(entry, viewport);
+    return isBoxed(entry) ? boxHandles(entry, viewport, room) : lineHandles(entry, viewport);
   }
 
   // 点（表示の座標）に当たるつまみ。半径 HIT_RADIUS 以内で、回転 → 角 → 辺 → 端 の順、同じ順なら近いもの。

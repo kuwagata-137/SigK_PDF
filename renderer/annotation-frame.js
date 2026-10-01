@@ -111,6 +111,21 @@
     shown = null;
   }
 
+  // つまみが見える範囲（そのページの表示の座標）。#view には内側の余白が無いので、縦は #view-pages の箱（上下の余白 18px を含み、
+  // 中身が表示域より低ければ表示域の下まで）、横は #view-pages の箱に、表示域が中身より広いときの左右の灰色を足したもの。
+  // 位置が読めなければ null（どこでも見えるとみなす）。
+  function roomOf(pagesEl, pageNode) {
+    const left = parseFloat(pageNode.style.left);
+    const top = parseFloat(pageNode.style.top);
+    const width = parseFloat(pagesEl.style.width);
+    const height = parseFloat(pagesEl.style.height);
+    if (![left, top, width, height].every(Number.isFinite))
+      return null;
+    const view = pagesEl.parentNode;
+    const side = Math.max(0, ((view?.clientWidth ?? 0) - width) / 2);
+    return { left: -left - side, top: -top, right: width - left + side, bottom: Math.max(height, view?.clientHeight ?? 0) - top };
+  }
+
   // 1 ページの層を描き直したときに呼ぶ。選んでいる書き込みがこのページにあれば枠とつまみを描き、無くてこのページに出して
   // いたなら消す。entries は描いた書き込み（下見を当てたもの）、editing は入力欄を開いているテキスト（枠を出さない）。
   function sync({ doc, pagesEl, pageNode, index, entries, viewport, selected = null, editing = null }) {
@@ -125,7 +140,7 @@
     svg.style.top = pageNode.style.top;
     svg.setAttribute('width', String(Math.round(viewport.width)));
     svg.setAttribute('height', String(Math.round(viewport.height)));
-    const shape = handles()?.handlesOf(target, viewport) ?? null;
+    const shape = handles()?.handlesOf(target, viewport, roomOf(pagesEl, pageNode)) ?? null;
     svg.replaceChildren(groupOf(doc, target, viewport, shape));
     shown = { index, key: selected, entry: target, viewport, shape };
     return true;
@@ -149,6 +164,7 @@
     FRAME_PADDING,
     boundsOf,
     frameOf,
+    roomOf,
     sync,
     releasePage,
     clear,

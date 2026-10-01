@@ -74,6 +74,30 @@ test('ページを作り直して層が外れても、次の sync で #view-page
   assert.equal(dom.pages.querySelectorAll('.annot-frame-layer').length, 1);
 });
 
+test('roomOf はページの位置と #view-pages の大きさから、つまみが見える範囲をそのページの座標で返す', () => {
+  const dom = makeDom();
+  // 大きさが無ければ（並べる前）null
+  assert.equal(frames.roomOf(dom.pages, dom.nodes[0]), null);
+  dom.pages.style.width = '615px';
+  dom.pages.style.height = '1800px';
+  assert.deepEqual(frames.roomOf(dom.pages, dom.nodes[0]), { left: -10, top: -20, right: 605, bottom: 1780 });
+  assert.deepEqual(frames.roomOf(dom.pages, dom.nodes[1]), { left: -10, top: -900, right: 605, bottom: 900 });
+});
+
+test('1 ページ目の上端の近くの四角では、回転のつまみと線を下の辺の外に描く', (t) => {
+  t.after(() => frames.clear());
+  const dom = makeDom();
+  dom.pages.style.width = '615px';
+  dom.pages.style.height = '1800px';
+  sync(dom, 0, [{ ...SQUARE, rect: [100, 815, 300, 835] }], 'sigk-1');
+  const rotate = dom.pages.querySelector('circle.rotate');
+  assert.deepEqual([rotate.getAttribute('cx'), rotate.getAttribute('cy')], ['200', '55.89']);
+  assert.equal(dom.pages.querySelector('line.annot-frame-stem').getAttribute('y1'), '29.89');
+  // 2 ページ目の上端なら、前のページの上に重ねて上の辺の外に描く
+  sync(dom, 1, [{ ...SQUARE, rect: [100, 815, 300, 835] }], 'sigk-1');
+  assert.equal(dom.pages.querySelector('circle.rotate').getAttribute('cy'), '-22.11');
+});
+
 test('translate は掴んで動かしている間だけ枠とつまみをずらし、0, 0 で戻す', (t) => {
   t.after(() => frames.clear());
   const dom = makeDom();

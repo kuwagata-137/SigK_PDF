@@ -63,6 +63,25 @@ test('回ったページでも、紙の上の向きに回転のつまみを出�
   near(at.rotate.at, [729, 200]);
 });
 
+test('回転のつまみは、上の辺の外が見える範囲から出て、下の辺の外なら収まるときだけ下の辺の外に出す', () => {
+  // 紙の上端の近くの四角（表示で y 6.89〜26.89）。1 ページ目の上の余白 18px より上へは見えない
+  const top = { ...SQUARE, rect: [100, 815, 300, 835] };
+  const room = { left: -10, top: -18, right: 605.28, bottom: 900 };
+  const flipped = handles.handlesOf(top, viewport(), room);
+  near(byId(flipped).rotate.at, [200, 55.89]);
+  near(flipped.stem.from, [200, 29.89]);
+  near(flipped.stem.to, [200, 47.89]);
+  // 範囲を渡さなければ、今までどおり上の辺の外（はみ出したまま）
+  near(byId(handles.handlesOf(top, viewport())).rotate.at, [200, -22.11]);
+  // 上に収まれば上のまま
+  near(byId(handles.handlesOf(SQUARE, viewport(), room)).rotate.at, [200, 112.89]);
+  // 上にも下にも収まらなければ上のまま
+  near(byId(handles.handlesOf(top, viewport(), { left: 0, top: 0, right: 595.28, bottom: 40 })).rotate.at, [200, -22.11]);
+  // 90° 回した四角が紙の右端の近くにあれば、回転のつまみは右でなく左に出る（中心 x 560。右へ 79px は 605.28 を越える）
+  const right = handles.handlesOf({ ...SQUARE, rect: [460, 600, 660, 700], angle: 90 }, viewport(), room);
+  near(byId(right).rotate.at, [481, 191.89]);
+});
+
 test('小さな図形では、短い向きの辺の中点のつまみを隠す（表示で 24px 未満）', () => {
   const thin = handles.handlesOf({ ...SQUARE, rect: [100, 600, 300, 620] }, viewport());
   assert.deepEqual(thin.handles.map((handle) => handle.id), ['x1y1', 'x2y1', 'x1y2', 'x2y2', 'y1', 'y2', 'rotate']);

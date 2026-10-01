@@ -144,16 +144,32 @@ test('回転のつまみで回し、Shift で 15° 刻みになる。回した�
 test('紙の外（灰色）で押しても、選んでいる書き込みのつまみなら引ける', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
-  // 紙の上端の近くの四角。回転のつまみは紙の上にはみ出す（y が負）
-  drawSquare(shell, [100, 838], [300, 800]);
+  // 1 ページ目の下端の近くで 180° 回した四角。回転のつまみは紙の下（ページの間の灰色）にはみ出す
+  drawSquare(shell, [100, 40], [300, 4]);
+  SigK.annotationAngleRow.setAngle(180);
   const knob = handleOf(shell, 'rotate').at;
-  assert.ok(knob[1] < 0, '回転のつまみは紙の外');
+  assert.ok(knob[1] > viewportOf(shell).height, '回転のつまみは紙の外');
   const view = shell.document.getElementById('view');
   const down = mouse(shell, 'mousedown', view, knob);
   assert.equal(down.defaultPrevented, true);
   assert.equal(SigK.annotateTransform.isDragging(), true);
   mouse(shell, 'mouseup', view, knob);
   assert.equal(SigK.annotateTransform.isDragging(), false);
+});
+
+test('1 ページ目の上端の近くの四角では、回転のつまみを下の辺の外に出し、そこから回せる', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  // 回転のつまみを上に出すと、1 ページ目の上の余白（18px）より上になって見えない
+  drawSquare(shell, [100, 838], [300, 800]);
+  const knob = handleOf(shell, 'rotate').at;
+  assert.ok(knob[1] > handleOf(shell, 'y1').at[1], '回転のつまみは下の辺より下');
+  const before = SigK.pageEdit.getHistoryState().at;
+  // 下から右へ引くと、表示で反時計回り（角度は 360 の手前）
+  pull(shell, 'rotate', [40, 0]);
+  const angle = SigK.viewer.getAnnotations().added.at(-1).angle;
+  assert.ok(angle > 270 && angle < 360, `角度 ${angle}`);
+  assert.equal(SigK.pageEdit.getHistoryState().at - before, 1);
 });
 
 test('読み込んだ矢印の端を Shift で動かすと、表示で横か縦にだけ動き、写しに付け替わる', async (t) => {
