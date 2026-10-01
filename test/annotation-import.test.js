@@ -52,6 +52,7 @@ function stubs(t, { answer = { ok: true, details: {} }, available = true } = {})
 }
 
 const square = (id, extra = {}) => ({ id, subtype: 'Square', rect: [10, 10, 60, 40], color: [255, 0, 0], borderStyle: { width: 2, rawWidth: 2, style: 1 }, ...extra });
+const line = (id) => ({ id, subtype: 'PolyLine', rect: [9, 9, 61, 41], vertices: [10, 10, 60, 40], lineEndings: ['None', 'None'], color: [0, 0, 255], borderStyle: { width: 2, rawWidth: 2, style: 1 } });
 const note = (id) => ({ id, subtype: 'Text', rect: [60, 760, 80, 780], color: [255, 227, 89], contentsObj: { str: 'n' }, titleObj: { str: '' } });
 
 test('importDocument は全ページから集め、印を付けて viewer へ届ける。口の要る書き込みが無ければ口を呼ばない', async (t) => {
@@ -142,25 +143,30 @@ test('塗り・雲形・/RD の四角と丸は直せる形で当て、描けな�
 });
 
 // 口が使えなくても、線も塗りも無いもの（/C の無い四角）は表示のみにそろえる（塗りが分からないまま直せる形にしない）。
-test('口の答えが無くても、線の見えない四角は表示のみにする', async (t) => {
+test('口が答えなければ、四角・丸は線の有無によらず表示のみにする（spec-4b-2 確定事項36）', async (t) => {
   stubs(t, { answer: { ok: false, reason: 'timeout' } });
-  const imported = await imp.importDocument(makeDoc([[square('30R', { color: null }), square('31R')]]), { file: FILE });
-  assert.deepEqual(imported[0].map((entry) => [entry.ref, entry.readonly === true]), [['30R', true], ['31R', false]]);
+  const doc = makeDoc([[square('30R', { color: null }), square('31R'), square('32R', { subtype: 'Circle' }), note('33R')]]);
+  const imported = await imp.importDocument(doc, { file: FILE });
+  assert.deepEqual(imported[0].map((entry) => [entry.ref, entry.readonly === true]), [['30R', true], ['31R', true], ['32R', true], ['33R', false]]);
+  assert.deepEqual([...doc.storage.keys()], ['33R'], '表示のみの四角・丸は pdf.js が描き続ける');
 });
 
-test('口が使えない・断られたときは、pdf.js の値のまま読む', async (t) => {
+test('口が使えない・断られたときは、四角・丸は表示のみ、ほかは pdf.js の値のまま読む', async (t) => {
   const refused = stubs(t, { answer: { ok: false, reason: 'changed' } });
-  const doc = makeDoc([[square('30R')]]);
-  const imported = await imp.importDocument(doc, { file: FILE });
+  const pages = () => [[square('30R'), line('40R')]];
+  const imported = await imp.importDocument(makeDoc(pages()), { file: FILE });
   assert.equal(refused.requests.length, 1);
-  assert.equal(imported[0][0].opacity, 1);
-  assert.equal(imported[0][0].readonly, undefined);
+  assert.equal(imported[0][0].readonly, true);
+  assert.equal(imported[0][1].opacity, 1);
+  assert.equal(imported[0][1].readonly, undefined);
 
   // 口が無い（古い preload）・ファイルの控えが無い文書では、呼ばずに読む。
   globalThis.annotationAPI.available = false;
-  assert.equal((await imp.importDocument(makeDoc([[square('30R')]]), { file: FILE }))[0][0].opacity, 1);
+  const unavailable = (await imp.importDocument(makeDoc(pages()), { file: FILE }))[0];
+  assert.deepEqual(unavailable.map((entry) => entry.readonly === true), [true, false]);
   globalThis.annotationAPI.available = true;
-  assert.equal((await imp.importDocument(makeDoc([[square('30R')]]), { file: null }))[0][0].opacity, 1);
+  const noFile = (await imp.importDocument(makeDoc(pages()), { file: null }))[0];
+  assert.deepEqual(noFile.map((entry) => entry.readonly === true), [true, false]);
   assert.equal(refused.requests.length, 1, 'どちらも口を呼んでいない');
 });
 

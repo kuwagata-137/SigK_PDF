@@ -57,7 +57,7 @@ test('styled.pdf の不透明度・塗り・線幅 0・破線・雲形・/RD・�
   assert.equal(result.ok, true);
   const at = (key) => result.details[ids[key]];
 
-  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, cloudIntensity: null, rectDifference: null });
+  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, cloudIntensity: null, rectDifference: null, rotation: null });
   assert.equal(at('0:Circle@220,700').ca, 0.5);
   assert.equal(at('0:PolyLine@380,700').ca, 0.5);
   assert.equal(at('0:Text@540,760').ca, 0.5, 'ノートの不透明度も読める（pdf.js は返さない）');
@@ -124,4 +124,72 @@ test('ワーカーの入口（runTask）は annotation-details を読み戻し�
   assert.equal(result.ok, true);
   assert.ok(Number.isFinite(result.ms));
   assert.deepEqual(sent, []);
+});
+
+// ---- 回した四角・丸（spec-4b-2 確定事項34） ----
+
+const { buildEncryptedRotatedPdf } = require('./fixtures/rotated-shapes.js');
+
+// ページごとの注釈の id（/Annots の並び）。
+async function idsByPage(file) {
+  const doc = await PDFDocument.load(fs.readFileSync(file));
+  return doc.getPages().map((page) => (page.node.Annots()?.asArray() ?? []).map((item) => `${item.objectNumber}R`));
+}
+
+function nearBox(actual, expected) {
+  assert.ok(Array.isArray(actual) && actual.every((value, index) => Math.abs(value - expected[index]) <= 0.011), `${actual} ≠ ${expected}`);
+}
+
+test('rotated-shapes.pdf の SigK PDF の書き方で回した四角・丸は、箱と角度を返す', async () => {
+  const file = fixturePath('rotated-shapes.pdf');
+  const [page1] = await idsByPage(file);
+  const result = await runAnnotationDetails({ source: file, expect: expectOf(file), refs: page1 });
+  const rotations = page1.map((id) => result.details[id].rotation);
+  assert.deepEqual(rotations.map((rotation) => rotation.angle), [30, 45, 15, 300, 90]);
+  nearBox(rotations[0].box, [60, 640, 220, 740]);
+  nearBox(rotations[1].box, [320, 640, 500, 720]);
+  nearBox(rotations[4].box, [200, 160, 400, 240]);
+});
+
+test('rotated-shapes.pdf の他のアプリの回転は、読めるものは箱と角度、読めないものは skewed を返す', async () => {
+  const file = fixturePath('rotated-shapes.pdf');
+  const [, readable, unreadable] = await idsByPage(file);
+  const result = await runAnnotationDetails({ source: file, expect: expectOf(file), refs: [...readable, ...unreadable] });
+  const [p1, p3, p9, p10, p12, local] = readable.map((id) => result.details[id].rotation);
+  for (const rotation of [p1, p3, p9, p10, p12, local])
+    assert.equal(rotation.angle, 30);
+  nearBox(p1.box, [60, 660, 210, 750]);
+  nearBox(p3.box, [330, 660, 480, 750]);
+  nearBox(p9.box, [60, 440, 210, 530]);
+  nearBox(p10.box, [370, 480, 520, 570]);
+  nearBox(p12.box, [58, 198, 212, 292]);
+  nearBox(local.box, [330, 200, 480, 290]);
+  const [p2, p4, p5, p6, p11, mirror] = unreadable.map((id) => result.details[id].rotation);
+  assert.equal(p2, 'skewed', '外観の中身の cm で回したもの');
+  assert.equal(p4, null, 'Polygon は回転を読まない');
+  assert.equal(p5, null, '回っていない伸び縮みは今までどおり');
+  assert.equal(p6, 'skewed', '/Rect が外接より広く、外観がゆがむもの');
+  assert.equal(p11, 'skewed');
+  assert.equal(mirror, 'skewed');
+});
+
+test('暗号化した PDF でも /BBox・/Matrix・/Rect から回転を読み、中身の cm は見分けない', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigk-details-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const { bytes, box } = buildEncryptedRotatedPdf();
+  const file = path.join(dir, 'rotated-encrypted.pdf');
+  fs.writeFileSync(file, bytes);
+  const result = await runAnnotationDetails({ source: file, expect: expectOf(file), refs: ['7R', '9R'] });
+  assert.equal(result.ok, true);
+  assert.equal(result.details['7R'].rotation.angle, 30);
+  nearBox(result.details['7R'].rotation.box, box);
+  assert.equal(result.details['9R'].rotation, null, '暗号化された中身は読めないので、cm の回転は見分けない（既知の限界）');
+});
+
+test('直線・テキストなど四角・丸でないものは回転を返さない', async () => {
+  const file = fixturePath('styled.pdf');
+  const ids = await idsOf(file);
+  const result = await runAnnotationDetails({ source: file, expect: expectOf(file), refs: [ids['0:PolyLine@380,700'], ids['0:Text@540,760']] });
+  assert.equal(result.details[ids['0:PolyLine@380,700']].rotation, null);
+  assert.equal(result.details[ids['0:Text@540,760']].rotation, null);
 });

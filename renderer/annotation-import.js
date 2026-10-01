@@ -39,11 +39,11 @@
     return imported;
   }
 
-  // 口の答えを全部に当てる。
-  function applyAll(imported, answers) {
+  // 口の答えを全部に当てる。answered は口が答えたか（答えなければ四角・丸は表示のみ。spec-4b-2 確定事項36）。
+  function applyAll(imported, answers, answered) {
     const applied = {};
     for (const [page, entries] of Object.entries(imported))
-      applied[page] = entries.map((entry) => details().applyDetails(entry, answers[entry.ref]));
+      applied[page] = entries.map((entry) => details().applyDetails(entry, answers[entry.ref], { answered }));
     return applied;
   }
 
@@ -67,8 +67,10 @@
     const answer = refs.length === 0 ? null : await details().requestDetails(file, refs);
     if (!isAlive())
       return null;
-    // 答えが無くても当てる（線も塗りも無いものを表示のみにそろえる。spec-4b-1b 確定事項36）。
-    const applied = applyAll(imported, answer?.ok === true ? answer.details : {});
+    // 答えが無くても当てる（線も塗りも無いもの、口が答えなかった四角・丸を表示のみにそろえる。spec-4b-1b 確定事項36、
+    // spec-4b-2 確定事項36）。
+    const answered = answer?.ok === true;
+    const applied = applyAll(imported, answered ? answer.details : {}, answered);
     markNoView(doc, applied);
     root.SigK.viewer?.deliverImported(doc, applied, { rerender: Object.keys(applied).map(Number) });
     // 自前のテキストがあれば画面のフォントを先読みする（spec-4-2 確定事項33）。

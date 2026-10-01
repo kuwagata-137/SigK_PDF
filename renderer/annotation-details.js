@@ -73,14 +73,28 @@
     return [x1 + left, y1 + bottom, x2 - right, y2 - top].map((value) => Math.round(value * 100) / 100);
   }
 
-  // 四角・丸の塗り・雲形・/RD（確定事項36・38）。描けないもの（雲形の破線・崩れた /RD）は null。雲形の箱は /Rect のまま
-  // （他のアプリの外観も /Rect の中に描かれる）で、弧は SigK PDF の描き方で描き直す（決定47 ⑯）。
+  // 回した四角・丸（spec-4b-2 確定事項35）。口が外観から読んだ回す前の箱と角度を当て、四角は回した 4 隅にする。
+  function withRotation(next, rotation) {
+    next.rect = [...rotation.box];
+    next.angle = rotation.angle;
+    next.quads = [root.SigK.shapeRotation.quadOf(rotation.box, rotation.angle)];
+    return next;
+  }
+
+  // 四角・丸の塗り・雲形・/RD・回転（確定事項36・38、spec-4b-2 確定事項35）。描けないもの（雲形の破線・崩れた /RD・回転を読めない
+  // 外観）は null。雲形の箱は /Rect のまま（他のアプリの外観も /Rect の中に描かれる）で、弧は SigK PDF の描き方で描き直す
+  // （決定47 ⑯）。回した図形の /RD は使わない（/Rect に対する軸平行の余白で、回した箱とは意味が合わない）。
   function withBoxDetails(entry, detail) {
     const next = { ...entry };
     const fill = root.SigK.importedValues.hexOfComponents(detail.interior);
     if (fill !== null)
       next.fill = fill;
-    const difference = detail.rectDifference;
+    const rotation = detail.rotation ?? null;
+    if (rotation === 'skewed')
+      return null;
+    if (rotation !== null)
+      withRotation(next, rotation);
+    const difference = rotation === null ? detail.rectDifference : null;
     if (difference !== null && difference !== undefined && !validDifference(difference, entry.rect))
       return null;
     if (detail.cloudy === true && Number.isFinite(detail.cloudIntensity) && detail.cloudIntensity > 0) {
@@ -105,11 +119,15 @@
     return detail.ca <= 0 ? null : { ...next, opacity: Math.min(1, detail.ca) };
   }
 
-  // 答えを 1 件に当てる（spec-4b-1a 確定事項26、spec-4b-1b 確定事項36〜38）。答えが無ければ pdf.js の値のまま（①-a 確定事項27）。
-  // どちらでも、線も塗りも無いもの（線の見えない四角・丸で塗りが分からないもの）は表示のみにする。
-  function applyDetails(entry, detail) {
+  // 答えを 1 件に当てる（spec-4b-1a 確定事項26、spec-4b-1b 確定事項36〜38）。その注釈の答えが無ければ pdf.js の値のまま
+  // （①-a 確定事項27）。口がまるごと答えなかった（answered が false）ときの四角・丸は表示のみにする（回っているかと塗りが分からない
+  // まま直すと、開いた時点で見た目が変わるため。spec-4b-2 確定事項36）。どちらでも、線も塗りも無いもの（線の見えない四角・丸で
+  // 塗りが分からないもの）は表示のみにする。
+  function applyDetails(entry, detail, { answered = true } = {}) {
     if (entry.readonly === true)
       return entry;
+    if (!answered && (entry.kind === 'square' || entry.kind === 'circle'))
+      return readonlyOf(entry);
     const next = detail === undefined || detail === null ? entry : withDetails(entry, detail);
     if (next === null || (next.color === null && (next.fill ?? null) === null))
       return readonlyOf(entry);

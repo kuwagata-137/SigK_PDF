@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
 require('../renderer/imported-values.js');
+require('../renderer/shape-rotation.js');
 require('../renderer/annotation-details.js');
 
 // 注釈の辞書の読み戻しを当てる層（spec-4b-1a 確定事項25〜27、spec-4b-1b 確定事項36〜39）。純関数と、口を 1 本ずつ呼ぶ順番待ちを見る。
@@ -94,6 +95,37 @@ test('applyDetails は線も塗りも無いものと、不透明度 0 を表示�
   assert.equal(details.readonlyOf(entry('arrow', { text: undefined })).subtype, 'PolyLine');
   const readonly = details.readonlyOf(entry('square'));
   assert.equal(details.applyDetails(readonly, { interior: [1, 0, 0] }), readonly, '表示のみのものは変えない');
+});
+
+test('applyDetails は回した四角・丸に回す前の箱と角度を当て、四角を回した 4 隅にする（spec-4b-2 確定事項35）', () => {
+  const rotation = { box: [20, 20, 70, 50], angle: 30 };
+  const turned = details.applyDetails(entry('square', { rect: [5, 3, 85, 67] }), { rotation, rectDifference: [2, 2, 2, 2] });
+  assert.deepEqual(turned.rect, [20, 20, 70, 50]);
+  assert.equal(turned.angle, 30);
+  assert.deepEqual(turned.quads, [globalThis.SigK.shapeRotation.quadOf([20, 20, 70, 50], 30)]);
+  // 回した雲形も雲形のまま、回した箱で描く（/RD は使わない）
+  const cloudy = details.applyDetails(entry('circle'), { rotation, cloudy: true, cloudIntensity: 1, rectDifference: [9, 9, 9, 9] });
+  assert.equal(cloudy.lineStyle, 'cloudy');
+  assert.deepEqual(cloudy.rect, [20, 20, 70, 50]);
+  // 回っていなければ今までどおり
+  assert.equal(details.applyDetails(entry('square'), { rotation: null }).angle, undefined);
+});
+
+test('applyDetails は回転を読めない外観（skewed）の四角・丸を表示のみにする', () => {
+  const answer = details.applyDetails(entry('square'), { rotation: 'skewed', interior: [1, 1, 0] });
+  assert.equal(answer.readonly, true);
+  assert.equal(answer.kind, 'other');
+  assert.equal(answer.subtype, 'Square');
+});
+
+test('applyDetails は口がまるごと答えなかったときの四角・丸を表示のみにし、ほかの種類はそのまま（spec-4b-2 確定事項36）', () => {
+  assert.equal(details.applyDetails(entry('square'), undefined, { answered: false }).readonly, true);
+  assert.equal(details.applyDetails(entry('circle'), undefined, { answered: false }).subtype, 'Circle');
+  const line = entry('line', { paths: [[[10, 10], [60, 40]]] });
+  assert.equal(details.applyDetails(line, undefined, { answered: false }), line);
+  // 口は答えたがその注釈の欄が無いときは、今までどおり pdf.js の値のまま
+  const same = entry('square');
+  assert.equal(details.applyDetails(same, undefined), same);
 });
 
 test('requestDetails は口を呼べないとき呼ばずに理由を返す', async (t) => {
