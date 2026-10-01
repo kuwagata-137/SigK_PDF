@@ -9,7 +9,7 @@
   // ほかの種類は今までの四角の枠（箱に余白を足した破線）。掴んで動かしている間は、書き込みと同じだけ translate する。
   // page-render.js が層を描き直すたびに sync を呼ぶ。
 
-  // 層の要素と、いま枠を出しているもの { index, key, entry, viewport, shape }。
+  // 層の要素と、いま枠を出しているもの { index, key, keys, entry, viewport, shape }。複数選択なら key・entry・shape は null。
   let layer = null;
   let shown = null;
 
@@ -54,23 +54,54 @@
     return { left: -left - side, top: -top, right: width - left + side, bottom: Math.max(height, view?.clientHeight ?? 0) - top };
   }
 
-  // 1 ページの層を描き直したときに呼ぶ。選んでいる書き込みがこのページにあれば枠とつまみを描き、無くてこのページに出して
-  // いたなら消す。entries は描いた書き込み（下見を当てたもの）、editing は入力欄を開いているテキスト（枠を出さない）。
-  function sync({ doc, pagesEl, pageNode, index, entries, viewport, selected = null, editing = null }) {
-    const target = selected === null || selected === editing ? null : entries.find((entry) => keyOf(entry) === selected) ?? null;
-    if (target === null || pagesEl === null || pagesEl === undefined || pageNode === null || pageNode === undefined) {
-      if (shown?.index === index)
-        clear();
-      return false;
-    }
+  // selected は鍵の並び（今までの 1 件の鍵や null も受ける）。
+  function keysOfSelected(selected) {
+    if (Array.isArray(selected))
+      return selected;
+    return selected === null || selected === undefined ? [] : [selected];
+  }
+
+  // 層をそのページの位置と大きさに合わせる。
+  function placeLayer(doc, pagesEl, pageNode, viewport) {
     const svg = ensureLayer(doc, pagesEl);
     svg.style.left = pageNode.style.left;
     svg.style.top = pageNode.style.top;
     svg.setAttribute('width', String(Math.round(viewport.width)));
     svg.setAttribute('height', String(Math.round(viewport.height)));
-    const shape = handles()?.handlesOf(target, viewport, roomOf(pagesEl, pageNode)) ?? null;
-    svg.replaceChildren(graphics().groupOf(doc, target, viewport, shape));
-    shown = { index, key: selected, entry: target, viewport, shape };
+    return svg;
+  }
+
+  // 1 件ぶんの枠の組。複数選択の組は、1 件の枠と同じ形からつまみと回転の印だけを外す（spec-4b-3a 確定事項E2）。
+  function groupFor(doc, entry, viewport, shape) {
+    const group = graphics().groupOf(doc, entry, viewport, shape);
+    group.setAttribute('data-frame-key', keyOf(entry));
+    return group;
+  }
+
+  // 1 ページの層を描き直したときに呼ぶ。選んでいる書き込みがこのページにあれば枠を描き、無くてこのページに出して
+  // いたなら消す。1 件なら枠とつまみ、2 件以上なら 1 件ごとの枠だけ（spec-4b-3a 確定事項E）。entries は描いた書き込み
+  // （下見を当てたもの）、editing は入力欄を開いているテキスト（枠を出さない）。
+  function sync({ doc, pagesEl, pageNode, index, entries, viewport, selected = null, editing = null }) {
+    const keys = keysOfSelected(selected).filter((key) => key !== editing);
+    const targets = keys.map((key) => entries.find((entry) => keyOf(entry) === key) ?? null).filter((entry) => entry !== null);
+    if (targets.length === 0 || pagesEl === null || pagesEl === undefined || pageNode === null || pageNode === undefined) {
+      if (shown?.index === index)
+        clear();
+      return false;
+    }
+    const svg = placeLayer(doc, pagesEl, pageNode, viewport);
+    const room = roomOf(pagesEl, pageNode);
+    if (keys.length === 1) {
+      const shape = handles()?.handlesOf(targets[0], viewport, room) ?? null;
+      svg.replaceChildren(groupFor(doc, targets[0], viewport, shape));
+      shown = { index, key: keys[0], keys: [keys[0]], entry: targets[0], viewport, shape };
+      return true;
+    }
+    svg.replaceChildren(...targets.map((target) => {
+      const shape = handles()?.handlesOf(target, viewport, room) ?? null;
+      return groupFor(doc, target, viewport, shape === null ? null : { ...shape, stem: null, handles: [] });
+    }));
+    shown = { index, key: null, keys: targets.map(keyOf), entry: null, viewport, shape: null };
     return true;
   }
 
@@ -80,11 +111,14 @@
       clear();
   }
 
-  // 掴んで動かしている間、枠とつまみを書き込みと同じだけずらす（確定事項23）。0, 0 で戻す。
-  function translate(dx, dy) {
-    const group = layer?.firstChild ?? null;
-    if (group !== null)
+  // 掴んで動かしている間、枠とつまみを書き込みと同じだけずらす（確定事項23）。0, 0 で戻す。keys を渡せば、その鍵の組だけを
+  // ずらす（まとめて動かすとき、動かせない書き込みの枠は残す。spec-4b-3a 確定事項E3・F1）。
+  function translate(dx, dy, keys = null) {
+    for (const group of [...(layer?.children ?? [])]) {
+      if (keys !== null && !keys.includes(group.getAttribute('data-frame-key')))
+        continue;
       group.style.transform = dx === 0 && dy === 0 ? '' : `translate(${dx}px, ${dy}px)`;
+    }
   }
 
   const SigK = (root.SigK = root.SigK || {});

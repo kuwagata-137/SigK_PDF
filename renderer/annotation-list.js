@@ -81,19 +81,21 @@
     const placeholder = el.doc.getElementById('thumbs-empty');
     if (placeholder !== null)
       placeholder.hidden = true;
-    syncSelected(annotate()?.getSelected() ?? null);
+    syncSelected(annotate()?.getSelection() ?? []);
     return true;
   }
 
-  // 選んでいる注釈の行を光らせ、見えるところまで一覧を動かす。
-  function syncSelected(key) {
+  // 選んでいる注釈の行を全部同じ色で光らせ、主（並びの最後）の行を見えるところまで一覧を動かす（spec-4b-3a 確定事項K4）。
+  // keys は鍵の並び（今までの 1 件の鍵や null も受ける）。
+  function syncSelected(keys) {
     if (el === null)
       return false;
+    const list = root.SigK.annotationSelection.keysOf(keys);
+    const primary = list.at(-1) ?? null;
     let found = null;
     for (const row of el.rows.children) {
-      const on = key !== null && row.dataset.key === key;
-      row.classList.toggle('on', on);
-      if (on)
+      row.classList.toggle('on', list.includes(row.dataset.key));
+      if (row.dataset.key === primary)
         found = row;
     }
     found?.scrollIntoView?.({ block: 'nearest' });

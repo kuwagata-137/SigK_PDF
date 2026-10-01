@@ -43,6 +43,13 @@
     return history.at < history.stack.length - 1;
   }
 
+  // 世代の annot の片側（null・鍵の文字列・鍵の配列）。
+  function copyAnnot(value) {
+    if (Array.isArray(value))
+      return [...value];
+    return value ?? null;
+  }
+
   function pushHistory(history, snapshot, { before = [], after = [], annot = {} } = {}) {
     // 戻した状態から新しい操作をしたら、先の履歴は捨てる（spec-1-5 確定事項10）。
     const stack = history.stack.slice(0, history.at + 1);
@@ -50,7 +57,8 @@
       ...snapshotOf(snapshot),
       before: [...before],
       after: [...after],
-      annot: { before: annot.before ?? null, after: annot.after ?? null },
+      // 複数選択の鍵の配列は写して積む（参照のまま積むと、後から並びを変えたときに履歴まで変わる。spec-4b-3a 確定事項L1）。
+      annot: { before: copyAnnot(annot.before), after: copyAnnot(annot.after) },
     });
     // 上限を超えたら古いほうから捨てる。
     while (stack.length > MAX_HISTORY)

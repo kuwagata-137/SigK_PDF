@@ -101,7 +101,8 @@
       // スライダーやつまみを動かしている間は、選んだ書き込みを下見の値で描く（spec-4b-1b 確定事項8、spec-4b-2 確定事項38）。
       const preview = root.SigK.annotatePreview;
       const shown = preview === undefined ? entries : entries.map(preview.previewFor);
-      const selected = root.SigK.annotate?.getSelected() ?? null;
+      // 選んでいる書き込みの鍵の並び（複数なら 1 件ごとの枠。spec-4b-3a 確定事項E）。
+      const selected = root.SigK.annotate?.getSelection() ?? [];
       const editing = root.SigK.freeTextEditor?.editingKey() ?? null;
       // 描いている途中の図形（spec-4-3 確定事項3）。
       layer.draw(entry.annots.svg, shown, entry.annots.viewport, { editing, draft: root.SigK.annotateShape?.draftFor(index) ?? null });

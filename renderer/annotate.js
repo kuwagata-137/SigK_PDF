@@ -74,7 +74,7 @@
       return true;
     if (finishEditing())
       return true;
-    if (selection().getSelected() !== null) {
+    if (selection().getSelection().length > 0) {
       selection().select(null);
       return true;
     }
@@ -105,7 +105,7 @@
   function onModeChanged(mode) {
     if (mode !== 'annot')
       finishEditing();
-    if (mode !== 'annot' && selection().getSelected() !== null)
+    if (mode !== 'annot' && selection().getSelection().length > 0)
       selection().select(null);
     props()?.refresh();
     if (mode === 'annot') {
@@ -171,9 +171,18 @@
     editSelected: () => root.SigK.annotateText?.editSelected() === true || root.SigK.annotateNote?.editSelected() === true,
     finishEditing,
     createFromSelection: (kind) => tools().createFromSelection(kind),
+    // 選択（spec-4b-3a 確定事項A）。getSelected・selectedEntry は 1 件のときだけ。複数は getSelection・selectedEntries。
     getSelected: () => selection().getSelected(),
     selectedEntry: () => selection().selectedEntry(),
+    getSelection: () => selection().getSelection(),
+    selectedEntries: () => selection().selectedEntries(),
+    primaryKey: () => selection().primaryKey(),
+    primaryEntry: () => selection().primaryEntry(),
+    isSelected: (key) => selection().isSelected(key),
     select: (key) => selection().select(key),
+    selectKeys: (keys) => selection().selectKeys(keys),
+    toggleKey: (key) => selection().toggleKey(key),
+    addKey: (key) => selection().addKey(key),
     hitTest: (index, point) => selection().hitTest(index, point),
     remove: () => selection().remove(),
     escape,

@@ -138,7 +138,8 @@
     // 戻した世代で操作の対象だったページを選び直す。何が戻ったのかが
     // 分からないと、取り消せたのかどうかも分からない。注釈も同じ。
     grid()?.setSelection(moved.selection);
-    annotate()?.select(moved.annot ?? null);
+    // 複数を選んでいた世代なら、複数選択に戻す（spec-4b-3a 確定事項L2）。
+    annotate()?.selectKeys(root.SigK.annotationSelection.keysOf(moved.annot ?? null));
     syncActions();
     return true;
   }

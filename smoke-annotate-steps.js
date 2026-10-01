@@ -104,7 +104,7 @@ const STEPS = `
       mouse('mouseup', pageNode(Number(page)), screen.at(-1)[0], screen.at(-1)[1]);
     } else if (name === 'drag') {
       const [dx, dy] = arg.split('x').map(Number);
-      const entry = SigK.annotate.selectedEntry();
+      const entry = SigK.annotate.primaryEntry();
       const index = SigK.viewer.getPlan().findIndex((page) => page.src === entry.src);
       const scale = viewportOf(index).scale;
       let grab;
