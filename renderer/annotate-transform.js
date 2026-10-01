@@ -162,6 +162,12 @@
     setCursor(handleUnder(event)?.handle.cursor ?? null);
   }
 
+  // つまみの上のカーソルを外す（引いていないとき）。ハンドはつまみを見ないので、持ち替えたときに残さない（spec-4b-3b 確定事項A4）。
+  function clearCursor() {
+    if (drag === null)
+      setCursor(null);
+  }
+
   function init(document, win) {
     if (win.__sigkAnnotateTransformReady === true)
       return false;
@@ -171,5 +177,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateTransform = { init, begin, move, end, cancel, hover, commit, isDragging: () => drag !== null };
+  SigK.annotateTransform = { init, begin, move, end, cancel, hover, clearCursor, commit, isDragging: () => drag !== null };
 })(typeof window !== 'undefined' ? window : globalThis);

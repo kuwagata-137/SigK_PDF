@@ -64,6 +64,7 @@
   // 描きかけ（印ごと）・テキスト／ノートの置く前の押下・文字の選択を全部取りやめる。入力欄と選択（範囲選択の取りやめを除く）は残す。
   function abortForChord(win) {
     abortGestures();
+    root.SigK.annotateTransform?.clearCursor();
     root.SigK.annotateDraw?.cancel();
     root.SigK.annotatePress?.reset();
     win?.getSelection?.()?.removeAllRanges();

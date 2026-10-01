@@ -292,3 +292,66 @@ test('閲覧モードと、テキストの入力欄の中では、左＋右は�
   assert.equal(inView.defaultPrevented, false);
   assert.equal(SigK.annotate.getTool(), 'text');
 });
+
+test('左＋右を 1 秒より長く押したまま右を最後に離しても、続く contextmenu ではメニューを出さない（確定事項E4。1000ms は全部離した時点から数える）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, window } = shell;
+  let clock = 5000;
+  window.performance.now = () => clock;
+  drawSquare(shell, [100, 600], [200, 500]);
+  const on = px(shell, [150, 550]);
+  fire(shell, 'mousedown', pageNode(shell), on, { button: 0, buttons: 1 });
+  fire(shell, 'mousedown', pageNode(shell), on, { button: 2, buttons: 3 });
+  clock += 1500;
+  fire(shell, 'mouseup', pageNode(shell), on, { button: 0, buttons: 2 });
+  fire(shell, 'mouseup', pageNode(shell), on, { button: 2, buttons: 0 });
+  assert.equal(contextMenu(shell, pageNode(shell), on).defaultPrevented, true);
+  assert.equal(SigK.annotationMenu.isOpen(), false);
+  assert.deepEqual(selection(shell), []);
+});
+
+test('つまみの上で右→左の順に押してハンドになっても、つまみのカーソルの形を残さない（確定事項A4・E2）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const a = drawSquare(shell, [100, 600], [200, 500]);
+  SigK.annotate.setTool('select');
+  SigK.annotate.select(a);
+  const corner = SigK.annotationFrame.shown().shape.handles.find((handle) => handle.id === 'x1y1');
+  fire(shell, 'mousemove', document.body, corner.at, { buttons: 0 });
+  assert.equal(document.documentElement.getAttribute('data-transform-cursor'), corner.cursor);
+  fire(shell, 'mousedown', pageNode(shell), corner.at, { button: 2, buttons: 2 });
+  fire(shell, 'mousedown', pageNode(shell), corner.at, { button: 0, buttons: 3 });
+  assert.equal(SigK.annotate.getTool(), 'hand');
+  assert.equal(document.documentElement.hasAttribute('data-transform-cursor'), false);
+  fire(shell, 'mouseup', pageNode(shell), corner.at, { button: 0, buttons: 2 });
+  fire(shell, 'mouseup', pageNode(shell), corner.at, { button: 2, buttons: 0 });
+  fire(shell, 'mousemove', document.body, corner.at, { buttons: 0 });
+  assert.equal(document.documentElement.hasAttribute('data-transform-cursor'), false, 'ハンドのときはつまみの上でも付けない');
+});
+
+test('左＋右の最中と、全部離してから 1000ms までのダブルクリックでは、書き込みを直し始めない（確定事項E2・E4）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, window } = shell;
+  let clock = 5000;
+  window.performance.now = () => clock;
+  drawSquare(shell, [100, 600], [200, 500]);
+  const calls = [];
+  SigK.annotateText.beginEdit = (key) => { calls.push(key); return true; };
+  const on = px(shell, [150, 550]);
+  const dblclick = (buttons) => pageNode(shell).dispatchEvent(new window.MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: on[0], clientY: on[1], button: 0, buttons }));
+  SigK.annotate.setTool('hand');
+  fire(shell, 'mousedown', pageNode(shell), on, { button: 2, buttons: 2 });
+  fire(shell, 'mousedown', pageNode(shell), on, { button: 0, buttons: 3 });
+  fire(shell, 'mouseup', pageNode(shell), on, { button: 0, buttons: 2 });
+  fire(shell, 'mousedown', pageNode(shell), on, { button: 0, buttons: 3 });
+  fire(shell, 'mouseup', pageNode(shell), on, { button: 0, buttons: 2 });
+  dblclick(2);
+  assert.equal(calls.length, 0, '最中');
+  fire(shell, 'mouseup', pageNode(shell), on, { button: 2, buttons: 0 });
+  clock += 500;
+  dblclick(0);
+  assert.equal(calls.length, 0, '離してから 1000ms まで');
+  clock += 600;
+  dblclick(0);
+  assert.equal(calls.length, 1, '過ぎればふつうに直し始める（道具は戻り先の道具なし）');
+});

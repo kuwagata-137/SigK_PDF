@@ -121,8 +121,9 @@
   }
 
   // ダブルクリックしたテキストは入力欄を開く（spec-4-2 確定事項5）。ノートは「本文」欄へ（spec-4-4 確定事項7）。
+  // 左＋右の最中と直後のダブルクリック（左＋右の左の押しと続けた押しで出る）は捨てる（spec-4b-3b 確定事項E4）。
   function onDoubleClick(event) {
-    if (!inAnnotMode() || !isOpen() || holdingHand())
+    if (!inAnnotMode() || !isOpen() || holdingHand() || rightButton()?.recentlyChorded() === true)
       return;
     const page = press().pageAt(event);
     if (page === null)
@@ -142,8 +143,10 @@
       return;
     grab().move(event);
     draw().move(event);
-    // つまみの上のカーソル（掴んでいない・描いていないとき。ハンドのときは見ない）。
-    if (inAnnotMode() && !holdingHand() && !grab().isGrabbing() && !draw().isDrawing())
+    // つまみの上のカーソル（掴んでいない・描いていないとき）。ハンドのときはつまみを見ないので、残っていれば外す。
+    if (inAnnotMode() && holdingHand())
+      transform()?.clearCursor();
+    else if (inAnnotMode() && !grab().isGrabbing() && !draw().isDrawing())
       transform()?.hover(event);
   }
 
@@ -158,7 +161,7 @@
     state.doc = doc;
     press().init(win);
     grab().init(doc);
-    hand().init(doc);
+    hand().init(doc, win);
     const view = doc.getElementById('view');
     view?.addEventListener('mousedown', onMouseDown);
     view?.addEventListener('mouseup', onMouseUp);

@@ -204,3 +204,21 @@ test('引いている途中の Esc は引くのを終えるだけで、次の Es
   SigK.shell.setMode(document, 'view');
   assert.equal(document.documentElement.hasAttribute('data-panning'), false);
 });
+
+test('引いている途中に離しが届かず、ボタンを押していない動きが来たら引くのを終える。窓のフォーカスが外れても終える（確定事項A3）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  SigK.annotate.setTool('hand');
+  mouse(shell, 'mousedown', pageNode(shell), [300, 300]);
+  mouse(shell, 'mousemove', document.body, [300, 250]);
+  assert.deepEqual(scrollOf(shell), [0, 50]);
+  document.body.dispatchEvent(new window.MouseEvent('mousemove', { bubbles: true, cancelable: true, clientX: 300, clientY: 100, buttons: 0 }));
+  assert.deepEqual(scrollOf(shell), [0, 50], 'ボタンを押していない動きでは引かない');
+  assert.equal(document.documentElement.hasAttribute('data-panning'), false);
+
+  mouse(shell, 'mousedown', pageNode(shell), [300, 300]);
+  window.dispatchEvent(new window.Event('blur'));
+  assert.equal(document.documentElement.hasAttribute('data-panning'), false);
+  mouse(shell, 'mousemove', document.body, [300, 200]);
+  assert.deepEqual(scrollOf(shell), [0, 50]);
+});

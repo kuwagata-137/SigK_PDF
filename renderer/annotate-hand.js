@@ -37,6 +37,11 @@
   function move(event) {
     if (state.last === null)
       return false;
+    // 左を離した mouseup が届かなかった（窓の外で離した・Alt+Tab で捕捉が外れた）。押していない動きでは引かずに終える。
+    if (((event.buttons ?? 0) & 1) === 0) {
+      end();
+      return false;
+    }
     state.view.scrollLeft -= event.clientX - state.last.x;
     state.view.scrollTop -= event.clientY - state.last.y;
     state.last = { x: event.clientX, y: event.clientY };
@@ -52,9 +57,11 @@
     return true;
   }
 
-  function init(doc) {
+  function init(doc, win) {
     state.doc = doc;
     state.view = doc.getElementById('view');
+    // 窓のフォーカスが外れたら終える（離しが届かないことがあるため）。
+    win?.addEventListener('blur', end);
   }
 
   const SigK = (root.SigK = root.SigK || {});

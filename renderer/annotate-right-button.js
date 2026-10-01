@@ -10,7 +10,8 @@
   //
   // 左＋右（確定事項E）もここで持つ。#view の中で左と右の両方が押された時点で、押している操作を全部取りやめ（annotate-cancel.js）、
   // 道具を切り替える（annotate-tools.js の chord）。全部のボタンを離すまで、動きと離しを捨て、selectstart を止め、左で動かすたびに
-  // 文字の選択を外す（事前調査 B）。押す順は問わず、切り替えは 1 回だけ。全部離した後も CHORD_IGNORE_MS の間は contextmenu を捨てる。
+  // 文字の選択を外す（事前調査 B）。押す順は問わず、切り替えは 1 回だけ。全部離した後も CHORD_IGNORE_MS の間は contextmenu と
+  // ダブルクリック（左＋右の左の押しと続けた押しで出る）を捨てる。
 
   // 左＋右の後、contextmenu を捨てる間（ms）。
   const CHORD_IGNORE_MS = 1000;
@@ -20,7 +21,8 @@
     win: null,
     // 左＋右の後、全部のボタンを離すまで true。
     chordUntilUp: false,
-    // 最後に左＋右を効かせた時刻。
+    // 左＋右の後、全部のボタンが離れた時刻（CHORD_IGNORE_MS はここから数える。長く押したまま右を最後に離しても、続く contextmenu を
+    // 捨てるため）。
     chordAt: -Infinity,
     // 入力欄を閉じた右の押しの印。swallow は mouseup で消えるので、続く contextmenu を飲むためにここで覚える（事前調査 K）。
     swallowedRight: false,
@@ -67,8 +69,20 @@
     root.SigK.annotateCancel.abortForChord(state.win);
     root.SigK.annotateTools.chord();
     state.chordUntilUp = true;
-    state.chordAt = now();
     return true;
+  }
+
+  // 全部のボタンが離れた（または離したと見なす）。捨てる状態を解き、contextmenu・ダブルクリックを捨てる間を数え始める。
+  function release() {
+    if (!state.chordUntilUp)
+      return;
+    state.chordUntilUp = false;
+    state.chordAt = now();
+  }
+
+  // 左＋右の最中か、全部離してから CHORD_IGNORE_MS の間か（contextmenu とダブルクリックを捨てる。確定事項E4）。
+  function recentlyChorded() {
+    return state.chordUntilUp || now() - state.chordAt < CHORD_IGNORE_MS;
   }
 
   // 離した。左＋右の後なら捨てて true（全部のボタンが離れたら解く）。
@@ -76,7 +90,7 @@
     if (!state.chordUntilUp)
       return false;
     if ((event.buttons ?? 0) === 0)
-      state.chordUntilUp = false;
+      release();
     return true;
   }
 
@@ -85,7 +99,7 @@
     if (!state.chordUntilUp)
       return false;
     if ((event.buttons ?? 0) === 0) {
-      state.chordUntilUp = false;
+      release();
       return false;
     }
     clearTextSelection();
@@ -134,7 +148,7 @@
     const swallowed = state.swallowedRight;
     state.swallowedRight = false;
     // 左＋右の後、全部離すまでと、離してから CHORD_IGNORE_MS の間に届いたものは捨てる（確定事項E4）。
-    if (swallowed || state.chordUntilUp || now() - state.chordAt < CHORD_IGNORE_MS)
+    if (swallowed || recentlyChorded())
       return;
     const key = hitAt(event);
     if (key === null) {
@@ -161,9 +175,9 @@
     // #view の外で離したとき（pointer の離しが届かない）も、全部離れたら解く。
     doc.addEventListener('mouseup', (event) => {
       if ((event.buttons ?? 0) === 0)
-        state.chordUntilUp = false;
+        release();
     });
-    win.addEventListener('blur', () => { state.chordUntilUp = false; });
+    win.addEventListener('blur', release);
     return true;
   }
 
@@ -176,6 +190,7 @@
     chord,
     takeChordUp,
     whileChord,
+    recentlyChorded,
     isChording: () => state.chordUntilUp,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
