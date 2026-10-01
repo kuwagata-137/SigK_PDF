@@ -8,8 +8,8 @@
   // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）、
   // 図形・ペンは shape-graphics.js の <g>（spec-4-3 確定事項8）、ノートは note-graphics.js の
   // 付箋（spec-4-4 確定事項8）。描いている途中の下書きも同じ描き手で最後に置く（確定事項3）。
-  // 「表示のみ」の注釈（readonly。pdf.js が描く）は描かず、選ばれていれば枠だけ出す
-  // （spec-4-4 確定事項32）。pointer-events は無く、当たり判定は annotate.js が行う。
+  // 「表示のみ」の注釈（readonly。pdf.js が描く）は描かない（選ばれていれば枠だけ出す。spec-4-4 確定事項32。枠は
+  // 紙の外の層 annotation-frame.js が描く。spec-4b-2 確定事項9）。pointer-events は無く、当たり判定は annotation-hit.js が行う。
   //
   // 同じ絵を canvas 2D にも描ける（paint）。印刷が未保存の注釈を映すのに使う
   // （確定事項28）。SVG と canvas で描き方を分けると、画面と紙で見た目がずれる。
@@ -68,11 +68,6 @@
     return root.SigK.annotationEntry.isNoteKind(entry.kind);
   }
 
-  // 選択の枠（annotation-frame.js）。
-  function frameOf(doc, entry, viewport) {
-    return root.SigK.annotationFrame.frameOf(doc, entry, viewport);
-  }
-
   function keyOf(entry) {
     return entry.ref ?? entry.id;
   }
@@ -115,25 +110,19 @@
   }
 
   // 層を描き直す。entries は annotationState.annotsOnPage の並び（下から上）。
-  // selected は選んでいる注釈の id か ref（無ければ null）。editing は入力欄を開いている
-  // テキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
-  // draft は描いている途中の図形（entry の形）で、枠よりさらに上に描く。
-  function draw(svg, entries, viewport, { selected = null, editing = null, draft = null } = {}) {
+  // editing は入力欄を開いているテキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
+  // draft は描いている途中の図形（entry の形）で、いちばん上に描く。選択の枠は紙の外の層（annotation-frame.js。
+  // spec-4b-2 確定事項9）が描く。
+  function draw(svg, entries, viewport, { editing = null, draft = null } = {}) {
     const doc = svg.ownerDocument;
     svg.replaceChildren();
-    let frame = null;
     for (const entry of entries) {
       if (editing !== null && keyOf(entry) === editing)
         continue;
       const group = groupOf(doc, entry, viewport);
       if (group !== null)
         svg.append(group);
-      if (selected !== null && keyOf(entry) === selected)
-        frame = frameOf(doc, entry, viewport);
     }
-    // 枠は最後に置く（いちばん上）。下書きはその上。
-    if (frame !== null)
-      svg.append(frame);
     if (draft !== null && draft !== undefined)
       svg.append(draftOf(doc, draft, viewport));
     return svg.childNodes.length;

@@ -3,8 +3,8 @@
 
   // 選んでいるテキスト・図形・ペン・ノートを掴んで動かす（spec-4-2 確定事項6、spec-4-3 確定事項5、spec-4-4 確定事項2）。
   //
-  // annotate-pointer.js から移した（spec-4b-2。200 行の目安。中身は変えていない）。押したときに begin、動かすたびに move
-  // （書き込みの <g> を CSS で translate するだけで描き直さない）、離したときに end（紙の座標の差分に直して 1 世代）。
+  // annotate-pointer.js から移した（spec-4b-2。200 行の目安）。押したときに begin、動かすたびに move（書き込みの <g> と、
+  // 枠とつまみの層を CSS で translate するだけで描き直さない。spec-4b-2 確定事項23）、離したときに end（紙の座標の差分に直して 1 世代）。
 
   // 掴んで動かしているもの { key, index, viewport, start(px), group }。無ければ null。
   let drag = null;
@@ -46,10 +46,14 @@
     return true;
   }
 
+  // 書き込みの <g> と、枠とつまみの層（spec-4b-2 確定事項23）を同じだけずらす。
   function move(event) {
     if (drag === null || drag.group === null)
       return;
-    drag.group.style.transform = `translate(${event.clientX - drag.start[0]}px, ${event.clientY - drag.start[1]}px)`;
+    const dx = event.clientX - drag.start[0];
+    const dy = event.clientY - drag.start[1];
+    drag.group.style.transform = `translate(${dx}px, ${dy}px)`;
+    root.SigK.annotationFrame?.translate(dx, dy);
   }
 
   // 離したら紙の座標での差分に直して 1 世代積む。動いていなければ何もしない（選んだまま）。
@@ -60,6 +64,7 @@
       return false;
     if (current.group !== null)
       current.group.style.transform = '';
+    root.SigK.annotationFrame?.translate(0, 0);
     if (!moved(current.start, event))
       return false;
     const from = current.viewport.convertToPdfPoint(current.start[0], current.start[1]);

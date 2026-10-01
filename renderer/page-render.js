@@ -98,14 +98,16 @@
       const entries = Number.isInteger(src)
         ? root.SigK.annotationState.annotsOnPage(state.annots, state.imported, src)
         : [];
-      // スライダーを動かしている間は、選んだ書き込みを下見の値で描く（spec-4b-1b 確定事項8）。
+      // スライダーやつまみを動かしている間は、選んだ書き込みを下見の値で描く（spec-4b-1b 確定事項8、spec-4b-2 確定事項38）。
       const preview = root.SigK.annotatePreview;
-      layer.draw(entry.annots.svg, preview === undefined ? entries : entries.map(preview.previewFor), entry.annots.viewport, {
-        selected: root.SigK.annotate?.getSelected() ?? null,
-        editing: root.SigK.freeTextEditor?.editingKey() ?? null,
-        // 描いている途中の図形（spec-4-3 確定事項3）。
-        draft: root.SigK.annotateShape?.draftFor(index) ?? null,
-      });
+      const shown = preview === undefined ? entries : entries.map(preview.previewFor);
+      const selected = root.SigK.annotate?.getSelected() ?? null;
+      const editing = root.SigK.freeTextEditor?.editingKey() ?? null;
+      // 描いている途中の図形（spec-4-3 確定事項3）。
+      layer.draw(entry.annots.svg, shown, entry.annots.viewport, { editing, draft: root.SigK.annotateShape?.draftFor(index) ?? null });
+      // 選択の枠とつまみは紙の外の層へ（spec-4b-2 確定事項9）。
+      const { doc, pages, pageNodes } = ctx.el();
+      root.SigK.annotationFrame?.sync({ doc, pagesEl: pages, pageNode: pageNodes[index], index, entries: shown, viewport: entry.annots.viewport, selected, editing });
     }
 
     // 描いてあるページの注釈の層を描き直す（編集・undo・選択の変化）。
@@ -132,6 +134,7 @@
       // 注釈の層も同じで、枠ごと捨てる。
       entry.text?.cancel();
       entry.annots = null;
+      root.SigK.annotationFrame?.releasePage(index);
       root.SigK.freeTextEditor?.onPageReleased(index);
       ctx.el().pageNodes[index]?.replaceChildren();
     }

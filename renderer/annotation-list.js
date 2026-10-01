@@ -100,12 +100,13 @@
     return found !== null;
   }
 
-  // 描かれたページの層にある注釈（表示のみは枠）へ寄せる。無ければ false。
+  // 描かれたページの層にある注釈（表示のみは枠。枠は紙の外の層にある。spec-4b-2 確定事項9）へ寄せる。無ければ false。
   function scrollToTarget(pageIndex) {
     if (state.pendingReveal === null)
       return false;
     const layer = state.doc.querySelector(`.pdf-page[data-page="${pageIndex + 1}"] .annot-layer`);
-    const target = layer?.querySelector(`g[data-annot="${state.pendingReveal}"]`) ?? layer?.querySelector('.annot-frame') ?? null;
+    const frame = root.SigK.annotationFrame?.shown()?.index === pageIndex ? state.doc.querySelector('.annot-frame-layer .annot-frame') : null;
+    const target = layer?.querySelector(`g[data-annot="${state.pendingReveal}"]`) ?? frame ?? null;
     if (target === null)
       return false;
     state.pendingReveal = null;
