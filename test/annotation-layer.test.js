@@ -15,11 +15,13 @@ require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
 require('../renderer/shape-figure.js');
 require('../renderer/shape-graphics.js');
+require('../renderer/annotation-frame.js');
 require('../renderer/annotation-layer.js');
 
 // 紙の上に重ねる注釈の層（spec-4-1 確定事項5・37）と、印刷用の canvas 2D の描き手（確定事項28）。
 
 const layer = globalThis.SigK.annotationLayer;
+const { FRAME_PADDING } = globalThis.SigK.annotationFrame;
 
 // 回転 0・倍率 1 の viewport（A4）。
 function viewport(scale = 1) {
@@ -86,8 +88,8 @@ test('draw は描き直すたびに前の中身を捨て、選んだ注釈に枠
   assert.equal(svg.querySelectorAll('g').length, 2);
   const frame = svg.lastElementChild;
   assert.equal(frame.getAttribute('class'), 'annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 48 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), 184 + layer.FRAME_PADDING * 2);
+  assert.equal(Number(frame.getAttribute('x')), 48 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 184 + FRAME_PADDING * 2);
   layer.draw(svg, [HIGHLIGHT], viewport(), { selected: 'nothing' });
   assert.equal(svg.querySelectorAll('.annot-frame').length, 0);
 });
@@ -130,8 +132,8 @@ test('draw はテキストを free-text-shape の <g> に委ね、編集中の�
   assert.deepEqual([...group.querySelectorAll('text')].map((t) => t.textContent), ['メモ', '二行目']);
   // 選択の枠は箱の四角から
   const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 100 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), 64 + layer.FRAME_PADDING * 2);
+  assert.equal(Number(frame.getAttribute('x')), 100 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 64 + FRAME_PADDING * 2);
 
   // 編集中は入力欄が代わりなので、group も枠も出さない
   assert.equal(layer.draw(svg, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3', editing: 'sigk-3' }), 1);
@@ -172,8 +174,8 @@ test('draw は図形を shape-graphics の <g> に委ね、選択の枠は四角
   assert.equal(arrow.getAttribute('opacity'), '0.5');
   assert.equal(arrow.querySelectorAll('line, polyline').length, 2);
   const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 98.5 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), Math.round((203 + layer.FRAME_PADDING * 2) * 100) / 100);
+  assert.equal(Number(frame.getAttribute('x')), 98.5 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), Math.round((203 + FRAME_PADDING * 2) * 100) / 100);
 });
 
 test('draw は下書き（draft）を最後に annot-draft として描き、当たり判定の鍵を持たせない', () => {
@@ -236,8 +238,8 @@ test('draw はノートを note-graphics の <g> に委ね、選択の枠は画�
   assert.equal(note.getAttribute('opacity'), '0.75');
   assert.equal(note.querySelector('g.note path').getAttribute('fill'), '#ffe45a');
   const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 200 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), Math.round((26.67 + layer.FRAME_PADDING * 2) * 100) / 100);
+  assert.equal(Number(frame.getAttribute('x')), 200 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), Math.round((26.67 + FRAME_PADDING * 2) * 100) / 100);
 });
 
 test('draw は表示のみの注釈を描かず、選ばれていれば枠だけ出す', () => {
@@ -247,8 +249,8 @@ test('draw は表示のみの注釈を描かず、選ばれていれば枠だけ
   assert.equal(svg.querySelector('g[data-annot="17R"]'), null);
   assert.equal(layer.draw(svg, [READONLY, HIGHLIGHT], viewport(), { selected: '17R' }), 2);
   const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 298 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), 204 + layer.FRAME_PADDING * 2);
+  assert.equal(Number(frame.getAttribute('x')), 298 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 204 + FRAME_PADDING * 2);
 });
 
 test('paint はノートを note-graphics に委ね、表示のみは描かない', () => {

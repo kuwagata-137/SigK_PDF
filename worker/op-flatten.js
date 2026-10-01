@@ -9,50 +9,22 @@
 // 辞書の /CA は重ねない（pdf.js と同じ。本アプリの外観は中で不透明度を設定し直す。事前調査 C）。
 //
 // 辞書の読みは pdf-tree-reader.js の pick に寄せ、pdf-lib のクラスで instanceof しない
-// （ワーカーは vendor の、テストは node_modules の pdf-lib を使う）。
+// （ワーカーは vendor の、テストは node_modules の pdf-lib を使う）。外観の選び方（確定事項28）は
+// appearance-reader.js（spec-4b-2 で読み戻しの口と共用するために移した）。
 
 const { pick } = require('./pdf-tree-reader.js');
 const { FLAGS, decide, emptyCensus, count, summarize } = require('./flatten-selection.js');
 const { bakeMatrix } = require('./flatten-geometry.js');
 const { IDENTITY, matrixText } = require('./pdf-matrix.js');
+const { isRef, numbersOf, appearanceOf } = require('./appearance-reader.js');
 const { ICON_SIZE, noteAppearanceOf } = require('./note-appearance.js');
 
 const FLATTEN_PREFIX = 'SigKF';
 // 色の無いノートは黄（本アプリの読み込みと同じ。spec-4-4 確定事項20）。spec-4b-1b 確定事項14 でノートの既定の色に合わせた。
 const DEFAULT_NOTE_COLOR = '#ffd966';
 
-const isRef = (value) => typeof value?.objectNumber === 'number';
-// ストリームは getContents を持つ（PDFDict も中身を dict という Map で持つので、dict の有無では見分けられない）。
-const isStream = (value) => typeof value?.getContents === 'function';
-
 function nameOf(value) {
   return typeof value?.asString === 'function' ? value.asString().replace(/^\//, '') : '';
-}
-
-function numbersOf(context, value, length) {
-  const array = context.lookup(value);
-  if (typeof array?.asArray !== 'function')
-    return null;
-  const numbers = array.asArray().map((item) => context.lookup(item)).map((item) => (typeof item?.asNumber === 'function' ? item.asNumber() : Number.NaN));
-  return numbers.length === length && numbers.every(Number.isFinite) ? numbers : null;
-}
-
-// 外観を選ぶ（確定事項28）。戻り値は { ref, bbox, matrix } か null（無い・選べない・/BBox が読めない）。
-function appearanceOf(context, dict) {
-  const ap = context.lookup(pick(dict, '/AP'));
-  let ref = pick(ap, '/N');
-  const normal = context.lookup(ref);
-  if (!isStream(normal) && typeof normal?.entries === 'function') {
-    const state = pick(dict, '/AS');
-    ref = typeof state?.asString === 'function' ? pick(normal, state.asString()) : undefined;
-  }
-  const stream = context.lookup(ref);
-  if (!isRef(ref) || !isStream(stream))
-    return null;
-  const bbox = numbersOf(context, pick(stream.dict, '/BBox'), 4);
-  if (bbox === null || bbox[0] === bbox[2] || bbox[1] === bbox[3])
-    return null;
-  return { ref, bbox, matrix: numbersOf(context, pick(stream.dict, '/Matrix'), 6) ?? IDENTITY };
 }
 
 // /Annots の 1 項目を読んで扱いを決める。

@@ -139,34 +139,9 @@
     return state.selected;
   }
 
-  // 1 つの注釈に点が当たるか。直線・矢印・ペンは線からの距離、ノートは画面の箱（表示の点で見る。
-  // spec-4-4 確定事項13）、表示のみは当てない、それ以外は四角（spec-4-3 確定事項12）。
-  function hits(entry, pdfPoint, viewport, point) {
-    if (entry.readonly === true)
-      return false;
-    if (annotationState().isNoteKind(entry.kind))
-      return root.SigK.noteGraphics.hits(entry, point, viewport);
-    if (!annotationState().isPathKind(entry.kind))
-      return root.SigK.markupQuads.hitTest(entry.quads, pdfPoint);
-    const geometry = root.SigK.shapeGeometry;
-    const tolerance = geometry.hitTolerance(entry.lineWidth, viewport.scale ?? 1);
-    return geometry.hitsPath(entry.paths, pdfPoint, tolerance, { arrow: entry.kind === 'arrow', lineWidth: entry.lineWidth });
-  }
-
-  // 点（.pdf-page 基準の CSS px）に当たる注釈。上に描いたもの（後ろ）が優先。
+  // 点（.pdf-page 基準の CSS px）に当たる注釈（annotation-hit.js。上に描いたものが優先）。
   function hitTest(index, point) {
-    const view = viewer();
-    const viewport = root.SigK.freeTextEditor?.pageOf(index)?.viewport ?? view?.getTextLayer(index)?.viewport;
-    const src = view?.getPlan()[index]?.src;
-    if (viewport === null || viewport === undefined || !Number.isInteger(src))
-      return null;
-    const pdfPoint = viewport.convertToPdfPoint(point[0], point[1]);
-    const entries = annotationState().annotsOnPage(view.getAnnotations(), view.getImported(), src);
-    for (let position = entries.length - 1; position >= 0; position -= 1) {
-      if (hits(entries[position], pdfPoint, viewport, point))
-        return root.SigK.annotationLayer.keyOf(entries[position]);
-    }
-    return null;
+    return root.SigK.annotationHit.hitTest(index, point);
   }
 
   function remove() {

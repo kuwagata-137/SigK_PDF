@@ -5,18 +5,17 @@
 // pdf-lib を知らない。content stream を文字列で返し、Form XObject と辞書に包むのは op-annotate.js。矢じりは
 // renderer/shape-geometry.js、四角・丸の輪郭は renderer/shape-outline.js、雲形は renderer/cloud-geometry.js と同じ式で、
 // 一致はテストで見張る（プロセスが違うので import できない）。四角・丸の線は /Rect の内側に収め、描く線幅は短い辺の半分で
-// 頭打ちにする。見た目の欄の決まりは shape-style-rules.js。不透明度が 1 未満なら透明グループで包むよう group を立てる。
+// 頭打ちにする。見た目の欄と形の決まり（isShapeEntry）は shape-style-rules.js。不透明度が 1 未満なら透明グループで包むよう group を立てる。
 
 const { num, colorOps } = require('./annotation-appearance.js');
 const { cloudPathOf } = require('./cloud-appearance.js');
-const { BOXED_KINDS, styleOf } = require('./shape-style-rules.js');
+const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 
 const KAPPA = 0.5523;
 const ARROW_MIN_LENGTH = 9;
 const ARROW_LENGTH_RATIO = 6;
 const ARROW_ANGLE = Math.PI / 6;
 
-const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'ink']);
 const SUBTYPES = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', ink: 'Ink' });
 
 function round(value) {
@@ -29,30 +28,6 @@ function arrowHead(from, to, lineWidth) {
   const angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
   const wing = (turn) => [to[0] + Math.cos(angle + turn) * length, to[1] + Math.sin(angle + turn) * length];
   return [wing(Math.PI - ARROW_ANGLE), wing(-(Math.PI - ARROW_ANGLE))];
-}
-
-function isPoint(point) {
-  return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
-}
-
-// 点列は 1 本以上で各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（renderer/annotation-entry-rules.js と同じ約束）。
-function validPaths(kind, paths) {
-  if (!Array.isArray(paths) || paths.length === 0)
-    return false;
-  if (!paths.every((path) => Array.isArray(path) && path.length >= 2 && path.every(isPoint)))
-    return false;
-  return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
-}
-
-// 図形・ペンの entry の形。線幅が正、/Rect が 4 つの数、見た目の欄が決まりどおり、点列は種類ごとの形。
-function isShapeEntry(entry) {
-  if (!KINDS.includes(entry?.kind) || !Number.isFinite(entry.lineWidth) || entry.lineWidth <= 0)
-    return false;
-  if (!Array.isArray(entry.rect) || entry.rect.length !== 4 || !entry.rect.every(Number.isFinite))
-    return false;
-  if (styleOf(entry) === null)
-    return false;
-  return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
 }
 
 function point(values) {

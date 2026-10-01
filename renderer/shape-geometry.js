@@ -4,7 +4,7 @@
   // 図形・ペンの幾何の純粋層（spec-4-3 確定事項4・9・10・12・30）。DOM にも pdf.js にも触れない。
   //
   // 紙の座標（pt）で計算し、表示への変換は呼ぶ側（shape-graphics.js・annotate-shape.js）が
-  // viewport で行う。矢じりの寸法と翼の式は worker/shape-appearance.js に同じものを持ち、
+  // viewport で行う。線の当たり判定は annotation-hit.js へ移した（spec-4b-2）。矢じりの寸法と翼の式は worker/shape-appearance.js に同じものを持ち、
   // 一致はテストで見張る（プロセスが違うので import できない）。
 
   // 矢じり: 翼の長さは max(ARROW_MIN_LENGTH, 線幅 × ARROW_LENGTH_RATIO)、線からの開き ARROW_ANGLE。
@@ -14,8 +14,6 @@
   // ペンの間引き（表示の px）: 描きながらは直前の点から MIN_STEP 以上、離したら許容 SIMPLIFY_TOLERANCE。
   const MIN_STEP = 2;
   const SIMPLIFY_TOLERANCE = 1;
-  // 当たり判定の余裕（表示の px）。線幅の半分に足す。
-  const HIT_SLACK = 3;
   // 矩形・楕円の辺の最小（pt）。
   const MIN_SIDE = 1;
 
@@ -104,30 +102,6 @@
     return Math.hypot(point[0] - (a[0] + dx * t), point[1] - (a[1] + dy * t));
   }
 
-  function hitsSegments(points, target, tolerance) {
-    for (let index = 1; index < points.length; index += 1) {
-      if (distanceToSegment(target, points[index - 1], points[index]) <= tolerance)
-        return true;
-    }
-    return false;
-  }
-
-  // 点列のどれかの線分に当たるか。矢印は翼 2 本も見る（確定事項12）。
-  function hitsPath(paths, point, tolerance, { arrow = false, lineWidth = 1 } = {}) {
-    if (paths.some((path) => hitsSegments(path, point, tolerance)))
-      return true;
-    if (!arrow)
-      return false;
-    const [from, to] = paths[0];
-    const [left, right] = arrowHead(from, to, lineWidth);
-    return hitsSegments([left, to, right], point, tolerance);
-  }
-
-  // 当たり判定の許容（pt）。線幅の半分に、表示の HIT_SLACK px を紙の座標へ直して足す。
-  function hitTolerance(lineWidth, scale) {
-    return lineWidth / 2 + HIT_SLACK / (scale > 0 ? scale : 1);
-  }
-
   function farEnough(from, to, minStep) {
     return Math.hypot(to[0] - from[0], to[1] - from[1]) >= minStep;
   }
@@ -176,7 +150,6 @@
     ARROW_ANGLE,
     MIN_STEP,
     SIMPLIFY_TOLERANCE,
-    HIT_SLACK,
     MIN_SIDE,
     roundPoint,
     boxOf,
@@ -185,8 +158,6 @@
     boundsOf,
     rectOfShape,
     distanceToSegment,
-    hitsPath,
-    hitTolerance,
     farEnough,
     thinPoints,
     simplifyPath,

@@ -78,27 +78,6 @@ test('distanceToSegment は線分への最短距離で、端の外は端から�
   near(geo.distanceToSegment([0, 10], [0, 0], [10, 10]), 7.07);
 });
 
-test('hitsPath は線分からの距離が許容以内なら当たり、矢印は翼も見る', () => {
-  const paths = [[[0, 0], [100, 0]]];
-  assert.equal(geo.hitsPath(paths, [50, 2], 3), true);
-  assert.equal(geo.hitsPath(paths, [50, 4], 3), false);
-  assert.equal(geo.hitsPath(paths, [-2, 0], 3), true);
-  assert.equal(geo.hitsPath(paths, [-4, 0], 3), false);
-  // 矢じり: 翼は (89.61, ±6) へ伸びる（線幅 2）
-  assert.equal(geo.hitsPath(paths, [92, 5], 1, { arrow: true, lineWidth: 2 }), true);
-  assert.equal(geo.hitsPath(paths, [92, 5], 1), false);
-  // 複数の path のどれかに当たれば当たり
-  assert.equal(geo.hitsPath([[[0, 0], [10, 0]], [[0, 50], [10, 50]]], [5, 51], 2), true);
-  assert.equal(geo.hitsPath([[[0, 0], [10, 0]], [[0, 50], [10, 50]]], [5, 25], 2), false);
-});
-
-test('hitTolerance は線幅の半分に 3px 相当を足す', () => {
-  assert.equal(geo.HIT_SLACK, 3);
-  assert.equal(geo.hitTolerance(2, 1), 4);
-  assert.equal(geo.hitTolerance(4, 2), 3.5);
-  assert.equal(geo.hitTolerance(1, 0), 3.5);
-});
-
 test('thinPoints は直前の点から minStep 未満の点を捨て、最後の点は残す', () => {
   assert.equal(geo.MIN_STEP, 2);
   assert.deepEqual(geo.thinPoints([[0, 0], [0.5, 0], [1, 0], [3, 0], [3.5, 0], [10, 0]], 2), [[0, 0], [3, 0], [10, 0]]);

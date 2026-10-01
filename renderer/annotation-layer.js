@@ -15,8 +15,6 @@
   // （確定事項28）。SVG と canvas で描き方を分けると、画面と紙で見た目がずれる。
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  // 選択の枠の余白（CSS px）。四角群の外接にこれだけ足す。
-  const FRAME_PADDING = 3;
 
   function quads() {
     return root.SigK.markupQuads;
@@ -70,29 +68,9 @@
     return root.SigK.annotationEntry.isNoteKind(entry.kind);
   }
 
-  // 枠の元になる箱（CSS px）。ノートは画面の箱（倍率に依らず一定。spec-4-4 確定事項11）、それ以外は四角群の外接。
-  function boundsOf(entry, viewport) {
-    if (isNote(entry)) {
-      const box = root.SigK.noteGraphics.boxOf(entry, viewport);
-      return { x: box.x, y: box.y, width: box.width, height: box.height };
-    }
-    const corners = entry.quads.flatMap((quad) => quads().quadToViewport(quad, viewport));
-    const xs = corners.map((point) => point[0]);
-    const ys = corners.map((point) => point[1]);
-    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
-  }
-
-  // 選択の枠。箱（CSS px）に余白を足した破線。
+  // 選択の枠（annotation-frame.js）。
   function frameOf(doc, entry, viewport) {
-    const box = boundsOf(entry, viewport);
-    const rect = doc.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', fmt(box.x - FRAME_PADDING));
-    rect.setAttribute('y', fmt(box.y - FRAME_PADDING));
-    rect.setAttribute('width', fmt(box.width + FRAME_PADDING * 2));
-    rect.setAttribute('height', fmt(box.height + FRAME_PADDING * 2));
-    rect.setAttribute('rx', '3');
-    rect.setAttribute('class', 'annot-frame');
-    return rect;
+    return root.SigK.annotationFrame.frameOf(doc, entry, viewport);
   }
 
   function keyOf(entry) {
@@ -211,5 +189,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationLayer = { FRAME_PADDING, mount, draw, paint, keyOf };
+  SigK.annotationLayer = { mount, draw, paint, keyOf };
 })(typeof window !== 'undefined' ? window : globalThis);

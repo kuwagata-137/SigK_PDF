@@ -2,6 +2,7 @@
 
 // 図形の見た目の欄（線の色・塗り・線種・破線の間隔・雲形の強さ）の決まりの純粋層（spec-4b-1b 確定事項16〜21・32・33）。
 // pdf-lib を知らない。renderer/shape-style.js と同じ決まりで、一致はテストで見張る（プロセスが違うので読み込み合わない）。
+// 図形・ペンの entry の形（isShapeEntry・validPaths）は shape-appearance.js から移した（spec-4b-2。200 行の目安）。
 //
 //   四角・丸   … color は '#rrggbb' か null（線なし。そのときは fill が要る）、fill は '#rrggbb' か null、
 //                lineStyle は 'solid'・'dashed'・'cloudy'
@@ -11,6 +12,8 @@
 
 const { parseColor } = require('./annotation-appearance.js');
 
+// 図形・ペンの種類（shape-appearance.js が同じ名前で公開する）。
+const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'ink']);
 const BOXED_KINDS = Object.freeze(['square', 'circle']);
 const LINE_KINDS = Object.freeze(['line', 'arrow']);
 const LINE_STYLES = Object.freeze(['solid', 'dashed', 'cloudy']);
@@ -71,4 +74,28 @@ function styleOf(entry) {
   };
 }
 
-module.exports = { BOXED_KINDS, LINE_STYLES, DEFAULT_DASH, DEFAULT_CLOUD_INTENSITY, lineStylesOf, validDash, validCloudIntensity, styleOf };
+function isPoint(point) {
+  return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
+}
+
+// 点列は 1 本以上で各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（renderer/annotation-entry-rules.js と同じ約束）。
+function validPaths(kind, paths) {
+  if (!Array.isArray(paths) || paths.length === 0)
+    return false;
+  if (!paths.every((path) => Array.isArray(path) && path.length >= 2 && path.every(isPoint)))
+    return false;
+  return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
+}
+
+// 図形・ペンの entry の形。線幅が正、/Rect が 4 つの数、見た目の欄が決まりどおり、点列は種類ごとの形。
+function isShapeEntry(entry) {
+  if (!KINDS.includes(entry?.kind) || !Number.isFinite(entry.lineWidth) || entry.lineWidth <= 0)
+    return false;
+  if (!Array.isArray(entry.rect) || entry.rect.length !== 4 || !entry.rect.every(Number.isFinite))
+    return false;
+  if (styleOf(entry) === null)
+    return false;
+  return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
+}
+
+module.exports = { KINDS, BOXED_KINDS, validPaths, isShapeEntry, LINE_STYLES, DEFAULT_DASH, DEFAULT_CLOUD_INTENSITY, lineStylesOf, validDash, validCloudIntensity, styleOf };
