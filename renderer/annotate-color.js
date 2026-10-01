@@ -32,9 +32,9 @@
     root.SigK.annotationProps?.refresh();
   }
 
-  // いまの道具が描く種類（図形は道具の段で選んだ種類、ペンは ink）。道具が無ければ null。
+  // いまの道具が描く種類（図形は道具の段で選んだ種類、ペンは ink）。描く道具が無ければ（「選択」を含む）null。
   function toolKind() {
-    const tool = annotate().getTool();
+    const tool = annotate().drawingTool();
     if (tool === null)
       return null;
     return root.SigK.annotateShape?.kindOfTool(tool) ?? tool;

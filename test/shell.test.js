@@ -77,11 +77,12 @@ test('ツールレールは 4 つのモードだけを持ち、編集の道具�
   assert.deepEqual(modes, [...SigK.shell.MODES]);
   assert.deepEqual([...document.querySelectorAll('#rail .lbl')].map((el) => el.textContent), ['閲覧', 'ページ編集', '編集', 'ツール']);
   // 編集の道具はレールではなく、ツールバーの下の段に並ぶ（spec-4b-1a 確定事項1〜3・11）。図形は 4 つに分かれる。
+  // 先頭は描かない道具の「選択」と区切り（spec-4b-3a 確定事項C1）。
   assert.equal(document.querySelectorAll('#rail .rail-item').length, 4);
   const tools = [...document.querySelectorAll('#edit-bar .edit-tool')];
-  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'arrow', 'line', 'square', 'circle', 'pen', 'note']);
-  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['ハイライト', '下線', '取り消し線', 'テキスト', '矢印', '直線', '四角', '丸', 'ペン', 'ノート']);
-  assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 3);
+  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['select', 'highlight', 'underline', 'strikeout', 'text', 'arrow', 'line', 'square', 'circle', 'pen', 'note']);
+  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['選択', 'ハイライト', '下線', '取り消し線', 'テキスト', '矢印', '直線', '四角', '丸', 'ペン', 'ノート']);
+  assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 4);
 });
 
 test('既定は閲覧モードでサイドパネルが開いている', async (t) => {

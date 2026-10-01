@@ -127,7 +127,8 @@
       refreshSelected(entry);
       return true;
     }
-    const tool = annotate().getTool();
+    // 「選択」など描かない道具なら、次に付ける値は出さない（spec-4b-3a 確定事項C3）。
+    const tool = annotate().drawingTool();
     const kind = tool === null ? null : kindOfTool(tool);
     // 図形は道具の段で選んだ種類の名前を出す（「四角（次に付ける）」。spec-4b-1a 確定事項8）。
     el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に付ける）`;
@@ -139,7 +140,7 @@
     setSizeRow(tool === 'text' ? annotate().getFontSize() : null);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
-    el.hint.textContent = hints().forTool(tool, kind, kind === null ? null : annotate().fillOf(kind));
+    el.hint.textContent = hints().forTool(annotate().getTool(), kind, kind === null ? null : annotate().fillOf(kind));
     setDeleteEnabled(false);
     return true;
   }

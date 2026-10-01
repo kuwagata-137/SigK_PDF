@@ -72,6 +72,9 @@ body{
   <!-- 編集の道具の段（spec-4b-1a 確定事項1〜6）。編集モードのときだけ出る。CheckListMaker の画像エディタと同じく、
        四角いボタンの下に名前を置く。図形の 4 つは data-shape で種類を持つ。結線は edit-bar.js。 -->
   <div id="edit-bar" role="toolbar" aria-label="書き込みの道具">
+    <!-- 「選択」は先頭（spec-4b-3a 確定事項C1。モック screenshots/phase4b-3-bar.png）。描かない道具で、紙の上を引くと範囲選択。 -->
+    <span class="edit-item"><button type="button" class="edit-tool" data-tool="select" title="選択" aria-label="選択" aria-pressed="false"><span data-icon="pointerSelect" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">選択</span></span>
+    <span class="edit-sep"></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="highlight" title="ハイライト" aria-label="ハイライト" aria-pressed="false"><span data-icon="highlight" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ハイライト</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="underline" title="下線" aria-label="下線" aria-pressed="false"><span data-icon="underline" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">下線</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="strikeout" title="取り消し線" aria-label="取り消し線" aria-pressed="false"><span data-icon="strikeout" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">取り消し線</span></span>

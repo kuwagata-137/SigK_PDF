@@ -136,6 +136,8 @@
     init,
     importDocument: (doc, options) => root.SigK.annotationImport.importDocument(doc, options),
     getTool: () => tools().getTool(),
+    // 描く道具（「選択」を持っているときは null。spec-4b-3a 確定事項C3）。
+    drawingTool: () => tools().drawingTool(),
     setTool: (tool) => tools().setTool(tool),
     toggleTool: (tool) => tools().toggleTool(tool),
     isMarkupTool: (tool) => tools().isMarkupTool(tool),

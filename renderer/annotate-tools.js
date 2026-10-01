@@ -3,10 +3,15 @@
 
   // 編集モードの「いまの道具」と「次に付ける文字の大きさ」（spec-4-1 確定事項1・8・10・33・34、spec-4-2 確定事項1・3・21・34）。
   //
-  // 300 行に近づいた annotate.js から移した（spec-4b-3a。中身は変えていない）。annotate.js は同じ名前の口でここへ委ねる。
+  // 300 行に近づいた annotate.js から移した（spec-4b-3a）。annotate.js は同じ名前の口でここへ委ねる。描かない道具の「選択」
+  // （spec-4b-3a 確定事項C）もここで持つ。
 
   // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
   const { TOOLS, MARKUP_TOOLS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
+
+  // 書き込みを描かない道具（spec-4b-3a 確定事項C3）。色の既定を持つ描く道具（TOOLS）とは別に持つ。
+  // 「選択」は紙のどこから引いても範囲選択になる。ハンドは塊③-b で足す。
+  const POINTER_TOOLS = Object.freeze(['select']);
 
   const state = {
     doc: null,
@@ -43,8 +48,17 @@
     return MARKUP_TOOLS.includes(tool);
   }
 
+  function isTool(tool) {
+    return TOOLS.includes(tool) || POINTER_TOOLS.includes(tool);
+  }
+
+  // 描く道具。「選択」など描かない道具を持っているときは null（右パネル・色・不透明度・図形の種類はこちらを見る）。
+  function drawingTool() {
+    return TOOLS.includes(state.tool) ? state.tool : null;
+  }
+
   function setTool(tool) {
-    state.tool = TOOLS.includes(tool) ? tool : null;
+    state.tool = isTool(tool) ? tool : null;
     if (state.tool === 'text')
       root.SigK.freeTextShape?.ensureLoaded(state.doc);
     syncTools();
@@ -59,7 +73,7 @@
   // 道具はトグル。マークアップは、押した時点で文字が選ばれていればその場で付ける
   // （確定事項10 ②）。テキストは押しても作らない（spec-4-2 確定事項3）。
   function toggleTool(tool) {
-    if (!TOOLS.includes(tool))
+    if (!isTool(tool))
       return false;
     if (MARKUP_TOOLS.includes(tool) && inAnnotMode() && isOpen() && createFromSelection(tool))
       return setTool(tool) !== null;
@@ -93,8 +107,10 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.annotateTools = {
+    POINTER_TOOLS,
     init,
     getTool: () => state.tool,
+    drawingTool,
     syncTools,
     setTool,
     toggleTool,

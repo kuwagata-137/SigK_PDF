@@ -161,6 +161,8 @@
     shapeLine: [['path', { d: 'M5 18L19 6' }]],
     shapeArrow: [['path', { d: 'M5 18L19 6M12 6h7v7' }]],
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
+    // 道具の段の「選択」（spec-4b-3a 確定事項C1）。マウスの矢印の形。
+    pointerSelect: [['path', { d: 'M6.5 3.8v14.6l3.9-3.7 2.6 5.5 2.3-1.1-2.6-5.4h5.6z' }]],
     // 右パネルの「線種」（spec-4b-1b 確定事項5。モックの絵を 24 の格子に置き直した）。
     lineSolid: [['path', { d: 'M4 12h16', 'stroke-width': 2 }]],
     lineDashed: [['path', { d: 'M4 12h16', 'stroke-width': 2, 'stroke-dasharray': '4 3', 'stroke-linecap': 'butt' }]],

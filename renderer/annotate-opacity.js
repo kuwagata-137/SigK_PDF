@@ -75,7 +75,7 @@
       return false;
     const entry = annotate().selectedEntry();
     if (entry === null) {
-      const tool = annotate().getTool();
+      const tool = annotate().drawingTool();
       if (tool === null || !rememberOpacity(tool, value))
         return false;
       props()?.refresh();
