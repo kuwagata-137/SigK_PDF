@@ -43,6 +43,13 @@
     return history.at < history.stack.length - 1;
   }
 
+  // 世代の annot の片側（null・鍵の文字列・鍵の配列）。
+  function copyAnnot(value) {
+    if (Array.isArray(value))
+      return [...value];
+    return value ?? null;
+  }
+
   function pushHistory(history, snapshot, { before = [], after = [], annot = {} } = {}) {
     // 戻した状態から新しい操作をしたら、先の履歴は捨てる（spec-1-5 確定事項10）。
     const stack = history.stack.slice(0, history.at + 1);
@@ -50,12 +57,38 @@
       ...snapshotOf(snapshot),
       before: [...before],
       after: [...after],
-      annot: { before: annot.before ?? null, after: annot.after ?? null },
+      // 複数選択の鍵の配列は写して積む（参照のまま積むと、後から並びを変えたときに履歴まで変わる。spec-4b-3a 確定事項L1）。
+      annot: { before: copyAnnot(annot.before), after: copyAnnot(annot.after) },
     });
     // 上限を超えたら古いほうから捨てる。
     while (stack.length > MAX_HISTORY)
       stack.shift();
     return { stack, at: stack.length - 1 };
+  }
+
+  // 一番上の世代を、同じ欄を続けて変えた結果で差し替える（spec-4b-3a 確定事項J）。annot.before は最初に変えたときのまま残し、
+  // after だけ新しくする。差し替えた結果が 1 つ前の世代と同じ（試してから元の値に戻した）なら、その世代ごと落とす。
+  function amendTop(history, snapshot, { annot = {} } = {}) {
+    const stack = history.stack.slice(0, history.at + 1);
+    const top = stack[stack.length - 1];
+    stack[stack.length - 1] = { ...snapshotOf(snapshot), before: top.before, after: top.after, annot: { before: top.annot.before, after: copyAnnot(annot.after) } };
+    const previous = stack[stack.length - 2];
+    const amended = stack[stack.length - 1];
+    if (previous !== undefined && pagePlan().samePlan(previous.plan, amended.plan) && annotationState().sameAnnots(previous.annots, amended.annots))
+      stack.pop();
+    return { stack, at: stack.length - 1 };
+  }
+
+  // 注釈の世代を積むか、続けた変更なら一番上を差し替える（spec-4b-3a 確定事項J）。gesture は欄の名前、last は直前に覚えた
+  // { field, keys（変えた後の鍵の並び）, at }。同じ欄を、そのときの変えた後の選択のまま、一番上の世代から続けて変えたら差し替える。
+  // 返すのは { history, gesture（次に覚えるもの。差し替えで世代ごと落ちたら null） }。
+  function record(history, snapshot, { annot = {}, gesture = null, last = null } = {}) {
+    const selection = root.SigK.annotationSelection;
+    const continued = gesture !== null && last !== null && last.field === gesture && last.at === history.at
+      && selection.sameKeys(selection.keysOf(annot.before ?? null), last.keys);
+    const next = continued ? amendTop(history, snapshot, { annot }) : pushHistory(history, snapshot, { annot });
+    const dropped = continued && next.at < history.at;
+    return { history: next, gesture: gesture === null || dropped ? null : { field: gesture, keys: selection.keysOf(annot.after ?? null), at: next.at } };
   }
 
   function current(history) {
@@ -100,6 +133,8 @@
     canUndo,
     canRedo,
     pushHistory,
+    amendTop,
+    record,
     current,
     undo,
     redo,

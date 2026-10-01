@@ -234,6 +234,8 @@
       return false;
     state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
     state.savedAnnots = annotationState().cloneAnnots(state.annots);
+    // 保存した後に同じ欄を変えたら、保存の前の世代に畳まず新しい世代にする（spec-4b-3a 確定事項J4）。
+    root.SigK.pageEdit?.forgetGesture?.();
 
     if (nextPath !== null)
       state.file.path = nextPath;

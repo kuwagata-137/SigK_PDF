@@ -66,9 +66,9 @@
   }
 
   // 履歴に積んで選び直す。読み込んだものを変えると写しが added の末尾に来る（確定事項16）。
-  function commit(next, { before, target }) {
+  function commit(next, { before, target, gesture = null }) {
     const after = target === null ? next.added.at(-1).id : (target.ref !== undefined ? next.added.at(-1).id : before);
-    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after }, gesture });
     annotate().select(after);
     return true;
   }
@@ -190,16 +190,14 @@
 
   // ---- 動かす（確定事項6） ----
 
-  // delta は紙の座標での差分（pt）。箱の大きさは本文から取り直す（読み込んだ /Rect の余白を引きずらない）。
+  // delta は紙の座標での差分（pt）。箱の大きさは本文から取り直す（読み込んだ /Rect の余白を引きずらない。値は annotation-moves.js が作る）。
   function move(key, delta) {
     if (!isOpen() || !Array.isArray(delta) || !delta.every(Number.isFinite))
       return false;
     const entry = findEntry(key);
     if (entry === null || entry.kind !== 'text')
       return false;
-    const [x, y] = geometry().frameOrigin(entry.rect, entry.rotation);
-    const origin = [x + delta[0], y + delta[1]].map((value) => Math.round(value * 100) / 100);
-    const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, frameOf(origin, boxOf(entry.text, entry.fontSize), entry.rotation));
+    const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, root.SigK.annotationMoves.movedPatch(entry, delta));
     return commit(next, { before: key, target: entry });
   }
 
@@ -207,6 +205,9 @@
 
   // 選んでいるテキストがあればその注釈を変え、次に置く大きさとしても覚える。
   function setFontSize(size) {
+    // 2 件以上を選んでいる間は文字の大きさの行を隠す（spec-4b-3a 確定事項I5）。
+    if (annotate().getSelection().length > 1)
+      return false;
     if (!root.SigK.annotationPresets.isFontSize(size))
       return false;
     const entry = annotate().selectedEntry();
@@ -215,7 +216,8 @@
       const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, {
         fontSize: size, ...frameOf(origin, boxOf(entry.text, size), entry.rotation),
       });
-      commit(next, { before: annotate().getSelected(), target: entry });
+      // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
+      commit(next, { before: annotate().getSelected(), target: entry, gesture: 'fontSize' });
     }
     annotate().rememberFontSize(size);
     root.SigK.annotationProps?.refresh();

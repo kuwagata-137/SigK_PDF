@@ -8,8 +8,10 @@
   // たびに全部組み直す（2,000 行でも 40ms。事前調査 E）。行を押すと選んで該当箇所へ寄せる。
   // ページがまだ描かれていなければ goToPage して、描かれた合図（onPageRendered）で寄せる
   // （検索の pendingReveal と同じ流儀）。紙の上で選ぶと行が光り、その行まで一覧を動かす。
+  // Ctrl＋クリックで足し引き、Shift＋クリックで起点と同じページの範囲を選ぶ（spec-4b-3a 確定事項K。決定39 ⑧の改め）。
 
-  const state = { doc: null, pendingReveal: null };
+  // anchor は Shift＋クリックの起点（最後に素か Ctrl で押した行の鍵）。
+  const state = { doc: null, pendingReveal: null, anchor: null };
   let el = null;
 
   function viewer() {
@@ -59,7 +61,7 @@
       mark.textContent = '表示のみ';
       node.append(mark);
     }
-    node.addEventListener('click', () => reveal(row.key));
+    node.addEventListener('click', (event) => onRowClick(event, row.key));
     return node;
   }
 
@@ -81,19 +83,21 @@
     const placeholder = el.doc.getElementById('thumbs-empty');
     if (placeholder !== null)
       placeholder.hidden = true;
-    syncSelected(annotate()?.getSelected() ?? null);
+    syncSelected(annotate()?.getSelection() ?? []);
     return true;
   }
 
-  // 選んでいる注釈の行を光らせ、見えるところまで一覧を動かす。
-  function syncSelected(key) {
+  // 選んでいる注釈の行を全部同じ色で光らせ、主（並びの最後）の行を見えるところまで一覧を動かす（spec-4b-3a 確定事項K4）。
+  // keys は鍵の並び（今までの 1 件の鍵や null も受ける）。
+  function syncSelected(keys) {
     if (el === null)
       return false;
+    const list = root.SigK.annotationSelection.keysOf(keys);
+    const primary = list.at(-1) ?? null;
     let found = null;
     for (const row of el.rows.children) {
-      const on = key !== null && row.dataset.key === key;
-      row.classList.toggle('on', on);
-      if (on)
+      row.classList.toggle('on', list.includes(row.dataset.key));
+      if (row.dataset.key === primary)
         found = row;
     }
     found?.scrollIntoView?.({ block: 'nearest' });
@@ -105,7 +109,10 @@
     if (state.pendingReveal === null)
       return false;
     const layer = state.doc.querySelector(`.pdf-page[data-page="${pageIndex + 1}"] .annot-layer`);
-    const frame = root.SigK.annotationFrame?.shown()?.index === pageIndex ? state.doc.querySelector('.annot-frame-layer .annot-frame') : null;
+    // 枠は鍵の組（data-frame-key）で引く。複数を選んでいても、その行の書き込みの枠へ寄せる（spec-4b-3a 確定事項K5）。
+    const frame = root.SigK.annotationFrame?.shown()?.index === pageIndex
+      ? state.doc.querySelector(`.annot-frame-layer [data-frame-key="${state.pendingReveal}"] .annot-frame`)
+      : null;
     const target = layer?.querySelector(`g[data-annot="${state.pendingReveal}"]`) ?? frame ?? null;
     if (target === null)
       return false;
@@ -114,12 +121,12 @@
     return true;
   }
 
-  // 行を押した。選んで、該当ページへ飛び、注釈を画面の中央に寄せる（確定事項30）。
-  function reveal(key) {
+  // 選んでいる 1 件のページへ飛び、注釈を画面の中央に寄せる（確定事項30）。
+  function bringIntoView(key) {
     const view = viewer();
-    if (view === undefined || annotate()?.select(key) !== key)
+    const entry = annotate()?.selectedEntry() ?? null;
+    if (view === undefined || entry === null)
       return false;
-    const entry = annotate().selectedEntry();
     const pageIndex = view.getPlan().findIndex((page) => page.src === entry.src);
     if (pageIndex < 0)
       return false;
@@ -127,6 +134,36 @@
     if (!scrollToTarget(pageIndex))
       view.goToPage(pageIndex);
     return true;
+  }
+
+  // 行を押した。選んで、該当ページへ飛び、注釈を画面の中央に寄せる（確定事項30）。
+  function reveal(key) {
+    if (viewer() === undefined || annotate()?.select(key) !== key)
+      return false;
+    state.anchor = key;
+    return bringIntoView(key);
+  }
+
+  // 行の Ctrl＋クリック・Shift＋クリック（spec-4b-3a 確定事項K1〜K4）。起点（anchor）は最後に素か Ctrl で押した行。
+  // 紙を寄せるのは、選択が 1 件になったときだけ。
+  function onRowClick(event, key) {
+    if (event.ctrlKey !== true && event.shiftKey !== true)
+      return reveal(key);
+    const pick = root.SigK.annotationSelection;
+    const pageOf = (each) => root.SigK.annotateSelect.pageOf(each);
+    const current = annotate().getSelection();
+    if (event.shiftKey === true) {
+      const rowKeys = [...el.rows.children].map((row) => row.dataset.key);
+      const range = pick.rangeOf(rowKeys, state.anchor ?? key, key, pageOf);
+      const keep = event.ctrlKey === true && current.length > 0 && pageOf(current.at(-1)) === pageOf(key);
+      annotate().selectKeys(keep ? pick.merged(current, range) : range);
+      state.anchor = state.anchor ?? key;
+    } else {
+      annotate().toggleKey(key);
+      state.anchor = key;
+    }
+    const after = annotate().getSelection();
+    return after.length === 1 ? bringIntoView(after[0]) : true;
   }
 
   // page-render.js が注釈の層を描き終えた合図。

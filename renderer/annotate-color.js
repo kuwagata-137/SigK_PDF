@@ -32,9 +32,9 @@
     root.SigK.annotationProps?.refresh();
   }
 
-  // いまの道具が描く種類（図形は道具の段で選んだ種類、ペンは ink）。道具が無ければ null。
+  // いまの道具が描く種類（図形は道具の段で選んだ種類、ペンは ink）。描く道具が無ければ（「選択」を含む）null。
   function toolKind() {
-    const tool = annotate().getTool();
+    const tool = annotate().drawingTool();
     if (tool === null)
       return null;
     return root.SigK.annotateShape?.kindOfTool(tool) ?? tool;
@@ -42,14 +42,15 @@
 
   // 選んでいる書き込みを patch で直して 1 世代積む。読み込んだものは写しに変わり、選択はその写しへ移す。形が崩れる（線と塗りを
   // 両方なしにする、など。annotation-state.updateAnnot が断る）なら何もしない。
-  function updateSelected(entry, patch) {
+  // gesture は欄の名前（同じ欄を続けて変えたら 1 世代に畳む。spec-4b-3a 確定事項J）。
+  function updateSelected(entry, patch, gesture) {
     const annots = viewer().getAnnotations();
     const changed = root.SigK.annotationState.updateAnnot(annots, entry, patch);
     if (changed === annots)
       return false;
     const before = annotate().getSelected();
     const after = entry.ref !== undefined ? changed.added.at(-1).id : before;
-    root.SigK.pageEdit.commitAnnots(changed, { annot: { before, after } });
+    root.SigK.pageEdit.commitAnnots(changed, { annot: { before, after }, gesture });
     annotate().select(after);
     return true;
   }
@@ -63,15 +64,26 @@
   }
 
   // 線の色。四角・丸を線なしから戻すときもこれを使う。
+  // 2 件以上を選んでいれば、その欄を持てる全部に当てる（spec-4b-3a 確定事項I2）。
+  function isMany() {
+    return annotate().getSelection().length > 1;
+  }
+
+  function bulk() {
+    return root.SigK.annotateBulk;
+  }
+
   function setColor(color) {
     const value = palette().normalizeHex(color);
+    if (value !== null && isMany())
+      return bulk().applyField('color', value);
     const entry = editableSelected();
     if (value === null || entry === null)
       return false;
     const kind = entry?.kind ?? toolKind();
     if (kind === null)
       return false;
-    if (entry !== undefined && entry.color !== value && !updateSelected(entry, { color: value }))
+    if (entry !== undefined && entry.color !== value && !updateSelected(entry, { color: value }, 'color'))
       return false;
     next().rememberColor(kind, value);
     if (style().isBoxedKind(kind))
@@ -82,6 +94,8 @@
 
   // 線なし（四角・丸で、塗りがあるときだけ）。
   function setStrokeNone() {
+    if (isMany())
+      return bulk().applyField('strokeNone', null);
     const entry = editableSelected();
     if (entry === null)
       return false;
@@ -89,7 +103,7 @@
     const fill = entry === undefined ? next().fillOf(kind) : style().fillOf(entry);
     if (!style().isBoxedKind(kind) || fill === null)
       return false;
-    if (entry !== undefined && entry.color !== null && !updateSelected(entry, { color: null }))
+    if (entry !== undefined && entry.color !== null && !updateSelected(entry, { color: null }, 'color'))
       return false;
     next().rememberShape('strokeNone', true);
     refresh();
@@ -99,6 +113,8 @@
   // 塗り（四角・丸）。null は塗りなしで、線なしのときは選べない。塗りを外せば線なしの印も外す。
   function setFill(color) {
     const value = color === null ? null : palette().normalizeHex(color);
+    if ((color === null || value !== null) && isMany())
+      return bulk().applyField('fill', value);
     const entry = editableSelected();
     if ((color !== null && value === null) || entry === null)
       return false;
@@ -106,7 +122,7 @@
     const stroked = entry === undefined ? !next().strokeNoneOf(kind) : entry.color !== null;
     if (!style().isBoxedKind(kind) || (value === null && !stroked))
       return false;
-    if (entry !== undefined && style().fillOf(entry) !== value && !updateSelected(entry, { fill: value }))
+    if (entry !== undefined && style().fillOf(entry) !== value && !updateSelected(entry, { fill: value }, 'fill'))
       return false;
     next().rememberShape('fills', value);
     if (value === null)
@@ -117,13 +133,15 @@
 
   // 線種（四角・丸は実線・破線・雲形、直線・矢印は実線・破線）。実線だけの種類（ペン）では覚え直さない。
   function setLineStyle(lineStyle) {
+    if (isMany())
+      return bulk().applyField('lineStyle', lineStyle);
     const entry = editableSelected();
     if (entry === null)
       return false;
     const kind = entry?.kind ?? toolKind();
     if (kind === null || !style().lineStylesOf(kind).includes(lineStyle))
       return false;
-    if (entry !== undefined && style().lineStyleOf(entry) !== lineStyle && !updateSelected(entry, { lineStyle }))
+    if (entry !== undefined && style().lineStyleOf(entry) !== lineStyle && !updateSelected(entry, { lineStyle }, 'lineStyle'))
       return false;
     if (style().lineStylesOf(kind).length > 1)
       next().rememberShape('lineStyles', lineStyle);

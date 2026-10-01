@@ -85,6 +85,8 @@ const REPORT = `
     importedLooks: importedEntries.filter((entry) => entry.lineWidth !== undefined || entry.readonly === true).map((entry) => ({ ref: entry.ref, kind: entry.kind, subtype: entry.subtype ?? null, color: entry.color, fill: entry.fill ?? null, lineStyle: entry.lineStyle ?? 'solid', dash: entry.dash ?? null, cloudIntensity: entry.cloudIntensity ?? null, lineWidth: entry.lineWidth ?? null, opacity: entry.opacity, readonly: entry.readonly === true, rect: entry.rect.map(round), angle: entry.angle ?? 0 })),
     // 大きさと向き（spec-4b-2 の起動確認。smoke-annotate-transform.js の TRANSFORM_REPORT）。
     transform: transformReport,
+    // 選択と複数選択（spec-4b-3a の起動確認。smoke-annotate-select.js の SELECT_REPORT）。
+    selection: selectReport,
     // 右パネルの見た目の行（出している行・色の行の見出し・チップの値・押している線種・太さと不透明度・ヒント）。
     propsRows: {
       shown: ['color', 'fill', 'style', 'width', 'size', 'opacity'].filter((row) => !document.getElementById('props-' + row + '-row').hidden),

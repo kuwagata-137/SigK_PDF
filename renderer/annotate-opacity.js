@@ -65,7 +65,8 @@
       return;
     const before = annotate().getSelected();
     const after = entry.ref !== undefined ? next.added.at(-1).id : before;
-    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
+    // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after }, gesture: 'opacity' });
     annotate().select(after);
   }
 
@@ -73,9 +74,12 @@
   function setOpacity(value) {
     if (!isOpacity(value))
       return false;
+    // 2 件以上を選んでいれば、不透明度を持てる全部に当てる（spec-4b-3a 確定事項I2）。
+    if (annotate().getSelection().length > 1)
+      return root.SigK.annotateBulk.applyField('opacity', value);
     const entry = annotate().selectedEntry();
     if (entry === null) {
-      const tool = annotate().getTool();
+      const tool = annotate().drawingTool();
       if (tool === null || !rememberOpacity(tool, value))
         return false;
       props()?.refresh();

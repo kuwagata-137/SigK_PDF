@@ -756,6 +756,8 @@ html[data-transform-cursor="ns-resize"] #view, html[data-transform-cursor="ns-re
 html[data-transform-cursor="nwse-resize"] #view, html[data-transform-cursor="nwse-resize"] #view *{cursor:nwse-resize !important}
 html[data-transform-cursor="nesw-resize"] #view, html[data-transform-cursor="nesw-resize"] #view *{cursor:nesw-resize !important}
 html[data-transform-cursor="move"] #view, html[data-transform-cursor="move"] #view *{cursor:move !important}
+/* Ctrl＋ドラッグで写しを作っている間（spec-4b-3a 確定事項G2）。 */
+html[data-transform-cursor="copy"] #view, html[data-transform-cursor="copy"] #view *{cursor:copy !important}
 html[data-transform-cursor="rotate"] #view, html[data-transform-cursor="rotate"] #view *{
   cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.6 9.2A7 7 0 1 0 19 14.4M19.4 4.6v4.8h-4.8' stroke='white' stroke-width='4'/%3E%3Cpath d='M18.6 9.2A7 7 0 1 0 19 14.4M19.4 4.6v4.8h-4.8' stroke='black' stroke-width='1.8'/%3E%3C/g%3E%3C/svg%3E") 12 12, grab !important;
 }
@@ -783,6 +785,11 @@ html[data-mode="annot"][data-tool="shape"] .textLayer,
 html[data-mode="annot"][data-tool="pen"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="shape"] .textLayer span,
 html[data-mode="annot"][data-tool="pen"] .textLayer span{user-select:none}
+/* 範囲選択の枠（spec-4b-3a 確定事項D3。モック screenshots/phase4b-3-marquee.png）。.pdf-page の中に置き、紙の中に収める。 */
+.annot-marquee{position:absolute; z-index:4; pointer-events:none; border:1px dashed var(--primary); background:color-mix(in srgb, var(--primary) 8%, transparent)}
+/* 「選択」の道具（spec-4b-3a 確定事項C4）。紙のどこから引いても範囲選択なので、文字を選ばせない。カーソルは矢印のまま。 */
+html[data-mode="annot"][data-tool="select"] .textLayer{cursor:default; user-select:none}
+html[data-mode="annot"][data-tool="select"] .textLayer span{user-select:none}
 /* ノート（spec-4-4 確定事項1）。押して置くので文字を選ばせない。 */
 html[data-mode="annot"][data-tool="note"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="note"] .textLayer span{user-select:none}
@@ -825,6 +832,8 @@ html[data-mode="annot"] #props{display:flex}
 }
 .chip .sw{width:44px; height:18px; border-radius:4px; border:1px solid rgba(16,24,40,.18); position:relative; overflow:hidden}
 .chip .sw.none{background:#fff}
+/* 複数を選んでいて色がそろっていないとき（spec-4b-3a 確定事項I1。モック screenshots/phase4b-3-multi.png）。斜線で、印は付けない。 */
+.chip .sw.mixed{background:repeating-linear-gradient(135deg, var(--surface) 0 3px, color-mix(in srgb, var(--muted) 45%, transparent) 3px 5px)}
 .chip .sw.none::after{content:""; position:absolute; left:50%; top:-12px; bottom:-12px; width:2px; margin-left:-1px; background:var(--danger); transform:rotate(66deg)}
 .chip .caret{font-size:9px; color:var(--muted)}
 .chip.open{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}

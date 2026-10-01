@@ -40,6 +40,7 @@
 //   wait-details               書き込みの読み込み（辞書の読み戻しを含む）が終わるまで待つ
 //   fill: stroke: style: chip: palette: other: slide:   見た目の操作（smoke-annotate-style.js の冒頭）
 //   grab: angle: angle-preset:   大きさと向きの操作（smoke-annotate-transform.js の冒頭。spec-4b-2）
+//   ctrl-click: marquee: move: list-ctrl: list-shift: key:   選択と複数選択の操作（smoke-annotate-select.js の冒頭。spec-4b-3a）
 // 各操作のあとに、履歴がいくつ進んだか（historyDelta）を控える。
 //
 // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
@@ -49,6 +50,7 @@
 // 例: SIGK_SMOKE_ANNOTATE=bar:square,opacity:50,shape:square:0:100x700-300x600,bar:line,width:8,shape:line:0:100x200-300x200,save,wait-details
 // 例: SIGK_SMOKE_ANNOTATE=bar:square,palette:fill:3x8,stroke:none,style:cloudy,shape:square:0:100x700-300x600,slide:opacity:80;50;35,save,wait-details
 // 例: SIGK_SMOKE_ANNOTATE=shape:square:0:100x700-300x600,grab:x2y2:40x-20,grab:rotate:80x60,angle:45,save
+// 例: SIGK_SMOKE_ANNOTATE=shape:square:0:100x700-200x600,shape:square:0:300x700-400x600,bar:select,marquee:0:80x720-420x580,color:#00aa00,move:20x0:shift,move:0x-30:ctrl,undo,key:Backspace,undo,save
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -57,6 +59,7 @@ const { REPORT } = require('./smoke-annotate-report.js');
 const { STEPS } = require('./smoke-annotate-steps.js');
 const { STYLE_STEPS, inspectAnnotations } = require('./smoke-annotate-style.js');
 const { TRANSFORM_STEPS, TRANSFORM_REPORT } = require('./smoke-annotate-transform.js');
+const { SELECT_STEPS, SELECT_REPORT } = require('./smoke-annotate-select.js');
 
 const annotateScript = (target, spec) => `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -118,12 +121,13 @@ const annotateScript = (target, spec) => `(async () => {
     const arg = rest.join(':');
     const t0 = performance.now();
     const historyBefore = SigK.pageEdit.getHistoryState().at;
-${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}
-    applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected(), historyDelta: SigK.pageEdit.getHistoryState().at - historyBefore });
+${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}
+    applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected(), count: SigK.annotate.getSelection().length, historyDelta: SigK.pageEdit.getHistoryState().at - historyBefore });
     await wait(120);
   }
 
 ${TRANSFORM_REPORT}
+${SELECT_REPORT}
 ${REPORT}
 })()`;
 

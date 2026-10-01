@@ -96,15 +96,14 @@
 
   // ---- 動かす（確定事項14） ----
 
-  // delta は紙の座標での差分（pt）。基準の点に足して箱を作り直す。
+  // delta は紙の座標での差分（pt）。基準の点に足して箱を作り直す（値は annotation-moves.js が作る）。
   function move(key, delta) {
     if (!isOpen() || !Array.isArray(delta) || delta.length !== 2 || !delta.every(Number.isFinite))
       return false;
     const entry = findEntry(key);
     if (entry === null || entry.kind !== 'note')
       return false;
-    const [x, y] = graphics().anchorOf(entry);
-    const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, frameOf([x + delta[0], y + delta[1]]));
+    const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, root.SigK.annotationMoves.movedPatch(entry, delta));
     return commit(next, { before: key, target: entry });
   }
 

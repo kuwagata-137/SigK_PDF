@@ -8,6 +8,7 @@ require('../renderer/shape-style.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/annotation-state.js');
+require('../renderer/annotation-selection.js');
 require('../renderer/edit-history.js');
 
 // 履歴（spec-1-5 確定事項8〜13・spec-4-1 確定事項15）。世代は { plan, annots } の
@@ -159,4 +160,57 @@ test('世代は複製で持ち、あとから元を書き換えても変わら�
   base.annots.added.push(entry({ id: 'x' }));
   assert.equal(history.current(made).plan[0].rotate, 0);
   assert.equal(history.current(made).annots.added.length, 0);
+});
+
+// ---- 続けた変更を 1 世代に畳む（spec-4b-3a 確定事項J） ----
+
+test('amendTop は一番上の世代を差し替え、annot.before は最初のまま、after だけ新しくする', () => {
+  const start = fresh();
+  const red = annotation.addAnnot(start.annots, entry({ id: 'a', color: '#ff0000' }));
+  let current = history.createHistory({ plan: start.plan, annots: red });
+  const blue = annotation.updateAnnot(red, red.added[0], { color: '#0000ff' });
+  current = history.pushHistory(current, { plan: start.plan, annots: blue }, { annot: { before: 'a', after: 'a' } });
+  const green = annotation.updateAnnot(blue, blue.added[0], { color: '#00ff00' });
+  const amended = history.amendTop(current, { plan: start.plan, annots: green }, { annot: { before: 'a', after: ['a', 'b'] } });
+  assert.equal(amended.stack.length, 2);
+  assert.equal(amended.at, 1);
+  assert.equal(amended.stack[1].annots.added[0].color, '#00ff00');
+  assert.deepEqual(amended.stack[1].annot, { before: 'a', after: ['a', 'b'] });
+  const undone = history.undo(amended);
+  assert.equal(undone.annots.added[0].color, '#ff0000');
+});
+
+test('amendTop は差し替えた結果が 1 つ前の世代と同じなら、その世代ごと落とす', () => {
+  const start = fresh();
+  const red = annotation.addAnnot(start.annots, entry({ id: 'a', color: '#ff0000' }));
+  let current = history.createHistory({ plan: start.plan, annots: red });
+  const blue = annotation.updateAnnot(red, red.added[0], { color: '#0000ff' });
+  current = history.pushHistory(current, { plan: start.plan, annots: blue }, { annot: { before: 'a', after: 'a' } });
+  const back = annotation.updateAnnot(blue, blue.added[0], { color: '#ff0000' });
+  const amended = history.amendTop(current, { plan: start.plan, annots: back }, { annot: { before: 'a', after: 'a' } });
+  assert.equal(amended.stack.length, 1);
+  assert.equal(amended.at, 0);
+});
+
+test('record は同じ欄を同じ選択のまま一番上から続けて変えたら差し替え、欄か選択が違えば積む', () => {
+  const start = fresh();
+  const base = annotation.addAnnot(start.annots, entry({ id: 'a', color: '#ff0000' }));
+  let current = history.createHistory({ plan: start.plan, annots: base });
+  const step = (color, options) => {
+    const annots = annotation.updateAnnot(current.stack[current.at].annots, current.stack[current.at].annots.added[0], { color });
+    return history.record(current, { plan: start.plan, annots }, options);
+  };
+  let result = step('#0000ff', { annot: { before: 'a', after: 'a' }, gesture: 'color', last: null });
+  current = result.history;
+  assert.equal(current.at, 1);
+  assert.deepEqual(result.gesture, { field: 'color', keys: ['a'], at: 1 });
+  result = step('#00ff00', { annot: { before: 'a', after: 'a' }, gesture: 'color', last: result.gesture });
+  current = result.history;
+  assert.equal(current.at, 1, '同じ欄・同じ選択なら差し替え');
+  result = step('#00ffff', { annot: { before: 'a', after: 'a' }, gesture: 'opacity', last: result.gesture });
+  assert.equal(result.history.at, 2, '別の欄なら積む');
+  const other = step('#00ffff', { annot: { before: ['a', 'b'], after: ['a', 'b'] }, gesture: 'color', last: { field: 'color', keys: ['a'], at: 1 } });
+  assert.equal(other.history.at, 2, '別の選択なら積む');
+  const plain = step('#00ffff', { annot: { before: 'a', after: 'a' } });
+  assert.equal(plain.gesture, null, '欄の名前が無ければ覚えない');
 });

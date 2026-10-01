@@ -9,99 +9,27 @@
   // ほかの種類は今までの四角の枠（箱に余白を足した破線）。掴んで動かしている間は、書き込みと同じだけ translate する。
   // page-render.js が層を描き直すたびに sync を呼ぶ。
 
-  const SVG_NS = 'http://www.w3.org/2000/svg';
-  // 選択の枠の余白（CSS px）。四角群の外接にこれだけ足す。
-  const FRAME_PADDING = 3;
-
-  // 層の要素と、いま枠を出しているもの { index, key, entry, viewport, shape }。
+  // 層の要素と、いま枠を出しているもの { index, key, keys, entry, viewport, shape }。複数選択なら key・entry・shape は null。
   let layer = null;
   let shown = null;
 
-  function quads() {
-    return root.SigK.markupQuads;
-  }
-
   function handles() {
     return root.SigK.shapeHandles;
-  }
-
-  function fmt(value) {
-    return String(Math.round(value * 100) / 100);
   }
 
   function keyOf(entry) {
     return entry.ref ?? entry.id;
   }
 
-  function element(doc, tag, attributes) {
-    const node = doc.createElementNS(SVG_NS, tag);
-    for (const [name, value] of Object.entries(attributes))
-      node.setAttribute(name, value);
-    return node;
-  }
-
-  // 枠の元になる箱（CSS px）。ノートは画面の箱（倍率に依らず一定）、それ以外は四角群の外接。
-  function boundsOf(entry, viewport) {
-    if (root.SigK.annotationEntry.isNoteKind(entry.kind)) {
-      const box = root.SigK.noteGraphics.boxOf(entry, viewport);
-      return { x: box.x, y: box.y, width: box.width, height: box.height };
-    }
-    const corners = entry.quads.flatMap((quad) => quads().quadToViewport(quad, viewport));
-    const xs = corners.map((point) => point[0]);
-    const ys = corners.map((point) => point[1]);
-    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
-  }
-
-  // 今までの選択の枠。箱（CSS px）に余白を足した破線。
-  function frameOf(doc, entry, viewport) {
-    const box = boundsOf(entry, viewport);
-    return element(doc, 'rect', {
-      x: fmt(box.x - FRAME_PADDING), y: fmt(box.y - FRAME_PADDING),
-      width: fmt(box.width + FRAME_PADDING * 2), height: fmt(box.height + FRAME_PADDING * 2),
-      rx: '3', class: 'annot-frame',
-    });
-  }
-
-  // 回転のつまみの中の矢印（半径 8 の丸の中に、開いた円弧と矢じり）。
-  function rotateIcon(doc, [x, y]) {
-    const group = element(doc, 'g', { class: 'annot-rotate-icon' });
-    group.append(
-      element(doc, 'path', { d: `M ${fmt(x + 3.6)} ${fmt(y - 1.2)} A 3.8 3.8 0 1 1 ${fmt(x + 1.2)} ${fmt(y - 3.6)}` }),
-      element(doc, 'polyline', { points: `${fmt(x + 0.2)},${fmt(y - 5.6)} ${fmt(x + 1.9)},${fmt(y - 3.5)} ${fmt(x - 0.3)},${fmt(y - 1.9)}` }),
-    );
-    return group;
-  }
-
-  function handleElement(doc, handle) {
-    const rotate = handle.kind === 'rotate';
-    const circle = element(doc, 'circle', {
-      cx: fmt(handle.at[0]), cy: fmt(handle.at[1]), r: String(rotate ? handles().ROTATE_RADIUS : handles().HANDLE_RADIUS),
-      class: rotate ? 'annot-handle rotate' : 'annot-handle', 'data-handle': handle.id,
-    });
-    return rotate ? [circle, rotateIcon(doc, handle.at)] : [circle];
-  }
-
-  // 枠とつまみの <g>。つまみを出さない書き込みは今までの四角の枠だけ。
-  function groupOf(doc, entry, viewport, shape) {
-    const group = element(doc, 'g', { class: 'annot-frame-group' });
-    if (shape === null) {
-      group.append(frameOf(doc, entry, viewport));
-      return group;
-    }
-    const { frame, stem } = shape;
-    group.append(frame.type === 'line'
-      ? element(doc, 'line', { x1: fmt(frame.from[0]), y1: fmt(frame.from[1]), x2: fmt(frame.to[0]), y2: fmt(frame.to[1]), class: 'annot-frame' })
-      : element(doc, 'polygon', { points: frame.points.map((point) => point.map(fmt).join(',')).join(' '), class: 'annot-frame' }));
-    if (stem !== null)
-      group.append(element(doc, 'line', { x1: fmt(stem.from[0]), y1: fmt(stem.from[1]), x2: fmt(stem.to[0]), y2: fmt(stem.to[1]), class: 'annot-frame-stem' }));
-    group.append(...shape.handles.flatMap((handle) => handleElement(doc, handle)));
-    return group;
+  // 枠とつまみの部品（形を組む関数）は frame-graphics.js（spec-4b-3a で分けた）。
+  function graphics() {
+    return root.SigK.frameGraphics;
   }
 
   function ensureLayer(doc, pagesEl) {
     if (layer !== null && layer.parentNode === pagesEl)
       return layer;
-    layer = element(doc, 'svg', { class: 'annot-frame-layer', 'aria-hidden': 'true' });
+    layer = graphics().element(doc, 'svg', { class: 'annot-frame-layer', 'aria-hidden': 'true' });
     pagesEl.append(layer);
     return layer;
   }
@@ -126,23 +54,54 @@
     return { left: -left - side, top: -top, right: width - left + side, bottom: Math.max(height, view?.clientHeight ?? 0) - top };
   }
 
-  // 1 ページの層を描き直したときに呼ぶ。選んでいる書き込みがこのページにあれば枠とつまみを描き、無くてこのページに出して
-  // いたなら消す。entries は描いた書き込み（下見を当てたもの）、editing は入力欄を開いているテキスト（枠を出さない）。
-  function sync({ doc, pagesEl, pageNode, index, entries, viewport, selected = null, editing = null }) {
-    const target = selected === null || selected === editing ? null : entries.find((entry) => keyOf(entry) === selected) ?? null;
-    if (target === null || pagesEl === null || pagesEl === undefined || pageNode === null || pageNode === undefined) {
-      if (shown?.index === index)
-        clear();
-      return false;
-    }
+  // selected は鍵の並び（今までの 1 件の鍵や null も受ける）。
+  function keysOfSelected(selected) {
+    if (Array.isArray(selected))
+      return selected;
+    return selected === null || selected === undefined ? [] : [selected];
+  }
+
+  // 層をそのページの位置と大きさに合わせる。
+  function placeLayer(doc, pagesEl, pageNode, viewport) {
     const svg = ensureLayer(doc, pagesEl);
     svg.style.left = pageNode.style.left;
     svg.style.top = pageNode.style.top;
     svg.setAttribute('width', String(Math.round(viewport.width)));
     svg.setAttribute('height', String(Math.round(viewport.height)));
-    const shape = handles()?.handlesOf(target, viewport, roomOf(pagesEl, pageNode)) ?? null;
-    svg.replaceChildren(groupOf(doc, target, viewport, shape));
-    shown = { index, key: selected, entry: target, viewport, shape };
+    return svg;
+  }
+
+  // 1 件ぶんの枠の組。複数選択の組は、1 件の枠と同じ形からつまみと回転の印だけを外す（spec-4b-3a 確定事項E2）。
+  function groupFor(doc, entry, viewport, shape) {
+    const group = graphics().groupOf(doc, entry, viewport, shape);
+    group.setAttribute('data-frame-key', keyOf(entry));
+    return group;
+  }
+
+  // 1 ページの層を描き直したときに呼ぶ。選んでいる書き込みがこのページにあれば枠を描き、無くてこのページに出して
+  // いたなら消す。1 件なら枠とつまみ、2 件以上なら 1 件ごとの枠だけ（spec-4b-3a 確定事項E）。entries は描いた書き込み
+  // （下見を当てたもの）、editing は入力欄を開いているテキスト（枠を出さない）。
+  function sync({ doc, pagesEl, pageNode, index, entries, viewport, selected = null, editing = null }) {
+    const keys = keysOfSelected(selected).filter((key) => key !== editing);
+    const targets = keys.map((key) => entries.find((entry) => keyOf(entry) === key) ?? null).filter((entry) => entry !== null);
+    if (targets.length === 0 || pagesEl === null || pagesEl === undefined || pageNode === null || pageNode === undefined) {
+      if (shown?.index === index)
+        clear();
+      return false;
+    }
+    const svg = placeLayer(doc, pagesEl, pageNode, viewport);
+    const room = roomOf(pagesEl, pageNode);
+    if (keys.length === 1) {
+      const shape = handles()?.handlesOf(targets[0], viewport, room) ?? null;
+      svg.replaceChildren(groupFor(doc, targets[0], viewport, shape));
+      shown = { index, key: keys[0], keys: [keys[0]], entry: targets[0], viewport, shape };
+      return true;
+    }
+    svg.replaceChildren(...targets.map((target) => {
+      const shape = handles()?.handlesOf(target, viewport, room) ?? null;
+      return groupFor(doc, target, viewport, shape === null ? null : { ...shape, stem: null, handles: [] });
+    }));
+    shown = { index, key: null, keys: targets.map(keyOf), entry: null, viewport, shape: null };
     return true;
   }
 
@@ -152,18 +111,21 @@
       clear();
   }
 
-  // 掴んで動かしている間、枠とつまみを書き込みと同じだけずらす（確定事項23）。0, 0 で戻す。
-  function translate(dx, dy) {
-    const group = layer?.firstChild ?? null;
-    if (group !== null)
+  // 掴んで動かしている間、枠とつまみを書き込みと同じだけずらす（確定事項23）。0, 0 で戻す。keys を渡せば、その鍵の組だけを
+  // ずらす（まとめて動かすとき、動かせない書き込みの枠は残す。spec-4b-3a 確定事項E3・F1）。
+  function translate(dx, dy, keys = null) {
+    for (const group of [...(layer?.children ?? [])]) {
+      if (keys !== null && !keys.includes(group.getAttribute('data-frame-key')))
+        continue;
       group.style.transform = dx === 0 && dy === 0 ? '' : `translate(${dx}px, ${dy}px)`;
+    }
   }
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.annotationFrame = {
-    FRAME_PADDING,
-    boundsOf,
-    frameOf,
+    FRAME_PADDING: root.SigK.frameGraphics.FRAME_PADDING,
+    boundsOf: (entry, viewport) => graphics().boundsOf(entry, viewport),
+    frameOf: (doc, entry, viewport) => graphics().frameOf(doc, entry, viewport),
     roomOf,
     sync,
     releasePage,

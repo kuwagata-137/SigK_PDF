@@ -197,3 +197,119 @@ test('文書を閉じると案内に戻る', async (t) => {
   assert.equal(rows(shell).length, 0);
   assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと書き込みの一覧が出ます');
 });
+
+// ---- Ctrl＋クリック・Shift＋クリック（spec-4b-3a 確定事項K。決定39 ⑧の改め） ----
+
+// 1 ページ目に、読み込んだハイライト（12R）の写しを 2 つ足す（上から 12R・写し 1・写し 2 の順に並ぶ高さ）。鍵を返す。
+function addHighlights(shell) {
+  const { SigK } = shell;
+  const base = SigK.annotationState.findAnnot(SigK.viewer.getAnnotations(), SigK.viewer.getImported(), '12R');
+  const copy = (top) => ({ ...base, ref: undefined, readonly: undefined, id: undefined, rect: [48, top - 10, 232, top], quads: [[48, top, 232, top, 48, top - 10, 232, top - 10]] });
+  let annots = SigK.annotationState.addAnnot(SigK.viewer.getAnnotations(), copy(600));
+  annots = SigK.annotationState.addAnnot(annots, copy(500));
+  SigK.pageEdit.commitAnnots(annots);
+  return SigK.viewer.getAnnotations().added.map((entry) => entry.id);
+}
+
+function click(shell, row, { ctrl = false, shift = false } = {}) {
+  row.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, ctrlKey: ctrl, shiftKey: shift }));
+}
+
+const rowOf = (shell, key) => rows(shell).find((row) => row.dataset.key === key);
+const onKeys = (shell) => rows(shell).filter((row) => row.classList.contains('on')).map((row) => row.dataset.key);
+
+test('一覧の Ctrl＋クリックで同じページの行を足し引きし、選んだ行が全部光る（確定事項K1・K4）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK } = shell;
+  const [h1, h2] = addHighlights(shell);
+  click(shell, rowOf(shell, '12R'));
+  click(shell, rowOf(shell, h2), { ctrl: true });
+  assert.deepEqual([...SigK.annotate.getSelection()], ['12R', h2]);
+  assert.deepEqual(onKeys(shell).sort(), ['12R', h2].sort());
+  click(shell, rowOf(shell, h1), { ctrl: true });
+  click(shell, rowOf(shell, '12R'), { ctrl: true });
+  assert.deepEqual([...SigK.annotate.getSelection()], [h2, h1]);
+});
+
+test('一覧で別のページの行を Ctrl＋クリックすると、その 1 件だけに替わり、そのページへ寄せる（確定事項K1・K4）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK } = shell;
+  const [h1] = addHighlights(shell);
+  const jumps = [];
+  const original = SigK.viewer.goToPage;
+  SigK.viewer.goToPage = (index) => { jumps.push(index); };
+  try {
+    click(shell, rowOf(shell, '12R'));
+    click(shell, rowOf(shell, h1), { ctrl: true });
+    jumps.length = 0;
+    click(shell, rowOf(shell, '30R'), { ctrl: true });
+    assert.deepEqual([...SigK.annotate.getSelection()], ['30R']);
+    assert.deepEqual(jumps, [2]);
+  } finally {
+    SigK.viewer.goToPage = original;
+  }
+});
+
+test('2 件以上を選んでいる間は、一覧を押しても紙は寄せない（確定事項K4）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK } = shell;
+  const [h1] = addHighlights(shell);
+  click(shell, rowOf(shell, '12R'));
+  const calls = [];
+  shell.window.Element.prototype.scrollIntoView = function scrollIntoView(options) { calls.push([this.tagName.toLowerCase(), options.block]); };
+  click(shell, rowOf(shell, h1), { ctrl: true });
+  assert.equal(SigK.annotate.getSelection().length, 2);
+  assert.equal(calls.some(([, block]) => block === 'center'), false);
+  assert.equal(SigK.annotationList.isPendingReveal(), false);
+});
+
+test('一覧の Shift＋クリックは、起点の行から押した行までの同じページの行を選ぶ。起点は動かない（確定事項K2）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK } = shell;
+  const [h1, h2] = addHighlights(shell);
+  const pageRows = rows(shell).filter((row) => row.querySelector('.pg').textContent === 'p.1').map((row) => row.dataset.key);
+  const from = pageRows.indexOf('12R');
+  click(shell, rowOf(shell, '12R'));
+  click(shell, rowOf(shell, h2), { shift: true });
+  const expected = pageRows.slice(Math.min(from, pageRows.indexOf(h2)), Math.max(from, pageRows.indexOf(h2)) + 1);
+  assert.deepEqual([...SigK.annotate.getSelection()].sort(), expected.sort());
+  assert.equal(SigK.annotate.primaryKey(), h2);
+  // 起点は 12R のまま。h1 までに縮む。
+  click(shell, rowOf(shell, h1), { shift: true });
+  assert.equal(SigK.annotate.isSelected('12R'), true);
+  assert.equal(SigK.annotate.primaryKey(), h1);
+});
+
+test('一覧で別のページの行を Shift＋クリックすると、その 1 件だけ（確定事項K2）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK } = shell;
+  addHighlights(shell);
+  click(shell, rowOf(shell, '12R'));
+  click(shell, rowOf(shell, '30R'), { shift: true });
+  assert.deepEqual([...SigK.annotate.getSelection()], ['30R']);
+});
+
+test('一覧の Ctrl＋Shift＋クリックは、範囲を今の選択に足す（確定事項K2）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK } = shell;
+  const [h1, h2] = addHighlights(shell);
+  click(shell, rowOf(shell, h2));
+  click(shell, rowOf(shell, '17R'), { ctrl: true });
+  click(shell, rowOf(shell, h1), { ctrl: true, shift: true });
+  assert.equal(SigK.annotate.isSelected(h2), true);
+  assert.equal(SigK.annotate.isSelected('17R'), true);
+  assert.equal(SigK.annotate.isSelected(h1), true);
+});
+
+test('表示のみの書き込みも一覧から複数選択に入り、その枠は鍵の組で引ける（確定事項K5）', async (t) => {
+  const shell = await withOpenDocument(t);
+  const { SigK, document } = shell;
+  click(shell, rowOf(shell, '12R'));
+  click(shell, rowOf(shell, '17R'), { ctrl: true });
+  assert.deepEqual([...SigK.annotate.getSelection()], ['12R', '17R']);
+  assert.notEqual(document.querySelector('.annot-frame-layer [data-frame-key="17R"] .annot-frame'), null);
+  const calls = [];
+  shell.window.Element.prototype.scrollIntoView = function scrollIntoView(options) { calls.push([this.getAttribute('class'), this.parentNode?.getAttribute?.('data-frame-key'), options.block]); };
+  click(shell, rowOf(shell, '17R'));
+  assert.ok(calls.some(([cls, key, block]) => cls === 'annot-frame' && key === '17R' && block === 'center'));
+});

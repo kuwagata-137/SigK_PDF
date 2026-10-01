@@ -56,11 +56,11 @@
   }
 
   // 履歴に積んで選び直す（annotate-text.js と同じ約束）。形が崩れて updateAnnot が断った（annots のまま）なら何もしない。
-  function commit(next, { before, target, annots = null }) {
+  function commit(next, { before, target, annots = null, gesture = null }) {
     if (next === annots)
       return false;
     const after = target === null || target.ref !== undefined ? next.added.at(-1).id : before;
-    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after }, gesture });
     annotate().select(after);
     return true;
   }
@@ -111,16 +111,7 @@
 
   // ---- 動かす（確定事項5） ----
 
-  function shifted(entry, delta) {
-    const round = (value) => Math.round(value * 100) / 100;
-    const patch = {};
-    if (entry.paths !== undefined)
-      patch.paths = entry.paths.map((path) => path.map((point) => [round(point[0] + delta[0]), round(point[1] + delta[1])]));
-    const rect = [round(entry.rect[0] + delta[0]), round(entry.rect[1] + delta[1]), round(entry.rect[2] + delta[0]), round(entry.rect[3] + delta[1])];
-    return { ...patch, ...geometry().rectOfShape({ kind: entry.kind, rect, paths: patch.paths, lineWidth: entry.lineWidth, angle: entry.angle }) };
-  }
-
-  // delta は紙の座標での差分（pt）。箱と点列をずらし、/Rect を作り直す。
+  // delta は紙の座標での差分（pt）。箱と点列をずらし、/Rect を作り直す（値は annotation-moves.js が作る）。
   function move(key, delta) {
     if (!isOpen() || !Array.isArray(delta) || !delta.every(Number.isFinite))
       return false;
@@ -128,7 +119,7 @@
     if (entry === null || !annotationState().isDrawnKind(entry.kind))
       return false;
     const annots = viewer().getAnnotations();
-    return commit(annotationState().updateAnnot(annots, entry, shifted(entry, delta)), { before: key, target: entry, annots });
+    return commit(annotationState().updateAnnot(annots, entry, root.SigK.annotationMoves.movedPatch(entry, delta)), { before: key, target: entry, annots });
   }
 
   // ---- 線の太さと図形の種類（確定事項7・19・27・29） ----
@@ -156,11 +147,15 @@
   function setLineWidth(width) {
     if (!presets().isLineWidth(width))
       return false;
+    // 2 件以上を選んでいれば、図形・ペン全部に当てる（spec-4b-3a 確定事項I2）。
+    if (annotate().getSelection().length > 1)
+      return root.SigK.annotateBulk.applyField('lineWidth', width);
     const entry = annotate().selectedEntry();
     if (entry !== null && entry.readonly !== true && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
       const patch = { lineWidth: width, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width, angle: entry.angle }) };
       const annots = viewer().getAnnotations();
-      commit(annotationState().updateAnnot(annots, entry, patch), { before: annotate().getSelected(), target: entry, annots });
+      // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
+      commit(annotationState().updateAnnot(annots, entry, patch), { before: annotate().getSelected(), target: entry, annots, gesture: 'lineWidth' });
     }
     rememberLineWidth(width);
     root.SigK.annotationProps?.refresh();
