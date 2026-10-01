@@ -84,8 +84,18 @@
 
   // ---- 押し離し ----
 
+  // 書き込みを描く・置く・掴む・選ぶのは左ボタンだけ（決定52 ⑥。spec-4b-3a 確定事項B1）。
+  function isLeft(event) {
+    return (event.button ?? 0) === 0;
+  }
+
+  // テキストの入力欄の中の押し離しは入力欄に任せる（spec-4b-3a 確定事項B2。直しているテキスト自身を掴まないため）。
+  function inEditor(event) {
+    return (event.target?.closest?.('.free-text-editor') ?? null) !== null;
+  }
+
   function onMouseDown(event) {
-    if (editor()?.takeSwallow() === true) {
+    if (editor()?.takeSwallow() === true || !isLeft(event) || inEditor(event)) {
       state.pressed = null;
       return;
     }
@@ -98,11 +108,18 @@
       state.pressed = null;
       return;
     }
-    state.pressed = { x: event.clientX, y: event.clientY };
     const page = pageAt(event);
+    const hit = page === null ? null : annotate().hitTest(page.index, page.point);
+    const wasSelected = hit !== null && annotate().isSelected(hit);
+    state.pressed = { x: event.clientX, y: event.clientY, ctrl: event.ctrlKey === true, hit, wasSelected };
     if (page === null)
       return;
-    const hit = annotate().hitTest(page.index, page.point);
+    // Ctrl＋押下は選択の足し引き（確定事項B3）。まだ選んでいなければ押したときに足す。描き始めない。
+    if (event.ctrlKey === true) {
+      if (hit !== null && !wasSelected)
+        annotate().addKey(hit);
+      return;
+    }
     if (hit !== null && hit === annotate().getSelected()) {
       grab().begin(event, page, hit);
       return;
@@ -112,10 +129,18 @@
       draw().begin(event, page);
   }
 
+  // Ctrl＋クリックを離した（確定事項B3）。選んでいたものを動かさずに離したら外す。書き込みの無い所なら何もしない。
+  function releaseCtrl(pressed) {
+    if (pressed.hit !== null && pressed.wasSelected)
+      annotate().toggleKey(pressed.hit);
+  }
+
   // 離したとき: 道具があり文字が選ばれていれば作る（spec-4-1 確定事項10 ①）。選ばれて
   // いなければ、動いていない押し離しを当たり判定へ回す（確定事項6）。当たらず、テキストの
-  // 道具を持っていればそこに置く（spec-4-2 確定事項3）。
+  // 道具を持っていればそこに置く（spec-4-2 確定事項3）。左ボタンの離しだけを見る（spec-4b-3a 確定事項B1）。
   function onMouseUp(event) {
+    if (!isLeft(event))
+      return;
     const pressed = state.pressed;
     state.pressed = null;
     if (transform()?.end(event) === true || grab().end(event) || draw().end(event))
@@ -130,6 +155,10 @@
       return;
     if (pressed === null || moved(pressed, event))
       return;
+    if (pressed.ctrl) {
+      releaseCtrl(pressed);
+      return;
+    }
     const page = pageAt(event);
     if (page === null) {
       annotate().select(null);
