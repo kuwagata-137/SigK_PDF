@@ -66,6 +66,9 @@
   function escape() {
     if (root.SigK.annotateTransform?.cancel() === true)
       return true;
+    // 範囲選択の途中なら取りやめて、押す前の選択に戻す（spec-4b-3a 確定事項D6・M）。
+    if (root.SigK.annotateMarquee?.cancel() === true)
+      return true;
     if (root.SigK.colorPopover?.close({ restoreFocus: true }) === true)
       return true;
     if (root.SigK.annotatePreview?.cancel() === true)
@@ -83,6 +86,13 @@
       return true;
     }
     return false;
+  }
+
+  // 押して引いている途中の操作（つまみ・範囲選択）を取りやめる。取り消し・やり直しの前に呼ぶ（spec-4b-3a 確定事項L3）。
+  function abortGestures() {
+    const transformed = root.SigK.annotateTransform?.cancel() === true;
+    const marqueed = root.SigK.annotateMarquee?.cancel() === true;
+    return transformed || marqueed;
   }
 
   // ---- 印刷（確定事項28） ----
@@ -188,6 +198,7 @@
     hitTest: (index, point) => selection().hitTest(index, point),
     remove: () => selection().remove(),
     escape,
+    abortGestures,
     painterFor,
     onModeChanged,
     // jsdom のテストが矩形の測り方を差し替える口（annotate-markup.js へ流す）。

@@ -82,6 +82,11 @@
     return root.SigK.annotateDraw;
   }
 
+  // 「選択」の道具の範囲選択（spec-4b-3a 確定事項D。annotate-marquee.js）。
+  function marquee() {
+    return root.SigK.annotateMarquee;
+  }
+
   // ---- 押し離し ----
 
   // 書き込みを描く・置く・掴む・選ぶのは左ボタンだけ（決定52 ⑥。spec-4b-3a 確定事項B1）。
@@ -114,6 +119,12 @@
     state.pressed = { x: event.clientX, y: event.clientY, ctrl: event.ctrlKey === true, hit, wasSelected };
     if (page === null)
       return;
+    // 「選択」の道具で書き込みの無い所を押したら範囲選択（確定事項D1・D2。Ctrl か Shift で始めたら足す）。
+    if (hit === null && annotate().getTool() === 'select') {
+      marquee().begin(event, page, { add: event.ctrlKey === true || event.shiftKey === true });
+      state.pressed = null;
+      return;
+    }
     // Ctrl＋押下は選択の足し引き（確定事項B3）。まだ選んでいなければ押したときに足す。描き始めない。
     if (event.ctrlKey === true) {
       if (hit !== null && !wasSelected)
@@ -143,7 +154,7 @@
       return;
     const pressed = state.pressed;
     state.pressed = null;
-    if (transform()?.end(event) === true || grab().end(event) || draw().end(event))
+    if (transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
@@ -206,6 +217,8 @@
     doc.addEventListener('mousemove', (event) => {
       if (transform()?.move(event) === true)
         return;
+      if (marquee().move(event))
+        return;
       grab().move(event);
       draw().move(event);
       // つまみの上のカーソル（掴んでいない・描いていないとき）。
@@ -213,7 +226,7 @@
         transform()?.hover(event);
     });
     doc.addEventListener('mouseup', (event) => {
-      const busy = grab().isGrabbing() || draw().isDrawing() || transform()?.isDragging() === true;
+      const busy = grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true;
       if (busy && !(view?.contains(event.target) ?? false))
         onMouseUp(event);
     });

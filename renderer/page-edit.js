@@ -123,7 +123,8 @@
     // 入力欄の外から Ctrl+Z が来たら、下書きを確定してから戻す（spec-4-2 確定事項8）。つまみのドラッグ中なら先に取りやめる
     // （spec-4b-2 確定事項21）。
     root.SigK.annotate?.finishEditing?.();
-    root.SigK.annotateTransform?.cancel();
+    // 押して引いている途中の操作（つまみ・範囲選択）も取りやめる（spec-4b-3a 確定事項L3）。
+    root.SigK.annotate?.abortGestures?.();
 
     const moved = direction < 0 ? editHistory().undo(history()) : editHistory().redo(history());
     if (!moved.changed)
