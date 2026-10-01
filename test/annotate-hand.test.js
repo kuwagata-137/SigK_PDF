@@ -148,13 +148,13 @@ test('ハンドのとき、選んでいる四角の角のつまみを押して�
   const before = rectOf();
   SigK.annotate.select(a);
   SigK.annotate.setTool('hand');
-  // 左上の角のつまみ（紙の (100,700) の少し外）。
-  const corner = px(shell, [100, 700]);
-  mouse(shell, 'mousedown', pageNode(shell), [corner[0] - 4, corner[1] - 4]);
+  // 左上の角のつまみ（道具なしなら大きさが変わる所）。
+  const corner = SigK.annotationFrame.shown().shape.handles.find((handle) => handle.id === 'x1y1').at;
+  mouse(shell, 'mousedown', pageNode(shell), corner);
   mouse(shell, 'mousemove', document.body, [corner[0] - 40, corner[1] - 40]);
   mouse(shell, 'mouseup', pageNode(shell), [corner[0] - 40, corner[1] - 40]);
   assert.deepEqual(rectOf(), before);
-  assert.deepEqual(scrollOf(shell), [36, 36]);
+  assert.deepEqual(scrollOf(shell), [40, 40]);
   assert.equal(document.documentElement.hasAttribute('data-transform-cursor'), false);
 });
 

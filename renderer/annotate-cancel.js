@@ -7,6 +7,7 @@
   // 200 行を超えた annotate.js から移した（spec-4b-3b）。annotate.js は同じ名前の口（escape・abortGestures）でここへ委ねる。
   //   - escape: Esc 1 回で、開いている・進んでいるものを 1 つだけ閉じる（上から順に見る）
   //   - abortGestures: 取り消し・やり直しの前に、押して引いている途中の操作を全部取りやめる
+  //   - abortForChord: 左＋右で、押している操作を全部取りやめる（描きかけ・置く前の押下・文字の選択も）
 
   function finishEditing() {
     return root.SigK.annotateText?.finishEditing() === true;
@@ -59,6 +60,15 @@
     return transformed || marqueed || grabbed || panned || closed;
   }
 
+  // 左＋右（spec-4b-3b 確定事項E2）。メニュー・つまみ・範囲選択（押す前の選択に戻す）・掴む（写しを捨てて元の位置）・表示を引く・
+  // 描きかけ（印ごと）・テキスト／ノートの置く前の押下・文字の選択を全部取りやめる。入力欄と選択（範囲選択の取りやめを除く）は残す。
+  function abortForChord(win) {
+    abortGestures();
+    root.SigK.annotateDraw?.cancel();
+    root.SigK.annotatePress?.reset();
+    win?.getSelection?.()?.removeAllRanges();
+  }
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateCancel = { escape, abortGestures };
+  SigK.annotateCancel = { escape, abortGestures, abortForChord };
 })(typeof window !== 'undefined' ? window : globalThis);

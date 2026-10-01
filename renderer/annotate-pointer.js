@@ -80,6 +80,12 @@
     // 入力欄を閉じた押し（spec-4-2 確定事項8）と、メニューを閉じた左の押し（spec-4b-3b 確定事項D9）は飲む。印はどちらも取る。
     const closedEditor = editor()?.takeSwallow() === true;
     const closedMenu = root.SigK.annotationMenu?.takeSwallow() === true;
+    // 左と右の両方が押されたら、押している操作を取りやめて道具を切り替える（spec-4b-3b 確定事項E）。
+    if (rightButton()?.isChord(event) === true) {
+      rightButton().chord(event);
+      press().reset();
+      return;
+    }
     // 右は right-button へ（spec-4b-3b 確定事項D1・D6）。中ボタンなど、ほかのボタンは何もしない。
     if ((event.button ?? 0) === 2)
       rightButton()?.down(event, { swallowed: closedEditor || closedMenu });
@@ -103,7 +109,8 @@
 
   // 左ボタンの離しだけを見る（spec-4b-3a 確定事項B1）。押して引いている操作があれば終えて、残りは annotate-press.js へ。
   function onMouseUp(event) {
-    if (!isLeft(event))
+    // 左＋右の後は、全部のボタンを離すまで捨てる（spec-4b-3b 確定事項E2）。
+    if (rightButton()?.takeChordUp(event) === true || !isLeft(event))
       return;
     const pressed = press().take();
     if (hand().end() || transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
@@ -125,9 +132,9 @@
       event.preventDefault();
   }
 
-  // 押して引いている操作を進める。表示を引く → つまみ → 範囲選択 → 掴む・描く の順。
+  // 押して引いている操作を進める。左＋右の後なら文字の選択を外すだけ。表示を引く → つまみ → 範囲選択 → 掴む・描く の順。
   function onMouseMove(event) {
-    if (hand().move(event))
+    if (rightButton()?.whileChord(event) === true || hand().move(event))
       return;
     if (transform()?.move(event) === true)
       return;
