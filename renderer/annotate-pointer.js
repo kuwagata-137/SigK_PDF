@@ -78,6 +78,11 @@
     return root.SigK.annotateGrab;
   }
 
+  // つまみで大きさ・向き・端を変える（spec-4b-2。annotate-transform.js）。
+  function transform() {
+    return root.SigK.annotateTransform;
+  }
+
   // ---- 描く（spec-4-3 確定事項3） ----
 
   function pointIn(node, event) {
@@ -120,6 +125,11 @@
       state.pressed = null;
       return;
     }
+    // 選んでいる書き込みのつまみは、本体や紙の外より先に見る（spec-4b-2 確定事項15）。
+    if (transform()?.begin(event) === true) {
+      state.pressed = null;
+      return;
+    }
     state.pressed = { x: event.clientX, y: event.clientY };
     const page = pageAt(event);
     if (page === null)
@@ -140,7 +150,7 @@
   function onMouseUp(event) {
     const pressed = state.pressed;
     state.pressed = null;
-    if (grab().end(event) || endDraw(event))
+    if (transform()?.end(event) === true || grab().end(event) || endDraw(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
@@ -197,11 +207,17 @@
     view?.addEventListener('dblclick', onDoubleClick);
     // ドラッグ中・描いている間はページビューの外で離しても拾う。
     doc.addEventListener('mousemove', (event) => {
+      if (transform()?.move(event) === true)
+        return;
       grab().move(event);
       onDrawMove(event);
+      // つまみの上のカーソル（掴んでいない・描いていないとき）。
+      if (inAnnotMode() && !grab().isGrabbing() && state.drawing === null)
+        transform()?.hover(event);
     });
     doc.addEventListener('mouseup', (event) => {
-      if ((grab().isGrabbing() || state.drawing !== null) && !(view?.contains(event.target) ?? false))
+      const busy = grab().isGrabbing() || state.drawing !== null || transform()?.isDragging() === true;
+      if (busy && !(view?.contains(event.target) ?? false))
         onMouseUp(event);
     });
     return true;

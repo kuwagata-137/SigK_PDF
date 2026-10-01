@@ -120,8 +120,10 @@
   function step(direction) {
     if (!isOpen())
       return false;
-    // 入力欄の外から Ctrl+Z が来たら、下書きを確定してから戻す（spec-4-2 確定事項8）。
+    // 入力欄の外から Ctrl+Z が来たら、下書きを確定してから戻す（spec-4-2 確定事項8）。つまみのドラッグ中なら先に取りやめる
+    // （spec-4b-2 確定事項21）。
     root.SigK.annotate?.finishEditing?.();
+    root.SigK.annotateTransform?.cancel();
 
     const moved = direction < 0 ? editHistory().undo(history()) : editHistory().redo(history());
     if (!moved.changed)

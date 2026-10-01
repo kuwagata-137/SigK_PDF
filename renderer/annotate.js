@@ -127,8 +127,10 @@
     return annotationState().findAnnot(viewer().getAnnotations(), viewer().getImported(), state.selected);
   }
 
-  // 選ぶ。一覧の行も揃える（spec-4-4 確定事項31）。スライダーの下見は捨てる（spec-4b-1b 確定事項8）。
+  // 選ぶ。一覧の行も揃える（spec-4-4 確定事項31）。スライダーの下見とつまみのドラッグは捨てる（spec-4b-1b 確定事項8、
+  // spec-4b-2 確定事項21）。
   function select(key) {
+    root.SigK.annotateTransform?.cancel();
     root.SigK.annotatePreview?.cancel();
     state.selected = key ?? null;
     if (state.selected !== null && selectedEntry() === null)
@@ -145,6 +147,8 @@
   }
 
   function remove() {
+    // つまみのドラッグ中なら先に取りやめる（spec-4b-2 確定事項21）。
+    root.SigK.annotateTransform?.cancel();
     const entry = selectedEntry();
     if (entry === null)
       return false;
@@ -161,9 +165,12 @@
     return root.SigK.annotateText?.finishEditing() === true;
   }
 
-  // Esc。パレットの窓が開いていれば閉じ、スライダーの下見があれば捨て（spec-4b-1b 確定事項6・8）、描いている途中なら捨て、
-  // 入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を離す（確定事項7、spec-4-3 確定事項3）。
+  // Esc。つまみのドラッグ中なら取りやめ（spec-4b-2 確定事項21）、パレットの窓が開いていれば閉じ、スライダーの下見があれば捨て
+  // （spec-4b-1b 確定事項6・8）、描いている途中なら捨て、入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を
+  // 離す（確定事項7、spec-4-3 確定事項3）。
   function escape() {
+    if (root.SigK.annotateTransform?.cancel() === true)
+      return true;
     if (root.SigK.colorPopover?.close({ restoreFocus: true }) === true)
       return true;
     if (root.SigK.annotatePreview?.cancel() === true)

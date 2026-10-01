@@ -748,6 +748,17 @@ html[data-mode="annot"] #edit-bar{display:flex}
 .annot-frame-stem{stroke:var(--accent); stroke-width:1}
 .annot-handle{fill:#fff; stroke:var(--accent); stroke-width:1.5}
 .annot-rotate-icon{fill:none; stroke:var(--accent); stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round}
+/* つまみの上と、つまみを引いている間のカーソル（spec-4b-2 確定事項24）。annotate-transform.js が html の
+   data-transform-cursor を付け外しする。紙の上の文字の層のカーソル（text・crosshair）より先に効かせる。
+   回転は自作のカーソル（白い縁取りの黒い回転の矢印。ホットスポットは中心）。 */
+html[data-transform-cursor="ew-resize"] #view, html[data-transform-cursor="ew-resize"] #view *{cursor:ew-resize !important}
+html[data-transform-cursor="ns-resize"] #view, html[data-transform-cursor="ns-resize"] #view *{cursor:ns-resize !important}
+html[data-transform-cursor="nwse-resize"] #view, html[data-transform-cursor="nwse-resize"] #view *{cursor:nwse-resize !important}
+html[data-transform-cursor="nesw-resize"] #view, html[data-transform-cursor="nesw-resize"] #view *{cursor:nesw-resize !important}
+html[data-transform-cursor="move"] #view, html[data-transform-cursor="move"] #view *{cursor:move !important}
+html[data-transform-cursor="rotate"] #view, html[data-transform-cursor="rotate"] #view *{
+  cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.6 9.2A7 7 0 1 0 19 14.4M19.4 4.6v4.8h-4.8' stroke='white' stroke-width='4'/%3E%3Cpath d='M18.6 9.2A7 7 0 1 0 19 14.4M19.4 4.6v4.8h-4.8' stroke='black' stroke-width='1.8'/%3E%3C/g%3E%3C/svg%3E") 12 12, grab !important;
+}
 
 /* テキスト注釈（spec-4-2 確定事項10・33）。画面も保存と同じ Noto Sans JP で描く。
    見えているものと保存されるものの字形・幅を揃えるためで、OS の書体で代用すると
