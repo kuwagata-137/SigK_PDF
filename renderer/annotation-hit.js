@@ -41,13 +41,23 @@
     return lineWidth / 2 + HIT_SLACK / (scale > 0 ? scale : 1);
   }
 
+  // 回した四角・丸に点が当たるか。点を回す前の座標へ戻して箱で見る（spec-4b-2 確定事項15）。
+  function hitsTurnedBox(entry, pdfPoint) {
+    const rotation = root.SigK.shapeRotation;
+    const [x, y] = rotation.toLocal(pdfPoint, entry.rect, rotation.angleOf(entry));
+    const [x1, y1, x2, y2] = entry.rect;
+    return x >= x1 && x <= x2 && y >= y1 && y <= y2;
+  }
+
   // 1 つの注釈に点が当たるか。直線・矢印・ペンは線からの距離、ノートは画面の箱（表示の点で見る。
-  // spec-4-4 確定事項13）、表示のみは当てない、それ以外は四角（spec-4-3 確定事項12）。
+  // spec-4-4 確定事項13）、表示のみは当てない、回した四角・丸は回した箱、それ以外は四角（spec-4-3 確定事項12）。
   function hits(entry, pdfPoint, viewport, point) {
     if (entry.readonly === true)
       return false;
     if (annotationState().isNoteKind(entry.kind))
       return root.SigK.noteGraphics.hits(entry, point, viewport);
+    if (root.SigK.shapeRotation?.isRotated(entry) === true)
+      return hitsTurnedBox(entry, pdfPoint);
     if (!annotationState().isPathKind(entry.kind))
       return root.SigK.markupQuads.hitTest(entry.quads, pdfPoint);
     const tolerance = hitTolerance(entry.lineWidth, viewport.scale ?? 1);
