@@ -205,6 +205,9 @@
 
   // 選んでいるテキストがあればその注釈を変え、次に置く大きさとしても覚える。
   function setFontSize(size) {
+    // 2 件以上を選んでいる間は文字の大きさの行を隠す（spec-4b-3a 確定事項I5）。
+    if (annotate().getSelection().length > 1)
+      return false;
     if (!root.SigK.annotationPresets.isFontSize(size))
       return false;
     const entry = annotate().selectedEntry();

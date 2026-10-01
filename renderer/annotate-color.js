@@ -63,8 +63,19 @@
   }
 
   // 線の色。四角・丸を線なしから戻すときもこれを使う。
+  // 2 件以上を選んでいれば、その欄を持てる全部に当てる（spec-4b-3a 確定事項I2）。
+  function isMany() {
+    return annotate().getSelection().length > 1;
+  }
+
+  function bulk() {
+    return root.SigK.annotateBulk;
+  }
+
   function setColor(color) {
     const value = palette().normalizeHex(color);
+    if (value !== null && isMany())
+      return bulk().applyField('color', value);
     const entry = editableSelected();
     if (value === null || entry === null)
       return false;
@@ -82,6 +93,8 @@
 
   // 線なし（四角・丸で、塗りがあるときだけ）。
   function setStrokeNone() {
+    if (isMany())
+      return bulk().applyField('strokeNone', null);
     const entry = editableSelected();
     if (entry === null)
       return false;
@@ -99,6 +112,8 @@
   // 塗り（四角・丸）。null は塗りなしで、線なしのときは選べない。塗りを外せば線なしの印も外す。
   function setFill(color) {
     const value = color === null ? null : palette().normalizeHex(color);
+    if ((color === null || value !== null) && isMany())
+      return bulk().applyField('fill', value);
     const entry = editableSelected();
     if ((color !== null && value === null) || entry === null)
       return false;
@@ -117,6 +132,8 @@
 
   // 線種（四角・丸は実線・破線・雲形、直線・矢印は実線・破線）。実線だけの種類（ペン）では覚え直さない。
   function setLineStyle(lineStyle) {
+    if (isMany())
+      return bulk().applyField('lineStyle', lineStyle);
     const entry = editableSelected();
     if (entry === null)
       return false;

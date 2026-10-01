@@ -119,18 +119,16 @@
     if (el === null)
       return false;
     // 2 件以上を選んでいれば、まとめた出し方（spec-4b-3a 確定事項I）。
-    const entries = annotate().selectedEntries?.() ?? [];
-    if (entries.length > 1)
-      return root.SigK.annotationBulkProps.render(el.doc, entries);
+    if (annotate().getSelection().length > 1)
+      return root.SigK.annotationBulkProps.render(el.doc, annotate().selectedEntries());
     const entry = annotate().selectedEntry();
     if (entry !== null) {
       refreshSelected(entry);
       return true;
     }
-    // 「選択」など描かない道具なら、次に付ける値は出さない（spec-4b-3a 確定事項C3）。
+    // 図形は道具の段で選んだ種類の名前を出す（「四角（次に付ける）」。spec-4b-1a 確定事項8）。「選択」など描かない道具なら出さない。
     const tool = annotate().drawingTool();
     const kind = tool === null ? null : kindOfTool(tool);
-    // 図形は道具の段で選んだ種類の名前を出す（「四角（次に付ける）」。spec-4b-1a 確定事項8）。
     el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に付ける）`;
     styleRows()?.render(tool === null ? null : {
       kind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(), opacity: annotate().getOpacity(kind),

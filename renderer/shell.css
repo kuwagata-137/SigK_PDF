@@ -832,6 +832,8 @@ html[data-mode="annot"] #props{display:flex}
 }
 .chip .sw{width:44px; height:18px; border-radius:4px; border:1px solid rgba(16,24,40,.18); position:relative; overflow:hidden}
 .chip .sw.none{background:#fff}
+/* 複数を選んでいて色がそろっていないとき（spec-4b-3a 確定事項I1。モック screenshots/phase4b-3-multi.png）。斜線で、印は付けない。 */
+.chip .sw.mixed{background:repeating-linear-gradient(135deg, var(--surface) 0 3px, color-mix(in srgb, var(--muted) 45%, transparent) 3px 5px)}
 .chip .sw.none::after{content:""; position:absolute; left:50%; top:-12px; bottom:-12px; width:2px; margin-left:-1px; background:var(--danger); transform:rotate(66deg)}
 .chip .caret{font-size:9px; color:var(--muted)}
 .chip.open{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}

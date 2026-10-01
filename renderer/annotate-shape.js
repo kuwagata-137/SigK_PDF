@@ -147,6 +147,9 @@
   function setLineWidth(width) {
     if (!presets().isLineWidth(width))
       return false;
+    // 2 件以上を選んでいれば、図形・ペン全部に当てる（spec-4b-3a 確定事項I2）。
+    if (annotate().getSelection().length > 1)
+      return root.SigK.annotateBulk.applyField('lineWidth', width);
     const entry = annotate().selectedEntry();
     if (entry !== null && entry.readonly !== true && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
       const patch = { lineWidth: width, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width, angle: entry.angle }) };

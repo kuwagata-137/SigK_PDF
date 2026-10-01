@@ -29,7 +29,8 @@
 
   function render(doc, entries) {
     doc.getElementById('props-kind').textContent = `書き込み ${entries.length} 件（${kindsOf(entries)}）`;
-    styleRows()?.render(null);
+    // 見た目の行は、1 件でも持てる欄を出し、そろっていない値は「混在」にする（確定事項I1）。
+    styleRows()?.render(entries.map((entry) => root.SigK.annotationStylePatch.targetOf(entry)));
     root.SigK.annotationNoteRows?.render({ text: null, author: null, editable: false });
     root.SigK.annotationAngleRow?.render(null);
     show(doc, 'props-size-row', false);

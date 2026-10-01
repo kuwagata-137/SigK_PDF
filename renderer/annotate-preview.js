@@ -11,7 +11,7 @@
 
   const FIELDS = Object.freeze(['lineWidth', 'opacity']);
 
-  // { field, key, value }。下見が無ければ null。
+  // { field, key, value }。複数を選んでいるときは key の代わりに keys（鍵の集合）。下見が無ければ null。
   let preview = null;
 
   function annotate() {
@@ -26,8 +26,15 @@
     return entry.ref ?? entry.id;
   }
 
-  // スライダーを動かしている間。選んでいる書き込みが無いか、表示のみなら下見はしない。
+  // スライダーを動かしている間。選んでいる書き込みが無いか、表示のみなら下見はしない。2 件以上なら、その欄を持てる全部を
+  // 下見で描く（spec-4b-3a 確定事項I3）。
   function update(field, value) {
+    const keys = annotate()?.getSelection() ?? [];
+    if (keys.length > 1 && FIELDS.includes(field) && Number.isFinite(value)) {
+      preview = { field, keys: new Set(keys), value };
+      redraw();
+      return true;
+    }
     const entry = annotate()?.selectedEntry() ?? null;
     if (!FIELDS.includes(field) || !Number.isFinite(value) || entry === null || entry.readonly === true)
       return false;
@@ -47,7 +54,12 @@
 
   // 描く entry。下見の書き込みなら下見の値に差し替える（太さは /Rect も作り直す。直線・矢印・ペンは箱が線幅で変わる）。
   function previewFor(entry) {
-    if (preview === null || keyOf(entry) !== preview.key)
+    if (preview === null)
+      return entry;
+    const hit = preview.keys !== undefined
+      ? preview.keys.has(keyOf(entry)) && root.SigK.annotationStylePatch.appliesTo(preview.field, entry, preview.value)
+      : keyOf(entry) === preview.key;
+    if (!hit)
       return entry;
     if (preview.field === 'shape') {
       const shaped = { ...entry, ...preview.patch };

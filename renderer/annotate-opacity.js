@@ -73,6 +73,9 @@
   function setOpacity(value) {
     if (!isOpacity(value))
       return false;
+    // 2 件以上を選んでいれば、不透明度を持てる全部に当てる（spec-4b-3a 確定事項I2）。
+    if (annotate().getSelection().length > 1)
+      return root.SigK.annotateBulk.applyField('opacity', value);
     const entry = annotate().selectedEntry();
     if (entry === null) {
       const tool = annotate().drawingTool();
