@@ -172,6 +172,24 @@ test('1 ページ目の上端の近くの四角では、回転のつまみを下
   assert.equal(SigK.pageEdit.getHistoryState().at - before, 1);
 });
 
+test('回した四角は、印刷の口（painterFor）でも箱の中心まわりに回して描く', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  const entry = drawSquare(shell, [100, 700], [300, 600]);
+  SigK.annotationAngleRow.setAngle(30);
+  const calls = [];
+  const ctx = new Proxy({}, { get: (_target, name) => (...args) => { calls.push([name, ...args]); return undefined; }, set: () => true });
+  const viewport = viewportOf(shell);
+  SigK.annotate.painterFor(0)(ctx, viewport);
+  const [cx, cy] = viewport.convertToViewportPoint(...SigK.shapeRotation.centerOf(entry.rect));
+  const rotate = calls.findIndex((call) => call[0] === 'rotate');
+  assert.ok(rotate > 0, '回してから描く');
+  near(calls[rotate][1], Math.PI / 6, 1e-9);
+  assert.deepEqual(calls[rotate - 1].slice(0, 1), ['translate']);
+  near(calls[rotate - 1][1], cx);
+  near(calls[rotate - 1][2], cy);
+});
+
 test('読み込んだ矢印の端を Shift で動かすと、表示で横か縦にだけ動き、写しに付け替わる', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
