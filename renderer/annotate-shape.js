@@ -111,16 +111,7 @@
 
   // ---- 動かす（確定事項5） ----
 
-  function shifted(entry, delta) {
-    const round = (value) => Math.round(value * 100) / 100;
-    const patch = {};
-    if (entry.paths !== undefined)
-      patch.paths = entry.paths.map((path) => path.map((point) => [round(point[0] + delta[0]), round(point[1] + delta[1])]));
-    const rect = [round(entry.rect[0] + delta[0]), round(entry.rect[1] + delta[1]), round(entry.rect[2] + delta[0]), round(entry.rect[3] + delta[1])];
-    return { ...patch, ...geometry().rectOfShape({ kind: entry.kind, rect, paths: patch.paths, lineWidth: entry.lineWidth, angle: entry.angle }) };
-  }
-
-  // delta は紙の座標での差分（pt）。箱と点列をずらし、/Rect を作り直す。
+  // delta は紙の座標での差分（pt）。箱と点列をずらし、/Rect を作り直す（値は annotation-moves.js が作る）。
   function move(key, delta) {
     if (!isOpen() || !Array.isArray(delta) || !delta.every(Number.isFinite))
       return false;
@@ -128,7 +119,7 @@
     if (entry === null || !annotationState().isDrawnKind(entry.kind))
       return false;
     const annots = viewer().getAnnotations();
-    return commit(annotationState().updateAnnot(annots, entry, shifted(entry, delta)), { before: key, target: entry, annots });
+    return commit(annotationState().updateAnnot(annots, entry, root.SigK.annotationMoves.movedPatch(entry, delta)), { before: key, target: entry, annots });
   }
 
   // ---- 線の太さと図形の種類（確定事項7・19・27・29） ----

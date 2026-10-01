@@ -12,8 +12,8 @@
   //     テキストの道具ならそこに置く（ノートの道具なら付箋を置く）
   //   - 選んでいるテキスト・図形・ノートを掴んで動かしたら、離したときに 1 世代（ドラッグ移動）
   //   - ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）
-  // に振り分ける。判断そのものは annotate.js・annotate-text.js・annotate-shape.js が、掴んで動かす処理は
-  // annotate-grab.js が持つ。
+  // に振り分ける。判断そのものは annotate.js・annotate-text.js・annotate-shape.js が、描く押し離しは annotate-draw.js が、
+  // 掴んで動かす処理は annotate-grab.js が持つ。
 
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
   const CLICK_SLOP = 3;
@@ -23,8 +23,6 @@
     win: null,
     // 押した位置。離したときに動いていなければ当たり判定へ回す。
     pressed: null,
-    // 描いている図形・ペンのページの枠（表示の座標に直すのに使う）。
-    drawing: null,
   };
 
   function annotate() {
@@ -33,10 +31,6 @@
 
   function annotateText() {
     return root.SigK.annotateText;
-  }
-
-  function annotateShape() {
-    return root.SigK.annotateShape;
   }
 
   function annotateNote() {
@@ -83,35 +77,9 @@
     return root.SigK.annotateTransform;
   }
 
-  // ---- 描く（spec-4-3 確定事項3） ----
-
-  function pointIn(node, event) {
-    const base = node.getBoundingClientRect();
-    return [event.clientX - base.left, event.clientY - base.top];
-  }
-
-  // 図形・ペンの道具を持って紙の上で押したら描き始める。文字選択を始めさせない。
-  function beginDraw(event, page) {
-    if (annotateShape()?.beginDraft({ index: page.index, point: page.point, shift: event.shiftKey }) !== true)
-      return false;
-    event.preventDefault();
-    state.drawing = { node: page.node };
-    return true;
-  }
-
-  function onDrawMove(event) {
-    if (state.drawing === null)
-      return;
-    annotateShape().updateDraft(pointIn(state.drawing.node, event), event.shiftKey);
-  }
-
-  // 離した。注釈になったら true（押し離しの残りの経路へは流さない）。
-  function endDraw(event) {
-    const { drawing } = state;
-    state.drawing = null;
-    if (drawing === null)
-      return false;
-    return annotateShape().finishDraft(pointIn(drawing.node, event), event.shiftKey);
+  // 図形・ペンを描く押し離し（spec-4-3 確定事項3。annotate-draw.js）。
+  function draw() {
+    return root.SigK.annotateDraw;
   }
 
   // ---- 押し離し ----
@@ -141,7 +109,7 @@
     }
     const tool = annotate().getTool();
     if (tool === 'shape' || tool === 'pen')
-      beginDraw(event, page);
+      draw().begin(event, page);
   }
 
   // 離したとき: 道具があり文字が選ばれていれば作る（spec-4-1 確定事項10 ①）。選ばれて
@@ -150,7 +118,7 @@
   function onMouseUp(event) {
     const pressed = state.pressed;
     state.pressed = null;
-    if (transform()?.end(event) === true || grab().end(event) || endDraw(event))
+    if (transform()?.end(event) === true || grab().end(event) || draw().end(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
@@ -210,13 +178,13 @@
       if (transform()?.move(event) === true)
         return;
       grab().move(event);
-      onDrawMove(event);
+      draw().move(event);
       // つまみの上のカーソル（掴んでいない・描いていないとき）。
-      if (inAnnotMode() && !grab().isGrabbing() && state.drawing === null)
+      if (inAnnotMode() && !grab().isGrabbing() && !draw().isDrawing())
         transform()?.hover(event);
     });
     doc.addEventListener('mouseup', (event) => {
-      const busy = grab().isGrabbing() || state.drawing !== null || transform()?.isDragging() === true;
+      const busy = grab().isGrabbing() || draw().isDrawing() || transform()?.isDragging() === true;
       if (busy && !(view?.contains(event.target) ?? false))
         onMouseUp(event);
     });
@@ -224,5 +192,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotatePointer = { CLICK_SLOP, init, isDragging: () => grab().isGrabbing(), isDrawing: () => state.drawing !== null };
+  SigK.annotatePointer = { CLICK_SLOP, init, isDragging: () => grab().isGrabbing(), isDrawing: () => draw().isDrawing() };
 })(typeof window !== 'undefined' ? window : globalThis);

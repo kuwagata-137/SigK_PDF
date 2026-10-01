@@ -18,6 +18,7 @@ require('../renderer/shape-rotation.js');
 require('../renderer/shape-print-layer.js');
 require('../renderer/shape-graphics.js');
 require('../renderer/shape-handles.js');
+require('../renderer/frame-graphics.js');
 require('../renderer/annotation-frame.js');
 require('../renderer/annotation-layer.js');
 

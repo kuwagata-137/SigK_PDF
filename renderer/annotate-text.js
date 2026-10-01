@@ -190,16 +190,14 @@
 
   // ---- 動かす（確定事項6） ----
 
-  // delta は紙の座標での差分（pt）。箱の大きさは本文から取り直す（読み込んだ /Rect の余白を引きずらない）。
+  // delta は紙の座標での差分（pt）。箱の大きさは本文から取り直す（読み込んだ /Rect の余白を引きずらない。値は annotation-moves.js が作る）。
   function move(key, delta) {
     if (!isOpen() || !Array.isArray(delta) || !delta.every(Number.isFinite))
       return false;
     const entry = findEntry(key);
     if (entry === null || entry.kind !== 'text')
       return false;
-    const [x, y] = geometry().frameOrigin(entry.rect, entry.rotation);
-    const origin = [x + delta[0], y + delta[1]].map((value) => Math.round(value * 100) / 100);
-    const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, frameOf(origin, boxOf(entry.text, entry.fontSize), entry.rotation));
+    const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, root.SigK.annotationMoves.movedPatch(entry, delta));
     return commit(next, { before: key, target: entry });
   }
 

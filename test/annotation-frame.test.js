@@ -10,6 +10,7 @@ require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/shape-handles.js');
+require('../renderer/frame-graphics.js');
 require('../renderer/annotation-frame.js');
 
 // 選んでいる書き込みの枠とつまみの層（spec-4b-2 確定事項9〜14・23）。紙の器の外の #view-pages に 1 枚だけ置く。

@@ -13,10 +13,6 @@
     return root.SigK.annotate;
   }
 
-  function isMovable(entry) {
-    return entry.kind === 'text' || entry.kind === 'note' || root.SigK.annotationEntry.isDrawnKind(entry.kind);
-  }
-
   // 種類ごとの動かす口。
   function moverFor(entry) {
     if (entry?.kind === 'text')
@@ -32,7 +28,7 @@
   // 選んでいるテキスト・図形の上で押したらドラッグの準備。文字選択を始めさせない。
   function begin(event, page, key) {
     const entry = annotate().selectedEntry();
-    if (entry === null || !isMovable(entry) || root.SigK.annotationLayer.keyOf(entry) !== key)
+    if (entry === null || !root.SigK.annotationMoves.isMovable(entry) || root.SigK.annotationLayer.keyOf(entry) !== key)
       return false;
     const viewport = root.SigK.freeTextEditor?.pageOf(page.index)?.viewport ?? root.SigK.viewer.getTextLayer(page.index)?.viewport;
     if (viewport === undefined || viewport === null)
