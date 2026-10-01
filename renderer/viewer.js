@@ -87,6 +87,10 @@
     return root.SigK.viewerControls;
   }
 
+  function zoomAnchor() {
+    return root.SigK.zoomAnchor;
+  }
+
   // 現在ページが変わったことを、それを映しているものへ伝える。ツールバーの
   // ページ番号と、サムネイルの枠が同じ合図で動く（spec-1-3 確定事項6・11）。
   function syncPage() {
@@ -406,22 +410,47 @@
 
   // ---- 倍率 ----
 
-  function setZoom(zoom, { fit = null } = {}) {
+  // anchor（{ clientX, clientY }）を渡すと、その点の下の紙の場所を動かさずに倍率を変える（ホイール。spec-4b-3b 確定事項C4）。
+  // 渡さなければ今までどおり今のページの先頭へ送る（「＋」「－」・キー・「幅」「全体」）。
+  function setZoom(zoom, { fit = null, anchor = null } = {}) {
     const next = layout().clampZoom(zoom);
     const changed = next !== state.zoom;
     state.zoom = next;
     state.fit = fit;
 
     if (state.doc !== null && changed) {
+      // 並べ直す前に、マウスの下の紙の点を控える（並びはまだ前の倍率のもの）。
+      const held = anchor === null ? null : zoomAnchor()?.capture(state.layout.pages, contentPoint(anchor)) ?? null;
       // 倍率が変われば canvas の解像度も変わる。飛んでいる描画ごと捨てる。
       state.token += 1;
       render.releaseAll();
       applyLayout();
-      goToPage(state.current);
+      if (held === null || !keepAnchor(held, anchor))
+        goToPage(state.current);
     }
     controls()?.syncZoom(el.doc, getState());
     render.scheduleUpdate();
     return state.zoom;
+  }
+
+  // client の点を #view-pages の中の点（CSS px）に直す。#view-pages は横に中央寄せ（margin:auto）なので offsetLeft を引く。
+  function contentPoint({ clientX, clientY }) {
+    const base = el.view.getBoundingClientRect();
+    return [
+      clientX - base.left - el.view.clientLeft + el.view.scrollLeft - el.pages.offsetLeft,
+      clientY - base.top - el.view.clientTop + el.view.scrollTop - el.pages.offsetTop,
+    ];
+  }
+
+  // 並べ直した後で、控えた紙の点が同じ client の点に来るようにスクロールする。端で動かせない分は寄せられるところまで。
+  function keepAnchor(held, { clientX, clientY }) {
+    const point = zoomAnchor().place(state.layout.pages, held);
+    if (point === null)
+      return false;
+    const base = el.view.getBoundingClientRect();
+    el.view.scrollLeft = point[0] + el.pages.offsetLeft - (clientX - base.left - el.view.clientLeft);
+    el.view.scrollTop = point[1] + el.pages.offsetTop - (clientY - base.top - el.view.clientTop);
+    return true;
   }
 
   // 見開きでは組の2枚ぶん（幅の和・高さの最大）に合わせる（spec-2-3 確定事項18〜20）。

@@ -4,7 +4,7 @@
   // 編集モードの「いまの道具」と「次に付ける文字の大きさ」（spec-4-1 確定事項1・8・10・33・34、spec-4-2 確定事項1・3・21・34）。
   //
   // 300 行に近づいた annotate.js から移した（spec-4b-3a）。annotate.js は同じ名前の口でここへ委ねる。描かない道具の「選択」
-  // （spec-4b-3a 確定事項C）もここで持つ。
+  // （spec-4b-3a 確定事項C）と「ハンド」、左＋右で戻る先（spec-4b-3b 確定事項B。判断は tool-switch.js）もここで持つ。
 
   // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
   const { TOOLS, MARKUP_TOOLS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
@@ -16,8 +16,14 @@
   const state = {
     doc: null,
     tool: null,
+    // 戻り先（最後に持っていた「道具なし」か「選択」。spec-4b-3b 確定事項B1）。左＋右でハンドから戻る先。
+    base: null,
     fontSize: DEFAULT_FONT_SIZE,
   };
+
+  function toolSwitch() {
+    return root.SigK.toolSwitch;
+  }
 
   function props() {
     return root.SigK.annotationProps;
@@ -59,6 +65,7 @@
 
   function setTool(tool) {
     state.tool = isTool(tool) ? tool : null;
+    state.base = toolSwitch().remember(state.base, state.tool);
     if (state.tool === 'text')
       root.SigK.freeTextShape?.ensureLoaded(state.doc);
     syncTools();
@@ -77,7 +84,12 @@
       return false;
     if (MARKUP_TOOLS.includes(tool) && inAnnotMode() && isOpen() && createFromSelection(tool))
       return setTool(tool) !== null;
-    return setTool(state.tool === tool ? null : tool) !== null;
+    return setTool(toolSwitch().next({ tool: state.tool, base: state.base }, 'button', tool).tool) !== null;
+  }
+
+  // 左＋右で道具を切り替える（spec-4b-3b 確定事項B4・E2）。ハンドからは戻り先へ、ほかからはハンドへ。切り替えた道具を返す。
+  function chord() {
+    return setTool(toolSwitch().next({ tool: state.tool, base: state.base }, 'chord').tool);
   }
 
   // 次に置くテキストの文字の大きさ（spec-4-2 確定事項21・34）。
@@ -110,6 +122,8 @@
     POINTER_TOOLS,
     init,
     getTool: () => state.tool,
+    getBase: () => state.base,
+    chord,
     drawingTool,
     syncTools,
     setTool,
