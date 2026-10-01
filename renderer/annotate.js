@@ -60,7 +60,8 @@
     return root.SigK.annotateText?.finishEditing() === true;
   }
 
-  // Esc。つまみのドラッグ中なら取りやめ（spec-4b-2 確定事項21）、パレットの窓が開いていれば閉じ、スライダーの下見があれば捨て
+  // Esc。つまみのドラッグ中なら取りやめ（spec-4b-2 確定事項21）、範囲選択・掴んで動かしている途中なら取りやめ（spec-4b-3a
+  // 確定事項M）、パレットの窓が開いていれば閉じ、スライダーの下見があれば捨て
   // （spec-4b-1b 確定事項6・8）、描いている途中なら捨て、入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を
   // 離す（確定事項7、spec-4-3 確定事項3）。
   function escape() {
@@ -68,6 +69,9 @@
       return true;
     // 範囲選択の途中なら取りやめて、押す前の選択に戻す（spec-4b-3a 確定事項D6・M）。
     if (root.SigK.annotateMarquee?.cancel() === true)
+      return true;
+    // 掴んで動かしている途中なら元の位置へ戻す（確定事項M）。
+    if (root.SigK.annotateGrab?.cancel() === true)
       return true;
     if (root.SigK.colorPopover?.close({ restoreFocus: true }) === true)
       return true;
@@ -88,11 +92,12 @@
     return false;
   }
 
-  // 押して引いている途中の操作（つまみ・範囲選択）を取りやめる。取り消し・やり直しの前に呼ぶ（spec-4b-3a 確定事項L3）。
+  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす）を取りやめる。取り消し・やり直しの前に呼ぶ（spec-4b-3a 確定事項L3）。
   function abortGestures() {
     const transformed = root.SigK.annotateTransform?.cancel() === true;
     const marqueed = root.SigK.annotateMarquee?.cancel() === true;
-    return transformed || marqueed;
+    const grabbed = root.SigK.annotateGrab?.cancel() === true;
+    return transformed || marqueed || grabbed;
   }
 
   // ---- 印刷（確定事項28） ----

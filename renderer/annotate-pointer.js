@@ -131,7 +131,14 @@
         annotate().addKey(hit);
       return;
     }
-    if (hit !== null && hit === annotate().getSelected()) {
+    // 選んでいる書き込みの上なら、選んでいる全部を掴む（確定事項B6・F）。「選択」の道具なら、選んでいない書き込みも
+    // 押したときに選んで 1 段で掴む（決定53 ⑨）。
+    if (hit !== null && wasSelected) {
+      grab().begin(event, page, hit);
+      return;
+    }
+    if (hit !== null && annotate().getTool() === 'select') {
+      annotate().select(hit);
       grab().begin(event, page, hit);
       return;
     }
@@ -209,6 +216,7 @@
     win.__sigkAnnotatePointerReady = true;
     state.doc = doc;
     state.win = win;
+    grab().init(doc);
     const view = doc.getElementById('view');
     view?.addEventListener('mousedown', onMouseDown);
     view?.addEventListener('mouseup', onMouseUp);

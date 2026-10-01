@@ -132,9 +132,7 @@
     if (keys.length === 0)
       return false;
     const view = viewer();
-    let annots = view.getAnnotations();
-    for (const key of keys)
-      annots = annotationState().removeAnnot(annots, annotationState().findAnnot(annots, view.getImported(), key));
+    const annots = root.SigK.annotationBulk.removeEach(view.getAnnotations(), view.getImported(), keys);
     state.keys = [];
     root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: null } });
     props()?.refresh();
