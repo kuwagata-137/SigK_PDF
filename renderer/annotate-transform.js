@@ -7,7 +7,7 @@
   // 紙の外（灰色）で押しても、選んでいる書き込みのページの座標で見る。動かしている間（move）は shape-resize.js の patch を
   // 下見（annotate-preview.updateShape）で描き、離したとき（end）に 1 世代積む。Esc・選択の変更・Ctrl+Z・Delete・ページの
   // 描き直し（倍率の変更など）は取りやめ（cancel）。マウスを動かしたとき（hover）は、つまみに合うカーソルを html の
-  // data-transform-cursor に出す。右パネルの回転の行は previewAngle・setAngle で同じ下見と確定を使う。
+  // data-transform-cursor に出す。右パネルの回転の行（annotation-angle-row.js）も、同じ下見と commit を使う。
 
   // ドラッグ { key, entry, handle, index, viewport, node, press(px), moved, patch }。無ければ null。
   let drag = null;
@@ -31,10 +31,6 @@
 
   function keyOf(entry) {
     return entry.ref ?? entry.id;
-  }
-
-  function isBoxed(entry) {
-    return entry?.kind === 'square' || entry?.kind === 'circle';
   }
 
   function pageNodeOf(index) {
@@ -166,35 +162,6 @@
     setCursor(handleUnder(event)?.handle.cursor ?? null);
   }
 
-  // ---- 右パネルの回転の行（確定事項25・26） ----
-
-  function anglePatch(entry, angle) {
-    const normalized = rotation().normalizeAngle(Math.round(angle));
-    return { angle: normalized, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, lineWidth: entry.lineWidth, angle: normalized }) };
-  }
-
-  function selectedBoxed() {
-    const entry = annotate()?.selectedEntry() ?? null;
-    return isBoxed(entry) && entry.readonly !== true ? entry : null;
-  }
-
-  // スライダーを動かしている間・数値を打っている間の下見。
-  function previewAngle(angle) {
-    const entry = selectedBoxed();
-    if (entry === null || !Number.isFinite(angle))
-      return false;
-    return preview().updateShape(keyOf(entry), anglePatch(entry, angle));
-  }
-
-  // 確定（スライダーを離した・数値欄の確定・0°/90°/180°/270° のボタン）。同じ角度なら積まない。
-  function setAngle(angle) {
-    const entry = selectedBoxed();
-    preview().cancel();
-    if (entry === null || !Number.isFinite(angle))
-      return false;
-    return commit(entry, anglePatch(entry, angle));
-  }
-
   function init(document, win) {
     if (win.__sigkAnnotateTransformReady === true)
       return false;
@@ -204,5 +171,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateTransform = { init, begin, move, end, cancel, hover, previewAngle, setAngle, isDragging: () => drag !== null };
+  SigK.annotateTransform = { init, begin, move, end, cancel, hover, commit, isDragging: () => drag !== null };
 })(typeof window !== 'undefined' ? window : globalThis);

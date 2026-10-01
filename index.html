@@ -573,6 +573,10 @@ body{
         <div class="prop" id="props-size-row" hidden><span class="k">文字の大きさ</span><select class="props-select" id="props-size" aria-label="文字の大きさ"></select></div>
         <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span>
           <div class="range"><input type="range" class="props-field" id="props-opacity-range" min="10" max="100" step="1" aria-label="不透明度"><input type="number" class="props-field" id="props-opacity" min="10" max="100" step="1" aria-label="不透明度（%）"><span class="unit">%</span></div></div>
+        <!-- 回転（spec-4b-2 確定事項25〜27。モック screenshots/phase4b-2-square.png）。四角・丸を選んでいるときだけ。中身は annotation-angle-row.js。 -->
+        <div class="prop" id="props-angle-row" hidden><span class="k">回転</span>
+          <div class="range"><input type="range" class="props-field" id="props-angle-range" min="0" max="359" step="1" aria-label="回転"><input type="number" class="props-field" id="props-angle" min="0" max="359" step="1" aria-label="回転（度）"><span class="unit">°</span></div>
+          <div class="angle-presets" id="props-angle-presets" role="group" aria-label="よく使う角度"><button type="button" data-angle="0">0°</button><button type="button" data-angle="90">90°</button><button type="button" data-angle="180">180°</button><button type="button" data-angle="270">270°</button></div></div>
         <!-- ノートの本文・作成者（spec-4-4 確定事項3・4）。中身と出し入れは annotation-note-rows.js。 -->
         <div class="prop" id="props-contents-row" hidden><span class="k">本文</span><textarea class="props-textarea props-field" id="props-contents" rows="3" aria-label="本文"></textarea></div>
         <div class="prop" id="props-author-row" hidden><span class="k">作成者</span><input class="props-input props-field" id="props-author" type="text" maxlength="100" aria-label="作成者"></div>
@@ -830,6 +834,7 @@ body{
 <script src="renderer/props-range.js"></script>
 <script src="renderer/annotation-style-rows.js"></script>
 <script src="renderer/annotation-hints.js"></script>
+<script src="renderer/annotation-angle-row.js"></script>
 <script src="renderer/annotation-props.js"></script>
 <script src="renderer/annotation-index.js"></script>
 <script src="renderer/annotation-list.js"></script>

@@ -37,11 +37,12 @@ function shownStyles(document) {
   return [...document.querySelectorAll('#props-style button:not([hidden])')].map((button) => button.dataset.style);
 }
 
-test('行の並びは 種類 → 色 → 塗り → 線種 → 線の太さ・文字の大きさ → 不透明度 → 本文 → 作成者 → ページ', async (t) => {
+test('行の並びは 種類 → 色 → 塗り → 線種 → 線の太さ・文字の大きさ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
   const shell = await withShell(t);
   const ids = [...shell.document.querySelectorAll('#props .props-body > .prop')].map((node) => node.id || 'kind');
+  // 回転の行は不透明度の下（spec-4b-2 確定事項25）
   assert.deepEqual(ids, ['kind', 'props-color-row', 'props-fill-row', 'props-style-row', 'props-width-row', 'props-size-row',
-    'props-opacity-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
+    'props-opacity-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
 });
 
 test('道具ごとに出す行と、色の行の見出しが替わる', async (t) => {
@@ -129,7 +130,8 @@ test('選んでいる線なしの四角は色のチップが「なし」にな�
   assert.equal(document.getElementById('props-color-name').textContent, 'なし');
   assert.equal(document.querySelector('#props-color .sw').classList.contains('none'), true);
   assert.equal(document.getElementById('props-fill-name').textContent, '#FFFF00');
-  assert.equal(document.getElementById('props-hint').textContent, `${SigK.annotationProps.HINTS.shapeSelected}${SigK.annotationProps.HINTS.box}${SigK.annotationProps.HINTS.fill}`);
+  const HINTS = SigK.annotationProps.HINTS;
+  assert.equal(document.getElementById('props-hint').textContent, `${HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${HINTS.boxTransform}`)}${HINTS.box}${HINTS.fill}`);
   SigK.annotate.select('17R');
   assert.equal(document.getElementById('props-kind').textContent, '直線（表示のみ）');
   assert.deepEqual(shownRows(document), []);
