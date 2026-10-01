@@ -598,6 +598,12 @@ body{
   <!-- 色のパレットの窓（spec-4b-1b 確定事項6）。右パネルの左、紙の上に重ねて開く。中身は color-popover.js が組む。 -->
   <div class="color-pop" id="color-pop" role="dialog" aria-label="色" hidden></div>
 
+  <!-- 書き込みの上の右クリックで出すメニュー（spec-4b-3b 確定事項D7。モック screenshots/phase4b-3-menu.png）。押した点に出す。
+       結線は annotation-menu.js。フォーカスは移さないので、項目はキーボードの並びに入れない（tabindex=-1）。 -->
+  <div class="annot-menu" id="annot-menu" role="menu" aria-label="書き込みの操作" hidden>
+    <button type="button" class="annot-menu-item" role="menuitem" data-action="delete" tabindex="-1"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span><span class="label">削除</span><span class="key">Delete</span></button>
+  </div>
+
   <div id="status">
     <span id="status-file" title="文書情報を表示 (Ctrl+I)">文書なし</span><span class="sep">│</span>
     <span id="status-pages">–</span><span class="sep">│</span>
@@ -850,6 +856,8 @@ body{
 <script src="renderer/annotate-draw.js"></script>
 <script src="renderer/annotate-hand.js"></script>
 <script src="renderer/annotate-press.js"></script>
+<script src="renderer/annotation-menu.js"></script>
+<script src="renderer/annotate-right-button.js"></script>
 <script src="renderer/annotate-pointer.js"></script>
 <script src="renderer/annotation-note-rows.js"></script>
 <script src="renderer/color-popover.js"></script>

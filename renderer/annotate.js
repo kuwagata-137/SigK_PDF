@@ -60,11 +60,14 @@
     return root.SigK.annotateText?.finishEditing() === true;
   }
 
-  // Esc。つまみのドラッグ中なら取りやめ（spec-4b-2 確定事項21）、範囲選択・掴んで動かしている途中なら取りやめ（spec-4b-3a
+  // Esc。右クリックのメニューが開いていれば閉じ（spec-4b-3b 確定事項G）、つまみのドラッグ中なら取りやめ（spec-4b-2 確定事項21）、範囲選択・掴んで動かしている途中なら取りやめ（spec-4b-3a
   // 確定事項M）、パレットの窓が開いていれば閉じ、スライダーの下見があれば捨て
   // （spec-4b-1b 確定事項6・8）、描いている途中なら捨て、入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を
   // 離す（確定事項7、spec-4-3 確定事項3）。
   function escape() {
+    // 右クリックのメニューを先に閉じる（選択は残す。spec-4b-3b 確定事項G）。
+    if (root.SigK.annotationMenu?.close() === true)
+      return true;
     if (root.SigK.annotateTransform?.cancel() === true)
       return true;
     // 範囲選択の途中なら取りやめて、押す前の選択に戻す（spec-4b-3a 確定事項D6・M）。
@@ -80,7 +83,8 @@
       return true;
     if (root.SigK.annotatePreview?.cancel() === true)
       return true;
-    if (root.SigK.annotateShape?.cancelDraft() === true)
+    // 描きかけは「描いている」印ごと捨てる（spec-4b-3b 事前調査 I）。
+    if (root.SigK.annotateDraw?.cancel() === true)
       return true;
     if (finishEditing())
       return true;
@@ -95,14 +99,15 @@
     return false;
   }
 
-  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす・表示を引く）を取りやめる。取り消し・やり直しの前に呼ぶ
-  // （spec-4b-3a 確定事項L3、spec-4b-3b 確定事項G）。
+  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす・表示を引く）を取りやめ、メニューを閉じる。取り消し・やり直しの
+  // 前に呼ぶ（spec-4b-3a 確定事項L3、spec-4b-3b 確定事項G）。
   function abortGestures() {
     const transformed = root.SigK.annotateTransform?.cancel() === true;
     const marqueed = root.SigK.annotateMarquee?.cancel() === true;
     const grabbed = root.SigK.annotateGrab?.cancel() === true;
     const panned = root.SigK.annotateHand?.cancel() === true;
-    return transformed || marqueed || grabbed || panned;
+    const closed = root.SigK.annotationMenu?.close() === true;
+    return transformed || marqueed || grabbed || panned || closed;
   }
 
   // ---- 印刷（確定事項28） ----
@@ -123,6 +128,7 @@
   // モードを離れたら入力欄を確定し、表示を引くのを終え（spec-4b-3b 確定事項A3）、選択を解除する。道具は持ち越す（確定事項8）。
   // 入ったらフォントを先読みする（spec-4-2 確定事項33）。
   function onModeChanged(mode) {
+    root.SigK.annotationMenu?.close();
     if (mode !== 'annot') {
       finishEditing();
       root.SigK.annotateHand?.cancel();

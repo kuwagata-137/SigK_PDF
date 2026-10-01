@@ -129,6 +129,8 @@
     root.SigK.annotateNote.init(doc, win);
     root.SigK.annotateTransform.init(doc, win);
     root.SigK.annotatePointer.init(doc, win);
+    root.SigK.annotationMenu.init(doc, win);
+    root.SigK.annotateRightButton.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
     root.SigK.annotationList.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。

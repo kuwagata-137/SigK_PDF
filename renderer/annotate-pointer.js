@@ -50,6 +50,10 @@
     return root.SigK.annotateHand;
   }
 
+  function rightButton() {
+    return root.SigK.annotateRightButton;
+  }
+
   function holdingHand() {
     return annotate().getTool() === 'hand';
   }
@@ -73,8 +77,13 @@
   }
 
   function onMouseDown(event) {
-    // 入力欄を閉じた押しは飲む（spec-4-2 確定事項8）。
-    if (editor()?.takeSwallow() === true || !isLeft(event) || inEditor(event) || !inAnnotMode() || !isOpen()) {
+    // 入力欄を閉じた押し（spec-4-2 確定事項8）と、メニューを閉じた左の押し（spec-4b-3b 確定事項D9）は飲む。印はどちらも取る。
+    const closedEditor = editor()?.takeSwallow() === true;
+    const closedMenu = root.SigK.annotationMenu?.takeSwallow() === true;
+    // 右は right-button へ（spec-4b-3b 確定事項D1・D6）。中ボタンなど、ほかのボタンは何もしない。
+    if ((event.button ?? 0) === 2)
+      rightButton()?.down(event, { swallowed: closedEditor || closedMenu });
+    if (closedEditor || closedMenu || !isLeft(event) || inEditor(event) || !inAnnotMode() || !isOpen()) {
       press().reset();
       return;
     }

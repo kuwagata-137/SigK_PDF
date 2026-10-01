@@ -43,11 +43,21 @@
     return annotateShape().finishDraft(pointIn(drawing.node, event), event.shiftKey);
   }
 
+  // 取りやめ（Esc・左＋右。spec-4b-3b 確定事項E2・G）。下書きと「描いている」印をどちらも捨てる（事前調査 I。下書きだけを捨てると、
+  // 離したときに空振りの finishDraft が走る）。どちらも無ければ false。
+  function cancel() {
+    const drawing = state.drawing !== null;
+    state.drawing = null;
+    const dropped = annotateShape()?.cancelDraft() === true;
+    return drawing || dropped;
+  }
+
   const SigK = (root.SigK = root.SigK || {});
   SigK.annotateDraw = {
     begin,
     move,
     end,
+    cancel,
     isDrawing: () => state.drawing !== null,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
