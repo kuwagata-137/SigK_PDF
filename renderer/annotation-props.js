@@ -118,6 +118,10 @@
   function refresh() {
     if (el === null)
       return false;
+    // 2 件以上を選んでいれば、まとめた出し方（spec-4b-3a 確定事項I）。
+    const entries = annotate().selectedEntries?.() ?? [];
+    if (entries.length > 1)
+      return root.SigK.annotationBulkProps.render(el.doc, entries);
     const entry = annotate().selectedEntry();
     if (entry !== null) {
       refreshSelected(entry);

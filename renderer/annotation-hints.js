@@ -2,7 +2,7 @@
   'use strict';
 
   // 右パネルのヒントの文言と選び方（spec-4-1 確定事項4、spec-4-2 確定事項2、spec-4-3 確定事項2、spec-4-4 確定事項6、
-  // spec-4b-1a 確定事項13、spec-4b-1b 確定事項4）。DOM に触れない。annotation-props.js が選んだ書き込みか道具に合わせて出す。
+  // spec-4b-1a 確定事項13、spec-4b-1b 確定事項4、spec-4b-3a 確定事項C5・I1）。DOM に触れない。annotation-props.js が選んだ書き込みか道具に合わせて出す。
 
   const HINTS = Object.freeze({
     selected: 'Delete で消せます。Esc で選択を解除します。Ctrl+Z で元に戻せます。',
@@ -23,6 +23,8 @@
     // 四角・丸に添える（spec-4b-1b 確定事項4）。塗りの一文は塗りがあるときだけ。
     box: '線と塗りを両方「なし」にはできません。',
     fill: '塗りは下の文字を隠すだけで、文字は検索やコピーで取り出せます。',
+    // 2 件以上を選んでいるとき（spec-4b-3a 確定事項I1）。
+    multi: '掴むとまとめて動き、Ctrl を押しながら引くと写しを作ります（Shift で横か縦だけ）。Ctrl を押しながら押すと選ぶ・外すを切り替えます。Delete で消せます。',
   });
 
   function entryKinds() {

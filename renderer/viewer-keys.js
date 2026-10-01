@@ -130,10 +130,10 @@
     }
 
     // 注釈モードの Delete と Esc（spec-4-1 確定事項7）。Delete は選んだ注釈を消し、
-    // Esc は選択を解除、無ければ道具を離す。
+    // Esc は選択を解除、無ければ道具を離す。Backspace も Delete と同じく選んだ全部を消す（spec-4b-3a 確定事項H1）。
     const annotate = root.SigK.annotate;
     const inAnnotMode = doc.documentElement.getAttribute('data-mode') === 'annot';
-    if (event.key === 'Delete' && inAnnotMode && annotate !== undefined) {
+    if ((event.key === 'Delete' || event.key === 'Backspace') && inAnnotMode && annotate !== undefined) {
       event.preventDefault();
       annotate.remove();
       return true;
