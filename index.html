@@ -74,6 +74,8 @@ body{
   <div id="edit-bar" role="toolbar" aria-label="書き込みの道具">
     <!-- 「選択」は先頭（spec-4b-3a 確定事項C1。モック screenshots/phase4b-3-bar.png）。描かない道具で、紙の上を引くと範囲選択。 -->
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="select" title="選択" aria-label="選択" aria-pressed="false"><span data-icon="pointerSelect" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">選択</span></span>
+    <!-- 「ハンド」は「選択」の隣（spec-4b-3b 確定事項A1）。描かない道具で、紙のどこを引いても表示が動く。 -->
+    <span class="edit-item"><button type="button" class="edit-tool" data-tool="hand" title="ハンド" aria-label="ハンド" aria-pressed="false"><span data-icon="hand" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ハンド</span></span>
     <span class="edit-sep"></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="highlight" title="ハイライト" aria-label="ハイライト" aria-pressed="false"><span data-icon="highlight" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ハイライト</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="underline" title="下線" aria-label="下線" aria-pressed="false"><span data-icon="underline" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">下線</span></span>
@@ -844,6 +846,7 @@ body{
 <script src="renderer/annotation-marquee.js"></script>
 <script src="renderer/annotate-marquee.js"></script>
 <script src="renderer/annotate-draw.js"></script>
+<script src="renderer/annotate-hand.js"></script>
 <script src="renderer/annotate-press.js"></script>
 <script src="renderer/annotate-pointer.js"></script>
 <script src="renderer/annotation-note-rows.js"></script>

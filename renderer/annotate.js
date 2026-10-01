@@ -73,6 +73,9 @@
     // 掴んで動かしている途中なら元の位置へ戻す（確定事項M）。
     if (root.SigK.annotateGrab?.cancel() === true)
       return true;
+    // ハンドで表示を引いている途中なら、そこで終える（spec-4b-3b 確定事項G）。
+    if (root.SigK.annotateHand?.cancel() === true)
+      return true;
     if (root.SigK.colorPopover?.close({ restoreFocus: true }) === true)
       return true;
     if (root.SigK.annotatePreview?.cancel() === true)
@@ -92,12 +95,14 @@
     return false;
   }
 
-  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす）を取りやめる。取り消し・やり直しの前に呼ぶ（spec-4b-3a 確定事項L3）。
+  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす・表示を引く）を取りやめる。取り消し・やり直しの前に呼ぶ
+  // （spec-4b-3a 確定事項L3、spec-4b-3b 確定事項G）。
   function abortGestures() {
     const transformed = root.SigK.annotateTransform?.cancel() === true;
     const marqueed = root.SigK.annotateMarquee?.cancel() === true;
     const grabbed = root.SigK.annotateGrab?.cancel() === true;
-    return transformed || marqueed || grabbed;
+    const panned = root.SigK.annotateHand?.cancel() === true;
+    return transformed || marqueed || grabbed || panned;
   }
 
   // ---- 印刷（確定事項28） ----
@@ -115,11 +120,13 @@
 
   // ---- 画面の結線（ページビューの押し離しは annotate-pointer.js） ----
 
-  // モードを離れたら入力欄を確定し、選択を解除する。道具は持ち越す（確定事項8）。
+  // モードを離れたら入力欄を確定し、表示を引くのを終え（spec-4b-3b 確定事項A3）、選択を解除する。道具は持ち越す（確定事項8）。
   // 入ったらフォントを先読みする（spec-4-2 確定事項33）。
   function onModeChanged(mode) {
-    if (mode !== 'annot')
+    if (mode !== 'annot') {
       finishEditing();
+      root.SigK.annotateHand?.cancel();
+    }
     if (mode !== 'annot' && selection().getSelection().length > 0)
       selection().select(null);
     props()?.refresh();

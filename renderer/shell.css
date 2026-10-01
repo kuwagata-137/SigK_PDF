@@ -790,6 +790,11 @@ html[data-mode="annot"][data-tool="pen"] .textLayer span{user-select:none}
 /* 「選択」の道具（spec-4b-3a 確定事項C4）。紙のどこから引いても範囲選択なので、文字を選ばせない。カーソルは矢印のまま。 */
 html[data-mode="annot"][data-tool="select"] .textLayer{cursor:default; user-select:none}
 html[data-mode="annot"][data-tool="select"] .textLayer span{user-select:none}
+/* 「ハンド」の道具（spec-4b-3b 確定事項A3・A5）。#view のどこを引いても表示が動くので、文字を選ばせない。持っているだけなら grab、
+   引いている間（annotate-hand.js が html に data-panning を付ける）は grabbing。灰色の所も紙の上も同じカーソルにする。 */
+html[data-mode="annot"][data-tool="hand"] #view, html[data-mode="annot"][data-tool="hand"] #view *{cursor:grab}
+html[data-mode="annot"][data-tool="hand"] .textLayer, html[data-mode="annot"][data-tool="hand"] .textLayer span{user-select:none}
+html[data-panning] #view, html[data-panning] #view *{cursor:grabbing !important}
 /* ノート（spec-4-4 確定事項1）。押して置くので文字を選ばせない。 */
 html[data-mode="annot"][data-tool="note"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="note"] .textLayer span{user-select:none}

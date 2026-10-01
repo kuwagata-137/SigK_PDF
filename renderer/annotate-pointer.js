@@ -2,13 +2,14 @@
   'use strict';
 
   // 注釈モードのページビューの押し離し（spec-4-1 確定事項6・10、spec-4-2 確定事項3・5・6、spec-4-3 確定事項3・5、
-  // spec-4-4 確定事項2・7、spec-4b-3a 確定事項B）。
+  // spec-4-4 確定事項2・7、spec-4b-3a 確定事項B、spec-4b-3b 確定事項A・F）。
   //
   // annotate.js から切り出した。mousedown／mouseup／dblclick を #view に結び、文書の mousemove／mouseup で、押して引いている
-  // 操作（つまみ・範囲選択・掴んで動かす・描く）を進めて終える。書き込みを描く・置く・掴む・選ぶのは左ボタンだけで、
+  // 操作（表示を引く・つまみ・範囲選択・掴んで動かす・描く）を進めて終える。書き込みを描く・置く・掴む・選ぶのは左ボタンだけで、
   // テキストの入力欄の中の押し離しは入力欄に任せる（spec-4b-3a 確定事項B1・B2）。押した・離したときの判断は annotate-press.js、
-  // つまみは annotate-transform.js、範囲選択は annotate-marquee.js、掴んで動かす・写すのは annotate-grab.js、描くのは
-  // annotate-draw.js が持つ。ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）。
+  // 表示を引くのは annotate-hand.js、つまみは annotate-transform.js、範囲選択は annotate-marquee.js、掴んで動かす・写すのは
+  // annotate-grab.js、描くのは annotate-draw.js が持つ。ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）。
+  // ハンドを持っているときは、左ボタンでは書き込みを見ない（当たり・つまみ・ダブルクリック・つまみの上のカーソル）。
 
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
   const CLICK_SLOP = 3;
@@ -45,6 +46,14 @@
     return root.SigK.annotateMarquee;
   }
 
+  function hand() {
+    return root.SigK.annotateHand;
+  }
+
+  function holdingHand() {
+    return annotate().getTool() === 'hand';
+  }
+
   function inAnnotMode() {
     return state.doc?.documentElement.getAttribute('data-mode') === 'annot';
   }
@@ -69,6 +78,12 @@
       press().reset();
       return;
     }
+    // ハンドは #view のどこを押しても表示を引く。書き込みは見ない（spec-4b-3b 確定事項A3・A4）。
+    if (holdingHand()) {
+      hand().begin(event);
+      press().reset();
+      return;
+    }
     // 選んでいる書き込みのつまみは、本体や紙の外より先に見る（spec-4b-2 確定事項15）。
     if (transform()?.begin(event) === true) {
       press().reset();
@@ -82,7 +97,7 @@
     if (!isLeft(event))
       return;
     const pressed = press().take();
-    if (transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
+    if (hand().end() || transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
@@ -91,7 +106,7 @@
 
   // ダブルクリックしたテキストは入力欄を開く（spec-4-2 確定事項5）。ノートは「本文」欄へ（spec-4-4 確定事項7）。
   function onDoubleClick(event) {
-    if (!inAnnotMode() || !isOpen())
+    if (!inAnnotMode() || !isOpen() || holdingHand())
       return;
     const page = press().pageAt(event);
     if (page === null)
@@ -101,21 +116,23 @@
       event.preventDefault();
   }
 
-  // 押して引いている操作を進める。つまみ → 範囲選択 → 掴む・描く の順。
+  // 押して引いている操作を進める。表示を引く → つまみ → 範囲選択 → 掴む・描く の順。
   function onMouseMove(event) {
+    if (hand().move(event))
+      return;
     if (transform()?.move(event) === true)
       return;
     if (marquee().move(event))
       return;
     grab().move(event);
     draw().move(event);
-    // つまみの上のカーソル（掴んでいない・描いていないとき）。
-    if (inAnnotMode() && !grab().isGrabbing() && !draw().isDrawing())
+    // つまみの上のカーソル（掴んでいない・描いていないとき。ハンドのときは見ない）。
+    if (inAnnotMode() && !holdingHand() && !grab().isGrabbing() && !draw().isDrawing())
       transform()?.hover(event);
   }
 
   function isBusy() {
-    return grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true;
+    return hand().isPanning() || grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true;
   }
 
   function init(doc, win) {
@@ -125,6 +142,7 @@
     state.doc = doc;
     press().init(win);
     grab().init(doc);
+    hand().init(doc);
     const view = doc.getElementById('view');
     view?.addEventListener('mousedown', onMouseDown);
     view?.addEventListener('mouseup', onMouseUp);

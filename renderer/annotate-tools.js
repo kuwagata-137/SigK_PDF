@@ -9,9 +9,9 @@
   // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
   const { TOOLS, MARKUP_TOOLS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
 
-  // 書き込みを描かない道具（spec-4b-3a 確定事項C3）。色の既定を持つ描く道具（TOOLS）とは別に持つ。
-  // 「選択」は紙のどこから引いても範囲選択になる。ハンドは塊③-b で足す。
-  const POINTER_TOOLS = Object.freeze(['select']);
+  // 書き込みを描かない道具（spec-4b-3a 確定事項C3、spec-4b-3b 確定事項A2）。色の既定を持つ描く道具（TOOLS）とは別に持つ。
+  // 「選択」は紙のどこから引いても範囲選択になり、「ハンド」は紙のどこを引いても表示が動く。
+  const POINTER_TOOLS = Object.freeze(['select', 'hand']);
 
   const state = {
     doc: null,
