@@ -10,7 +10,8 @@
   //   テキスト   … さらに { fontSize, rotation }。quads は箱の四角 1 つ
   //   図形・ペン … さらに { lineWidth }。直線・矢印・ペンは { paths: [[[x, y], …], …] }（紙の座標）。
   //                quads は rect の四角 1 つ。四角・丸は { fill, lineStyle }（color は null で線なし）、直線・矢印は { lineStyle }、
-  //                破線は { dash }、雲形は { cloudIntensity } を持てる（shape-style.js）
+  //                破線は { dash }、雲形は { cloudIntensity } を持てる（shape-style.js）。四角・丸は { angle }（画面で時計回りの度。
+  //                0 は持たない）を持て、そのとき rect は回す前の箱、quads は回した 4 隅（spec-4b-2 確定事項1〜4）
   //   ノート     … さらに { author }。text は本文（空を許す）。rect は 20×20pt で左上が基準。quads は rect の四角 1 つ
   //
   // 読み込んだだけで直せない「表示のみ」の注釈は { ref, kind: 'other', subtype, readonly: true } の形で imported に
@@ -23,8 +24,9 @@
   const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink', 'note']);
   const ROTATIONS = Object.freeze([0, 90, 180, 270]);
 
-  // updateAnnot で書き換えられる欄（spec-4b-1b 確定事項21 で塗りと線種を足した。間隔と強さは右パネルから変えない）。
-  const PATCH_FIELDS = Object.freeze(['color', 'fill', 'lineStyle', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity']);
+  // updateAnnot で書き換えられる欄（spec-4b-1b 確定事項21 で塗りと線種を、spec-4b-2 確定事項4 で角度を足した。間隔と強さは
+  // 右パネルから変えない）。
+  const PATCH_FIELDS = Object.freeze(['color', 'fill', 'lineStyle', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity', 'angle']);
 
   function rules() {
     return root.SigK.annotationEntryRules;
@@ -82,11 +84,18 @@
       copy.lineWidth = entry.lineWidth;
       style().copyStyle(entry, copy);
     }
+    if (angleOf(entry) !== 0)
+      copy.angle = entry.angle;
     if (isPathKind(entry.kind))
       copy.paths = copyPaths(entry.paths);
     if (isNoteKind(entry.kind))
       copy.author = entry.author ?? '';
     return copy;
+  }
+
+  // 四角・丸の角度（無いものは 0。spec-4b-2 確定事項1）。
+  function angleOf(entry) {
+    return Number.isFinite(entry?.angle) ? entry.angle : 0;
   }
 
   function sameNumbers(a, b) {
@@ -105,7 +114,7 @@
     return a.id === b.id && a.src === b.src && a.kind === b.kind && a.color === b.color
       && a.opacity === b.opacity && a.text === b.text && a.fontSize === b.fontSize
       && a.rotation === b.rotation && a.lineWidth === b.lineWidth && a.author === b.author && sameNumbers(a.rect, b.rect)
-      && samePaths(a.paths, b.paths) && style().sameStyle(a, b);
+      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b);
   }
 
   // ワーカーへ渡す形（spec-4-1 確定事項22・spec-4-2 確定事項18・spec-4-3 確定事項18・spec-4-4 確定事項19・
@@ -121,6 +130,8 @@
       const saved = { src, kind, color, opacity, rect: [...rect], lineWidth, ...style().saveStyle(entry) };
       if (isPathKind(kind))
         saved.paths = copyPaths(paths);
+      if (angleOf(entry) !== 0)
+        saved.angle = entry.angle;
       return saved;
     }
     return { src, kind, color, opacity, quads: quads.map((quad) => [...quad]), rect: [...rect] };
@@ -140,6 +151,7 @@
     isPathKind,
     isDrawnKind,
     isNoteKind,
+    angleOf,
     copyEntry,
     sameEntry,
     validEntry: (entry) => rules().validEntry(entry),

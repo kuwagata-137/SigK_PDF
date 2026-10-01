@@ -5,18 +5,18 @@
 // pdf-lib を知らない。content stream を文字列で返し、Form XObject と辞書に包むのは op-annotate.js。矢じりは
 // renderer/shape-geometry.js、四角・丸の輪郭は renderer/shape-outline.js、雲形は renderer/cloud-geometry.js と同じ式で、
 // 一致はテストで見張る（プロセスが違うので import できない）。四角・丸の線は /Rect の内側に収め、描く線幅は短い辺の半分で
-// 頭打ちにする。見た目の欄の決まりは shape-style-rules.js。不透明度が 1 未満なら透明グループで包むよう group を立てる。
+// 頭打ちにする。見た目の欄と形の決まり（isShapeEntry）は shape-style-rules.js。不透明度が 1 未満なら透明グループで包むよう group を立てる。
 
 const { num, colorOps } = require('./annotation-appearance.js');
 const { cloudPathOf } = require('./cloud-appearance.js');
-const { BOXED_KINDS, styleOf } = require('./shape-style-rules.js');
+const { matrixOf, rectOf } = require('./shape-rotation.js');
+const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 
 const KAPPA = 0.5523;
 const ARROW_MIN_LENGTH = 9;
 const ARROW_LENGTH_RATIO = 6;
 const ARROW_ANGLE = Math.PI / 6;
 
-const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'ink']);
 const SUBTYPES = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', ink: 'Ink' });
 
 function round(value) {
@@ -29,30 +29,6 @@ function arrowHead(from, to, lineWidth) {
   const angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
   const wing = (turn) => [to[0] + Math.cos(angle + turn) * length, to[1] + Math.sin(angle + turn) * length];
   return [wing(Math.PI - ARROW_ANGLE), wing(-(Math.PI - ARROW_ANGLE))];
-}
-
-function isPoint(point) {
-  return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
-}
-
-// 点列は 1 本以上で各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（renderer/annotation-entry-rules.js と同じ約束）。
-function validPaths(kind, paths) {
-  if (!Array.isArray(paths) || paths.length === 0)
-    return false;
-  if (!paths.every((path) => Array.isArray(path) && path.length >= 2 && path.every(isPoint)))
-    return false;
-  return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
-}
-
-// 図形・ペンの entry の形。線幅が正、/Rect が 4 つの数、見た目の欄が決まりどおり、点列は種類ごとの形。
-function isShapeEntry(entry) {
-  if (!KINDS.includes(entry?.kind) || !Number.isFinite(entry.lineWidth) || entry.lineWidth <= 0)
-    return false;
-  if (!Array.isArray(entry.rect) || entry.rect.length !== 4 || !entry.rect.every(Number.isFinite))
-    return false;
-  if (styleOf(entry) === null)
-    return false;
-  return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
 }
 
 function point(values) {
@@ -164,18 +140,27 @@ function fieldsOf(entry) {
 }
 
 // 見た目の辞書の欄（annotation-fields.js が /IC・/BS・/BE・/RD にする）。雲形は /RD に余白を 4 つ（どちらの順で読まれても
-// 同じ意味）、描けないほど小さな箱の雲形は /BE だけを書く（確定事項33）。
-function styleFieldsOf(style, cloud) {
+// 同じ意味）、描けないほど小さな箱の雲形は /BE だけを書く（確定事項33）。回した図形には /RD を書かない（/Rect に対する軸平行の
+// 余白で、回した箱とは意味が合わない。spec-4b-2 確定事項30）。
+function styleFieldsOf(style, cloud, turned) {
   const fields = { fillRgb: style.fill, dash: style.dash === null ? null : style.dash.map(round) };
   if (style.cloudIntensity !== null)
     fields.cloudIntensity = style.cloudIntensity;
-  if (cloud !== null)
+  if (cloud !== null && !turned)
     fields.rectDifference = Array(4).fill(round(cloud.margin));
   return fields;
 }
 
+// 回した四角・丸の外側の Form の /Matrix と、注釈の /Rect（回した外接。spec-4b-2 確定事項29）。回していなければ空。
+function turnOf(entry, bbox) {
+  if (!Number.isFinite(entry.angle) || entry.angle === 0)
+    return {};
+  return { matrix: matrixOf(bbox, entry.angle), rect: rectOf(bbox, entry.angle) };
+}
+
 // 外観の中身。戻り値は { content, group, bbox, subtype, rgb, fillRgb, dash, opacity, lineWidth, cloudIntensity?, rectDifference?,
-// vertices?, lineEndings?, inkList? }。rgb は線が無ければ null。形が違えば null。
+// vertices?, lineEndings?, inkList?, matrix?, rect? }。rgb は線が無ければ null。matrix と rect は回した四角・丸だけ（bbox は回す前の
+// 箱のまま）。形が違えば null。
 function shapeAppearanceOf(entry) {
   if (!isShapeEntry(entry))
     return null;
@@ -183,16 +168,18 @@ function shapeAppearanceOf(entry) {
   const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
   const { ops, cloud } = opsOf(entry, style);
   const group = alpha < 1;
+  const turn = turnOf(entry, entry.rect.map(round));
   return {
     content: group ? ops : `/GS gs\n${ops}`,
     group,
     bbox: entry.rect.map(round),
     subtype: SUBTYPES[entry.kind],
     rgb: style.stroke,
-    ...styleFieldsOf(style, cloud),
+    ...styleFieldsOf(style, cloud, turn.matrix !== undefined),
     opacity: alpha,
     lineWidth: round(entry.lineWidth),
     ...fieldsOf(entry),
+    ...turn,
   };
 }
 

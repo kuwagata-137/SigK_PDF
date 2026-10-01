@@ -13,6 +13,10 @@
     shape: '紙の上をドラッグすると描けます。Shift を押しながらで正方形・正円・45° 刻みになります。Esc で道具を離します。',
     pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの書き込みになります。Esc で道具を離します。',
     shapeSelected: '掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
+    // 四角・丸と直線・矢印を選んだときに「掴んで動かせます。」のあとへ挟む（spec-4b-2 確定事項28）。
+    move: '掴んで動かせます。',
+    boxTransform: '四隅と辺の白いつまみで大きさを、上の丸いつまみで向きを変えられます。Shift を押しながら引くと、四隅のつまみは縦と横の比を保ち、向きは 15° ずつ回ります。',
+    lineTransform: '両端の白いつまみで向きと長さを変えられます。Shift を押しながら動かすと、端は横か縦にだけ動きます。',
     note: '紙の上を押すと、そこに付箋を置けます。本文は「本文」の欄に書きます。Esc で道具を離します。',
     noteSelected: '本文は欄の外を押すか Ctrl+Enter で確定します。掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     readonly: '他のアプリで付けた書き込みです。Delete で消せます。直すことはできません。',
@@ -41,7 +45,10 @@
       return HINTS.noteSelected;
     if (entryKinds()?.isDrawnKind(entry.kind) !== true)
       return HINTS.selected;
-    return `${HINTS.shapeSelected}${boxHintOf(entry.kind, root.SigK.shapeStyle.fillOf(entry))}`;
+    // つまみの説明は「掴んで動かせます。」のあと（spec-4b-2 確定事項28）。ペンはつまみを出さない。
+    const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
+    const shape = HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${transform}`);
+    return `${shape}${boxHintOf(entry.kind, root.SigK.shapeStyle.fillOf(entry))}`;
   }
 
   // 道具を持っているとき（kind はその道具が描く種類。図形は道具の段で選んだ種類）。道具が無ければ tool は null。

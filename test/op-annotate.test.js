@@ -568,3 +568,68 @@ test('塗り・線なし・破線・雲形は /IC・/C の有無・/BS・/BE・/
   assert.deepEqual(numbersOf(saved, pick(cloudy, '/Rect')), [100, 600, 300, 700], '/Rect は箱そのもの');
   assert.deepEqual(numbersOf(saved, pick(bsOf(dashedArrow), '/D')), [9, 6]);
 });
+
+// ---- 回した四角・丸（spec-4b-2 確定事項29〜31・33） ----
+
+const { matrixOf, rectOf, rotationOf } = require('../worker/shape-rotation.js');
+const { flattenDocument } = require('../worker/op-flatten.js');
+
+test('回した四角は、外側の Form に /Matrix、/BBox は回す前の箱、/Rect は回した外接で書かれ、読み戻せる', async () => {
+  const doc = await makeDoc(1);
+  const box = [100, 600, 300, 700];
+  await applyAnnotations(doc, { add: [shape({ angle: 30 }), shape({ kind: 'circle', angle: 90, rect: [100, 400, 300, 500] })] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const [square, circle] = annotsOf(saved, 0);
+  const { normal } = extGStateOf(saved, square.dict);
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/Matrix')), matrixOf(box, 30));
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/BBox')), box);
+  assert.deepEqual(numbersOf(saved, pick(square.dict, '/Rect')), rectOf(box, 30));
+  // 中身は回す前の箱で組んだまま（今までと同じ）
+  assert.equal(contentOf(saved, normal), '/GS gs\n0.851 0.173 0.173 RG\n2 w 101 601 198 98 re S');
+  // 注釈の /Rotate も独自の欄も書かない（確定事項31）
+  assert.equal(pick(square.dict, '/Rotate'), undefined);
+  const answer = rotationOf({ rect: numbersOf(saved, pick(square.dict, '/Rect')), bbox: numbersOf(saved, pick(normal.dict, '/BBox')), matrix: numbersOf(saved, pick(normal.dict, '/Matrix')) });
+  assert.deepEqual(answer, { box, angle: 30 });
+  const circleForm = extGStateOf(saved, circle.dict).normal;
+  assert.deepEqual(numbersOf(saved, pick(circle.dict, '/Rect')), [150, 350, 250, 550]);
+  assert.deepEqual(numbersOf(saved, pick(circleForm.dict, '/Matrix')), [0, -1, 1, 0, -250, 650]);
+});
+
+test('回していない図形と 0° の図形には /Matrix を書かない', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [shape(), shape({ angle: 0 })] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  for (const { dict } of annotsOf(saved, 0)) {
+    assert.equal(pick(extGStateOf(saved, dict).normal.dict, '/Matrix'), undefined);
+    assert.deepEqual(numbersOf(saved, pick(dict, '/Rect')), [100, 600, 300, 700]);
+  }
+});
+
+test('回した半透明の図形は外側の Form だけを回し、回した雲形には /RD を書かない', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [shape({ opacity: 0.5, angle: 45 }), shape({ lineStyle: 'cloudy', angle: 15 })] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  const [grouped, cloudy] = annotsOf(saved, 0);
+  const { normal, resources } = extGStateOf(saved, grouped.dict);
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/Matrix')), matrixOf([100, 600, 300, 700], 45));
+  const inner = saved.context.lookup(pick(saved.context.lookup(pick(resources, '/XObject')), '/G0'));
+  assert.equal(pick(inner.dict, '/Matrix'), undefined, 'G0 は回さない');
+  assert.equal(pick(cloudy.dict, '/RD'), undefined);
+  assert.equal(nameOf(saved.context.lookup(pick(cloudy.dict, '/BE')), '/S'), '/C');
+});
+
+test('回した四角を焼くと、外観の /Matrix を Do が掛け、置く行列は動かさないものになる（確定事項33）', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [shape({ angle: 30 })] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  assert.equal(flattenDocument(saved, TOOLS).baked, 1);
+  const page = saved.getPages()[0];
+  const contents = saved.context.lookup(page.node.get(PDFName.of('Contents')));
+  const last = saved.context.lookup(contents.asArray().at(-1));
+  const line = contentOf(saved, last);
+  const numbers = line.match(/^q (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) cm \/SigKF1 Do Q$/).slice(1).map(Number);
+  // /Rect は外接を小数 2 桁に丸めたものなので、拡大は 1 からほとんど離れない
+  assert.ok(Math.abs(numbers[0] - 1) < 0.001 && Math.abs(numbers[3] - 1) < 0.001, `${line}`);
+  assert.equal(numbers[1], 0);
+  assert.equal(numbers[2], 0);
+});

@@ -19,9 +19,14 @@ test('選んでいる書き込みの種類でヒントを選び、四角・丸�
   assert.equal(hints.forSelected({ kind: 'text' }), HINTS.textSelected);
   assert.equal(hints.forSelected({ kind: 'note' }), HINTS.noteSelected);
   assert.equal(hints.forSelected({ kind: 'highlight' }), HINTS.selected);
-  assert.equal(hints.forSelected({ kind: 'arrow' }), HINTS.shapeSelected);
-  assert.equal(hints.forSelected({ kind: 'square' }), `${HINTS.shapeSelected}${HINTS.box}`);
-  assert.equal(hints.forSelected({ kind: 'circle', fill: '#ffff00' }), `${HINTS.shapeSelected}${HINTS.box}${HINTS.fill}`);
+  // 四角・丸と直線・矢印は「掴んで動かせます。」のあとにつまみの説明を挟む（spec-4b-2 確定事項28）。ペンは挟まない。
+  const withTransform = (transform) => HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${transform}`);
+  assert.equal(hints.forSelected({ kind: 'ink' }), HINTS.shapeSelected);
+  assert.equal(hints.forSelected({ kind: 'arrow' }), withTransform(HINTS.lineTransform));
+  assert.equal(hints.forSelected({ kind: 'line' }), withTransform(HINTS.lineTransform));
+  assert.equal(hints.forSelected({ kind: 'square' }), `${withTransform(HINTS.boxTransform)}${HINTS.box}`);
+  assert.equal(hints.forSelected({ kind: 'circle', fill: '#ffff00' }), `${withTransform(HINTS.boxTransform)}${HINTS.box}${HINTS.fill}`);
+  assert.ok(withTransform(HINTS.boxTransform).startsWith('掴んで動かせます。四隅と辺の白いつまみで'));
 });
 
 test('道具のヒントは道具で選び、四角・丸の道具には同じ注意を添える', () => {

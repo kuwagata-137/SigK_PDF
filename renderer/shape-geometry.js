@@ -4,7 +4,7 @@
   // 図形・ペンの幾何の純粋層（spec-4-3 確定事項4・9・10・12・30）。DOM にも pdf.js にも触れない。
   //
   // 紙の座標（pt）で計算し、表示への変換は呼ぶ側（shape-graphics.js・annotate-shape.js）が
-  // viewport で行う。矢じりの寸法と翼の式は worker/shape-appearance.js に同じものを持ち、
+  // viewport で行う。線の当たり判定は annotation-hit.js へ移した（spec-4b-2）。矢じりの寸法と翼の式は worker/shape-appearance.js に同じものを持ち、
   // 一致はテストで見張る（プロセスが違うので import できない）。
 
   // 矢じり: 翼の長さは max(ARROW_MIN_LENGTH, 線幅 × ARROW_LENGTH_RATIO)、線からの開き ARROW_ANGLE。
@@ -14,8 +14,6 @@
   // ペンの間引き（表示の px）: 描きながらは直前の点から MIN_STEP 以上、離したら許容 SIMPLIFY_TOLERANCE。
   const MIN_STEP = 2;
   const SIMPLIFY_TOLERANCE = 1;
-  // 当たり判定の余裕（表示の px）。線幅の半分に足す。
-  const HIT_SLACK = 3;
   // 矩形・楕円の辺の最小（pt）。
   const MIN_SIDE = 1;
 
@@ -82,7 +80,8 @@
   }
 
   // 図形の /Rect と四角。矩形・楕円は箱そのもの、線は描く点（矢じりの翼を含む）の外接に線幅の半分（確定事項10）。
-  function rectOfShape({ kind, rect, paths, lineWidth }) {
+  // 回した矩形・楕円は、四角を回した 4 隅にする（箱は回す前のまま。spec-4b-2 確定事項5）。
+  function rectOfShape({ kind, rect, paths, lineWidth, angle = 0 }) {
     let box = rect;
     if (kind === 'line' || kind === 'arrow' || kind === 'ink') {
       const points = paths.flat();
@@ -90,7 +89,9 @@
         points.push(...arrowHead(paths[0][0], paths[0][1], lineWidth));
       box = boundsOf(points, lineWidth / 2);
     }
-    return { rect: [...box], quads: [root.SigK.freeTextGeometry.quadOfRect(box)] };
+    const rotation = root.SigK.shapeRotation;
+    const quad = rotation?.isRotated({ angle }) ? rotation.quadOf(box, angle) : root.SigK.freeTextGeometry.quadOfRect(box);
+    return { rect: [...box], quads: [quad] };
   }
 
   // 点から線分 a-b への最短距離。長さ 0 の線分は点までの距離。
@@ -102,30 +103,6 @@
     if (lengthSquared > 0)
       t = Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSquared));
     return Math.hypot(point[0] - (a[0] + dx * t), point[1] - (a[1] + dy * t));
-  }
-
-  function hitsSegments(points, target, tolerance) {
-    for (let index = 1; index < points.length; index += 1) {
-      if (distanceToSegment(target, points[index - 1], points[index]) <= tolerance)
-        return true;
-    }
-    return false;
-  }
-
-  // 点列のどれかの線分に当たるか。矢印は翼 2 本も見る（確定事項12）。
-  function hitsPath(paths, point, tolerance, { arrow = false, lineWidth = 1 } = {}) {
-    if (paths.some((path) => hitsSegments(path, point, tolerance)))
-      return true;
-    if (!arrow)
-      return false;
-    const [from, to] = paths[0];
-    const [left, right] = arrowHead(from, to, lineWidth);
-    return hitsSegments([left, to, right], point, tolerance);
-  }
-
-  // 当たり判定の許容（pt）。線幅の半分に、表示の HIT_SLACK px を紙の座標へ直して足す。
-  function hitTolerance(lineWidth, scale) {
-    return lineWidth / 2 + HIT_SLACK / (scale > 0 ? scale : 1);
   }
 
   function farEnough(from, to, minStep) {
@@ -176,7 +153,6 @@
     ARROW_ANGLE,
     MIN_STEP,
     SIMPLIFY_TOLERANCE,
-    HIT_SLACK,
     MIN_SIDE,
     roundPoint,
     boxOf,
@@ -185,8 +161,6 @@
     boundsOf,
     rectOfShape,
     distanceToSegment,
-    hitsPath,
-    hitTolerance,
     farEnough,
     thinPoints,
     simplifyPath,

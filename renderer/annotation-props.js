@@ -6,7 +6,8 @@
   //
   // 出し入れは CSS（html[data-mode="annot"] のときだけ表示）が持ち、ここは中身を実態に合わせるだけである。選んでいる書き込みが
   // あればその書き込み、無ければ「次に付ける書き込み」（持っている道具）の種類と値を見せる。色・塗り・線種・線の太さ・不透明度の
-  // 行は annotation-style-rows.js、ノートの「本文」「作成者」の行は annotation-note-rows.js、ヒントの文言は annotation-hints.js が
+  // 行は annotation-style-rows.js、ノートの「本文」「作成者」の行は annotation-note-rows.js、四角・丸の「回転」の行は
+  // annotation-angle-row.js（spec-4b-2）、ヒントの文言は annotation-hints.js が
   // 持ち、ここは種類・文字の大きさ・ページ・対象の文字・ヒント・「削除」の出し入れを受け持つ。「文字の大きさ」は
   // annotate.setFontSize、「削除」は annotate.remove へ流す。表示のみの書き込みは種類名に「（表示のみ）」を添え、見た目の行を出さない。
 
@@ -92,6 +93,8 @@
       opacity: entry.opacity ?? 1,
     });
     noteRows()?.render({ text: isNote ? entry.text : null, author: isNote ? (entry.author ?? '') : null, editable: false });
+    // 回転の行は四角・丸を選んでいるときだけ（spec-4b-2 確定事項25）。
+    root.SigK.annotationAngleRow?.render(entry);
     setSizeRow(isText ? entry.fontSize : null);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象の文字';
@@ -128,6 +131,7 @@
       kind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(), opacity: annotate().getOpacity(kind),
     });
     noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
+    root.SigK.annotationAngleRow?.render(null);
     setSizeRow(tool === 'text' ? annotate().getFontSize() : null);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
@@ -178,6 +182,7 @@
     root.SigK.colorPopover?.init(doc, win);
     styleRows()?.init(doc, win);
     noteRows()?.init(doc, win);
+    root.SigK.annotationAngleRow?.init(doc, win);
     el.remove.addEventListener('click', () => {
       if (el.remove.getAttribute('aria-disabled') !== 'true')
         annotate().remove();

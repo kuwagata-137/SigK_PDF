@@ -90,6 +90,8 @@ async function inspectAnnotations(file) {
         continue;
       const bs = field(dict, 'BS');
       const be = field(dict, 'BE');
+      // 外観の /BBox と /Matrix（回した四角・丸。spec-4b-2 確定事項29）。
+      const normal = field(field(dict, 'AP'), 'N');
       written.push({
         page: index + 1,
         subtype,
@@ -101,6 +103,8 @@ async function inspectAnnotations(file) {
         BE: be instanceof PDFDict ? { S: name(field(be, 'S')), I: number(field(be, 'I')) } : null,
         RD: numbers(field(dict, 'RD')),
         group: grouped(dict),
+        bbox: numbers(field(normal?.dict, 'BBox')),
+        matrix: numbers(field(normal?.dict, 'Matrix')),
       });
     }
   });

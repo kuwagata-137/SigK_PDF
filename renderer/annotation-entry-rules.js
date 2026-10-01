@@ -55,9 +55,17 @@
     return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
   }
 
+  // 角度は 0 以上 360 未満の数（spec-4b-2 確定事項1）。
+  function validAngle(value) {
+    return Number.isFinite(value) && value >= 0 && value < 360;
+  }
+
   // 図形・ペンは線幅が正（線なしでも持つ。線を戻したときの太さ）で、箱の四角が 1 つ。点列を持つ種類はその形も見る。
+  // 角度は四角・丸だけが持てる（spec-4b-2 確定事項4。ほかの種類は validEntry が断る）。
   function validDrawnFields(entry) {
     if (!validPositive(entry.lineWidth) || entry.quads.length !== 1)
+      return false;
+    if (entry.angle !== undefined && !validAngle(entry.angle))
       return false;
     return entryModule().isPathKind(entry.kind) ? validPaths(entry.kind, entry.paths) : true;
   }
@@ -68,7 +76,7 @@
     const shape = Number.isInteger(entry?.src) && entry.src >= 0 && kinds.isKind(entry.kind)
       && Array.isArray(entry.quads) && entry.quads.length > 0 && entry.quads.every(isQuad)
       && Array.isArray(entry.rect) && entry.rect.length === 4 && style().validStyle(entry);
-    if (!shape)
+    if (!shape || (entry.angle !== undefined && !style().isBoxedKind(entry.kind)))
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);
@@ -89,6 +97,7 @@
       case 'rect': return Array.isArray(value) && value.length === 4;
       case 'quads': return Array.isArray(value) && value.length > 0 && value.every(isQuad);
       case 'paths': return validPaths(kind, value);
+      case 'angle': return style().isBoxedKind(kind) && validAngle(value);
       default: return false;
     }
   }
@@ -107,13 +116,16 @@
     return Object.keys(picked).length === 0 ? null : picked;
   }
 
-  // 変更を当てた書き込み。線種を替えたら、読み込んだ間隔と強さを整える（shape-style.js の restyle）。形は確かめない。
+  // 変更を当てた書き込み。線種を替えたら、読み込んだ間隔と強さを整える（shape-style.js の restyle）。角度 0 は持たない
+  // （spec-4b-2 確定事項1）。形は確かめない。
   function applyPatch(entry, picked) {
     const { lineStyle, ...rest } = picked;
     const merged = { ...entry, ...rest };
+    if (merged.angle === 0)
+      delete merged.angle;
     return lineStyle === undefined ? merged : style().restyle(merged, lineStyle);
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationEntryRules = { isQuad, validPaths, validEntry, pickPatch, applyPatch };
+  SigK.annotationEntryRules = { isQuad, validPaths, validAngle, validEntry, pickPatch, applyPatch };
 })(typeof window !== 'undefined' ? window : globalThis);

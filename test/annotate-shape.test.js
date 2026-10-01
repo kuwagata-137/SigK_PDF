@@ -108,7 +108,9 @@ test('図形の道具で紙をドラッグすると矩形が描かれ、1 世代
   const group = pageNode(shell).querySelector(`.annot-layer g[data-annot="${entry.id}"]`);
   assert.equal(group.getAttribute('data-kind'), 'square');
   assert.ok(group.querySelector('rect') !== null);
-  assert.ok(pageNode(shell).querySelector('.annot-frame') !== null);
+  // 枠とつまみは紙の外の層（spec-4b-2 確定事項9・10）
+  assert.ok(shell.document.querySelector('.annot-frame-layer .annot-frame') !== null);
+  assert.equal(shell.document.querySelectorAll('.annot-frame-layer .annot-handle.rotate').length, 1);
   assert.equal(pageNode(shell).querySelector('.annot-draft'), null);
 });
 

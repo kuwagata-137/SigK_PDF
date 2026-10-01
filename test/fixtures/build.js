@@ -18,6 +18,7 @@ const { makePng } = require('./images.js');
 const { buildFormatImages } = require('./build-images.js');
 const { buildAnnotatedPdf, buildSigkAnnotatedPdf, buildStyledPdf } = require('./annotations.js');
 const { buildPageBoxesPdf } = require('./page-boxes.js');
+const { buildRotatedShapesPdf } = require('./rotated-shapes.js');
 
 const OUTPUT_DIR = __dirname;
 
@@ -148,6 +149,8 @@ async function buildOne(spec) {
 //                直に置いた辞書を載せた 3 ページ（spec-4b-1a。読み戻しの口と読み込み）。annotations.js に。
 //   page-boxes.pdf … /Rotate 0・90・180・270 と CropBox の内側のページ、Resources の共有（spec-4-5。
 //                   透かしの起動確認）。作り方は page-boxes.js に。
+//   rotated-shapes.pdf … SigK PDF の書き方と他のアプリの書き方で回した四角・丸（spec-4b-2。読み戻しと読み込み）。
+//                   作り方は rotated-shapes.js に。
 const HANDMADE = {
   'encrypted.pdf': () => buildEncryptedPdf(),
   'broken.pdf': () => fs.readFileSync(fixturePath('three-pages.pdf')).subarray(0, 400),
@@ -155,6 +158,7 @@ const HANDMADE = {
   'sigk-annotated.pdf': () => buildSigkAnnotatedPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
   'styled.pdf': () => buildStyledPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
   'page-boxes.pdf': () => buildPageBoxesPdf(),
+  'rotated-shapes.pdf': () => buildRotatedShapesPdf(),
 };
 
 async function build() {

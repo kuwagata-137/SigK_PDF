@@ -12,7 +12,8 @@
   //     テキストの道具ならそこに置く（ノートの道具なら付箋を置く）
   //   - 選んでいるテキスト・図形・ノートを掴んで動かしたら、離したときに 1 世代（ドラッグ移動）
   //   - ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）
-  // に振り分ける。判断そのものは annotate.js・annotate-text.js・annotate-shape.js が持つ。
+  // に振り分ける。判断そのものは annotate.js・annotate-text.js・annotate-shape.js が、掴んで動かす処理は
+  // annotate-grab.js が持つ。
 
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
   const CLICK_SLOP = 3;
@@ -22,8 +23,6 @@
     win: null,
     // 押した位置。離したときに動いていなければ当たり判定へ回す。
     pressed: null,
-    // 掴んで動かしているテキスト・図形 { key, index, node, viewport, start(px), group }。
-    drag: null,
     // 描いている図形・ペンのページの枠（表示の座標に直すのに使う）。
     drawing: null,
   };
@@ -73,58 +72,15 @@
     return Math.abs(event.clientX - from.x) > CLICK_SLOP || Math.abs(event.clientY - from.y) > CLICK_SLOP;
   }
 
-  // ---- ドラッグ移動（spec-4-2 確定事項6、spec-4-3 確定事項5） ----
+  // ---- ドラッグ移動（spec-4-2 確定事項6、spec-4-3 確定事項5。annotate-grab.js） ----
 
-  function isMovable(entry) {
-    return entry.kind === 'text' || entry.kind === 'note' || root.SigK.annotationEntry.isDrawnKind(entry.kind);
+  function grab() {
+    return root.SigK.annotateGrab;
   }
 
-  // 種類ごとの動かす口。
-  function moverFor(entry) {
-    if (entry?.kind === 'text')
-      return annotateText();
-    return entry?.kind === 'note' ? annotateNote() : annotateShape();
-  }
-
-  // 選んでいるテキスト・図形の上で押したらドラッグの準備。文字選択を始めさせない。
-  function beginDrag(event, page, key) {
-    const entry = annotate().selectedEntry();
-    if (entry === null || !isMovable(entry) || root.SigK.annotationLayer.keyOf(entry) !== key)
-      return false;
-    const viewport = editor()?.pageOf(page.index)?.viewport ?? viewer().getTextLayer(page.index)?.viewport;
-    if (viewport === undefined || viewport === null)
-      return false;
-    event.preventDefault();
-    state.drag = {
-      key, index: page.index, viewport,
-      start: [event.clientX, event.clientY],
-      group: page.node.querySelector(`.annot-layer g[data-annot="${key}"]`),
-    };
-    return true;
-  }
-
-  function onDragMove(event) {
-    const { drag } = state;
-    if (drag === null || drag.group === null)
-      return;
-    drag.group.style.transform = `translate(${event.clientX - drag.start[0]}px, ${event.clientY - drag.start[1]}px)`;
-  }
-
-  // 離したら紙の座標での差分に直して 1 世代積む。動いていなければ何もしない（選んだまま）。
-  function endDrag(event) {
-    const { drag } = state;
-    state.drag = null;
-    if (drag === null)
-      return false;
-    if (drag.group !== null)
-      drag.group.style.transform = '';
-    if (!moved({ x: drag.start[0], y: drag.start[1] }, event))
-      return false;
-    const from = drag.viewport.convertToPdfPoint(drag.start[0], drag.start[1]);
-    const to = drag.viewport.convertToPdfPoint(event.clientX, event.clientY);
-    const delta = [to[0] - from[0], to[1] - from[1]];
-    moverFor(annotate().selectedEntry())?.move(drag.key, delta);
-    return true;
+  // つまみで大きさ・向き・端を変える（spec-4b-2。annotate-transform.js）。
+  function transform() {
+    return root.SigK.annotateTransform;
   }
 
   // ---- 描く（spec-4-3 確定事項3） ----
@@ -169,13 +125,18 @@
       state.pressed = null;
       return;
     }
+    // 選んでいる書き込みのつまみは、本体や紙の外より先に見る（spec-4b-2 確定事項15）。
+    if (transform()?.begin(event) === true) {
+      state.pressed = null;
+      return;
+    }
     state.pressed = { x: event.clientX, y: event.clientY };
     const page = pageAt(event);
     if (page === null)
       return;
     const hit = annotate().hitTest(page.index, page.point);
     if (hit !== null && hit === annotate().getSelected()) {
-      beginDrag(event, page, hit);
+      grab().begin(event, page, hit);
       return;
     }
     const tool = annotate().getTool();
@@ -189,7 +150,7 @@
   function onMouseUp(event) {
     const pressed = state.pressed;
     state.pressed = null;
-    if (endDrag(event) || endDraw(event))
+    if (transform()?.end(event) === true || grab().end(event) || endDraw(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
@@ -246,16 +207,22 @@
     view?.addEventListener('dblclick', onDoubleClick);
     // ドラッグ中・描いている間はページビューの外で離しても拾う。
     doc.addEventListener('mousemove', (event) => {
-      onDragMove(event);
+      if (transform()?.move(event) === true)
+        return;
+      grab().move(event);
       onDrawMove(event);
+      // つまみの上のカーソル（掴んでいない・描いていないとき）。
+      if (inAnnotMode() && !grab().isGrabbing() && state.drawing === null)
+        transform()?.hover(event);
     });
     doc.addEventListener('mouseup', (event) => {
-      if ((state.drag !== null || state.drawing !== null) && !(view?.contains(event.target) ?? false))
+      const busy = grab().isGrabbing() || state.drawing !== null || transform()?.isDragging() === true;
+      if (busy && !(view?.contains(event.target) ?? false))
         onMouseUp(event);
     });
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotatePointer = { CLICK_SLOP, init, isDragging: () => state.drag !== null, isDrawing: () => state.drawing !== null };
+  SigK.annotatePointer = { CLICK_SLOP, init, isDragging: () => grab().isGrabbing(), isDrawing: () => state.drawing !== null };
 })(typeof window !== 'undefined' ? window : globalThis);

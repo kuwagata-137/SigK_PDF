@@ -160,7 +160,7 @@ test('道具を持って文字をなぞると、離した瞬間に付いて選�
   // 層に多角形が乗り、選択の枠が出る。
   const layer = layerOf(shell, 0);
   assert.equal(layer.querySelectorAll('polygon').length, 1);
-  assert.equal(layer.querySelectorAll('.annot-frame').length, 1);
+  assert.equal(shell.document.querySelectorAll('.annot-frame-layer .annot-frame').length, 1, '枠は紙の外の層（spec-4b-2 確定事項9）');
   assert.equal(document.getElementById('props-text').textContent, '「あいうえお」');
   assert.equal(document.getElementById('props-page').textContent, '1');
 });
@@ -238,12 +238,12 @@ test('押して離すと当たった注釈が選ばれ、外を押すと解除�
 
   clickAt(shell, 0, 80, 705);
   assert.equal(SigK.annotate.getSelected(), id);
-  assert.equal(layerOf(shell, 0).querySelectorAll('.annot-frame').length, 1);
+  assert.equal(shell.document.querySelectorAll('.annot-frame-layer .annot-frame').length, 1);
   assert.equal(shell.document.getElementById('props-delete').getAttribute('aria-disabled'), null);
 
   clickAt(shell, 0, 300, 300);
   assert.equal(SigK.annotate.getSelected(), null);
-  assert.equal(layerOf(shell, 0).querySelectorAll('.annot-frame').length, 0);
+  assert.equal(shell.document.querySelectorAll('.annot-frame-layer .annot-frame').length, 0);
 });
 
 test('Delete で消え、Ctrl+Z で戻り、戻った注釈が選ばれる', async (t) => {

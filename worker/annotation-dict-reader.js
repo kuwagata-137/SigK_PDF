@@ -16,7 +16,12 @@ const fs = require('node:fs');
 const { PDFDocument, LOAD_OPTIONS, TOOLS } = require('./pdf-io.js');
 const { parseRef } = require('./annotation-remove.js');
 const { pick } = require('./pdf-tree-reader.js');
+const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
+const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
+
+// 回転を読む種類（spec-4b-2 確定事項34）。
+const BOXED_SUBTYPES = Object.freeze(['Square', 'Circle']);
 
 // 一度に読む注釈の数の上限。画面の側も、これを超える文書では口を呼ばない（確定事項25）。
 const REFS_MAX = 10000;
@@ -42,9 +47,23 @@ function nameOf(context, value) {
   return typeof item?.encodedName === 'string' ? item.encodedName.slice(1) : null;
 }
 
+// 四角・丸の外観の回転（spec-4b-2 確定事項34）。{ box, angle }（回っている）・'skewed'（回転を読めない）・null（回っていない・
+// 外観が無い）。外観の中身が回す・ゆがめるものは 'skewed'。暗号化された文書では中身が読めないので、その見分けはしない。
+function rotationOf(dict, context, { encrypted = false } = {}) {
+  if (!BOXED_SUBTYPES.includes(nameOf(context, pick(dict, '/Subtype'))))
+    return null;
+  const appearance = appearanceOf(context, dict);
+  const rect = fixedNumbersOf(context, pick(dict, '/Rect'), 4);
+  if (appearance === null || rect === null)
+    return null;
+  if (!encrypted && skewedContent(context, context.lookup(appearance.ref)))
+    return 'skewed';
+  return rotationOfAppearance({ rect, bbox: appearance.bbox, matrix: appearance.matrix });
+}
+
 // 1 つの注釈の辞書から、画面が要る欄を読む（確定事項23）。無い欄は null（cloudy は false）。雲形の強さ /BE /I は
-// spec-4b-1b 確定事項38 で足した（規格の既定は 0 で、効果が無い）。
-function detailsOf(dict, context) {
+// spec-4b-1b 確定事項38 で、四角・丸の回転は spec-4b-2 確定事項34 で足した（規格の既定は 0 で、効果が無い）。
+function detailsOf(dict, context, options = {}) {
   const border = context.lookup(pick(dict, '/BS'));
   const effect = context.lookup(pick(dict, '/BE'));
   return {
@@ -57,12 +76,14 @@ function detailsOf(dict, context) {
     cloudy: nameOf(context, pick(effect, '/S')) === 'C',
     cloudIntensity: numberOf(context, pick(effect, '/I')),
     rectDifference: numbersOf(context, pick(dict, '/RD')),
+    rotation: rotationOf(dict, context, options),
   };
 }
 
 // 読める注釈だけを { id: 欄 } にする。辞書でないもの・/Subtype の無いものは飛ばす。
 function collectDetails(doc, refs) {
   const context = doc.context;
+  const encrypted = context.trailerInfo?.Encrypt !== undefined;
   const details = {};
   for (const id of refs) {
     const ref = parseRef(id);
@@ -71,7 +92,7 @@ function collectDetails(doc, refs) {
     const dict = context.lookup(TOOLS.PDFRef.of(ref.num, ref.gen));
     if (typeof dict?.entries !== 'function' || pick(dict, '/Subtype') === undefined)
       continue;
-    details[id] = detailsOf(dict, context);
+    details[id] = detailsOf(dict, context, { encrypted });
   }
   return details;
 }

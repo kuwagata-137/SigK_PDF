@@ -14,12 +14,17 @@ require('../renderer/shape-geometry.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
 require('../renderer/shape-figure.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/shape-print-layer.js');
 require('../renderer/shape-graphics.js');
+require('../renderer/shape-handles.js');
+require('../renderer/annotation-frame.js');
 require('../renderer/annotation-layer.js');
 
 // 紙の上に重ねる注釈の層（spec-4-1 確定事項5・37）と、印刷用の canvas 2D の描き手（確定事項28）。
 
 const layer = globalThis.SigK.annotationLayer;
+const { FRAME_PADDING } = globalThis.SigK.annotationFrame;
 
 // 回転 0・倍率 1 の viewport（A4）。
 function viewport(scale = 1) {
@@ -43,8 +48,15 @@ const UNDERLINE = { ref: '86R', src: 0, kind: 'underline', color: '#d92c2c', opa
 const FADED = { id: 'sigk-2', src: 0, kind: 'strikeout', color: '#000000', opacity: 0.5, quads: [[10, 20, 20, 20, 10, 10, 20, 10]], rect: [10, 10, 20, 20] };
 
 function makeDom() {
-  const dom = new JSDOM('<!doctype html><div class="pdf-page"></div>');
-  return { dom, doc: dom.window.document, node: dom.window.document.querySelector('.pdf-page') };
+  const dom = new JSDOM('<!doctype html><div id="view-pages"><div class="pdf-page" style="left: 40px; top: 16px"></div></div>');
+  const doc = dom.window.document;
+  return { dom, doc, node: doc.querySelector('.pdf-page'), pages: doc.getElementById('view-pages') };
+}
+
+// 選んだ注釈の枠を、紙の外の層（annotation-frame.js。spec-4b-2 確定事項9）に描かせて、その中の .annot-frame を返す。
+function frameOf({ doc, node, pages }, entries, vp, { selected, editing = null } = {}) {
+  globalThis.SigK.annotationFrame.sync({ doc, pagesEl: pages, pageNode: node, index: 0, entries, viewport: vp, selected, editing });
+  return pages.querySelector('.annot-frame-layer .annot-frame');
 }
 
 test('mount はページの枠の末尾に SVG を置き、寸法は viewport から取る', () => {
@@ -78,18 +90,22 @@ test('draw はハイライトを多角形、線を line として描き、id か
   assert.equal(Math.round(Number(line.getAttribute('y1')) * 100) / 100, Math.round((841.89 - 740 + 10 * 0.93) * 100) / 100);
 });
 
-test('draw は描き直すたびに前の中身を捨て、選んだ注釈に枠を最後に置く', () => {
-  const { doc, node } = makeDom();
-  const svg = layer.mount(doc, node, viewport());
+test('draw は描き直すたびに前の中身を捨て、選択の枠は紙の層に描かない（紙の外の層へ。spec-4b-2 確定事項9）', () => {
+  const dom = makeDom();
+  const svg = layer.mount(dom.doc, dom.node, viewport());
   layer.draw(svg, [HIGHLIGHT, UNDERLINE], viewport());
   layer.draw(svg, [HIGHLIGHT, UNDERLINE], viewport(), { selected: 'sigk-1' });
   assert.equal(svg.querySelectorAll('g').length, 2);
-  const frame = svg.lastElementChild;
+  assert.equal(svg.querySelector('.annot-frame'), null);
+  const frame = frameOf(dom, [HIGHLIGHT, UNDERLINE], viewport(), { selected: 'sigk-1' });
   assert.equal(frame.getAttribute('class'), 'annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 48 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), 184 + layer.FRAME_PADDING * 2);
-  layer.draw(svg, [HIGHLIGHT], viewport(), { selected: 'nothing' });
-  assert.equal(svg.querySelectorAll('.annot-frame').length, 0);
+  assert.equal(Number(frame.getAttribute('x')), 48 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 184 + FRAME_PADDING * 2);
+  // 枠の層は紙の器の外（#view-pages）に、選んだ注釈のページの位置で重なる
+  const frames = dom.pages.querySelector('.annot-frame-layer');
+  assert.equal(frames.parentNode, dom.pages);
+  assert.deepEqual([frames.style.left, frames.style.top], ['40px', '16px']);
+  assert.equal(frameOf(dom, [HIGHLIGHT], viewport(), { selected: 'nothing' }), null);
 });
 
 test('半透明の注釈は group に opacity が付く', () => {
@@ -122,21 +138,22 @@ test('paint は canvas 2D に同じ絵を描く（ハイライトは multiply、
 // ---- テキスト（spec-4-2 確定事項5・10・29） ----
 
 test('draw はテキストを free-text-shape の <g> に委ね、編集中のものは描かない', () => {
-  const { doc, node } = makeDom();
-  const svg = layer.mount(doc, node, viewport());
-  assert.equal(layer.draw(svg, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3' }), 3);
+  const dom = makeDom();
+  const svg = layer.mount(dom.doc, dom.node, viewport());
+  assert.equal(layer.draw(svg, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3' }), 2);
   const group = svg.querySelector('g[data-annot="sigk-3"]');
   assert.equal(group.getAttribute('data-kind'), 'text');
   assert.deepEqual([...group.querySelectorAll('text')].map((t) => t.textContent), ['メモ', '二行目']);
-  // 選択の枠は箱の四角から
-  const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 100 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), 64 + layer.FRAME_PADDING * 2);
+  // 選択の枠は箱の四角から（つまみは出さない）
+  const frame = frameOf(dom, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3' });
+  assert.equal(Number(frame.getAttribute('x')), 100 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 64 + FRAME_PADDING * 2);
+  assert.equal(dom.pages.querySelectorAll('.annot-handle').length, 0);
 
   // 編集中は入力欄が代わりなので、group も枠も出さない
-  assert.equal(layer.draw(svg, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3', editing: 'sigk-3' }), 1);
+  assert.equal(layer.draw(svg, [HIGHLIGHT, TEXT], viewport(), { editing: 'sigk-3' }), 1);
   assert.equal(svg.querySelector('g[data-annot="sigk-3"]'), null);
-  assert.equal(svg.querySelector('.annot-frame'), null);
+  assert.equal(frameOf(dom, [HIGHLIGHT, TEXT], viewport(), { selected: 'sigk-3', editing: 'sigk-3' }), null);
 });
 
 test('paint はテキストを fillText で描く', () => {
@@ -161,19 +178,20 @@ test('keyOf は ref があれば ref、無ければ id', () => {
 const SQUARE = { id: 'sigk-7', src: 0, kind: 'square', color: '#d92c2c', opacity: 1, lineWidth: 2, rect: [100, 600, 300, 700], quads: [[100, 700, 300, 700, 100, 600, 300, 600]] };
 const ARROW = { ref: '40R', src: 0, kind: 'arrow', color: '#2c5cd9', opacity: 0.5, lineWidth: 3, rect: [98.5, 543.55, 301.5, 601.5], quads: [[98.5, 601.5, 301.5, 601.5, 98.5, 543.55, 301.5, 543.55]], paths: [[[100, 600], [300, 550]]] };
 
-test('draw は図形を shape-graphics の <g> に委ね、選択の枠は四角から', () => {
-  const { doc, node } = makeDom();
-  const svg = layer.mount(doc, node, viewport());
-  assert.equal(layer.draw(svg, [HIGHLIGHT, SQUARE, ARROW], viewport(), { selected: '40R' }), 4);
+test('draw は図形を shape-graphics の <g> に委ね、矢印の選択の枠は線に沿った破線と両端のつまみ（spec-4b-2 確定事項11）', () => {
+  const dom = makeDom();
+  const svg = layer.mount(dom.doc, dom.node, viewport());
+  assert.equal(layer.draw(svg, [HIGHLIGHT, SQUARE, ARROW], viewport(), { selected: '40R' }), 3);
   const square = svg.querySelector('g[data-annot="sigk-7"]');
   assert.equal(square.getAttribute('data-kind'), 'square');
   assert.equal(square.querySelector('g.shape.square rect').getAttribute('width'), '198');
   const arrow = svg.querySelector('g[data-annot="40R"]');
   assert.equal(arrow.getAttribute('opacity'), '0.5');
   assert.equal(arrow.querySelectorAll('line, polyline').length, 2);
-  const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 98.5 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), Math.round((203 + layer.FRAME_PADDING * 2) * 100) / 100);
+  const frame = frameOf(dom, [HIGHLIGHT, SQUARE, ARROW], viewport(), { selected: '40R' });
+  assert.equal(frame.tagName.toLowerCase(), 'line');
+  assert.deepEqual(['x1', 'y1', 'x2', 'y2'].map((name) => Number(frame.getAttribute(name))), [100, 241.89, 300, 291.89]);
+  assert.deepEqual([...dom.pages.querySelectorAll('.annot-handle')].map((handle) => handle.getAttribute('data-handle')), ['start', 'end']);
 });
 
 test('draw は下書き（draft）を最後に annot-draft として描き、当たり判定の鍵を持たせない', () => {
@@ -185,10 +203,9 @@ test('draw は下書き（draft）を最後に annot-draft として描き、当
   assert.equal(last.getAttribute('class'), 'annot-draft');
   assert.equal(last.hasAttribute('data-annot'), false);
   assert.equal(last.querySelector('rect').getAttribute('width'), '48');
-  // 選んでいる注釈の枠より上に来る
-  assert.equal(layer.draw(svg, [HIGHLIGHT], viewport(), { selected: 'sigk-1', draft }), 3);
+  // 選んでいる注釈があっても、紙の層には下書きが最後に来る（枠は紙の外の層）
+  assert.equal(layer.draw(svg, [HIGHLIGHT], viewport(), { selected: 'sigk-1', draft }), 2);
   assert.equal(svg.lastElementChild.getAttribute('class'), 'annot-draft');
-  assert.equal(svg.children[1].getAttribute('class'), 'annot-frame');
   // 無ければ描かない
   assert.equal(layer.draw(svg, [HIGHLIGHT], viewport(), { draft: null }), 1);
 });
@@ -228,27 +245,27 @@ const NOTE = { id: 'sigk-9', src: 0, kind: 'note', color: '#ffe45a', opacity: 0.
 const READONLY = { ref: '17R', src: 0, kind: 'other', subtype: 'Line', color: '#ff0000', opacity: 1, rect: [298, 698, 502, 762], quads: [[298, 762, 502, 762, 298, 698, 502, 698]], text: 'other line', author: '', readonly: true };
 
 test('draw はノートを note-graphics の <g> に委ね、選択の枠は画面の箱から（倍率に依らない）', () => {
-  const { doc, node } = makeDom();
-  const svg = layer.mount(doc, node, viewport(2));
-  assert.equal(layer.draw(svg, [HIGHLIGHT, NOTE], viewport(2), { selected: 'sigk-9' }), 3);
+  const dom = makeDom();
+  const svg = layer.mount(dom.doc, dom.node, viewport(2));
+  assert.equal(layer.draw(svg, [HIGHLIGHT, NOTE], viewport(2), { selected: 'sigk-9' }), 2);
   const note = svg.querySelector('g[data-annot="sigk-9"]');
   assert.equal(note.getAttribute('data-kind'), 'note');
   assert.equal(note.getAttribute('opacity'), '0.75');
   assert.equal(note.querySelector('g.note path').getAttribute('fill'), '#ffe45a');
-  const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 200 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), Math.round((26.67 + layer.FRAME_PADDING * 2) * 100) / 100);
+  const frame = frameOf(dom, [HIGHLIGHT, NOTE], viewport(2), { selected: 'sigk-9' });
+  assert.equal(Number(frame.getAttribute('x')), 200 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), Math.round((26.67 + FRAME_PADDING * 2) * 100) / 100);
 });
 
 test('draw は表示のみの注釈を描かず、選ばれていれば枠だけ出す', () => {
-  const { doc, node } = makeDom();
-  const svg = layer.mount(doc, node, viewport());
+  const dom = makeDom();
+  const svg = layer.mount(dom.doc, dom.node, viewport());
   assert.equal(layer.draw(svg, [READONLY, HIGHLIGHT], viewport()), 1);
   assert.equal(svg.querySelector('g[data-annot="17R"]'), null);
-  assert.equal(layer.draw(svg, [READONLY, HIGHLIGHT], viewport(), { selected: '17R' }), 2);
-  const frame = svg.querySelector('.annot-frame');
-  assert.equal(Number(frame.getAttribute('x')), 298 - layer.FRAME_PADDING);
-  assert.equal(Number(frame.getAttribute('width')), 204 + layer.FRAME_PADDING * 2);
+  assert.equal(layer.draw(svg, [READONLY, HIGHLIGHT], viewport(), { selected: '17R' }), 1);
+  const frame = frameOf(dom, [READONLY, HIGHLIGHT], viewport(), { selected: '17R' });
+  assert.equal(Number(frame.getAttribute('x')), 298 - FRAME_PADDING);
+  assert.equal(Number(frame.getAttribute('width')), 204 + FRAME_PADDING * 2);
 });
 
 test('paint はノートを note-graphics に委ね、表示のみは描かない', () => {

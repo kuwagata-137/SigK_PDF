@@ -8,15 +8,13 @@
   // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）、
   // 図形・ペンは shape-graphics.js の <g>（spec-4-3 確定事項8）、ノートは note-graphics.js の
   // 付箋（spec-4-4 確定事項8）。描いている途中の下書きも同じ描き手で最後に置く（確定事項3）。
-  // 「表示のみ」の注釈（readonly。pdf.js が描く）は描かず、選ばれていれば枠だけ出す
-  // （spec-4-4 確定事項32）。pointer-events は無く、当たり判定は annotate.js が行う。
+  // 「表示のみ」の注釈（readonly。pdf.js が描く）は描かない（選ばれていれば枠だけ出す。spec-4-4 確定事項32。枠は
+  // 紙の外の層 annotation-frame.js が描く。spec-4b-2 確定事項9）。pointer-events は無く、当たり判定は annotation-hit.js が行う。
   //
   // 同じ絵を canvas 2D にも描ける（paint）。印刷が未保存の注釈を映すのに使う
   // （確定事項28）。SVG と canvas で描き方を分けると、画面と紙で見た目がずれる。
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  // 選択の枠の余白（CSS px）。四角群の外接にこれだけ足す。
-  const FRAME_PADDING = 3;
 
   function quads() {
     return root.SigK.markupQuads;
@@ -70,31 +68,6 @@
     return root.SigK.annotationEntry.isNoteKind(entry.kind);
   }
 
-  // 枠の元になる箱（CSS px）。ノートは画面の箱（倍率に依らず一定。spec-4-4 確定事項11）、それ以外は四角群の外接。
-  function boundsOf(entry, viewport) {
-    if (isNote(entry)) {
-      const box = root.SigK.noteGraphics.boxOf(entry, viewport);
-      return { x: box.x, y: box.y, width: box.width, height: box.height };
-    }
-    const corners = entry.quads.flatMap((quad) => quads().quadToViewport(quad, viewport));
-    const xs = corners.map((point) => point[0]);
-    const ys = corners.map((point) => point[1]);
-    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
-  }
-
-  // 選択の枠。箱（CSS px）に余白を足した破線。
-  function frameOf(doc, entry, viewport) {
-    const box = boundsOf(entry, viewport);
-    const rect = doc.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', fmt(box.x - FRAME_PADDING));
-    rect.setAttribute('y', fmt(box.y - FRAME_PADDING));
-    rect.setAttribute('width', fmt(box.width + FRAME_PADDING * 2));
-    rect.setAttribute('height', fmt(box.height + FRAME_PADDING * 2));
-    rect.setAttribute('rx', '3');
-    rect.setAttribute('class', 'annot-frame');
-    return rect;
-  }
-
   function keyOf(entry) {
     return entry.ref ?? entry.id;
   }
@@ -137,25 +110,19 @@
   }
 
   // 層を描き直す。entries は annotationState.annotsOnPage の並び（下から上）。
-  // selected は選んでいる注釈の id か ref（無ければ null）。editing は入力欄を開いている
-  // テキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
-  // draft は描いている途中の図形（entry の形）で、枠よりさらに上に描く。
-  function draw(svg, entries, viewport, { selected = null, editing = null, draft = null } = {}) {
+  // editing は入力欄を開いているテキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
+  // draft は描いている途中の図形（entry の形）で、いちばん上に描く。選択の枠は紙の外の層（annotation-frame.js。
+  // spec-4b-2 確定事項9）が描く。
+  function draw(svg, entries, viewport, { editing = null, draft = null } = {}) {
     const doc = svg.ownerDocument;
     svg.replaceChildren();
-    let frame = null;
     for (const entry of entries) {
       if (editing !== null && keyOf(entry) === editing)
         continue;
       const group = groupOf(doc, entry, viewport);
       if (group !== null)
         svg.append(group);
-      if (selected !== null && keyOf(entry) === selected)
-        frame = frameOf(doc, entry, viewport);
     }
-    // 枠は最後に置く（いちばん上）。下書きはその上。
-    if (frame !== null)
-      svg.append(frame);
     if (draft !== null && draft !== undefined)
       svg.append(draftOf(doc, draft, viewport));
     return svg.childNodes.length;
@@ -211,5 +178,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationLayer = { FRAME_PADDING, mount, draw, paint, keyOf };
+  SigK.annotationLayer = { mount, draw, paint, keyOf };
 })(typeof window !== 'undefined' ? window : globalThis);

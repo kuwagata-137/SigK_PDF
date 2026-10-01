@@ -30,7 +30,8 @@ function formStream(context, content, bbox, extra) {
 
 // 外観の Form XObject。テキストは Resources にフォントも付ける。group の立った外観（不透明度が 1 未満の図形・ペン）は、
 // 中身を透明グループの Form に入れて不透明で描き、外側で /GS の不透明度を当てて重ねる（spec-4b-1b 確定事項31。
-// 塗りと線、矢印の軸と矢じり、ペンの線どうしが重なっても濃くならない。事前調査 D）。
+// 塗りと線、矢印の軸と矢じり、ペンの線どうしが重なっても濃くならない。事前調査 D）。回した四角・丸は外側の Form にだけ
+// /Matrix を付ける（spec-4b-2 確定事項29。G0 は回さない）。
 function appearanceStream(context, appearance, font) {
   const gs = { Type: 'ExtGState', CA: appearance.opacity, ca: appearance.opacity };
   if (appearance.blend)
@@ -38,11 +39,12 @@ function appearanceStream(context, appearance, font) {
   const resources = { ExtGState: { GS: gs } };
   if (font !== null)
     resources.Font = { [font.measure.name]: font.font.ref };
+  const outer = appearance.matrix === undefined ? { Resources: resources } : { Resources: resources, Matrix: appearance.matrix };
   if (appearance.group === true) {
     resources.XObject = { G0: formStream(context, appearance.content, appearance.bbox, { Group: { S: 'Transparency' }, Resources: {} }) };
-    return formStream(context, 'q /GS gs /G0 Do Q', appearance.bbox, { Resources: resources });
+    return formStream(context, 'q /GS gs /G0 Do Q', appearance.bbox, outer);
   }
-  return formStream(context, appearance.content, appearance.bbox, { Resources: resources });
+  return formStream(context, appearance.content, appearance.bbox, outer);
 }
 
 function appendAnnots(page, context, PDFName, refs) {
@@ -62,7 +64,8 @@ function addAnnotation(doc, page, { entry, appearance }, font, tools, now, seria
   const dict = context.obj({
     Type: 'Annot',
     Subtype: appearance.subtype,
-    Rect: appearance.bbox,
+    // 回した四角・丸は回した外接（spec-4b-2 確定事項29）。ほかは外観の /BBox と同じ箱。
+    Rect: appearance.rect ?? appearance.bbox,
     ...kindFields(entry, appearance, tools, now),
     CA: appearance.opacity,
     F: appearance.flags ?? 4,

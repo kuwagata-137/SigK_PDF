@@ -127,6 +127,7 @@
     root.SigK.editBar.init(doc, win);
     root.SigK.annotateOpacity.init(doc, win);
     root.SigK.annotateNote.init(doc, win);
+    root.SigK.annotateTransform.init(doc, win);
     root.SigK.annotatePointer.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
     root.SigK.annotationList.init(doc, win);

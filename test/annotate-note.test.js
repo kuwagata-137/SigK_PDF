@@ -104,7 +104,8 @@ test('ノートの道具で紙を押すと、押した点を中心に付箋が�
   const group = pageNode(shell).querySelector(`.annot-layer g[data-annot="${entry.id}"]`);
   assert.equal(group.getAttribute('data-kind'), 'note');
   assert.ok(group.querySelector('g.note path') !== null);
-  assert.ok(pageNode(shell).querySelector('.annot-frame') !== null);
+  // 枠は紙の外の層（spec-4b-2 確定事項9）
+  assert.ok(shell.document.querySelector('.annot-frame-layer .annot-frame') !== null);
   assert.equal(document.getElementById('props-contents-row').hidden, false);
   assert.equal(document.activeElement, contentsField(shell));
   assert.equal(document.getElementById('props-kind').textContent, 'ノート');
@@ -307,8 +308,9 @@ test('表示のみの注釈は一覧から選べて枠だけ出て消せるが�
   assert.equal(document.getElementById('props-text').textContent, '「other line」');
   assert.equal(document.getElementById('props-hint').textContent, SigK.annotationProps.HINTS.readonly);
   assert.equal(document.getElementById('props-delete').getAttribute('aria-disabled'), null);
-  const frame = pageNode(shell).querySelector('.annot-frame');
+  const frame = shell.document.querySelector('.annot-frame-layer .annot-frame');
   assert.ok(frame !== null);
+  assert.equal(shell.document.querySelectorAll('.annot-handle').length, 0, '表示のみにはつまみを出さない');
   assert.equal(SigK.annotate.setColor('#d92c2c'), false);
   assert.equal(SigK.annotate.setOpacity(0.5), false);
   assert.equal(SigK.viewer.getAnnotations().removed.length, 0);

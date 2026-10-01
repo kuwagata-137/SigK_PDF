@@ -16,14 +16,15 @@
     return Math.min(max, Math.max(min, Math.round(value)));
   }
 
-  function bind(range, number, { min, max, onPreview, onCommit }) {
+  // clamp は数値欄の丸め方（既定は範囲の端へ寄せる clampOf。回転の行は 360 の余り。spec-4b-2 確定事項26）。
+  function bind(range, number, { min, max, onPreview, onCommit, clamp = (text) => clampOf(text, min, max) }) {
     range.addEventListener('input', () => {
       number.value = range.value;
       onPreview(Number(range.value));
     });
     range.addEventListener('change', () => onCommit(Number(range.value)));
     const commitNumber = () => {
-      const value = clampOf(number.value, min, max);
+      const value = clamp(number.value);
       if (value === null) {
         number.value = range.value;
         return;
