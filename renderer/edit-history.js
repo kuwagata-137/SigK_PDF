@@ -66,6 +66,19 @@
     return { stack, at: stack.length - 1 };
   }
 
+  // 一番上の世代を、同じ欄を続けて変えた結果で差し替える（spec-4b-3a 確定事項J）。annot.before は最初に変えたときのまま残し、
+  // after だけ新しくする。差し替えた結果が 1 つ前の世代と同じ（試してから元の値に戻した）なら、その世代ごと落とす。
+  function amendTop(history, snapshot, { annot = {} } = {}) {
+    const stack = history.stack.slice(0, history.at + 1);
+    const top = stack[stack.length - 1];
+    stack[stack.length - 1] = { ...snapshotOf(snapshot), before: top.before, after: top.after, annot: { before: top.annot.before, after: copyAnnot(annot.after) } };
+    const previous = stack[stack.length - 2];
+    const amended = stack[stack.length - 1];
+    if (previous !== undefined && pagePlan().samePlan(previous.plan, amended.plan) && annotationState().sameAnnots(previous.annots, amended.annots))
+      stack.pop();
+    return { stack, at: stack.length - 1 };
+  }
+
   function current(history) {
     return snapshotOf(history.stack[history.at]);
   }
@@ -108,6 +121,7 @@
     canUndo,
     canRedo,
     pushHistory,
+    amendTop,
     current,
     undo,
     redo,

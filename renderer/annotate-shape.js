@@ -56,11 +56,11 @@
   }
 
   // 履歴に積んで選び直す（annotate-text.js と同じ約束）。形が崩れて updateAnnot が断った（annots のまま）なら何もしない。
-  function commit(next, { before, target, annots = null }) {
+  function commit(next, { before, target, annots = null, gesture = null }) {
     if (next === annots)
       return false;
     const after = target === null || target.ref !== undefined ? next.added.at(-1).id : before;
-    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after }, gesture });
     annotate().select(after);
     return true;
   }
@@ -154,7 +154,8 @@
     if (entry !== null && entry.readonly !== true && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
       const patch = { lineWidth: width, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width, angle: entry.angle }) };
       const annots = viewer().getAnnotations();
-      commit(annotationState().updateAnnot(annots, entry, patch), { before: annotate().getSelected(), target: entry, annots });
+      // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
+      commit(annotationState().updateAnnot(annots, entry, patch), { before: annotate().getSelected(), target: entry, annots, gesture: 'lineWidth' });
     }
     rememberLineWidth(width);
     root.SigK.annotationProps?.refresh();

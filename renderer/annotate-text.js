@@ -66,9 +66,9 @@
   }
 
   // 履歴に積んで選び直す。読み込んだものを変えると写しが added の末尾に来る（確定事項16）。
-  function commit(next, { before, target }) {
+  function commit(next, { before, target, gesture = null }) {
     const after = target === null ? next.added.at(-1).id : (target.ref !== undefined ? next.added.at(-1).id : before);
-    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after }, gesture });
     annotate().select(after);
     return true;
   }
@@ -216,7 +216,8 @@
       const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, {
         fontSize: size, ...frameOf(origin, boxOf(entry.text, size), entry.rotation),
       });
-      commit(next, { before: annotate().getSelected(), target: entry });
+      // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
+      commit(next, { before: annotate().getSelected(), target: entry, gesture: 'fontSize' });
     }
     annotate().rememberFontSize(size);
     root.SigK.annotationProps?.refresh();

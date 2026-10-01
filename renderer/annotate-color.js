@@ -42,14 +42,15 @@
 
   // 選んでいる書き込みを patch で直して 1 世代積む。読み込んだものは写しに変わり、選択はその写しへ移す。形が崩れる（線と塗りを
   // 両方なしにする、など。annotation-state.updateAnnot が断る）なら何もしない。
-  function updateSelected(entry, patch) {
+  // gesture は欄の名前（同じ欄を続けて変えたら 1 世代に畳む。spec-4b-3a 確定事項J）。
+  function updateSelected(entry, patch, gesture) {
     const annots = viewer().getAnnotations();
     const changed = root.SigK.annotationState.updateAnnot(annots, entry, patch);
     if (changed === annots)
       return false;
     const before = annotate().getSelected();
     const after = entry.ref !== undefined ? changed.added.at(-1).id : before;
-    root.SigK.pageEdit.commitAnnots(changed, { annot: { before, after } });
+    root.SigK.pageEdit.commitAnnots(changed, { annot: { before, after }, gesture });
     annotate().select(after);
     return true;
   }
@@ -82,7 +83,7 @@
     const kind = entry?.kind ?? toolKind();
     if (kind === null)
       return false;
-    if (entry !== undefined && entry.color !== value && !updateSelected(entry, { color: value }))
+    if (entry !== undefined && entry.color !== value && !updateSelected(entry, { color: value }, 'color'))
       return false;
     next().rememberColor(kind, value);
     if (style().isBoxedKind(kind))
@@ -102,7 +103,7 @@
     const fill = entry === undefined ? next().fillOf(kind) : style().fillOf(entry);
     if (!style().isBoxedKind(kind) || fill === null)
       return false;
-    if (entry !== undefined && entry.color !== null && !updateSelected(entry, { color: null }))
+    if (entry !== undefined && entry.color !== null && !updateSelected(entry, { color: null }, 'color'))
       return false;
     next().rememberShape('strokeNone', true);
     refresh();
@@ -121,7 +122,7 @@
     const stroked = entry === undefined ? !next().strokeNoneOf(kind) : entry.color !== null;
     if (!style().isBoxedKind(kind) || (value === null && !stroked))
       return false;
-    if (entry !== undefined && style().fillOf(entry) !== value && !updateSelected(entry, { fill: value }))
+    if (entry !== undefined && style().fillOf(entry) !== value && !updateSelected(entry, { fill: value }, 'fill'))
       return false;
     next().rememberShape('fills', value);
     if (value === null)
@@ -140,7 +141,7 @@
     const kind = entry?.kind ?? toolKind();
     if (kind === null || !style().lineStylesOf(kind).includes(lineStyle))
       return false;
-    if (entry !== undefined && style().lineStyleOf(entry) !== lineStyle && !updateSelected(entry, { lineStyle }))
+    if (entry !== undefined && style().lineStyleOf(entry) !== lineStyle && !updateSelected(entry, { lineStyle }, 'lineStyle'))
       return false;
     if (style().lineStylesOf(kind).length > 1)
       next().rememberShape('lineStyles', lineStyle);

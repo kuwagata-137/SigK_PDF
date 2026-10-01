@@ -65,7 +65,8 @@
       return;
     const before = annotate().getSelected();
     const after = entry.ref !== undefined ? next.added.at(-1).id : before;
-    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
+    // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after }, gesture: 'opacity' });
     annotate().select(after);
   }
 

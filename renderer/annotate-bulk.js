@@ -99,7 +99,9 @@
     const { annots, keys: renamed } = root.SigK.annotationBulk.updateEach(before, view.getImported(), keys, (entry) => patch.patchFor(field, value, entry));
     if (annots !== before) {
       const after = keys.map((key) => renamed.get(key) ?? key);
-      root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture: field });
+      // 線なしは線の色の行で選ぶので、線の色と同じ欄として続けた変更に畳む（確定事項J1）。
+      const gesture = field === 'strokeNone' ? 'color' : field;
+      root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });
       annotate().selectKeys(after);
     }
     rememberNext(field, value, [...new Set(targets.map((entry) => entry.kind))]);

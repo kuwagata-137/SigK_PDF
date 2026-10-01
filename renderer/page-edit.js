@@ -15,6 +15,9 @@
   const state = {
     // { stack, at }。文書ごとに作り直し、タブごとに持ち回る（確定事項11）。
     history: null,
+    // 続けて変えている欄 { field, keys（変えた後の鍵の並び）, at }。同じ選択・同じ欄が続いたら 1 世代に畳む（spec-4b-3a
+    // 確定事項J）。取り消し・やり直し・開く・タブを替える・保存・ほかの操作の世代で忘れる。
+    gesture: null,
   };
 
   // 押せなくする操作の一覧。
@@ -66,6 +69,7 @@
   // 文書を開いた時点の並びを1世代目に置く。開くたびに作り直すので、
   // 前の文書の履歴が残らない。
   function reset(plan, annots) {
+    state.gesture = null;
     state.history = editHistory().createHistory(snapshot(plan ?? [], annots ?? null));
     return state.history;
   }
@@ -98,6 +102,7 @@
     if (!isOpen())
       return false;
 
+    state.gesture = null;
     state.history = editHistory().pushHistory(history(), snapshot(plan), { before, after });
     viewer().applyPlan(plan);
     grid()?.setSelection(after);
@@ -106,12 +111,25 @@
   }
 
   // 注釈の編集を1世代として確定する（spec-4-1 確定事項15）。plan はいまのまま。
-  // annot は前後で対象だった注釈の id か ref で、戻したときに選び直すのに使う。
-  function commitAnnots(annots, { annot = {} } = {}) {
+  // annot は前後で対象だった注釈の id か ref（複数なら配列）で、戻したときに選び直すのに使う。
+  // gesture は見た目の欄の名前（color・fill・lineStyle・lineWidth・opacity・fontSize）。直前の世代と同じ欄を、そのときの
+  // 変えた後の選択のまま続けて変えたなら、新しい世代を積まずに一番上の世代を差し替える（spec-4b-3a 確定事項J。
+  // spec-1-5 確定事項13「1 回の操作で 1 世代」をこの場合に限って改める）。
+  function commitAnnots(annots, { annot = {}, gesture = null } = {}) {
     if (!isOpen())
       return false;
 
-    state.history = editHistory().pushHistory(history(), snapshot(undefined, annots), { annot });
+    const keysOf = root.SigK.annotationSelection.keysOf;
+    const last = state.gesture;
+    const current = history();
+    const continued = gesture !== null && last !== null && last.field === gesture && last.at === current.at
+      && root.SigK.annotationSelection.sameKeys(keysOf(annot.before ?? null), last.keys);
+    state.history = continued
+      ? editHistory().amendTop(current, snapshot(undefined, annots), { annot })
+      : editHistory().pushHistory(current, snapshot(undefined, annots), { annot });
+    // 差し替えた結果が 1 つ前と同じで世代ごと落ちたら、覚えも忘れる。
+    const dropped = continued && state.history.at < current.at;
+    state.gesture = gesture === null || dropped ? null : { field: gesture, keys: keysOf(annot.after ?? null), at: state.history.at };
     viewer().setAnnotations(annots);
     syncActions();
     return true;
@@ -125,6 +143,7 @@
     root.SigK.annotate?.finishEditing?.();
     // 押して引いている途中の操作（つまみ・範囲選択）も取りやめる（spec-4b-3a 確定事項L3）。
     root.SigK.annotate?.abortGestures?.();
+    state.gesture = null;
 
     const moved = direction < 0 ? editHistory().undo(history()) : editHistory().redo(history());
     if (!moved.changed)
@@ -263,6 +282,7 @@
   }
 
   function restore(session) {
+    state.gesture = null;
     state.history = session?.history ?? null;
     return true;
   }
@@ -270,6 +290,8 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.pageEdit = {
     ACTION_IDS,
+    // 続けて変えている欄の覚えを忘れる（保存のあと。spec-4b-3a 確定事項J4）。
+    forgetGesture: () => { state.gesture = null; },
     init,
     reset,
     commit,

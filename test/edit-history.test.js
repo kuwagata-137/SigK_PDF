@@ -160,3 +160,33 @@ test('世代は複製で持ち、あとから元を書き換えても変わら�
   assert.equal(history.current(made).plan[0].rotate, 0);
   assert.equal(history.current(made).annots.added.length, 0);
 });
+
+// ---- 続けた変更を 1 世代に畳む（spec-4b-3a 確定事項J） ----
+
+test('amendTop は一番上の世代を差し替え、annot.before は最初のまま、after だけ新しくする', () => {
+  const start = fresh();
+  const red = annotation.addAnnot(start.annots, entry({ id: 'a', color: '#ff0000' }));
+  let current = history.createHistory({ plan: start.plan, annots: red });
+  const blue = annotation.updateAnnot(red, red.added[0], { color: '#0000ff' });
+  current = history.pushHistory(current, { plan: start.plan, annots: blue }, { annot: { before: 'a', after: 'a' } });
+  const green = annotation.updateAnnot(blue, blue.added[0], { color: '#00ff00' });
+  const amended = history.amendTop(current, { plan: start.plan, annots: green }, { annot: { before: 'a', after: ['a', 'b'] } });
+  assert.equal(amended.stack.length, 2);
+  assert.equal(amended.at, 1);
+  assert.equal(amended.stack[1].annots.added[0].color, '#00ff00');
+  assert.deepEqual(amended.stack[1].annot, { before: 'a', after: ['a', 'b'] });
+  const undone = history.undo(amended);
+  assert.equal(undone.annots.added[0].color, '#ff0000');
+});
+
+test('amendTop は差し替えた結果が 1 つ前の世代と同じなら、その世代ごと落とす', () => {
+  const start = fresh();
+  const red = annotation.addAnnot(start.annots, entry({ id: 'a', color: '#ff0000' }));
+  let current = history.createHistory({ plan: start.plan, annots: red });
+  const blue = annotation.updateAnnot(red, red.added[0], { color: '#0000ff' });
+  current = history.pushHistory(current, { plan: start.plan, annots: blue }, { annot: { before: 'a', after: 'a' } });
+  const back = annotation.updateAnnot(blue, blue.added[0], { color: '#ff0000' });
+  const amended = history.amendTop(current, { plan: start.plan, annots: back }, { annot: { before: 'a', after: 'a' } });
+  assert.equal(amended.stack.length, 1);
+  assert.equal(amended.at, 0);
+});
