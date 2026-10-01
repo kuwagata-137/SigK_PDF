@@ -2,47 +2,47 @@
   'use strict';
 
   // 注釈モードのページビューの押し離し（spec-4-1 確定事項6・10、spec-4-2 確定事項3・5・6、spec-4-3 確定事項3・5、
-  // spec-4-4 確定事項2・7）。
+  // spec-4-4 確定事項2・7、spec-4b-3a 確定事項B）。
   //
-  // annotate.js から切り出した。mousedown／mouseup／dblclick を #view に結び、
-  //   - 押したとき: 選んでいるテキスト・図形の上ならドラッグ移動の準備、そうでなく図形・ペンの
-  //     道具を持っていれば描き始める（動かすたびに下書きを描き直す）
-  //   - 離したとき: 描いていて動いていれば注釈にする → 道具があり文字が選ばれていれば
-  //     マークアップを作る → 動いていない押し離しなら当たり判定で選ぶ → 何も無い場所で
-  //     テキストの道具ならそこに置く（ノートの道具なら付箋を置く）
-  //   - 選んでいるテキスト・図形・ノートを掴んで動かしたら、離したときに 1 世代（ドラッグ移動）
-  //   - ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）
-  // に振り分ける。判断そのものは annotate.js・annotate-text.js・annotate-shape.js が、描く押し離しは annotate-draw.js が、
-  // 掴んで動かす処理は annotate-grab.js が持つ。
+  // annotate.js から切り出した。mousedown／mouseup／dblclick を #view に結び、文書の mousemove／mouseup で、押して引いている
+  // 操作（つまみ・範囲選択・掴んで動かす・描く）を進めて終える。書き込みを描く・置く・掴む・選ぶのは左ボタンだけで、
+  // テキストの入力欄の中の押し離しは入力欄に任せる（spec-4b-3a 確定事項B1・B2）。押した・離したときの判断は annotate-press.js、
+  // つまみは annotate-transform.js、範囲選択は annotate-marquee.js、掴んで動かす・写すのは annotate-grab.js、描くのは
+  // annotate-draw.js が持つ。ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）。
 
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
   const CLICK_SLOP = 3;
 
   const state = {
     doc: null,
-    win: null,
-    // 押した位置。離したときに動いていなければ当たり判定へ回す。
-    pressed: null,
   };
 
   function annotate() {
     return root.SigK.annotate;
   }
 
-  function annotateText() {
-    return root.SigK.annotateText;
-  }
-
-  function annotateNote() {
-    return root.SigK.annotateNote;
-  }
-
   function editor() {
     return root.SigK.freeTextEditor;
   }
 
-  function viewer() {
-    return root.SigK.viewer;
+  function press() {
+    return root.SigK.annotatePress;
+  }
+
+  function grab() {
+    return root.SigK.annotateGrab;
+  }
+
+  function transform() {
+    return root.SigK.annotateTransform;
+  }
+
+  function draw() {
+    return root.SigK.annotateDraw;
+  }
+
+  function marquee() {
+    return root.SigK.annotateMarquee;
   }
 
   function inAnnotMode() {
@@ -50,44 +50,8 @@
   }
 
   function isOpen() {
-    return viewer()?.getState().open === true;
+    return root.SigK.viewer?.getState().open === true;
   }
-
-  // 押した点の .pdf-page とその中の位置（CSS px）。紙の外なら null。
-  function pageAt(event) {
-    const node = event.target?.closest?.('.pdf-page');
-    if (node === null || node === undefined)
-      return null;
-    const base = node.getBoundingClientRect();
-    return { node, index: Number(node.dataset.page) - 1, point: [event.clientX - base.left, event.clientY - base.top] };
-  }
-
-  function moved(from, event) {
-    return Math.abs(event.clientX - from.x) > CLICK_SLOP || Math.abs(event.clientY - from.y) > CLICK_SLOP;
-  }
-
-  // ---- ドラッグ移動（spec-4-2 確定事項6、spec-4-3 確定事項5。annotate-grab.js） ----
-
-  function grab() {
-    return root.SigK.annotateGrab;
-  }
-
-  // つまみで大きさ・向き・端を変える（spec-4b-2。annotate-transform.js）。
-  function transform() {
-    return root.SigK.annotateTransform;
-  }
-
-  // 図形・ペンを描く押し離し（spec-4-3 確定事項3。annotate-draw.js）。
-  function draw() {
-    return root.SigK.annotateDraw;
-  }
-
-  // 「選択」の道具の範囲選択（spec-4b-3a 確定事項D。annotate-marquee.js）。
-  function marquee() {
-    return root.SigK.annotateMarquee;
-  }
-
-  // ---- 押し離し ----
 
   // 書き込みを描く・置く・掴む・選ぶのは左ボタンだけ（決定52 ⑥。spec-4b-3a 確定事項B1）。
   function isLeft(event) {
@@ -100,114 +64,58 @@
   }
 
   function onMouseDown(event) {
-    if (editor()?.takeSwallow() === true || !isLeft(event) || inEditor(event)) {
-      state.pressed = null;
-      return;
-    }
-    if (!inAnnotMode() || !isOpen()) {
-      state.pressed = null;
+    // 入力欄を閉じた押しは飲む（spec-4-2 確定事項8）。
+    if (editor()?.takeSwallow() === true || !isLeft(event) || inEditor(event) || !inAnnotMode() || !isOpen()) {
+      press().reset();
       return;
     }
     // 選んでいる書き込みのつまみは、本体や紙の外より先に見る（spec-4b-2 確定事項15）。
     if (transform()?.begin(event) === true) {
-      state.pressed = null;
+      press().reset();
       return;
     }
-    const page = pageAt(event);
-    const hit = page === null ? null : annotate().hitTest(page.index, page.point);
-    const wasSelected = hit !== null && annotate().isSelected(hit);
-    state.pressed = { x: event.clientX, y: event.clientY, ctrl: event.ctrlKey === true, hit, wasSelected };
-    if (page === null)
-      return;
-    // 「選択」の道具で書き込みの無い所を押したら範囲選択（確定事項D1・D2。Ctrl か Shift で始めたら足す）。
-    if (hit === null && annotate().getTool() === 'select') {
-      marquee().begin(event, page, { add: event.ctrlKey === true || event.shiftKey === true });
-      state.pressed = null;
-      return;
-    }
-    // Ctrl＋押下は選択の足し引き（確定事項B3）。まだ選んでいなければ押したときに足す。描き始めない。
-    if (event.ctrlKey === true) {
-      if (hit !== null && !wasSelected)
-        annotate().addKey(hit);
-      return;
-    }
-    // 選んでいる書き込みの上なら、選んでいる全部を掴む（確定事項B6・F）。「選択」の道具なら、選んでいない書き込みも
-    // 押したときに選んで 1 段で掴む（決定53 ⑨）。
-    if (hit !== null && wasSelected) {
-      grab().begin(event, page, hit);
-      return;
-    }
-    if (hit !== null && annotate().getTool() === 'select') {
-      annotate().select(hit);
-      grab().begin(event, page, hit);
-      return;
-    }
-    const tool = annotate().getTool();
-    if (tool === 'shape' || tool === 'pen')
-      draw().begin(event, page);
+    press().down(event);
   }
 
-  // Ctrl＋クリックを離した（確定事項B3）。選んでいたものを動かさずに離したら外す。書き込みの無い所なら何もしない。
-  function releaseCtrl(pressed) {
-    if (pressed.hit !== null && pressed.wasSelected)
-      annotate().toggleKey(pressed.hit);
-  }
-
-  // 離したとき: 道具があり文字が選ばれていれば作る（spec-4-1 確定事項10 ①）。選ばれて
-  // いなければ、動いていない押し離しを当たり判定へ回す（確定事項6）。当たらず、テキストの
-  // 道具を持っていればそこに置く（spec-4-2 確定事項3）。左ボタンの離しだけを見る（spec-4b-3a 確定事項B1）。
+  // 左ボタンの離しだけを見る（spec-4b-3a 確定事項B1）。押して引いている操作があれば終えて、残りは annotate-press.js へ。
   function onMouseUp(event) {
     if (!isLeft(event))
       return;
-    const pressed = state.pressed;
-    state.pressed = null;
+    const pressed = press().take();
     if (transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
-    const tool = annotate().getTool();
-    if (tool !== null && annotate().isMarkupTool(tool) && annotate().createFromSelection(tool))
-      return;
-    const selection = state.win?.getSelection?.();
-    if (selection !== null && selection !== undefined && !selection.isCollapsed)
-      return;
-    if (pressed === null || moved(pressed, event))
-      return;
-    if (pressed.ctrl) {
-      releaseCtrl(pressed);
-      return;
-    }
-    const page = pageAt(event);
-    if (page === null) {
-      annotate().select(null);
-      return;
-    }
-    const hit = annotate().hitTest(page.index, page.point);
-    if (hit !== null) {
-      annotate().select(hit);
-      return;
-    }
-    if (tool === 'text') {
-      annotateText()?.place({ index: page.index, point: page.point });
-      return;
-    }
-    if (tool === 'note') {
-      annotateNote()?.place({ index: page.index, point: page.point });
-      return;
-    }
-    annotate().select(null);
+    press().up(event, pressed);
   }
 
   // ダブルクリックしたテキストは入力欄を開く（spec-4-2 確定事項5）。ノートは「本文」欄へ（spec-4-4 確定事項7）。
   function onDoubleClick(event) {
     if (!inAnnotMode() || !isOpen())
       return;
-    const page = pageAt(event);
+    const page = press().pageAt(event);
     if (page === null)
       return;
     const hit = annotate().hitTest(page.index, page.point);
-    if (hit !== null && (annotateText()?.beginEdit(hit) === true || annotateNote()?.beginEdit(hit) === true))
+    if (hit !== null && (root.SigK.annotateText?.beginEdit(hit) === true || root.SigK.annotateNote?.beginEdit(hit) === true))
       event.preventDefault();
+  }
+
+  // 押して引いている操作を進める。つまみ → 範囲選択 → 掴む・描く の順。
+  function onMouseMove(event) {
+    if (transform()?.move(event) === true)
+      return;
+    if (marquee().move(event))
+      return;
+    grab().move(event);
+    draw().move(event);
+    // つまみの上のカーソル（掴んでいない・描いていないとき）。
+    if (inAnnotMode() && !grab().isGrabbing() && !draw().isDrawing())
+      transform()?.hover(event);
+  }
+
+  function isBusy() {
+    return grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true;
   }
 
   function init(doc, win) {
@@ -215,27 +123,16 @@
       return false;
     win.__sigkAnnotatePointerReady = true;
     state.doc = doc;
-    state.win = win;
+    press().init(win);
     grab().init(doc);
     const view = doc.getElementById('view');
     view?.addEventListener('mousedown', onMouseDown);
     view?.addEventListener('mouseup', onMouseUp);
     view?.addEventListener('dblclick', onDoubleClick);
     // ドラッグ中・描いている間はページビューの外で離しても拾う。
-    doc.addEventListener('mousemove', (event) => {
-      if (transform()?.move(event) === true)
-        return;
-      if (marquee().move(event))
-        return;
-      grab().move(event);
-      draw().move(event);
-      // つまみの上のカーソル（掴んでいない・描いていないとき）。
-      if (inAnnotMode() && !grab().isGrabbing() && !draw().isDrawing())
-        transform()?.hover(event);
-    });
+    doc.addEventListener('mousemove', onMouseMove);
     doc.addEventListener('mouseup', (event) => {
-      const busy = grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true;
-      if (busy && !(view?.contains(event.target) ?? false))
+      if (isBusy() && !(view?.contains(event.target) ?? false))
         onMouseUp(event);
     });
     return true;

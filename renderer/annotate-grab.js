@@ -6,8 +6,10 @@
   // annotate-pointer.js から移した（spec-4b-2。200 行の目安）。押したときに begin、動かすたびに move（動かせる書き込みの <g> と、
   // 枠の層のその鍵の組を CSS で translate するだけで描き直さない。spec-4b-2 確定事項23）、離したときに end（紙の座標の差分に直して
   // まとめて 1 世代。annotate-bulk.js）。Shift を押している間は、画面の px で動きの大きい方の向きだけを残す（確定事項F5）。
+  // Ctrl を押している間は写しを作る形になり、元は元の位置に戻って写し（annotation-ghosts.js）が動く。引いている途中の Ctrl の
+  // 押し離しも効く（確定事項G1・G2）。
 
-  // 掴んで動かしているもの { keys, index, viewport, node, start(px), last(px), shift, groups, moved }。無ければ null。
+  // 掴んで動かしているもの { keys, index, viewport, node, start(px), last(px), shift, copy, groups, moved }。無ければ null。
   let drag = null;
 
   function annotate() {
@@ -16,6 +18,10 @@
 
   function frame() {
     return root.SigK.annotationFrame;
+  }
+
+  function ghosts() {
+    return root.SigK.annotationGhosts;
   }
 
   function slop() {
@@ -69,20 +75,34 @@
     const start = [event.clientX, event.clientY];
     drag = {
       keys: root.SigK.annotateBulk.movableKeys(), index: page.index, viewport, node: page.node,
-      start, last: start, shift: event.shiftKey === true, groups: new Map(), moved: false,
+      start, last: start, shift: event.shiftKey === true, copy: event.ctrlKey === true, groups: new Map(), moved: false,
     };
     return true;
   }
 
+  // 写しを作る形なら元は動かさず写しを動かし、動かす形なら元を動かす。枠はどちらでも動く方に付いていく。
   function paint(current) {
     const [dx, dy] = offsetOf(current);
     const transform = dx === 0 && dy === 0 ? '' : `translate(${dx}px, ${dy}px)`;
-    for (const group of groupsOf(current))
-      group.style.transform = transform;
+    const groups = groupsOf(current);
+    if (current.copy && current.moved) {
+      for (const group of groups)
+        group.style.transform = '';
+      if (!ghosts().isShown())
+        ghosts().show(groups);
+      ghosts().translate(dx, dy);
+    } else {
+      ghosts().clear();
+      for (const group of groups)
+        group.style.transform = transform;
+    }
     frame()?.translate(dx, dy, current.keys);
+    if (current.moved)
+      setCursor(current.copy ? 'copy' : 'move');
   }
 
   function clearPaint(current) {
+    ghosts().clear();
     for (const group of groupsOf(current))
       group.style.transform = '';
     frame()?.translate(0, 0);
@@ -98,19 +118,21 @@
     }
     drag.last = [event.clientX, event.clientY];
     drag.shift = event.shiftKey === true;
-    if (Math.abs(drag.last[0] - drag.start[0]) > slop() || Math.abs(drag.last[1] - drag.start[1]) > slop()) {
+    drag.copy = event.ctrlKey === true;
+    if (Math.abs(drag.last[0] - drag.start[0]) > slop() || Math.abs(drag.last[1] - drag.start[1]) > slop())
       drag.moved = true;
-      setCursor('move');
-    }
     paint(drag);
     return true;
   }
 
-  // Shift の押し離しは、マウスを動かさなくても効かせる（確定事項F5）。
+  // Shift と Ctrl の押し離しは、マウスを動かさなくても効かせる（確定事項F5・G1）。
   function onKey(event) {
-    if (drag === null || event.key !== 'Shift')
+    if (drag === null || (event.key !== 'Shift' && event.key !== 'Control'))
       return;
-    drag.shift = event.type === 'keydown';
+    if (event.key === 'Shift')
+      drag.shift = event.type === 'keydown';
+    else
+      drag.copy = event.type === 'keydown';
     paint(drag);
   }
 
@@ -121,6 +143,7 @@
       return false;
     current.last = [event.clientX, event.clientY];
     current.shift = event.shiftKey === true;
+    current.copy = event.ctrlKey === true;
     const [dx, dy] = offsetOf(current);
     clearPaint(current);
     setCursor(null);
@@ -129,7 +152,11 @@
       return false;
     const from = current.viewport.convertToPdfPoint(current.start[0], current.start[1]);
     const to = current.viewport.convertToPdfPoint(current.start[0] + dx, current.start[1] + dy);
-    root.SigK.annotateBulk.moveSelected([to[0] - from[0], to[1] - from[1]]);
+    const delta = [to[0] - from[0], to[1] - from[1]];
+    if (current.copy)
+      root.SigK.annotateBulk.copySelected(delta);
+    else
+      root.SigK.annotateBulk.moveSelected(delta);
     return true;
   }
 

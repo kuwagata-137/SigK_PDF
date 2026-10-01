@@ -206,13 +206,14 @@ test('複数を選んでいるとき、素のクリックで 1 つを押して�
   assert.deepEqual([...SigK.annotate.getSelection()], [b]);
 });
 
-test('Ctrl＋クリックは、四角の道具を持っていても描き始めない', async (t) => {
+test('Ctrl を押していれば、四角の道具を持って書き込みの無い所を引いても描き始めない（選んでいない書き込みの上から引けば写し。確定事項G1）', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
   const a = drawSquare(shell, [100, 700], [200, 600]);
+  SigK.annotate.select(a);
   SigK.annotate.setTool('shape');
   SigK.annotate.setShapeKind('square');
-  dragPt(shell, [150, 700], [250, 650], { ctrl: true });
+  dragPt(shell, [300, 400], [400, 300], { ctrl: true });
   assert.equal(count(shell), 1);
   assert.deepEqual([...SigK.annotate.getSelection()], [a]);
 });
