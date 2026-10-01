@@ -80,7 +80,8 @@
   }
 
   // 図形の /Rect と四角。矩形・楕円は箱そのもの、線は描く点（矢じりの翼を含む）の外接に線幅の半分（確定事項10）。
-  function rectOfShape({ kind, rect, paths, lineWidth }) {
+  // 回した矩形・楕円は、四角を回した 4 隅にする（箱は回す前のまま。spec-4b-2 確定事項5）。
+  function rectOfShape({ kind, rect, paths, lineWidth, angle = 0 }) {
     let box = rect;
     if (kind === 'line' || kind === 'arrow' || kind === 'ink') {
       const points = paths.flat();
@@ -88,7 +89,9 @@
         points.push(...arrowHead(paths[0][0], paths[0][1], lineWidth));
       box = boundsOf(points, lineWidth / 2);
     }
-    return { rect: [...box], quads: [root.SigK.freeTextGeometry.quadOfRect(box)] };
+    const rotation = root.SigK.shapeRotation;
+    const quad = rotation?.isRotated({ angle }) ? rotation.quadOf(box, angle) : root.SigK.freeTextGeometry.quadOfRect(box);
+    return { rect: [...box], quads: [quad] };
   }
 
   // 点から線分 a-b への最短距離。長さ 0 の線分は点までの距離。

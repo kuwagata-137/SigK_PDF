@@ -41,7 +41,7 @@
       return entry;
     if (preview.field === 'opacity')
       return { ...entry, opacity: preview.value };
-    const shape = root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: preview.value });
+    const shape = root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: preview.value, angle: entry.angle });
     return { ...entry, lineWidth: preview.value, ...shape };
   }
 

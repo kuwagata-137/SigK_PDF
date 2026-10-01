@@ -117,7 +117,7 @@
     if (entry.paths !== undefined)
       patch.paths = entry.paths.map((path) => path.map((point) => [round(point[0] + delta[0]), round(point[1] + delta[1])]));
     const rect = [round(entry.rect[0] + delta[0]), round(entry.rect[1] + delta[1]), round(entry.rect[2] + delta[0]), round(entry.rect[3] + delta[1])];
-    return { ...patch, ...geometry().rectOfShape({ kind: entry.kind, rect, paths: patch.paths, lineWidth: entry.lineWidth }) };
+    return { ...patch, ...geometry().rectOfShape({ kind: entry.kind, rect, paths: patch.paths, lineWidth: entry.lineWidth, angle: entry.angle }) };
   }
 
   // delta は紙の座標での差分（pt）。箱と点列をずらし、/Rect を作り直す。
@@ -158,7 +158,7 @@
       return false;
     const entry = annotate().selectedEntry();
     if (entry !== null && entry.readonly !== true && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
-      const patch = { lineWidth: width, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width }) };
+      const patch = { lineWidth: width, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width, angle: entry.angle }) };
       const annots = viewer().getAnnotations();
       commit(annotationState().updateAnnot(annots, entry, patch), { before: annotate().getSelected(), target: entry, annots });
     }
