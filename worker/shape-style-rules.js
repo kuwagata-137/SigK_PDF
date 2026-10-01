@@ -95,6 +95,9 @@ function isShapeEntry(entry) {
     return false;
   if (styleOf(entry) === null)
     return false;
+  // 角度は四角・丸だけが、0 以上 360 未満の数で持てる（spec-4b-2 確定事項1）。
+  if (entry.angle !== undefined && !(BOXED_KINDS.includes(entry.kind) && Number.isFinite(entry.angle) && entry.angle >= 0 && entry.angle < 360))
+    return false;
   return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
 }
 

@@ -261,3 +261,36 @@ test('四角・丸の輪郭は画面の点列と同じ始点・同じ向き', ()
     assert.deepEqual(circleLines.slice(3, 8), bezier);
   }
 });
+
+// ---- 回した四角・丸（spec-4b-2 確定事項1・29・30） ----
+
+test('isShapeEntry は四角・丸の角度だけを 0 以上 360 未満で受ける', () => {
+  assert.equal(isShapeEntry(square({ angle: 30 })), true);
+  assert.equal(isShapeEntry(square({ kind: 'circle', angle: 359.5 })), true);
+  assert.equal(isShapeEntry(square({ angle: 360 })), false);
+  assert.equal(isShapeEntry(square({ angle: -5 })), false);
+  assert.equal(isShapeEntry(square({ angle: '30' })), false);
+  assert.equal(isShapeEntry(line({ angle: 30 })), false);
+  assert.equal(isShapeEntry(ink({ angle: 30 })), false);
+});
+
+test('shapeAppearanceOf は回した四角・丸に /Matrix と外接の /Rect を付け、bbox と中身は回す前のまま', () => {
+  const { matrixOf, rectOf } = require('../worker/shape-rotation.js');
+  const plain = shapeAppearanceOf(square());
+  const turned = shapeAppearanceOf(square({ angle: 30 }));
+  assert.equal(plain.matrix, undefined);
+  assert.equal(plain.rect, undefined);
+  assert.deepEqual(turned.bbox, [100, 600, 300, 700]);
+  assert.equal(turned.content, plain.content);
+  assert.deepEqual(turned.matrix, matrixOf([100, 600, 300, 700], 30));
+  assert.deepEqual(turned.rect, rectOf([100, 600, 300, 700], 30));
+  assert.equal(shapeAppearanceOf(square({ angle: 0 })).matrix, undefined);
+});
+
+test('shapeAppearanceOf は回した雲形に /RD の余白を付けない（/BE の強さは付ける）', () => {
+  const flat = shapeAppearanceOf(square({ lineStyle: 'cloudy' }));
+  const turned = shapeAppearanceOf(square({ lineStyle: 'cloudy', angle: 20 }));
+  assert.ok(Array.isArray(flat.rectDifference));
+  assert.equal(turned.rectDifference, undefined);
+  assert.equal(turned.cloudIntensity, 1);
+});
