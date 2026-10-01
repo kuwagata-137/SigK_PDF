@@ -10,6 +10,8 @@ require('../renderer/shape-style.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
 require('../renderer/shape-figure.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/shape-print-layer.js');
 require('../renderer/shape-graphics.js');
 
 // 画面の図形・ペン（spec-4-3 確定事項8・11・25、spec-4b-1b 確定事項29〜33・40〜42）。SVG の要素と、印刷用の canvas 2D の描き手。
@@ -250,4 +252,53 @@ test('paint は半透明の図形を別の canvas に描いてから重ね、ペ
   graphics.paint(recordingContext(calls, { canvas: page }), { ...SQUARE, rect: [700, 600, 800, 700], opacity: 0.5 }, viewport({ scale: 2 }));
   assert.equal(made.length, 1);
   assert.equal(calls.filter(([name]) => name === 'strokeRect').length, 2);
+});
+
+// ---- 回した四角・丸（spec-4b-2 確定事項6・7） ----
+
+test('svgOf は回した四角・丸の <g> を、表示の座標で箱の中心まわりに回す（回していなければ付けない）', () => {
+  const doc = makeDoc();
+  assert.equal(graphics.svgOf(doc, SQUARE, viewport({ scale: 2 })).getAttribute('transform'), null);
+  // 箱 [100 600 300 700] の中心 (200, 650) は、倍率 2 の表示で (400, 383.78)
+  const g = graphics.svgOf(doc, { ...SQUARE, angle: 30 }, viewport({ scale: 2 }));
+  assert.equal(g.getAttribute('transform'), 'rotate(30 400 383.78)');
+  // 部品は回す前のまま（<rect> は軸に沿う）
+  assert.deepEqual(['x', 'y', 'width', 'height'].map((name) => Number(g.querySelector('rect').getAttribute(name))), [202, 285.78, 396, 196]);
+  // 回した紙でも、中心を表示の座標へ直して同じ角度で回す
+  const turned = graphics.svgOf(doc, { ...CIRCLE, angle: 45 }, viewport({ rotation: 90 }));
+  assert.equal(turned.getAttribute('transform'), 'rotate(45 650 200)');
+});
+
+test('paint は回した四角・丸の canvas を箱の中心まわりに回してから描く', () => {
+  const calls = [];
+  graphics.paint(recordingContext(calls), { ...SQUARE, angle: 90 }, viewport({ scale: 2 }));
+  const names = calls.map(([name]) => name);
+  assert.deepEqual(calls.filter(([name]) => name === 'translate' || name === 'rotate').map(([name, ...rest]) => [name, ...rest.map(num)]), [
+    ['translate', 400, 383.78], ['rotate', num(Math.PI / 2)], ['translate', -400, -383.78],
+  ]);
+  assert.ok(names.indexOf('rotate') < names.indexOf('strokeRect'), '回してから描く');
+
+  calls.length = 0;
+  graphics.paint(recordingContext(calls), SQUARE, viewport({ scale: 2 }));
+  assert.equal(calls.some(([name]) => name === 'rotate'), false, '回していなければ回さない');
+});
+
+test('paint は回した半透明の図形の別の canvas を、回した外接の大きさで作る', () => {
+  const layerCalls = [];
+  const made = [];
+  const doc = {
+    createElement: (tag) => {
+      const canvas = { tag, width: 0, height: 0, getContext: () => { made.push([canvas.width, canvas.height]); return recordingContext(layerCalls); } };
+      return canvas;
+    },
+  };
+  const page = { width: 1191, height: 1684, ownerDocument: doc };
+  const calls = [];
+  graphics.paint(recordingContext(calls, { canvas: page }), { ...SQUARE, opacity: 0.5, angle: 90 }, viewport({ scale: 2 }));
+  // 回す前の外接 196〜604 × 279.78〜487.78（408×208）を 90° 回すと、296〜504 × 179.78〜587.78（中心 400, 383.78）
+  assert.deepEqual(made, [[208, 409]]);
+  assert.deepEqual(layerCalls[0], ['translate', -296, -179]);
+  assert.deepEqual(layerCalls.filter(([name]) => name === 'rotate').length, 1, '別の canvas の上で回す');
+  assert.deepEqual(calls.find(([name]) => name === 'drawImage').slice(2), [296, 179]);
+  assert.equal(calls.some(([name]) => name === 'rotate'), false, 'ページの canvas は回さない');
 });

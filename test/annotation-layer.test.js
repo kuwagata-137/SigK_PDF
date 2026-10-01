@@ -14,6 +14,8 @@ require('../renderer/shape-geometry.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
 require('../renderer/shape-figure.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/shape-print-layer.js');
 require('../renderer/shape-graphics.js');
 require('../renderer/annotation-frame.js');
 require('../renderer/annotation-layer.js');

@@ -10,11 +10,14 @@
   // 透明グループ（確定事項31）と同じ見え方になる。
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  // 印刷で別の canvas を図形の外接だけの大きさにするときの余白（px）。線の端と角のぶん。
-  const LAYER_PADDING = 2;
 
   function figure() {
     return root.SigK.shapeFigure;
+  }
+
+  // 印刷の別の canvas と回転（shape-print-layer.js）。
+  function printLayer() {
+    return root.SigK.shapePrintLayer;
   }
 
   // 属性に書く数。小数 2 桁で十分で、浮動小数のごみを残さない。
@@ -53,7 +56,8 @@
     return element(doc, part.type, attributes);
   }
 
-  // 図形 1 つの <g>。線と塗りの属性は <g> に付け、中に部品を置く。線なし・塗りなしは 'none'。
+  // 図形 1 つの <g>。線と塗りの属性は <g> に付け、中に部品を置く。線なし・塗りなしは 'none'。回した四角・丸は、回す前の
+  // 部品を描いて <g> を箱の中心まわりに回す（spec-4b-2 確定事項6）。
   function svgOf(doc, entry, viewport) {
     const shape = figure().figureOf(entry, viewport);
     const group = element(doc, 'g', {
@@ -64,6 +68,9 @@
       'stroke-linecap': shape.cap,
       'stroke-linejoin': shape.join,
     });
+    const transform = root.SigK.shapeRotation?.svgTransformOf(entry, viewport) ?? null;
+    if (transform !== null)
+      group.setAttribute('transform', transform);
     group.append(...shape.parts.map((part) => partElement(doc, part)));
     return group;
   }
@@ -110,62 +117,21 @@
     }
   }
 
-  function pointsOfPart(part) {
-    switch (part.type) {
-      case 'rect': return [[part.x, part.y], [part.x + part.width, part.y + part.height]];
-      case 'ellipse': return [[part.cx - part.rx, part.cy - part.ry], [part.cx + part.rx, part.cy + part.ry]];
-      case 'line': return [part.from, part.to];
-      case 'polyline': return part.points;
-      default: return part.segments.flatMap((segment) => segment.points);
-    }
-  }
-
-  // 部品の外接（表示の px）に、線の太さと余白を足したもの。
-  function extentOf(shape) {
-    const pad = shape.width + LAYER_PADDING;
-    const extent = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
-    for (const [x, y] of shape.parts.flatMap(pointsOfPart)) {
-      extent.left = Math.min(extent.left, x - pad);
-      extent.top = Math.min(extent.top, y - pad);
-      extent.right = Math.max(extent.right, x + pad);
-      extent.bottom = Math.max(extent.bottom, y + pad);
-    }
-    return extent;
-  }
-
-  // 図形の外接だけの別の canvas（ページの canvas と同じ座標で描けるよう、左上へずらす）。ページの外に出る分は切る。
-  // 作れない ctx（テストの記録用など）と、描く所が無いときは null。
-  function layerOf(ctx, extent) {
-    const page = ctx.canvas;
-    if (typeof page?.ownerDocument?.createElement !== 'function')
-      return null;
-    const x = Math.max(0, Math.floor(extent.left));
-    const y = Math.max(0, Math.floor(extent.top));
-    const width = Math.min(page.width, Math.ceil(extent.right)) - x;
-    const height = Math.min(page.height, Math.ceil(extent.bottom)) - y;
-    if (!(width > 0 && height > 0))
-      return null;
-    const canvas = page.ownerDocument.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const layer = canvas.getContext('2d');
-    if (!layer)
-      return null;
-    layer.translate(-x, -y);
-    return { canvas, ctx: layer, x, y };
-  }
-
   // 同じ絵を canvas 2D に描く（印刷。spec-4-3 確定事項25）。ctx は viewport と同じ座標系（CSS px 相当）で受ける。
   // 不透明度が 1 未満なら別の canvas に不透明で描いてから重ねる。別の canvas を作れなければ globalAlpha のまま描く。
+  // 回した四角・丸は canvas を回してから描く（spec-4b-2 確定事項7）。
   function paint(ctx, entry, viewport) {
     const shape = figure().figureOf(entry, viewport);
     const alpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
-    const layer = alpha < 1 ? layerOf(ctx, extentOf(shape)) : null;
+    const turn = root.SigK.shapeRotation?.viewRotationOf(entry, viewport) ?? null;
+    const layer = alpha < 1 ? printLayer().layerOf(ctx, printLayer().turnedExtent(printLayer().extentOf(shape), turn)) : null;
     ctx.save();
     ctx.globalAlpha = alpha;
     if (layer === null) {
+      printLayer().turnContext(ctx, turn);
       drawFigure(ctx, shape);
     } else {
+      printLayer().turnContext(layer.ctx, turn);
       drawFigure(layer.ctx, shape);
       ctx.drawImage(layer.canvas, layer.x, layer.y);
       // 早めに手放す（page-image.js の release と同じ）。
