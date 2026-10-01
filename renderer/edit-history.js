@@ -79,6 +79,18 @@
     return { stack, at: stack.length - 1 };
   }
 
+  // 注釈の世代を積むか、続けた変更なら一番上を差し替える（spec-4b-3a 確定事項J）。gesture は欄の名前、last は直前に覚えた
+  // { field, keys（変えた後の鍵の並び）, at }。同じ欄を、そのときの変えた後の選択のまま、一番上の世代から続けて変えたら差し替える。
+  // 返すのは { history, gesture（次に覚えるもの。差し替えで世代ごと落ちたら null） }。
+  function record(history, snapshot, { annot = {}, gesture = null, last = null } = {}) {
+    const selection = root.SigK.annotationSelection;
+    const continued = gesture !== null && last !== null && last.field === gesture && last.at === history.at
+      && selection.sameKeys(selection.keysOf(annot.before ?? null), last.keys);
+    const next = continued ? amendTop(history, snapshot, { annot }) : pushHistory(history, snapshot, { annot });
+    const dropped = continued && next.at < history.at;
+    return { history: next, gesture: gesture === null || dropped ? null : { field: gesture, keys: selection.keysOf(annot.after ?? null), at: next.at } };
+  }
+
   function current(history) {
     return snapshotOf(history.stack[history.at]);
   }
@@ -122,6 +134,7 @@
     canRedo,
     pushHistory,
     amendTop,
+    record,
     current,
     undo,
     redo,
