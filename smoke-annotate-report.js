@@ -81,8 +81,10 @@ const REPORT = `
     // 最後に辞書の読み戻しの口を呼んだ様子（呼んだか・頼んだ件数・答えの件数・ms・理由）。
     details: SigK.annotationDetails.lastRequest(),
     // 見た目（spec-4b-1b の完了判定 2〜7）。描いたもの・読み込んだものの線・塗り・線種・破線の倍数・雲形の強さ・太さ・不透明度。
-    styles: annots.added.filter((entry) => entry.lineWidth !== undefined).map((entry) => ({ id: entry.id, kind: entry.kind, color: entry.color, fill: entry.fill ?? null, lineStyle: entry.lineStyle ?? 'solid', dash: entry.dash ?? null, cloudIntensity: entry.cloudIntensity ?? null, lineWidth: entry.lineWidth, opacity: entry.opacity, rect: entry.rect.map(round) })),
-    importedLooks: importedEntries.filter((entry) => entry.lineWidth !== undefined).map((entry) => ({ ref: entry.ref, kind: entry.kind, color: entry.color, fill: entry.fill ?? null, lineStyle: entry.lineStyle ?? 'solid', dash: entry.dash ?? null, cloudIntensity: entry.cloudIntensity ?? null, lineWidth: entry.lineWidth, opacity: entry.opacity, readonly: entry.readonly === true })),
+    styles: annots.added.filter((entry) => entry.lineWidth !== undefined).map((entry) => ({ id: entry.id, kind: entry.kind, color: entry.color, fill: entry.fill ?? null, lineStyle: entry.lineStyle ?? 'solid', dash: entry.dash ?? null, cloudIntensity: entry.cloudIntensity ?? null, lineWidth: entry.lineWidth, opacity: entry.opacity, rect: entry.rect.map(round), angle: entry.angle ?? 0 })),
+    importedLooks: importedEntries.filter((entry) => entry.lineWidth !== undefined || entry.readonly === true).map((entry) => ({ ref: entry.ref, kind: entry.kind, subtype: entry.subtype ?? null, color: entry.color, fill: entry.fill ?? null, lineStyle: entry.lineStyle ?? 'solid', dash: entry.dash ?? null, cloudIntensity: entry.cloudIntensity ?? null, lineWidth: entry.lineWidth ?? null, opacity: entry.opacity, readonly: entry.readonly === true, rect: entry.rect.map(round), angle: entry.angle ?? 0 })),
+    // 大きさと向き（spec-4b-2 の起動確認。smoke-annotate-transform.js の TRANSFORM_REPORT）。
+    transform: transformReport,
     // 右パネルの見た目の行（出している行・色の行の見出し・チップの値・押している線種・太さと不透明度・ヒント）。
     propsRows: {
       shown: ['color', 'fill', 'style', 'width', 'size', 'opacity'].filter((row) => !document.getElementById('props-' + row + '-row').hidden),
