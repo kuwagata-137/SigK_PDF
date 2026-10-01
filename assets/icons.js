@@ -163,6 +163,12 @@
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
     // 道具の段の「選択」（spec-4b-3a 確定事項C1）。マウスの矢印の形。
     pointerSelect: [['path', { d: 'M6.5 3.8v14.6l3.9-3.7 2.6 5.5 2.3-1.1-2.6-5.4h5.6z' }]],
+    // 道具の段の「ハンド」（spec-4b-3b 確定事項A1。モック screenshots/phase4b-3-bar.png と同じ形）。開いた手の甲。
+    hand: [
+      ['path', { d: 'M8.2 12.6V6.6a1.4 1.4 0 0 1 2.8 0v4.6' }],
+      ['path', { d: 'M11 10.8V5.2a1.4 1.4 0 0 1 2.8 0v5.6' }],
+      ['path', { d: 'M13.8 10.9V6.8a1.4 1.4 0 0 1 2.8 0v6.9a6.3 6.3 0 0 1-6.3 6.3h-.7a5.2 5.2 0 0 1-4.3-2.3l-2.4-3.6a1.4 1.4 0 0 1 2.3-1.6l1.1 1.5' }],
+    ],
     // 右パネルの「線種」（spec-4b-1b 確定事項5。モックの絵を 24 の格子に置き直した）。
     lineSolid: [['path', { d: 'M4 12h16', 'stroke-width': 2 }]],
     lineDashed: [['path', { d: 'M4 12h16', 'stroke-width': 2, 'stroke-dasharray': '4 3', 'stroke-linecap': 'butt' }]],

@@ -41,13 +41,14 @@ function drawSquare(shell, from, to) {
   return SigK.viewer.getAnnotations().added.at(-1).id;
 }
 
-test('「選択」は道具の段の先頭にあり、すぐ後ろに区切りがあり、矢印のアイコンを持つ（確定事項C1）', async (t) => {
+test('「選択」は道具の段の先頭にあり、すぐ後ろに「ハンド」と区切りがあり、矢印のアイコンを持つ（確定事項C1、spec-4b-3b 確定事項A1）', async (t) => {
   const shell = await withShell(t);
   const bar = shell.document.getElementById('edit-bar');
   const first = bar.firstElementChild;
   assert.equal(first.querySelector('.edit-tool').dataset.tool, 'select');
   assert.equal(first.querySelector('.edit-name').textContent, '選択');
-  assert.equal(first.nextElementSibling.classList.contains('edit-sep'), true);
+  assert.equal(first.nextElementSibling.querySelector('.edit-tool').dataset.tool, 'hand');
+  assert.equal(first.nextElementSibling.nextElementSibling.classList.contains('edit-sep'), true);
   assert.notEqual(first.querySelector('svg'), null, 'アイコンが埋まっている');
 });
 

@@ -90,6 +90,8 @@
   function selectKeys(keys) {
     root.SigK.annotateTransform?.cancel();
     root.SigK.annotatePreview?.cancel();
+    // 右クリックのメニューは選択が変わったら閉じる（spec-4b-3b 確定事項D8。開くのは選んだ後）。
+    root.SigK.annotationMenu?.close();
     state.keys = normalize(Array.isArray(keys) ? keys : []);
     viewer()?.redrawAnnotations();
     props()?.refresh();

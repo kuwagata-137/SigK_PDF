@@ -129,6 +129,8 @@
     root.SigK.annotateNote.init(doc, win);
     root.SigK.annotateTransform.init(doc, win);
     root.SigK.annotatePointer.init(doc, win);
+    root.SigK.annotationMenu.init(doc, win);
+    root.SigK.annotateRightButton.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
     root.SigK.annotationList.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
@@ -137,6 +139,7 @@
     root.SigK.recentPanel.init(doc, win);
     root.SigK.fileDrop.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
+    root.SigK.viewerWheel.init(doc, win);
     showAppVersion(doc);
     // 起動要求の受け口は**タブ層より後**、かつ**前回の見た目の復元が返った後**に結線する。
     // 購読を始めた時点でメインが溜めていた要求を流してくる（確定事項77）が、復元より先に

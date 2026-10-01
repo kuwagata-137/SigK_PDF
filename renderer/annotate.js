@@ -12,7 +12,8 @@
   // annotate-shape.js、ノートの置く・動かす・本文・作成者は annotate-note.js、不透明度は
   // annotate-opacity.js、色・塗り・線なし・線種は annotate-color.js、スライダーの下見は annotate-preview.js、
   // サイドパネルの一覧は annotation-list.js が持つ。「いまの道具」と「次に付ける文字の大きさ」は annotate-tools.js、
-  // 「選んでいる注釈」は annotate-select.js が握り、ここは同じ名前の口で委ねる（spec-4b-3a で分けた）。
+  // 「選んでいる注釈」は annotate-select.js が握り、ここは同じ名前の口で委ねる（spec-4b-3a で分けた）。Esc と取りやめの順は
+  // annotate-cancel.js が持つ（spec-4b-3b で分けた）。
 
   // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
   const { TOOLS, TOOL_LABELS, DEFAULT_COLORS } = root.SigK.annotationPresets;
@@ -60,46 +61,6 @@
     return root.SigK.annotateText?.finishEditing() === true;
   }
 
-  // Esc。つまみのドラッグ中なら取りやめ（spec-4b-2 確定事項21）、範囲選択・掴んで動かしている途中なら取りやめ（spec-4b-3a
-  // 確定事項M）、パレットの窓が開いていれば閉じ、スライダーの下見があれば捨て
-  // （spec-4b-1b 確定事項6・8）、描いている途中なら捨て、入力欄が開いていれば確定、選んでいる注釈があれば解除、無ければ道具を
-  // 離す（確定事項7、spec-4-3 確定事項3）。
-  function escape() {
-    if (root.SigK.annotateTransform?.cancel() === true)
-      return true;
-    // 範囲選択の途中なら取りやめて、押す前の選択に戻す（spec-4b-3a 確定事項D6・M）。
-    if (root.SigK.annotateMarquee?.cancel() === true)
-      return true;
-    // 掴んで動かしている途中なら元の位置へ戻す（確定事項M）。
-    if (root.SigK.annotateGrab?.cancel() === true)
-      return true;
-    if (root.SigK.colorPopover?.close({ restoreFocus: true }) === true)
-      return true;
-    if (root.SigK.annotatePreview?.cancel() === true)
-      return true;
-    if (root.SigK.annotateShape?.cancelDraft() === true)
-      return true;
-    if (finishEditing())
-      return true;
-    if (selection().getSelection().length > 0) {
-      selection().select(null);
-      return true;
-    }
-    if (tools().getTool() !== null) {
-      tools().setTool(null);
-      return true;
-    }
-    return false;
-  }
-
-  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす）を取りやめる。取り消し・やり直しの前に呼ぶ（spec-4b-3a 確定事項L3）。
-  function abortGestures() {
-    const transformed = root.SigK.annotateTransform?.cancel() === true;
-    const marqueed = root.SigK.annotateMarquee?.cancel() === true;
-    const grabbed = root.SigK.annotateGrab?.cancel() === true;
-    return transformed || marqueed || grabbed;
-  }
-
   // ---- 印刷（確定事項28） ----
 
   // ページ src の注釈を canvas 2D に描く口。無ければ null。
@@ -115,11 +76,14 @@
 
   // ---- 画面の結線（ページビューの押し離しは annotate-pointer.js） ----
 
-  // モードを離れたら入力欄を確定し、選択を解除する。道具は持ち越す（確定事項8）。
+  // モードを離れたら入力欄を確定し、表示を引くのを終え（spec-4b-3b 確定事項A3）、選択を解除する。道具は持ち越す（確定事項8）。
   // 入ったらフォントを先読みする（spec-4-2 確定事項33）。
   function onModeChanged(mode) {
-    if (mode !== 'annot')
+    root.SigK.annotationMenu?.close();
+    if (mode !== 'annot') {
       finishEditing();
+      root.SigK.annotateHand?.cancel();
+    }
     if (mode !== 'annot' && selection().getSelection().length > 0)
       selection().select(null);
     props()?.refresh();
@@ -202,8 +166,8 @@
     addKey: (key) => selection().addKey(key),
     hitTest: (index, point) => selection().hitTest(index, point),
     remove: () => selection().remove(),
-    escape,
-    abortGestures,
+    escape: () => root.SigK.annotateCancel.escape(),
+    abortGestures: () => root.SigK.annotateCancel.abortGestures(),
     painterFor,
     onModeChanged,
     // jsdom のテストが矩形の測り方を差し替える口（annotate-markup.js へ流す）。
