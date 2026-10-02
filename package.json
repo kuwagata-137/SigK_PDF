@@ -59,6 +59,7 @@
       "smoke-annotate-style.js",
       "smoke-annotate-transform.js",
       "smoke-annotate-select.js",
+      "smoke-annotate-text.js",
       "worker/**",
       "index.html",
       "renderer/**",

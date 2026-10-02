@@ -42,6 +42,7 @@
 //   fill: stroke: style: chip: palette: other: slide:   見た目の操作（smoke-annotate-style.js の冒頭）
 //   grab: angle: angle-preset:   大きさと向きの操作（smoke-annotate-transform.js の冒頭。spec-4b-2）
 //   ctrl-click: marquee: move: list-ctrl: list-shift: key:   選択と複数選択の操作（smoke-annotate-select.js の冒頭。spec-4b-3a）
+//   fontsize: size-list: reopen compare:   テキストの書式の操作（smoke-annotate-text.js の冒頭。spec-4b-4a）
 // 各操作のあとに、履歴がいくつ進んだか（historyDelta）を控える。
 //
 // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
@@ -61,6 +62,7 @@ const { STEPS } = require('./smoke-annotate-steps.js');
 const { STYLE_STEPS, inspectAnnotations } = require('./smoke-annotate-style.js');
 const { TRANSFORM_STEPS, TRANSFORM_REPORT } = require('./smoke-annotate-transform.js');
 const { SELECT_STEPS, SELECT_REPORT } = require('./smoke-annotate-select.js');
+const { TEXT_STATE, TEXT_STEPS, TEXT_REPORT, inspectTexts } = require('./smoke-annotate-text.js');
 
 const annotateScript = (target, spec) => `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -114,6 +116,7 @@ const annotateScript = (target, spec) => `(async () => {
   };
   const applied = [];
   let saveResult = null;
+${TEXT_STATE}
   for (const raw of ${JSON.stringify(spec)}.split(',')) {
     const step = raw.trim();
     if (step.length === 0)
@@ -122,13 +125,14 @@ const annotateScript = (target, spec) => `(async () => {
     const arg = rest.join(':');
     const t0 = performance.now();
     const historyBefore = SigK.pageEdit.getHistoryState().at;
-${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}
+${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}
     applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected(), count: SigK.annotate.getSelection().length, historyDelta: SigK.pageEdit.getHistoryState().at - historyBefore });
     await wait(120);
   }
 
 ${TRANSFORM_REPORT}
 ${SELECT_REPORT}
+${TEXT_REPORT}
 ${REPORT}
 })()`;
 
@@ -145,4 +149,4 @@ async function countEmbeddedFonts(file) {
   return count;
 }
 
-module.exports = { annotateScript, countEmbeddedFonts, inspectAnnotations };
+module.exports = { annotateScript, countEmbeddedFonts, inspectAnnotations, inspectTexts };

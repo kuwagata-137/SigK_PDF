@@ -1732,6 +1732,8 @@ function installSmokeCheck(win, mode) {
           annotate.fonts = annotate.save === null ? null : await smokeAnnotate.countEmbeddedFonts(annotateTarget);
           // 保存先の図形・ペンの見た目の欄（spec-4b-1b 完了判定6。/C・/IC・/CA・/BS・/BE・/RD と透明グループ）。
           annotate.written = annotate.save === null ? null : await smokeAnnotate.inspectAnnotations(annotateTarget);
+          // 保存先のテキストの欄（spec-4b-4a の起動確認。/DA・/DS・/C・/BS と、半透明の透明グループ・行の数）。
+          annotate.writtenTexts = annotate.save === null ? null : await smokeAnnotate.inspectTexts(annotateTarget);
         }
         if (process.env.SIGK_SMOKE_SAVE && saveSource !== undefined) {
           const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);
