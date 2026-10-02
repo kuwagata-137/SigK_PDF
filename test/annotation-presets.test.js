@@ -110,13 +110,27 @@ test('線の太さは 1〜40 の整数で既定は 2', () => {
     assert.equal(presets.isLineWidth(width), false, String(width));
 });
 
-test('文字の大きさは 14 段で既定は 12', () => {
-  assert.deepEqual(presets.FONT_SIZES, [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48]);
+// 文字の大きさは 8〜200 の 0.5 刻み。一覧は「よく使う大きさ」（spec-4b-4a 確定事項A3）。
+test('文字の大きさは 8〜200 の 0.5 刻みで、よく使う大きさは 18 段、既定は 12', () => {
+  assert.deepEqual(presets.FONT_SIZES, [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72, 96, 144, 200]);
+  assert.equal(presets.FONT_SIZE_MIN, 8);
+  assert.equal(presets.FONT_SIZE_MAX, 200);
+  assert.equal(presets.FONT_SIZE_STEP, 0.5);
   assert.equal(presets.DEFAULT_FONT_SIZE, 12);
   assert.ok(presets.FONT_SIZES.includes(presets.DEFAULT_FONT_SIZE));
-  assert.equal(presets.isFontSize(10.5), true);
-  assert.equal(presets.isFontSize(13), false);
-  assert.equal(presets.isFontSize('12'), false);
+  assert.ok(presets.FONT_SIZES.every((size) => presets.isFontSize(size)));
+  for (const size of [8, 10.5, 13, 13.5, 199.5, 200])
+    assert.equal(presets.isFontSize(size), true, String(size));
+  for (const size of [7.5, 13.3, 200.5, 0, -12, Number.NaN, Infinity, '12', null])
+    assert.equal(presets.isFontSize(size), false, String(size));
+});
+
+test('fontSizeOf は 0.5 刻みに丸めて 8〜200 に収め、数でなければ null', () => {
+  const cases = [[12, 12], [13.3, 13.5], [13.2, 13], [13.25, 13.5], [7.7, 8], [3, 8], [-5, 8], [200.2, 200], [999, 200], [0, 8]];
+  for (const [input, expected] of cases)
+    assert.equal(presets.fontSizeOf(input), expected, String(input));
+  for (const input of [Number.NaN, Infinity, -Infinity, '12', null, undefined])
+    assert.equal(presets.fontSizeOf(input), null, String(input));
 });
 
 test('プリセットは凍結されている', () => {

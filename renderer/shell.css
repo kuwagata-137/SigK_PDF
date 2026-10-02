@@ -850,6 +850,14 @@ html[data-mode="annot"] #props{display:flex}
   font:13px inherit; font-family:inherit; color:var(--text); text-align:right;
 }
 .range .unit{font-size:12px; color:var(--muted); width:16px}
+/* 文字の大きさの行（spec-4b-4a 確定事項G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼だけを見せる <select>）。 */
+.size-field input[type=number]{width:76px}
+.size-list{
+  appearance:none; width:30px; height:28px; padding:0; border:1px solid var(--border); border-radius:7px; cursor:pointer; color:transparent;
+  background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235f6b7a' stroke-width='1.5'/%3E%3C/svg%3E") center/10px 6px no-repeat;
+  font:13px inherit; font-family:inherit;
+}
+.size-list option{color:var(--text); background:var(--surface)}
 /* 回転の行の 0°・90°・180°・270° のボタン（spec-4b-2 確定事項25。モック）。今の角度と同じものに印。 */
 .angle-presets{display:flex; gap:4px}
 .angle-presets button{

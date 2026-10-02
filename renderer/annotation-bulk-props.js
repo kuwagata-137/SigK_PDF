@@ -3,8 +3,8 @@
 
   // 2 件以上を選んでいるときの右パネル（spec-4b-3a 確定事項I。モック screenshots/phase4b-3-multi.png）。
   //
-  // 見出しは「書き込み N 件（種類・種類）」、回転・文字の大きさ・本文・作成者・対象の文字は隠し、ページを出し、削除を押せるようにする。
-  // annotation-props.js の refresh が、2 件以上のときにここへ回す。
+  // 見出しは「書き込み N 件（種類・種類）」、回転・本文・作成者・対象の文字は隠し、ページを出し、削除を押せるようにする。文字の大きさは
+  // テキストが 1 件でもあれば見た目の行と一緒に出す（spec-4b-4a 確定事項G5）。annotation-props.js の refresh が、2 件以上のときにここへ回す。
 
   function styleRows() {
     return root.SigK.annotationStyleRows;
@@ -33,7 +33,6 @@
     styleRows()?.render(entries.map((entry) => root.SigK.annotationStylePatch.targetOf(entry)));
     root.SigK.annotationNoteRows?.render({ text: null, author: null, editable: false });
     root.SigK.annotationAngleRow?.render(null);
-    show(doc, 'props-size-row', false);
     show(doc, 'props-text-row', false);
     show(doc, 'props-page-row', true);
     doc.getElementById('props-page').textContent = displayNumberOf(entries[0]?.src);

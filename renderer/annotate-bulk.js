@@ -81,6 +81,8 @@
       root.SigK.annotateShape.rememberLineWidth(value);
     } else if (field === 'opacity') {
       kinds.forEach((kind) => root.SigK.annotateOpacity.rememberOpacity(kind, value));
+    } else if (field === 'fontSize') {
+      annotate().rememberFontSize(value);
     }
   }
 

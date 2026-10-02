@@ -2,7 +2,8 @@
   'use strict';
 
   // テキストの書式（文字の大きさ）を選んでいるテキストに当てるか、次に置く値として覚える指揮（spec-4-2 確定事項2・21・34、
-  // spec-4b-3a 確定事項I5・J）。annotate-text.js から移した（spec-4b-4a。中身は変えていない）。
+  // spec-4b-3a 確定事項J、spec-4b-4a 確定事項A3・G5）。当てる値は free-text-style.js が作る。2 件以上を選んでいれば、
+  // annotate-bulk.js の applyField でテキストにだけまとめて当てる。
 
   function annotate() {
     return root.SigK.annotate;
@@ -10,10 +11,6 @@
 
   function viewer() {
     return root.SigK.viewer;
-  }
-
-  function geometry() {
-    return root.SigK.freeTextGeometry;
   }
 
   // 選んでいる書き込みを patch で直して 1 世代積み、選び直す。読み込んだものは写しに変わり、選択は写しへ移す。
@@ -30,19 +27,16 @@
     return true;
   }
 
-  // 選んでいるテキストがあればその書き込みを変え、次に置く大きさとしても覚える。
+  // 選んでいるテキストがあればその書き込みを変え、次に置く大きさとしても覚える。2 件以上ならテキストにだけまとめて当てる。
   function setFontSize(size) {
-    // 2 件以上を選んでいる間は文字の大きさの行を隠す（spec-4b-3a 確定事項I5）。
-    if (annotate().getSelection().length > 1)
-      return false;
     if (!root.SigK.annotationPresets.isFontSize(size))
       return false;
+    if (annotate().getSelection().length > 1)
+      return root.SigK.annotateBulk.applyField('fontSize', size);
     const entry = annotate().selectedEntry();
-    if (entry !== null && entry.kind === 'text' && entry.fontSize !== size) {
-      const origin = geometry().frameOrigin(entry.rect, entry.rotation);
-      const box = root.SigK.annotateText.boxOf(entry.text, size);
-      updateSelected(entry, { fontSize: size, ...root.SigK.freeTextLayout.frameOf(origin, box, entry.rotation) }, 'fontSize');
-    }
+    const patch = root.SigK.freeTextStyle.patchFor('fontSize', size, entry);
+    if (patch !== null)
+      updateSelected(entry, patch, 'fontSize');
     annotate().rememberFontSize(size);
     root.SigK.annotationProps?.refresh();
     return true;

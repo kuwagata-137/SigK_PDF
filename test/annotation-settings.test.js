@@ -53,7 +53,7 @@ test('pickAnnotSettings は注釈のキーだけを検証して取り出し、�
     annotFills: { shape: '#FFD966' },
     annotStrokeNone: { shape: true },
     annotLineStyles: { shape: 'cloudy' },
-    annotFontSize: 13,
+    annotFontSize: 13.3,
     annotLineWidth: 17,
     annotShapeKind: 'arrow',
     annotOpacity: { shape: 0.35, note: 0.05, pen: 0.333 },
@@ -67,7 +67,7 @@ test('pickAnnotSettings は注釈のキーだけを検証して取り出し、�
   assert.deepEqual(picked.annotFills, { shape: '#ffd966' });
   assert.deepEqual(picked.annotStrokeNone, { shape: true });
   assert.deepEqual(picked.annotLineStyles, { shape: 'cloudy' });
-  assert.equal(picked.annotFontSize, 12, '候補に無い大きさは既定へ落ちる');
+  assert.equal(picked.annotFontSize, 12, '0.5 刻みでない大きさは既定へ落ちる');
   assert.equal(picked.annotLineWidth, 17);
   assert.equal(picked.annotShapeKind, 'arrow');
   assert.deepEqual(picked.annotOpacity, { text: 1, shape: 0.35, pen: 0.33, note: 1 }, '0.1 未満は既定、小数は 2 桁');

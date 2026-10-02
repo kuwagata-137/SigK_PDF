@@ -26,7 +26,7 @@ async function withShell(t) {
   return shell;
 }
 
-const ROWS = ['props-color-row', 'props-fill-row', 'props-style-row', 'props-width-row', 'props-size-row', 'props-opacity-row'];
+const ROWS = ['props-color-row', 'props-size-row', 'props-fill-row', 'props-style-row', 'props-width-row', 'props-opacity-row'];
 
 // 出ている行の名前（ROWS の順）。
 function shownRows(document) {
@@ -37,11 +37,11 @@ function shownStyles(document) {
   return [...document.querySelectorAll('#props-style button:not([hidden])')].map((button) => button.dataset.style);
 }
 
-test('行の並びは 種類 → 色 → 塗り → 線種 → 線の太さ・文字の大きさ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
+test('行の並びは 種類 → 色 → 文字の大きさ → 塗り → 線種 → 線の太さ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
   const shell = await withShell(t);
   const ids = [...shell.document.querySelectorAll('#props .props-body > .prop')].map((node) => node.id || 'kind');
-  // 回転の行は不透明度の下（spec-4b-2 確定事項25）
-  assert.deepEqual(ids, ['kind', 'props-color-row', 'props-fill-row', 'props-style-row', 'props-width-row', 'props-size-row',
+  // 回転の行は不透明度の下（spec-4b-2 確定事項25）。文字の大きさは色の直後（spec-4b-4a 確定事項G1。960×600 でも見えるように）
+  assert.deepEqual(ids, ['kind', 'props-color-row', 'props-size-row', 'props-fill-row', 'props-style-row', 'props-width-row',
     'props-opacity-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
 });
 

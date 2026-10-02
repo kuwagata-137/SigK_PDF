@@ -1,7 +1,8 @@
 (function (root) {
   'use strict';
 
-  // 右パネルの見た目の行（spec-4b-1b 確定事項1〜9、spec-4b-3a 確定事項I1。モック screenshots/phase4b-style*.png・phase4b-3-multi.png）。
+  // 右パネルの見た目の行（spec-4b-1b 確定事項1〜9、spec-4b-3a 確定事項I1、spec-4b-4a 確定事項G。モック screenshots/phase4b-style*.png・
+  // phase4b-3-multi.png・phase4b-4-props.png）。
   //
   // 色・塗り・線種・線の太さ・不透明度の行を、annotation-props.js が渡す対象（選んでいる書き込みか、次に付ける値）に合わせて
   // 出し入れする。色と塗りはチップ（色見本と ▼）で、押すとパレットの窓（color-popover.js）が開く。「塗り」は四角・丸だけ、
@@ -92,6 +93,8 @@
     renderStyleButtons(view?.lineStyle ?? null);
     renderRange(el.widthRow, el.widthRange, el.width, view?.lineWidth ?? null, (width) => width);
     renderRange(el.opacityRow, el.opacityRange, el.opacity, view?.opacity ?? null, (opacity) => Math.round(opacity * 100));
+    // テキストの行（文字の大きさ。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
+    root.SigK.annotationTextRows?.render(view?.fontSize ?? null);
     // 開いているパレットの行が消えたら閉じる。
     if (popover()?.isOpen() && popover().anchor()?.closest('.prop')?.hidden === true)
       popover().close();

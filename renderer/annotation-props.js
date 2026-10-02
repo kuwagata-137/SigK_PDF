@@ -8,8 +8,8 @@
   // あればその書き込み、無ければ「次に付ける書き込み」（持っている道具）の種類と値を見せる。色・塗り・線種・線の太さ・不透明度の
   // 行は annotation-style-rows.js、ノートの「本文」「作成者」の行は annotation-note-rows.js、四角・丸の「回転」の行は
   // annotation-angle-row.js（spec-4b-2）、ヒントの文言は annotation-hints.js が
-  // 持ち、ここは種類・ページ・対象の文字・ヒント・「削除」の出し入れを受け持つ。「文字の大きさ」の行は annotation-text-rows.js
-  // （spec-4b-4a で移した）、「削除」は annotate.remove へ流す。表示のみの書き込みは種類名に「（表示のみ）」を添え、見た目の行を出さない。
+  // 持ち、ここは種類・ページ・対象の文字・ヒント・「削除」の出し入れを受け持つ。「文字の大きさ」の行は annotation-text-rows.js で、
+  // 見た目の行と同じ形から annotation-style-rows.js が出し入れする（spec-4b-4a）。「削除」は annotate.remove へ流す。表示のみの書き込みは種類名に「（表示のみ）」を添え、見た目の行を出さない。
 
   // 「本文」の行に出す文字数の上限。
   const TEXT_PREVIEW = 200;
@@ -26,10 +26,6 @@
 
   function presets() {
     return root.SigK.annotationPresets;
-  }
-
-  function shapeStyle() {
-    return root.SigK.shapeStyle;
   }
 
   function noteRows() {
@@ -60,11 +56,6 @@
     node.textContent = value ?? '';
   }
 
-  // 「文字の大きさ」の行（annotation-text-rows.js）。テキストの道具を持っているか、テキストを選んでいるときだけ出す。
-  function setSizeRow(size) {
-    root.SigK.annotationTextRows?.render(size);
-  }
-
   function previewOf(text) {
     const flat = text.replace(/\s*\n\s*/g, ' ');
     return flat.length > TEXT_PREVIEW ? `${flat.slice(0, TEXT_PREVIEW)}…` : flat;
@@ -81,19 +72,11 @@
     const isText = entry.kind === 'text';
     const isNote = isNoteKind(entry.kind);
     el.kind.textContent = kindLabelOf(entry);
-    styleRows()?.render({
-      kind: entry.kind,
-      readonly: entry.readonly === true,
-      color: entry.color ?? null,
-      fill: shapeStyle().fillOf(entry),
-      lineStyle: shapeStyle().lineStyleOf(entry),
-      lineWidth: entry.lineWidth,
-      opacity: entry.opacity ?? 1,
-    });
+    // 見た目の行と文字の大きさの行（表示のみには出さない）。
+    styleRows()?.render(root.SigK.annotationStylePatch.targetOf(entry));
     noteRows()?.render({ text: isNote ? entry.text : null, author: isNote ? (entry.author ?? '') : null, editable: false });
     // 回転の行は四角・丸を選んでいるときだけ（spec-4b-2 確定事項25）。
     root.SigK.annotationAngleRow?.render(entry);
-    setSizeRow(isText ? entry.fontSize : null);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象の文字';
     setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
@@ -130,10 +113,10 @@
     el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に付ける）`;
     styleRows()?.render(tool === null ? null : {
       kind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(), opacity: annotate().getOpacity(kind),
+      fontSize: kind === 'text' ? annotate().getFontSize() : null,
     });
     noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
     root.SigK.annotationAngleRow?.render(null);
-    setSizeRow(tool === 'text' ? annotate().getFontSize() : null);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
     el.hint.textContent = hints().forTool(annotate().getTool(), kind, kind === null ? null : annotate().fillOf(kind));

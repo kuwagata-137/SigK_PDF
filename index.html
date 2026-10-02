@@ -569,13 +569,15 @@ body{
              色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
         <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
           <div class="chip-row"><button type="button" class="chip" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-color-name"></span></div></div>
+        <!-- 文字の大きさ（spec-4b-4a 確定事項G1・G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼）。中身は annotation-text-rows.js。 -->
+        <div class="prop" id="props-size-row" hidden><span class="k" id="props-size-label">文字の大きさ</span>
+          <div class="range size-field"><input type="number" class="props-field" id="props-size" min="8" max="200" step="0.5" aria-label="文字の大きさ（pt）"><select class="size-list props-field" id="props-size-list" aria-label="よく使う大きさ"></select><span class="unit">pt</span></div></div>
         <div class="prop" id="props-fill-row" hidden><span class="k">塗り</span>
           <div class="chip-row"><button type="button" class="chip" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-fill-name"></span></div></div>
         <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>
         <!-- .props-field の中のキーは欄のもの（viewer-controls.js が素通しする）。 -->
         <div class="prop" id="props-width-row" hidden><span class="k">線の太さ</span>
           <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
-        <div class="prop" id="props-size-row" hidden><span class="k">文字の大きさ</span><select class="props-select" id="props-size" aria-label="文字の大きさ"></select></div>
         <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span>
           <div class="range"><input type="range" class="props-field" id="props-opacity-range" min="10" max="100" step="1" aria-label="不透明度"><input type="number" class="props-field" id="props-opacity" min="10" max="100" step="1" aria-label="不透明度（%）"><span class="unit">%</span></div></div>
         <!-- 回転（spec-4b-2 確定事項25〜27。モック screenshots/phase4b-2-square.png）。四角・丸を選んでいるときだけ。中身は annotation-angle-row.js。 -->
@@ -844,6 +846,7 @@ body{
 <script src="renderer/annotate-text.js"></script>
 <script src="renderer/free-text-commit.js"></script>
 <script src="renderer/annotate-text-style.js"></script>
+<script src="renderer/free-text-style.js"></script>
 <script src="renderer/shape-draft.js"></script>
 <script src="renderer/annotate-shape.js"></script>
 <script src="renderer/annotate-opacity.js"></script>

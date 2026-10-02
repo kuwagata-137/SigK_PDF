@@ -356,17 +356,20 @@ test('annotFills・annotStrokeNone・annotLineStyles は図形の値を受け取
   assert.deepEqual(mergeUi(current, {}).annotStrokeNone, { shape: true });
 });
 
-// 文字の大きさ（spec-4-2 確定事項21・34）。プリセットに無い値は既定へ落ちる。
-test('annotFontSize はプリセットの大きさだけを受け取る', () => {
+// 文字の大きさ（spec-4-2 確定事項21・34、spec-4b-4a 確定事項A3）。8〜200 の 0.5 刻みでない値は既定へ落ちる。
+test('annotFontSize は 8〜200・0.5 刻みの大きさだけを受け取る', () => {
   assert.equal(DEFAULTS.annotFontSize, 12);
   assert.equal(mergeDefaults({}).annotFontSize, 12);
   assert.equal(mergeDefaults({ annotFontSize: 10.5 }).annotFontSize, 10.5);
-  assert.equal(mergeDefaults({ annotFontSize: 13 }).annotFontSize, 12);
+  assert.equal(mergeDefaults({ annotFontSize: 13 }).annotFontSize, 13);
+  assert.equal(mergeDefaults({ annotFontSize: 13.3 }).annotFontSize, 12);
+  assert.equal(mergeDefaults({ annotFontSize: 201 }).annotFontSize, 12);
   assert.equal(mergeDefaults({ annotFontSize: '14' }).annotFontSize, 12);
 
   const current = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotColors: DEFAULT_COLORS, annotFontSize: 14 };
   assert.equal(mergeUi(current, { annotFontSize: 24 }).annotFontSize, 24);
-  assert.equal(mergeUi(current, { annotFontSize: 25 }).annotFontSize, 14);
+  assert.equal(mergeUi(current, { annotFontSize: 144 }).annotFontSize, 144);
+  assert.equal(mergeUi(current, { annotFontSize: 25.2 }).annotFontSize, 14);
   assert.equal(mergeUi(current, {}).annotFontSize, 14);
   // 古い settings.json（annotFontSize が無い）から来た current でも落ちない。
   assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).annotFontSize, 12);

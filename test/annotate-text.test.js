@@ -284,14 +284,13 @@ test('選んだテキストを掴んで動かすと 1 世代で位置が変わ�
 test('文字の大きさは選んだ注釈を変え、次に置く大きさとして覚える', async (t) => {
   const shell = await withTextTool(t);
   const { SigK, document } = shell;
-  const select = document.getElementById('props-size');
+  const number = document.getElementById('props-size');
   assert.equal(document.getElementById('props-size-row').hidden, false);
-  assert.equal(select.value, '12');
-  assert.deepEqual([...select.options].map((o) => Number(o.value)), [...SigK.annotationPresets.FONT_SIZES]);
+  assert.equal(number.value, '12');
 
   const entry = placeAndCommit(shell);
-  select.value = '18';
-  select.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+  number.value = '18';
+  number.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
   const bigger = SigK.viewer.getAnnotations().added[0];
   assert.equal(bigger.fontSize, 18);
   assert.equal(bigger.rect[2], 100 + 5 * 18 + 4);
@@ -303,7 +302,7 @@ test('文字の大きさは選んだ注釈を変え、次に置く大きさと�
   const next = placeAndCommit(shell, { y: 400, text: 'x' });
   assert.equal(next.fontSize, 18);
   assert.equal(entry.id !== next.id, true);
-  assert.equal(SigK.annotate.setFontSize(13), false);
+  assert.equal(SigK.annotate.setFontSize(13.3), false);
 });
 
 test('覚えた文字の大きさは起動時に戻り、パレットでテキストの色を変えられる', async (t) => {
