@@ -37,6 +37,29 @@ function shownStyles(document) {
   return [...document.querySelectorAll('#props-style button:not([hidden])')].map((button) => button.dataset.style);
 }
 
+// 四角の道具で pt の 2 点を描いて選ぶ。
+function drawSquare(shell, from, to) {
+  const { SigK, document, window } = shell;
+  SigK.annotate.setTool('shape');
+  SigK.annotate.setShapeKind('square');
+  const viewport = SigK.viewer.getTextLayer(0).viewport;
+  const page = document.querySelector('.pdf-page[data-page="1"]');
+  const fire = (type, target, point) => {
+    const [x, y] = viewport.convertToViewportPoint(point[0], point[1]);
+    target.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+  };
+  fire('mousedown', page, from);
+  fire('mousemove', document.body, to);
+  fire('mouseup', page, to);
+  SigK.annotate.setTool(null);
+  return SigK.viewer.getAnnotations().added.at(-1);
+}
+
+// 描いた書き込みの値（描いた順）。
+function addedValues(SigK, field, fallback) {
+  return [...SigK.viewer.getAnnotations().added].map((entry) => entry[field] ?? fallback);
+}
+
 test('行の並びは 種類 → 色 → 文字の大きさ → 書式 → 塗り → 線種 → 枠線 → 線の太さ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
   const shell = await withShell(t);
   const ids = [...shell.document.querySelectorAll('#props .props-body > .prop')].map((node) => node.id || 'kind');
@@ -136,4 +159,62 @@ test('選んでいる線なしの四角は色のチップが「なし」にな�
   SigK.annotate.select('17R');
   assert.equal(document.getElementById('props-kind').textContent, '直線（表示のみ）');
   assert.deepEqual(shownRows(document), []);
+});
+
+// 数値欄に打ちかけのまま紙の上の別の書き込みを押すと、欄はフォーカスを保ったまま選び直される（annotate-grab.js の
+// begin が mousedown を preventDefault する）。そのあとの確定（Enter か欄の外）が別の書き込みに当たってはいけない。
+
+test('太さの数値欄に打ちかけのまま別の書き込みを選ぶと、欄はその書き込みの値に替わり、打ちかけの値は当たらない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  const first = drawSquare(shell, [100, 700], [200, 600]).id;
+  const second = drawSquare(shell, [300, 700], [400, 600]).id;
+  SigK.annotate.setLineWidth(6);
+  SigK.annotate.select(first);
+  const number = document.getElementById('props-width');
+  number.focus();
+  number.value = '20';
+  SigK.annotate.select(second);
+  assert.equal(number.value, '6', '選び直した書き込みの値に替わる');
+  number.dispatchEvent(new window.Event('change'));
+  assert.deepEqual(addedValues(SigK, 'lineWidth'), [2, 6]);
+  // 選び直した後に打った値は、その書き込みに当たる。
+  number.value = '24';
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.deepEqual(addedValues(SigK, 'lineWidth'), [2, 24]);
+});
+
+test('不透明度の数値欄に打ちかけのまま別の書き込みを選ぶと、欄はその書き込みの値に替わり、打ちかけの値は当たらない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  const first = drawSquare(shell, [100, 700], [200, 600]).id;
+  const second = drawSquare(shell, [300, 700], [400, 600]).id;
+  SigK.annotate.setOpacity(0.5);
+  SigK.annotate.select(first);
+  const number = document.getElementById('props-opacity');
+  number.focus();
+  number.value = '20';
+  SigK.annotate.select(second);
+  assert.equal(number.value, '50', '選び直した書き込みの値に替わる');
+  number.dispatchEvent(new window.Event('change'));
+  assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.5]);
+  number.value = '80';
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.8]);
+});
+
+test('太さの数値欄に打ちかけのまま太さの違う書き込みを足して選ぶと、欄は空で「–」になり、打ちかけの値はどちらにも当たらない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  const first = drawSquare(shell, [100, 700], [200, 600]).id;
+  const second = drawSquare(shell, [300, 700], [400, 600]).id;
+  SigK.annotate.setLineWidth(6);
+  SigK.annotate.select(first);
+  const number = document.getElementById('props-width');
+  number.focus();
+  number.value = '20';
+  SigK.annotate.toggleKey(second);
+  assert.deepEqual([number.value, number.placeholder], ['', '–']);
+  number.dispatchEvent(new window.Event('change'));
+  assert.deepEqual(addedValues(SigK, 'lineWidth'), [2, 6]);
 });

@@ -51,6 +51,11 @@
     return root.SigK.annotationChipRows;
   }
 
+  // 数値欄の値を当てる相手（選んでいる書き込みの鍵の並びと、持っている道具）。打ちかけの値は打ち始めたときの相手にだけ当てる。
+  function targetKey() {
+    return JSON.stringify([annotate().getSelection(), annotate().getTool()]);
+  }
+
   // 線種のボタン。そろっていなければ、どれも押していない形にする（spec-4b-3a 確定事項I1）。
   function renderStyleButtons(lineStyle) {
     const styles = lineStyle?.styles ?? [];
@@ -70,10 +75,9 @@
     row.hidden = value === null;
     if (value === null)
       return;
-    range().show(slider, number, shown(value.value));
+    const main = shown(value.value);
+    range().show(slider, number, main, value.mixed ? '' : String(main));
     number.placeholder = value.mixed ? '–' : '';
-    if (value.mixed && number.ownerDocument.activeElement !== number)
-      number.value = '';
   }
 
   // 行を対象に合わせる。next は 1 件の対象（選んでいる書き込みか次に付ける値。annotation-style-patch.js の targetOf の形）か、
@@ -151,11 +155,13 @@
       min: LINE_WIDTH_MIN, max: LINE_WIDTH_MAX,
       onPreview: (value) => preview().update('lineWidth', value),
       onCommit: (value) => preview().commit('lineWidth', value),
+      targetOf: targetKey,
     });
     range().bind(el.opacityRange, el.opacity, {
       min: Math.round(OPACITY_MIN * 100), max: 100,
       onPreview: (percent) => preview().update('opacity', percent / 100),
       onCommit: (percent) => preview().commit('opacity', percent / 100),
+      targetOf: targetKey,
     });
     // 別の欄の操作で下見を捨てる（確定事項8）。スライダー自身は除く。
     el.body.addEventListener('focusin', (event) => {
