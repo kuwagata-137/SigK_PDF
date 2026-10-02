@@ -110,7 +110,8 @@
     return true;
   }
 
-  // 塗り（四角・丸）。null は塗りなしで、線なしのときは選べない。塗りを外せば線なしの印も外す。
+  // 塗り（四角・丸とテキスト）。null は塗りなしで、四角・丸は線なしのときは選べない。塗りを外せば線なしの印も外す。テキストの塗りは
+  // annotate-text-style.js が当てる（spec-4b-4a 確定事項G4）。
   function setFill(color) {
     const value = color === null ? null : palette().normalizeHex(color);
     if ((color === null || value !== null) && isMany())
@@ -119,6 +120,8 @@
     if ((color !== null && value === null) || entry === null)
       return false;
     const kind = entry?.kind ?? toolKind();
+    if (kind === 'text')
+      return root.SigK.annotateTextStyle.setTextFill(value);
     const stroked = entry === undefined ? !next().strokeNoneOf(kind) : entry.color !== null;
     if (!style().isBoxedKind(kind) || (value === null && !stroked))
       return false;

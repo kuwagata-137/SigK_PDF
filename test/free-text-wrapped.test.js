@@ -86,3 +86,28 @@ test('wrappedAppearanceOf は回した表示でも cm で回し、中身の左�
   assert.match(appearance.content, /\n1 0 0 1 602 -112.61 Tm\n/);
   assert.equal(wrappedAppearanceOf(wrapped({ lines: ['x'] }), REGULAR), null);
 });
+
+// ---- 塗りと枠線と半透明（spec-4b-4a 確定事項I2・I3・I5） ----
+
+test('塗りと枠線は文字より先に描き、/DA の色は枠線の色、/C と /BS の値を返す', () => {
+  const appearance = wrappedAppearanceOf(wrapped({ fill: '#ffff00', borderColor: '#c00000', borderWidth: 2, inset: [7, 7], rect: [100, 664.5, 234, 720.5] }), REGULAR);
+  assert.match(appearance.content, /re W n\n1 1 0 rg\n100 664.5 134 56 re f\n0.753 0 0 RG\n2 w\n0 j\n101 665.5 132 54 re S\nBT\n/);
+  assert.equal(appearance.da, '/SigKJP 10 Tf 0.753 0 0 rg');
+  assert.deepEqual(appearance.fillRgb, [1, 1, 0]);
+  assert.equal(appearance.borderWidth, 2);
+  assert.equal(appearance.group, undefined);
+  assert.match(appearance.content, /^q\n\/GS gs\n/);
+});
+
+test('半透明なら /GS gs を外した中身を透明グループにし、外側の先頭に何も描かない文字の命令を置く', () => {
+  const appearance = wrappedAppearanceOf(wrapped({ opacity: 0.5, fill: '#ffff00', bold: true }), BOLD);
+  assert.equal(appearance.group, true);
+  assert.equal(appearance.prefix, 'BT /SigKJPB 10 Tf 0.11 0.141 0.188 rg ET');
+  assert.doesNotMatch(appearance.content, /\/GS gs/);
+  assert.equal(appearance.opacity, 0.5);
+});
+
+test('塗り・枠線の形が違えば断る', () => {
+  for (const broken of [{ fill: 'yellow' }, { borderColor: '#c00000' }, { borderWidth: 2 }, { borderColor: '#c00000', borderWidth: 0 }])
+    assert.equal(isWrappedEntry(wrapped(broken)), false, JSON.stringify(broken));
+});

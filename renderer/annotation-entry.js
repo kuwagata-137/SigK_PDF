@@ -25,9 +25,9 @@
   const ROTATIONS = Object.freeze([0, 90, 180, 270]);
 
   // updateAnnot で書き換えられる欄（spec-4b-1b 確定事項21 で塗りと線種を、spec-4b-2 確定事項4 で角度を、spec-4b-4a 確定事項A4 で
-  // テキストの幅・太字・斜体を足した。間隔と強さは右パネルから変えない）。
+  // テキストの幅・太字・斜体・枠線を足し、塗りをテキストにも許した。間隔と強さは右パネルから変えない）。
   const PATCH_FIELDS = Object.freeze(['color', 'fill', 'lineStyle', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity', 'angle',
-    'width', 'bold', 'italic']);
+    'width', 'bold', 'italic', 'borderColor', 'borderWidth']);
 
   function rules() {
     return root.SigK.annotationEntryRules;

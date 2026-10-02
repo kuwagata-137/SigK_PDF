@@ -578,8 +578,11 @@ body{
         <div class="prop" id="props-fill-row" hidden><span class="k">塗り</span>
           <div class="chip-row"><button type="button" class="chip" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-fill-name"></span></div></div>
         <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>
+        <!-- テキストの枠線（spec-4b-4a 確定事項G4）。色のチップと同じ作りで、パレットに［枠線なし］がある。太さは下の太さの行（枠線の太さ）。 -->
+        <div class="prop" id="props-border-row" hidden><span class="k" id="props-border-label">枠線</span>
+          <div class="chip-row"><button type="button" class="chip" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-border-name"></span></div></div>
         <!-- .props-field の中のキーは欄のもの（viewer-controls.js が素通しする）。 -->
-        <div class="prop" id="props-width-row" hidden><span class="k">線の太さ</span>
+        <div class="prop" id="props-width-row" hidden><span class="k" id="props-width-label">線の太さ</span>
           <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
         <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span>
           <div class="range"><input type="range" class="props-field" id="props-opacity-range" min="10" max="100" step="1" aria-label="不透明度"><input type="number" class="props-field" id="props-opacity" min="10" max="100" step="1" aria-label="不透明度（%）"><span class="unit">%</span></div></div>
@@ -767,6 +770,7 @@ body{
 <script src="renderer/markup-quads.js"></script>
 <script src="renderer/markup-selection.js"></script>
 <script src="renderer/free-text-shape.js"></script>
+<script src="renderer/free-text-decor-graphics.js"></script>
 <script src="renderer/free-text-wrap.js"></script>
 <script src="renderer/free-text-layout.js"></script>
 <script src="renderer/free-text-metrics.js"></script>
@@ -856,6 +860,7 @@ body{
 <script src="renderer/free-text-commit.js"></script>
 <script src="renderer/annotate-text-style.js"></script>
 <script src="renderer/free-text-style.js"></script>
+<script src="renderer/free-text-style-view.js"></script>
 <script src="renderer/shape-draft.js"></script>
 <script src="renderer/annotate-shape.js"></script>
 <script src="renderer/annotate-opacity.js"></script>

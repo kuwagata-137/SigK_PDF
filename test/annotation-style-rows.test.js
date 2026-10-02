@@ -26,7 +26,7 @@ async function withShell(t) {
   return shell;
 }
 
-const ROWS = ['props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-width-row', 'props-opacity-row'];
+const ROWS = ['props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row', 'props-opacity-row'];
 
 // 出ている行の名前（ROWS の順）。
 function shownRows(document) {
@@ -37,11 +37,11 @@ function shownStyles(document) {
   return [...document.querySelectorAll('#props-style button:not([hidden])')].map((button) => button.dataset.style);
 }
 
-test('行の並びは 種類 → 色 → 文字の大きさ → 書式 → 塗り → 線種 → 線の太さ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
+test('行の並びは 種類 → 色 → 文字の大きさ → 書式 → 塗り → 線種 → 枠線 → 線の太さ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
   const shell = await withShell(t);
   const ids = [...shell.document.querySelectorAll('#props .props-body > .prop')].map((node) => node.id || 'kind');
   // 回転の行は不透明度の下（spec-4b-2 確定事項25）。文字の大きさは色の直後（spec-4b-4a 確定事項G1。960×600 でも見えるように）
-  assert.deepEqual(ids, ['kind', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-width-row',
+  assert.deepEqual(ids, ['kind', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
     'props-opacity-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
 });
 
@@ -64,7 +64,8 @@ test('道具ごとに出す行と、色の行の見出しが替わる', async (t
   SigK.annotate.setTool('pen');
   assert.deepEqual(shownRows(document), ['color', 'width', 'opacity']);
   SigK.annotate.setTool('text');
-  assert.deepEqual(shownRows(document), ['color', 'size', 'format', 'opacity']);
+  // テキストは塗りと枠線の行も出し、太さの行は枠線があるときだけ（spec-4b-4a 確定事項G1）。
+  assert.deepEqual(shownRows(document), ['color', 'size', 'format', 'fill', 'border', 'opacity']);
   assert.equal(label(), '文字の色');
   SigK.annotate.setTool('note');
   assert.deepEqual(shownRows(document), ['color', 'opacity']);

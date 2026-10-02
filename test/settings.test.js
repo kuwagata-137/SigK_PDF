@@ -227,8 +227,8 @@ const DEFAULT_COLORS = { highlight: '#ffd966', underline: '#c00000', strikeout: 
 // 図形の塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。
 const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { shape: false }, annotLineStyles: { shape: 'solid' } };
 const DEFAULT_OPACITY = { text: 1, shape: 1, pen: 1, note: 1 };
-// テキストの太字・斜体の次に付ける値（spec-4b-4a 確定事項H）。
-const DEFAULT_TEXT_STYLE = { bold: false, italic: false };
+// テキストの太字・斜体・塗り・枠線の次に付ける値（spec-4b-4a 確定事項H）。
+const DEFAULT_TEXT_STYLE = { bold: false, italic: false, fill: null, border: null, borderWidth: 1 };
 
 test('pickUi はモードとサイドパネルと編集モードの左と注釈の色・塗り・線なし・線種・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));

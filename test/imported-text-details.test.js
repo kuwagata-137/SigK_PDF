@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
+require('../renderer/imported-values.js');
 require('../renderer/free-text-wrap.js');
 require('../renderer/free-text-layout.js');
 require('../renderer/imported-text-details.js');
@@ -79,4 +80,16 @@ test('幅の形は紙の長さで抑えた自動の幅で見分け、回した�
   const result = textDetails.withTextDetails(turned, { defaultStyle: STYLE }, { advanceOf, pageLengthOf: (src, rotation) => { lengths.push([src, rotation]); return 842; } });
   assert.equal(result.width, 'auto');
   assert.deepEqual(lengths, [[0, 90]]);
+});
+
+test('塗りは /C、枠線は /BS /W が正なら /DA の色と太さで読み、箱の余白に入れて幅を見分ける（確定事項J2）', () => {
+  // 塗りと枠線 1.5 の余白は max(2, 3)＋1.5＝4.5。12 字（120）の自動の箱は 120＋9＝129。
+  const detail = { defaultStyle: STYLE, stroke: [1, 1, 0], borderWidth: 1.5, daColor: '#c00000' };
+  const read = textDetails.withTextDetails(own(129), detail, { advanceOf });
+  assert.deepEqual([read.fill, read.borderColor, read.borderWidth, read.width], ['#ffff00', '#c00000', 1.5, 'auto']);
+  const gray = textDetails.withTextDetails(own(124), { defaultStyle: STYLE, stroke: [0.5], borderWidth: 0 }, { advanceOf });
+  assert.equal(gray.fill, '#808080');
+  assert.equal('borderColor' in gray, false);
+  // /DA の色が読めなければ文字の色を枠線の色にする。
+  assert.equal(textDetails.withTextDetails(own(129), { ...detail, daColor: null }, { advanceOf }).borderColor, '#d92c2c');
 });

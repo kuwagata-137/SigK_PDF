@@ -91,6 +91,14 @@
     if (!el.fillRow.hidden)
       chips().renderChip(el.fillChip, el.fillName, view.fill, '塗り');
     renderStyleButtons(view?.lineStyle ?? null);
+    // テキストの枠線（spec-4b-4a 確定事項G4）と、太さの行の名（線の太さ・枠線の太さ・線と枠線の太さ。確定事項G5）。
+    el.borderRow.hidden = (view?.border ?? null) === null;
+    if (!el.borderRow.hidden) {
+      el.borderLabel.textContent = view.border.label;
+      chips().renderChip(el.borderChip, el.borderName, view.border, view.border.label);
+    }
+    if (view?.lineWidth)
+      el.widthLabel.textContent = view.lineWidth.label;
     renderRange(el.widthRow, el.widthRange, el.width, view?.lineWidth ?? null, (width) => width);
     renderRange(el.opacityRow, el.opacityRange, el.opacity, view?.opacity ?? null, (opacity) => Math.round(opacity * 100));
     // テキストの行（文字の大きさ・書式。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
@@ -115,6 +123,8 @@
       colorRow: byId('props-color-row'), colorLabel: byId('props-color-label'), colorChip: byId('props-color'), colorName: byId('props-color-name'),
       fillRow: byId('props-fill-row'), fillChip: byId('props-fill'), fillName: byId('props-fill-name'),
       styleRow: byId('props-style-row'), style: byId('props-style'),
+      borderRow: byId('props-border-row'), borderLabel: byId('props-border-label'), borderChip: byId('props-border'), borderName: byId('props-border-name'),
+      widthLabel: byId('props-width-label'),
       widthRow: byId('props-width-row'), widthRange: byId('props-width-range'), width: byId('props-width'),
       opacityRow: byId('props-opacity-row'), opacityRange: byId('props-opacity-range'), opacity: byId('props-opacity'),
     };
@@ -135,6 +145,7 @@
     el.style.replaceChildren(...el.styleButtons);
     el.colorChip.addEventListener('click', () => chips().openColor(el.colorChip, el.colorLabel.textContent, view));
     el.fillChip.addEventListener('click', () => chips().openFill(el.fillChip, view));
+    el.borderChip.addEventListener('click', () => chips().openBorder(el.borderChip, view));
     const { LINE_WIDTH_MIN, LINE_WIDTH_MAX, OPACITY_MIN } = presets();
     range().bind(el.widthRange, el.width, {
       min: LINE_WIDTH_MIN, max: LINE_WIDTH_MAX,

@@ -88,7 +88,7 @@
   function validPatchValue(field, value, kind) {
     switch (field) {
       case 'color': return typeof value === 'string' || (value === null && style().isBoxedKind(kind));
-      case 'fill': return style().isBoxedKind(kind) && (value === null || style().isHexColor(value));
+      case 'fill': return kind === 'text' ? root.SigK.freeTextEntry.validPatchValue(field, value) : style().isBoxedKind(kind) && (value === null || style().isHexColor(value));
       case 'lineStyle': return style().lineStylesOf(kind).includes(value);
       case 'text': return entryModule().isNoteKind(kind) ? typeof value === 'string' : validText(value);
       case 'opacity': return validOpacity(value);
@@ -100,7 +100,9 @@
       case 'angle': return style().isBoxedKind(kind) && validAngle(value);
       case 'width':
       case 'bold':
-      case 'italic': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
+      case 'italic':
+      case 'borderColor':
+      case 'borderWidth': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
       default: return false;
     }
   }

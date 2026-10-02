@@ -31,7 +31,11 @@ test('validPatchValue は幅と、太字・斜体の true・false を受ける',
   assert.equal(fields.validPatchValue('bold', false), true);
   assert.equal(fields.validPatchValue('italic', true), true);
   assert.equal(fields.validPatchValue('bold', 'yes'), false);
-  assert.equal(fields.validPatchValue('fill', '#ffffff'), false);
+  assert.equal(fields.validPatchValue('fill', '#ffffff'), true);
+  assert.equal(fields.validPatchValue('fill', null), true);
+  assert.equal(fields.validPatchValue('borderColor', 'red'), false);
+  assert.equal(fields.validPatchValue('borderWidth', 0), false);
+  assert.equal(fields.validPatchValue('angle', 30), false);
 });
 
 test('tidy は false の太字・斜体を外す', () => {
@@ -56,4 +60,26 @@ test('saveFields は新しい形に幅・太字・斜体と、画面で決めた
     { width: 'auto', bold: true, lines: ['あいう', 'え'], inset: [2.8, 2] });
   // 行が無ければ添えない（ワーカーが断る）。
   assert.deepEqual(fields.saveFields({ width: 30, italic: true }, null), { width: 30, italic: true });
+});
+
+// ---- 塗りと枠線（spec-4b-4a 確定事項A1） ----
+
+test('validFields は新しい形の塗りと、色と太さをそろえた枠線だけを受ける', () => {
+  assert.equal(fields.validFields({ width: 'auto', fill: '#fff2cc' }), true);
+  assert.equal(fields.validFields({ width: 'auto', borderColor: '#c00000', borderWidth: 1.5 }), true);
+  for (const entry of [
+    { width: 'auto', fill: 'yellow' }, { width: 'auto', borderColor: '#c00000' }, { width: 'auto', borderWidth: 2 },
+    { width: 'auto', borderColor: '#c00000', borderWidth: 0 }, { fill: '#fff2cc' }, { borderColor: '#c00000', borderWidth: 1 },
+  ])
+    assert.equal(fields.validFields(entry), false, JSON.stringify(entry));
+});
+
+test('tidy は null の塗りと、枠線の無いときの太さを外し、copy・same・save は塗りと枠線を扱う', () => {
+  assert.deepEqual(fields.tidy({ width: 'auto', fill: null, borderColor: null, borderWidth: 2 }), { width: 'auto' });
+  const styled = { width: 40, fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2 };
+  assert.deepEqual(fields.copyFields(styled, {}), styled);
+  assert.equal(fields.sameFields(styled, { ...styled }), true);
+  assert.equal(fields.sameFields(styled, { ...styled, borderWidth: 3 }), false);
+  assert.equal(fields.sameFields({ width: 40 }, { width: 40, fill: null }), true);
+  assert.deepEqual(fields.saveFields(styled, { lines: ['x'], inset: { left: 6, top: 6 } }), { ...styled, lines: ['x'], inset: [6, 6] });
 });

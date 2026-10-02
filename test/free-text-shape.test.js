@@ -199,3 +199,26 @@ test('paint は太字・斜体を font に入れ、詰めと合字を切って�
   shape.paint(ctx, { ...ENTRY, bold: true, italic: true, width: 'auto' }, viewport({ scale: 2 }));
   assert.deepEqual(state, { font: 'italic 700 24px "SigK Noto Sans JP"', fontKerning: 'none', textRendering: 'optimizeSpeed' });
 });
+
+// ---- 塗りと枠線（spec-4b-4a 確定事項D1〜D3） ----
+
+test('svgOf は塗りと枠線を文字より先に置き、paint は半透明で飾りがあれば別の canvas に描いてから重ねる', () => {
+  require('../renderer/shape-print-layer.js');
+  require('../renderer/free-text-decor-graphics.js');
+  const doc = makeDoc();
+  const decorated = { ...ENTRY, width: 'auto', fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2 };
+  const g = shape.svgOf(doc, decorated, viewport());
+  assert.deepEqual([...g.children].map((node) => node.getAttribute('class') ?? node.tagName.toLowerCase()), ['free-text-fill', 'free-text-border', 'text', 'text']);
+
+  const drawn = [];
+  const layerCtx = { save() {}, restore() {}, translate() {}, rotate() {}, fillText: (text) => drawn.push(['layer', text]), fillRect() {}, strokeRect() {} };
+  const page = { width: 1000, height: 1000, ownerDocument: { createElement: () => ({ width: 0, height: 0, getContext: () => layerCtx }) } };
+  const ctx = {
+    canvas: page, save() {}, restore() {}, translate() {}, rotate() {}, fillText: (text) => drawn.push(['page', text]), fillRect() {}, strokeRect() {},
+    drawImage: (canvas, x, y) => drawn.push(['image', x, y]),
+    set globalAlpha(value) { drawn.push(['alpha', value]); },
+  };
+  shape.paint(ctx, { ...decorated, opacity: 0.5 }, viewport());
+  assert.deepEqual(drawn.filter(([kind]) => kind !== 'alpha').map(([kind]) => kind), ['layer', 'layer', 'image']);
+  assert.ok(drawn.some(([kind, value]) => kind === 'alpha' && value === 0.5));
+});

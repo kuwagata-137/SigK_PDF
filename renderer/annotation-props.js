@@ -91,6 +91,12 @@
       el.remove.setAttribute('aria-disabled', 'true');
   }
 
+  // テキストの道具の次に付ける書式（右パネルの形。太さの行は枠線があるときだけ。spec-4b-4a 確定事項G1・H）。
+  function textToolTarget() {
+    const { bold, italic, fill, border, borderWidth } = annotate().getTextStyle();
+    return { fontSize: annotate().getFontSize(), bold, italic, fill, border, lineWidth: border === null ? null : borderWidth };
+  }
+
   // 道具が描く種類（図形は道具の段で選んだ種類、ペンは ink、ほかは道具の名前）。
   function kindOfTool(tool) {
     return root.SigK.annotateShape?.kindOfTool(tool) ?? tool;
@@ -113,7 +119,7 @@
     el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に付ける）`;
     styleRows()?.render(tool === null ? null : {
       kind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(), opacity: annotate().getOpacity(kind),
-      ...(kind === 'text' ? { fontSize: annotate().getFontSize(), ...annotate().getTextStyle() } : { fontSize: null, bold: null, italic: null }),
+      ...(kind === 'text' ? textToolTarget() : { fontSize: null, bold: null, italic: null, border: null }),
     });
     noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
     root.SigK.annotationAngleRow?.render(null);

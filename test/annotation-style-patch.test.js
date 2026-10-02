@@ -62,15 +62,16 @@ test('viewOf は 1 件ならそのまま、複数ならそろっていない欄�
   assert.deepEqual(plain(many.color), { value: '#0000ff', mixed: true });
   assert.deepEqual(plain(many.fill), { value: '#ffff00', mixed: false }, '塗りは四角・丸だけで見る');
   assert.deepEqual(plain(many.lineStyle), { value: 'dashed', mixed: true, styles: ['solid', 'dashed', 'cloudy'] }, 'ペンは線種に数えない');
-  assert.deepEqual(plain(many.lineWidth), { value: 2, mixed: true });
+  assert.deepEqual(plain(many.lineWidth), { value: 2, mixed: true, label: '線の太さ' });
   assert.deepEqual(plain(many.opacity), { value: 1, mixed: true });
 });
 
 test('viewOf は持てる書き込みが無い欄を null にし、見出しが分かれたら「色」にする', async (t) => {
   const patch = await withPatch(t);
-  const view = patch.viewOf([HIGHLIGHT, TEXT]);
+  const view = patch.viewOf([HIGHLIGHT, TEXT].map(patch.targetOf));
   assert.equal(view.colorLabel, '色');
-  assert.equal(view.fill, null);
+  assert.deepEqual(plain(view.fill), { value: null, mixed: false }, '塗りはテキストにも出る（spec-4b-4a 確定事項G4）');
+  assert.equal(patch.viewOf([HIGHLIGHT]).fill, null);
   assert.equal(view.lineStyle, null);
   assert.equal(view.lineWidth, null);
   assert.deepEqual(plain(view.opacity), { value: 1, mixed: false }, 'テキストだけで見る');
@@ -90,7 +91,7 @@ test('viewOf のパレットの［なし］は、線なしは塗りのある四�
 test('targetOf は書き込みを右パネルに渡す形にする', async (t) => {
   const patch = await withPatch(t);
   assert.deepEqual(plain(patch.targetOf({ kind: 'circle', color: '#000000', lineWidth: 2, readonly: true })), {
-    kind: 'circle', readonly: true, color: '#000000', fill: null, lineStyle: 'solid', lineWidth: 2, opacity: 1, fontSize: null, bold: null, italic: null,
+    kind: 'circle', readonly: true, color: '#000000', fill: null, lineStyle: 'solid', lineWidth: 2, opacity: 1, fontSize: null, bold: null, italic: null, border: null,
   });
   // テキストは文字の大きさも渡す（spec-4b-4a 確定事項G5）。
   assert.equal(patch.targetOf({ kind: 'text', color: '#222a35', fontSize: 18 }).fontSize, 18);

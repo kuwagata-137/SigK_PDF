@@ -135,6 +135,8 @@
       group.setAttribute('font-weight', '700');
     if (entry.italic === true)
       group.setAttribute('font-style', 'italic');
+    // 塗りと枠線は文字より先（spec-4b-4a 確定事項D1。free-text-decor-graphics.js）。
+    group.append(...(root.SigK.freeTextDecorGraphics?.svgParts(doc, entry, scale) ?? []));
     for (const { line, x, y } of linePositions(lines, entry.fontSize, scale, inset)) {
       const text = doc.createElementNS(SVG_NS, 'text');
       text.setAttribute('x', fmt(x));
@@ -147,13 +149,13 @@
     return group;
   }
 
-  // 同じ絵を canvas 2D に描く（印刷。確定事項29）。戻り値は描いた行数。
-  function paint(ctx, entry, viewport) {
-    const { origin, angle, scale, lines, inset } = layoutOf(entry, viewport);
+  // 箱の左上へ移して回し、塗りと枠線、文字の順に描く。alpha は重ねる不透明度。
+  function drawOn(ctx, entry, { origin, angle, scale, lines, inset }, alpha) {
     ctx.save();
-    ctx.globalAlpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
+    ctx.globalAlpha = alpha;
     ctx.translate(origin[0], origin[1]);
     ctx.rotate((angle * Math.PI) / 180);
+    root.SigK.freeTextDecorGraphics?.paint(ctx, entry, scale);
     ctx.font = fontOf(entry.fontSize * scale, entry.bold === true, entry.italic === true);
     // 詰めと合字を切る（spec-4b-4a 確定事項D3。optimizeSpeed は合字を作らない）。
     ctx.fontKerning = 'none';
@@ -163,7 +165,25 @@
     for (const { line, x, y } of linePositions(lines, entry.fontSize, scale, inset))
       ctx.fillText(line, x, y);
     ctx.restore();
-    return lines.length;
+  }
+
+  // 同じ絵を canvas 2D に描く（印刷。確定事項29）。戻り値は描いた行数。不透明度 1 未満で塗りか枠線があれば、別の canvas に
+  // 不透明で描いてから重ねる（spec-4b-4a 確定事項D3）。
+  function paint(ctx, entry, viewport) {
+    const layout = layoutOf(entry, viewport);
+    const alpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
+    const decor = root.SigK.freeTextDecorGraphics;
+    const layer = alpha < 1 && decor?.hasDecor(entry) ? decor.layerFor(ctx, entry, layout.origin, layout.angle, layout.scale) : null;
+    if (layer === null) {
+      drawOn(ctx, entry, layout, alpha);
+      return layout.lines.length;
+    }
+    drawOn(layer.ctx, entry, layout, 1);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(layer.canvas, layer.x, layer.y);
+    ctx.restore();
+    return layout.lines.length;
   }
 
   const SigK = (root.SigK = root.SigK || {});

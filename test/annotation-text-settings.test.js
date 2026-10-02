@@ -33,14 +33,20 @@ test('annotation-settings.js は同じ一覧と既定を使う', () => {
   assert.equal(settings.ANNOT_DEFAULTS.annotFontSize, DEFAULT_ANNOT_FONT_SIZE);
 });
 
-// 次に置くテキストの太字・斜体（spec-4b-4a 確定事項H）。
-test('pickAnnotTextStyle は真偽値の太字・斜体だけを受け、無ければ fallback、それも無ければ既定（どちらも無し）', () => {
+// 次に置くテキストの書式（spec-4b-4a 確定事項H）。
+const STYLE_DEFAULT = { bold: false, italic: false, fill: null, border: null, borderWidth: 1 };
+
+test('pickAnnotTextStyle は太字・斜体の真偽値、塗り・枠線の #rrggbb か null、枠線の太さ 1〜40 の整数だけを受ける', () => {
   const { DEFAULT_ANNOT_TEXT_STYLE, pickAnnotTextStyle } = text;
-  assert.deepEqual(DEFAULT_ANNOT_TEXT_STYLE, { bold: false, italic: false });
-  assert.deepEqual(pickAnnotTextStyle({ bold: true, italic: false, fill: '#ff0000' }), { bold: true, italic: false });
-  assert.deepEqual(pickAnnotTextStyle({ bold: 'yes' }, { bold: true, italic: true }), { bold: true, italic: true });
-  assert.deepEqual(pickAnnotTextStyle(null, null), { bold: false, italic: false });
-  assert.deepEqual(pickAnnotTextStyle([], { bold: 1 }), { bold: false, italic: false });
-  assert.deepEqual(settings.ANNOT_DEFAULTS.annotTextStyle, { bold: false, italic: false });
-  assert.deepEqual(settings.mergeAnnotUi({ annotTextStyle: { bold: true, italic: false } }, { annotTextStyle: { italic: true } }).annotTextStyle, { bold: true, italic: true });
+  assert.deepEqual(DEFAULT_ANNOT_TEXT_STYLE, STYLE_DEFAULT);
+  assert.deepEqual(pickAnnotTextStyle({ bold: true, italic: false, fill: '#FFF2CC', border: '#c00000', borderWidth: 3, size: 9 }),
+    { bold: true, italic: false, fill: '#fff2cc', border: '#c00000', borderWidth: 3 });
+  assert.deepEqual(pickAnnotTextStyle({ bold: 'yes', fill: 'red', borderWidth: 41 }, { ...STYLE_DEFAULT, bold: true, fill: '#ffff00', borderWidth: 2 }),
+    { ...STYLE_DEFAULT, bold: true, fill: '#ffff00', borderWidth: 2 });
+  assert.deepEqual(pickAnnotTextStyle({ border: null, borderWidth: 2.5 }, { ...STYLE_DEFAULT, border: '#000000' }), { ...STYLE_DEFAULT, border: null });
+  assert.deepEqual(pickAnnotTextStyle(null, null), STYLE_DEFAULT);
+  assert.deepEqual(pickAnnotTextStyle([], { bold: 1 }), STYLE_DEFAULT);
+  assert.deepEqual(settings.ANNOT_DEFAULTS.annotTextStyle, STYLE_DEFAULT);
+  assert.deepEqual(settings.mergeAnnotUi({ annotTextStyle: { ...STYLE_DEFAULT, bold: true } }, { annotTextStyle: { italic: true, border: '#4472c4' } }).annotTextStyle,
+    { ...STYLE_DEFAULT, bold: true, italic: true, border: '#4472c4' });
 });

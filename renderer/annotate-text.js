@@ -57,10 +57,10 @@
 
   // ---- 置く（確定事項3） ----
 
-  // 次に置くテキストの太字・斜体（true のときだけ持つ）。
+  // 次に置くテキストの太字・斜体・塗り・枠線（持つものだけ。spec-4b-4a 確定事項H）。
   function nextFlags() {
-    const style = annotate().getTextStyle();
-    return root.SigK.freeTextEntry.copyFields({ width: 'auto', ...style }, {});
+    const { bold, italic, fill, border, borderWidth } = annotate().getTextStyle();
+    return root.SigK.freeTextEntry.copyFields({ width: 'auto', bold, italic, fill, borderColor: border, borderWidth }, {});
   }
 
   // テキストの道具で紙を押して離した点（.pdf-page 基準の CSS px）に入力欄を出す。

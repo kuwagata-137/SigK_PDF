@@ -25,3 +25,9 @@ test('新しい形は /DS も書き、回した表示で置いたものは /Rota
   assert.equal(fields.Rotate, 270);
   assert.equal('C' in fields || 'RC' in fields || 'IC' in fields, false);
 });
+
+test('塗りがあれば /C に、枠線の太さは /BS /W に書く', () => {
+  const fields = freeTextFields({ text: 'あ', rotation: 0 }, { da: '/SigKJP 12 Tf 1 0 0 rg', ds: 'x', fillRgb: [1, 1, 0], borderWidth: 2 }, TOOLS);
+  assert.deepEqual(fields.C, [1, 1, 0]);
+  assert.deepEqual(fields.BS, { W: 2, S: 'S' });
+});

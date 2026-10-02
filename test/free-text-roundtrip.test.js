@@ -18,6 +18,7 @@ const { detailsOf } = require('../worker/annotation-dict-reader.js');
 const { pick } = require('../worker/pdf-tree-reader.js');
 
 require('../renderer/free-text-geometry.js');
+require('../renderer/imported-values.js');
 require('../renderer/free-text-wrap.js');
 require('../renderer/free-text-layout.js');
 require('../renderer/free-text-entry.js');
@@ -80,7 +81,7 @@ async function roundTrips(entry, origin) {
     const { imported, detail } = await saveAndRead(saveEntryOf(current, result));
     const read = importedTextDetails.withTextDetails(imported, detail, { advanceOf, pageLengthOf });
     assert.ok(read !== null, `${round} 回目に表示のみになった`);
-    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'text'])
+    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'text', 'fill', 'borderColor', 'borderWidth'])
       assert.deepEqual(read[key], first.entry[key], `${round} 回目の ${key}`);
     assert.deepEqual(read.rect, first.entry.rect, `${round} 回目の箱`);
     const again = placed(read, geometry.frameOrigin(read.rect, read.rotation));
@@ -113,4 +114,10 @@ test('回した表示で置いたテキストと、紙の幅で抑えた大き�
   await roundTrips(text({ rotation: 90 }), [100, 100]);
   const big = await roundTrips(text({ fontSize: 200, text: 'あいうえおかきくけこ' }), [0, 800]);
   assert.equal(big.layout.lines[0], 'あい', '紙の幅 595pt に 200pt の全角は 2 字');
+});
+
+test('塗り・枠線・半透明のテキストも 3 回往復して同じに戻る（spec-4b-4a 確定事項I・J2）', async () => {
+  await roundTrips(text({ fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2 }), [72, 760]);
+  await roundTrips(text({ width: 90.5, fill: '#ffff00', opacity: 0.6, italic: true }), [72, 600]);
+  await roundTrips(text({ borderColor: '#4472c4', borderWidth: 1, bold: true, fontSize: 10.5, rotation: 270 }), [500, 700]);
 });

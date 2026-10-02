@@ -4,10 +4,11 @@
 //
 // STYLE_STEPS は smoke-annotate-steps.js の分岐の続き（else if の並び）として annotateScript のループに埋める文で、
 // 埋め込む先のスクリプトにある SigK・name・arg・wait を使う。操作は次のもの。
-//   fill:#rrggbb|none          塗り（四角・丸。選んでいればその書き込み、無ければ次に付ける値）
+//   fill:#rrggbb|none          塗り（四角・丸・テキスト。選んでいればその書き込み、無ければ次に付ける値）
+//   border:#rrggbb|none        テキストの枠線の色か枠線なし（spec-4b-4a。太さは width: か slide:width:）
 //   stroke:#rrggbb|none        線の色か線なし
 //   style:solid|dashed|cloudy  右パネルの線種のボタンを押す
-//   chip:color|fill            色か塗りのチップを押してパレットの窓を開いたままにする（画面写真用）
+//   chip:color|fill|border     色・塗り・枠線のチップを押してパレットの窓を開いたままにする（画面写真用）
 //   palette:3x5                パレットを開いて行 x 列（1 起点。1 行目がテーマの色、2〜6 行目が濃淡、7 行目が標準の色）を押す
 //                              （塗りは palette:fill:3x5）
 //   other:#123456              「その他の色…」で色を選んだことにする（OS の色の選択は窓を出さない確かめでは開けないので、
@@ -22,6 +23,8 @@ const path = require('node:path');
 const STYLE_STEPS = `
     else if (name === 'fill') {
       SigK.annotate.setFill(arg === 'none' ? null : arg);
+    } else if (name === 'border') {
+      SigK.annotate.setBorder(arg === 'none' ? null : arg);
     } else if (name === 'stroke') {
       if (arg === 'none')
         SigK.annotate.setStrokeNone();
@@ -30,11 +33,11 @@ const STYLE_STEPS = `
     } else if (name === 'style') {
       document.querySelector('#props-style button[data-style="' + arg + '"]')?.click();
     } else if (name === 'chip') {
-      document.getElementById(arg === 'fill' ? 'props-fill' : 'props-color')?.click();
+      document.getElementById({ fill: 'props-fill', border: 'props-border' }[arg] ?? 'props-color')?.click();
       await wait(150);
     } else if (name === 'palette' || name === 'other') {
       const parts = arg.split(':');
-      const chip = document.getElementById(parts.length > 1 && parts[0] === 'fill' ? 'props-fill' : 'props-color');
+      const chip = document.getElementById(parts.length > 1 ? ({ fill: 'props-fill', border: 'props-border' }[parts[0]] ?? 'props-color') : 'props-color');
       const value = parts.at(-1);
       // chip: で開いたままなら押し直さない（押すと閉じる）。
       if (!(SigK.colorPopover.isOpen() && SigK.colorPopover.anchor() === chip))

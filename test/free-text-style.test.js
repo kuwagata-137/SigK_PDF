@@ -11,7 +11,11 @@ test('appliesTo はテキストの欄を、表示のみでないテキストに�
   const { SigK } = await withTextShell(t);
   const style = SigK.freeTextStyle;
   const text = { kind: 'text', fontSize: 12, text: 'あ', rect: [100, 681, 116, 700], rotation: 0 };
-  assert.deepEqual([...style.FIELDS], ['fontSize', 'bold', 'italic']);
+  assert.deepEqual([...style.FIELDS], ['fontSize', 'bold', 'italic', 'fill', 'border', 'lineWidth']);
+  assert.equal(style.appliesTo('fill', text, '#ffff00'), true);
+  assert.equal(style.appliesTo('border', text, null), true);
+  assert.equal(style.appliesTo('lineWidth', text, 2), false, '枠線が無ければ太さは当てない');
+  assert.equal(style.appliesTo('lineWidth', { ...text, borderColor: '#c00000', borderWidth: 1 }, 2), true);
   assert.equal(style.appliesTo('bold', text, true), true);
   assert.equal(style.appliesTo('italic', text, false), true);
   assert.equal(style.appliesTo('bold', text, 'yes'), false);
@@ -108,4 +112,42 @@ test('今までの形に太字を付けると、太字で測った最長の段�
   assert.deepEqual(plain(shell.SigK.freeTextMetrics.layoutOfEntry({ ...old, ...patch }).lines), ['abc', 'あいうえおかきくけこさしすせそ']);
   // 幅は 1 字を下回らない。
   assert.equal(style.fixedWidthOf({ ...old, text: 'a', bold: true }), 10);
+});
+
+// ---- 塗りと枠線（spec-4b-4a 確定事項A2・B2・B5・G4） ----
+
+test('patchFor の塗りは余白を大きさの 0.3 に広げ、中身の左上は動かさない。外すと元に戻る', async (t) => {
+  const shell = await withTextShell(t);
+  const style = shell.SigK.freeTextStyle;
+  const entry = placeText(shell, 100, 700, 'あいう');
+  const filled = style.patchFor('fill', '#fff2cc', entry);
+  // 12pt の余白は max(2, 4)＝4。左上は 2pt 外へ出る。
+  assert.equal(filled.fill, '#fff2cc');
+  assert.deepEqual(plain(filled.rect), [98, entry.rect[1] - 2, entry.rect[2] + 2, 702]);
+  const back = style.patchFor('fill', null, { ...entry, ...filled });
+  assert.deepEqual(plain(back.rect), plain(entry.rect));
+  assert.equal(style.patchFor('fill', null, entry), null);
+});
+
+test('patchFor の枠線は今の太さか次に付ける太さで付け、太さを変えると余白も変わる', async (t) => {
+  const shell = await withTextShell(t);
+  const style = shell.SigK.freeTextStyle;
+  const entry = placeText(shell, 100, 700, 'あいう');
+  const bordered = style.patchFor('border', '#c00000', entry);
+  assert.deepEqual([bordered.borderColor, bordered.borderWidth], ['#c00000', 1]);
+  // 余白は 4＋枠線 1＝5。
+  assert.equal(bordered.rect[0], 97);
+  const widened = style.patchFor('lineWidth', 3, { ...entry, ...bordered });
+  assert.equal(widened.borderWidth, 3);
+  assert.equal(widened.rect[0], 95);
+  assert.deepEqual(plain(style.patchFor('border', null, { ...entry, ...bordered })), { borderColor: null, ...plain(shell.SigK.freeTextLayout.frameOf([100, 700], shell.SigK.freeTextMetrics.sizeOf(entry), 0)) });
+});
+
+test('今までの形に塗りを付けると、固定の幅の新しい形へ移る', async (t) => {
+  const shell = await withTextShell(t);
+  const style = shell.SigK.freeTextStyle;
+  const old = { src: 0, kind: 'text', color: '#222a35', opacity: 1, text: 'あいうえおかきくけこさしすせそ', fontSize: 10, rotation: 0, rect: [100, 683.5, 255, 700], quads: [[100, 700, 255, 700, 100, 683.5, 255, 683.5]] };
+  const patch = style.patchFor('fill', '#ffff00', old);
+  assert.equal(patch.width, 150);
+  assert.equal(patch.fill, '#ffff00');
 });

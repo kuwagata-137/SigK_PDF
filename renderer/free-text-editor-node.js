@@ -60,6 +60,8 @@
     node.style.padding = paddingOf(layout().insetOf(draft), scale);
     node.style.borderWidth = `${BORDER}px`;
     node.style.color = draft.color;
+    // 塗りは入力欄の地に出す。枠線は描かず、破線の枠のまま（spec-4b-4a 確定事項E2）。
+    node.style.background = draft.fill ?? '';
     node.style.transformOrigin = `${BORDER}px ${BORDER}px`;
     node.style.transform = angle === 0 ? '' : `rotate(${angle}deg)`;
   }

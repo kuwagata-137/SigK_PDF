@@ -724,3 +724,32 @@ test('保存した新しい形の text は、口が /DS の太字・斜体・色
   assert.equal(read.borderWidth, 0);
   assert.equal(detailsOf(old.dict, saved.context).defaultStyle, null, '今までの形は /DS を持たない');
 });
+
+test('塗りと枠線のある text は /C・/BS /W・枠線の色の /DA で書かれ、口が塗りと枠線を読み戻す', async () => {
+  const doc = await makeDoc(1);
+  const entry = wrappedText({ fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2, inset: [6, 6], rect: [100, 662.5, 232, 700] });
+  await applyAnnotations(doc, { add: [entry] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  const [{ dict }] = annotsOf(saved, 0);
+  assert.deepEqual(numbersOf(saved, pick(dict, '/C')), [1, 242 / 255, 0.8]);
+  assert.equal(pick(saved.context.lookup(pick(dict, '/BS')), '/W').asNumber(), 2);
+  assert.equal(pick(dict, '/DA').decodeText(), '/SigKJP 10 Tf 0.753 0 0 rg');
+  const read = detailsOf(dict, saved.context);
+  assert.deepEqual([read.stroke, read.borderWidth, read.daColor], [[1, 242 / 255, 0.8], 2, '#c00000']);
+  assert.match(contentOf(saved, normalOf(saved, dict)), /\n1 0.949 0.8 rg\n100 662.5 132 37.5 re f\n/);
+});
+
+test('半透明の text は透明グループの中にも書体を付け、外側の先頭に pdf.js が読む文字の命令を置く', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [wrappedText({ opacity: 0.5, fill: '#ffff00' })] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  const [{ dict }] = annotsOf(saved, 0);
+  const normal = normalOf(saved, dict);
+  assert.equal(contentOf(saved, normal), 'BT /SigKJP 10 Tf 0.11 0.141 0.188 rg ET\nq /GS gs /G0 Do Q');
+  const resources = saved.context.lookup(pick(normal.dict, '/Resources'));
+  const inner = saved.context.lookup(pick(saved.context.lookup(pick(resources, '/XObject')), '/G0'));
+  const innerFonts = saved.context.lookup(pick(saved.context.lookup(pick(inner.dict, '/Resources')), '/Font'));
+  assert.deepEqual([...innerFonts.entries()].map(([key]) => key.asString()), ['/SigKJP']);
+  assert.doesNotMatch(contentOf(saved, inner), /\/GS gs/);
+  assert.equal(pick(dict, '/CA').asNumber(), 0.5);
+});

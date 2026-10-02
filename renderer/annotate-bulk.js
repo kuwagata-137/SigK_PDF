@@ -61,30 +61,29 @@
   }
 
   // 当てた欄の値を、当てた書き込みの種類ごとに「次に付ける値」としても覚える（確定事項I4。1 件のときと同じ決まり）。
+  // テキストの書式（文字の大きさ・太字・斜体・塗り・枠線・枠線の太さ）は annotate-text-style.js が覚える（spec-4b-4a 確定事項H）。
   function rememberNext(field, value, kinds) {
     const next = root.SigK.annotateNextStyle;
     const style = root.SigK.shapeStyle;
     const boxed = kinds.some((kind) => style.isBoxedKind(kind));
+    if (kinds.includes('text') && field !== 'color' && field !== 'opacity')
+      root.SigK.annotateTextStyle.rememberFor(field, value);
     if (field === 'color') {
       kinds.forEach((kind) => next.rememberColor(kind, value));
       if (boxed)
         next.rememberShape('strokeNone', false);
     } else if (field === 'strokeNone') {
       next.rememberShape('strokeNone', true);
-    } else if (field === 'fill') {
+    } else if (field === 'fill' && boxed) {
       next.rememberShape('fills', value);
       if (value === null)
         next.rememberShape('strokeNone', false);
     } else if (field === 'lineStyle' && kinds.some((kind) => style.lineStylesOf(kind).length > 1)) {
       next.rememberShape('lineStyles', value);
-    } else if (field === 'lineWidth') {
+    } else if (field === 'lineWidth' && kinds.some((kind) => root.SigK.annotationEntry.isDrawnKind(kind))) {
       root.SigK.annotateShape.rememberLineWidth(value);
     } else if (field === 'opacity') {
       kinds.forEach((kind) => root.SigK.annotateOpacity.rememberOpacity(kind, value));
-    } else if (field === 'fontSize') {
-      annotate().rememberFontSize(value);
-    } else if (field === 'bold' || field === 'italic') {
-      root.SigK.annotateTextStyle.rememberTextStyle(field, value);
     }
   }
 

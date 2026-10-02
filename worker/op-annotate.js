@@ -43,8 +43,11 @@ function appearanceStream(context, appearance, font) {
     resources.Font = { [font.measure.name]: font.font.ref };
   const outer = appearance.matrix === undefined ? { Resources: resources } : { Resources: resources, Matrix: appearance.matrix };
   if (appearance.group === true) {
-    resources.XObject = { G0: formStream(context, appearance.content, appearance.bbox, { Group: { S: 'Transparency' }, Resources: {} }) };
-    return formStream(context, 'q /GS gs /G0 Do Q', appearance.bbox, outer);
+    // 半透明のテキストは、グループの中にも書体を付け、外側の先頭に pdf.js が読む文字の命令（prefix）を置く（spec-4b-4a 確定事項I3）。
+    const inner = resources.Font === undefined ? {} : { Font: resources.Font };
+    resources.XObject = { G0: formStream(context, appearance.content, appearance.bbox, { Group: { S: 'Transparency' }, Resources: inner }) };
+    const outerContent = appearance.prefix === undefined ? 'q /GS gs /G0 Do Q' : `${appearance.prefix}\nq /GS gs /G0 Do Q`;
+    return formStream(context, outerContent, appearance.bbox, outer);
   }
   return formStream(context, appearance.content, appearance.bbox, outer);
 }

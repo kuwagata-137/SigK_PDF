@@ -37,6 +37,19 @@
     return auto ? 'auto' : content;
   }
 
+  // 塗りと枠線（確定事項J2）。塗りは /C（灰・CMYK も RGB に直す）、枠線は /BS /W が 0 より大きければ /DA の色と /W。
+  function decorOf(detail, textColor) {
+    const decor = {};
+    const fill = root.SigK.importedValues.hexOfComponents(detail.stroke);
+    if (fill !== null)
+      decor.fill = fill;
+    if (Number.isFinite(detail.borderWidth) && detail.borderWidth > 0) {
+      decor.borderColor = detail.daColor ?? textColor;
+      decor.borderWidth = detail.borderWidth;
+    }
+    return decor;
+  }
+
   // 1 件に当てる。今までの形はそのまま、新しい形は組み直した entry、表示のみにするなら null。
   // pageLengthOf(src, rotation) は文字の向きに沿った紙の長さ（pt。分からなければ null）。
   function withTextDetails(entry, detail, { answered = true, advanceOf = null, pageLengthOf = null } = {}) {
@@ -47,7 +60,7 @@
       return entry;
     if (typeof advanceOf !== 'function')
       return null;
-    const next = { ...entry, color: style.color ?? entry.color };
+    const next = { ...entry, color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
     if (style.bold === true)
       next.bold = true;
     if (style.italic === true)
