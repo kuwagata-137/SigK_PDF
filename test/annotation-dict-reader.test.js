@@ -259,3 +259,16 @@ test('中身を 30° 回す・ゆがめる・裏返す他のアプリ風の Free
   for (const cm of ['0.866 -0.5 0.5 0.866 0 0', '1 0 0.3 1 0 0', '0 1 1 0 0 0'])
     assert.equal((await savedFreeText(freeText(0), foreign(cm))).rotation, 'skewed', cm);
 });
+
+// 吹き出し（spec-4b-4b 確定事項H2）。回した吹き出しは、/BBox を /RD で縮めた箱をそのまま回す前の箱にする。
+test('回した自前の吹き出しは、回す前の箱（/BBox を /RD で縮めたもの）と角度を返し、/IT と /CL も読む', async () => {
+  const callout = (angle) => freeText(0, { fill: '#ffffff', borderColor: '#c00000', borderWidth: 1.5, callout: { tip: [80, 560] }, ...(angle ? { angle } : {}) });
+  const plain = await savedFreeText(callout(0));
+  assert.equal(plain.rotation, null);
+  assert.equal(plain.intent, 'FreeTextCallout');
+  assert.deepEqual(plain.calloutLine.slice(0, 2), [80, 560]);
+  for (const angle of [30, 200, 359]) {
+    const entry = callout(angle);
+    assert.deepEqual((await savedFreeText(entry)).rotation, { box: entry.rect, angle }, `${angle}°`);
+  }
+});

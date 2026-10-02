@@ -62,6 +62,27 @@
     return { ...entry, rect: [...turn.box], angle: turn.angle, quads: [root.SigK.shapeRotation.quadOf(turn.box, turn.angle)] };
   }
 
+  // 回していない吹き出しの箱（確定事項H3）。/Rect は箱としっぽの範囲なので、/RD で縮める。縮めて箱が残らなければ null。
+  function calloutBoxOf(rect, rd) {
+    if (!Array.isArray(rd) || rd.length !== 4 || !rd.every((value) => Number.isFinite(value) && value >= 0))
+      return null;
+    const box = [rect[0] + rd[0], rect[1] + rd[1], rect[2] - rd[2], rect[3] - rd[3]].map(round);
+    return box[2] > box[0] && box[3] > box[1] ? box : null;
+  }
+
+  // 吹き出し（確定事項H3）。しっぽの先は /CL の最初の点、箱は回していれば口の箱、回していなければ /Rect を /RD で縮めたもの。
+  // 組めなければ null（表示のみ）。
+  function calloutOf(entry, detail, turn) {
+    const line = detail.calloutLine;
+    if (!Array.isArray(line) || line.length < 4)
+      return null;
+    const box = turn === null ? calloutBoxOf(entry.rect, detail.rectDifference) : turn.box;
+    if (box === null)
+      return null;
+    const base = turn === null ? { ...entry, rect: box, quads: [root.SigK.freeTextGeometry.quadOfRect(box)] } : turnedOf(entry, turn);
+    return { ...base, callout: { tip: [line[0], line[1]] } };
+  }
+
   // 1 件に当てる。今までの形はそのまま、新しい形は組み直した entry、表示のみにするなら null。回転を読めない（skewed）ものと、
   // 回った今までの形（角度を持てない）も表示のみ（spec-4b-4b 確定事項H1・A1）。
   // pageLengthOf(src, rotation) は文字の向きに沿った紙の長さ（pt。分からなければ null）。
@@ -70,11 +91,14 @@
       return null;
     const style = detail.defaultStyle;
     const turn = detail.rotation ?? null;
+    const callout = detail.intent === 'FreeTextCallout';
     if (style === null || style === undefined)
-      return turn === null ? entry : null;
+      return turn === null && !callout ? entry : null;
     if (typeof advanceOf !== 'function')
       return null;
-    const base = turn === null ? entry : turnedOf(entry, turn);
+    const base = callout ? calloutOf(entry, detail, turn) : (turn === null ? entry : turnedOf(entry, turn));
+    if (base === null)
+      return null;
     const next = { ...base, color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
     if (style.bold === true)
       next.bold = true;

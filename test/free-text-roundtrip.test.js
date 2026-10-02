@@ -85,7 +85,7 @@ async function roundTrips(entry, origin) {
     const { imported, detail } = await saveAndRead(saveEntryOf(current, result));
     const read = importedTextDetails.withTextDetails(imported, detail, { advanceOf, pageLengthOf });
     assert.ok(read !== null, `${round} 回目に表示のみになった`);
-    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'angle', 'text', 'fill', 'borderColor', 'borderWidth'])
+    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'angle', 'text', 'fill', 'borderColor', 'borderWidth', 'callout'])
       assert.deepEqual(read[key], first.entry[key], `${round} 回目の ${key}`);
     assert.deepEqual(read.rect, first.entry.rect, `${round} 回目の箱`);
     const again = placed(read, geometry.frameOrigin(read.rect, read.rotation));
@@ -133,4 +133,16 @@ test('回したテキストも 3 回往復して、角度・回す前の箱・�
   await roundTrips(text({ rotation: 90, angle: 30 }), [100, 100]);
   await roundTrips(text({ rotation: 270, angle: 200, fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2 }), [500, 700]);
   await roundTrips(text({ angle: 1, opacity: 0.6, italic: true, bold: true }), [72, 400]);
+});
+
+// 吹き出し（spec-4b-4b 完了の判定8）。/Rect は箱としっぽの範囲、/RD・/CL・/IT から箱としっぽの先を組み直す。
+test('吹き出しも 3 回往復して、箱・角度・しっぽの先・書式が変わらない', async () => {
+  const callout = (extra) => text({ fill: '#ffffff', borderColor: '#c00000', borderWidth: 1.5, ...extra });
+  await roundTrips(callout({ callout: { tip: [60, 680] } }), [72, 760]);
+  await roundTrips(callout({ callout: { tip: [320, 742.5] } }), [72, 760]);
+  await roundTrips(callout({ callout: { tip: [100, 812.25] }, angle: 30 }), [72, 760]);
+  await roundTrips(callout({ callout: { tip: [40, 500] }, angle: 200, opacity: 0.6, bold: true }), [72, 600]);
+  await roundTrips(callout({ callout: { tip: [150, 150] }, rotation: 90 }), [100, 100]);
+  await roundTrips(callout({ callout: { tip: [90, 750] } }), [72, 760]);
+  await roundTrips(callout({ callout: { tip: [60, 680] }, fill: undefined, borderColor: '#2f5597', borderWidth: 3 }), [72, 760]);
 });

@@ -31,3 +31,15 @@ test('塗りがあれば /C に、枠線の太さは /BS /W に書く', () => {
   assert.deepEqual(fields.C, [1, 1, 0]);
   assert.deepEqual(fields.BS, { W: 2, S: 'S' });
 });
+
+// 吹き出し（spec-4b-4b 確定事項G3）。
+test('吹き出しは /IT /FreeTextCallout・/CL・/LE /None・/RD を書く', () => {
+  const appearance = { da: '/SigKJP 12 Tf 0.753 0 0 rg', ds: 'x', fillRgb: [1, 1, 1], borderWidth: 1.5, callout: { cl: [80, 540, 120.75, 600.75], rd: [21.75, 61.75, 1.75, 1.75] } };
+  const fields = freeTextFields({ text: 'あ', rotation: 0 }, appearance, TOOLS);
+  assert.equal(fields.IT, 'FreeTextCallout');
+  assert.deepEqual(fields.CL, [80, 540, 120.75, 600.75]);
+  assert.equal(fields.LE, 'None');
+  assert.deepEqual(fields.RD, [21.75, 61.75, 1.75, 1.75]);
+  const plain = freeTextFields({ text: 'あ', rotation: 0 }, { da: 'x', ds: 'x' }, TOOLS);
+  assert.equal('IT' in plain || 'CL' in plain || 'LE' in plain || 'RD' in plain, false);
+});
