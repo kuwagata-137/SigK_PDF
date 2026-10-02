@@ -753,3 +753,35 @@ test('半透明の text は透明グループの中にも書体を付け、外�
   assert.doesNotMatch(contentOf(saved, inner), /\/GS gs/);
   assert.equal(pick(dict, '/CA').asNumber(), 0.5);
 });
+
+// ---- 回したテキスト（spec-4b-4b 確定事項G1・G4） ----
+
+test('回したテキストは外側の Form に /Matrix、/BBox は回す前の箱、/Rect は回した外接で書き、今までの形の角度は断る', async () => {
+  const doc = await makeDoc(1);
+  const box = [100, 674.5, 224, 720.5];
+  const wrappedText = text({ rect: box, text: 'あいう', width: 'auto', lines: ['あいう'], inset: [2, 2], angle: 30 });
+  const result = await applyAnnotations(doc, { add: [wrappedText] }, TOOLS, { now: NOW, fontSource });
+  assert.deepEqual(result, { ok: true, added: 1, removed: 0 });
+  const saved = await roundTrip(doc);
+  const [annot] = annotsOf(saved, 0);
+  const { normal } = extGStateOf(saved, annot.dict);
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/Matrix')), matrixOf(box, 30));
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/BBox')), box);
+  assert.deepEqual(numbersOf(saved, pick(annot.dict, '/Rect')), rectOf(box, 30));
+  const legacy = await applyAnnotations(await makeDoc(1), { add: [text({ angle: 30 })] }, TOOLS, { now: NOW, fontSource });
+  assert.equal(typeof legacy.error, 'string');
+});
+
+test('回したテキストもフラット化で焼け、外観の /Matrix で回したまま紙へ置く（拡大はほぼ 1）', async () => {
+  const doc = await makeDoc(1);
+  const box = [100, 674.5, 224, 720.5];
+  await applyAnnotations(doc, { add: [text({ rect: box, text: 'あいう', width: 'auto', lines: ['あいう'], inset: [2, 2], angle: 200 })] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  assert.equal(flattenDocument(saved, TOOLS).baked, 1);
+  const page = saved.getPages()[0];
+  const contents = saved.context.lookup(page.node.get(PDFName.of('Contents')));
+  const line = contentOf(saved, saved.context.lookup(contents.asArray().at(-1)));
+  const numbers = line.match(/^q (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) cm \/SigKF1 Do Q$/).slice(1).map(Number);
+  assert.ok(Math.abs(numbers[0] - 1) < 0.001 && Math.abs(numbers[3] - 1) < 0.001, line);
+  assert.equal(annotsOf(saved, 0).length, 0);
+});

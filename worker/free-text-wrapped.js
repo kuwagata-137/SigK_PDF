@@ -14,6 +14,7 @@ const { LINE_HEIGHT, BASELINE, frameOf, isFreeTextEntry } = require('./free-text
 const { defaultStyleOf } = require('./default-style.js');
 const { DA_FONT_NAME } = require('./font-embed.js');
 const { decorOps, readableTextOps } = require('./free-text-decor.js');
+const { matrixOf, rectOf } = require('./shape-rotation.js');
 
 // 斜体の傾き（Tm の c）。画面の CSS font-style: italic（斜体の書体が無いときの擬似斜体）と同じ形になる値（事前調査 B）。
 const ITALIC_SKEW = 0.25;
@@ -40,6 +41,11 @@ function matchesText(lines, text) {
   return at === lines.length;
 }
 
+// 角度（spec-4b-4b 確定事項G1）。無いか、0 以上 360 未満の数（0 は回さない）。
+function validAngle(angle) {
+  return angle === undefined || (Number.isFinite(angle) && angle >= 0 && angle < 360);
+}
+
 function validWidth(width) {
   return width === 'auto' || (Number.isFinite(width) && width > 0);
 }
@@ -59,7 +65,7 @@ function validDecor(entry) {
 
 // 新しい形のテキストの entry の形（isFreeTextEntry に加えて、幅・行・中身の位置・太字・斜体・塗り・枠線）。
 function isWrappedEntry(entry) {
-  if (!isFreeTextEntry(entry) || !isWrapped(entry) || !validWidth(entry.width) || !validInset(entry.inset))
+  if (!isFreeTextEntry(entry) || !isWrapped(entry) || !validWidth(entry.width) || !validInset(entry.inset) || !validAngle(entry.angle))
     return false;
   if (![entry.bold, entry.italic].every((flag) => flag === undefined || flag === true) || !validDecor(entry))
     return false;
@@ -126,6 +132,12 @@ function wrappedAppearanceOf(entry, measure) {
   if (group) {
     appearance.group = true;
     appearance.prefix = readableTextOps({ name: measure.name, fontSize, rgb });
+  }
+  // 回したテキストは、外側の Form に /Matrix（箱の中心で紙の上の時計回り）を付け、/Rect を回した外接にする（四角・丸と同じ。
+  // spec-4b-4b 確定事項G1）。/BBox は回す前の箱のまま。
+  if (entry.angle > 0) {
+    appearance.matrix = matrixOf(rect, entry.angle);
+    appearance.rect = rectOf(rect, entry.angle);
   }
   return appearance;
 }

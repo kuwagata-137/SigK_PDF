@@ -23,6 +23,7 @@ require('../renderer/free-text-wrap.js');
 require('../renderer/free-text-layout.js');
 require('../renderer/free-text-entry.js');
 require('../renderer/imported-text-details.js');
+require('../renderer/shape-rotation.js');
 
 const { freeTextGeometry: geometry, freeTextLayout: layout, freeTextEntry: fields, importedTextDetails } = globalThis.SigK;
 const TOOLS = { PDFName, PDFString, PDFHexString, PDFArray, PDFRef };
@@ -47,7 +48,10 @@ function placed(entry, origin) {
 
 function saveEntryOf(entry, result) {
   const { src, kind, color, opacity, rect, text, fontSize, rotation } = entry;
-  return { src, kind, color, opacity, rect: [...rect], text, fontSize, rotation, ...fields.saveFields(entry, result) };
+  const saved = { src, kind, color, opacity, rect: [...rect], text, fontSize, rotation, ...fields.saveFields(entry, result) };
+  if (entry.angle !== undefined)
+    saved.angle = entry.angle;
+  return saved;
 }
 
 const hex = (part) => Math.round(part * 255).toString(16).padStart(2, '0');
@@ -81,7 +85,7 @@ async function roundTrips(entry, origin) {
     const { imported, detail } = await saveAndRead(saveEntryOf(current, result));
     const read = importedTextDetails.withTextDetails(imported, detail, { advanceOf, pageLengthOf });
     assert.ok(read !== null, `${round} 回目に表示のみになった`);
-    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'text', 'fill', 'borderColor', 'borderWidth'])
+    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'angle', 'text', 'fill', 'borderColor', 'borderWidth'])
       assert.deepEqual(read[key], first.entry[key], `${round} 回目の ${key}`);
     assert.deepEqual(read.rect, first.entry.rect, `${round} 回目の箱`);
     const again = placed(read, geometry.frameOrigin(read.rect, read.rotation));
@@ -120,4 +124,13 @@ test('塗り・枠線・半透明のテキストも 3 回往復して同じに�
   await roundTrips(text({ fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2 }), [72, 760]);
   await roundTrips(text({ width: 90.5, fill: '#ffff00', opacity: 0.6, italic: true }), [72, 600]);
   await roundTrips(text({ borderColor: '#4472c4', borderWidth: 1, bold: true, fontSize: 10.5, rotation: 270 }), [500, 700]);
+});
+
+// 回したテキスト（spec-4b-4b 完了の判定8）。角度と回す前の箱が 3 回往復しても変わらない。
+test('回したテキストも 3 回往復して、角度・回す前の箱・行が変わらない', async () => {
+  await roundTrips(text({ angle: 30 }), [72, 760]);
+  await roundTrips(text({ angle: 359, width: 87.35 }), [72, 600]);
+  await roundTrips(text({ rotation: 90, angle: 30 }), [100, 100]);
+  await roundTrips(text({ rotation: 270, angle: 200, fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2 }), [500, 700]);
+  await roundTrips(text({ angle: 1, opacity: 0.6, italic: true, bold: true }), [72, 400]);
 });

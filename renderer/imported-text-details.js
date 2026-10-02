@@ -57,17 +57,25 @@
     return decor;
   }
 
-  // 1 件に当てる。今までの形はそのまま、新しい形は組み直した entry、表示のみにするなら null。
+  // 回したテキスト（spec-4b-4b 確定事項H2）。/Rect は回した外接なので、口の箱（回す前の箱）と角度で置き換え、四角を回した 4 隅にする。
+  function turnedOf(entry, turn) {
+    return { ...entry, rect: [...turn.box], angle: turn.angle, quads: [root.SigK.shapeRotation.quadOf(turn.box, turn.angle)] };
+  }
+
+  // 1 件に当てる。今までの形はそのまま、新しい形は組み直した entry、表示のみにするなら null。回転を読めない（skewed）ものと、
+  // 回った今までの形（角度を持てない）も表示のみ（spec-4b-4b 確定事項H1・A1）。
   // pageLengthOf(src, rotation) は文字の向きに沿った紙の長さ（pt。分からなければ null）。
   function withTextDetails(entry, detail, { answered = true, advanceOf = null, pageLengthOf = null } = {}) {
-    if (!answered || detail === undefined || detail === null || detail.defaultStyle === 'unreadable')
+    if (!answered || detail === undefined || detail === null || detail.defaultStyle === 'unreadable' || detail.rotation === 'skewed')
       return null;
     const style = detail.defaultStyle;
+    const turn = detail.rotation ?? null;
     if (style === null || style === undefined)
-      return entry;
+      return turn === null ? entry : null;
     if (typeof advanceOf !== 'function')
       return null;
-    const next = { ...entry, color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
+    const base = turn === null ? entry : turnedOf(entry, turn);
+    const next = { ...base, color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
     if (style.bold === true)
       next.bold = true;
     if (style.italic === true)

@@ -111,3 +111,19 @@ test('塗り・枠線の形が違えば断る', () => {
   for (const broken of [{ fill: 'yellow' }, { borderColor: '#c00000' }, { borderWidth: 2 }, { borderColor: '#c00000', borderWidth: 0 }])
     assert.equal(isWrappedEntry(wrapped(broken)), false, JSON.stringify(broken));
 });
+
+// ---- 回したテキスト（spec-4b-4b 確定事項G1） ----
+
+test('wrappedAppearanceOf は角度があれば外側の /Matrix を返し、/BBox は回す前の箱、/Rect は回した外接にする', () => {
+  const { matrixOf, rectOf } = require('../worker/shape-rotation.js');
+  const box = [100, 674.5, 224, 720.5];
+  const appearance = wrappedAppearanceOf(wrapped({ angle: 30 }), REGULAR);
+  assert.deepEqual(appearance.bbox, box);
+  assert.deepEqual(appearance.matrix, matrixOf(box, 30));
+  assert.deepEqual(appearance.rect, rectOf(box, 30));
+  const plain = wrappedAppearanceOf(wrapped({ angle: 0 }), REGULAR);
+  assert.equal(plain.matrix, undefined);
+  assert.deepEqual(plain.rect, box);
+  for (const angle of [360, -5, '30', Number.NaN])
+    assert.equal(isWrappedEntry(wrapped({ angle })), false, String(angle));
+});

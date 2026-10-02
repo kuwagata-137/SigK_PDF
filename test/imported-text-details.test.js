@@ -93,3 +93,24 @@ test('塗りは /C、枠線は /BS /W が正なら /DA の色と太さで読み�
   // /DA の色が読めなければ文字の色を枠線の色にする。
   assert.equal(textDetails.withTextDetails(own(129), { ...detail, daColor: null }, { advanceOf }).borderColor, '#d92c2c');
 });
+
+// ---- 回したテキスト（spec-4b-4b 確定事項H2・H4・H5） ----
+
+test('回したテキストは、口の箱（回す前の箱）と角度を当て、四角を回した 4 隅にしてから幅を見分ける', () => {
+  require('../renderer/shape-rotation.js');
+  const rotation = globalThis.SigK.shapeRotation;
+  // pdf.js の /Rect は回した外接なので、口の箱で置き換える。中身の幅は自動（最長行 12 字 = 120pt）。
+  const box = [100, 671, 224, 700];
+  const read = textDetails.withTextDetails(own(300, { rect: [60, 620, 270, 760] }), { defaultStyle: STYLE, rotation: { box, angle: 30 } }, { advanceOf });
+  assert.deepEqual(read.rect, box);
+  assert.equal(read.angle, 30);
+  assert.deepEqual(read.quads, [rotation.quadOf(box, 30)]);
+  assert.equal(read.width, 'auto');
+});
+
+test('回転を読めない（skewed）自前のテキストと、角度を持てない今までの形の回ったテキストは表示のみ（null）', () => {
+  assert.equal(textDetails.withTextDetails(own(124), { defaultStyle: STYLE, rotation: 'skewed' }, { advanceOf }), null);
+  assert.equal(textDetails.withTextDetails(own(124), { defaultStyle: null, rotation: { box: [100, 671, 224, 700], angle: 30 } }, { advanceOf }), null);
+  assert.equal(textDetails.withTextDetails(own(124), { defaultStyle: null, rotation: 'skewed' }, { advanceOf }), null);
+  assert.equal(textDetails.withTextDetails(own(124), { defaultStyle: null, rotation: null }, { advanceOf }).kind, 'text');
+});
