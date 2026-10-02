@@ -126,6 +126,28 @@ test('スライダーを動かしている間は下見、離すと 1 世代。�
   assert.equal(current(shell).angle, 60);
 });
 
+test('回転の数値欄に打ちかけのまま別の四角を選ぶと、欄はその四角の角度に替わり、打ちかけの値は当たらない', async (t) => {
+  const shell = await withShell(t);
+  const { document, SigK, window } = shell;
+  const first = draw(shell, 'square', [100, 700], [300, 600]).id;
+  const second = draw(shell, 'square', [100, 500], [300, 400]).id;
+  const row = rowOf(document);
+  row.presets[1].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const angles = () => [...SigK.viewer.getAnnotations().added].map((entry) => entry.angle ?? 0);
+  assert.deepEqual(angles(), [0, 90]);
+  SigK.annotate.select(first);
+  row.number.focus();
+  row.number.value = '45';
+  SigK.annotate.select(second);
+  assert.equal(row.number.value, '90', '選び直した四角の角度に替わる');
+  row.number.dispatchEvent(new window.Event('change'));
+  assert.deepEqual(angles(), [0, 90]);
+  // 選び直した後に打った値は、その四角に当たる。
+  row.number.value = '30';
+  row.number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  assert.deepEqual(angles(), [0, 30]);
+});
+
 test('angleOfText は小数を四捨五入し、範囲の外を 360 の余りにする。読めなければ null', async (t) => {
   const shell = await withShell(t);
   const row = shell.SigK.annotationAngleRow;

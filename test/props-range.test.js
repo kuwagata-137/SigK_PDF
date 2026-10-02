@@ -10,7 +10,7 @@ require('../renderer/props-range.js');
 
 const range = globalThis.SigK.propsRange;
 
-function makePair() {
+function makePair(options = {}) {
   const { window } = new JSDOM('<!doctype html><input type="range" id="r" min="1" max="40" step="1" value="2"><input type="number" id="n" value="2">');
   const calls = [];
   const [slider, number] = ['r', 'n'].map((id) => window.document.getElementById(id));
@@ -18,6 +18,7 @@ function makePair() {
     min: 1, max: 40,
     onPreview: (value) => calls.push(['preview', value]),
     onCommit: (value) => calls.push(['commit', value]),
+    ...options,
   });
   return { window, slider, number, calls };
 }
@@ -65,5 +66,59 @@ test('show は値を見せるが、打っている途中の数値欄は上書き
   number.value = '1';
   range.show(slider, number, 8);
   assert.deepEqual([slider.value, number.value], ['8', '1']);
+  window.close();
+});
+
+test('show の 4 つめは数値欄に出す文字（そろっていない値の空）。打っている途中なら出さない', () => {
+  const { window, slider, number } = makePair();
+  range.show(slider, number, 4, '');
+  assert.deepEqual([slider.value, number.value], ['4', '']);
+  number.focus();
+  number.value = '9';
+  range.show(slider, number, 6, '');
+  assert.equal(number.value, '9');
+  window.close();
+});
+
+test('targetOf を渡すと、打ちかけのまま相手が替われば show が欄を新しい相手の値に替え、打ちかけの値は当てない', () => {
+  let target = 'A';
+  const { window, slider, number, calls } = makePair({ targetOf: () => target });
+  range.show(slider, number, 2);
+  number.focus();
+  number.value = '20';
+  range.show(slider, number, 2);
+  assert.equal(number.value, '20', '相手が同じなら打ちかけを残す');
+  target = 'B';
+  range.show(slider, number, 6);
+  assert.equal(number.value, '6', '相手が替われば、その相手の値');
+  // 替えたあとに打った値は新しい相手に当たる。
+  number.value = '8';
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter' }));
+  assert.deepEqual(calls, [['commit', 8]]);
+  // 欄を出し直さないまま相手が替わったら、確定しても当てずに今の値へ戻す。
+  number.value = '30';
+  target = 'C';
+  number.dispatchEvent(new window.Event('change'));
+  assert.equal(number.value, '8');
+  assert.deepEqual(calls, [['commit', 8]]);
+  window.close();
+});
+
+test('targetOf を渡しても、当てたあとに相手の鍵が変われば（読み込んだ書き込みが写しに替わる）続けて打てる', () => {
+  let target = '17R';
+  const { window, slider, number, calls } = makePair({
+    targetOf: () => target,
+    onCommit: (value) => {
+      calls.push(['commit', value]);
+      target = 'copy-1';
+    },
+  });
+  range.show(slider, number, 2);
+  number.focus();
+  number.value = '5';
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter' }));
+  number.value = '7';
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter' }));
+  assert.deepEqual(calls, [['commit', 5], ['commit', 7]]);
   window.close();
 });

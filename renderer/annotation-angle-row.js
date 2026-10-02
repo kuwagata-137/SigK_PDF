@@ -24,6 +24,11 @@
     return entry?.kind === 'square' || entry?.kind === 'circle';
   }
 
+  // 数値欄の値を当てる相手（選んでいる書き込みの鍵の並びと、持っている道具）。打ちかけの値は打ち始めたときの相手にだけ当てる。
+  function targetKey() {
+    return JSON.stringify([annotate().getSelection(), annotate().getTool()]);
+  }
+
   function selectedBoxed() {
     const entry = annotate()?.selectedEntry() ?? null;
     return isBoxed(entry) && entry.readonly !== true ? entry : null;
@@ -89,7 +94,7 @@
       number: doc.getElementById('props-angle'),
       presets: [...doc.querySelectorAll('#props-angle-presets button')],
     };
-    root.SigK.propsRange.bind(el.range, el.number, { min: 0, max: 359, onPreview: previewAngle, onCommit: setAngle, clamp: angleOfText });
+    root.SigK.propsRange.bind(el.range, el.number, { min: 0, max: 359, onPreview: previewAngle, onCommit: setAngle, clamp: angleOfText, targetOf: targetKey });
     for (const button of el.presets)
       button.addEventListener('click', () => setAngle(Number(button.dataset.angle)));
     return true;
