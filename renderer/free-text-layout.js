@@ -81,6 +81,25 @@
     return entry.width === 'auto' ? autoWidthOf(entry, pageLength) : Math.max(entry.fontSize, entry.width);
   }
 
+  // 文字の向き（置いたときの表示の回転）に沿った紙の長さ（pt。確定事項C2）。view は pdf.js の page.view（[x1 y1 x2 y2]）。
+  // 分からなければ null。
+  function paperLengthOf(view, rotation) {
+    if (!Array.isArray(view) || view.length !== 4 || !view.every(Number.isFinite))
+      return null;
+    return rotation % 180 === 0 ? Math.abs(view[2] - view[0]) : Math.abs(view[3] - view[1]);
+  }
+
+  // 表示の左上 origin（紙の座標）を、表示の向きで右へ right・下へ down（pt）ずらす。紙の座標での向きは回転ごとに違う
+  // （free-text-geometry.js の rectFromOrigin と同じ取り方）。
+  function shiftOrigin([x, y], rotation, [right, down]) {
+    switch (rotation) {
+      case 90: return [round(x + down), round(y + right)];
+      case 180: return [round(x - right), round(y + down)];
+      case 270: return [round(x - down), round(y - right)];
+      default: return [round(x + right), round(y - down)];
+    }
+  }
+
   // 行と箱（確定事項B1・B4）。advanceOf(unit) は字の送り幅（em。太字なら Bold で測ったもの）、lineWidthOf(line) は今までの形の
   // 1 行の幅（pt）。戻り値は { lines, inset（insetOf）, contentWidth, size（表示の向き・pt） }。
   function layoutOf(entry, { advanceOf, lineWidthOf, pageLength = null }) {
@@ -107,6 +126,6 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.freeTextLayout = {
     AUTO_CHARS, DECOR_PADDING, ITALIC_LEFT, ITALIC_RIGHT,
-    boxOf, frameOf, fitOrigin, paddingOf, insetOf, autoWidthOf, wrapWidthOf, layoutOf,
+    boxOf, frameOf, fitOrigin, paddingOf, insetOf, autoWidthOf, wrapWidthOf, paperLengthOf, shiftOrigin, layoutOf,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

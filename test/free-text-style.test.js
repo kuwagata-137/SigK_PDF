@@ -37,13 +37,36 @@ test('patchFor は大きさと、表示の左上を保って測り直した箱�
   assert.equal(style.patchFor('fontSize', 24, { ...entry, readonly: true }), null);
 });
 
-test('reframed は回したテキストでも表示の左上を保つ', async (t) => {
+test('patchFor は回したテキストでも表示の左上を保つ', async (t) => {
   const shell = await withTextShell(t);
   const style = shell.SigK.freeTextStyle;
   const entry = placeText(shell, 100, 700, 'あいう');
   const turned = { ...entry, rotation: 90, rect: [100, 700 - 52, 119, 700] };
   const origin = shell.SigK.freeTextGeometry.frameOrigin(turned.rect, 90);
-  const frame = style.reframed(turned, 24);
-  assert.deepEqual(plain(shell.SigK.freeTextGeometry.frameOrigin(frame.rect, 90)), plain(origin));
-  assert.equal(frame.rect[3] - frame.rect[1], 76, '90° のときは縦に並ぶ');
+  const patch = style.patchFor('fontSize', 24, turned);
+  assert.deepEqual(plain(shell.SigK.freeTextGeometry.frameOrigin(patch.rect, 90)), plain(origin));
+  assert.equal(patch.rect[3] - patch.rect[1], 76, '90° のときは縦に並ぶ');
+});
+
+test('patchFor は固定の幅を保ち、新しい大きさの 1 字を下回るときだけ 1 字に広げる（確定事項C4）', async (t) => {
+  const shell = await withTextShell(t);
+  const style = shell.SigK.freeTextStyle;
+  const entry = { ...placeText(shell, 100, 700, 'あいうえお'), width: 30 };
+  const kept = style.patchFor('fontSize', 20, entry);
+  assert.equal('width' in kept, false);
+  assert.equal(kept.rect[2] - kept.rect[0], 30 + 4, '固定の幅＋余白');
+  const widened = style.patchFor('fontSize', 48, entry);
+  assert.equal(widened.width, 48);
+  assert.equal(widened.rect[2] - widened.rect[0], 48 + 4);
+});
+
+test('patchFor は自動の幅を新しい大きさの 12 字で組み直す', async (t) => {
+  const shell = await withTextShell(t);
+  const style = shell.SigK.freeTextStyle;
+  const entry = placeText(shell, 100, 700, 'あいうえおかきくけこさしすせそ');
+  assert.equal(entry.width, 'auto');
+  assert.equal(entry.rect[2] - entry.rect[0], 12 * 12 + 4);
+  const patch = style.patchFor('fontSize', 10, entry);
+  assert.equal(patch.rect[2] - patch.rect[0], 12 * 10 + 4);
+  assert.equal(patch.rect[3], 700, '上端（表示の左上）は動かない');
 });

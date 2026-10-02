@@ -7,7 +7,9 @@
   // （canvas の measureText。保存側の widthOfTextAtSize と日本語で一致する。事前調査 D）、
   // SVG の <text>、印刷用の canvas 2D の描き手を持つ。座標の計算は free-text-geometry.js。
   // SVG と canvas で同じ位置・角度・ベースラインにするのは、画面と紙で見た目を
-  // ずらさないためである（annotation-layer.js と同じ考え）。
+  // ずらさないためである（annotation-layer.js と同じ考え）。新しい形（spec-4b-4a）の行と中身の位置は
+  // free-text-metrics.js が決め、太字は Bold の書体、斜体は擬似斜体（font-style: italic。保存の Tm 0.25 と同じ形。
+  // 事前調査 B）で描く。詰め（kerning）と合字は使わない（保存の字の並びとそろえる。事前調査 E）。
 
   const FAMILY = 'SigK Noto Sans JP';
   const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -25,8 +27,8 @@
     return String(Math.round(value * 100) / 100);
   }
 
-  function fontOf(px, bold = false) {
-    return `${bold ? '700 ' : ''}${px}px "${FAMILY}"`;
+  function fontOf(px, bold = false, italic = false) {
+    return `${italic ? 'italic ' : ''}${bold ? '700 ' : ''}${px}px "${FAMILY}"`;
   }
 
   // フォントを先読みする。注釈モードに入ったとき・自前のテキストを読み込んだとき・
@@ -65,7 +67,10 @@
     if (ctx === null)
       return [...text].reduce((sum, ch) => sum + (ch.charCodeAt(0) < 128 ? 0.5 : 1), 0) * px;
     ctx.font = fontOf(px);
-    return ctx.measureText(text).width;
+    ctx.fontKerning = 'none';
+    const width = ctx.measureText(text).width;
+    ctx.fontKerning = 'auto';
+    return width;
   }
 
   // 字（書記素）の送り幅（em）。新しい形の折り返しと箱に使う（spec-4b-4a 確定事項B6）。kerning を切った canvas で ADVANCE_PX で測り、
@@ -87,6 +92,17 @@
     return em;
   }
 
+  // 行と中身の位置（箱の左上から。pt）。free-text-metrics.js が無ければ（単体のテスト）今までの形として改行で分ける。
+  function linesAndInset(entry) {
+    const metrics = root.SigK.freeTextMetrics;
+    if (metrics !== undefined) {
+      const { lines, inset } = metrics.layoutOfEntry(entry);
+      return { lines, inset: [inset.left, inset.top] };
+    }
+    const { PADDING } = geometry();
+    return { lines: geometry().linesOf(entry.text), inset: [PADDING, PADDING] };
+  }
+
   // 画面に描くための位置。origin は表示の左上（CSS px）、angle は画面での回転（時計回り）。
   function layoutOf(entry, viewport) {
     const [x, y] = geometry().frameOrigin(entry.rect, entry.rotation);
@@ -94,28 +110,32 @@
       origin: viewport.convertToViewportPoint(x, y),
       angle: geometry().screenAngle(viewport.rotation ?? 0, entry.rotation),
       scale: viewport.scale ?? 1,
-      lines: geometry().linesOf(entry.text),
+      ...linesAndInset(entry),
     };
   }
 
-  // 行ごとの x・y（箱の左上からの CSS px）。
-  function linePositions(lines, fontSize, scale) {
-    const { PADDING, BASELINE, LINE_HEIGHT } = geometry();
+  // 行ごとの x・y（箱の左上からの CSS px）。inset は中身の左上（pt）。
+  function linePositions(lines, fontSize, scale, inset) {
+    const { BASELINE, LINE_HEIGHT } = geometry();
     return lines.map((line, index) => ({
       line,
-      x: PADDING * scale,
-      y: (PADDING + BASELINE * fontSize + LINE_HEIGHT * fontSize * index) * scale,
+      x: inset[0] * scale,
+      y: (inset[1] + BASELINE * fontSize + LINE_HEIGHT * fontSize * index) * scale,
     }));
   }
 
   // SVG の <g>。行ごとに <text> を置き、箱の左上へ移して回す。
   function svgOf(doc, entry, viewport) {
-    const { origin, angle, scale, lines } = layoutOf(entry, viewport);
+    const { origin, angle, scale, lines, inset } = layoutOf(entry, viewport);
     const group = doc.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'free-text');
     group.setAttribute('fill', entry.color);
     group.setAttribute('transform', `translate(${fmt(origin[0])} ${fmt(origin[1])}) rotate(${angle})`);
-    for (const { line, x, y } of linePositions(lines, entry.fontSize, scale)) {
+    if (entry.bold === true)
+      group.setAttribute('font-weight', '700');
+    if (entry.italic === true)
+      group.setAttribute('font-style', 'italic');
+    for (const { line, x, y } of linePositions(lines, entry.fontSize, scale, inset)) {
       const text = doc.createElementNS(SVG_NS, 'text');
       text.setAttribute('x', fmt(x));
       text.setAttribute('y', fmt(y));
@@ -129,15 +149,18 @@
 
   // 同じ絵を canvas 2D に描く（印刷。確定事項29）。戻り値は描いた行数。
   function paint(ctx, entry, viewport) {
-    const { origin, angle, scale, lines } = layoutOf(entry, viewport);
+    const { origin, angle, scale, lines, inset } = layoutOf(entry, viewport);
     ctx.save();
     ctx.globalAlpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
     ctx.translate(origin[0], origin[1]);
     ctx.rotate((angle * Math.PI) / 180);
-    ctx.font = fontOf(entry.fontSize * scale);
+    ctx.font = fontOf(entry.fontSize * scale, entry.bold === true, entry.italic === true);
+    // 詰めと合字を切る（spec-4b-4a 確定事項D3。optimizeSpeed は合字を作らない）。
+    ctx.fontKerning = 'none';
+    ctx.textRendering = 'optimizeSpeed';
     ctx.fillStyle = entry.color;
     ctx.textBaseline = 'alphabetic';
-    for (const { line, x, y } of linePositions(lines, entry.fontSize, scale))
+    for (const { line, x, y } of linePositions(lines, entry.fontSize, scale, inset))
       ctx.fillText(line, x, y);
     ctx.restore();
     return lines.length;

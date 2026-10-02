@@ -109,3 +109,21 @@ test('layoutOf は斜体・飾りの余白も箱に入れる', () => {
   assert.deepEqual(result.size, { width: 29.3, height: 18.5 });
   assert.deepEqual([result.inset.left, result.inset.top], [3.8, 3]);
 });
+
+test('paperLengthOf は文字の向きに沿った紙の長さで、0°・180° は幅、90°・270° は高さ。崩れた範囲は null', () => {
+  const view = [0, 0, 595.28, 841.89];
+  assert.equal(layout.paperLengthOf(view, 0), 595.28);
+  assert.equal(layout.paperLengthOf(view, 180), 595.28);
+  assert.equal(layout.paperLengthOf(view, 90), 841.89);
+  assert.equal(layout.paperLengthOf([10, 20, 110, 220], 270), 200);
+  assert.equal(layout.paperLengthOf(null, 0), null);
+  assert.equal(layout.paperLengthOf([0, 0, 1], 0), null);
+});
+
+test('shiftOrigin は表示の向きで右・下へずらした左上を、回転ごとの紙の座標で返す', () => {
+  assert.deepEqual(layout.shiftOrigin([100, 700], 0, [3, 2]), [103, 698]);
+  assert.deepEqual(layout.shiftOrigin([100, 700], 90, [3, 2]), [102, 703]);
+  assert.deepEqual(layout.shiftOrigin([100, 700], 180, [3, 2]), [97, 702]);
+  assert.deepEqual(layout.shiftOrigin([100, 700], 270, [3, 2]), [98, 697]);
+  assert.deepEqual(layout.shiftOrigin([100, 700], 0, [-0.8, 0]), [99.2, 700]);
+});

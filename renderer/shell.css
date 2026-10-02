@@ -776,7 +776,8 @@ html[data-transform-cursor="rotate"] #view, html[data-transform-cursor="rotate"]
   src:url('../assets/fonts/NotoSansJP-Bold.ttf') format('truetype');
   font-weight:700; font-style:normal; font-display:block;
 }
-.annot-layer .free-text text{font-family:'SigK Noto Sans JP', sans-serif; white-space:pre}
+.annot-layer .free-text text{font-family:'SigK Noto Sans JP', sans-serif; white-space:pre;
+  font-kerning:none; font-variant-ligatures:none; text-spacing-trim:space-all}
 /* 紙の上の入力欄。破線の枠・透明な背景・折り返し無し。位置・大きさ・向きは
    free-text-editor.js が付ける（枠線は箱の外側に出す）。テキストレイヤーより上に置く。 */
 textarea.free-text-editor{
@@ -784,6 +785,12 @@ textarea.free-text-editor{
   border:1.5px dashed var(--accent); border-radius:2px; background:transparent;
   font-family:'SigK Noto Sans JP', sans-serif; white-space:pre; overflow:hidden;
   resize:none; outline:none;
+  font-kerning:none; font-variant-ligatures:none; text-spacing-trim:space-all;
+}
+/* 新しい形のテキスト（spec-4b-4a 確定事項E1。事前調査 E）。1 字ずつ折り返し、行末の空白もぶら下げない（画面の折り返しの純関数と
+   同じ切れ目にする）。 */
+textarea.free-text-editor.wrapped{
+  white-space:break-spaces; line-break:anywhere; word-break:break-all; overflow-wrap:anywhere;
 }
 html[data-mode="annot"][data-tool="text"] .textLayer{cursor:text}
 /* 図形・ペン（spec-4-3 確定事項1・3・8）。ドラッグで描くので文字を選ばせない。下書きは確定後と同じ見た目。 */

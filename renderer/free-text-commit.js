@@ -20,6 +20,10 @@
     return root.SigK.annotateText;
   }
 
+  function metrics() {
+    return root.SigK.freeTextMetrics;
+  }
+
   function isOpen() {
     return viewer()?.getState().open === true;
   }
@@ -38,10 +42,7 @@
   }
 
   function commitNew(draft, body) {
-    const size = text().boxOf(body, draft.fontSize);
-    const origin = text().fitOrigin(draft.origin, size, draft.index);
-    const next = annotationState().addAnnot(viewer().getAnnotations(), {
-      id: annotationState().newId(),
+    const entry = {
       src: draft.src,
       kind: 'text',
       color: draft.color,
@@ -50,6 +51,13 @@
       text: body,
       fontSize: draft.fontSize,
       rotation: draft.rotation,
+      ...root.SigK.freeTextEntry.copyFields(draft, {}),
+    };
+    const size = metrics().sizeOf(entry);
+    const origin = text().fitOrigin(draft.origin, size, draft.index);
+    const next = annotationState().addAnnot(viewer().getAnnotations(), {
+      id: annotationState().newId(),
+      ...entry,
       ...root.SigK.freeTextLayout.frameOf(origin, size, draft.rotation),
     });
     return commit(next, { before: null, target: null });
@@ -66,9 +74,10 @@
       viewer().redrawAnnotations();
       return false;
     }
+    const changed = { text: body, fontSize: draft.fontSize, color: draft.color };
     const next = annotationState().updateAnnot(annots, current, {
-      text: body, fontSize: draft.fontSize, color: draft.color,
-      ...root.SigK.freeTextLayout.frameOf(draft.origin, text().boxOf(body, draft.fontSize), draft.rotation),
+      ...changed,
+      ...root.SigK.freeTextLayout.frameOf(draft.origin, metrics().sizeOf({ ...current, ...changed }), draft.rotation),
     });
     return commit(next, { before: draft.key, target: current });
   }

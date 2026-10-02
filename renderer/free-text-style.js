@@ -4,13 +4,10 @@
   // テキストの書式の欄（spec-4b-4a 確定事項A・G5）。テキストにだけある欄の値の当て方を持つ。1 件でも複数でも同じ形で、
   // annotation-style-patch.js の appliesTo・patchFor が、テキストだけの欄をここへ回す。
   //
-  //   fontSize … 文字の大きさ。箱は表示の左上を保ったまま、本文を測り直した大きさにする
+  //   fontSize … 文字の大きさ。箱は中身の左上（文字の位置）を保ったまま組み直す。固定の幅は保ち、1 字を下回れば 1 字にする
+  //              （確定事項B5・C4）
 
   const FIELDS = Object.freeze(['fontSize']);
-
-  function geometry() {
-    return root.SigK.freeTextGeometry;
-  }
 
   function isText(entry) {
     return entry?.kind === 'text';
@@ -23,11 +20,12 @@
     return field !== 'fontSize' || root.SigK.annotationPresets.isFontSize(value);
   }
 
-  // 箱を本文から作り直した形（表示の左上を保つ）。
-  function reframed(entry, fontSize) {
-    const origin = geometry().frameOrigin(entry.rect, entry.rotation);
-    const box = root.SigK.annotateText.boxOf(entry.text, fontSize);
-    return root.SigK.freeTextLayout.frameOf(origin, box, entry.rotation);
+  // 文字の大きさを変える patch（箱も組み直す）。
+  function fontSizePatch(entry, fontSize) {
+    const patch = { fontSize };
+    if (typeof entry.width === 'number' && entry.width < fontSize)
+      patch.width = fontSize;
+    return { ...patch, ...root.SigK.freeTextMetrics.reframe(entry, patch) };
   }
 
   // 当てる値（updateAnnot に渡す patch）。当てられないか、今と同じなら null。
@@ -36,9 +34,9 @@
       return null;
     if (entry.fontSize === value)
       return null;
-    return { fontSize: value, ...reframed(entry, value) };
+    return fontSizePatch(entry, value);
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextStyle = { FIELDS, appliesTo, patchFor, reframed };
+  SigK.freeTextStyle = { FIELDS, appliesTo, patchFor };
 })(typeof window !== 'undefined' ? window : globalThis);

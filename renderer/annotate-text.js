@@ -42,11 +42,6 @@
     return root.SigK.freeTextLayout;
   }
 
-  // 本文と大きさから箱の大きさ（表示の向き・pt）。幅は画面のフォントで測る（確定事項14）。組み立ては free-text-layout.js。
-  function boxOf(text, fontSize) {
-    return layout().boxOf(text, fontSize, (line) => root.SigK.freeTextShape.measure(state.doc, line, fontSize));
-  }
-
   // 右端・下端をはみ出す箱は紙の中へ寄せる（起草者判断）。
   function fitOrigin(origin, size, index) {
     return layout().fitOrigin(origin, size, editor()?.pageOf(index)?.viewport);
@@ -80,6 +75,8 @@
       fontSize: annotate().getFontSize(),
       color: annotate().colorOf('text'),
       rotation: page.viewport.rotation ?? 0,
+      // 新しく置くテキストは新しい形で、全角 12 字の自動の幅で折り返す（spec-4b-4a 確定事項C2・H2）。
+      width: root.SigK.freeTextEntry.WIDTH_AUTO,
     });
     return true;
   }
@@ -106,6 +103,7 @@
       fontSize: entry.fontSize,
       color: entry.color,
       rotation: entry.rotation,
+      ...root.SigK.freeTextEntry.copyFields(entry, {}),
     });
     return true;
   }
@@ -152,5 +150,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateText = { init, place, beginEdit, editSelected, commitDraft, move, finishEditing, boxOf, fitOrigin };
+  SigK.annotateText = { init, place, beginEdit, editSelected, commitDraft, move, finishEditing, fitOrigin };
 })(typeof window !== 'undefined' ? window : globalThis);

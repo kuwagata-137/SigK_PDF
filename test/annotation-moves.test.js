@@ -58,7 +58,7 @@ test('ノートは基準の点（左上）に足して 20×20 の箱を作り直
 test('テキストは表示の左上をずらし、箱の大きさは本文から取り直す', async (t) => {
   const SigK = await withMoves(t);
   const text = { id: 'sigk-4', kind: 'text', text: 'あいう', fontSize: 12, rotation: 0, rect: [100, 600, 400, 700], quads: [] };
-  const size = SigK.annotateText.boxOf(text.text, text.fontSize);
+  const size = SigK.freeTextMetrics.sizeOf(text);
   const patch = SigK.annotationMoves.movedPatch(text, [10, -10]);
   assert.deepEqual(plain(patch.rect), [110, 690 - size.height, 110 + size.width, 690].map((value) => Math.round(value * 100) / 100));
   assert.equal(patch.quads.length, 1);

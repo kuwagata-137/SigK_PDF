@@ -41,18 +41,11 @@
     return { imported, views };
   }
 
-  // 文字の向き（置いたときの表示の回転）に沿った紙の長さ（pt。spec-4b-4a 確定事項C2）。分からなければ null。
-  function lengthOf(view, rotation) {
-    if (!Array.isArray(view) || view.length !== 4 || !view.every(Number.isFinite))
-      return null;
-    return rotation % 180 === 0 ? Math.abs(view[2] - view[0]) : Math.abs(view[3] - view[1]);
-  }
-
   // 自前のテキストの読み戻しに渡す、字の送り幅と紙の長さ（spec-4b-4a 確定事項J3）。
   function textMeasureOf(views) {
     return {
       advanceOf: (unit, bold) => root.SigK.freeTextShape.advanceOf(root.document, unit, bold),
-      pageLengthOf: (src, rotation) => lengthOf(views[src], rotation),
+      pageLengthOf: (src, rotation) => root.SigK.freeTextLayout.paperLengthOf(views[src], rotation),
     };
   }
 

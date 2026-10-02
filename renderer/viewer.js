@@ -162,6 +162,12 @@
     return state.basePages.length;
   }
 
+  // 元ページ src の紙の範囲（pdf.js の page.view）。分からなければ null。
+  function getPaperBox(src) {
+    const view = state.basePages[src]?.view;
+    return Array.isArray(view) ? [...view] : null;
+  }
+
   function getPlan() {
     return root.SigK.pagePlan.clonePlan(state.plan);
   }
@@ -686,12 +692,14 @@
   // ここで集めるのは**元ファイルの並びの寸法**である（state.basePages）。
   // 画面に出す寸法は plan を当てた sizesFromPlan() のほうで、編集のたびに
   // 作り直す（spec-1-5 確定事項45）。
+  // view は pdf.js の page.view（紙の座標の [x1 y1 x2 y2]。CropBox）。テキストの自動の幅を紙の長さで抑えるのに使う
+  // （spec-4b-4a 確定事項C2。getPaperBox）。
   async function collectSizes(doc) {
     const sizes = [];
     for (let number = 1; number <= doc.numPages; number += 1) {
       const page = await doc.getPage(number);
       const viewport = page.getViewport({ scale: 1 });
-      sizes.push({ width: viewport.width, height: viewport.height });
+      sizes.push({ width: viewport.width, height: viewport.height, view: Array.isArray(page.view) ? [...page.view] : null });
     }
     return sizes;
   }
@@ -979,6 +987,7 @@
     isLive,
     redrawAnnotations,
     getBasePageCount,
+    getPaperBox,
     getTextLayer,
     setMessage,
     getMessage,

@@ -172,3 +172,30 @@ test('paint は canvas 2D に同じ位置と角度で fillText する', () => {
   assert.equal(texts[1][3] - texts[0][3], LINE_HEIGHT * 12 * 2);
   assert.deepEqual(calls.at(-1), ['restore']);
 });
+
+// ---- 新しい形の描き方（spec-4b-4a 確定事項D） ----
+
+test('svgOf は太字なら font-weight 700、斜体なら font-style italic を付け、行と中身の位置は free-text-metrics.js から取る', (t) => {
+  globalThis.SigK.freeTextMetrics = { layoutOfEntry: () => ({ lines: ['こんにち', 'は'], inset: { left: 2.96, top: 2 } }) };
+  t.after(() => { delete globalThis.SigK.freeTextMetrics; });
+  const doc = makeDoc();
+  const g = shape.svgOf(doc, { ...ENTRY, width: 'auto', bold: true, italic: true }, viewport({ scale: 2 }));
+  assert.equal(g.getAttribute('font-weight'), '700');
+  assert.equal(g.getAttribute('font-style'), 'italic');
+  const texts = [...g.querySelectorAll('text')];
+  assert.deepEqual(texts.map((el) => el.textContent), ['こんにち', 'は']);
+  assert.deepEqual(texts.map((el) => Number(el.getAttribute('x'))), [5.92, 5.92]);
+  const plain = shape.svgOf(doc, ENTRY, viewport({ scale: 2 }));
+  assert.equal(plain.hasAttribute('font-weight') || plain.hasAttribute('font-style'), false);
+});
+
+test('paint は太字・斜体を font に入れ、詰めと合字を切って描く', () => {
+  const state = {};
+  const ctx = {
+    save() {}, restore() {}, translate() {}, rotate() {}, fillText() {},
+    set font(v) { state.font = v; }, set fillStyle(v) {}, set textBaseline(v) {}, set globalAlpha(v) {},
+    set fontKerning(v) { state.fontKerning = v; }, set textRendering(v) { state.textRendering = v; },
+  };
+  shape.paint(ctx, { ...ENTRY, bold: true, italic: true, width: 'auto' }, viewport({ scale: 2 }));
+  assert.deepEqual(state, { font: 'italic 700 24px "SigK Noto Sans JP"', fontKerning: 'none', textRendering: 'optimizeSpeed' });
+});
