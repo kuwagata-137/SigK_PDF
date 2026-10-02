@@ -9,7 +9,8 @@
 //   reopen               いまのタブの文書を閉じて開き直し、読み込み（辞書の読み戻し）が終わるまで待って、自前のテキストを控える
 //                        （保存と開き直しを繰り返して、幅・位置・書式・行が変わらないことを見る。完了判定5）
 //   compare:2            いまのタブのファイルの 1 ページ目を、pdf.js が外観ごと描いた絵と、外観を描かずに SigK の印刷の描き手で
-//                        自前のテキストを重ねた絵とで、倍率 2 で比べる（差が 32 を超える画素の割合。完了判定2・3）
+//                        自前のテキストを重ねた絵とで、倍率 2 で比べる（差が 32 を超える画素の割合。完了判定2・3）。pdf.js が外観から
+//                        読み戻す文字の大きさと色も控える
 // TEXT_REPORT は結果の text の欄（テキストの書き込みの書式と行・入力欄の行・開き直しの控え・画素の比べ・右パネルの行）を組む文。
 // 文字列の中には ` と ${ を書かない（テンプレートの中に埋めるため）。inspectTexts は保存先の FreeText の欄を読む（main.js が呼ぶ）。
 
@@ -95,7 +96,10 @@ const TEXT_STEPS = `
         const [x2, y2] = viewport.convertToViewportPoint(entry.rect[2], entry.rect[3]);
         return [Math.floor(Math.min(x1, x2)) - 2, Math.floor(Math.min(y1, y2)) - 2, Math.ceil(Math.max(x1, x2)) + 2, Math.ceil(Math.max(y1, y2)) + 2];
       };
-      textCompare = { scale, page: count([0, 0, width, byPdfjs.height]), texts: entries.map((entry) => ({ text: entry.text.slice(0, 12), ...count(boxOf(entry)) })) };
+      // pdf.js が外観から読み戻す文字の大きさと色（半透明でも読めるか。完了判定3）。
+      const pdfjsRead = (await page.getAnnotations()).filter((item) => item.subtype === 'FreeText')
+        .map((item) => ({ fontSize: item.defaultAppearanceData?.fontSize ?? null, fontColor: [...(item.defaultAppearanceData?.fontColor ?? [])], opacity: item.opacity ?? null }));
+      textCompare = { scale, page: count([0, 0, width, byPdfjs.height]), texts: entries.map((entry) => ({ text: entry.text.slice(0, 12), ...count(boxOf(entry)) })), pdfjsRead };
       await task.destroy();
     }
 `;
