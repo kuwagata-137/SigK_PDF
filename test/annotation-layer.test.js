@@ -5,11 +5,13 @@ const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
 require('../renderer/markup-quads.js');
+require('../renderer/markup-graphics.js');
 require('../renderer/shape-style.js');
 require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/free-text-geometry.js');
+require('../renderer/free-text-font.js');
 require('../renderer/free-text-shape.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-outline.js');

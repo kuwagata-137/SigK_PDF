@@ -11,6 +11,7 @@ require('../renderer/shape-style.js');
 require('../renderer/imported-shape.js');
 require('../renderer/imported-entry.js');
 require('../renderer/annotation-box-details.js');
+require('../renderer/free-text-font.js');
 require('../renderer/free-text-shape.js');
 require('../renderer/free-text-wrap.js');
 require('../renderer/free-text-layout.js');

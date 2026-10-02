@@ -50,3 +50,16 @@ test('pickAnnotTextStyle は太字・斜体の真偽値、塗り・枠線の #rr
   assert.deepEqual(settings.mergeAnnotUi({ annotTextStyle: { ...STYLE_DEFAULT, bold: true } }, { annotTextStyle: { italic: true, border: '#4472c4' } }).annotTextStyle,
     { ...STYLE_DEFAULT, bold: true, italic: true, border: '#4472c4' });
 });
+
+// テキストのキーの既定と取り出し（spec-4b-4b で annotation-settings.js からまとめた）。
+test('textDefaults と pickTextSettings は文字の大きさと書式のキーを並びのまま組み、受け取れない値は fallback へ落とす', () => {
+  const { textDefaults, pickTextSettings } = text;
+  assert.deepEqual(Object.keys(textDefaults()), ['annotFontSize', 'annotTextStyle']);
+  assert.deepEqual(textDefaults(), { annotFontSize: 12, annotTextStyle: STYLE_DEFAULT });
+  assert.notEqual(textDefaults().annotTextStyle, textDefaults().annotTextStyle);
+  assert.deepEqual(pickTextSettings({ annotFontSize: 9.5, annotTextStyle: { bold: true } }, textDefaults()),
+    { annotFontSize: 9.5, annotTextStyle: { ...STYLE_DEFAULT, bold: true } });
+  assert.deepEqual(pickTextSettings({ annotFontSize: 7 }, { annotFontSize: 14, annotTextStyle: { ...STYLE_DEFAULT, italic: true } }),
+    { annotFontSize: 14, annotTextStyle: { ...STYLE_DEFAULT, italic: true } });
+  assert.deepEqual(pickTextSettings({}, undefined), textDefaults());
+});

@@ -10,7 +10,7 @@ function makeWorld() {
   const dom = new JSDOM('<!doctype html><div class="pdf-page"></div>', { runScripts: 'outside-only' });
   const win = dom.window;
   win.SigK = {};
-  for (const name of ['free-text-geometry', 'free-text-shape', 'free-text-wrap', 'free-text-layout', 'free-text-metrics', 'free-text-editor-node']) {
+  for (const name of ['free-text-geometry', 'free-text-font', 'free-text-shape', 'free-text-wrap', 'free-text-layout', 'free-text-metrics', 'free-text-editor-node']) {
     const script = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'renderer', `${name}.js`), 'utf8');
     win.eval(script);
   }

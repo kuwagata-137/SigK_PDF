@@ -7,7 +7,7 @@
 // 既定の色・文字の大きさ・図形の種類は renderer/annotation-presets.js と同じであること（プロセスが違うので import は
 // できない。test/settings.test.js が一致を見張る）。受け取れない値は、渡された fallback、それも無ければ既定へ落とす。
 
-const { ANNOT_FONT_SIZES, DEFAULT_ANNOT_FONT_SIZE, DEFAULT_ANNOT_TEXT_STYLE, pickAnnotFontSize, pickAnnotTextStyle } = require('./annotation-text-settings.js');
+const { ANNOT_FONT_SIZES, textDefaults, pickTextSettings } = require('./annotation-text-settings.js');
 
 // 候補の色の移し替え（確定事項15）を済ませた設定に書く印。
 const ANNOT_PALETTE_VERSION = 1;
@@ -20,8 +20,7 @@ const ANNOT_DEFAULTS = {
   annotFills: { shape: null },
   annotStrokeNone: { shape: false },
   annotLineStyles: { shape: 'solid' },
-  annotFontSize: DEFAULT_ANNOT_FONT_SIZE,
-  annotTextStyle: { ...DEFAULT_ANNOT_TEXT_STYLE },
+  ...textDefaults(),
   annotLineWidth: 2,
   annotShapeKind: 'square',
   annotOpacity: { text: 1, shape: 1, pen: 1, note: 1 },
@@ -151,8 +150,7 @@ function pickAnnotSettings(source) {
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(raw.annotStrokeNone, ANNOT_DEFAULTS.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(raw.annotLineStyles, ANNOT_DEFAULTS.annotLineStyles),
-    annotFontSize: pickAnnotFontSize(raw.annotFontSize, ANNOT_DEFAULTS.annotFontSize),
-    annotTextStyle: pickAnnotTextStyle(raw.annotTextStyle, ANNOT_DEFAULTS.annotTextStyle),
+    ...pickTextSettings(raw, ANNOT_DEFAULTS),
     annotLineWidth: pickAnnotLineWidth(raw.annotLineWidth, ANNOT_DEFAULTS.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, raw.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind),
     annotOpacity: pickAnnotOpacity(raw.annotOpacity, ANNOT_DEFAULTS.annotOpacity),
@@ -172,8 +170,7 @@ function mergeAnnotUi(current, next) {
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(merged('annotStrokeNone'), current.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(merged('annotLineStyles'), current.annotLineStyles),
-    annotFontSize: pickAnnotFontSize(next.annotFontSize, current.annotFontSize),
-    annotTextStyle: pickAnnotTextStyle(merged('annotTextStyle'), current.annotTextStyle),
+    ...pickTextSettings({ ...next, annotTextStyle: merged('annotTextStyle') }, current),
     annotLineWidth: pickAnnotLineWidth(next.annotLineWidth, current.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, next.annotShapeKind, current.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind),
     annotOpacity: pickAnnotOpacity(merged('annotOpacity'), current.annotOpacity),

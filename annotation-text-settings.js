@@ -48,7 +48,21 @@ function pickAnnotTextStyle(raw, fallback) {
   return picked;
 }
 
+// テキストのキー（文字の大きさ・次に置くテキストの書式）の既定と取り出し。annotation-settings.js の ANNOT_DEFAULTS・pickAnnotSettings・
+// mergeAnnotUi が、キーの並びの位置へ広げる（spec-4b-4b。テキストのキーをここにまとめる）。source の annotTextStyle は、部分更新なら
+// 今の値に重ねたもの。受け取れない値は fallback（それも無ければ既定）。
+function textDefaults() {
+  return { annotFontSize: DEFAULT_ANNOT_FONT_SIZE, annotTextStyle: { ...DEFAULT_ANNOT_TEXT_STYLE } };
+}
+
+function pickTextSettings(source, fallback) {
+  return {
+    annotFontSize: pickAnnotFontSize(source.annotFontSize, fallback?.annotFontSize),
+    annotTextStyle: pickAnnotTextStyle(source.annotTextStyle, fallback?.annotTextStyle),
+  };
+}
+
 module.exports = {
   ANNOT_FONT_SIZES, ANNOT_FONT_SIZE_MIN, ANNOT_FONT_SIZE_MAX, ANNOT_FONT_SIZE_STEP, DEFAULT_ANNOT_FONT_SIZE, DEFAULT_ANNOT_TEXT_STYLE,
-  pickAnnotFontSize, pickAnnotTextStyle,
+  pickAnnotFontSize, pickAnnotTextStyle, textDefaults, pickTextSettings,
 };

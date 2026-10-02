@@ -3,21 +3,19 @@
 
   // 画面のテキスト注釈（spec-4-2 確定事項10・14・29・33）。
   //
-  // 同梱フォント（shell.css の @font-face 'SigK Noto Sans JP'）の先読み、幅の計測
-  // （canvas の measureText。保存側の widthOfTextAtSize と日本語で一致する。事前調査 D）、
-  // SVG の <text>、印刷用の canvas 2D の描き手を持つ。座標の計算は free-text-geometry.js。
+  // SVG の <text> と、印刷用の canvas 2D の描き手を持つ。同梱フォントの先読みと幅の計測は free-text-font.js、
+  // 座標の計算は free-text-geometry.js。
   // SVG と canvas で同じ位置・角度・ベースラインにするのは、画面と紙で見た目を
   // ずらさないためである（annotation-layer.js と同じ考え）。新しい形（spec-4b-4a）の行と中身の位置は
   // free-text-metrics.js が決め、太字は Bold の書体、斜体は擬似斜体（font-style: italic。保存の Tm 0.25 と同じ形。
   // 事前調査 B）で描く。詰め（kerning）と合字は使わない（保存の字の並びとそろえる。事前調査 E）。
 
-  const FAMILY = 'SigK Noto Sans JP';
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  // 字の送り幅を測る大きさ（px）。小さいと canvas の丸めが効く（事前調査 E。7〜4000px で比例）。
-  const ADVANCE_PX = 1000;
 
-  // advances は字ごとの送り幅（em）の覚え。標準と太字で分ける。フォントが読めてから覚える（読む前は代わりの書体で測るため）。
-  const state = { loaded: false, loading: null, contexts: new WeakMap(), advances: { regular: new Map(), bold: new Map() } };
+  // 書体と字の幅（free-text-font.js へ移した。spec-4b-4b）。今までの呼び名（freeTextShape.measure など）のまま渡す。
+  function font() {
+    return root.SigK.freeTextFont;
+  }
 
   function geometry() {
     return root.SigK.freeTextGeometry;
@@ -25,71 +23,6 @@
 
   function fmt(value) {
     return String(Math.round(value * 100) / 100);
-  }
-
-  function fontOf(px, bold = false, italic = false) {
-    return `${italic ? 'italic ' : ''}${bold ? '700 ' : ''}${px}px "${FAMILY}"`;
-  }
-
-  // フォントを先読みする。注釈モードに入ったとき・自前のテキストを読み込んだとき・
-  // 印刷の前に呼ぶ（39ms。事前調査 D）。標準と太字の両方を待つ（spec-4b-4a 確定事項D4）。document.fonts が無い（jsdom）なら false。
-  async function ensureLoaded(doc) {
-    if (state.loaded)
-      return true;
-    if (typeof doc?.fonts?.load !== 'function')
-      return false;
-    if (state.loading === null) {
-      state.loading = Promise.all([doc.fonts.load(fontOf(12)), doc.fonts.load(fontOf(12, true))]).then(() => {
-        state.loaded = true;
-        return true;
-      }, () => false);
-    }
-    return state.loading;
-  }
-
-  function isLoaded() {
-    return state.loaded;
-  }
-
-  // 測るための canvas。jsdom には 2D コンテキストが無く、getContext を呼ぶと「Not implemented」が
-  // コンソールに出るので、呼ぶ前に確かめる（page-render.js と同じ）。
-  function contextOf(doc) {
-    if (typeof doc?.defaultView?.CanvasRenderingContext2D === 'undefined')
-      return null;
-    if (!state.contexts.has(doc))
-      state.contexts.set(doc, doc.createElement('canvas').getContext('2d'));
-    return state.contexts.get(doc);
-  }
-
-  // 1 行の幅（px。倍率 1 なら pt）。canvas が無ければ全角 1em・半角 0.5em の見積もり。
-  function measure(doc, text, px) {
-    const ctx = contextOf(doc);
-    if (ctx === null)
-      return [...text].reduce((sum, ch) => sum + (ch.charCodeAt(0) < 128 ? 0.5 : 1), 0) * px;
-    ctx.font = fontOf(px);
-    ctx.fontKerning = 'none';
-    const width = ctx.measureText(text).width;
-    ctx.fontKerning = 'auto';
-    return width;
-  }
-
-  // 字（書記素）の送り幅（em）。新しい形の折り返しと箱に使う（spec-4b-4a 確定事項B6）。kerning を切った canvas で ADVANCE_PX で測り、
-  // 字ごとに覚える（保存側の hmtx と一致する。事前調査 E）。canvas が無ければ全角 1em・半角 0.5em の見積もり。
-  function advanceOf(doc, unit, bold = false) {
-    const ctx = contextOf(doc);
-    if (ctx === null)
-      return unit.charCodeAt(0) < 128 ? 0.5 : 1;
-    const cache = bold ? state.advances.bold : state.advances.regular;
-    const known = cache.get(unit);
-    if (known !== undefined)
-      return known;
-    ctx.font = fontOf(ADVANCE_PX, bold);
-    ctx.fontKerning = 'none';
-    const em = ctx.measureText(unit).width / ADVANCE_PX;
-    ctx.fontKerning = 'auto';
-    if (state.loaded)
-      cache.set(unit, em);
-    return em;
   }
 
   // 行と中身の位置（箱の左上から。pt）。free-text-metrics.js が無ければ（単体のテスト）今までの形として改行で分ける。
@@ -156,7 +89,7 @@
     ctx.translate(origin[0], origin[1]);
     ctx.rotate((angle * Math.PI) / 180);
     root.SigK.freeTextDecorGraphics?.paint(ctx, entry, scale);
-    ctx.font = fontOf(entry.fontSize * scale, entry.bold === true, entry.italic === true);
+    ctx.font = font().fontOf(entry.fontSize * scale, entry.bold === true, entry.italic === true);
     // 詰めと合字を切る（spec-4b-4a 確定事項D3。optimizeSpeed は合字を作らない）。
     ctx.fontKerning = 'none';
     ctx.textRendering = 'optimizeSpeed';
@@ -187,5 +120,16 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextShape = { FAMILY, ADVANCE_PX, fontOf, ensureLoaded, isLoaded, measure, advanceOf, layoutOf, svgOf, paint };
+  SigK.freeTextShape = {
+    get FAMILY() { return font().FAMILY; },
+    get ADVANCE_PX() { return font().ADVANCE_PX; },
+    fontOf: (...args) => font().fontOf(...args),
+    ensureLoaded: (...args) => font().ensureLoaded(...args),
+    isLoaded: () => font().isLoaded(),
+    measure: (...args) => font().measure(...args),
+    advanceOf: (...args) => font().advanceOf(...args),
+    layoutOf,
+    svgOf,
+    paint,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);
