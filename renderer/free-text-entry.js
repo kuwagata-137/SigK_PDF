@@ -58,9 +58,9 @@
     return a.width === b.width && FLAGS.every((flag) => (a[flag] === true) === (b[flag] === true));
   }
 
-  // ワーカーへ渡す欄（確定事項I1）。新しい形は、画面で決めた行 lines と余白 padding を添える（layout は free-text-layout.js の
-  // layoutOf の答え）。今までの形は何も足さない。新しい形で layout が無ければ lines を付けず、ワーカーが断る（黙って折り返さずに
-  // 保存しない）。
+  // ワーカーへ渡す欄（確定事項I1）。新しい形は、画面で決めた行 lines と、箱の左上から中身の左上までの inset [左, 上]（余白と
+  // 斜体の分）を添える（layout は free-text-layout.js の layoutOf の答え）。今までの形は何も足さない。新しい形で layout が無ければ
+  // lines を付けず、ワーカーが断る（黙って折り返さずに保存しない）。
   function saveFields(entry, layout) {
     if (!isNewForm(entry))
       return {};
@@ -69,9 +69,9 @@
       if (entry[flag] === true)
         saved[flag] = true;
     }
-    if (Array.isArray(layout?.lines) && Number.isFinite(layout.padding)) {
+    if (Array.isArray(layout?.lines) && Number.isFinite(layout.inset?.left) && Number.isFinite(layout.inset?.top)) {
       saved.lines = [...layout.lines];
-      saved.padding = layout.padding;
+      saved.inset = [layout.inset.left, layout.inset.top];
     }
     return saved;
   }

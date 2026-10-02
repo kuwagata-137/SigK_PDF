@@ -392,7 +392,9 @@ test('Ctrl+Z でテキストの世代が戻り、削除も戻せる', async (t) 
 // ---- 読み込み（確定事項13） ----
 
 test('自分で付けた FreeText だけを読み込んで pdf.js に描かせず、直せる', async (t) => {
-  const shell = await withTextTool(t, { stub: { annotations: { 0: [OWN_TEXT, OTHER_TEXT] } } });
+  // 口は /DS の無い今までの形と答える（答えが無ければ表示のみ。spec-4b-4a 確定事項J4）。
+  const detailsResults = [{ ok: true, details: { '120R': { ca: null, defaultStyle: null, daColor: '#d92c2c' } } }];
+  const shell = await withTextTool(t, { stub: { annotations: { 0: [OWN_TEXT, OTHER_TEXT] } }, detailsResults });
   const { SigK } = shell;
   await shell.flush();
   const imported = SigK.viewer.getImported();

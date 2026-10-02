@@ -5,8 +5,9 @@
   //
   // needsDetails・refsOf・applyDetails・readonlyOf は純関数。requestDetails は annotationAPI.readDetails
   // （ワーカーが辞書を直に読む口）を 1 本ずつ順番に呼ぶ。答えの欄は worker/annotation-dict-reader.js の detailsOf。
-  // 当てるのは不透明度（/CA）と、四角・丸の塗り（/IC）・雲形（/BE の強さ）・/RD（spec-4b-1b 確定事項36〜38）。破線と線なしは
-  // pdf.js の値で imported-shape.js が読む。描けないもの（雲形の破線・崩れた /RD）と、線も塗りも無いものは表示のみにする。
+  // 当てるのは不透明度（/CA）と、四角・丸の塗り（/IC）・雲形（/BE の強さ）・/RD（spec-4b-1b 確定事項36〜38）、自前のテキストの
+  // /DS（spec-4b-4a 確定事項J。imported-text-details.js）。破線と線なしは pdf.js の値で imported-shape.js が読む。描けないもの
+  // （雲形の破線・崩れた /RD）と、線も塗りも無いものは表示のみにする。
 
   // 口が要る種類。pdf.js が不透明度（/CA）を返さないもの（事前調査 A）。ハイライト・下線・取り消し線・ペンは
   // pdf.js が返すので要らない。
@@ -70,13 +71,17 @@
   // 答えを 1 件に当てる（spec-4b-1a 確定事項26、spec-4b-1b 確定事項36〜38）。その注釈の答えが無ければ pdf.js の値のまま
   // （①-a 確定事項27）。口がまるごと答えなかった（answered が false）ときの四角・丸は表示のみにする（回っているかと塗りが分からない
   // まま直すと、開いた時点で見た目が変わるため。spec-4b-2 確定事項36）。どちらでも、線も塗りも無いもの（線の見えない四角・丸で
-  // 塗りが分からないもの）は表示のみにする。
-  function applyDetails(entry, detail, { answered = true } = {}) {
+  // 塗りが分からないもの）は表示のみにする。自前のテキストは imported-text-details.js が新しい形を組み、口の答えが無ければ
+  // 表示のみにする（spec-4b-4a 確定事項J2〜J4）。text はその口に渡す字の送り幅と紙の長さ（{ advanceOf, pageLengthOf }）。
+  function applyDetails(entry, detail, { answered = true, text = {} } = {}) {
     if (entry.readonly === true)
       return entry;
     if (!answered && (entry.kind === 'square' || entry.kind === 'circle'))
       return readonlyOf(entry);
-    const next = detail === undefined || detail === null ? entry : withDetails(entry, detail);
+    const base = entry.kind === 'text' ? root.SigK.importedTextDetails.withTextDetails(entry, detail, { answered, ...text }) : entry;
+    if (base === null)
+      return readonlyOf(entry);
+    const next = detail === undefined || detail === null ? base : withDetails(base, detail);
     if (next === null || (next.color === null && (next.fill ?? null) === null))
       return readonlyOf(entry);
     return next;

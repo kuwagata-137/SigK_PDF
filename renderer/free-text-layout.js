@@ -58,12 +58,13 @@
     return base + (border && Number.isFinite(entry.borderWidth) ? entry.borderWidth : 0);
   }
 
-  // 箱の内側の寸法。left・top は箱の左上から中身の左上まで、horizontal・vertical は左右・上下の和。
+  // 箱の内側の寸法。left・top は箱の左上から中身の左上まで、horizontal・vertical は左右・上下の和。どれも 0.01pt に丸める
+  // （箱の幅＝中身の幅＋horizontal を 0.01pt の刻みに収め、開き直したときに固定の幅を同じ値で読み戻せるように。確定事項J3）。
   function insetOf(entry) {
-    const padding = paddingOf(entry);
-    const left = entry.italic === true ? entry.fontSize * ITALIC_LEFT : 0;
-    const right = entry.italic === true ? entry.fontSize * ITALIC_RIGHT : 0;
-    return { padding, left: padding + left, top: padding, horizontal: padding * 2 + left + right, vertical: padding * 2 };
+    const padding = round(paddingOf(entry));
+    const left = entry.italic === true ? round(entry.fontSize * ITALIC_LEFT) : 0;
+    const right = entry.italic === true ? round(entry.fontSize * ITALIC_RIGHT) : 0;
+    return { padding, left: round(padding + left), top: padding, horizontal: round(padding * 2 + left + right), vertical: round(padding * 2) };
   }
 
   // 自動の幅（確定事項C2）。pageLength は文字の向きに沿った紙の長さ（pt）。分からなければ 12 字。下限は 1 字。
@@ -81,13 +82,13 @@
   }
 
   // 行と箱（確定事項B1・B4）。advanceOf(unit) は字の送り幅（em。太字なら Bold で測ったもの）、lineWidthOf(line) は今までの形の
-  // 1 行の幅（pt）。戻り値は { lines, padding, contentWidth, size（表示の向き・pt） }。
+  // 1 行の幅（pt）。戻り値は { lines, inset（insetOf）, contentWidth, size（表示の向き・pt） }。
   function layoutOf(entry, { advanceOf, lineWidthOf, pageLength = null }) {
     const { fontSize } = entry;
     if (entry.width === undefined) {
       const lines = geometry().linesOf(entry.text);
       const size = geometry().boxOfLines(lines, fontSize, lineWidthOf);
-      return { lines, padding: geometry().PADDING, contentWidth: round(size.width - geometry().PADDING * 2), size };
+      return { lines, inset: insetOf({ fontSize }), contentWidth: round(size.width - geometry().PADDING * 2), size };
     }
     const advance = (unit) => advanceOf(unit) * fontSize;
     const lines = wrap().wrapLines(entry.text, wrapWidthOf(entry, pageLength), advance);
@@ -97,7 +98,7 @@
     const rows = Math.max(1, lines.length);
     return {
       lines,
-      padding: inset.padding,
+      inset,
       contentWidth: round(contentWidth),
       size: { width: round(contentWidth + inset.horizontal), height: round(rows * fontSize * geometry().LINE_HEIGHT + inset.vertical) },
     };

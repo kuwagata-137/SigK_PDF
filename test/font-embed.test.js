@@ -16,7 +16,7 @@ const zlib = require('node:zlib');
 const { PDFDocument, PDFName } = require('pdf-lib');
 const fontkit = require('@pdf-lib/fontkit');
 const {
-  FONT_PATH, DA_FONT_NAME, FONT_ERROR, paddedFontkit, subsetTag, createFontSource, embedBundledFont, measureOf,
+  FONT_PATH, BOLD_FONT_PATH, DA_FONT_NAME, BOLD_FONT_NAME, FONT_ERROR, FEATURES, paddedFontkit, subsetTag, createFontSource, embedBundledFont, measureOf,
 } = require('../worker/font-embed.js');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -187,4 +187,49 @@ test('measureOf は pdf-lib のフォントから encode と width を組む', a
   assert.deepEqual(Object.keys(measure).sort(), ['encode', 'font', 'name', 'width']);
   assert.equal(measure.encode('A').length, 4);
   assert.ok(measure.width('AAA', 10) > measure.width('A', 10));
+});
+
+// ---- 太字の書体と合字（spec-4b-4a 確定事項I4。事前調査 B・E） ----
+
+test('太字の書体は Regular と同じ並びの静的 TTF で、Bold の名前で埋まり、外観では SigKJPB と呼ぶ', async () => {
+  assert.equal(path.relative(ROOT, BOLD_FONT_PATH).replace(/\\/g, '/'), 'assets/fonts/NotoSansJP-Bold.ttf');
+  const regular = fontkit.create(fs.readFileSync(FONT_PATH));
+  const bold = fontkit.create(fs.readFileSync(BOLD_FONT_PATH));
+  assert.equal(bold.numGlyphs, regular.numGlyphs);
+  assert.equal(bold.unitsPerEm, 1000);
+  assert.equal(bold.layout('あ').glyphs[0].advanceWidth, regular.layout('あ').glyphs[0].advanceWidth, '全角の字幅は同じ');
+
+  const doc = await PDFDocument.create();
+  const result = await embedBundledFont(doc, createFontSource({ fontkit }), { random: () => 0, bold: true });
+  assert.equal(result.measure.name, BOLD_FONT_NAME);
+  assert.equal(BOLD_FONT_NAME, 'SigKJPB');
+  assert.equal(DA_FONT_NAME, 'SigKJP');
+  result.measure.encode('太字');
+  assert.deepEqual(await baseFontsOf(await doc.save({ addDefaultPage: false })), ['/AAAAAA+NotoSansJP-Bold']);
+});
+
+test('createFontSource は太字の書体を要るときだけ一度読み、読めなければ文言を返す', () => {
+  const reads = [];
+  const fsLike = { readFileSync: (file) => { reads.push(path.basename(file)); return fs.readFileSync(file); } };
+  const source = createFontSource({ fsLike, fontkit });
+  source.load();
+  assert.deepEqual(reads, ['NotoSansJP-Regular.ttf']);
+  const first = source.loadBold();
+  assert.equal(first.ok, true);
+  assert.equal(source.loadBold(), first);
+  assert.deepEqual(reads, ['NotoSansJP-Regular.ttf', 'NotoSansJP-Bold.ttf']);
+  const missing = createFontSource({ fsLike: { readFileSync: (file) => { if (file.endsWith('Bold.ttf')) throw new Error('ENOENT'); return fs.readFileSync(file); } }, fontkit });
+  assert.equal(missing.load().ok, true);
+  assert.deepEqual(missing.loadBold(), { ok: false, error: FONT_ERROR });
+});
+
+test('埋めた書体は合字を作らない（office は 6 字のグリフ。画面の font-variant-ligatures: none と並びをそろえる）', async () => {
+  assert.deepEqual(FEATURES, { liga: false });
+  const regular = fontkit.create(fs.readFileSync(FONT_PATH));
+  assert.ok(regular.layout('office').glyphs.length < 6, '既定の layout は合字を作る（このテストの前提）');
+  for (const bold of [false, true]) {
+    const doc = await PDFDocument.create();
+    const { measure } = await embedBundledFont(doc, createFontSource({ fontkit }), { bold });
+    assert.equal(measure.encode('office').length, 6 * 4, bold ? 'Bold' : 'Regular');
+  }
 });

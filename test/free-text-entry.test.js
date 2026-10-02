@@ -49,10 +49,11 @@ test('copyFields と sameFields は幅・太字・斜体を写して比べる（
   assert.equal(fields.sameFields({}, {}), true);
 });
 
-test('saveFields は新しい形に幅・太字・斜体と、画面で決めた行と余白を添え、今までの形には何も足さない', () => {
-  assert.deepEqual(fields.saveFields({ text: 'x' }, { lines: ['x'], padding: 2 }), {});
-  assert.deepEqual(fields.saveFields({ width: 'auto', bold: true }, { lines: ['あいう', 'え'], padding: 2 }),
-    { width: 'auto', bold: true, lines: ['あいう', 'え'], padding: 2 });
+test('saveFields は新しい形に幅・太字・斜体と、画面で決めた行と中身の位置を添え、今までの形には何も足さない', () => {
+  const inset = { padding: 2, left: 2.8, top: 2, horizontal: 7.3, vertical: 4 };
+  assert.deepEqual(fields.saveFields({ text: 'x' }, { lines: ['x'], inset }), {});
+  assert.deepEqual(fields.saveFields({ width: 'auto', bold: true }, { lines: ['あいう', 'え'], inset }),
+    { width: 'auto', bold: true, lines: ['あいう', 'え'], inset: [2.8, 2] });
   // 行が無ければ添えない（ワーカーが断る）。
   assert.deepEqual(fields.saveFields({ width: 30, italic: true }, null), { width: 30, italic: true });
 });

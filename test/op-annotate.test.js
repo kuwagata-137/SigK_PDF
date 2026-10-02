@@ -14,6 +14,7 @@ const fontkit = require('@pdf-lib/fontkit');
 const { parseRef, applyAnnotations } = require('../worker/op-annotate.js');
 const { createFontSource, FONT_ERROR } = require('../worker/font-embed.js');
 const { pick } = require('../worker/pdf-tree-reader.js');
+const { detailsOf } = require('../worker/annotation-dict-reader.js');
 
 const TOOLS = { PDFName, PDFString, PDFHexString, PDFArray, PDFRef };
 const NOW = new Date(2026, 8, 15, 12, 0, 0);
@@ -211,6 +212,8 @@ test('text は FreeText の辞書と外観・フォントのサブセット付�
   assert.equal(pick(dict, '/Contents').decodeText(), 'こんにちは\n世界');
   assert.equal(pick(dict, '/DA').decodeText(), '/SigKJP 12 Tf 0.11 0.141 0.188 rg');
   assert.deepEqual(numbersOf(saved, pick(dict, '/Border')), [0, 0, 0]);
+  // 枠線なしは /BS /W 0（spec-4b-4a 確定事項I5。外観を作り直すビューアが 1pt の枠を描かないように）
+  assert.equal(pick(saved.context.lookup(pick(dict, '/BS')), '/W').asNumber(), 0);
   assert.equal(pick(dict, '/Rotate'), undefined);
   assert.equal(pick(dict, '/F').asNumber(), 4);
   assert.equal(pick(dict, '/CA').asNumber(), 1);
@@ -632,4 +635,92 @@ test('回した四角を焼くと、外観の /Matrix を Do が掛け、置く�
   assert.ok(Math.abs(numbers[0] - 1) < 0.001 && Math.abs(numbers[3] - 1) < 0.001, `${line}`);
   assert.equal(numbers[1], 0);
   assert.equal(numbers[2], 0);
+});
+
+// ---- 新しい形（折り返す形）のテキスト（spec-4b-4a 確定事項I） ----
+
+function wrappedText(overrides = {}) {
+  return text({
+    text: 'あいうえおかきくけこさしすせそ', fontSize: 10, rect: [100, 670.5, 224, 700],
+    width: 'auto', lines: ['あいうえおかきくけこさし', 'すせそ'], inset: [2, 2], ...overrides,
+  });
+}
+
+function normalOf(doc, dict) {
+  return doc.context.lookup(pick(doc.context.lookup(pick(dict, '/AP')), '/N'));
+}
+
+function fontNamesOf(doc, normal) {
+  const fonts = doc.context.lookup(pick(doc.context.lookup(pick(normal.dict, '/Resources')), '/Font'));
+  return [...fonts.entries()].map(([key]) => key.asString());
+}
+
+test('新しい形の text は /Rect を伸ばさず、/DS と /BS /W 0 を書き、外観は画面で決めた行を Tm で並べる', async () => {
+  const doc = await makeDoc(1);
+  assert.deepEqual(await applyAnnotations(doc, { add: [wrappedText()] }, TOOLS, { now: NOW, fontSource }), { ok: true, added: 1, removed: 0 });
+  const saved = await roundTrip(doc);
+  const [{ dict }] = annotsOf(saved, 0);
+  assert.deepEqual(numbersOf(saved, pick(dict, '/Rect')), [100, 670.5, 224, 700]);
+  assert.equal(pick(dict, '/DA').decodeText(), '/SigKJP 10 Tf 0.11 0.141 0.188 rg');
+  assert.equal(pick(dict, '/DS').decodeText(), 'font: 10pt "Noto Sans JP"; color: #1C2430');
+  assert.equal(pick(saved.context.lookup(pick(dict, '/BS')), '/W').asNumber(), 0);
+  assert.equal(pick(dict, '/Contents').decodeText(), 'あいうえおかきくけこさしすせそ');
+  for (const key of ['/C', '/RC', '/IC', '/IT'])
+    assert.equal(pick(dict, key), undefined, key);
+  const normal = normalOf(saved, dict);
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/BBox')), [100, 670.5, 224, 700]);
+  assert.deepEqual(fontNamesOf(saved, normal), ['/SigKJP']);
+  const content = contentOf(saved, normal);
+  assert.match(content, /\n\/SigKJP 10 Tf\n1 0 0 1 102 687.39 Tm\n<[0-9a-f]{48}> Tj\n1 0 0 1 102 674.89 Tm\n<[0-9a-f]{12}> Tj\nET\nQ$/i);
+});
+
+test('太字の text は太字の書体で描き、/DA の書体名は SigKJP のまま。Bold は太字のテキストがある保存だけ埋める', async () => {
+  const bold = await makeDoc(1);
+  await applyAnnotations(bold, { add: [wrappedText({ bold: true })] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(bold);
+  const [{ dict }] = annotsOf(saved, 0);
+  assert.match(pick(dict, '/DA').decodeText(), /^\/SigKJP 10 Tf /);
+  assert.match(pick(dict, '/DS').decodeText(), /; font-weight: bold$/);
+  assert.deepEqual(fontNamesOf(saved, normalOf(saved, dict)), ['/SigKJPB']);
+  assert.match(contentOf(saved, normalOf(saved, dict)), /\n\/SigKJPB 10 Tf\n/);
+  assert.deepEqual(type0FontsOf(saved).map((font) => nameOf(font, '/BaseFont').replace(/^\/[A-Z]{6}\+/, '')), ['NotoSansJP-Bold'], '標準の書体は埋めない');
+
+  const mixed = await makeDoc(1);
+  await applyAnnotations(mixed, { add: [wrappedText({ bold: true }), text()] }, TOOLS, { now: NOW, fontSource });
+  assert.deepEqual(type0FontsOf(await roundTrip(mixed)).map((font) => nameOf(font, '/BaseFont').replace(/^\/[A-Z]{6}\+/, '')).sort(), ['NotoSansJP-Bold', 'NotoSansJP-Regular']);
+
+  const regular = await makeDoc(1);
+  await applyAnnotations(regular, { add: [wrappedText(), text()] }, TOOLS, { now: NOW, fontSource });
+  assert.equal(type0FontsOf(await roundTrip(regular)).length, 1);
+});
+
+test('斜体の text は Tm の傾き 0.25 で描き、中身の左上は inset（余白と斜体の分）だけ内側に置く', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [wrappedText({ italic: true, rect: [100, 670.5, 227.3, 700], inset: [2.8, 2] })] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  const [{ dict }] = annotsOf(saved, 0);
+  assert.match(pick(dict, '/DS').decodeText(), /; font-style: italic$/);
+  assert.match(contentOf(saved, normalOf(saved, dict)), /\n1 0 0.25 1 102.8 687.39 Tm\n/);
+});
+
+test('新しい形の行が本文と合わない・中身の位置が無い・今までの形に太字があるときは断る', async () => {
+  const doc = await makeDoc(1);
+  const refused = { error: '書き込み 1 の形が読めません。' };
+  assert.deepEqual(await applyAnnotations(doc, { add: [wrappedText({ lines: ['あいう'] })] }, TOOLS, { now: NOW, fontSource }), refused);
+  assert.deepEqual(await applyAnnotations(doc, { add: [wrappedText({ lines: undefined })] }, TOOLS, { now: NOW, fontSource }), refused);
+  assert.deepEqual(await applyAnnotations(doc, { add: [wrappedText({ inset: undefined })] }, TOOLS, { now: NOW, fontSource }), refused);
+  assert.deepEqual(await applyAnnotations(doc, { add: [text({ bold: true })] }, TOOLS, { now: NOW, fontSource }), refused);
+  assert.equal(type0FontsOf(doc).length, 0);
+});
+
+test('保存した新しい形の text は、口が /DS の太字・斜体・色と /DA の色を返す（往復）', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [wrappedText({ bold: true, italic: true, color: '#4472c4', inset: [2.8, 2] }), text()] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  const [wrapped, old] = annotsOf(saved, 0);
+  const read = detailsOf(wrapped.dict, saved.context);
+  assert.deepEqual(read.defaultStyle, { bold: true, italic: true, color: '#4472c4' });
+  assert.equal(read.daColor, '#4472c4');
+  assert.equal(read.borderWidth, 0);
+  assert.equal(detailsOf(old.dict, saved.context).defaultStyle, null, '今までの形は /DS を持たない');
 });

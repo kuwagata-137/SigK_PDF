@@ -7,6 +7,9 @@ require('../renderer/free-text-geometry.js');
 require('../renderer/imported-values.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/annotation-box-details.js');
+require('../renderer/free-text-wrap.js');
+require('../renderer/free-text-layout.js');
+require('../renderer/imported-text-details.js');
 require('../renderer/annotation-details.js');
 
 // 注釈の辞書の読み戻しを当てる層（spec-4b-1a 確定事項25〜27、spec-4b-1b 確定事項36〜39）。純関数と、口を 1 本ずつ呼ぶ順番待ちを見る。
@@ -127,6 +130,20 @@ test('applyDetails は口がまるごと答えなかったときの四角・丸�
   // 口は答えたがその注釈の欄が無いときは、今までどおり pdf.js の値のまま
   const same = entry('square');
   assert.equal(details.applyDetails(same, undefined), same);
+});
+
+// 自前のテキストは、口が答えなければ表示のみ。/DS があれば新しい形に組んでから不透明度を当てる（spec-4b-4a 確定事項J2〜J4）。
+test('applyDetails は自前のテキストを、口がまるごと答えなかった・答えが無いときに表示のみにし、/DS があれば新しい形にする', () => {
+  const text = entry('text', { text: 'あいう', fontSize: 10, rotation: 0, rect: [10, 10, 44, 30] });
+  const measure = { advanceOf: (unit) => (unit.charCodeAt(0) < 128 ? 0.5 : 1) };
+  const silent = details.applyDetails(text, undefined, { answered: false, text: measure });
+  assert.equal(silent.readonly, true);
+  assert.equal(silent.subtype, 'FreeText');
+  assert.equal(details.applyDetails(text, undefined, { text: measure }).readonly, true, 'その注釈の答えが無い');
+  assert.equal(details.applyDetails(text, { ca: 0.5, defaultStyle: null }, { text: measure }).opacity, 0.5, '今までの形');
+  const wrapped = details.applyDetails(text, { ca: 0.4, defaultStyle: { bold: true, italic: false, color: '#00ff00' } }, { text: measure });
+  assert.deepEqual([wrapped.width, wrapped.bold, wrapped.color, wrapped.opacity], ['auto', true, '#00ff00', 0.4]);
+  assert.equal(details.applyDetails(text, { defaultStyle: 'unreadable' }, { text: measure }).readonly, true);
 });
 
 test('requestDetails は口を呼べないとき呼ばずに理由を返す', async (t) => {

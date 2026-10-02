@@ -42,16 +42,17 @@ test('FAMILY と fontOf は同梱フォントの名前を使う', () => {
   assert.equal(shape.fontOf(12), '12px "SigK Noto Sans JP"');
 });
 
-test('ensureLoaded は document.fonts が無ければ false で、あれば一度だけ load を待つ', async () => {
+test('ensureLoaded は document.fonts が無ければ false で、あれば標準と太字の load を一度だけ待つ', async () => {
   const bare = makeDoc();
   assert.equal(await shape.ensureLoaded(bare), false);
 
-  let loads = 0;
+  const loads = [];
   const doc = makeDoc();
-  Object.defineProperty(doc, 'fonts', { value: { load: async () => { loads += 1; return []; } } });
+  Object.defineProperty(doc, 'fonts', { value: { load: async (font) => { loads.push(font); return []; } } });
   assert.equal(await shape.ensureLoaded(doc), true);
   assert.equal(await shape.ensureLoaded(doc), true);
-  assert.equal(loads, 1);
+  // 標準と太字を一度ずつ（spec-4b-4a 確定事項D4）。
+  assert.deepEqual(loads, ['12px "SigK Noto Sans JP"', '700 12px "SigK Noto Sans JP"']);
   assert.equal(shape.isLoaded(), true);
 });
 

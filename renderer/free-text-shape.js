@@ -30,14 +30,14 @@
   }
 
   // フォントを先読みする。注釈モードに入ったとき・自前のテキストを読み込んだとき・
-  // 印刷の前に呼ぶ（39ms。事前調査 D）。document.fonts が無い（jsdom）なら false。
+  // 印刷の前に呼ぶ（39ms。事前調査 D）。標準と太字の両方を待つ（spec-4b-4a 確定事項D4）。document.fonts が無い（jsdom）なら false。
   async function ensureLoaded(doc) {
     if (state.loaded)
       return true;
     if (typeof doc?.fonts?.load !== 'function')
       return false;
     if (state.loading === null) {
-      state.loading = doc.fonts.load(fontOf(12)).then(() => {
+      state.loading = Promise.all([doc.fonts.load(fontOf(12)), doc.fonts.load(fontOf(12, true))]).then(() => {
         state.loaded = true;
         return true;
       }, () => false);
@@ -52,7 +52,7 @@
   // 測るための canvas。jsdom には 2D コンテキストが無く、getContext を呼ぶと「Not implemented」が
   // コンソールに出るので、呼ぶ前に確かめる（page-render.js と同じ）。
   function contextOf(doc) {
-    if (typeof doc.defaultView?.CanvasRenderingContext2D === 'undefined')
+    if (typeof doc?.defaultView?.CanvasRenderingContext2D === 'undefined')
       return null;
     if (!state.contexts.has(doc))
       state.contexts.set(doc, doc.createElement('canvas').getContext('2d'));

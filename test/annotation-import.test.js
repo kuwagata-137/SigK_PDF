@@ -11,6 +11,10 @@ require('../renderer/shape-style.js');
 require('../renderer/imported-shape.js');
 require('../renderer/imported-entry.js');
 require('../renderer/annotation-box-details.js');
+require('../renderer/free-text-shape.js');
+require('../renderer/free-text-wrap.js');
+require('../renderer/free-text-layout.js');
+require('../renderer/imported-text-details.js');
 require('../renderer/annotation-details.js');
 require('../renderer/annotation-import.js');
 
@@ -118,6 +122,40 @@ test('口に頼むのは四角・丸・直線・矢印・テキスト・ノー�
   assert.deepEqual(requests[0], { source: 'a.pdf', expect: { size: 2048, mtimeMs: 1 }, refs: ['30R', '12R'] });
   assert.deepEqual(imported[0].map((entry) => [entry.ref, entry.opacity]), [['30R', 0.5], ['5R', 0.4], ['12R', 0.25]]);
   assert.equal(delivered[0].imported, imported);
+});
+
+// 自前のテキスト（spec-4b-4a 確定事項J）。/DS があれば新しい形で、幅の形は紙の長さ（page.view）で見分ける。口が答えなければ表示のみ。
+const ownText = (id, extra = {}) => ({
+  id, subtype: 'FreeText', rect: [100, 650, 224, 700], rotation: 0, contentsObj: { str: 'あいうえおかきくけこさしすせそ' },
+  defaultAppearanceData: { fontName: 'SigKJP', fontSize: 10, fontColor: new Uint8ClampedArray([217, 44, 44]) }, ...extra,
+});
+
+function textDoc(annotations) {
+  const doc = makeDoc([annotations]);
+  doc.getPage = async () => ({ view: [0, 0, 595.28, 841.89], getAnnotations: async () => annotations });
+  return doc;
+}
+
+test('自前のテキストは /DS があれば新しい形で読み、/DS が無ければ今までの形、口が答えなければ表示のみにする', async (t) => {
+  const answer = { ok: true, details: {
+    '50R': { ca: 0.5, defaultStyle: { bold: true, italic: false, color: '#123456' }, daColor: '#123456' },
+    '51R': { ca: null, defaultStyle: null, daColor: '#d92c2c' },
+  } };
+  stubs(t, { answer });
+  const doc = textDoc([ownText('50R'), ownText('51R', { rect: [100, 500, 200, 520.5] })]);
+  const imported = await imp.importDocument(doc, { file: FILE });
+  const [wrapped, old] = imported[0];
+  assert.deepEqual([wrapped.width, wrapped.bold, wrapped.color, wrapped.opacity, wrapped.readonly], ['auto', true, '#123456', 0.5, undefined]);
+  assert.equal('width' in old, false);
+  assert.deepEqual([...doc.storage.keys()], ['50R', '51R']);
+});
+
+test('口が答えなければ、自前のテキストも表示のみにして pdf.js に描かせる（spec-4b-4a 確定事項J4）', async (t) => {
+  stubs(t, { answer: { ok: false, reason: 'timeout' } });
+  const doc = textDoc([ownText('50R')]);
+  const imported = await imp.importDocument(doc, { file: FILE });
+  assert.deepEqual([imported[0][0].readonly, imported[0][0].subtype], [true, 'FreeText']);
+  assert.equal(doc.storage.size, 0);
 });
 
 // spec-4b-1a では塗り・雲形・/RD の四角と丸を表示のみにしていた。spec-4b-1b から直せる形で当て、pdf.js には描かせない

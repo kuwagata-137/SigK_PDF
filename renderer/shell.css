@@ -770,6 +770,12 @@ html[data-transform-cursor="rotate"] #view, html[data-transform-cursor="rotate"]
   src:url('../assets/fonts/NotoSansJP-Regular.ttf') format('truetype');
   font-weight:400; font-style:normal; font-display:block;
 }
+/* 太字のテキスト（spec-4b-4a 確定事項D4）。斜体の書体は持たない（font-style: italic は擬似斜体。保存の Tm 0.25 と同じ形）。 */
+@font-face{
+  font-family:'SigK Noto Sans JP';
+  src:url('../assets/fonts/NotoSansJP-Bold.ttf') format('truetype');
+  font-weight:700; font-style:normal; font-display:block;
+}
 .annot-layer .free-text text{font-family:'SigK Noto Sans JP', sans-serif; white-space:pre}
 /* 紙の上の入力欄。破線の枠・透明な背景・折り返し無し。位置・大きさ・向きは
    free-text-editor.js が付ける（枠線は箱の外側に出す）。テキストレイヤーより上に置く。 */

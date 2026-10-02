@@ -19,13 +19,15 @@
     return root.SigK.annotationDetails;
   }
 
-  // 全ページから集める。途中で文書が閉じられたら null。
+  // 全ページから集める。views はページ番号（0 始まり）→ pdf.js の page.view（[x1 y1 x2 y2]。CropBox）。途中で文書が閉じられたら null。
   async function collect(doc, isAlive) {
     const imported = {};
+    const views = {};
     for (let number = 1; number <= doc.numPages; number += 1) {
       let annotations;
       try {
         const page = await doc.getPage(number);
+        views[number - 1] = page.view;
         annotations = typeof page.getAnnotations === 'function' ? await page.getAnnotations() : [];
       } catch {
         annotations = [];
@@ -36,14 +38,34 @@
       if (entries.length > 0)
         imported[number - 1] = entries;
     }
-    return imported;
+    return { imported, views };
   }
 
-  // 口の答えを全部に当てる。answered は口が答えたか（答えなければ四角・丸は表示のみ。spec-4b-2 確定事項36）。
-  function applyAll(imported, answers, answered) {
+  // 文字の向き（置いたときの表示の回転）に沿った紙の長さ（pt。spec-4b-4a 確定事項C2）。分からなければ null。
+  function lengthOf(view, rotation) {
+    if (!Array.isArray(view) || view.length !== 4 || !view.every(Number.isFinite))
+      return null;
+    return rotation % 180 === 0 ? Math.abs(view[2] - view[0]) : Math.abs(view[3] - view[1]);
+  }
+
+  // 自前のテキストの読み戻しに渡す、字の送り幅と紙の長さ（spec-4b-4a 確定事項J3）。
+  function textMeasureOf(views) {
+    return {
+      advanceOf: (unit, bold) => root.SigK.freeTextShape.advanceOf(root.document, unit, bold),
+      pageLengthOf: (src, rotation) => lengthOf(views[src], rotation),
+    };
+  }
+
+  function hasOwnText(imported) {
+    return Object.values(imported).some((entries) => entries.some((entry) => entry.kind === 'text' && entry.readonly !== true));
+  }
+
+  // 口の答えを全部に当てる。answered は口が答えたか（答えなければ四角・丸と自前のテキストは表示のみ。spec-4b-2 確定事項36、
+  // spec-4b-4a 確定事項J4）。
+  function applyAll(imported, answers, answered, text) {
     const applied = {};
     for (const [page, entries] of Object.entries(imported))
-      applied[page] = entries.map((entry) => details().applyDetails(entry, answers[entry.ref], { answered }));
+      applied[page] = entries.map((entry) => details().applyDetails(entry, answers[entry.ref], { answered, text }));
     return applied;
   }
 
@@ -60,22 +82,24 @@
   async function run(doc, file, isAlive) {
     if (doc === null || doc === undefined || typeof doc.getPage !== 'function')
       return null;
-    const imported = await collect(doc, isAlive);
-    if (imported === null)
+    const collected = await collect(doc, isAlive);
+    if (collected === null)
       return null;
+    const { imported, views } = collected;
     const refs = details().refsOf(imported);
     const answer = refs.length === 0 ? null : await details().requestDetails(file, refs);
+    // 自前のテキストがあれば画面のフォントを先読みする（spec-4-2 確定事項33）。新しい形の幅を見分けるのに字を測るので、
+    // 当てる前に待つ（spec-4b-4a 確定事項J3）。
+    if (hasOwnText(imported))
+      await root.SigK.freeTextShape?.ensureLoaded(root.document);
     if (!isAlive())
       return null;
-    // 答えが無くても当てる（線も塗りも無いもの、口が答えなかった四角・丸を表示のみにそろえる。spec-4b-1b 確定事項36、
-    // spec-4b-2 確定事項36）。
+    // 答えが無くても当てる（線も塗りも無いもの、口が答えなかった四角・丸と自前のテキストを表示のみにそろえる。spec-4b-1b 確定事項36、
+    // spec-4b-2 確定事項36、spec-4b-4a 確定事項J4）。
     const answered = answer?.ok === true;
-    const applied = applyAll(imported, answered ? answer.details : {}, answered);
+    const applied = applyAll(imported, answered ? answer.details : {}, answered, textMeasureOf(views));
     markNoView(doc, applied);
     root.SigK.viewer?.deliverImported(doc, applied, { rerender: Object.keys(applied).map(Number) });
-    // 自前のテキストがあれば画面のフォントを先読みする（spec-4-2 確定事項33）。
-    if (Object.values(applied).some((entries) => entries.some((entry) => entry.kind === 'text')))
-      root.SigK.freeTextShape?.ensureLoaded(root.document);
     return applied;
   }
 

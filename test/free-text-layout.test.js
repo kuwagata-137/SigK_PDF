@@ -53,12 +53,14 @@ test('paddingOf は飾りが無ければ 2、塗りか枠線があれば max(2, 
   assert.equal(layout.paddingOf(text({ fill: '#ffff00', borderColor: '#c00000', borderWidth: 4 })), 7);
 });
 
-test('insetOf は斜体なら左に 0.08em・右に 0.25em を足す', () => {
+test('insetOf は斜体なら左に 0.08em・右に 0.25em を足し、どれも 0.01pt に丸める', () => {
   assert.deepEqual(layout.insetOf(text()), { padding: 2, left: 2, top: 2, horizontal: 4, vertical: 4 });
   const italic = layout.insetOf(text({ italic: true, fontSize: 20 }));
-  assert.equal(italic.left, 2 + 1.6);
-  assert.equal(italic.horizontal, 4 + 1.6 + 5);
+  assert.equal(italic.left, 3.6);
+  assert.equal(italic.horizontal, 10.6);
   assert.equal(italic.vertical, 4);
+  // 10.5pt の右は 2.625 → 2.63。
+  assert.equal(layout.insetOf(text({ italic: true, fontSize: 10.5 })).horizontal, 7.47);
 });
 
 test('autoWidthOf は全角 12 字で、紙の長さから余白と斜体の分を引いた幅で抑え、下限は 1 字', () => {
@@ -80,7 +82,7 @@ test('layoutOf は今までの形なら折り返さず、箱は今までどお�
   const result = layout.layoutOf(text({ text: 'あいうえおかきくけこさしすせそ\nab' }), { advanceOf, lineWidthOf, pageLength: 595 });
   assert.deepEqual(result.lines, ['あいうえおかきくけこさしすせそ', 'ab']);
   assert.deepEqual(result.size, { width: 154, height: 29 });
-  assert.equal(result.padding, 2);
+  assert.equal(result.inset.left, 2);
   assert.equal(result.contentWidth, 150);
 });
 
@@ -105,5 +107,5 @@ test('layoutOf は斜体・飾りの余白も箱に入れる', () => {
   const result = layout.layoutOf(text({ text: 'あい', width: 'auto', italic: true, fill: '#ffff00' }), { advanceOf, lineWidthOf });
   // 中身 20 ＋ 余白 3×2 ＋ 斜体 0.8＋2.5。高さは 1 行 12.5 ＋ 余白 3×2。
   assert.deepEqual(result.size, { width: 29.3, height: 18.5 });
-  assert.equal(result.padding, 3);
+  assert.deepEqual([result.inset.left, result.inset.top], [3.8, 3]);
 });

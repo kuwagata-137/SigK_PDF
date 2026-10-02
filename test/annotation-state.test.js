@@ -292,17 +292,17 @@ test('sameAnnots は幅・太字・斜体の違いを見る', () => {
   assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { bold: false })), true);
 });
 
-test('toSaveSpec は新しい形のテキストに書式の欄と、layoutOf が決めた行と余白を添える', () => {
+test('toSaveSpec は新しい形のテキストに書式の欄と、layoutOf が決めた行と中身の位置を添える', () => {
   const annots = state.addAnnot(state.addAnnot(state.createAnnots(), textEntry({ width: 'auto', italic: true })), textEntry());
   const seen = [];
   const layoutOf = (target) => {
     seen.push(target.text);
-    return { lines: ['こんにち', 'は'], padding: 2 };
+    return { lines: ['こんにち', 'は'], inset: { padding: 2, left: 2.96, top: 2, horizontal: 8.96, vertical: 4 } };
   };
   const spec = state.toSaveSpec(annots, { layoutOf });
   assert.deepEqual(spec.add[0], {
     src: 0, kind: 'text', color: '#1c2430', opacity: 1, rect: TEXT_RECT, text: 'こんにちは', fontSize: 12, rotation: 0,
-    width: 'auto', italic: true, lines: ['こんにち', 'は'], padding: 2,
+    width: 'auto', italic: true, lines: ['こんにち', 'は'], inset: [2.96, 2],
   });
   // 今までの形には何も足さず、layoutOf も呼ばない。
   assert.deepEqual(spec.add[1], { src: 0, kind: 'text', color: '#1c2430', opacity: 1, rect: TEXT_RECT, text: 'こんにちは', fontSize: 12, rotation: 0 });
