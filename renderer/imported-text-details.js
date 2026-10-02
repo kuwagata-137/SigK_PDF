@@ -62,9 +62,13 @@
     return { ...entry, rect: [...turn.box], angle: turn.angle, quads: [root.SigK.shapeRotation.quadOf(turn.box, turn.angle)] };
   }
 
+  function validDifference(rd) {
+    return Array.isArray(rd) && rd.length === 4 && rd.every((value) => Number.isFinite(value) && value >= 0);
+  }
+
   // 回していない吹き出しの箱（確定事項H3）。/Rect は箱としっぽの範囲なので、/RD で縮める。縮めて箱が残らなければ null。
   function calloutBoxOf(rect, rd) {
-    if (!Array.isArray(rd) || rd.length !== 4 || !rd.every((value) => Number.isFinite(value) && value >= 0))
+    if (!validDifference(rd))
       return null;
     const box = [rect[0] + rd[0], rect[1] + rd[1], rect[2] - rd[2], rect[3] - rd[3]].map(round);
     return box[2] > box[0] && box[3] > box[1] ? box : null;
@@ -73,8 +77,9 @@
   // 吹き出し（確定事項H3）。しっぽの先は /CL の最初の点、箱は回していれば口の箱、回していなければ /Rect を /RD で縮めたもの。
   // 組めなければ null（表示のみ）。
   function calloutOf(entry, detail, turn) {
+    // /RD が無い・崩れている吹き出しは、回していても表示のみ（口の箱は /RD が読めたときだけ。点検で直した）。
     const line = detail.calloutLine;
-    if (!Array.isArray(line) || line.length < 4)
+    if (!Array.isArray(line) || line.length < 4 || !validDifference(detail.rectDifference))
       return null;
     const box = turn === null ? calloutBoxOf(entry.rect, detail.rectDifference) : turn.box;
     if (box === null)

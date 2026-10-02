@@ -6,8 +6,9 @@
   //
   // 回す前の箱 [x1 y1 x2 y2]（紙の座標。y が上）と、回す前の座標へ戻したしっぽの先 t で決める。置いた向きの 4 方向には左右されない。
   //   出る辺   … 箱の中心から t への (dx/幅, dy/高さ) の絶対値の大きい方（等しければ上下）。CheckListMaker と同じ
-  //   付け根   … 半幅は max(10, 大きさ×0.6) を辺の長さの半分で抑えたもの。中心は t をその辺に下ろした点を、角丸と半幅の内側に収める
-  //   角丸     … min(10, 幅/2, 高さ/2)。小さい吹き出しでは、付け根の幅を保つために辺の長さの半分−半幅まで小さくする
+  //   角丸     … min(10, 幅/2, 高さ/2)
+  //   付け根   … 半幅は max(10, 大きさ×0.6) を辺の長さ/2−角丸で抑えたもの。それが 3pt（HALF_FLOOR）に満たない短い辺だけ、角丸を減らして
+  //              半幅を 3pt にする（しっぽが線のように細くならないように）。中心は t をその辺に下ろした点を、角丸と半幅の内側に収める
   //   t が箱の中（辺の上を含む）なら、しっぽを描かない
   // 輪郭は上の辺の左から時計回りの 1 本（角は 4 分の 1 円のベジェ。しっぽの辺で付け根→先→付け根を挟む）。枠線は箱の内側に描くので、
   // 線の太さの半分（inset）だけ内へ寄せた箱で組む（先は動かさない）。
@@ -15,6 +16,8 @@
   const RADIUS_MAX = 10;
   const HALF_MIN = 10;
   const HALF_RATIO = 0.6;
+  // 付け根の半幅の下限（pt）。角丸を先に決めると短い辺のしっぽが細くなりすぎるので、ここまでは角丸を減らして半幅を保つ。
+  const HALF_FLOOR = 3;
   // 4 分の 1 円をベジェで描くときの制御点の離れ（半径に掛ける）。
   const KAPPA = 0.5523;
   // 置いた直後の先（確定事項D4）: 箱の左上から右へ min(幅×0.25, 40)、下へ 高さ＋大きさ×1.6。
@@ -47,8 +50,12 @@
     const side = sideOf(box, tip);
     const across = side === 'top' || side === 'bottom';
     const [lo, hi] = across ? [x1, x2] : [y1, y2];
-    const half = Math.min(Math.max(HALF_MIN, fontSize * HALF_RATIO), (hi - lo) / 2);
-    const radius = Math.max(0, Math.min(RADIUS_MAX, (x2 - x1) / 2, (y2 - y1) / 2, (hi - lo) / 2 - half));
+    // 角丸を先に決め、半幅を辺の長さ/2−角丸で抑える。半幅が HALF_FLOOR に満たないときだけ、角丸を減らして半幅を HALF_FLOOR にする。
+    const wanted = Math.max(HALF_MIN, fontSize * HALF_RATIO);
+    const room = (hi - lo) / 2;
+    const corner = Math.max(0, Math.min(RADIUS_MAX, (x2 - x1) / 2, (y2 - y1) / 2));
+    const half = Math.min(wanted, Math.max(room - corner, Math.min(HALF_FLOOR, room)));
+    const radius = Math.max(0, Math.min(corner, room - half));
     const along = Math.min(hi - radius - half, Math.max(lo + radius + half, across ? tip[0] : tip[1]));
     const edge = { top: y2, bottom: y1, right: x2, left: x1 }[side];
     return { side, half, radius, base: across ? [along, edge] : [edge, along] };
@@ -135,5 +142,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.calloutShape = { RADIUS_MAX, HALF_MIN, HALF_RATIO, KAPPA, sideOf, tailOf, outlineOf, localTipOf, defaultTipOf, hitsTail, extentOf };
+  SigK.calloutShape = { RADIUS_MAX, HALF_MIN, HALF_RATIO, HALF_FLOOR, KAPPA, sideOf, tailOf, outlineOf, localTipOf, defaultTipOf, hitsTail, extentOf };
 })(typeof window !== 'undefined' ? window : globalThis);

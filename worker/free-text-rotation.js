@@ -34,12 +34,15 @@ function nearlyIdentity(placement, bbox, matrix) {
   });
 }
 
-// { box, angle }（回っている）・null（回っていない・読めない）・'skewed'（回転とゆがみが混ざる・裏返し）。inner は吹き出しの
-// 回す前の箱（/BBox を /RD で縮めたもの）で、無ければ /BBox が箱。
-function freeTextRotationOf({ rect, bbox, matrix, inner = null }) {
+// { box, angle }（回っている）・null（回っていない・読めない）・'skewed'（回転とゆがみが混ざる・裏返し、回した吹き出しの箱が組めない）。
+// inner は吹き出しの回す前の箱（/BBox を /RD で縮めたもの）で、無ければ /BBox が箱。callout は吹き出しか（/IT が FreeTextCallout）で、
+// 回した吹き出しは inner が無ければ箱が分からないので skewed にする（しっぽまで含んだ箱で直させない。spec-4b-4b 確定事項H3）。
+function freeTextRotationOf({ rect, bbox, matrix, inner = null, callout = false }) {
   const turn = rotationOf({ rect, bbox, matrix });
   if (turn === null || turn === 'skewed')
     return turn;
+  if (callout && inner === null)
+    return 'skewed';
   const placement = placementMatrix(bbox, matrix, rect);
   const box = inner ?? bbox;
   if (nearlyIdentity(placement, bbox, matrix))

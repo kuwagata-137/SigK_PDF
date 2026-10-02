@@ -141,3 +141,11 @@ test('/RD が無い・崩れている・箱が残らない吹き出しと、/DS 
   assert.equal(textDetails.withTextDetails(own(0, { rect }), { ...base, calloutLine: null, rectDifference: [1, 1, 1, 1] }, { advanceOf }), null);
   assert.equal(textDetails.withTextDetails(own(0, { rect }), { ...base, defaultStyle: null, rectDifference: [1, 1, 1, 1] }, { advanceOf }), null);
 });
+
+// 点検で見つけた誤り: 回した吹き出しで /RD が無い・崩れているとき、しっぽまで含んだ箱で直せる形になっていた（spec-4b-4b 確定事項H3）。
+test('回した吹き出しも /RD が無い・崩れていれば表示のみ（null）', () => {
+  const base = { defaultStyle: STYLE, intent: 'FreeTextCallout', calloutLine: [80, 540, 120, 600], rotation: { box: [100, 671, 224, 700], angle: 30 } };
+  assert.equal(textDetails.withTextDetails(own(0, { rect: [10, 10, 300, 800] }), { ...base, rectDifference: null }, { advanceOf }), null);
+  assert.equal(textDetails.withTextDetails(own(0, { rect: [10, 10, 300, 800] }), { ...base, rectDifference: [1, -1, 1, 1] }, { advanceOf }), null);
+  assert.notEqual(textDetails.withTextDetails(own(0, { rect: [10, 10, 300, 800] }), { ...base, rectDifference: [1, 1, 1, 1] }, { advanceOf }), null);
+});

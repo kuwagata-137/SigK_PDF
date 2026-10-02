@@ -81,7 +81,8 @@
   // 今までの形は回っていないので、ずらしは要らない）。四角は回した 4 隅（0° なら回す前の四角）。angle は 0 以上 360 未満の数。
   function anglePatch(entry, angle) {
     const patch = {};
-    if (entry.width === undefined) {
+    // 今と同じ角度（今までの形は 0°）なら移さない（形が変わらず、履歴にも積まれない。点検で直した）。
+    if (entry.width === undefined && angle !== angleOf(entry)) {
       patch.width = root.SigK.freeTextStyle.fixedWidthOf(entry);
       Object.assign(patch, root.SigK.freeTextMetrics.reframe(entry, patch));
     }

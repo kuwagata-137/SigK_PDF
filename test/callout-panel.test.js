@@ -37,3 +37,16 @@ test('一覧の吹き出しの行は、吹き出しのアイコン・枠線の�
   assert.match(document.getElementById('props-hint').textContent, /しっぽ/);
   assert.equal(document.getElementById('props-angle-row').hidden, false);
 });
+
+// 点検で見つけた誤り: 枠線を外した吹き出しに枠線を付け直すと、テキストの道具の太さ（1）が使われていた（spec-4b-4b 確定事項F3）。
+test('枠線を外した吹き出しに枠線を付け直すと、吹き出しの次に付ける太さ（1.5）で付く', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  const entry = placeCallout(shell, 100, 700, '数量を確認');
+  SigK.annotate.setTool('select');
+  SigK.annotate.select(entry.id);
+  assert.equal(SigK.annotate.setBorder(null), true);
+  assert.equal(SigK.annotate.selectedEntry().borderWidth, undefined);
+  assert.equal(SigK.annotate.setBorder('#2f5597'), true);
+  assert.equal(SigK.annotate.selectedEntry().borderWidth, 1.5);
+});

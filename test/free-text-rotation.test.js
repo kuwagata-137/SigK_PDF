@@ -42,3 +42,9 @@ test('回っていない外観は null、ゆがんだ外観は skewed、形の�
   assert.equal(freeTextRotationOf({ rect: BOX, bbox: BOX, matrix: [1, 0, 0.5, 1, 0, 0] }), 'skewed');
   assert.equal(freeTextRotationOf({ rect: BOX, bbox: null, matrix: [1, 0, 0, 1, 0, 0] }), null);
 });
+
+// 点検で見つけた誤り: 回した吹き出しで /RD が読めないと、/BBox（しっぽの範囲を含む）を箱にしていた（spec-4b-4b 確定事項H3）。
+test('回した吹き出しで箱（inner）が組めなければ skewed（表示のみ）にする', () => {
+  assert.equal(freeTextRotationOf({ rect: rectOf(BOX, 30), bbox: BOX, matrix: matrixOf(BOX, 30), callout: true }), 'skewed');
+  assert.equal(freeTextRotationOf({ rect: BOX, bbox: BOX, matrix: [1, 0, 0, 1, 0, 0], callout: true }), null, '回していなければ /Rect と /RD で読む');
+});

@@ -41,13 +41,19 @@ test('tailOf は先が箱の中なら null、外なら出る辺と付け根（�
   assert.ok(near(right.base, [195.6, 644], 1e-9));
 });
 
-test('小さい吹き出しは、付け根の幅を保つために角丸を小さくする', () => {
-  const tiny = [100, 600, 116, 617];
-  const tail = callout.tailOf(tiny, [108, 560], 8);
-  // 下の辺の長さ 16、半幅は min(10, 8) = 8、角丸は min(8, 8.5, 16/2 − 8) = 0。
-  assert.equal(tail.half, 8);
-  assert.equal(tail.radius, 0);
-  assert.deepEqual(tail.base, [108, 600]);
+test('角丸は先に決め（min(10, 幅/2, 高さ/2)）、付け根の半幅を辺の長さ/2−角丸で抑える。半幅が 3pt に満たないときだけ角丸を減らす', () => {
+  // 12pt・1 行の吹き出し（箱 45.5×24.5）の左の辺: 角丸 10、半幅は min(10, 12.25 − 10) = 2.25 < 3 なので、角丸を 12.25 − 3 = 9.25 にして半幅 3。
+  const line = [100, 600, 145.5, 624.5];
+  const side = callout.tailOf(line, [60, 612], 12);
+  assert.equal(side.side, 'left');
+  assert.equal(side.half, 3);
+  assert.equal(side.radius, 9.25);
+  // 同じ箱の下の辺は、角丸 10・半幅 10 のまま（しっぽを横へ引いても角の形はほとんど変わらない）。
+  const below = callout.tailOf(line, [110, 560], 12);
+  assert.deepEqual([below.half, below.radius], [10, 10]);
+  // 8pt・1 字の小さい吹き出しの下の辺（長さ 16）: 角丸 8、半幅 min(10, 0) < 3 なので角丸 5・半幅 3。
+  const tiny = callout.tailOf([100, 600, 116, 617], [108, 560], 8);
+  assert.deepEqual([tiny.half, tiny.radius, ...tiny.base], [3, 5, 108, 600]);
 });
 
 test('outlineOf は 1 本の輪郭（上の辺の左から時計回り）で、しっぽの辺に付け根→先→付け根を挟み、線の太さの半分だけ内へ寄せる', () => {

@@ -64,14 +64,15 @@ function rotationOf(dict, context, { encrypted = false } = {}) {
   if (!encrypted && skewedContent(context, context.lookup(appearance.ref), 1, { quarterTurns: freeText }))
     return 'skewed';
   const geometry = { rect, bbox: appearance.bbox, matrix: appearance.matrix };
-  return freeText ? freeTextRotationOf({ ...geometry, inner: calloutBoxOf(dict, context, appearance.bbox) }) : rotationOfAppearance(geometry);
+  if (!freeText)
+    return rotationOfAppearance(geometry);
+  const callout = nameOf(context, pick(dict, '/IT')) === 'FreeTextCallout';
+  return freeTextRotationOf({ ...geometry, inner: callout ? calloutBoxOf(dict, context, appearance.bbox) : null, callout });
 }
 
-// 吹き出しの回す前の箱（spec-4b-4b 確定事項H2）。/IT が FreeTextCallout で、/RD が /BBox を縮めて箱が残るなら、/BBox を /RD で縮めたもの
+// 吹き出しの回す前の箱（spec-4b-4b 確定事項H2）。/RD が /BBox を縮めて箱が残るなら、/BBox を /RD で縮めたもの
 // （回していても /BBox に対する差で書く。事前調査 O の O2）。そうでなければ null。
 function calloutBoxOf(dict, context, bbox) {
-  if (nameOf(context, pick(dict, '/IT')) !== 'FreeTextCallout')
-    return null;
   const rd = numbersOf(context, pick(dict, '/RD'));
   if (rd === null || rd.length !== 4 || rd.some((value) => value < 0))
     return null;

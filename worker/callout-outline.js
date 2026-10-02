@@ -14,6 +14,8 @@ const { num, colorOps } = require('./annotation-appearance.js');
 const RADIUS_MAX = 10;
 const HALF_MIN = 10;
 const HALF_RATIO = 0.6;
+// 付け根の半幅の下限（pt。renderer/callout-shape.js と同じ）。
+const HALF_FLOOR = 3;
 const KAPPA = 0.5523;
 // /BBox を線の半分より広げる分（pt）。
 const BBOX_MARGIN = 1;
@@ -57,8 +59,12 @@ function tailOf(box, tip, fontSize) {
   const side = sideOf(box, tip);
   const across = side === 'top' || side === 'bottom';
   const [lo, hi] = across ? [x1, x2] : [y1, y2];
-  const half = Math.min(Math.max(HALF_MIN, fontSize * HALF_RATIO), (hi - lo) / 2);
-  const radius = Math.max(0, Math.min(RADIUS_MAX, (x2 - x1) / 2, (y2 - y1) / 2, (hi - lo) / 2 - half));
+  // 角丸を先に決め、半幅を辺の長さ/2−角丸で抑える。半幅が HALF_FLOOR に満たないときだけ、角丸を減らして半幅を HALF_FLOOR にする。
+  const wanted = Math.max(HALF_MIN, fontSize * HALF_RATIO);
+  const room = (hi - lo) / 2;
+  const corner = Math.max(0, Math.min(RADIUS_MAX, (x2 - x1) / 2, (y2 - y1) / 2));
+  const half = Math.min(wanted, Math.max(room - corner, Math.min(HALF_FLOOR, room)));
+  const radius = Math.max(0, Math.min(corner, room - half));
   const along = Math.min(hi - radius - half, Math.max(lo + radius + half, across ? tip[0] : tip[1]));
   const edge = { top: y2, bottom: y1, right: x2, left: x1 }[side];
   return { side, half, radius, base: across ? [along, edge] : [edge, along] };

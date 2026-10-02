@@ -180,3 +180,20 @@ test('回転の行はテキストを選んでも出し、今までの形のテ�
   assert.equal(typeof turned.width, 'number');
   assert.equal(row.number.value, '30');
 });
+
+// 点検で見つけた誤り: 今までの形のテキストで 0° を確定すると、角度が変わらないのに新しい形に移って 1 世代積んでいた（spec-4b-4b 確定事項A3）。
+test('今までの形のテキストで、今と同じ 0° を確定しても新しい形に移さず、積まない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  const rect = [100, 684, 140, 700];
+  const legacy = {
+    id: SigK.annotationState.newId(), src: 0, kind: 'text', color: '#222a35', opacity: 1, text: 'あいう', fontSize: 12, rotation: 0,
+    rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)],
+  };
+  SigK.pageEdit.commitAnnots(SigK.annotationState.addAnnot(SigK.viewer.getAnnotations(), legacy), { annot: { before: null, after: legacy.id } });
+  SigK.annotate.select(legacy.id);
+  const before = SigK.pageEdit.getHistoryState().at;
+  assert.equal(SigK.annotationAngleRow.setAngle(0), false);
+  assert.equal(SigK.pageEdit.getHistoryState().at, before);
+  assert.equal(current(shell).width, undefined);
+});
