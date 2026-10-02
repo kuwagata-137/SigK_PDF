@@ -122,15 +122,17 @@ test('resizeCursorOf は表示の向きに近い 4 つの大きさ変えのカ�
 });
 
 // テキストの左右の幅のつまみ（spec-4b-4a 確定事項F1・F2）。free-text-handles.js を読み込むと、テキストにもつまみが出る。
-test('free-text-handles.js があれば、テキストは左右の幅のつまみを出し、当たりは辺のつまみと同じ順', () => {
+test('free-text-handles.js があれば、テキストは左右の幅のつまみと回転のつまみを出し、当たりは辺のつまみと同じ順', () => {
   require('../renderer/free-text-geometry.js');
   require('../renderer/free-text-wrap.js');
   require('../renderer/free-text-layout.js');
   require('../renderer/free-text-handles.js');
+  require('../renderer/free-text-turn.js');
   const text = { id: 'sigk-3', kind: 'text', rect: [100, 671, 224, 700], rotation: 0, fontSize: 10, text: 'x' };
   assert.equal(handles.hasHandles(text), true);
   assert.equal(handles.hasHandles({ ...text, readonly: true }), false);
   const shape = handles.handlesOf(text, viewport());
-  assert.deepEqual(shape.handles.map((handle) => [handle.id, handle.kind, handle.cursor]), [['left', 'width', 'ew-resize'], ['right', 'width', 'ew-resize']]);
+  // 回転のつまみは spec-4b-4b 確定事項C1 で足した。
+  assert.deepEqual(shape.handles.map((handle) => [handle.id, handle.kind, handle.cursor]), [['left', 'width', 'ew-resize'], ['right', 'width', 'ew-resize'], ['rotate', 'rotate', 'rotate']]);
   assert.equal(handles.handleAt(shape.handles, [224 + 3 + 4, 841.89 - 685.5]).id, 'right');
 });

@@ -71,3 +71,16 @@ test('動かせない種類や、数でない delta なら null', async (t) => {
   assert.equal(annotationMoves.movedPatch(SQUARE, [1]), null);
   assert.equal(annotationMoves.movedPatch(SQUARE, null), null);
 });
+
+// 回したテキスト（spec-4b-4b 確定事項B2）。回した箱の左上の角は delta だけ動き、角度と大きさは保つ。
+test('回したテキストは、回した箱の左上の角を delta だけ動かし、四角は回した 4 隅にする', async (t) => {
+  const SigK = await withMoves(t);
+  const size = SigK.freeTextMetrics.sizeOf({ kind: 'text', text: 'あいう', fontSize: 12, rotation: 0, width: 'auto' });
+  const rect = [100, 700 - size.height, 100 + size.width, 700];
+  const text = { id: 'sigk-5', kind: 'text', text: 'あいう', fontSize: 12, rotation: 0, width: 'auto', angle: 30, rect, quads: [] };
+  const patch = SigK.annotationMoves.movedPatch(text, [10, -10]);
+  const before = SigK.freeTextTurn.cornerOf(text);
+  const after = SigK.freeTextTurn.cornerOf({ ...text, rect: plain(patch.rect) });
+  assert.ok(Math.abs(after[0] - before[0] - 10) < 0.01 && Math.abs(after[1] - before[1] + 10) < 0.01, `${before} → ${after}`);
+  assert.deepEqual(plain(patch.quads), plain([SigK.shapeRotation.quadOf(patch.rect, 30)]));
+});

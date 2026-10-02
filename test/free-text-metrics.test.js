@@ -9,6 +9,8 @@ require('../renderer/free-text-shape.js');
 require('../renderer/free-text-wrap.js');
 require('../renderer/free-text-layout.js');
 require('../renderer/free-text-metrics.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/free-text-turn.js');
 
 // 画面のフォントで測った、テキストの行と箱（spec-4b-4a 確定事項B・C・E1）。ここには canvas が無いので、字の送り幅は
 // 全角 1em・半角 0.5em の見積もりになる。紙の範囲は偽のビューアから受ける。
@@ -75,4 +77,20 @@ test('advanceFor は太字なら太字の書体で測る口を返す', () => {
     SigK.freeTextShape.advanceOf = original;
   }
   assert.deepEqual(calls, [['あ', true], ['い', false]]);
+});
+
+// 回したテキスト（spec-4b-4b 確定事項B2）。中身の左上は、回した紙の上でも動かない。
+test('reframe は回したテキストでも、中身の左上を紙の上で動かさない', (t) => {
+  withViewer(t, { 0: [0, 0, 595.28, 841.89] });
+  const layout = SigK.freeTextLayout;
+  const geometry = SigK.freeTextGeometry;
+  const turn = SigK.freeTextTurn;
+  const entry = text({ width: 'auto', angle: 30 });
+  const patch = { italic: true, fill: '#fff2cc' };
+  const frame = metrics.reframe(entry, patch);
+  const contentOf = (target) => turn.turnPoint(layout.shiftOrigin(geometry.frameOrigin(target.rect, 0), 0, [layout.insetOf(target).left, layout.insetOf(target).top]), target);
+  const before = contentOf(entry);
+  const after = contentOf({ ...entry, ...patch, rect: frame.rect });
+  assert.ok(Math.abs(before[0] - after[0]) < 0.01 && Math.abs(before[1] - after[1]) < 0.01, `${before} → ${after}`);
+  assert.deepEqual(frame.quads, [SigK.shapeRotation.quadOf(frame.rect, 30)]);
 });

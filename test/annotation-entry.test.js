@@ -90,3 +90,31 @@ test('rectOfShape は回した四角・丸の箱を回す前のまま、四角�
   const plain = SigK.shapeGeometry.rectOfShape({ kind: 'circle', rect });
   assert.deepEqual(plain.quads, [SigK.freeTextGeometry.quadOfRect(rect)]);
 });
+
+// テキストの角度（spec-4b-4b 確定事項A1・A3・A4）。新しい形（width を持つ）だけが角度を持て、rect は回す前の箱。
+function text(overrides = {}) {
+  const rect = [100, 600, 220, 640];
+  return {
+    src: 0, kind: 'text', color: '#222a35', opacity: 1, text: '回す', fontSize: 12, rotation: 0, width: 'auto',
+    rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)], ...overrides,
+  };
+}
+
+test('validEntry はテキストの角度を新しい形のときだけ受ける（今までの形に角度は持たせない）', () => {
+  assert.equal(entries.validEntry(text({ angle: 30 })), true);
+  assert.equal(entries.validEntry(text({ angle: 359 })), true);
+  assert.equal(entries.validEntry(text({ angle: 360 })), false);
+  const legacy = text({ angle: 30 });
+  delete legacy.width;
+  assert.equal(entries.validEntry(legacy), false);
+  delete legacy.angle;
+  assert.equal(entries.validEntry(legacy), true);
+});
+
+test('テキストの角度は写し・比較・書き換え・ワーカーへ渡す形を通る', () => {
+  assert.equal(entries.copyEntry(text({ angle: 30 })).angle, 30);
+  assert.equal(entries.sameEntry(text({ id: 'a', angle: 30 }), text({ id: 'a', angle: 31 })), false);
+  assert.deepEqual(entries.pickPatch({ angle: 45 }, 'text'), { angle: 45 });
+  assert.equal(entries.toSaveEntry(text({ angle: 30 })).angle, 30);
+  assert.equal('angle' in entries.toSaveEntry(text()), false);
+});

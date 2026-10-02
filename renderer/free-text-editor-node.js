@@ -43,11 +43,13 @@
     return sides.every((side) => side === sides[0]) ? sides[0] : sides.join(' ');
   }
 
-  // 位置・大きさ・向き。表示の左上（origin）へ枠線ぶんだけ外側に置き、画面での角度で回す。
+  // 位置・大きさ・向き。表示の左上（origin）へ枠線ぶんだけ外側に置き、画面での角度で回す。回したテキストは、回した箱の左上の角に置き、
+  // 回した角度のまま出す（spec-4b-4b 確定事項D1。決定58）。
   function place(node, draft, viewport) {
     const scale = viewport.scale ?? 1;
-    const [x, y] = viewport.convertToViewportPoint(draft.origin[0], draft.origin[1]);
-    const angle = geometry().screenAngle(viewport.rotation ?? 0, draft.rotation);
+    const turn = root.SigK.freeTextTurn;
+    const [x, y] = viewport.convertToViewportPoint(...turn.draftCornerOf(draft));
+    const angle = turn.draftAngleOf(viewport.rotation ?? 0, draft);
     const wrapped = draft.width !== undefined;
     node.wrap = wrapped ? 'soft' : 'off';
     node.classList.toggle('wrapped', wrapped);

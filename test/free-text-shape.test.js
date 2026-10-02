@@ -7,6 +7,8 @@ const { JSDOM } = require('jsdom');
 require('../renderer/free-text-geometry.js');
 require('../renderer/free-text-font.js');
 require('../renderer/free-text-shape.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/free-text-turn.js');
 
 // 画面のテキスト注釈（spec-4-2 確定事項10・14・29・33）。SVG の <text>、印刷用の canvas 2D の描き手。
 
@@ -153,4 +155,17 @@ test('svgOf は塗りと枠線を文字より先に置き、paint は半透明�
   shape.paint(ctx, { ...decorated, opacity: 0.5 }, viewport());
   assert.deepEqual(drawn.filter(([kind]) => kind !== 'alpha').map(([kind]) => kind), ['layer', 'layer', 'image']);
   assert.ok(drawn.some(([kind, value]) => kind === 'alpha' && value === 0.5));
+});
+
+// ---- 回したテキスト（spec-4b-4b 確定事項B1） ----
+
+test('回したテキストは、回した箱の左上の角へ移し、4 方向の角度に角度を足して回す', () => {
+  const doc = makeDoc();
+  const turned = { ...ENTRY, width: 'auto', angle: 30 };
+  const corner = globalThis.SigK.freeTextTurn.cornerOf(turned);
+  const [x, y] = viewport({ scale: 2 }).convertToViewportPoint(...corner);
+  const g = shape.svgOf(doc, turned, viewport({ scale: 2 }));
+  assert.equal(g.getAttribute('transform'), `translate(${Math.round(x * 100) / 100} ${Math.round(y * 100) / 100}) rotate(30)`);
+  const layout = shape.layoutOf({ ...turned, rotation: 90 }, viewport({ rotation: 90 }));
+  assert.equal(layout.angle, 30);
 });

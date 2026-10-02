@@ -125,7 +125,7 @@
     if (!hasHandles(entry))
       return null;
     if (isText(entry))
-      return root.SigK.freeTextHandles.handlesOf(entry, viewport);
+      return root.SigK.freeTextHandles.handlesOf(entry, viewport, room);
     return isBoxed(entry) ? boxHandles(entry, viewport, room) : lineHandles(entry, viewport);
   }
 
@@ -155,5 +155,6 @@
     handlesOf,
     handleAt,
     resizeCursorOf,
+    fits,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

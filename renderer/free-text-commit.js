@@ -75,10 +75,9 @@
       return false;
     }
     const changed = { text: body, fontSize: draft.fontSize, color: draft.color };
-    const next = annotationState().updateAnnot(annots, current, {
-      ...changed,
-      ...root.SigK.freeTextLayout.frameOf(draft.origin, metrics().sizeOf({ ...current, ...changed }), draft.rotation),
-    });
+    // 回したテキストは、箱の左上の角が回した紙の上でも動かないように置き直す（spec-4b-4b 確定事項B2・D2）。
+    const frame = root.SigK.freeTextLayout.frameOf(draft.origin, metrics().sizeOf({ ...current, ...changed }), draft.rotation);
+    const next = annotationState().updateAnnot(annots, current, { ...changed, ...root.SigK.freeTextTurn.turned(current, frame) });
     return commit(next, { before: draft.key, target: current });
   }
 

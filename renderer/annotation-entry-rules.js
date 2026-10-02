@@ -37,7 +37,10 @@
   }
 
   // テキストは本文が空でなく、大きさが正で、回転が 4 方向のどれかで、箱の四角が 1 つ。書式の欄は free-text-entry.js が見る。
+  // 角度は新しい形だけが持てる（spec-4b-4b 確定事項A1・A3）。
   function validTextFields(entry) {
+    if (entry.angle !== undefined && (!validAngle(entry.angle) || !root.SigK.freeTextEntry.isNewForm(entry)))
+      return false;
     return validText(entry.text) && validPositive(entry.fontSize)
       && entryModule().ROTATIONS.includes(entry.rotation) && entry.quads.length === 1 && root.SigK.freeTextEntry.validFields(entry);
   }
@@ -61,7 +64,7 @@
   }
 
   // 図形・ペンは線幅が正（線なしでも持つ。線を戻したときの太さ）で、箱の四角が 1 つ。点列を持つ種類はその形も見る。
-  // 角度は四角・丸だけが持てる（spec-4b-2 確定事項4。ほかの種類は validEntry が断る）。
+  // 角度は四角・丸とテキストだけが持てる（spec-4b-2 確定事項4。ほかの種類は validEntry が断る）。
   function validDrawnFields(entry) {
     if (!validPositive(entry.lineWidth) || entry.quads.length !== 1)
       return false;
@@ -70,13 +73,18 @@
     return entryModule().isPathKind(entry.kind) ? validPaths(entry.kind, entry.paths) : true;
   }
 
+  // 角度を持てる種類（四角・丸。spec-4b-2 確定事項4。テキスト。spec-4b-4b 確定事項A1）。
+  function turnable(kind) {
+    return style().isBoxedKind(kind) || kind === 'text';
+  }
+
   // 1 件の形。色・塗り・線種の組み合わせは shape-style.js が見る（線と塗りを両方なしにはできない、など）。
   function validEntry(entry) {
     const kinds = entryModule();
     const shape = Number.isInteger(entry?.src) && entry.src >= 0 && kinds.isKind(entry.kind)
       && Array.isArray(entry.quads) && entry.quads.length > 0 && entry.quads.every(isQuad)
       && Array.isArray(entry.rect) && entry.rect.length === 4 && style().validStyle(entry);
-    if (!shape || (entry.angle !== undefined && !style().isBoxedKind(entry.kind)))
+    if (!shape || (entry.angle !== undefined && !turnable(entry.kind)))
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);
@@ -97,7 +105,7 @@
       case 'rect': return Array.isArray(value) && value.length === 4;
       case 'quads': return Array.isArray(value) && value.length > 0 && value.every(isQuad);
       case 'paths': return validPaths(kind, value);
-      case 'angle': return style().isBoxedKind(kind) && validAngle(value);
+      case 'angle': return turnable(kind) && validAngle(value);
       case 'width':
       case 'bold':
       case 'italic':
