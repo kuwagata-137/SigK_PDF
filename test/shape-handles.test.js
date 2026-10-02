@@ -89,7 +89,7 @@ test('小さな図形では、短い向きの辺の中点のつまみを隠す�
   assert.equal(handles.handlesOf({ ...SQUARE, rect: [100, 600, 300, 620] }, viewport({ scale: 2 })).handles.length, 9);
 });
 
-test('直線・矢印は線に沿った枠と両端のつまみ。ペン・テキスト・表示のみはつまみを出さない', () => {
+test('直線・矢印は線に沿った枠と両端のつまみ。ペン・表示のみはつまみを出さない（テキストは free-text-handles.js が無ければ出さない）', () => {
   const shape = handles.handlesOf(ARROW, viewport());
   assert.equal(shape.frame.type, 'line');
   near(shape.frame.from, [100, 241.89]);
@@ -119,4 +119,18 @@ test('resizeCursorOf は表示の向きに近い 4 つの大きさ変えのカ�
   assert.equal(handles.resizeCursorOf([0, -1]), 'ns-resize');
   assert.equal(handles.resizeCursorOf([1, -1]), 'nesw-resize');
   assert.equal(handles.resizeCursorOf([1, 0.2]), 'ew-resize');
+});
+
+// テキストの左右の幅のつまみ（spec-4b-4a 確定事項F1・F2）。free-text-handles.js を読み込むと、テキストにもつまみが出る。
+test('free-text-handles.js があれば、テキストは左右の幅のつまみを出し、当たりは辺のつまみと同じ順', () => {
+  require('../renderer/free-text-geometry.js');
+  require('../renderer/free-text-wrap.js');
+  require('../renderer/free-text-layout.js');
+  require('../renderer/free-text-handles.js');
+  const text = { id: 'sigk-3', kind: 'text', rect: [100, 671, 224, 700], rotation: 0, fontSize: 10, text: 'x' };
+  assert.equal(handles.hasHandles(text), true);
+  assert.equal(handles.hasHandles({ ...text, readonly: true }), false);
+  const shape = handles.handlesOf(text, viewport());
+  assert.deepEqual(shape.handles.map((handle) => [handle.id, handle.kind, handle.cursor]), [['left', 'width', 'ew-resize'], ['right', 'width', 'ew-resize']]);
+  assert.equal(handles.handleAt(shape.handles, [224 + 3 + 4, 841.89 - 685.5]).id, 'right');
 });

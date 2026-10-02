@@ -4,7 +4,7 @@
 //
 // TRANSFORM_STEPS は smoke-annotate-steps.js の分岐の続き（else if の並び）で、埋め込む先のスクリプトにある
 // SigK・name・arg・wait・pageNode・mouse を使う。操作は次のもの。
-//   grab:x2y2:40x-20        選んでいる書き込みのつまみ（x1y1・x2y1・x1y2・x2y2・x1・x2・y1・y2・rotate・start・end）を、
+//   grab:x2y2:40x-20        選んでいる書き込みのつまみ（x1y1・x2y1・x1y2・x2y2・x1・x2・y1・y2・rotate・start・end、テキストの幅の left・right）を、
 //                           表示の px で (40,-20) だけ引く（grab:x2y2:40x-20:shift で Shift を押したまま）。紙の外の
 //                           つまみは #view で押す
 //   angle:45                右パネルの回転の行の数値欄に打って Enter で確定する

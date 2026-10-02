@@ -6,7 +6,8 @@
   // 位置は表示の座標（.pdf-page 基準の CSS px）。四角・丸は、回す前の箱の紙の +x・+y（上）の向きを表示へ直した単位ベクトル
   // ux・uy を作り、箱の中心 C から「ux × 横 ＋ uy × 縦」で置く（回転とページの回転を一度に扱える。余白とつまみの離れは px）。
   // つまみの id は紙の向きで付ける: 角は x1y1（左下）・x2y1・x1y2・x2y2（右上）、辺の中点は x1・x2・y1（下）・y2（上）、回転は rotate、
-  // 直線・矢印の端は start・end。回転のつまみは上の辺の外で、見える範囲から出るときだけ下の辺の外。
+  // 直線・矢印の端は start・end。回転のつまみは上の辺の外で、見える範囲から出るときだけ下の辺の外。テキストの左右の幅のつまみ
+  // （left・right。種類は width）は free-text-handles.js が置く（spec-4b-4a 確定事項F）。
 
   // 枠の余白（px。今の選択の枠と同じ）・つまみの半径・回転のつまみの半径と枠からの離れ・当たりの半径・辺のつまみを隠す長さ。
   const FRAME_PADDING = 3;
@@ -19,7 +20,7 @@
   const CORNERS = Object.freeze({ x1y1: [-1, -1], x2y1: [1, -1], x1y2: [-1, 1], x2y2: [1, 1] });
   const EDGES = Object.freeze({ x1: [-1, 0], x2: [1, 0], y1: [0, -1], y2: [0, 1] });
   // 重なるときに先に当てる順（確定事項15）。
-  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, edge: 2, end: 3 });
+  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, edge: 2, width: 2, end: 3 });
   const RESIZE_CURSORS = Object.freeze(['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']);
 
   function rotation() {
@@ -34,9 +35,13 @@
     return entry?.kind === 'line' || entry?.kind === 'arrow';
   }
 
-  // つまみを出す書き込みか（四角・丸・直線・矢印で、表示のみでないもの）。
+  function isText(entry) {
+    return entry?.kind === 'text' && root.SigK.freeTextHandles !== undefined;
+  }
+
+  // つまみを出す書き込みか（四角・丸・直線・矢印・テキストで、表示のみでないもの）。
   function hasHandles(entry) {
-    return entry?.readonly !== true && (isBoxed(entry) || (isLine(entry) && Array.isArray(entry.paths)));
+    return entry?.readonly !== true && (isBoxed(entry) || isText(entry) || (isLine(entry) && Array.isArray(entry.paths)));
   }
 
   function unit([x, y]) {
@@ -119,6 +124,8 @@
   function handlesOf(entry, viewport, room = null) {
     if (!hasHandles(entry))
       return null;
+    if (isText(entry))
+      return root.SigK.freeTextHandles.handlesOf(entry, viewport);
     return isBoxed(entry) ? boxHandles(entry, viewport, room) : lineHandles(entry, viewport);
   }
 
