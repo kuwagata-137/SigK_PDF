@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 
 require('../renderer/annotation-presets.js');
 require('../renderer/shape-style.js');
+require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/annotation-hints.js');

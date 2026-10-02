@@ -122,9 +122,10 @@
     return null;
   }
 
-  function toSaveSpec(annots) {
+  // ワーカーへ渡す差分。layoutOf(entry) は新しい形のテキストの行と余白を画面のフォントで決める口（spec-4b-4a 確定事項I1）。
+  function toSaveSpec(annots, { layoutOf = null } = {}) {
     return {
-      add: (annots?.added ?? []).map(entryModule().toSaveEntry),
+      add: (annots?.added ?? []).map((entry) => entryModule().toSaveEntry(entry, { layoutOf })),
       remove: [...(annots?.removed ?? [])],
     };
   }

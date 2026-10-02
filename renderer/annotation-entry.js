@@ -7,7 +7,7 @@
   // 検証と変えてよい欄は annotation-entry-rules.js、図形の見た目の欄は shape-style.js が持ち、ここから同じ名前で公開する。
   //
   //   共通       … { id, src, kind, color, opacity, quads, rect, text }
-  //   テキスト   … さらに { fontSize, rotation }。quads は箱の四角 1 つ
+  //   テキスト   … さらに { fontSize, rotation }。quads は箱の四角 1 つ。新しい形は { width, bold, italic }（free-text-entry.js）
   //   図形・ペン … さらに { lineWidth }。直線・矢印・ペンは { paths: [[[x, y], …], …] }（紙の座標）。
   //                quads は rect の四角 1 つ。四角・丸は { fill, lineStyle }（color は null で線なし）、直線・矢印は { lineStyle }、
   //                破線は { dash }、雲形は { cloudIntensity } を持てる（shape-style.js）。四角・丸は { angle }（画面で時計回りの度。
@@ -24,9 +24,10 @@
   const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink', 'note']);
   const ROTATIONS = Object.freeze([0, 90, 180, 270]);
 
-  // updateAnnot で書き換えられる欄（spec-4b-1b 確定事項21 で塗りと線種を、spec-4b-2 確定事項4 で角度を足した。間隔と強さは
-  // 右パネルから変えない）。
-  const PATCH_FIELDS = Object.freeze(['color', 'fill', 'lineStyle', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity', 'angle']);
+  // updateAnnot で書き換えられる欄（spec-4b-1b 確定事項21 で塗りと線種を、spec-4b-2 確定事項4 で角度を、spec-4b-4a 確定事項A4 で
+  // テキストの幅・太字・斜体を足した。間隔と強さは右パネルから変えない）。
+  const PATCH_FIELDS = Object.freeze(['color', 'fill', 'lineStyle', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity', 'angle',
+    'width', 'bold', 'italic']);
 
   function rules() {
     return root.SigK.annotationEntryRules;
@@ -34,6 +35,11 @@
 
   function style() {
     return root.SigK.shapeStyle;
+  }
+
+  // テキストの書式の欄（free-text-entry.js）。
+  function textFields() {
+    return root.SigK.freeTextEntry;
   }
 
   function isKind(kind) {
@@ -79,6 +85,7 @@
     if (entry.kind === 'text') {
       copy.fontSize = entry.fontSize;
       copy.rotation = entry.rotation;
+      textFields().copyFields(entry, copy);
     }
     if (isDrawnKind(entry.kind)) {
       copy.lineWidth = entry.lineWidth;
@@ -114,16 +121,19 @@
     return a.id === b.id && a.src === b.src && a.kind === b.kind && a.color === b.color
       && a.opacity === b.opacity && a.text === b.text && a.fontSize === b.fontSize
       && a.rotation === b.rotation && a.lineWidth === b.lineWidth && a.author === b.author && sameNumbers(a.rect, b.rect)
-      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b);
+      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && textFields().sameFields(a, b);
   }
 
   // ワーカーへ渡す形（spec-4-1 確定事項22・spec-4-2 確定事項18・spec-4-3 確定事項18・spec-4-4 確定事項19・
-  // spec-4b-1b 確定事項35）。id は要らない。マークアップは四角の並び、テキストは箱と本文・大きさ・回転、図形・ペンは箱と線幅
-  // （と点列、既定と違う見た目の欄）、ノートは箱と本文・作成者。四角は箱から作れるので落とす。
-  function toSaveEntry(entry) {
+  // spec-4b-1b 確定事項35・spec-4b-4a 確定事項I1）。id は要らない。マークアップは四角の並び、テキストは箱と本文・大きさ・回転
+  // （新しい形は書式の欄と、layoutOf(entry) が返す画面で決めた行と余白も）、図形・ペンは箱と線幅（と点列、既定と違う見た目の欄）、
+  // ノートは箱と本文・作成者。四角は箱から作れるので落とす。
+  function toSaveEntry(entry, { layoutOf = null } = {}) {
     const { src, kind, color, opacity, quads, rect, text, fontSize, rotation, lineWidth, paths, author } = entry;
-    if (kind === 'text')
-      return { src, kind, color, opacity, rect: [...rect], text, fontSize, rotation };
+    if (kind === 'text') {
+      const layout = textFields().isNewForm(entry) && typeof layoutOf === 'function' ? layoutOf(entry) : null;
+      return { src, kind, color, opacity, rect: [...rect], text, fontSize, rotation, ...textFields().saveFields(entry, layout) };
+    }
     if (isNoteKind(kind))
       return { src, kind, color, opacity, rect: [...rect], text, author: author ?? '' };
     if (isDrawnKind(kind)) {

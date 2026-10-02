@@ -11,8 +11,11 @@
 
   const FAMILY = 'SigK Noto Sans JP';
   const SVG_NS = 'http://www.w3.org/2000/svg';
+  // 字の送り幅を測る大きさ（px）。小さいと canvas の丸めが効く（事前調査 E。7〜4000px で比例）。
+  const ADVANCE_PX = 1000;
 
-  const state = { loaded: false, loading: null, contexts: new WeakMap() };
+  // advances は字ごとの送り幅（em）の覚え。標準と太字で分ける。フォントが読めてから覚える（読む前は代わりの書体で測るため）。
+  const state = { loaded: false, loading: null, contexts: new WeakMap(), advances: { regular: new Map(), bold: new Map() } };
 
   function geometry() {
     return root.SigK.freeTextGeometry;
@@ -22,8 +25,8 @@
     return String(Math.round(value * 100) / 100);
   }
 
-  function fontOf(px) {
-    return `${px}px "${FAMILY}"`;
+  function fontOf(px, bold = false) {
+    return `${bold ? '700 ' : ''}${px}px "${FAMILY}"`;
   }
 
   // フォントを先読みする。注釈モードに入ったとき・自前のテキストを読み込んだとき・
@@ -63,6 +66,25 @@
       return [...text].reduce((sum, ch) => sum + (ch.charCodeAt(0) < 128 ? 0.5 : 1), 0) * px;
     ctx.font = fontOf(px);
     return ctx.measureText(text).width;
+  }
+
+  // 字（書記素）の送り幅（em）。新しい形の折り返しと箱に使う（spec-4b-4a 確定事項B6）。kerning を切った canvas で ADVANCE_PX で測り、
+  // 字ごとに覚える（保存側の hmtx と一致する。事前調査 E）。canvas が無ければ全角 1em・半角 0.5em の見積もり。
+  function advanceOf(doc, unit, bold = false) {
+    const ctx = contextOf(doc);
+    if (ctx === null)
+      return unit.charCodeAt(0) < 128 ? 0.5 : 1;
+    const cache = bold ? state.advances.bold : state.advances.regular;
+    const known = cache.get(unit);
+    if (known !== undefined)
+      return known;
+    ctx.font = fontOf(ADVANCE_PX, bold);
+    ctx.fontKerning = 'none';
+    const em = ctx.measureText(unit).width / ADVANCE_PX;
+    ctx.fontKerning = 'auto';
+    if (state.loaded)
+      cache.set(unit, em);
+    return em;
   }
 
   // 画面に描くための位置。origin は表示の左上（CSS px）、angle は画面での回転（時計回り）。
@@ -122,5 +144,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextShape = { FAMILY, fontOf, ensureLoaded, isLoaded, measure, layoutOf, svgOf, paint };
+  SigK.freeTextShape = { FAMILY, ADVANCE_PX, fontOf, ensureLoaded, isLoaded, measure, advanceOf, layoutOf, svgOf, paint };
 })(typeof window !== 'undefined' ? window : globalThis);

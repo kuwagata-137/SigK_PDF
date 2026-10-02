@@ -78,6 +78,43 @@ test('measure は canvas があればそれで測る', () => {
   assert.deepEqual(calls, ['14px "SigK Noto Sans JP"']);
 });
 
+// ---- 字の送り幅（spec-4b-4a 確定事項B6。事前調査 E） ----
+
+test('fontOf は太字なら weight 700 を付ける', () => {
+  assert.equal(shape.fontOf(12, true), '700 12px "SigK Noto Sans JP"');
+  assert.equal(shape.fontOf(12, false), '12px "SigK Noto Sans JP"');
+});
+
+test('advanceOf は canvas が無ければ全角 1em・半角 0.5em の見積もり', () => {
+  const doc = makeDoc();
+  assert.equal(shape.advanceOf(doc, 'あ'), 1);
+  assert.equal(shape.advanceOf(doc, 'a', true), 0.5);
+});
+
+test('advanceOf は kerning を切った canvas で 1000px で測って em にし、フォントが読めていれば字ごとに覚える', async () => {
+  const doc = makeDoc();
+  Object.defineProperty(doc, 'fonts', { value: { load: async () => [] } });
+  await shape.ensureLoaded(doc);
+  doc.defaultView.CanvasRenderingContext2D = function CanvasRenderingContext2D() {};
+  const measured = [];
+  const original = doc.createElement.bind(doc);
+  doc.createElement = (tag) => {
+    const node = original(tag);
+    if (tag === 'canvas') {
+      const ctx = { font: '', fontKerning: 'auto', measureText: (text) => {
+        measured.push([ctx.font, ctx.fontKerning, text]);
+        return { width: ctx.font.startsWith('700 ') ? 943 : 500 };
+      } };
+      node.getContext = () => ctx;
+    }
+    return node;
+  };
+  assert.equal(shape.advanceOf(doc, 'W', true), 0.943);
+  assert.equal(shape.advanceOf(doc, 'W', true), 0.943);
+  assert.equal(shape.advanceOf(doc, 'W'), 0.5);
+  assert.deepEqual(measured, [['700 1000px "SigK Noto Sans JP"', 'none', 'W'], ['1000px "SigK Noto Sans JP"', 'none', 'W']]);
+});
+
 test('layoutOf は表示の左上・角度・行を出す', () => {
   const layout = shape.layoutOf(ENTRY, viewport({ scale: 2 }));
   assert.deepEqual(layout.origin, [200, (841.89 - 720) * 2]);

@@ -6,6 +6,7 @@ const { JSDOM } = require('jsdom');
 
 require('../renderer/markup-quads.js');
 require('../renderer/shape-style.js');
+require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/free-text-geometry.js');

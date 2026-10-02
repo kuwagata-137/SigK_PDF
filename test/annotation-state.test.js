@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/shape-style.js');
+require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/annotation-state.js');
@@ -249,6 +250,65 @@ test('toSaveSpec はテキストを rect・text・fontSize・rotation で渡し�
   assert.deepEqual(Object.keys(spec.add[1]).sort(), ['color', 'kind', 'opacity', 'quads', 'rect', 'src']);
   spec.add[0].rect[0] = 0;
   assert.equal(annots.added[0].rect[0], 100);
+});
+
+// ---- テキストの新しい形（spec-4b-4a 確定事項A・I1） ----
+
+test('addAnnot と validEntry はテキストの幅・太字・斜体を写して見て、今までの形の太字は断る', () => {
+  const base = state.createAnnots();
+  const added = state.addAnnot(base, textEntry({ width: 'auto', bold: true, italic: true })).added[0];
+  assert.equal(added.width, 'auto');
+  assert.equal(added.bold, true);
+  assert.equal(added.italic, true);
+  assert.equal(state.addAnnot(base, textEntry({ width: 36.5 })).added[0].width, 36.5);
+  assert.equal(state.addAnnot(base, textEntry({ width: 0 })).added.length, 0);
+  assert.equal(state.addAnnot(base, textEntry({ bold: true })).added.length, 0, '幅の無い今までの形は太字を持てない');
+  assert.equal(state.addAnnot(base, textEntry({ width: 'auto', bold: false })).added.length, 0);
+  // 今までの形の写しには幅・太字・斜体が付かない。
+  const old = state.addAnnot(base, textEntry()).added[0];
+  assert.equal(['width', 'bold', 'italic'].some((field) => field in old), false);
+});
+
+test('updateAnnot は幅・太字・斜体を変え、false の太字・斜体は外す。今までの形に太字だけを当てると何もしない', () => {
+  const one = state.addAnnot(state.createAnnots(), textEntry({ width: 'auto' }));
+  const id = one.added[0].id;
+  const bold = state.updateAnnot(one, { id }, { bold: true, width: 60 });
+  assert.equal(bold.added[0].bold, true);
+  assert.equal(bold.added[0].width, 60);
+  const plain = state.updateAnnot(bold, { id }, { bold: false });
+  assert.equal('bold' in plain.added[0], false);
+  assert.equal(state.updateAnnot(one, { id }, { italic: 'yes' }), one);
+  const old = state.addAnnot(state.createAnnots(), textEntry());
+  assert.equal(state.updateAnnot(old, { id: old.added[0].id }, { bold: true }), old);
+  // 今までの形も、幅と一緒なら新しい形に移れる（確定事項A2）。
+  assert.equal(state.updateAnnot(old, { id: old.added[0].id }, { bold: true, width: 60 }).added[0].bold, true);
+});
+
+test('sameAnnots は幅・太字・斜体の違いを見る', () => {
+  const one = state.addAnnot(state.createAnnots(), textEntry({ width: 'auto' }));
+  const id = one.added[0].id;
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { width: 40 })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { italic: true })), false);
+  assert.equal(state.sameAnnots(one, state.updateAnnot(one, { id }, { bold: false })), true);
+});
+
+test('toSaveSpec は新しい形のテキストに書式の欄と、layoutOf が決めた行と余白を添える', () => {
+  const annots = state.addAnnot(state.addAnnot(state.createAnnots(), textEntry({ width: 'auto', italic: true })), textEntry());
+  const seen = [];
+  const layoutOf = (target) => {
+    seen.push(target.text);
+    return { lines: ['こんにち', 'は'], padding: 2 };
+  };
+  const spec = state.toSaveSpec(annots, { layoutOf });
+  assert.deepEqual(spec.add[0], {
+    src: 0, kind: 'text', color: '#1c2430', opacity: 1, rect: TEXT_RECT, text: 'こんにちは', fontSize: 12, rotation: 0,
+    width: 'auto', italic: true, lines: ['こんにち', 'は'], padding: 2,
+  });
+  // 今までの形には何も足さず、layoutOf も呼ばない。
+  assert.deepEqual(spec.add[1], { src: 0, kind: 'text', color: '#1c2430', opacity: 1, rect: TEXT_RECT, text: 'こんにちは', fontSize: 12, rotation: 0 });
+  assert.deepEqual(seen, ['こんにちは']);
+  // layoutOf が無ければ行を付けない（ワーカーが断る）。
+  assert.equal('lines' in state.toSaveSpec(annots).add[0], false);
 });
 
 // ---- 図形・ペン（spec-4-3 確定事項14〜18） ----
