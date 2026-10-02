@@ -62,8 +62,11 @@
     node.style.padding = paddingOf(layout().insetOf(draft), scale);
     node.style.borderWidth = `${BORDER}px`;
     node.style.color = draft.color;
-    // 塗りは入力欄の地に出す。枠線は描かず、破線の枠のまま（spec-4b-4a 確定事項E2）。
-    node.style.background = draft.fill ?? '';
+    // 塗りは入力欄の地に出す。枠線は描かず、破線の枠のまま（spec-4b-4a 確定事項E2）。吹き出しは本体（輪郭・塗り・枠線）を注釈の層が
+    // 描くので、地は透明にして破線の枠も出さない（spec-4b-4b 確定事項D3）。
+    const callout = draft.callout !== undefined;
+    node.classList.toggle('callout', callout);
+    node.style.background = callout ? '' : draft.fill ?? '';
     node.style.transformOrigin = `${BORDER}px ${BORDER}px`;
     node.style.transform = angle === 0 ? '' : `rotate(${angle}deg)`;
   }

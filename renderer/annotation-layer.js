@@ -80,7 +80,8 @@
   // editing は入力欄を開いているテキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
   // draft は描いている途中の図形（entry の形）で、いちばん上に描く。選択の枠は紙の外の層（annotation-frame.js。
   // spec-4b-2 確定事項9）が描く。
-  function draw(svg, entries, viewport, { editing = null, draft = null } = {}) {
+  // textDraft は開いているテキストの入力欄の下書き。吹き出しなら本体（輪郭）だけを描く（文字は入力欄。spec-4b-4b 確定事項D3）。
+  function draw(svg, entries, viewport, { editing = null, draft = null, textDraft = null } = {}) {
     const doc = svg.ownerDocument;
     svg.replaceChildren();
     for (const entry of entries) {
@@ -92,6 +93,16 @@
     }
     if (draft !== null && draft !== undefined)
       svg.append(draftOf(doc, draft, viewport));
+    const body = root.SigK.calloutGraphics?.draftEntryOf(textDraft) ?? null;
+    const outline = body === null ? null : root.SigK.calloutGraphics.svgOf(doc, body, viewport);
+    if (outline !== null) {
+      const group = doc.createElementNS(SVG_NS, 'g');
+      group.setAttribute('class', 'annot-draft');
+      if (body.opacity < 1)
+        group.setAttribute('opacity', String(body.opacity));
+      group.append(outline);
+      svg.append(group);
+    }
     return svg.childNodes.length;
   }
 

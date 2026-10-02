@@ -150,6 +150,11 @@
       ['path', { d: 'M4 12h16', 'stroke-width': 2.4 }],
     ],
     text: [['path', { d: 'M5 6h14M12 6v13M9 19h6' }]],
+    // 吹き出し（spec-4b-4b 確定事項F1。見本 screenshots/phase4b-4-bar.png）。角の丸い吹き出しの中に T。
+    callout: [
+      ['path', { d: 'M4.5 4.5h15a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H11l-4.5 4v-4h-2A1.5 1.5 0 0 1 3 14.5V6a1.5 1.5 0 0 1 1.5-1.5z' }],
+      ['path', { d: 'M8.5 9h7M12 9v4.5' }],
+    ],
     shape: [
       ['rect', { x: 4, y: 5, width: 11, height: 9, rx: 1 }],
       ['circle', { cx: 16, cy: 16, r: 4 }],

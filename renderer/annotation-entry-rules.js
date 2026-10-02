@@ -110,7 +110,8 @@
       case 'bold':
       case 'italic':
       case 'borderColor':
-      case 'borderWidth': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
+      case 'borderWidth':
+      case 'callout': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
       default: return false;
     }
   }

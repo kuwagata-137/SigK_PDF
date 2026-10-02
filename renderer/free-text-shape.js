@@ -58,8 +58,27 @@
     }));
   }
 
-  // SVG の <g>。行ごとに <text> を置き、箱の左上へ移して回す。
+  // 吹き出しの輪郭（callout-graphics.js。spec-4b-4b 確定事項E6）。吹き出しでなければ null。
+  function calloutOf(entry) {
+    return entry.callout === undefined ? null : root.SigK.calloutGraphics;
+  }
+
+  // SVG の <g>。行ごとに <text> を置き、箱の左上へ移して回す。吹き出しは輪郭の <path> と文字の <g> を 1 つの <g> にまとめる。
   function svgOf(doc, entry, viewport) {
+    const group = textGroupOf(doc, entry, viewport);
+    const callout = calloutOf(entry);
+    if (callout === null)
+      return group;
+    const holder = doc.createElementNS(SVG_NS, 'g');
+    holder.setAttribute('class', 'free-text-callout');
+    const outline = callout.svgOf(doc, entry, viewport);
+    if (outline !== null)
+      holder.append(outline);
+    holder.append(group);
+    return holder;
+  }
+
+  function textGroupOf(doc, entry, viewport) {
     const { origin, angle, scale, lines, inset } = layoutOf(entry, viewport);
     const group = doc.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'free-text');
@@ -107,11 +126,15 @@
     const layout = layoutOf(entry, viewport);
     const alpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
     const decor = root.SigK.freeTextDecorGraphics;
-    const layer = alpha < 1 && decor?.hasDecor(entry) ? decor.layerFor(ctx, entry, layout.origin, layout.angle, layout.scale) : null;
+    const callout = calloutOf(entry);
+    const extra = callout === null ? null : callout.viewExtentOf(entry, viewport);
+    const layer = alpha < 1 && decor?.hasDecor(entry) ? decor.layerFor(ctx, entry, layout.origin, layout.angle, layout.scale, extra) : null;
     if (layer === null) {
+      callout?.paint(ctx, entry, viewport, alpha);
       drawOn(ctx, entry, layout, alpha);
       return layout.lines.length;
     }
+    callout?.paint(layer.ctx, entry, viewport, 1);
     drawOn(layer.ctx, entry, layout, 1);
     ctx.save();
     ctx.globalAlpha = alpha;

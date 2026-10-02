@@ -72,6 +72,8 @@
     const outward = (point, sx, sy) => offset(offset(point, box.right, sx * pad), box.down, sy * pad);
     const cursor = shapeHandles().resizeCursorOf(box.right);
     const rotate = rotateHandleOf(box, pad, room);
+    // 吹き出しはしっぽの先にもつまみを出す（callout-handles.js。spec-4b-4b 確定事項F4）。
+    const tip = root.SigK.calloutHandles?.handleOf(entry, viewport) ?? null;
     return {
       frame: { type: 'polygon', points: [outward(box.topLeft, -1, -1), outward(box.topRight, 1, -1), outward(box.bottomRight, 1, 1), outward(box.bottomLeft, -1, 1)] },
       stem: rotate.stem,
@@ -79,6 +81,7 @@
         { id: 'left', kind: 'width', at: offset(middle(box.topLeft, box.bottomLeft), box.right, -pad), cursor },
         { id: 'right', kind: 'width', at: offset(middle(box.topRight, box.bottomRight), box.right, pad), cursor },
         rotate.handle,
+        ...(tip === null ? [] : [tip]),
       ],
     };
   }

@@ -20,7 +20,8 @@
   const CORNERS = Object.freeze({ x1y1: [-1, -1], x2y1: [1, -1], x1y2: [-1, 1], x2y2: [1, 1] });
   const EDGES = Object.freeze({ x1: [-1, 0], x2: [1, 0], y1: [0, -1], y2: [0, 1] });
   // 重なるときに先に当てる順（確定事項15）。
-  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, edge: 2, width: 2, end: 3 });
+  // 吹き出しのしっぽの先（tip。spec-4b-4b 確定事項F4）は角のつまみと同じ順。
+  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, tip: 1, edge: 2, width: 2, end: 3 });
   const RESIZE_CURSORS = Object.freeze(['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']);
 
   function rotation() {

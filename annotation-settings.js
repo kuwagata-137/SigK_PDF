@@ -16,14 +16,14 @@ const ANNOT_PALETTE_VERSION = 1;
 // 図形とペンの線の太さ（pt）・「図形」の道具の種類・道具ごとの不透明度・ノートの作成者。作成者が空ならメインが
 // OS のユーザー名で埋めて渡す。既定の色はパレットの色（確定事項14。決定47 ⑧）。
 const ANNOT_DEFAULTS = {
-  annotColors: { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966' },
+  annotColors: { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966' },
   annotFills: { shape: null },
   annotStrokeNone: { shape: false },
   annotLineStyles: { shape: 'solid' },
   ...textDefaults(),
   annotLineWidth: 2,
   annotShapeKind: 'square',
-  annotOpacity: { text: 1, shape: 1, pen: 1, note: 1 },
+  annotOpacity: { text: 1, callout: 1, shape: 1, pen: 1, note: 1 },
   annotAuthor: '',
   annotPaletteVersion: ANNOT_PALETTE_VERSION,
 };
@@ -170,7 +170,7 @@ function mergeAnnotUi(current, next) {
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(merged('annotStrokeNone'), current.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(merged('annotLineStyles'), current.annotLineStyles),
-    ...pickTextSettings({ ...next, annotTextStyle: merged('annotTextStyle') }, current),
+    ...pickTextSettings({ ...next, annotTextStyle: merged('annotTextStyle'), annotCalloutStyle: merged('annotCalloutStyle') }, current),
     annotLineWidth: pickAnnotLineWidth(next.annotLineWidth, current.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, next.annotShapeKind, current.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind),
     annotOpacity: pickAnnotOpacity(merged('annotOpacity'), current.annotOpacity),

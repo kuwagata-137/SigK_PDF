@@ -56,6 +56,9 @@
       return false;
     if (annotationState().isNoteKind(entry.kind))
       return root.SigK.noteGraphics.hits(entry, point, viewport);
+    // 吹き出しはしっぽの三角も当たる（spec-4b-4b 確定事項C4）。
+    if (entry.kind === 'text' && entry.callout !== undefined && root.SigK.calloutShape.hitsTail(entry, pdfPoint))
+      return true;
     if (root.SigK.shapeRotation?.isRotated(entry) === true)
       return hitsTurnedBox(entry, pdfPoint);
     if (!annotationState().isPathKind(entry.kind))

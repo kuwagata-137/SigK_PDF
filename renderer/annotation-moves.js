@@ -31,7 +31,9 @@
     const size = root.SigK.freeTextMetrics.sizeOf(entry);
     const rect = geometry.rectFromOrigin(origin, size, entry.rotation);
     const moved = { ...entry, rect: [entry.rect[0] + delta[0], entry.rect[1] + delta[1], entry.rect[2] + delta[0], entry.rect[3] + delta[1]] };
-    return root.SigK.freeTextTurn.turned(moved, { rect, quads: [geometry.quadOfRect(rect)] });
+    const frame = root.SigK.freeTextTurn.turned(moved, { rect, quads: [geometry.quadOfRect(rect)] });
+    // 吹き出しのしっぽの先も一緒に動かす（spec-4b-4b 確定事項B3）。
+    return entry.callout === undefined ? frame : { ...frame, callout: { tip: [round(entry.callout.tip[0] + delta[0]), round(entry.callout.tip[1] + delta[1])] } };
   }
 
   // ノート: 基準の点（紙の左上）に足して箱を作り直す。

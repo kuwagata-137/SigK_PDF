@@ -152,7 +152,7 @@
       return root.SigK.annotateBulk.applyField('lineWidth', width);
     const entry = annotate().selectedEntry();
     // テキストの太さの行は枠線の太さ（spec-4b-4a 確定事項G4）。テキストを選んでいるか、テキストの道具を持っているとき。
-    if (entry?.kind === 'text' || (entry === null && annotate().drawingTool() === 'text'))
+    if (entry?.kind === 'text' || (entry === null && ['text', 'callout'].includes(annotate().drawingTool())))
       return root.SigK.annotateTextStyle.setBorderWidth(width);
     if (entry !== null && entry.readonly !== true && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
       const patch = { lineWidth: width, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width, angle: entry.angle }) };

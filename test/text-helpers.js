@@ -52,7 +52,16 @@ function placeText(shell, x, y, text) {
   return shell.SigK.annotate.selectedEntry();
 }
 
+// 吹き出しの道具で (x, y) に置いて text を打ち、確定する（spec-4b-4b）。確定後に選ばれている書き込みを返す。
+function placeCallout(shell, x, y, text) {
+  shell.SigK.annotate.setTool('callout');
+  clickAt(shell, x, y);
+  typeText(shell, text);
+  shell.SigK.freeTextEditor.finish();
+  return shell.SigK.annotate.selectedEntry();
+}
+
 // jsdom の窓の中で作った値は Node の値と別の世界のものなので、値だけを比べる。
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
-module.exports = { A, withTextShell, pageNode, clickAt, editorNode, typeText, placeText, plain };
+module.exports = { A, withTextShell, pageNode, clickAt, editorNode, typeText, placeText, placeCallout, plain };

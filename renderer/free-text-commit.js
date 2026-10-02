@@ -42,12 +42,13 @@
   }
 
   function commitNew(draft, body) {
+    const callout = draft.callout === true;
     const entry = {
       src: draft.src,
       kind: 'text',
       color: draft.color,
-      // 道具の「次に付ける不透明度」（spec-4b-1a 確定事項31。今までは 1 に固定していた）。
-      opacity: annotate().getOpacity('text'),
+      // 道具の「次に付ける不透明度」（spec-4b-1a 確定事項31。今までは 1 に固定していた）。吹き出しは吹き出しの道具の値。
+      opacity: annotate().getOpacity(callout ? 'callout' : 'text'),
       text: body,
       fontSize: draft.fontSize,
       rotation: draft.rotation,
@@ -55,6 +56,9 @@
     };
     const size = metrics().sizeOf(entry);
     const origin = text().fitOrigin(draft.origin, size, draft.index);
+    // 置いたばかりの吹き出しのしっぽの先は、確定した箱の下・左寄り（spec-4b-4b 確定事項D4）。
+    if (callout)
+      entry.callout = { tip: root.SigK.calloutShape.defaultTipOf(origin, size, draft.rotation, draft.fontSize) };
     const next = annotationState().addAnnot(viewer().getAnnotations(), {
       id: annotationState().newId(),
       ...entry,

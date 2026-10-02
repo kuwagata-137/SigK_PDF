@@ -84,6 +84,8 @@
     const resize = root.SigK.shapeResize;
     if (handle.kind === 'width')
       return root.SigK.freeTextResize.widthPatch(entry, handle.id, press, point, viewport);
+    if (handle.kind === 'tip')
+      return root.SigK.calloutHandles.tipPatch(entry, press, point, viewport, { shift });
     if (handle.kind === 'end')
       return resize.endpointMoved(entry, handle.id, press, point, viewport, { shift });
     if (handle.kind === 'rotate') {

@@ -105,7 +105,8 @@
       const selected = root.SigK.annotate?.getSelection() ?? [];
       const editing = root.SigK.freeTextEditor?.editingKey() ?? null;
       // 描いている途中の図形（spec-4-3 確定事項3）。
-      layer.draw(entry.annots.svg, shown, entry.annots.viewport, { editing, draft: root.SigK.annotateShape?.draftFor(index) ?? null });
+      const textDraft = root.SigK.freeTextEditor?.getDraft() ?? null;
+      layer.draw(entry.annots.svg, shown, entry.annots.viewport, { editing, draft: root.SigK.annotateShape?.draftFor(index) ?? null, textDraft: textDraft?.index === index ? textDraft : null });
       // 選択の枠とつまみは紙の外の層へ（spec-4b-2 確定事項9）。
       const { doc, pages, pageNodes } = ctx.el();
       root.SigK.annotationFrame?.sync({ doc, pagesEl: pages, pageNode: pageNodes[index], index, entries: shown, viewport: entry.annots.viewport, selected, editing });

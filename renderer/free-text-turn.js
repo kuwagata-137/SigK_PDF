@@ -77,7 +77,7 @@
     return (geometry().screenAngle(viewportRotation, draft.rotation) + angleOf(draft.entry)) % 360;
   }
 
-  // 角度を当てる patch（確定事項A3・C1・C2）。今までの形は新しい形（今の最長行の固定の幅）へ移し、箱を組み直す（中身の左上は動かない。
+  // 角度を当てる patch（確定事項A3・B3・C1・C2）。今までの形は新しい形（今の最長行の固定の幅）へ移し、箱を組み直す（中身の左上は動かない。
   // 今までの形は回っていないので、ずらしは要らない）。四角は回した 4 隅（0° なら回す前の四角）。angle は 0 以上 360 未満の数。
   function anglePatch(entry, angle) {
     const patch = {};
@@ -86,6 +86,11 @@
       Object.assign(patch, root.SigK.freeTextMetrics.reframe(entry, patch));
     }
     const rect = patch.rect ?? entry.rect;
+    // 吹き出しのしっぽの先は、箱の中心のまわりに一緒に回す（spec-4b-4b 確定事項B3）。
+    if (entry.callout !== undefined) {
+      const tip = rotation().rotatePoint(entry.callout.tip, centerOf(rect), angle - angleOf(entry)).map(round);
+      patch.callout = { tip };
+    }
     return { ...patch, angle, rect, quads: [angle === 0 ? geometry().quadOfRect(rect) : rotation().quadOf(rect, angle)] };
   }
 
