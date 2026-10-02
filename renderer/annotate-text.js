@@ -57,6 +57,12 @@
 
   // ---- 置く（確定事項3） ----
 
+  // 次に置くテキストの太字・斜体（true のときだけ持つ）。
+  function nextFlags() {
+    const style = annotate().getTextStyle();
+    return root.SigK.freeTextEntry.copyFields({ width: 'auto', ...style }, {});
+  }
+
   // テキストの道具で紙を押して離した点（.pdf-page 基準の CSS px）に入力欄を出す。
   function place({ index, point }) {
     const page = editor()?.pageOf(index);
@@ -75,8 +81,9 @@
       fontSize: annotate().getFontSize(),
       color: annotate().colorOf('text'),
       rotation: page.viewport.rotation ?? 0,
-      // 新しく置くテキストは新しい形で、全角 12 字の自動の幅で折り返す（spec-4b-4a 確定事項C2・H2）。
+      // 新しく置くテキストは新しい形で、全角 12 字の自動の幅で折り返す（spec-4b-4a 確定事項C2・H2）。太字・斜体は次に付ける値。
       width: root.SigK.freeTextEntry.WIDTH_AUTO,
+      ...nextFlags(),
     });
     return true;
   }

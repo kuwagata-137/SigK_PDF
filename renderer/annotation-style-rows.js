@@ -93,8 +93,9 @@
     renderStyleButtons(view?.lineStyle ?? null);
     renderRange(el.widthRow, el.widthRange, el.width, view?.lineWidth ?? null, (width) => width);
     renderRange(el.opacityRow, el.opacityRange, el.opacity, view?.opacity ?? null, (opacity) => Math.round(opacity * 100));
-    // テキストの行（文字の大きさ。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
+    // テキストの行（文字の大きさ・書式。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
     root.SigK.annotationTextRows?.render(view?.fontSize ?? null);
+    root.SigK.annotationTextRows?.renderFormat(view?.format ?? null);
     // 開いているパレットの行が消えたら閉じる。
     if (popover()?.isOpen() && popover().anchor()?.closest('.prop')?.hidden === true)
       popover().close();

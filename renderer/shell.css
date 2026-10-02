@@ -841,6 +841,9 @@ html[data-mode="annot"] #props{display:flex}
 .props-kinds button[hidden]{display:none}
 .props-kinds button:hover{color:var(--text)}
 .props-kinds button.on{border-color:var(--accent); color:var(--accent); background:var(--select); box-shadow:inset 0 0 0 1px var(--accent)}
+/* 書式の B・I（spec-4b-4a 確定事項G3）。文字そのもので太字・斜体を見せる。 */
+.format-buttons button[data-format="bold"]{font-weight:700}
+.format-buttons button[data-format="italic"]{font-style:italic; font-family:Georgia, serif}
 /* 色と塗りのチップ（spec-4b-1b 確定事項2・3。モック）。押すとパレットの窓が開く。「なし」は白地に赤の斜線。 */
 .chip-row{display:flex; align-items:center; gap:8px}
 .chip-row .name{font-size:12px; color:var(--muted)}

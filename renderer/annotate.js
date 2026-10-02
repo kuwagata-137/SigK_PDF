@@ -138,6 +138,9 @@
     applyFontSize: (size) => tools().applyFontSize(size),
     rememberFontSize: (size) => tools().rememberFontSize(size),
     setFontSize: (size) => root.SigK.annotateTextStyle?.setFontSize(size) === true,
+    // 太字・斜体（spec-4b-4a 確定事項G3）。field は 'bold' か 'italic'。
+    setTextFlag: (field, value) => root.SigK.annotateTextStyle?.setTextFlag(field, value) === true,
+    getTextStyle: () => root.SigK.annotateTextStyle?.getNextStyle() ?? { bold: false, italic: false },
     setLineWidth: (width) => root.SigK.annotateShape?.setLineWidth(width) === true,
     setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
     getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),

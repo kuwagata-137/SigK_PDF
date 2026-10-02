@@ -83,6 +83,8 @@
       kinds.forEach((kind) => root.SigK.annotateOpacity.rememberOpacity(kind, value));
     } else if (field === 'fontSize') {
       annotate().rememberFontSize(value);
+    } else if (field === 'bold' || field === 'italic') {
+      root.SigK.annotateTextStyle.rememberTextStyle(field, value);
     }
   }
 

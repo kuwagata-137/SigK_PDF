@@ -32,3 +32,15 @@ test('annotation-settings.js は同じ一覧と既定を使う', () => {
   assert.deepEqual(settings.ANNOT_FONT_SIZES, ANNOT_FONT_SIZES);
   assert.equal(settings.ANNOT_DEFAULTS.annotFontSize, DEFAULT_ANNOT_FONT_SIZE);
 });
+
+// 次に置くテキストの太字・斜体（spec-4b-4a 確定事項H）。
+test('pickAnnotTextStyle は真偽値の太字・斜体だけを受け、無ければ fallback、それも無ければ既定（どちらも無し）', () => {
+  const { DEFAULT_ANNOT_TEXT_STYLE, pickAnnotTextStyle } = text;
+  assert.deepEqual(DEFAULT_ANNOT_TEXT_STYLE, { bold: false, italic: false });
+  assert.deepEqual(pickAnnotTextStyle({ bold: true, italic: false, fill: '#ff0000' }), { bold: true, italic: false });
+  assert.deepEqual(pickAnnotTextStyle({ bold: 'yes' }, { bold: true, italic: true }), { bold: true, italic: true });
+  assert.deepEqual(pickAnnotTextStyle(null, null), { bold: false, italic: false });
+  assert.deepEqual(pickAnnotTextStyle([], { bold: 1 }), { bold: false, italic: false });
+  assert.deepEqual(settings.ANNOT_DEFAULTS.annotTextStyle, { bold: false, italic: false });
+  assert.deepEqual(settings.mergeAnnotUi({ annotTextStyle: { bold: true, italic: false } }, { annotTextStyle: { italic: true } }).annotTextStyle, { bold: true, italic: true });
+});

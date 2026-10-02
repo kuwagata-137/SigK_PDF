@@ -57,6 +57,8 @@
       root.SigK.annotate?.applyStrokeNone(result.ui.annotStrokeNone);
       root.SigK.annotate?.applyLineStyles(result.ui.annotLineStyles);
       root.SigK.annotate?.applyFontSize(result.ui.annotFontSize);
+      // テキストの太字・斜体（spec-4b-4a 確定事項H）。
+      root.SigK.annotateTextStyle?.applyNextStyle(result.ui.annotTextStyle);
       root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
       root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);
       // 不透明度と作成者（spec-4-4 確定事項21）。作成者が空ならメインが OS のユーザー名で埋めている。

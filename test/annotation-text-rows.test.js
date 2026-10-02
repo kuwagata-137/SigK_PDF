@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { withTextShell, placeText } = require('./text-helpers.js');
+const { withTextShell, placeText, plain } = require('./text-helpers.js');
 
 // 右パネルのテキストの行（spec-4b-4a 確定事項G1・G2・G5）。「文字の大きさ」は数値の欄（8〜200、0.5 刻み）と、よく使う大きさの一覧。
 
@@ -95,4 +95,48 @@ test('選んでいるテキストの大きさを数値の欄で変えると、�
   enter(shell, sizeRow(document).number, '150');
   assert.equal(SigK.annotate.selectedEntry().fontSize, 150);
   assert.equal(SigK.pageEdit.getHistoryState().at, at + 1);
+});
+
+// ---- 書式の行（spec-4b-4a 確定事項G3・G5） ----
+
+function formatRow(document) {
+  return {
+    row: document.getElementById('props-format-row'),
+    label: document.getElementById('props-format-label'),
+    bold: document.querySelector('#props-format button[data-format="bold"]'),
+    italic: document.querySelector('#props-format button[data-format="italic"]'),
+  };
+}
+
+test('renderFormat は付いている書式のボタンを押した形にし、混在なら押していない形（aria-pressed は mixed）にする', async (t) => {
+  const { SigK, document } = await withTextShell(t);
+  const { row, label, bold, italic } = formatRow(document);
+  SigK.annotationTextRows.renderFormat({ bold: { value: true, mixed: false }, italic: { value: false, mixed: false }, label: '書式' });
+  assert.equal(row.hidden, false);
+  assert.equal(label.textContent, '書式');
+  assert.deepEqual([bold.classList.contains('on'), bold.getAttribute('aria-pressed')], [true, 'true']);
+  assert.deepEqual([italic.classList.contains('on'), italic.getAttribute('aria-pressed')], [false, 'false']);
+  SigK.annotationTextRows.renderFormat({ bold: { value: true, mixed: true }, italic: { value: false, mixed: false }, label: '書式（テキスト）' });
+  assert.deepEqual([bold.classList.contains('on'), bold.getAttribute('aria-pressed')], [false, 'mixed']);
+  assert.equal(label.textContent, '書式（テキスト）');
+  SigK.annotationTextRows.renderFormat(null);
+  assert.equal(row.hidden, true);
+});
+
+test('テキストの道具を持つと書式の行が出て、B を押すと次に置くテキストが太字になり、もう一度押すと外れる', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('text');
+  const { row, bold } = formatRow(document);
+  assert.equal(row.hidden, false);
+  bold.click();
+  assert.equal(SigK.annotate.getTextStyle().bold, true);
+  assert.equal(bold.classList.contains('on'), true);
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotTextStyle: { bold: true } });
+  const entry = placeText(shell, 100, 700, '太字');
+  assert.equal(entry.bold, true);
+  // 選んでいる太字のテキストで B を押すと外れる。
+  formatRow(document).bold.click();
+  assert.equal('bold' in SigK.annotate.selectedEntry(), false);
+  assert.equal(SigK.annotate.getTextStyle().bold, false);
 });

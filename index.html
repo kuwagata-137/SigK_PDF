@@ -572,6 +572,9 @@ body{
         <!-- 文字の大きさ（spec-4b-4a 確定事項G1・G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼）。中身は annotation-text-rows.js。 -->
         <div class="prop" id="props-size-row" hidden><span class="k" id="props-size-label">文字の大きさ</span>
           <div class="range size-field"><input type="number" class="props-field" id="props-size" min="8" max="200" step="0.5" aria-label="文字の大きさ（pt）"><select class="size-list props-field" id="props-size-list" aria-label="よく使う大きさ"></select><span class="unit">pt</span></div></div>
+        <!-- 書式（spec-4b-4a 確定事項G3。モック screenshots/phase4b-4-props.png）。太字と斜体の切り替え。中身は annotation-text-rows.js。 -->
+        <div class="prop" id="props-format-row" hidden><span class="k" id="props-format-label">書式</span>
+          <div class="props-kinds format-buttons" id="props-format" role="group" aria-label="書式"><button type="button" data-format="bold" title="太字" aria-label="太字" aria-pressed="false">B</button><button type="button" data-format="italic" title="斜体" aria-label="斜体" aria-pressed="false">I</button></div></div>
         <div class="prop" id="props-fill-row" hidden><span class="k">塗り</span>
           <div class="chip-row"><button type="button" class="chip" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-fill-name"></span></div></div>
         <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>

@@ -90,8 +90,9 @@ test('viewOf のパレットの［なし］は、線なしは塗りのある四�
 test('targetOf は書き込みを右パネルに渡す形にする', async (t) => {
   const patch = await withPatch(t);
   assert.deepEqual(plain(patch.targetOf({ kind: 'circle', color: '#000000', lineWidth: 2, readonly: true })), {
-    kind: 'circle', readonly: true, color: '#000000', fill: null, lineStyle: 'solid', lineWidth: 2, opacity: 1, fontSize: null,
+    kind: 'circle', readonly: true, color: '#000000', fill: null, lineStyle: 'solid', lineWidth: 2, opacity: 1, fontSize: null, bold: null, italic: null,
   });
   // テキストは文字の大きさも渡す（spec-4b-4a 確定事項G5）。
   assert.equal(patch.targetOf({ kind: 'text', color: '#222a35', fontSize: 18 }).fontSize, 18);
+  assert.deepEqual([patch.targetOf({ kind: 'text', bold: true }).bold, patch.targetOf({ kind: 'text' }).italic], [true, false]);
 });

@@ -11,6 +11,9 @@ const ANNOT_FONT_SIZE_MAX = 200;
 const ANNOT_FONT_SIZE_STEP = 0.5;
 const DEFAULT_ANNOT_FONT_SIZE = 12;
 
+// 次に置くテキストの書式（spec-4b-4a 確定事項H1・H2）。既定は太字なし・斜体なし。
+const DEFAULT_ANNOT_TEXT_STYLE = Object.freeze({ bold: false, italic: false });
+
 function isFontSize(value) {
   return Number.isFinite(value) && value >= ANNOT_FONT_SIZE_MIN && value <= ANNOT_FONT_SIZE_MAX && Number.isInteger(value / ANNOT_FONT_SIZE_STEP);
 }
@@ -22,6 +25,19 @@ function pickAnnotFontSize(raw, fallback) {
   return isFontSize(fallback) ? fallback : DEFAULT_ANNOT_FONT_SIZE;
 }
 
+// テキストの書式を受け取る。真偽値でない欄は fallback（それも無ければ既定）。知らない欄は持ち込まない。
+function pickAnnotTextStyle(raw, fallback) {
+  const source = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? raw : {};
+  const base = typeof fallback === 'object' && fallback !== null ? fallback : DEFAULT_ANNOT_TEXT_STYLE;
+  const pick = (field) => {
+    if (typeof source[field] === 'boolean')
+      return source[field];
+    return typeof base[field] === 'boolean' ? base[field] : DEFAULT_ANNOT_TEXT_STYLE[field];
+  };
+  return { bold: pick('bold'), italic: pick('italic') };
+}
+
 module.exports = {
-  ANNOT_FONT_SIZES, ANNOT_FONT_SIZE_MIN, ANNOT_FONT_SIZE_MAX, ANNOT_FONT_SIZE_STEP, DEFAULT_ANNOT_FONT_SIZE, pickAnnotFontSize,
+  ANNOT_FONT_SIZES, ANNOT_FONT_SIZE_MIN, ANNOT_FONT_SIZE_MAX, ANNOT_FONT_SIZE_STEP, DEFAULT_ANNOT_FONT_SIZE, DEFAULT_ANNOT_TEXT_STYLE,
+  pickAnnotFontSize, pickAnnotTextStyle,
 };

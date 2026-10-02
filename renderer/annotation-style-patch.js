@@ -1,13 +1,13 @@
 (function (root) {
   'use strict';
 
-  // 見た目の欄（線の色・線なし・塗り・線種・線の太さ・不透明度・文字の大きさ）を書き込みに当てる値と、右パネルに出す形
+  // 見た目の欄（線の色・線なし・塗り・線種・線の太さ・不透明度・文字の大きさ・太字・斜体）を書き込みに当てる値と、右パネルに出す形
   // （spec-4b-1b 確定事項1〜9、spec-4b-3a 確定事項I、spec-4b-4a 確定事項G5）。DOM に触れない。
   //
   // 1 件でも複数でも同じ形で扱う。複数のときは、その欄を持てる書き込みにだけ当て、出すときはそろっていない値を「混在」にする。
-  // テキストにだけある欄（文字の大きさ）の当て方は free-text-style.js が持つ。
+  // テキストにだけある欄（文字の大きさ・太字・斜体）の当て方は free-text-style.js が持つ。
 
-  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize']);
+  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic']);
 
   function style() {
     return root.SigK.shapeStyle;
@@ -90,6 +90,8 @@
       lineWidth: entry.lineWidth,
       opacity: entry.opacity ?? 1,
       fontSize: entry.kind === 'text' ? entry.fontSize : null,
+      bold: entry.kind === 'text' ? entry.bold === true : null,
+      italic: entry.kind === 'text' ? entry.italic === true : null,
     };
   }
 
@@ -101,12 +103,27 @@
     return { value, mixed: list.some((target) => target[field] !== value) };
   }
 
-  // テキストにだけある欄の行。テキスト以外も混ざっていれば、行の名に「（テキスト）」を付ける（spec-4b-4a 確定事項G5）。
-  function textValueOf(live, field, label) {
-    const texts = live.filter((target) => target.kind === 'text');
+  // テキストにだけある欄の行の名。テキスト以外も混ざっていれば「（テキスト）」を付ける（spec-4b-4a 確定事項G5）。
+  function textLabelOf(texts, live, label) {
+    return texts.length < live.length ? `${label}（テキスト）` : label;
+  }
+
+  function textsOf(live) {
+    return live.filter((target) => target.kind === 'text');
+  }
+
+  // 文字の大きさの行。テキストが無ければ null。
+  function fontSizeViewOf(live) {
+    const texts = textsOf(live);
+    return texts.length === 0 ? null : { ...valueOf(texts, 'fontSize'), label: textLabelOf(texts, live, '文字の大きさ') };
+  }
+
+  // 書式（太字・斜体）の行（spec-4b-4a 確定事項G3）。テキストが無ければ null。
+  function formatViewOf(live) {
+    const texts = textsOf(live);
     if (texts.length === 0)
       return null;
-    return { ...valueOf(texts, field), label: texts.length < live.length ? `${label}（テキスト）` : label };
+    return { bold: valueOf(texts, 'bold'), italic: valueOf(texts, 'italic'), label: textLabelOf(texts, live, '書式') };
   }
 
   // 右パネルの行に出す形（確定事項I1）。targets は targetOf の形（道具の次に付ける値も同じ形）。表示のみは除き、残らなければ null。
@@ -127,7 +144,8 @@
       },
       lineWidth: valueOf(live.filter((target) => isDrawnKind(target.kind)), 'lineWidth'),
       opacity: valueOf(live.filter((target) => isOpacityKind(target.kind)), 'opacity'),
-      fontSize: textValueOf(live, 'fontSize', '文字の大きさ'),
+      fontSize: fontSizeViewOf(live),
+      format: formatViewOf(live),
       // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸があるときに選べる。
       boxed: boxed.length > 0,
       strokeNoneEnabled: boxed.some((target) => target.fill !== null),

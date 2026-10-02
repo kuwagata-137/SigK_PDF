@@ -113,7 +113,7 @@
     el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に付ける）`;
     styleRows()?.render(tool === null ? null : {
       kind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(), opacity: annotate().getOpacity(kind),
-      fontSize: kind === 'text' ? annotate().getFontSize() : null,
+      ...(kind === 'text' ? { fontSize: annotate().getFontSize(), ...annotate().getTextStyle() } : { fontSize: null, bold: null, italic: null }),
     });
     noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
     root.SigK.annotationAngleRow?.render(null);

@@ -13,7 +13,7 @@ const {
 } = require('../annotation-settings.js');
 const settings = require('../settings.js');
 
-const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFontSize', 'annotLineWidth', 'annotShapeKind',
+const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFontSize', 'annotTextStyle', 'annotLineWidth', 'annotShapeKind',
   'annotOpacity', 'annotAuthor', 'annotPaletteVersion'];
 const UI_KEYS = KEYS.filter((key) => key !== 'annotPaletteVersion');
 
