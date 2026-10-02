@@ -42,16 +42,17 @@ test('FAMILY と fontOf は同梱フォントの名前を使う', () => {
   assert.equal(shape.fontOf(12), '12px "SigK Noto Sans JP"');
 });
 
-test('ensureLoaded は document.fonts が無ければ false で、あれば一度だけ load を待つ', async () => {
+test('ensureLoaded は document.fonts が無ければ false で、あれば標準と太字の load を一度だけ待つ', async () => {
   const bare = makeDoc();
   assert.equal(await shape.ensureLoaded(bare), false);
 
-  let loads = 0;
+  const loads = [];
   const doc = makeDoc();
-  Object.defineProperty(doc, 'fonts', { value: { load: async () => { loads += 1; return []; } } });
+  Object.defineProperty(doc, 'fonts', { value: { load: async (font) => { loads.push(font); return []; } } });
   assert.equal(await shape.ensureLoaded(doc), true);
   assert.equal(await shape.ensureLoaded(doc), true);
-  assert.equal(loads, 1);
+  // 標準と太字を一度ずつ（spec-4b-4a 確定事項D4）。
+  assert.deepEqual(loads, ['12px "SigK Noto Sans JP"', '700 12px "SigK Noto Sans JP"']);
   assert.equal(shape.isLoaded(), true);
 });
 
@@ -76,6 +77,43 @@ test('measure は canvas があればそれで測る', () => {
   };
   assert.equal(shape.measure(doc, 'abc', 14), 21);
   assert.deepEqual(calls, ['14px "SigK Noto Sans JP"']);
+});
+
+// ---- 字の送り幅（spec-4b-4a 確定事項B6。事前調査 E） ----
+
+test('fontOf は太字なら weight 700 を付ける', () => {
+  assert.equal(shape.fontOf(12, true), '700 12px "SigK Noto Sans JP"');
+  assert.equal(shape.fontOf(12, false), '12px "SigK Noto Sans JP"');
+});
+
+test('advanceOf は canvas が無ければ全角 1em・半角 0.5em の見積もり', () => {
+  const doc = makeDoc();
+  assert.equal(shape.advanceOf(doc, 'あ'), 1);
+  assert.equal(shape.advanceOf(doc, 'a', true), 0.5);
+});
+
+test('advanceOf は kerning を切った canvas で 1000px で測って em にし、フォントが読めていれば字ごとに覚える', async () => {
+  const doc = makeDoc();
+  Object.defineProperty(doc, 'fonts', { value: { load: async () => [] } });
+  await shape.ensureLoaded(doc);
+  doc.defaultView.CanvasRenderingContext2D = function CanvasRenderingContext2D() {};
+  const measured = [];
+  const original = doc.createElement.bind(doc);
+  doc.createElement = (tag) => {
+    const node = original(tag);
+    if (tag === 'canvas') {
+      const ctx = { font: '', fontKerning: 'auto', measureText: (text) => {
+        measured.push([ctx.font, ctx.fontKerning, text]);
+        return { width: ctx.font.startsWith('700 ') ? 943 : 500 };
+      } };
+      node.getContext = () => ctx;
+    }
+    return node;
+  };
+  assert.equal(shape.advanceOf(doc, 'W', true), 0.943);
+  assert.equal(shape.advanceOf(doc, 'W', true), 0.943);
+  assert.equal(shape.advanceOf(doc, 'W'), 0.5);
+  assert.deepEqual(measured, [['700 1000px "SigK Noto Sans JP"', 'none', 'W'], ['1000px "SigK Noto Sans JP"', 'none', 'W']]);
 });
 
 test('layoutOf は表示の左上・角度・行を出す', () => {
@@ -133,4 +171,54 @@ test('paint は canvas 2D に同じ位置と角度で fillText する', () => {
   assert.deepEqual(texts.map((c) => c[2]), [PADDING * 2, PADDING * 2]);
   assert.equal(texts[1][3] - texts[0][3], LINE_HEIGHT * 12 * 2);
   assert.deepEqual(calls.at(-1), ['restore']);
+});
+
+// ---- 新しい形の描き方（spec-4b-4a 確定事項D） ----
+
+test('svgOf は太字なら font-weight 700、斜体なら font-style italic を付け、行と中身の位置は free-text-metrics.js から取る', (t) => {
+  globalThis.SigK.freeTextMetrics = { layoutOfEntry: () => ({ lines: ['こんにち', 'は'], inset: { left: 2.96, top: 2 } }) };
+  t.after(() => { delete globalThis.SigK.freeTextMetrics; });
+  const doc = makeDoc();
+  const g = shape.svgOf(doc, { ...ENTRY, width: 'auto', bold: true, italic: true }, viewport({ scale: 2 }));
+  assert.equal(g.getAttribute('font-weight'), '700');
+  assert.equal(g.getAttribute('font-style'), 'italic');
+  const texts = [...g.querySelectorAll('text')];
+  assert.deepEqual(texts.map((el) => el.textContent), ['こんにち', 'は']);
+  assert.deepEqual(texts.map((el) => Number(el.getAttribute('x'))), [5.92, 5.92]);
+  const plain = shape.svgOf(doc, ENTRY, viewport({ scale: 2 }));
+  assert.equal(plain.hasAttribute('font-weight') || plain.hasAttribute('font-style'), false);
+});
+
+test('paint は太字・斜体を font に入れ、詰めと合字を切って描く', () => {
+  const state = {};
+  const ctx = {
+    save() {}, restore() {}, translate() {}, rotate() {}, fillText() {},
+    set font(v) { state.font = v; }, set fillStyle(v) {}, set textBaseline(v) {}, set globalAlpha(v) {},
+    set fontKerning(v) { state.fontKerning = v; }, set textRendering(v) { state.textRendering = v; },
+  };
+  shape.paint(ctx, { ...ENTRY, bold: true, italic: true, width: 'auto' }, viewport({ scale: 2 }));
+  assert.deepEqual(state, { font: 'italic 700 24px "SigK Noto Sans JP"', fontKerning: 'none', textRendering: 'optimizeSpeed' });
+});
+
+// ---- 塗りと枠線（spec-4b-4a 確定事項D1〜D3） ----
+
+test('svgOf は塗りと枠線を文字より先に置き、paint は半透明で飾りがあれば別の canvas に描いてから重ねる', () => {
+  require('../renderer/shape-print-layer.js');
+  require('../renderer/free-text-decor-graphics.js');
+  const doc = makeDoc();
+  const decorated = { ...ENTRY, width: 'auto', fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2 };
+  const g = shape.svgOf(doc, decorated, viewport());
+  assert.deepEqual([...g.children].map((node) => node.getAttribute('class') ?? node.tagName.toLowerCase()), ['free-text-fill', 'free-text-border', 'text', 'text']);
+
+  const drawn = [];
+  const layerCtx = { save() {}, restore() {}, translate() {}, rotate() {}, fillText: (text) => drawn.push(['layer', text]), fillRect() {}, strokeRect() {} };
+  const page = { width: 1000, height: 1000, ownerDocument: { createElement: () => ({ width: 0, height: 0, getContext: () => layerCtx }) } };
+  const ctx = {
+    canvas: page, save() {}, restore() {}, translate() {}, rotate() {}, fillText: (text) => drawn.push(['page', text]), fillRect() {}, strokeRect() {},
+    drawImage: (canvas, x, y) => drawn.push(['image', x, y]),
+    set globalAlpha(value) { drawn.push(['alpha', value]); },
+  };
+  shape.paint(ctx, { ...decorated, opacity: 0.5 }, viewport());
+  assert.deepEqual(drawn.filter(([kind]) => kind !== 'alpha').map(([kind]) => kind), ['layer', 'layer', 'image']);
+  assert.ok(drawn.some(([kind, value]) => kind === 'alpha' && value === 0.5));
 });

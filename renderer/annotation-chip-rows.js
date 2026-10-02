@@ -42,7 +42,7 @@
     });
   }
 
-  // 塗りのチップを押した。塗りなしは、線のある四角・丸があるときだけ選べる。
+  // 塗りのチップを押した。塗りなしは、線のある四角・丸か、テキストがあるときだけ選べる。
   function openFill(chip, view) {
     root.SigK.annotatePreview?.cancel();
     if (view === null || view.fill === null)
@@ -55,6 +55,19 @@
     });
   }
 
+  // テキストの枠線のチップを押した（spec-4b-4a 確定事項G4）。［枠線なし］はいつでも選べる。
+  function openBorder(chip, view) {
+    root.SigK.annotatePreview?.cancel();
+    if (view === null || (view.border ?? null) === null)
+      return false;
+    return popover().toggle(chip, {
+      title: view.border.label,
+      current: view.border.mixed ? null : view.border.value,
+      none: { label: '枠線なし', enabled: true },
+      onPick: (color) => annotate().setBorder(color),
+    });
+  }
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationChipRows = { renderChip, openColor, openFill };
+  SigK.annotationChipRows = { renderChip, openColor, openFill, openBorder };
 })(typeof window !== 'undefined' ? window : globalThis);

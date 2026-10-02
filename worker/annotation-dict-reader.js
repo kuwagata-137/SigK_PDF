@@ -18,6 +18,7 @@ const { parseRef } = require('./annotation-remove.js');
 const { pick } = require('./pdf-tree-reader.js');
 const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
+const { freeTextDetailsOf } = require('./free-text-details.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
 // 回転を読む種類（spec-4b-2 確定事項34）。
@@ -62,11 +63,14 @@ function rotationOf(dict, context, { encrypted = false } = {}) {
 }
 
 // 1 つの注釈の辞書から、画面が要る欄を読む（確定事項23）。無い欄は null（cloudy は false）。雲形の強さ /BE /I は
-// spec-4b-1b 確定事項38 で、四角・丸の回転は spec-4b-2 確定事項34 で足した（規格の既定は 0 で、効果が無い）。
+// spec-4b-1b 確定事項38 で、四角・丸の回転は spec-4b-2 確定事項34 で足した（規格の既定は 0 で、効果が無い）。FreeText は
+// /DS と /DA の色も読む（free-text-details.js。spec-4b-4a 確定事項J1）。
 function detailsOf(dict, context, options = {}) {
   const border = context.lookup(pick(dict, '/BS'));
   const effect = context.lookup(pick(dict, '/BE'));
+  const text = nameOf(context, pick(dict, '/Subtype')) === 'FreeText' ? freeTextDetailsOf(dict, context, options) : {};
   return {
+    ...text,
     ca: numberOf(context, pick(dict, '/CA')),
     interior: numbersOf(context, pick(dict, '/IC')),
     stroke: numbersOf(context, pick(dict, '/C')),

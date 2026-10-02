@@ -569,13 +569,21 @@ body{
              色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
         <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
           <div class="chip-row"><button type="button" class="chip" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-color-name"></span></div></div>
+        <!-- 文字の大きさ（spec-4b-4a 確定事項G1・G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼）。中身は annotation-text-rows.js。 -->
+        <div class="prop" id="props-size-row" hidden><span class="k" id="props-size-label">文字の大きさ</span>
+          <div class="range size-field"><input type="number" class="props-field" id="props-size" min="8" max="200" step="0.5" aria-label="文字の大きさ（pt）"><select class="size-list props-field" id="props-size-list" aria-label="よく使う大きさ"></select><span class="unit">pt</span></div></div>
+        <!-- 書式（spec-4b-4a 確定事項G3。モック screenshots/phase4b-4-props.png）。太字と斜体の切り替え。中身は annotation-text-rows.js。 -->
+        <div class="prop" id="props-format-row" hidden><span class="k" id="props-format-label">書式</span>
+          <div class="props-kinds format-buttons" id="props-format" role="group" aria-label="書式"><button type="button" data-format="bold" title="太字" aria-label="太字" aria-pressed="false">B</button><button type="button" data-format="italic" title="斜体" aria-label="斜体" aria-pressed="false">I</button></div></div>
         <div class="prop" id="props-fill-row" hidden><span class="k">塗り</span>
           <div class="chip-row"><button type="button" class="chip" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-fill-name"></span></div></div>
         <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>
+        <!-- テキストの枠線（spec-4b-4a 確定事項G4）。色のチップと同じ作りで、パレットに［枠線なし］がある。太さは下の太さの行（枠線の太さ）。 -->
+        <div class="prop" id="props-border-row" hidden><span class="k" id="props-border-label">枠線</span>
+          <div class="chip-row"><button type="button" class="chip" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-border-name"></span></div></div>
         <!-- .props-field の中のキーは欄のもの（viewer-controls.js が素通しする）。 -->
-        <div class="prop" id="props-width-row" hidden><span class="k">線の太さ</span>
+        <div class="prop" id="props-width-row" hidden><span class="k" id="props-width-label">線の太さ</span>
           <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
-        <div class="prop" id="props-size-row" hidden><span class="k">文字の大きさ</span><select class="props-select" id="props-size" aria-label="文字の大きさ"></select></div>
         <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span>
           <div class="range"><input type="range" class="props-field" id="props-opacity-range" min="10" max="100" step="1" aria-label="不透明度"><input type="number" class="props-field" id="props-opacity" min="10" max="100" step="1" aria-label="不透明度（%）"><span class="unit">%</span></div></div>
         <!-- 回転（spec-4b-2 確定事項25〜27。モック screenshots/phase4b-2-square.png）。四角・丸を選んでいるときだけ。中身は annotation-angle-row.js。 -->
@@ -751,6 +759,7 @@ body{
 <script src="renderer/annotation-presets.js"></script>
 <script src="renderer/annotation-palette.js"></script>
 <script src="renderer/free-text-geometry.js"></script>
+<script src="renderer/free-text-entry.js"></script>
 <script src="renderer/shape-style.js"></script>
 <script src="renderer/annotation-entry-rules.js"></script>
 <script src="renderer/annotation-entry.js"></script>
@@ -761,6 +770,12 @@ body{
 <script src="renderer/markup-quads.js"></script>
 <script src="renderer/markup-selection.js"></script>
 <script src="renderer/free-text-shape.js"></script>
+<script src="renderer/free-text-decor-graphics.js"></script>
+<script src="renderer/free-text-wrap.js"></script>
+<script src="renderer/free-text-layout.js"></script>
+<script src="renderer/free-text-metrics.js"></script>
+<script src="renderer/free-text-handles.js"></script>
+<script src="renderer/free-text-resize.js"></script>
 <script src="renderer/shape-geometry.js"></script>
 <script src="renderer/shape-rotation.js"></script>
 <script src="renderer/annotation-hit.js"></script>
@@ -777,6 +792,8 @@ body{
 <script src="renderer/imported-values.js"></script>
 <script src="renderer/imported-shape.js"></script>
 <script src="renderer/imported-entry.js"></script>
+<script src="renderer/annotation-box-details.js"></script>
+<script src="renderer/imported-text-details.js"></script>
 <script src="renderer/annotation-details.js"></script>
 <script src="renderer/annotation-import.js"></script>
 <script src="renderer/page-render.js"></script>
@@ -837,8 +854,13 @@ body{
 <script src="renderer/annotate.js"></script>
 <script src="renderer/edit-bar.js"></script>
 <script src="renderer/annotate-markup.js"></script>
+<script src="renderer/free-text-editor-node.js"></script>
 <script src="renderer/free-text-editor.js"></script>
 <script src="renderer/annotate-text.js"></script>
+<script src="renderer/free-text-commit.js"></script>
+<script src="renderer/annotate-text-style.js"></script>
+<script src="renderer/free-text-style.js"></script>
+<script src="renderer/free-text-style-view.js"></script>
 <script src="renderer/shape-draft.js"></script>
 <script src="renderer/annotate-shape.js"></script>
 <script src="renderer/annotate-opacity.js"></script>
@@ -868,6 +890,7 @@ body{
 <script src="renderer/annotation-hints.js"></script>
 <script src="renderer/annotation-angle-row.js"></script>
 <script src="renderer/annotation-bulk-props.js"></script>
+<script src="renderer/annotation-text-rows.js"></script>
 <script src="renderer/annotation-props.js"></script>
 <script src="renderer/annotation-index.js"></script>
 <script src="renderer/annotation-list.js"></script>

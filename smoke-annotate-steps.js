@@ -53,6 +53,9 @@ const STEPS = `
       await typeAndCommit(arg);
     } else if (name === 'size') {
       SigK.annotate.setFontSize(Number(arg));
+    } else if (name === 'bold' || name === 'italic') {
+      // 右パネルの書式の行の B・I を押す（spec-4b-4a 確定事項G3）。
+      document.querySelector('#props-format button[data-format="' + name + '"]').click();
     } else if (name === 'width') {
       SigK.annotate.setLineWidth(Number(arg));
     } else if (name === 'note') {

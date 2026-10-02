@@ -5,6 +5,7 @@
 // 外観（content stream）は annotation-appearance.js などが組む。
 
 const { KINDS: SHAPE_KINDS } = require('./shape-appearance.js');
+const { freeTextFields } = require('./free-text-fields.js');
 
 function timestamp(now) {
   const pad = (value) => String(value).padStart(2, '0');
@@ -58,26 +59,16 @@ function noteFields(entry, appearance, { PDFString, PDFHexString }, now) {
   return fields;
 }
 
-// 種類ごとの欄。マークアップは /QuadPoints と /C、テキストは /Contents・/DA・/Border・/Rotate
-// （spec-4-2 確定事項25。/C は箱の背景色に使うビューアがあるので書かない）、図形・ペンは shapeFields、
-// ノートは noteFields。
+// 種類ごとの欄。マークアップは /QuadPoints と /C、テキストは freeTextFields（free-text-fields.js。spec-4b-4a で移した）、
+// 図形・ペンは shapeFields、ノートは noteFields。
 function kindFields(entry, appearance, tools, now) {
-  const { PDFString, PDFHexString } = tools;
   if (SHAPE_KINDS.includes(entry.kind))
     return shapeFields(appearance, tools);
   if (entry.kind === 'note')
     return noteFields(entry, appearance, tools, now);
-  if (entry.kind !== 'text') {
-    return { QuadPoints: entry.quads.flat(), C: appearance.rgb, Contents: PDFString.of('') };
-  }
-  const fields = {
-    Contents: PDFHexString.fromText(entry.text),
-    DA: PDFString.of(appearance.da),
-    Border: [0, 0, 0],
-  };
-  if (entry.rotation !== 0)
-    fields.Rotate = entry.rotation;
-  return fields;
+  if (entry.kind === 'text')
+    return freeTextFields(entry, appearance, tools);
+  return { QuadPoints: entry.quads.flat(), C: appearance.rgb, Contents: tools.PDFString.of('') };
 }
 
 // ノートのポップアップ（spec-4-4 確定事項24）。親を指し、閉じた状態でアイコンの右隣に置く。

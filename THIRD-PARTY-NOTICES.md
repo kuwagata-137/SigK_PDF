@@ -1132,11 +1132,11 @@ http://creativecommons.org/publicdomain/zero/1.0/
 
 パッケージではなく資産として配布物に入るものである。
 
-### Noto Sans JP（Regular・静的 TTF）
+### Noto Sans JP（Regular・Bold・静的 TTF）
 
 - ライセンス: SIL Open Font License 1.1
 
-テキスト注釈の日本語を PDF へ埋め込むフォントである。`assets/fonts/NotoSansJP-Regular.ttf` として同梱し、保存のたびに使った文字だけのサブセットを埋め込む（spec-4-2 確定事項22〜24）。画面の入力欄も同じフォントで描く。フォント単体では再配布・販売せず、予約名を派生の名前に使わない（OFL 第1条・第3条。`docs/06`）。
+テキスト注釈の日本語を PDF へ埋め込むフォントである。`assets/fonts/NotoSansJP-Regular.ttf` と、太字のテキストに使う`assets/fonts/NotoSansJP-Bold.ttf`（spec-4b-4a）として同梱し、保存のたびに使った文字だけのサブセットを埋め込む（spec-4-2 確定事項22〜24）。画面の入力欄も同じフォントで描く。フォント単体では再配布・販売せず、予約名を派生の名前に使わない（OFL 第1条・第3条。`docs/06`）。
 
 ```
 Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'

@@ -37,8 +37,11 @@
   const DEFAULT_STROKE_NONE = Object.freeze({ shape: false });
   const DEFAULT_LINE_STYLES = Object.freeze({ shape: 'solid' });
 
-  // テキストの文字の大きさ（pt）。
-  const FONT_SIZES = Object.freeze([8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48]);
+  // テキストの文字の大きさ（pt）。8〜200 の 0.5 刻み（spec-4b-4a 確定事項A3）。FONT_SIZES は右パネルの「よく使う大きさ」の一覧。
+  const FONT_SIZE_MIN = 8;
+  const FONT_SIZE_MAX = 200;
+  const FONT_SIZE_STEP = 0.5;
+  const FONT_SIZES = Object.freeze([8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72, 96, 144, 200]);
   const DEFAULT_FONT_SIZE = 12;
 
   // 図形・ペンの線の太さ（pt）。画面から選べるのは 1〜40 の整数（spec-4b-1b 確定事項19。右パネルのスライダーと数値欄）。
@@ -60,8 +63,16 @@
     return kind === 'ink' ? 'pen' : kind;
   }
 
+  // 画面から選べる大きさか（8〜200 の 0.5 刻み）。読み込んだ大きさはここを通さない。
   function isFontSize(size) {
-    return FONT_SIZES.includes(size);
+    return Number.isFinite(size) && size >= FONT_SIZE_MIN && size <= FONT_SIZE_MAX && Number.isInteger(size / FONT_SIZE_STEP);
+  }
+
+  // 打たれた数を、近い 0.5 刻みに丸めて 8〜200 に収める。数でなければ null（spec-4b-4a 確定事項G2）。
+  function fontSizeOf(value) {
+    if (!Number.isFinite(value))
+      return null;
+    return Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, Math.round(value / FONT_SIZE_STEP) * FONT_SIZE_STEP));
   }
 
   // 画面から選べる線の太さか（1〜40 の整数）。読み込んだ小数の太さはここを通さない。
@@ -101,6 +112,9 @@
     DEFAULT_FILLS,
     DEFAULT_STROKE_NONE,
     DEFAULT_LINE_STYLES,
+    FONT_SIZE_MIN,
+    FONT_SIZE_MAX,
+    FONT_SIZE_STEP,
     FONT_SIZES,
     DEFAULT_FONT_SIZE,
     LINE_WIDTH_MIN,
@@ -112,6 +126,7 @@
     DEFAULT_OPACITIES,
     paletteOf,
     isFontSize,
+    fontSizeOf,
     isLineWidth,
     isShapeKind,
     isOpacity,

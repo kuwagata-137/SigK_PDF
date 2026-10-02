@@ -770,7 +770,14 @@ html[data-transform-cursor="rotate"] #view, html[data-transform-cursor="rotate"]
   src:url('../assets/fonts/NotoSansJP-Regular.ttf') format('truetype');
   font-weight:400; font-style:normal; font-display:block;
 }
-.annot-layer .free-text text{font-family:'SigK Noto Sans JP', sans-serif; white-space:pre}
+/* 太字のテキスト（spec-4b-4a 確定事項D4）。斜体の書体は持たない（font-style: italic は擬似斜体。保存の Tm 0.25 と同じ形）。 */
+@font-face{
+  font-family:'SigK Noto Sans JP';
+  src:url('../assets/fonts/NotoSansJP-Bold.ttf') format('truetype');
+  font-weight:700; font-style:normal; font-display:block;
+}
+.annot-layer .free-text text{font-family:'SigK Noto Sans JP', sans-serif; white-space:pre;
+  font-kerning:none; font-variant-ligatures:none; text-spacing-trim:space-all}
 /* 紙の上の入力欄。破線の枠・透明な背景・折り返し無し。位置・大きさ・向きは
    free-text-editor.js が付ける（枠線は箱の外側に出す）。テキストレイヤーより上に置く。 */
 textarea.free-text-editor{
@@ -778,6 +785,12 @@ textarea.free-text-editor{
   border:1.5px dashed var(--accent); border-radius:2px; background:transparent;
   font-family:'SigK Noto Sans JP', sans-serif; white-space:pre; overflow:hidden;
   resize:none; outline:none;
+  font-kerning:none; font-variant-ligatures:none; text-spacing-trim:space-all;
+}
+/* 新しい形のテキスト（spec-4b-4a 確定事項E1。事前調査 E）。1 字ずつ折り返し、行末の空白もぶら下げない（画面の折り返しの純関数と
+   同じ切れ目にする）。 */
+textarea.free-text-editor.wrapped{
+  white-space:break-spaces; line-break:anywhere; word-break:break-all; overflow-wrap:anywhere;
 }
 html[data-mode="annot"][data-tool="text"] .textLayer{cursor:text}
 /* 図形・ペン（spec-4-3 確定事項1・3・8）。ドラッグで描くので文字を選ばせない。下書きは確定後と同じ見た目。 */
@@ -828,6 +841,9 @@ html[data-mode="annot"] #props{display:flex}
 .props-kinds button[hidden]{display:none}
 .props-kinds button:hover{color:var(--text)}
 .props-kinds button.on{border-color:var(--accent); color:var(--accent); background:var(--select); box-shadow:inset 0 0 0 1px var(--accent)}
+/* 書式の B・I（spec-4b-4a 確定事項G3）。文字そのもので太字・斜体を見せる。 */
+.format-buttons button[data-format="bold"]{font-weight:700}
+.format-buttons button[data-format="italic"]{font-style:italic; font-family:Georgia, serif}
 /* 色と塗りのチップ（spec-4b-1b 確定事項2・3。モック）。押すとパレットの窓が開く。「なし」は白地に赤の斜線。 */
 .chip-row{display:flex; align-items:center; gap:8px}
 .chip-row .name{font-size:12px; color:var(--muted)}
@@ -850,6 +866,14 @@ html[data-mode="annot"] #props{display:flex}
   font:13px inherit; font-family:inherit; color:var(--text); text-align:right;
 }
 .range .unit{font-size:12px; color:var(--muted); width:16px}
+/* 文字の大きさの行（spec-4b-4a 確定事項G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼だけを見せる <select>）。 */
+.size-field input[type=number]{width:76px}
+.size-list{
+  appearance:none; width:30px; height:28px; padding:0; border:1px solid var(--border); border-radius:7px; cursor:pointer; color:transparent;
+  background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%235f6b7a' stroke-width='1.5'/%3E%3C/svg%3E") center/10px 6px no-repeat;
+  font:13px inherit; font-family:inherit;
+}
+.size-list option{color:var(--text); background:var(--surface)}
 /* 回転の行の 0°・90°・180°・270° のボタン（spec-4b-2 確定事項25。モック）。今の角度と同じものに印。 */
 .angle-presets{display:flex; gap:4px}
 .angle-presets button{

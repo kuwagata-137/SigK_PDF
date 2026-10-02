@@ -113,13 +113,14 @@ const BUNDLED_COMPONENTS = [
 ];
 
 // パッケージではなく資産として同梱するもの。ライセンス全文はリポジトリに置いた実物から読む。
-// Noto Sans JP を同梱すると決めたのは spec-4-2 確定事項31・32（docs/07 決定35）である。
+// Noto Sans JP を同梱すると決めたのは spec-4-2 確定事項31・32（docs/07 決定35）、Bold を足したのは spec-4b-4a（docs/07 決定57 ①）である。
 const BUNDLED_ASSETS = [
   {
-    name: 'Noto Sans JP（Regular・静的 TTF）',
+    name: 'Noto Sans JP（Regular・Bold・静的 TTF）',
     license: 'SIL Open Font License 1.1',
-    note: 'テキスト注釈の日本語を PDF へ埋め込むフォントである。`assets/fonts/NotoSansJP-Regular.ttf` として同梱し、'
-      + '保存のたびに使った文字だけのサブセットを埋め込む（spec-4-2 確定事項22〜24）。画面の入力欄も同じフォントで描く。'
+    note: 'テキスト注釈の日本語を PDF へ埋め込むフォントである。`assets/fonts/NotoSansJP-Regular.ttf` と、太字のテキストに使う'
+      + '`assets/fonts/NotoSansJP-Bold.ttf`（spec-4b-4a）として同梱し、保存のたびに使った文字だけのサブセットを埋め込む'
+      + '（spec-4-2 確定事項22〜24）。画面の入力欄も同じフォントで描く。'
       + 'フォント単体では再配布・販売せず、予約名を派生の名前に使わない（OFL 第1条・第3条。`docs/06`）。',
     files: ['assets/fonts/OFL.txt'],
   },

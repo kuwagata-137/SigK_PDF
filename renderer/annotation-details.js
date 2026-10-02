@@ -5,8 +5,9 @@
   //
   // needsDetails・refsOf・applyDetails・readonlyOf は純関数。requestDetails は annotationAPI.readDetails
   // （ワーカーが辞書を直に読む口）を 1 本ずつ順番に呼ぶ。答えの欄は worker/annotation-dict-reader.js の detailsOf。
-  // 当てるのは不透明度（/CA）と、四角・丸の塗り（/IC）・雲形（/BE の強さ）・/RD（spec-4b-1b 確定事項36〜38）。破線と線なしは
-  // pdf.js の値で imported-shape.js が読む。描けないもの（雲形の破線・崩れた /RD）と、線も塗りも無いものは表示のみにする。
+  // 当てるのは不透明度（/CA）と、四角・丸の塗り（/IC）・雲形（/BE の強さ）・/RD（spec-4b-1b 確定事項36〜38）、自前のテキストの
+  // /DS（spec-4b-4a 確定事項J。imported-text-details.js）。破線と線なしは pdf.js の値で imported-shape.js が読む。描けないもの
+  // （雲形の破線・崩れた /RD）と、線も塗りも無いものは表示のみにする。
 
   // 口が要る種類。pdf.js が不透明度（/CA）を返さないもの（事前調査 A）。ハイライト・下線・取り消し線・ペンは
   // pdf.js が返すので要らない。
@@ -59,60 +60,8 @@
     };
   }
 
-  function hasNonZero(values) {
-    return Array.isArray(values) && values.some((value) => value !== 0);
-  }
-
-  // /RD（規格の順で 左・上・右・下）の形。どれも 0 以上で、左右の和が幅より、上下の和が高さより小さい（確定事項38）。
-  function validDifference(difference, [x1, y1, x2, y2]) {
-    return Array.isArray(difference) && difference.length === 4 && difference.every((value) => Number.isFinite(value) && value >= 0)
-      && difference[0] + difference[2] < x2 - x1 && difference[1] + difference[3] < y2 - y1;
-  }
-
-  function insideOf([x1, y1, x2, y2], [left, top, right, bottom]) {
-    return [x1 + left, y1 + bottom, x2 - right, y2 - top].map((value) => Math.round(value * 100) / 100);
-  }
-
-  // 回した四角・丸（spec-4b-2 確定事項35）。口が外観から読んだ回す前の箱と角度を当て、四角は回した 4 隅にする。
-  function withRotation(next, rotation) {
-    next.rect = [...rotation.box];
-    next.angle = rotation.angle;
-    next.quads = [root.SigK.shapeRotation.quadOf(rotation.box, rotation.angle)];
-    return next;
-  }
-
-  // 四角・丸の塗り・雲形・/RD・回転（確定事項36・38、spec-4b-2 確定事項35）。描けないもの（雲形の破線・崩れた /RD・回転を読めない
-  // 外観）は null。雲形の箱は /Rect のまま（他のアプリの外観も /Rect の中に描かれる）で、弧は SigK PDF の描き方で描き直す
-  // （決定47 ⑯）。回した図形の /RD は使わない（/Rect に対する軸平行の余白で、回した箱とは意味が合わない）。
-  function withBoxDetails(entry, detail) {
-    const next = { ...entry };
-    const fill = root.SigK.importedValues.hexOfComponents(detail.interior);
-    if (fill !== null)
-      next.fill = fill;
-    const rotation = detail.rotation ?? null;
-    if (rotation === 'skewed')
-      return null;
-    if (rotation !== null)
-      withRotation(next, rotation);
-    const difference = rotation === null ? detail.rectDifference : null;
-    if (difference !== null && difference !== undefined && !validDifference(difference, entry.rect))
-      return null;
-    if (detail.cloudy === true && Number.isFinite(detail.cloudIntensity) && detail.cloudIntensity > 0) {
-      if (entry.lineStyle === 'dashed')
-        return null;
-      next.lineStyle = 'cloudy';
-      next.cloudIntensity = Math.min(2, detail.cloudIntensity);
-      return next;
-    }
-    if (hasNonZero(difference)) {
-      next.rect = insideOf(entry.rect, difference);
-      next.quads = [root.SigK.freeTextGeometry.quadOfRect(next.rect)];
-    }
-    return next;
-  }
-
   function withDetails(entry, detail) {
-    const next = entry.kind === 'square' || entry.kind === 'circle' ? withBoxDetails(entry, detail) : entry;
+    const next = entry.kind === 'square' || entry.kind === 'circle' ? root.SigK.annotationBoxDetails.withBoxDetails(entry, detail) : entry;
     if (next === null || !Number.isFinite(detail.ca))
       return next;
     // 不透明度 0（見えない）は直す形にしない。pdf.js が描くまま（見えないまま）にする。
@@ -122,13 +71,17 @@
   // 答えを 1 件に当てる（spec-4b-1a 確定事項26、spec-4b-1b 確定事項36〜38）。その注釈の答えが無ければ pdf.js の値のまま
   // （①-a 確定事項27）。口がまるごと答えなかった（answered が false）ときの四角・丸は表示のみにする（回っているかと塗りが分からない
   // まま直すと、開いた時点で見た目が変わるため。spec-4b-2 確定事項36）。どちらでも、線も塗りも無いもの（線の見えない四角・丸で
-  // 塗りが分からないもの）は表示のみにする。
-  function applyDetails(entry, detail, { answered = true } = {}) {
+  // 塗りが分からないもの）は表示のみにする。自前のテキストは imported-text-details.js が新しい形を組み、口の答えが無ければ
+  // 表示のみにする（spec-4b-4a 確定事項J2〜J4）。text はその口に渡す字の送り幅と紙の長さ（{ advanceOf, pageLengthOf }）。
+  function applyDetails(entry, detail, { answered = true, text = {} } = {}) {
     if (entry.readonly === true)
       return entry;
     if (!answered && (entry.kind === 'square' || entry.kind === 'circle'))
       return readonlyOf(entry);
-    const next = detail === undefined || detail === null ? entry : withDetails(entry, detail);
+    const base = entry.kind === 'text' ? root.SigK.importedTextDetails.withTextDetails(entry, detail, { answered, ...text }) : entry;
+    if (base === null)
+      return readonlyOf(entry);
+    const next = detail === undefined || detail === null ? base : withDetails(base, detail);
     if (next === null || (next.color === null && (next.fill ?? null) === null))
       return readonlyOf(entry);
     return next;

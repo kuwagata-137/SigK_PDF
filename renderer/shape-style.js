@@ -71,9 +71,11 @@
   }
 
   // 見た目の欄の組み合わせが正しいか（線と塗りを両方なしにはできない。線種は種類で選べるもの。確定事項16〜18）。
+  // 塗りを持てるのは四角・丸とテキスト（テキストの塗りは spec-4b-4a 確定事項A1）。
   function validStyle(entry) {
     const fill = fillOf(entry);
-    if (!validStroke(entry) || (fill !== null && (!isBoxedKind(entry.kind) || !isHexColor(fill))))
+    const fillable = isBoxedKind(entry.kind) || entry.kind === 'text';
+    if (!validStroke(entry) || (fill !== null && (!fillable || !isHexColor(fill))))
       return false;
     const lineStyle = lineStyleOf(entry);
     if (!lineStylesOf(entry.kind).includes(lineStyle))

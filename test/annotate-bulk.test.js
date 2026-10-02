@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
+const { placeText } = require('./text-helpers.js');
 
 // 2 件以上を選んでいるときの見た目の設定（spec-4b-3a 確定事項I。モック screenshots/phase4b-3-multi.png）。
 // 当てる値と出す形の計算そのものは annotation-style-patch.test.js が見る。
@@ -194,9 +195,55 @@ test('混在の色のチップを押すと、どの色にも印の無いパレ�
   assert.equal(entry(shell, arrow).color, cell.dataset.color);
 });
 
-test('複数を選んでいる間は、文字の大きさを変えない（確定事項I5）', async (t) => {
+// 文字の大きさは、複数を選んでいてもテキストにだけ当てる（spec-4b-4a 確定事項G5。spec-4b-3a 確定事項I5 を改めた）。
+test('複数を選んでいてもテキストが無ければ、文字の大きさの行を出さず、何も変えない', async (t) => {
   const shell = await withShell(t);
-  const { SigK } = shell;
+  const { SigK, document } = shell;
   drawSet(shell);
+  assert.equal(document.getElementById('props-size-row').hidden, true);
+  const at = SigK.pageEdit.getHistoryState().at;
   assert.equal(SigK.annotate.setFontSize(20), false);
+  assert.equal(SigK.pageEdit.getHistoryState().at, at);
+});
+
+test('複数を選んで文字の大きさを変えると、テキストにだけ当たり、1 世代で、行の名に「（テキスト）」が付く', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const { square } = drawSet(shell);
+  const first = placeText(shell, 300, 450, 'あいう').id;
+  const second = placeText(shell, 300, 380, 'えお').id;
+  SigK.annotate.setTool(null);
+  SigK.annotate.select(second);
+  SigK.annotate.setFontSize(18);
+  SigK.annotate.selectKeys([square, first, second]);
+  assert.equal(document.getElementById('props-size-row').hidden, false);
+  assert.equal(document.getElementById('props-size-label').textContent, '文字の大きさ（テキスト）');
+  assert.equal(document.getElementById('props-size').value, '', '12 と 18 でそろっていないので空');
+  const squareBefore = JSON.stringify(entry(shell, square));
+  const at = SigK.pageEdit.getHistoryState().at;
+  assert.equal(SigK.annotate.setFontSize(24), true);
+  assert.equal(SigK.pageEdit.getHistoryState().at, at + 1);
+  assert.equal(entry(shell, first).fontSize, 24);
+  assert.equal(entry(shell, second).fontSize, 24);
+  assert.equal(JSON.stringify(entry(shell, square)), squareBefore, '四角は変えない');
+  assert.equal(document.getElementById('props-size').value, '24');
+  assert.equal(SigK.annotate.getFontSize(), 24, '次に置く大きさとしても覚える');
+  // 続けて変えても 1 世代。戻せば、それぞれの元の大きさと選択に戻る。
+  SigK.annotate.setFontSize(36);
+  assert.equal(SigK.pageEdit.getHistoryState().at, at + 1);
+  SigK.pageEdit.undo();
+  assert.equal(entry(shell, first).fontSize, 12);
+  assert.equal(entry(shell, second).fontSize, 18);
+  assert.deepEqual([...SigK.annotate.getSelection()], [square, first, second]);
+});
+
+test('テキストだけを複数選んでいれば、行の名は「文字の大きさ」のまま', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const first = placeText(shell, 300, 450, 'あいう').id;
+  const second = placeText(shell, 300, 380, 'えお').id;
+  SigK.annotate.setTool(null);
+  SigK.annotate.selectKeys([first, second]);
+  assert.equal(document.getElementById('props-size-label').textContent, '文字の大きさ');
+  assert.equal(document.getElementById('props-size').value, '12');
 });

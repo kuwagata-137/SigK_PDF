@@ -187,7 +187,8 @@
       source,
       pages: viewer().getPlan(),
       inserts: viewer().getInserts(),
-      annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations()),
+      // 新しい形のテキストは画面で決めた行を添える（spec-4b-4a 確定事項I1）。
+      annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations(), { layoutOf: root.SigK.freeTextMetrics.layoutOfEntry }),
       target,
       makeBackup,
       expect,

@@ -36,10 +36,10 @@
     return Number.isFinite(value) && value > 0;
   }
 
-  // テキストは本文が空でなく、大きさが正で、回転が 4 方向のどれかで、箱の四角が 1 つ。
+  // テキストは本文が空でなく、大きさが正で、回転が 4 方向のどれかで、箱の四角が 1 つ。書式の欄は free-text-entry.js が見る。
   function validTextFields(entry) {
     return validText(entry.text) && validPositive(entry.fontSize)
-      && entryModule().ROTATIONS.includes(entry.rotation) && entry.quads.length === 1;
+      && entryModule().ROTATIONS.includes(entry.rotation) && entry.quads.length === 1 && root.SigK.freeTextEntry.validFields(entry);
   }
 
   function validPoint(point) {
@@ -88,7 +88,7 @@
   function validPatchValue(field, value, kind) {
     switch (field) {
       case 'color': return typeof value === 'string' || (value === null && style().isBoxedKind(kind));
-      case 'fill': return style().isBoxedKind(kind) && (value === null || style().isHexColor(value));
+      case 'fill': return kind === 'text' ? root.SigK.freeTextEntry.validPatchValue(field, value) : style().isBoxedKind(kind) && (value === null || style().isHexColor(value));
       case 'lineStyle': return style().lineStylesOf(kind).includes(value);
       case 'text': return entryModule().isNoteKind(kind) ? typeof value === 'string' : validText(value);
       case 'opacity': return validOpacity(value);
@@ -98,6 +98,11 @@
       case 'quads': return Array.isArray(value) && value.length > 0 && value.every(isQuad);
       case 'paths': return validPaths(kind, value);
       case 'angle': return style().isBoxedKind(kind) && validAngle(value);
+      case 'width':
+      case 'bold':
+      case 'italic':
+      case 'borderColor':
+      case 'borderWidth': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
       default: return false;
     }
   }
@@ -117,12 +122,14 @@
   }
 
   // 変更を当てた書き込み。線種を替えたら、読み込んだ間隔と強さを整える（shape-style.js の restyle）。角度 0 は持たない
-  // （spec-4b-2 確定事項1）。形は確かめない。
+  // （spec-4b-2 確定事項1）。テキストの false の太字・斜体も持たない（spec-4b-4a 確定事項A1）。形は確かめない。
   function applyPatch(entry, picked) {
     const { lineStyle, ...rest } = picked;
     const merged = { ...entry, ...rest };
     if (merged.angle === 0)
       delete merged.angle;
+    if (merged.kind === 'text')
+      root.SigK.freeTextEntry.tidy(merged);
     return lineStyle === undefined ? merged : style().restyle(merged, lineStyle);
   }
 

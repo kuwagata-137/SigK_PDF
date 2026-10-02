@@ -1,15 +1,28 @@
 (function (root) {
   'use strict';
 
-  // 見た目の欄（線の色・線なし・塗り・線種・線の太さ・不透明度）を書き込みに当てる値と、右パネルに出す形（spec-4b-1b 確定事項1〜9、
-  // spec-4b-3a 確定事項I）。DOM に触れない。
+  // 見た目の欄（線の色・線なし・塗り・線種・線の太さ・不透明度・文字の大きさ・太字・斜体・枠線）を書き込みに当てる値と、右パネルに
+  // 出す形（spec-4b-1b 確定事項1〜9、spec-4b-3a 確定事項I、spec-4b-4a 確定事項G）。DOM に触れない。
   //
   // 1 件でも複数でも同じ形で扱う。複数のときは、その欄を持てる書き込みにだけ当て、出すときはそろっていない値を「混在」にする。
+  // テキストの文字の大きさ・太字・斜体・塗り・枠線・枠線の太さ（太さの行）の当て方は free-text-style.js、テキストの行に出す形は
+  // free-text-style-view.js が持つ。
 
-  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity']);
+  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border']);
+  // テキストにだけある欄（テキスト以外には当てない）。
+  const TEXT_ONLY = Object.freeze(['fontSize', 'bold', 'italic', 'border']);
 
   function style() {
     return root.SigK.shapeStyle;
+  }
+
+  function textStyle() {
+    return root.SigK.freeTextStyle;
+  }
+
+  // テキストについて free-text-style.js へ回す欄か。
+  function isTextField(field, entry) {
+    return entry?.kind === 'text' && textStyle()?.FIELDS.includes(field) === true;
   }
 
   function isDrawnKind(kind) {
@@ -36,6 +49,10 @@
   function appliesTo(field, entry, value) {
     if (entry === null || entry === undefined || entry.readonly === true)
       return false;
+    if (isTextField(field, entry))
+      return textStyle().appliesTo(field, entry, value);
+    if (TEXT_ONLY.includes(field))
+      return false;
     switch (field) {
       case 'color': return true;
       case 'strokeNone': return style().isBoxedKind(entry.kind) && style().fillOf(entry) !== null;
@@ -52,6 +69,8 @@
   function patchFor(field, value, entry) {
     if (!appliesTo(field, entry, value))
       return null;
+    if (isTextField(field, entry))
+      return textStyle().patchFor(field, value, entry);
     switch (field) {
       case 'color': return entry.color === value ? null : { color: value };
       case 'strokeNone': return entry.color === null ? null : { color: null };
@@ -66,16 +85,22 @@
     }
   }
 
-  // 右パネルに渡す形（今までの約束）。
+  // 右パネルに渡す形（今までの約束）。テキストの太さはその枠線の太さ（枠線が無ければ null）。
   function targetOf(entry) {
+    const text = entry.kind === 'text';
+    const border = text ? (entry.borderColor ?? null) : null;
     return {
       kind: entry.kind,
       readonly: entry.readonly === true,
       color: entry.color ?? null,
       fill: style().fillOf(entry),
       lineStyle: style().lineStyleOf(entry),
-      lineWidth: entry.lineWidth,
+      lineWidth: text ? (border === null ? null : entry.borderWidth) : entry.lineWidth,
       opacity: entry.opacity ?? 1,
+      fontSize: text ? entry.fontSize : null,
+      bold: text ? entry.bold === true : null,
+      italic: text ? entry.italic === true : null,
+      border,
     };
   }
 
@@ -93,22 +118,26 @@
     if (live.length === 0)
       return null;
     const boxed = live.filter((target) => style().isBoxedKind(target.kind));
+    const texts = live.filter((target) => target.kind === 'text');
     const styled = live.filter((target) => hasLineStyles(target.kind));
     const labels = [...new Set(live.map((target) => colorLabelOf(target.kind)))];
+    const textView = root.SigK.freeTextStyleView;
     return {
       colorLabel: labels.length === 1 ? labels[0] : '色',
       color: valueOf(live, 'color'),
-      fill: valueOf(boxed, 'fill'),
+      // 塗りは四角・丸とテキストに当たる（spec-4b-4a 確定事項G5）。
+      fill: valueOf(live.filter((target) => style().isBoxedKind(target.kind) || target.kind === 'text'), 'fill'),
       lineStyle: styled.length === 0 ? null : {
         ...valueOf(styled, 'lineStyle'),
         styles: style().LINE_STYLES.filter((each) => styled.some((target) => style().lineStylesOf(target.kind).includes(each))),
       },
-      lineWidth: valueOf(live.filter((target) => isDrawnKind(target.kind)), 'lineWidth'),
+      lineWidth: textView.widthViewOf(live),
       opacity: valueOf(live.filter((target) => isOpacityKind(target.kind)), 'opacity'),
-      // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸があるときに選べる。
+      ...textView.textViewsOf(live),
+      // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸か、テキストがあるときに選べる。
       boxed: boxed.length > 0,
       strokeNoneEnabled: boxed.some((target) => target.fill !== null),
-      fillNoneEnabled: boxed.some((target) => target.color !== null),
+      fillNoneEnabled: boxed.some((target) => target.color !== null) || texts.length > 0,
     };
   }
 

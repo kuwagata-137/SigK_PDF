@@ -69,6 +69,9 @@
     }
     if (preview.field === 'opacity')
       return { ...entry, opacity: preview.value };
+    // テキストの太さの行は枠線の太さ（箱も余白ごと組み直す。spec-4b-4a 確定事項G4・K2）。
+    if (entry.kind === 'text')
+      return { ...entry, ...(root.SigK.freeTextStyle.patchFor('lineWidth', preview.value, entry) ?? {}) };
     const shape = root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: preview.value, angle: entry.angle });
     return { ...entry, lineWidth: preview.value, ...shape };
   }

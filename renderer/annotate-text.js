@@ -3,8 +3,7 @@
 
   // テキスト注釈の指揮（spec-4-2 確定事項3〜7・11〜12・15〜21）。
   //
-  // 置く（place）・直す（beginEdit）・下書きを注釈にする（commitDraft）・動かす（move）・
-  // 文字の大きさを変える（setFontSize）を、annotation-state.js の純粋な操作と
+  // 置く（place）・直す（beginEdit）・下書きを注釈にする（commitDraft）・動かす（move）を、annotation-state.js の純粋な操作と
   // page-edit.commitAnnots（1 本の履歴）に結ぶ。入力欄そのものは free-text-editor.js、
   // 押し離しの振り分けは annotate-pointer.js、道具と選択は annotate.js が持つ。
 
@@ -39,41 +38,30 @@
     return annotationState().findAnnot(view.getAnnotations(), view.getImported(), key);
   }
 
-  // 本文と大きさから箱の大きさ（表示の向き・pt）。幅は画面のフォントで測る（確定事項14）。
-  function boxOf(text, fontSize) {
-    const lines = geometry().linesOf(text);
-    return geometry().boxOfLines(lines, fontSize, (line) => root.SigK.freeTextShape.measure(state.doc, line, fontSize));
+  function layout() {
+    return root.SigK.freeTextLayout;
   }
 
-  // 箱の四隅と四角。origin は表示の左上（紙の座標）。
-  function frameOf(origin, size, rotation) {
-    const rect = geometry().rectFromOrigin(origin, size, rotation);
-    return { rect, quads: [geometry().quadOfRect(rect)] };
-  }
-
-  // 右端・下端をはみ出す箱は紙の中へ寄せる（起草者判断）。枠が無ければそのまま。
+  // 右端・下端をはみ出す箱は紙の中へ寄せる（起草者判断）。
   function fitOrigin(origin, size, index) {
-    const viewport = editor()?.pageOf(index)?.viewport;
-    if (viewport === undefined || viewport === null)
-      return origin;
-    const scale = viewport.scale ?? 1;
-    const [x, y] = viewport.convertToViewportPoint(origin[0], origin[1]);
-    const fx = Math.max(0, Math.min(x, viewport.width - size.width * scale));
-    const fy = Math.max(0, Math.min(y, viewport.height - size.height * scale));
-    if (fx === x && fy === y)
-      return origin;
-    return viewport.convertToPdfPoint(fx, fy).map((value) => Math.round(value * 100) / 100);
+    return layout().fitOrigin(origin, size, editor()?.pageOf(index)?.viewport);
   }
 
   // 履歴に積んで選び直す。読み込んだものを変えると写しが added の末尾に来る（確定事項16）。
-  function commit(next, { before, target, gesture = null }) {
-    const after = target === null ? next.added.at(-1).id : (target.ref !== undefined ? next.added.at(-1).id : before);
-    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after }, gesture });
+  function commit(next, { before, target }) {
+    const after = target.ref !== undefined ? next.added.at(-1).id : before;
+    root.SigK.pageEdit.commitAnnots(next, { annot: { before, after } });
     annotate().select(after);
     return true;
   }
 
   // ---- 置く（確定事項3） ----
+
+  // 次に置くテキストの太字・斜体・塗り・枠線（持つものだけ。spec-4b-4a 確定事項H）。
+  function nextFlags() {
+    const { bold, italic, fill, border, borderWidth } = annotate().getTextStyle();
+    return root.SigK.freeTextEntry.copyFields({ width: 'auto', bold, italic, fill, borderColor: border, borderWidth }, {});
+  }
 
   // テキストの道具で紙を押して離した点（.pdf-page 基準の CSS px）に入力欄を出す。
   function place({ index, point }) {
@@ -93,6 +81,9 @@
       fontSize: annotate().getFontSize(),
       color: annotate().colorOf('text'),
       rotation: page.viewport.rotation ?? 0,
+      // 新しく置くテキストは新しい形で、全角 12 字の自動の幅で折り返す（spec-4b-4a 確定事項C2・H2）。太字・斜体は次に付ける値。
+      width: root.SigK.freeTextEntry.WIDTH_AUTO,
+      ...nextFlags(),
     });
     return true;
   }
@@ -119,6 +110,7 @@
       fontSize: entry.fontSize,
       color: entry.color,
       rotation: entry.rotation,
+      ...root.SigK.freeTextEntry.copyFields(entry, {}),
     });
     return true;
   }
@@ -127,65 +119,10 @@
     return beginEdit(annotate().getSelected());
   }
 
-  // ---- 下書きを注釈にする（確定事項4・5・20） ----
+  // ---- 下書きを注釈にする（確定事項4・5・20。free-text-commit.js） ----
 
-  function commitNew(draft, text) {
-    const size = boxOf(text, draft.fontSize);
-    const origin = fitOrigin(draft.origin, size, draft.index);
-    const next = annotationState().addAnnot(viewer().getAnnotations(), {
-      id: annotationState().newId(),
-      src: draft.src,
-      kind: 'text',
-      color: draft.color,
-      // 道具の「次に付ける不透明度」（spec-4b-1a 確定事項31。今までは 1 に固定していた）。
-      opacity: annotate().getOpacity('text'),
-      text,
-      fontSize: draft.fontSize,
-      rotation: draft.rotation,
-      ...frameOf(origin, size, draft.rotation),
-    });
-    return commit(next, { before: null, target: null });
-  }
-
-  function commitExisting(draft, current, text) {
-    const annots = viewer().getAnnotations();
-    if (text === '') {
-      root.SigK.pageEdit.commitAnnots(annotationState().removeAnnot(annots, current), { annot: { before: draft.key, after: null } });
-      annotate().select(null);
-      return true;
-    }
-    if (text === current.text && draft.fontSize === current.fontSize && draft.color === current.color) {
-      viewer().redrawAnnotations();
-      return false;
-    }
-    const next = annotationState().updateAnnot(annots, current, {
-      text, fontSize: draft.fontSize, color: draft.color, ...frameOf(draft.origin, boxOf(text, draft.fontSize), draft.rotation),
-    });
-    return commit(next, { before: draft.key, target: current });
-  }
-
-  // 入力欄を閉じたとき（free-text-editor.finish）。空なら作らず、既存を空にしたら消す。
-  // 変わっていなければ履歴に積まない。戻り値は履歴に積んだかどうか。
   function commitDraft(draft) {
-    const view = viewer();
-    if (view === undefined || !isOpen()) {
-      view?.redrawAnnotations();
-      return false;
-    }
-    const text = geometry().linesOf(draft.text).join('\n').replace(/\s+$/, '');
-    if (draft.entry === null) {
-      if (text.trim() === '') {
-        view.redrawAnnotations();
-        return false;
-      }
-      return commitNew(draft, text);
-    }
-    const current = findEntry(draft.key);
-    if (current === null) {
-      view.redrawAnnotations();
-      return false;
-    }
-    return commitExisting(draft, current, text.trim() === '' ? '' : text);
+    return root.SigK.freeTextCommit.commitDraft(draft);
   }
 
   // ---- 動かす（確定事項6） ----
@@ -201,28 +138,7 @@
     return commit(next, { before: key, target: entry });
   }
 
-  // ---- 文字の大きさ（確定事項2・21・34） ----
-
-  // 選んでいるテキストがあればその注釈を変え、次に置く大きさとしても覚える。
-  function setFontSize(size) {
-    // 2 件以上を選んでいる間は文字の大きさの行を隠す（spec-4b-3a 確定事項I5）。
-    if (annotate().getSelection().length > 1)
-      return false;
-    if (!root.SigK.annotationPresets.isFontSize(size))
-      return false;
-    const entry = annotate().selectedEntry();
-    if (entry !== null && entry.kind === 'text' && entry.fontSize !== size) {
-      const origin = geometry().frameOrigin(entry.rect, entry.rotation);
-      const next = annotationState().updateAnnot(viewer().getAnnotations(), entry, {
-        fontSize: size, ...frameOf(origin, boxOf(entry.text, size), entry.rotation),
-      });
-      // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
-      commit(next, { before: annotate().getSelected(), target: entry, gesture: 'fontSize' });
-    }
-    annotate().rememberFontSize(size);
-    root.SigK.annotationProps?.refresh();
-    return true;
-  }
+  // 文字の大きさの変更は annotate-text-style.js（spec-4b-4a で移した）。
 
   // 開いている入力欄を確定して閉じる（保存・印刷・タブ切替・モード切替の前に呼ぶ。確定事項8）。
   function finishEditing() {
@@ -241,5 +157,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateText = { init, place, beginEdit, editSelected, commitDraft, move, setFontSize, finishEditing, boxOf };
+  SigK.annotateText = { init, place, beginEdit, editSelected, commitDraft, move, finishEditing, fitOrigin };
 })(typeof window !== 'undefined' ? window : globalThis);

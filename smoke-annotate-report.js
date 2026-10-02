@@ -87,6 +87,8 @@ const REPORT = `
     transform: transformReport,
     // 選択と複数選択（spec-4b-3a の起動確認。smoke-annotate-select.js の SELECT_REPORT）。
     selection: selectReport,
+    // テキストの書式（spec-4b-4a の起動確認。smoke-annotate-text.js の TEXT_REPORT）。
+    text: textReport,
     // 右パネルの見た目の行（出している行・色の行の見出し・チップの値・押している線種・太さと不透明度・ヒント）。
     propsRows: {
       shown: ['color', 'fill', 'style', 'width', 'size', 'opacity'].filter((row) => !document.getElementById('props-' + row + '-row').hidden),

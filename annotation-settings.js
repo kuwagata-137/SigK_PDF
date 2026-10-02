@@ -7,6 +7,8 @@
 // 既定の色・文字の大きさ・図形の種類は renderer/annotation-presets.js と同じであること（プロセスが違うので import は
 // できない。test/settings.test.js が一致を見張る）。受け取れない値は、渡された fallback、それも無ければ既定へ落とす。
 
+const { ANNOT_FONT_SIZES, DEFAULT_ANNOT_FONT_SIZE, DEFAULT_ANNOT_TEXT_STYLE, pickAnnotFontSize, pickAnnotTextStyle } = require('./annotation-text-settings.js');
+
 // 候補の色の移し替え（確定事項15）を済ませた設定に書く印。
 const ANNOT_PALETTE_VERSION = 1;
 
@@ -18,7 +20,8 @@ const ANNOT_DEFAULTS = {
   annotFills: { shape: null },
   annotStrokeNone: { shape: false },
   annotLineStyles: { shape: 'solid' },
-  annotFontSize: 12,
+  annotFontSize: DEFAULT_ANNOT_FONT_SIZE,
+  annotTextStyle: { ...DEFAULT_ANNOT_TEXT_STYLE },
   annotLineWidth: 2,
   annotShapeKind: 'square',
   annotOpacity: { text: 1, shape: 1, pen: 1, note: 1 },
@@ -37,7 +40,6 @@ const LEGACY_COLOR_MAP = Object.freeze({
   '#8fbfff': '#8faadc',
 });
 
-const ANNOT_FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48];
 const ANNOT_LINE_WIDTH_MIN = 1;
 const ANNOT_LINE_WIDTH_MAX = 40;
 const ANNOT_OPACITY_MIN = 0.1;
@@ -76,15 +78,11 @@ function isFill(value) {
   return value === null || normalizeHex(value) !== null;
 }
 
-// 一覧にある値だけを受け取る。無ければ fallback、それも無ければ既定（文字の大きさ・図形の種類）。
+// 一覧にある値だけを受け取る。無ければ fallback、それも無ければ既定（線種・図形の種類。文字の大きさは annotation-text-settings.js）。
 function pickFromList(list, raw, fallback, fixed) {
   if (list.includes(raw))
     return raw;
   return list.includes(fallback) ? fallback : fixed;
-}
-
-function pickAnnotFontSize(raw, fallback) {
-  return pickFromList(ANNOT_FONT_SIZES, raw, fallback, ANNOT_DEFAULTS.annotFontSize);
 }
 
 function pickAnnotLineWidth(raw, fallback) {
@@ -154,6 +152,7 @@ function pickAnnotSettings(source) {
     annotStrokeNone: pickAnnotStrokeNone(raw.annotStrokeNone, ANNOT_DEFAULTS.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(raw.annotLineStyles, ANNOT_DEFAULTS.annotLineStyles),
     annotFontSize: pickAnnotFontSize(raw.annotFontSize, ANNOT_DEFAULTS.annotFontSize),
+    annotTextStyle: pickAnnotTextStyle(raw.annotTextStyle, ANNOT_DEFAULTS.annotTextStyle),
     annotLineWidth: pickAnnotLineWidth(raw.annotLineWidth, ANNOT_DEFAULTS.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, raw.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind),
     annotOpacity: pickAnnotOpacity(raw.annotOpacity, ANNOT_DEFAULTS.annotOpacity),
@@ -174,6 +173,7 @@ function mergeAnnotUi(current, next) {
     annotStrokeNone: pickAnnotStrokeNone(merged('annotStrokeNone'), current.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(merged('annotLineStyles'), current.annotLineStyles),
     annotFontSize: pickAnnotFontSize(next.annotFontSize, current.annotFontSize),
+    annotTextStyle: pickAnnotTextStyle(merged('annotTextStyle'), current.annotTextStyle),
     annotLineWidth: pickAnnotLineWidth(next.annotLineWidth, current.annotLineWidth),
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, next.annotShapeKind, current.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind),
     annotOpacity: pickAnnotOpacity(merged('annotOpacity'), current.annotOpacity),

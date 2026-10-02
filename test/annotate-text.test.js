@@ -112,8 +112,11 @@ test('テキストの道具で紙を押すと入力欄が開き、枠の外を�
   assert.equal(parseFloat(node.style.top), py - SigK.freeTextEditor.BORDER);
 
   typeText(shell, 'こんにちは\n世界');
-  // 幅は最長行（5 文字 × 12pt）、高さは 2 行 × 15pt（余白は padding で持つ）
-  assert.equal(parseFloat(node.style.width), 60 * scale);
+  // 新しく置くテキストは新しい形（自動の幅で折り返す。spec-4b-4a 確定事項C2）。幅は最長行（5 文字 × 12pt）に、折り返す行が
+  // 無いときのゆとり 1pt を足したもの（確定事項E1）、高さは 2 行 × 15pt（余白は padding で持つ）
+  assert.equal(node.wrap, 'soft');
+  assert.equal(node.classList.contains('wrapped'), true);
+  assert.equal(parseFloat(node.style.width), (60 + SigK.freeTextWrap.EDITOR_SLACK) * scale);
   assert.equal(parseFloat(node.style.height), 30 * scale);
   assert.equal(SigK.viewer.getAnnotations().added.length, 0);
 
@@ -129,6 +132,7 @@ test('テキストの道具で紙を押すと入力欄が開き、枠の外を�
   assert.equal(entry.color, '#222a35');
   assert.equal(entry.rotation, 0);
   assert.equal(entry.src, 0);
+  assert.equal(entry.width, 'auto');
   assert.deepEqual(plain(entry.rect), [100, 700 - 34, 164, 700]);
   assert.deepEqual(plain(entry.quads), [[100, 700, 164, 700, 100, 666, 164, 666]]);
   // 確定した注釈が選ばれ、履歴に 1 世代積まれ、未保存になる
@@ -284,14 +288,13 @@ test('選んだテキストを掴んで動かすと 1 世代で位置が変わ�
 test('文字の大きさは選んだ注釈を変え、次に置く大きさとして覚える', async (t) => {
   const shell = await withTextTool(t);
   const { SigK, document } = shell;
-  const select = document.getElementById('props-size');
+  const number = document.getElementById('props-size');
   assert.equal(document.getElementById('props-size-row').hidden, false);
-  assert.equal(select.value, '12');
-  assert.deepEqual([...select.options].map((o) => Number(o.value)), [...SigK.annotationPresets.FONT_SIZES]);
+  assert.equal(number.value, '12');
 
   const entry = placeAndCommit(shell);
-  select.value = '18';
-  select.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+  number.value = '18';
+  number.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
   const bigger = SigK.viewer.getAnnotations().added[0];
   assert.equal(bigger.fontSize, 18);
   assert.equal(bigger.rect[2], 100 + 5 * 18 + 4);
@@ -303,7 +306,7 @@ test('文字の大きさは選んだ注釈を変え、次に置く大きさと�
   const next = placeAndCommit(shell, { y: 400, text: 'x' });
   assert.equal(next.fontSize, 18);
   assert.equal(entry.id !== next.id, true);
-  assert.equal(SigK.annotate.setFontSize(13), false);
+  assert.equal(SigK.annotate.setFontSize(13.3), false);
 });
 
 test('覚えた文字の大きさは起動時に戻り、パレットでテキストの色を変えられる', async (t) => {
@@ -373,7 +376,10 @@ test('モードを離れる・タブを切り替える・保存するときは�
   assert.equal(result.ok, true);
   const texts = specs[0].annotations.add.filter((e) => e.kind === 'text');
   assert.deepEqual(texts.map((e) => e.text), ['モード', 'タブ', '保存']);
-  assert.deepEqual(Object.keys(texts[0]).sort(), ['color', 'fontSize', 'kind', 'opacity', 'rect', 'rotation', 'src', 'text']);
+  // 新しい形は画面で決めた行と中身の位置も渡す（spec-4b-4a 確定事項I1）。
+  assert.deepEqual(Object.keys(texts[0]).sort(), ['color', 'fontSize', 'inset', 'kind', 'lines', 'opacity', 'rect', 'rotation', 'src', 'text', 'width']);
+  assert.deepEqual(texts[0].lines, ['モード']);
+  assert.deepEqual(texts[0].inset, [2, 2]);
 });
 
 test('Ctrl+Z でテキストの世代が戻り、削除も戻せる', async (t) => {
@@ -390,10 +396,46 @@ test('Ctrl+Z でテキストの世代が戻り、削除も戻せる', async (t) 
   assert.equal(SigK.viewer.isDirty(), false);
 });
 
+// ---- 新しい形（spec-4b-4a 確定事項C・D・E・I1） ----
+
+test('長い文は全角 12 字で折り返し、入力欄・紙の上の文字・保存に渡す行がそろう', async (t) => {
+  const shell = await withTextTool(t);
+  const { SigK, document } = shell;
+  const body = 'あいうえおかきくけこさしすせそたち';
+  clickAt(shell, 0, 100, 700);
+  typeText(shell, body);
+  const node = editorNode(shell);
+  const scale = SigK.viewer.getTextLayer(0).viewport.scale;
+  // 入る行の最長 144 と、送った字を足した 156 の真ん中（事前調査 E）。高さは 2 行。
+  assert.equal(parseFloat(node.style.width), 150 * scale);
+  assert.equal(parseFloat(node.style.height), 2 * 15 * scale);
+  mouse(shell, 'mousedown', document.getElementById('view'), 5, 5);
+  mouse(shell, 'mouseup', document.getElementById('view'), 5, 5);
+  const entry = SigK.viewer.getAnnotations().added[0];
+  assert.deepEqual(plain(entry.rect), [100, 700 - 34, 248, 700]);
+  const texts = [...pageNode(shell, 0).querySelectorAll('.annot-layer g[data-kind="text"] text')];
+  assert.deepEqual(texts.map((el) => el.textContent), ['あいうえおかきくけこさし', 'すせそたち']);
+  const specs = [];
+  shell.window.taskAPI.run = async (_id, spec) => { specs.push(structuredClone(spec)); return { ok: true, path: A, signature: { size: 1, mtimeMs: 1 } }; };
+  assert.equal((await SigK.save.saveActive()).ok, true);
+  assert.deepEqual(specs[0].annotations.add[0].lines, ['あいうえおかきくけこさし', 'すせそたち']);
+});
+
+test('getPaperBox は開いた文書の元ページの紙の範囲（page.view）を返す', async (t) => {
+  const shell = await withTextTool(t);
+  const box = shell.SigK.viewer.getPaperBox(0);
+  assert.equal(box.length, 4);
+  assert.equal(box[0], 0);
+  assert.ok(box[2] > 0 && box[3] > 0);
+  assert.equal(shell.SigK.viewer.getPaperBox(99), null);
+});
+
 // ---- 読み込み（確定事項13） ----
 
 test('自分で付けた FreeText だけを読み込んで pdf.js に描かせず、直せる', async (t) => {
-  const shell = await withTextTool(t, { stub: { annotations: { 0: [OWN_TEXT, OTHER_TEXT] } } });
+  // 口は /DS の無い今までの形と答える（答えが無ければ表示のみ。spec-4b-4a 確定事項J4）。
+  const detailsResults = [{ ok: true, details: { '120R': { ca: null, defaultStyle: null, daColor: '#d92c2c' } } }];
+  const shell = await withTextTool(t, { stub: { annotations: { 0: [OWN_TEXT, OTHER_TEXT] } }, detailsResults });
   const { SigK } = shell;
   await shell.flush();
   const imported = SigK.viewer.getImported();

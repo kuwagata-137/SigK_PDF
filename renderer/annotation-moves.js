@@ -27,7 +27,7 @@
     const geometry = root.SigK.freeTextGeometry;
     const [x, y] = geometry.frameOrigin(entry.rect, entry.rotation);
     const origin = [x + delta[0], y + delta[1]].map(round);
-    const size = root.SigK.annotateText.boxOf(entry.text, entry.fontSize);
+    const size = root.SigK.freeTextMetrics.sizeOf(entry);
     const rect = geometry.rectFromOrigin(origin, size, entry.rotation);
     return { rect, quads: [geometry.quadOfRect(rect)] };
   }
