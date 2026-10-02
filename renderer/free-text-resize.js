@@ -27,7 +27,8 @@
     const { right } = root.SigK.freeTextHandles.boxOf(entry, viewport);
     const moved = ((point[0] - press[0]) * right[0] + (point[1] - press[1]) * right[1]) / (viewport.scale ?? 1);
     const before = contentWidthOf(entry);
-    const width = round(Math.max(entry.fontSize, before + (side === 'right' ? moved : -moved)));
+    // 開き直したときに自動の幅と見誤られない値にする（free-text-metrics.js の keepFixed）。
+    const width = metrics().keepFixed(entry, round(Math.max(entry.fontSize, before + (side === 'right' ? moved : -moved))));
     if (width === entry.width)
       return null;
     const next = { ...entry, width };

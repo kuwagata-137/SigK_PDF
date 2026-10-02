@@ -54,6 +54,19 @@
     return layout().frameOf(origin, sizeOf(next), next.rotation);
   }
 
+  // 固定の幅を、開き直したときに自動の幅と見誤られない値にする（spec-4b-4a 確定事項J3・完了判定5）。読み戻しの見分け
+  // （imported-text-details.js の judgeWidth）が自動と見る幅（最長行とほぼ同じで、行の並びも自動と同じ）なら、最長行より
+  // FIXED_MARGIN だけ広げる（0.01pt に切り上げてから足す。広げても行の並びは変わらない）。見た目の差は 0.02pt。
+  const FIXED_MARGIN = 0.02;
+
+  function keepFixed(entry, width) {
+    const advanceOf = (unit, bold) => shape().advanceOf(root.document, unit, bold);
+    const judged = root.SigK.importedTextDetails.judgeWidth({ ...entry, width }, width, { advanceOf, pageLength: pageLengthOf(entry.src, entry.rotation) });
+    if (!judged.auto)
+      return width;
+    return Math.round((Math.ceil(judged.longest * 100 - 1e-6) / 100 + FIXED_MARGIN) * 100) / 100;
+  }
+
   // 入力欄の中身の幅（pt）。新しい形は「入る行の最長」と「送った字を足した行の最短」の真ん中（free-text-wrap.js。確定事項E1）、
   // 今までの形は最長行（確定事項E3）。
   function editorWidthOf(entry) {
@@ -65,5 +78,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextMetrics = { pageLengthOf, advanceFor, layoutOfEntry, sizeOf, reframe, editorWidthOf };
+  SigK.freeTextMetrics = { FIXED_MARGIN, pageLengthOf, advanceFor, layoutOfEntry, sizeOf, reframe, keepFixed, editorWidthOf };
 })(typeof window !== 'undefined' ? window : globalThis);

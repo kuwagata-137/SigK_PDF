@@ -46,20 +46,20 @@
   }
 
   // 今までの形を新しい形へ移すときの固定の幅（pt）。next は当てた後の書式で、その書式で測った最長の段落の幅を 0.01pt に
-  // 切り上げる（丸めで段落が折れないように）。下限は 1 字。
+  // 切り上げる（丸めで段落が折れないように）。下限は 1 字。開き直したときに自動の幅と見誤られないよう keepFixed を通す。
   function fixedWidthOf(next) {
     const advance = metrics().advanceFor(next);
     const wrap = root.SigK.freeTextWrap;
     const widthOf = (line) => wrap.widthOf(line, (unit) => advance(unit) * next.fontSize);
     const longest = wrap.paragraphsOf(next.text).reduce((max, line) => Math.max(max, widthOf(line)), 0);
-    return Math.max(next.fontSize, Math.ceil(longest * 100 - 1e-6) / 100);
+    return metrics().keepFixed(next, Math.max(next.fontSize, Math.ceil(longest * 100 - 1e-6) / 100));
   }
 
   // 文字の大きさを変える patch（箱も組み直す）。
   function fontSizePatch(entry, fontSize) {
     const patch = { fontSize };
     if (typeof entry.width === 'number' && entry.width < fontSize)
-      patch.width = fontSize;
+      patch.width = metrics().keepFixed({ ...entry, fontSize }, fontSize);
     return { ...patch, ...metrics().reframe(entry, patch) };
   }
 

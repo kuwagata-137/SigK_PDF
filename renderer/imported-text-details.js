@@ -20,21 +20,28 @@
     return a.length === b.length && a.every((line, index) => line === b[index]);
   }
 
-  // 幅の形（J3）。中身の幅 w ＝ 箱の幅 − 余白（− 斜体の分）。本文を自動の幅で折った行が w で折った行と同じで、w が最長行の幅と
-  // AUTO_TOLERANCE 以内なら 'auto'、そうでなければ w の固定。w が正でなければ null。advanceOf(unit, bold) は字の送り幅（em）。
-  // w で折るときも AUTO_TOLERANCE を足す（自動の箱は最長行を 0.01pt に丸めて保存するので、w が最長行よりわずかに狭いことがある）。
-  function widthOf(entry, { advanceOf, pageLength = null }) {
+  // 中身の幅 content を自動の幅と見るか（J3）。本文を自動の幅で折った行が content で折った行と同じで、content が最長行の幅と
+  // AUTO_TOLERANCE 以内なら自動。content で折るときも AUTO_TOLERANCE を足す（自動の箱は最長行を 0.01pt に丸めて保存するので、
+  // content が最長行よりわずかに狭いことがある）。戻り値は { auto, longest（自動の幅で折った最長行の幅 pt） }。
+  // advanceOf(unit, bold) は字の送り幅（em）。固定の幅を決める側（free-text-metrics.js の keepFixed）も同じ見分けを使う。
+  function judgeWidth(entry, content, { advanceOf, pageLength = null }) {
     const layout = root.SigK.freeTextLayout;
     const wrap = root.SigK.freeTextWrap;
-    const box = root.SigK.freeTextGeometry.frameSize(entry.rect, entry.rotation);
-    const content = round(box.width - layout.insetOf(entry).horizontal);
-    if (!(content > 0))
-      return null;
     const advance = (unit) => advanceOf(unit, entry.bold === true) * entry.fontSize;
     const autoLines = wrap.wrapLines(entry.text, layout.autoWidthOf(entry, pageLength), advance);
     const longest = autoLines.reduce((max, line) => Math.max(max, wrap.widthOf(line, advance)), 0);
     const auto = Math.abs(content - longest) <= AUTO_TOLERANCE && sameLines(autoLines, wrap.wrapLines(entry.text, content + AUTO_TOLERANCE, advance));
-    return auto ? 'auto' : content;
+    return { auto, longest };
+  }
+
+  // 幅の形（J3）。中身の幅 w ＝ 箱の幅 − 余白（− 斜体の分）を judgeWidth で見て、自動なら 'auto'、そうでなければ w の固定。
+  // w が正でなければ null。
+  function widthOf(entry, options) {
+    const box = root.SigK.freeTextGeometry.frameSize(entry.rect, entry.rotation);
+    const content = round(box.width - root.SigK.freeTextLayout.insetOf(entry).horizontal);
+    if (!(content > 0))
+      return null;
+    return judgeWidth(entry, content, options).auto ? 'auto' : content;
   }
 
   // 塗りと枠線（確定事項J2）。塗りは /C（灰・CMYK も RGB に直す）、枠線は /BS /W が 0 より大きければ /DA の色と /W。
@@ -71,5 +78,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.importedTextDetails = { AUTO_TOLERANCE, widthOf, withTextDetails };
+  SigK.importedTextDetails = { AUTO_TOLERANCE, judgeWidth, widthOf, withTextDetails };
 })(typeof window !== 'undefined' ? window : globalThis);

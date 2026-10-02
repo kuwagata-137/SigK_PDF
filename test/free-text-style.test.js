@@ -151,3 +151,14 @@ test('今までの形に塗りを付けると、固定の幅の新しい形へ�
   assert.equal(patch.width, 150);
   assert.equal(patch.fill, '#ffff00');
 });
+
+// 移した固定の幅は、開き直して読み戻しても固定のまま（spec-4b-4a 確定事項A2・J3・完了判定5。点検で見つかった不具合）。
+test('今までの形から移した固定の幅は、読み戻しの見分けで自動の幅と見誤られない', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK, document } = shell;
+  const old = { src: 0, kind: 'text', color: '#222a35', opacity: 1, text: '会議資料\n確認', fontSize: 12, rotation: 0, rect: [100, 666, 153, 700], quads: [[100, 700, 153, 700, 100, 666, 153, 666]] };
+  const patch = SigK.freeTextStyle.patchFor('bold', true, old);
+  assert.equal(typeof patch.width, 'number');
+  const advanceOf = (unit, bold) => SigK.freeTextShape.advanceOf(document, unit, bold);
+  assert.equal(SigK.importedTextDetails.widthOf({ ...old, ...patch }, { advanceOf, pageLength: SigK.freeTextMetrics.pageLengthOf(0, 0) }), patch.width);
+});

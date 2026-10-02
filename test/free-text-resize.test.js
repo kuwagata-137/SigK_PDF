@@ -100,3 +100,15 @@ test('今までの形のテキストも幅のつまみで引くと、固定の�
   assert.equal(changed.width, 100);
   assert.deepEqual(plain(SigK.freeTextMetrics.layoutOfEntry(changed).lines), ['あいうえおかきくけこ', 'さしすせそ']);
 });
+
+test('引いた幅が最長行とほぼ同じで行の並びも自動と同じなら、開き直して自動と見誤られないよう 0.02pt 広げる（完了判定5）', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  const entry = placeText(shell, 100, 700, 'あいう');
+  const viewport = SigK.viewer.getTextLayer(0).viewport;
+  // 動かさずに引いた形（今の最長行 36pt のまま）は、そのままだと読み戻しで自動に見える。
+  const patch = SigK.freeTextResize.widthPatch(entry, 'right', [0, 0], [0, 0], viewport);
+  assert.equal(patch.width, 36 + SigK.freeTextMetrics.FIXED_MARGIN);
+  const advanceOf = (unit, bold) => SigK.freeTextShape.advanceOf(shell.document, unit, bold);
+  assert.equal(SigK.importedTextDetails.widthOf({ ...entry, ...patch }, { advanceOf, pageLength: SigK.freeTextMetrics.pageLengthOf(0, 0) }), patch.width);
+});

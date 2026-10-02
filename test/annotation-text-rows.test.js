@@ -140,3 +140,25 @@ test('テキストの道具を持つと書式の行が出て、B を押すと次
   assert.equal('bold' in SigK.annotate.selectedEntry(), false);
   assert.equal(SigK.annotate.getTextStyle().bold, false);
 });
+
+// 打ちかけの値は、打ち始めたときの相手にだけ当てる（点検で見つかった不具合。spec-4b-4a 確定事項G2）。
+test('文字の大きさの欄に打ちかけのまま別の書き込みを選ぶと、欄はその書き込みの値に替わり、打ちかけの値は当たらない', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK, document, window } = shell;
+  const first = placeText(shell, 100, 700, 'あいう').id;
+  const second = placeText(shell, 100, 500, 'えお').id;
+  SigK.annotate.setTool(null);
+  SigK.annotate.select(first);
+  const { number } = sizeRow(document);
+  number.focus();
+  number.value = '20';
+  SigK.annotate.select(second);
+  assert.equal(number.value, '12', '選び直した書き込みの値に替わる');
+  number.dispatchEvent(new window.Event('change'));
+  const sizes = SigK.viewer.getAnnotations().added.map((entry) => entry.fontSize);
+  assert.deepEqual(plain(sizes), [12, 12]);
+  // 選び直した後に打った値は、その書き込みに当たる。
+  number.value = '24';
+  number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(SigK.annotate.selectedEntry().fontSize, 24);
+});
