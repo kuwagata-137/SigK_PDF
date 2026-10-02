@@ -10,9 +10,6 @@
   // （フォーカスは戻さない）。確定（枠の外を押す・Esc・Ctrl+Enter）は annotate-text.js の
   // commitDraft へ渡す。IME の変換中の Enter／Esc は入力欄に任せる。
 
-  // 入力欄の枠線（CSS px）。箱の外側に出し、文字の位置を確定後の SVG と揃える。
-  const BORDER = 1.5;
-
   const state = {
     doc: null,
     win: null,
@@ -25,12 +22,9 @@
     swallow: false,
   };
 
-  function geometry() {
-    return root.SigK.freeTextGeometry;
-  }
-
-  function shape() {
-    return root.SigK.freeTextShape;
+  // 入力欄の要素（作る・置く・大きさを合わせる）。spec-4b-4a で free-text-editor-node.js へ移した。
+  function editorNode() {
+    return root.SigK.freeTextEditorNode;
   }
 
   function isEditing() {
@@ -69,58 +63,22 @@
     }
   }
 
-  // 位置・大きさ・向き。表示の左上（origin）へ枠線ぶんだけ外側に置き、画面での角度で回す。
-  function place(viewport) {
-    const { draft, node } = state;
-    const scale = viewport.scale ?? 1;
-    const [x, y] = viewport.convertToViewportPoint(draft.origin[0], draft.origin[1]);
-    const angle = geometry().screenAngle(viewport.rotation ?? 0, draft.rotation);
-    node.style.left = `${x - BORDER}px`;
-    node.style.top = `${y - BORDER}px`;
-    node.style.fontSize = `${draft.fontSize * scale}px`;
-    node.style.lineHeight = String(geometry().LINE_HEIGHT);
-    node.style.padding = `${geometry().PADDING * scale}px`;
-    node.style.borderWidth = `${BORDER}px`;
-    node.style.color = draft.color;
-    node.style.transformOrigin = `${BORDER}px ${BORDER}px`;
-    node.style.transform = angle === 0 ? '' : `rotate(${angle}deg)`;
-  }
-
-  // 文字に合わせて広げる（確定事項3）。幅は最長行、高さは行数×行送り。字面が行箱より
-  // 大きいぶん（Noto の hhea。事前調査 D）は scrollHeight で補う。
   function autosize() {
     const page = state.pages.get(state.mountedIndex);
     if (page === undefined || state.node === null)
       return;
-    const { draft, node } = state;
-    const scale = page.viewport.scale ?? 1;
-    const lines = geometry().linesOf(node.value);
-    const size = geometry().boxOfLines(lines, draft.fontSize, (line) => shape().measure(state.doc, line, draft.fontSize));
-    const padding = geometry().PADDING * 2;
-    node.style.width = `${(size.width - padding) * scale}px`;
-    node.style.height = `${(size.height - padding) * scale}px`;
-    const overflow = node.scrollHeight - node.clientHeight;
-    if (overflow > 0)
-      node.style.height = `${(size.height - padding) * scale + overflow}px`;
+    editorNode().autosize(state.node, state.draft, page.viewport);
   }
 
   function mount({ focus }) {
     const page = state.pages.get(state.draft.index);
     if (page === undefined)
       return false;
-    const node = state.doc.createElement('textarea');
-    node.className = 'free-text-editor';
-    node.setAttribute('aria-label', 'テキストの書き込み');
-    node.spellcheck = false;
-    node.wrap = 'off';
-    node.rows = 1;
-    node.value = state.draft.text;
-    node.addEventListener('input', onInput);
-    node.addEventListener('keydown', onKeyDown);
+    const node = editorNode().create(state.doc, state.draft.text, { onInput, onKeyDown });
     page.node.append(node);
     state.node = node;
     state.mountedIndex = state.draft.index;
-    place(page.viewport);
+    editorNode().place(node, state.draft, page.viewport);
     autosize();
     if (focus) {
       node.focus();
@@ -215,7 +173,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.freeTextEditor = {
-    BORDER,
+    BORDER: root.SigK.freeTextEditorNode.BORDER,
     init,
     begin,
     finish,

@@ -137,7 +137,7 @@
     getFontSize: () => tools().getFontSize(),
     applyFontSize: (size) => tools().applyFontSize(size),
     rememberFontSize: (size) => tools().rememberFontSize(size),
-    setFontSize: (size) => root.SigK.annotateText?.setFontSize(size) === true,
+    setFontSize: (size) => root.SigK.annotateTextStyle?.setFontSize(size) === true,
     setLineWidth: (width) => root.SigK.annotateShape?.setLineWidth(width) === true,
     setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
     getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),

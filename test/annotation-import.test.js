@@ -10,6 +10,7 @@ require('../renderer/imported-values.js');
 require('../renderer/shape-style.js');
 require('../renderer/imported-shape.js');
 require('../renderer/imported-entry.js');
+require('../renderer/annotation-box-details.js');
 require('../renderer/annotation-details.js');
 require('../renderer/annotation-import.js');
 

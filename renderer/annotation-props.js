@@ -8,8 +8,8 @@
   // あればその書き込み、無ければ「次に付ける書き込み」（持っている道具）の種類と値を見せる。色・塗り・線種・線の太さ・不透明度の
   // 行は annotation-style-rows.js、ノートの「本文」「作成者」の行は annotation-note-rows.js、四角・丸の「回転」の行は
   // annotation-angle-row.js（spec-4b-2）、ヒントの文言は annotation-hints.js が
-  // 持ち、ここは種類・文字の大きさ・ページ・対象の文字・ヒント・「削除」の出し入れを受け持つ。「文字の大きさ」は
-  // annotate.setFontSize、「削除」は annotate.remove へ流す。表示のみの書き込みは種類名に「（表示のみ）」を添え、見た目の行を出さない。
+  // 持ち、ここは種類・ページ・対象の文字・ヒント・「削除」の出し入れを受け持つ。「文字の大きさ」の行は annotation-text-rows.js
+  // （spec-4b-4a で移した）、「削除」は annotate.remove へ流す。表示のみの書き込みは種類名に「（表示のみ）」を添え、見た目の行を出さない。
 
   // 「本文」の行に出す文字数の上限。
   const TEXT_PREVIEW = 200;
@@ -60,11 +60,9 @@
     node.textContent = value ?? '';
   }
 
-  // 「文字の大きさ」の行。テキストの道具を持っているか、テキストを選んでいるときだけ出す。
+  // 「文字の大きさ」の行（annotation-text-rows.js）。テキストの道具を持っているか、テキストを選んでいるときだけ出す。
   function setSizeRow(size) {
-    el.sizeRow.hidden = size === null;
-    if (size !== null)
-      el.size.value = String(size);
+    root.SigK.annotationTextRows?.render(size);
   }
 
   function previewOf(text) {
@@ -148,17 +146,6 @@
     return noteRows()?.focusContents() === true;
   }
 
-  // 文字の大きさの選択肢はプリセットから 1 度だけ組む（spec-4-2 確定事項34）。
-  function fillSizes(doc, select) {
-    select.replaceChildren(...presets().FONT_SIZES.map((value) => {
-      const option = doc.createElement('option');
-      option.value = String(value);
-      option.textContent = `${value} pt`;
-      return option;
-    }));
-    select.addEventListener('change', () => annotate().setFontSize(Number(select.value)));
-  }
-
   function init(doc, win) {
     if (win.__sigkAnnotationPropsReady === true)
       return false;
@@ -175,17 +162,15 @@
       textRow: doc.getElementById('props-text-row'),
       textLabel: doc.getElementById('props-text-label'),
       text: doc.getElementById('props-text'),
-      sizeRow: doc.getElementById('props-size-row'),
-      size: doc.getElementById('props-size'),
       hint: doc.getElementById('props-hint'),
       remove: doc.getElementById('props-delete'),
     };
-    fillSizes(doc, el.size);
     // 見た目の行とパレットの窓、本文と作成者の行。refresh より先に結ぶ。
     root.SigK.colorPopover?.init(doc, win);
     styleRows()?.init(doc, win);
     noteRows()?.init(doc, win);
     root.SigK.annotationAngleRow?.init(doc, win);
+    root.SigK.annotationTextRows?.init(doc, win);
     el.remove.addEventListener('click', () => {
       if (el.remove.getAttribute('aria-disabled') !== 'true')
         annotate().remove();

@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 require('../renderer/free-text-geometry.js');
 require('../renderer/imported-values.js');
 require('../renderer/shape-rotation.js');
+require('../renderer/annotation-box-details.js');
 require('../renderer/annotation-details.js');
 
 // 注釈の辞書の読み戻しを当てる層（spec-4b-1a 確定事項25〜27、spec-4b-1b 確定事項36〜39）。純関数と、口を 1 本ずつ呼ぶ順番待ちを見る。
