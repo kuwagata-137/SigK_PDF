@@ -75,9 +75,10 @@
       return false;
     }
     const changed = { text: body, fontSize: draft.fontSize, color: draft.color };
+    // 回したテキストは回した左上を紙の上で動かさない（spec-4b-4b 確定事項B1・D1）。
     const next = annotationState().updateAnnot(annots, current, {
       ...changed,
-      ...root.SigK.freeTextLayout.frameOf(draft.origin, metrics().sizeOf({ ...current, ...changed }), draft.rotation),
+      ...metrics().turned(current, root.SigK.freeTextLayout.frameOf(draft.origin, metrics().sizeOf({ ...current, ...changed }), draft.rotation)),
     });
     return commit(next, { before: draft.key, target: current });
   }

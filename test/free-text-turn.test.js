@@ -81,3 +81,69 @@ test('回転の行と回転のつまみでテキストを回せ、1 世代ずつ
   shell.SigK.annotate.select(null);
   assert.equal(row.hidden, true);
 });
+
+test('回したテキストを打ち直す・大きさを変える・書式を付けると、回した左上が紙の上で動かない（確定事項B1・D1。決定59 ①）', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  placeText(shell, 100, 700, 'あいう');
+  SigK.annotationAngleRow.setAngle(30);
+  const latest = () => SigK.viewer.getAnnotations().added.at(-1);
+  const corner = (entry) => plain(SigK.freeTextTurn.originOnPaper(entry));
+  const start = corner(latest());
+
+  // 打ち直す。入力欄は回した左上に、同じ角度で回して出る。
+  SigK.annotateText.editSelected();
+  const node = shell.document.querySelector('textarea.free-text-editor');
+  assert.match(node.style.transform, /rotate\(30deg\)/);
+  const [x, y] = SigK.viewer.getTextLayer(0).viewport.convertToViewportPoint(...start);
+  assert.equal(node.style.left, `${x - SigK.freeTextEditor.BORDER}px`);
+  assert.equal(node.style.top, `${y - SigK.freeTextEditor.BORDER}px`);
+  node.value = 'あいうえおかきくけこさしすせそたちつてと';
+  node.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+  SigK.freeTextEditor.finish();
+  assert.ok(latest().rect[1] < 690, '行が増えて箱が伸びた');
+  near(corner(latest()), start);
+  assert.equal(latest().angle, 30);
+  assert.deepEqual(plain(latest().quads), plain([SigK.shapeRotation.quadOf(latest().rect, 30)]));
+
+  SigK.annotateTextStyle.setFontSize(18);
+  near(corner(latest()), start);
+  // 余白が広がっても、中身の左上（文字の位置）は紙の上で動かない（spec-4b-4a 確定事項B5 を回したテキストでも）。
+  const content = (entry) => {
+    const inset = SigK.freeTextLayout.insetOf(entry);
+    const origin = SigK.freeTextGeometry.frameOrigin(entry.rect, entry.rotation);
+    return plain(SigK.freeTextTurn.onPaper(entry, SigK.freeTextLayout.shiftOrigin(origin, entry.rotation, [inset.left, inset.top])));
+  };
+  const text = content(latest());
+  SigK.annotateTextStyle.setTextFill('#fff2cc');
+  SigK.annotateTextStyle.setBorder('#c00000');
+  assert.ok(Math.hypot(corner(latest())[0] - start[0], corner(latest())[1] - start[1]) > 1, '余白が広がると箱の左上は外へ出る');
+  near(content(latest()), text);
+});
+
+test('回したテキストの幅のつまみは反対の辺を紙の上で動かさず、動かすと回した絵がそのままずれる（確定事項B1）', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  placeText(shell, 100, 700, 'あいうえおかきくけこさしすせそ');
+  SigK.annotationAngleRow.setAngle(90);
+  const entry = SigK.viewer.getAnnotations().added.at(-1);
+  const viewport = SigK.viewer.getTextLayer(0).viewport;
+  const box = SigK.freeTextHandles.boxOf(entry, viewport);
+  // 左のつまみを表示の右の向きへ 20px 引く（中身の右が動かない）。
+  const press = [0, 0];
+  const point = [box.right[0] * 20, box.right[1] * 20];
+  const patch = SigK.freeTextResize.widthPatch(entry, 'left', press, point, viewport);
+  const next = { ...entry, ...patch };
+  const rightEdge = (target) => {
+    const b = SigK.freeTextHandles.boxOf(target, viewport);
+    return [(b.topRight[0] + b.bottomRight[0]) / 2, (b.topRight[1] + b.bottomRight[1]) / 2];
+  };
+  const before = rightEdge(entry);
+  const after = rightEdge({ ...next, rect: next.rect, width: next.width });
+  assert.ok(Math.abs(after[0] - before[0]) <= 0.02 && Math.abs(after[1] - before[1]) <= 0.02, `${after} ≠ ${before}`);
+  // 動かす: 箱の中心が delta だけ動き、角度と大きさは変わらない。
+  const moved = SigK.annotationMoves.movedPatch(entry, [10, -20]);
+  const center = SigK.shapeRotation.centerOf(entry.rect);
+  near(SigK.shapeRotation.centerOf(moved.rect), [center[0] + 10, center[1] - 20]);
+  assert.deepEqual(plain(moved.quads), plain([SigK.shapeRotation.quadOf(moved.rect, 90)]));
+});

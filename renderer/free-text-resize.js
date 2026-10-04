@@ -5,7 +5,8 @@
   // annotate-transform.js が、引いている間の下見と離したときの 1 世代にこの patch を使う。
   //
   // 引いた量は、表示の右の向きに沿った分だけを見る（文字の向き。上下に動かしても幅は変わらない）。右のつまみは中身の左を、
-  // 左のつまみは中身の右を動かさない。幅は固定の幅になり（今までの形も、自動の幅も）、下限は 1 字、0.01pt に丸める。
+  // 左のつまみは中身の右を動かさない（回したテキストは紙の上でも。spec-4b-4b 確定事項B1）。幅は固定の幅になり（今までの形も、
+  // 自動の幅も）、下限は 1 字、0.01pt に丸める。
 
   function metrics() {
     return root.SigK.freeTextMetrics;
@@ -34,7 +35,7 @@
     const next = { ...entry, width };
     const origin = root.SigK.freeTextLayout.shiftOrigin(root.SigK.freeTextGeometry.frameOrigin(entry.rect, entry.rotation), entry.rotation,
       [side === 'left' ? round(before - width) : 0, 0]);
-    return { width, ...root.SigK.freeTextLayout.frameOf(origin, metrics().sizeOf(next), entry.rotation) };
+    return { width, ...metrics().turned(entry, root.SigK.freeTextLayout.frameOf(origin, metrics().sizeOf(next), entry.rotation)) };
   }
 
   const SigK = (root.SigK = root.SigK || {});

@@ -22,14 +22,16 @@
     return { ...patch, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect, paths: patch.paths, lineWidth: entry.lineWidth, angle: entry.angle }) };
   }
 
-  // テキスト: 表示の左上をずらし、箱の大きさは本文から取り直す（読み込んだ /Rect の余白を引きずらない）。
+  // テキスト: 表示の左上をずらし、箱の大きさは本文から取り直す（読み込んだ /Rect の余白を引きずらない）。回したテキストは、
+  // ずらした箱を基に中心を回し直す（大きさが同じなら、回した絵がそのまま delta だけ動く。spec-4b-4b 確定事項B1）。
   function shiftedText(entry, delta) {
     const geometry = root.SigK.freeTextGeometry;
     const [x, y] = geometry.frameOrigin(entry.rect, entry.rotation);
     const origin = [x + delta[0], y + delta[1]].map(round);
     const size = root.SigK.freeTextMetrics.sizeOf(entry);
     const rect = geometry.rectFromOrigin(origin, size, entry.rotation);
-    return { rect, quads: [geometry.quadOfRect(rect)] };
+    const moved = { ...entry, rect: entry.rect.map((value, index) => round(value + delta[index % 2])) };
+    return root.SigK.freeTextMetrics.turned(moved, { rect, quads: [geometry.quadOfRect(rect)] });
   }
 
   // ノート: 基準の点（紙の左上）に足して箱を作り直す。

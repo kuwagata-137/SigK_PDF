@@ -44,14 +44,19 @@
   }
 
   // patch を当てた書き込みの箱 { rect, quads }。中身の左上（文字の位置）は動かさず、余白と斜体の分が変われば箱が外へ広がる
-  // （確定事項B5）。
+  // （確定事項B5）。回したテキストは、組み直した箱の中心を回し直して中身の左上を紙の上でも動かさない（spec-4b-4b 確定事項B1）。
   function reframe(entry, patch = {}) {
     const next = { ...entry, ...patch };
     const before = layout().insetOf(entry);
     const after = layout().insetOf(next);
     const origin = layout().shiftOrigin(geometry().frameOrigin(entry.rect, entry.rotation), entry.rotation,
       [before.left - after.left, before.top - after.top]);
-    return layout().frameOf(origin, sizeOf(next), next.rotation);
+    return turned(entry, layout().frameOf(origin, sizeOf(next), next.rotation));
+  }
+
+  // 回したテキストの箱の置き直し（free-text-turn.js。無ければそのまま）。
+  function turned(entry, frame) {
+    return root.SigK.freeTextTurn?.turnedFrame(entry, frame) ?? frame;
   }
 
   // 固定の幅を、開き直したときに自動の幅と見誤られない値にする（spec-4b-4a 確定事項J3・完了判定5）。読み戻しの見分け
@@ -78,5 +83,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextMetrics = { FIXED_MARGIN, pageLengthOf, advanceFor, layoutOfEntry, sizeOf, reframe, keepFixed, editorWidthOf };
+  SigK.freeTextMetrics = { FIXED_MARGIN, pageLengthOf, advanceFor, layoutOfEntry, sizeOf, reframe, turned, keepFixed, editorWidthOf };
 })(typeof window !== 'undefined' ? window : globalThis);

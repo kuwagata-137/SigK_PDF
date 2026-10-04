@@ -90,6 +90,12 @@
 
   // ---- 直す（確定事項5） ----
 
+  // 回したテキストの下書きの欄（spec-4b-4b 確定事項D1）。angle と、入力欄を置く回した左上 paperOrigin（紙の座標）。回していなければ空。
+  function turnedDraft(entry) {
+    const angle = root.SigK.shapeRotation?.angleOf(entry) ?? 0;
+    return angle === 0 ? {} : { angle, paperOrigin: root.SigK.freeTextTurn.originOnPaper(entry) };
+  }
+
   function beginEdit(key) {
     if (!isOpen() || key === null || key === undefined)
       return false;
@@ -111,6 +117,7 @@
       color: entry.color,
       rotation: entry.rotation,
       ...root.SigK.freeTextEntry.copyFields(entry, {}),
+      ...turnedDraft(entry),
     });
     return true;
   }
