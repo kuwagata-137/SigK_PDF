@@ -40,6 +40,22 @@ test('validEntry は四角・丸の角度を 0 以上 360 未満の数で受け�
   assert.equal(entries.validEntry({ src: 0, kind: 'highlight', color: '#ffe45a', quads: [[0, 1, 1, 1, 0, 0, 1, 0]], rect: [0, 0, 1, 1], angle: 30 }), false);
 });
 
+test('テキストは新しい形だけが角度を持て、ワーカーへ渡す形にも載る（spec-4b-4b 確定事項A1・A2）', () => {
+  const text = (overrides = {}) => ({
+    src: 0, kind: 'text', color: '#222a35', opacity: 1, rect: [100, 680, 200, 700], quads: [[100, 700, 200, 700, 100, 680, 200, 680]],
+    text: 'あい', fontSize: 12, rotation: 0, width: 'auto', ...overrides,
+  });
+  assert.equal(entries.validEntry(text({ angle: 30 })), true);
+  assert.equal(entries.validEntry(text({ angle: 360 })), false);
+  const legacy = text({ angle: 30 });
+  delete legacy.width;
+  assert.equal(entries.validEntry(legacy), false, '今までの形は回せない（新しい形へ移してから回す）');
+  assert.deepEqual(entries.pickPatch({ angle: 45 }, 'text'), { angle: 45 });
+  assert.equal(entries.toSaveEntry(text({ angle: 30 })).angle, 30);
+  assert.equal('angle' in entries.toSaveEntry(text()), false);
+  assert.equal(entries.copyEntry(text({ angle: 30 })).angle, 30);
+});
+
 test('copyEntry は角度を写し、0 は写さない', () => {
   assert.equal(entries.copyEntry(square({ angle: 30 })).angle, 30);
   assert.equal('angle' in entries.copyEntry(square({ angle: 0 })), false);

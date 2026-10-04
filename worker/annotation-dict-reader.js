@@ -19,6 +19,7 @@ const { pick } = require('./pdf-tree-reader.js');
 const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
+const { freeTextRotationOf } = require('./free-text-frame.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
 // 回転を読む種類（spec-4b-2 確定事項34）。
@@ -48,10 +49,14 @@ function nameOf(context, value) {
   return typeof item?.encodedName === 'string' ? item.encodedName.slice(1) : null;
 }
 
-// 四角・丸の外観の回転（spec-4b-2 確定事項34）。{ box, angle }（回っている）・'skewed'（回転を読めない）・null（回っていない・
+// 四角・丸・テキストの外観の回転（spec-4b-2 確定事項34、spec-4b-4b 確定事項I1）。{ box, angle }（回っている）・'skewed'（回転を読めない）・null（回っていない・
 // 外観が無い）。外観の中身が回す・ゆがめるものは 'skewed'。暗号化された文書では中身が読めないので、その見分けはしない。
 function rotationOf(dict, context, { encrypted = false } = {}) {
-  if (!BOXED_SUBTYPES.includes(nameOf(context, pick(dict, '/Subtype'))))
+  const subtype = nameOf(context, pick(dict, '/Subtype'));
+  // FreeText は中身のゆがみを見ない読み方（free-text-frame.js。spec-4b-4b 確定事項I1）。
+  if (subtype === 'FreeText')
+    return freeTextRotationOf(dict, context);
+  if (!BOXED_SUBTYPES.includes(subtype))
     return null;
   const appearance = appearanceOf(context, dict);
   const rect = fixedNumbersOf(context, pick(dict, '/Rect'), 4);

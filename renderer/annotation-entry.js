@@ -7,7 +7,8 @@
   // 検証と変えてよい欄は annotation-entry-rules.js、図形の見た目の欄は shape-style.js が持ち、ここから同じ名前で公開する。
   //
   //   共通       … { id, src, kind, color, opacity, quads, rect, text }
-  //   テキスト   … さらに { fontSize, rotation }。quads は箱の四角 1 つ。新しい形は { width, bold, italic }（free-text-entry.js）
+  //   テキスト   … さらに { fontSize, rotation }。quads は箱の四角 1 つ。新しい形は { width, bold, italic }（free-text-entry.js）と、
+  //                四角・丸と同じ { angle }（rect は回す前の箱、quads は回した 4 隅。spec-4b-4b 確定事項A1）
   //   図形・ペン … さらに { lineWidth }。直線・矢印・ペンは { paths: [[[x, y], …], …] }（紙の座標）。
   //                quads は rect の四角 1 つ。四角・丸は { fill, lineStyle }（color は null で線なし）、直線・矢印は { lineStyle }、
   //                破線は { dash }、雲形は { cloudIntensity } を持てる（shape-style.js）。四角・丸は { angle }（画面で時計回りの度。
@@ -100,7 +101,7 @@
     return copy;
   }
 
-  // 四角・丸の角度（無いものは 0。spec-4b-2 確定事項1）。
+  // 四角・丸・テキストの角度（無いものは 0。spec-4b-2 確定事項1、spec-4b-4b 確定事項A1）。
   function angleOf(entry) {
     return Number.isFinite(entry?.angle) ? entry.angle : 0;
   }
@@ -132,7 +133,10 @@
     const { src, kind, color, opacity, quads, rect, text, fontSize, rotation, lineWidth, paths, author } = entry;
     if (kind === 'text') {
       const layout = textFields().isNewForm(entry) && typeof layoutOf === 'function' ? layoutOf(entry) : null;
-      return { src, kind, color, opacity, rect: [...rect], text, fontSize, rotation, ...textFields().saveFields(entry, layout) };
+      const saved = { src, kind, color, opacity, rect: [...rect], text, fontSize, rotation, ...textFields().saveFields(entry, layout) };
+      if (angleOf(entry) !== 0)
+        saved.angle = entry.angle;
+      return saved;
     }
     if (isNoteKind(kind))
       return { src, kind, color, opacity, rect: [...rect], text, author: author ?? '' };

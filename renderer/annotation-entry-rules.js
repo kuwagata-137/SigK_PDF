@@ -37,9 +37,12 @@
   }
 
   // テキストは本文が空でなく、大きさが正で、回転が 4 方向のどれかで、箱の四角が 1 つ。書式の欄は free-text-entry.js が見る。
+  // 自由な角度（angle）を持てるのは新しい形だけ（spec-4b-4b 確定事項A1・A2）。
   function validTextFields(entry) {
+    const fields = root.SigK.freeTextEntry;
     return validText(entry.text) && validPositive(entry.fontSize)
-      && entryModule().ROTATIONS.includes(entry.rotation) && entry.quads.length === 1 && root.SigK.freeTextEntry.validFields(entry);
+      && entryModule().ROTATIONS.includes(entry.rotation) && entry.quads.length === 1 && fields.validFields(entry)
+      && (entry.angle === undefined || (validAngle(entry.angle) && fields.isNewForm(entry)));
   }
 
   function validPoint(point) {
@@ -76,7 +79,7 @@
     const shape = Number.isInteger(entry?.src) && entry.src >= 0 && kinds.isKind(entry.kind)
       && Array.isArray(entry.quads) && entry.quads.length > 0 && entry.quads.every(isQuad)
       && Array.isArray(entry.rect) && entry.rect.length === 4 && style().validStyle(entry);
-    if (!shape || (entry.angle !== undefined && !style().isBoxedKind(entry.kind)))
+    if (!shape || (entry.angle !== undefined && !style().isBoxedKind(entry.kind) && entry.kind !== 'text'))
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);
@@ -97,7 +100,7 @@
       case 'rect': return Array.isArray(value) && value.length === 4;
       case 'quads': return Array.isArray(value) && value.length > 0 && value.every(isQuad);
       case 'paths': return validPaths(kind, value);
-      case 'angle': return style().isBoxedKind(kind) && validAngle(value);
+      case 'angle': return (style().isBoxedKind(kind) || kind === 'text') && validAngle(value);
       case 'width':
       case 'bold':
       case 'italic':

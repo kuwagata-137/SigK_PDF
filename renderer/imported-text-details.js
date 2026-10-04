@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
 
-  // 読み込んだ自前のテキストに、注釈の辞書を直に読む口の答えを当てる純粋層（spec-4b-4a 確定事項J2〜J4）。DOM に触れない
+  // 読み込んだ自前のテキストに、注釈の辞書を直に読む口の答えを当てる純粋層（spec-4b-4a 確定事項J2〜J4、spec-4b-4b 確定事項I3）。DOM に触れない
   // （字の送り幅と紙の長さは外から受ける）。annotation-details.js の applyDetails がテキストについてここを呼ぶ。
   //
   // /DS のある自前のテキストは新しい形として組む。太字・斜体・文字の色は /DS（色が無ければ pdf.js の色）、箱は /Rect のまま
@@ -57,17 +57,28 @@
     return decor;
   }
 
+  // 回したテキスト（spec-4b-4b 確定事項I3）。口が外観から読んだ回す前の箱と角度を当て、4 隅は回した四角にする（pdf.js の /Rect は
+  // 回した外接なので使わない）。回っていなければそのまま。
+  function withRotation(entry, rotation) {
+    if (rotation === null || rotation === undefined)
+      return entry;
+    const turn = root.SigK.shapeRotation;
+    return { ...entry, rect: [...rotation.box], angle: rotation.angle, quads: [turn.quadOf(rotation.box, rotation.angle)] };
+  }
+
   // 1 件に当てる。今までの形はそのまま、新しい形は組み直した entry、表示のみにするなら null。
-  // pageLengthOf(src, rotation) は文字の向きに沿った紙の長さ（pt。分からなければ null）。
+  // pageLengthOf(src, rotation) は文字の向きに沿った紙の長さ（pt。分からなければ null）。回転を読めない（'skewed'）もの、
+  // 回っているのに /DS の無いもの（今までの形は回さない。確定事項A2）も表示のみ。
   function withTextDetails(entry, detail, { answered = true, advanceOf = null, pageLengthOf = null } = {}) {
-    if (!answered || detail === undefined || detail === null || detail.defaultStyle === 'unreadable')
+    if (!answered || detail === undefined || detail === null || detail.defaultStyle === 'unreadable' || detail.rotation === 'skewed')
       return null;
     const style = detail.defaultStyle;
+    const rotation = detail.rotation ?? null;
     if (style === null || style === undefined)
-      return entry;
+      return rotation === null ? entry : null;
     if (typeof advanceOf !== 'function')
       return null;
-    const next = { ...entry, color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
+    const next = { ...withRotation(entry, rotation), color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
     if (style.bold === true)
       next.bold = true;
     if (style.italic === true)

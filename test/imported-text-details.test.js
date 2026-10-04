@@ -8,6 +8,7 @@ require('../renderer/imported-values.js');
 require('../renderer/free-text-wrap.js');
 require('../renderer/free-text-layout.js');
 require('../renderer/imported-text-details.js');
+require('../renderer/shape-rotation.js');
 
 // 読み込んだ自前のテキストに口の答えを当てる（spec-4b-4a 確定事項J2〜J4）。
 
@@ -92,4 +93,18 @@ test('塗りは /C、枠線は /BS /W が正なら /DA の色と太さで読み�
   assert.equal('borderColor' in gray, false);
   // /DA の色が読めなければ文字の色を枠線の色にする。
   assert.equal(textDetails.withTextDetails(own(129), { ...detail, daColor: null }, { advanceOf }).borderColor, '#d92c2c');
+});
+
+test('回したテキストは口が読んだ回す前の箱と角度を当て、4 隅を回した四角にする。読めない回転と、/DS の無い回ったものは表示のみ（spec-4b-4b 確定事項I3）', () => {
+  const box = [100, 650, 224, 700];
+  // pdf.js の /Rect は回した外接（ここでは適当な大きい箱）。
+  const entry = own(200, { rect: [80, 600, 260, 720] });
+  const read = textDetails.withTextDetails(entry, { defaultStyle: STYLE, rotation: { box, angle: 30 } }, { advanceOf });
+  assert.deepEqual(read.rect, box);
+  assert.equal(read.angle, 30);
+  assert.deepEqual(read.quads, [globalThis.SigK.shapeRotation.quadOf(box, 30)]);
+  assert.equal(read.width, 'auto', '幅は回す前の箱で見分ける');
+  assert.equal(textDetails.withTextDetails(entry, { defaultStyle: STYLE, rotation: 'skewed' }, { advanceOf }), null);
+  assert.equal(textDetails.withTextDetails(entry, { defaultStyle: null, rotation: { box, angle: 30 } }, { advanceOf }), null);
+  assert.equal(textDetails.withTextDetails(own(124), { defaultStyle: STYLE, rotation: null }, { advanceOf }).angle, undefined);
 });

@@ -14,6 +14,7 @@ const { LINE_HEIGHT, BASELINE, frameOf, isFreeTextEntry } = require('./free-text
 const { defaultStyleOf } = require('./default-style.js');
 const { DA_FONT_NAME } = require('./font-embed.js');
 const { decorOps, readableTextOps } = require('./free-text-decor.js');
+const { turnOf } = require('./shape-rotation.js');
 
 // 斜体の傾き（Tm の c）。画面の CSS font-style: italic（斜体の書体が無いときの擬似斜体）と同じ形になる値（事前調査 B）。
 const ITALIC_SKEW = 0.25;
@@ -57,9 +58,14 @@ function validDecor(entry) {
   return parseColor(entry.borderColor) !== null && Number.isFinite(entry.borderWidth) && entry.borderWidth > 0;
 }
 
-// 新しい形のテキストの entry の形（isFreeTextEntry に加えて、幅・行・中身の位置・太字・斜体・塗り・枠線）。
+// 自由な角度（spec-4b-4b 確定事項A1）。無いか、0 より大きく 360 未満。
+function validAngle(angle) {
+  return angle === undefined || (Number.isFinite(angle) && angle > 0 && angle < 360);
+}
+
+// 新しい形のテキストの entry の形（isFreeTextEntry に加えて、幅・行・中身の位置・太字・斜体・塗り・枠線・角度）。
 function isWrappedEntry(entry) {
-  if (!isFreeTextEntry(entry) || !isWrapped(entry) || !validWidth(entry.width) || !validInset(entry.inset))
+  if (!isFreeTextEntry(entry) || !isWrapped(entry) || !validWidth(entry.width) || !validInset(entry.inset) || !validAngle(entry.angle))
     return false;
   if (![entry.bold, entry.italic].every((flag) => flag === undefined || flag === true) || !validDecor(entry))
     return false;
@@ -81,8 +87,11 @@ function wrappedBlockOps({ lines, fontSize, rgb, origin, italic }, measure) {
 }
 
 // 外観の中身。戻り値は free-text-appearance.js の freeTextAppearanceOf と同じ形に、ds（/DS の文字列）・fontName（外観の
-// Resources で使う書体の名前）・fillRgb（/C）・borderWidth（/BS /W）と、半透明のときの group・prefix を足したもの。形が違えば
-// null。measure は太字なら太字の書体の口。
+// Resources で使う書体の名前）・fillRgb（/C）・borderWidth（/BS /W）と、半透明のときの group・prefix、回したときの matrix を
+// 足したもの。形が違えば null。measure は太字なら太字の書体の口。
+//
+// 回したテキスト（angle。spec-4b-4b 確定事項H1）は、中身はそのままで、外側の Form に箱の中心まわりの /Matrix を付け、/BBox は
+// 回す前の箱、注釈の /Rect は /BBox を /Matrix で写した外接にする（四角・丸と同じ。op-annotate.js が外側の Form にだけ付ける）。
 //
 // 不透明なら q → /GS gs → cm → 箱で切る → 塗り → 枠線 → 文字 → Q。不透明度が 1 未満なら、/GS gs を外した同じ中身を透明グループで
 // 包み（op-annotate.js）、外側の先頭に何も描かない文字の命令（prefix）を置く（確定事項I3。事前調査 J）。
@@ -122,6 +131,7 @@ function wrappedAppearanceOf(entry, measure) {
     opacity: alpha,
     lines: entry.lines,
     fontName: measure.name,
+    ...turnOf(rect, entry.angle),
   };
   if (group) {
     appearance.group = true;

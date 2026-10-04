@@ -106,11 +106,13 @@ function appearanceFor(entry, fonts) {
   return SHAPE_KINDS.includes(entry.kind) ? shapeAppearanceOf(entry) : appearanceOf(entry);
 }
 
-// 1 件の形が読めるか（テキストはフォント無しで見る。今までの形は太字・斜体を持てない）。
+// 1 件の形が読めるか（テキストはフォント無しで見る。今までの形は太字・斜体・自由な角度を持てない。spec-4b-4b 確定事項A2）。
 function validAdd(entry) {
   if (entry.kind !== 'text')
     return appearanceFor(entry) !== null;
-  return isWrapped(entry) ? isWrappedEntry(entry) : isFreeTextEntry(entry) && entry.bold === undefined && entry.italic === undefined;
+  return isWrapped(entry)
+    ? isWrappedEntry(entry)
+    : isFreeTextEntry(entry) && entry.bold === undefined && entry.italic === undefined && entry.angle === undefined;
 }
 
 // add[] の形を先に全部見る。1 つでも違えば何も書かない（validatePlan と同じ流儀）。

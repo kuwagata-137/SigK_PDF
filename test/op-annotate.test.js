@@ -710,7 +710,25 @@ test('新しい形の行が本文と合わない・中身の位置が無い・�
   assert.deepEqual(await applyAnnotations(doc, { add: [wrappedText({ lines: undefined })] }, TOOLS, { now: NOW, fontSource }), refused);
   assert.deepEqual(await applyAnnotations(doc, { add: [wrappedText({ inset: undefined })] }, TOOLS, { now: NOW, fontSource }), refused);
   assert.deepEqual(await applyAnnotations(doc, { add: [text({ bold: true })] }, TOOLS, { now: NOW, fontSource }), refused);
+  // 今までの形は回せない（spec-4b-4b 確定事項A2）
+  assert.deepEqual(await applyAnnotations(doc, { add: [text({ angle: 30 })] }, TOOLS, { now: NOW, fontSource }), refused);
   assert.equal(type0FontsOf(doc).length, 0);
+});
+
+test('回した text は外側の Form にだけ /Matrix を付け、/BBox は回す前の箱、/Rect は回した外接で書かれる（spec-4b-4b 確定事項H1）', async () => {
+  const doc = await makeDoc(1);
+  const entry = wrappedText({ angle: 30 });
+  await applyAnnotations(doc, { add: [entry, wrappedText({ angle: 300, opacity: 0.5 })] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  const [turned, faded] = annotsOf(saved, 0);
+  const { normal } = extGStateOf(saved, turned.dict);
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/Matrix')), matrixOf(entry.rect, 30));
+  assert.deepEqual(numbersOf(saved, pick(normal.dict, '/BBox')), entry.rect);
+  assert.deepEqual(numbersOf(saved, pick(turned.dict, '/Rect')), rectOf(entry.rect, 30));
+  const group = extGStateOf(saved, faded.dict).normal;
+  assert.deepEqual(numbersOf(saved, pick(group.dict, '/Matrix')), matrixOf(entry.rect, 300));
+  const inner = saved.context.lookup(pick(saved.context.lookup(pick(group.dict, '/Resources')).get(PDFName.of('XObject')), '/G0'));
+  assert.equal(pick(inner.dict, '/Matrix'), undefined, '透明グループの中は回さない');
 });
 
 test('保存した新しい形の text は、口が /DS の太字・斜体・色と /DA の色を返す（往復）', async () => {
