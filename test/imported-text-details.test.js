@@ -108,3 +108,20 @@ test('回したテキストは口が読んだ回す前の箱と角度を当て�
   assert.equal(textDetails.withTextDetails(entry, { defaultStyle: null, rotation: { box, angle: 30 } }, { advanceOf }), null);
   assert.equal(textDetails.withTextDetails(own(124), { defaultStyle: STYLE, rotation: null }, { advanceOf }).angle, undefined);
 });
+
+test('吹き出しは口が読んだ箱としっぽの先を当て、欄が崩れていれば・/DS が無ければ表示のみ（spec-4b-4b 確定事項I2・I3）', () => {
+  const box = [100, 650, 224, 700];
+  // pdf.js の /Rect は箱と先の外接。
+  const entry = own(200, { rect: [100, 600, 224, 700] });
+  const read = textDetails.withTextDetails(entry, { defaultStyle: STYLE, rotation: null, callout: { box, tip: [120, 610] } }, { advanceOf });
+  assert.deepEqual(read.rect, box);
+  assert.deepEqual(read.tip, [120, 610]);
+  assert.deepEqual(read.quads, [globalThis.SigK.freeTextGeometry.quadOfRect(box)]);
+  assert.equal(read.width, 'auto');
+  const turned = textDetails.withTextDetails(entry, { defaultStyle: STYLE, rotation: { box, angle: 30 }, callout: { box, tip: [120, 610] } }, { advanceOf });
+  assert.equal(turned.angle, 30);
+  assert.deepEqual(turned.tip, [120, 610]);
+  assert.deepEqual(turned.quads, [globalThis.SigK.shapeRotation.quadOf(box, 30)]);
+  assert.equal(textDetails.withTextDetails(entry, { defaultStyle: STYLE, callout: 'unreadable' }, { advanceOf }), null);
+  assert.equal(textDetails.withTextDetails(entry, { defaultStyle: null, callout: { box, tip: [1, 2] } }, { advanceOf }), null);
+});

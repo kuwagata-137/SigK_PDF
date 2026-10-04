@@ -66,19 +66,31 @@
     return { ...entry, rect: [...rotation.box], angle: rotation.angle, quads: [turn.quadOf(rotation.box, rotation.angle)] };
   }
 
+  // 吹き出し（spec-4b-4b 確定事項I2・I3）。口が読んだ箱（/BBox − /RD）としっぽの先を当てる（pdf.js の /Rect は箱と先の外接なので
+  // 使わない）。吹き出しでなければそのまま。
+  function withCallout(entry, callout) {
+    if (callout === null || callout === undefined)
+      return entry;
+    return { ...entry, rect: [...callout.box], quads: [root.SigK.freeTextGeometry.quadOfRect(callout.box)], tip: [...callout.tip] };
+  }
+
   // 1 件に当てる。今までの形はそのまま、新しい形は組み直した entry、表示のみにするなら null。
   // pageLengthOf(src, rotation) は文字の向きに沿った紙の長さ（pt。分からなければ null）。回転を読めない（'skewed'）もの、
-  // 回っているのに /DS の無いもの（今までの形は回さない。確定事項A2）も表示のみ。
+  // 回っているのに /DS の無いもの（今までの形は回さない。確定事項A2）、吹き出しの欄が崩れているもの、/DS の無い吹き出しも表示のみ。
   function withTextDetails(entry, detail, { answered = true, advanceOf = null, pageLengthOf = null } = {}) {
     if (!answered || detail === undefined || detail === null || detail.defaultStyle === 'unreadable' || detail.rotation === 'skewed')
       return null;
     const style = detail.defaultStyle;
     const rotation = detail.rotation ?? null;
+    const callout = detail.callout ?? null;
+    if (callout === 'unreadable')
+      return null;
     if (style === null || style === undefined)
-      return rotation === null ? entry : null;
+      return rotation === null && callout === null ? entry : null;
     if (typeof advanceOf !== 'function')
       return null;
-    const next = { ...withRotation(entry, rotation), color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
+    const base = withRotation(withCallout(entry, callout), rotation);
+    const next = { ...base, color: style.color ?? entry.color, ...decorOf(detail, entry.color) };
     if (style.bold === true)
       next.bold = true;
     if (style.italic === true)

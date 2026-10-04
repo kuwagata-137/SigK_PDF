@@ -9,6 +9,7 @@
 //   /BS       … 枠線の太さ。枠線が無ければ /W 0 を書く（BS も Border も無いと、外観を作り直すビューアは 1pt の枠を描く。表166）
 //   /C        … 塗り（塗りがあるときだけ。PDFBox・MuPDF・Acrobat が FreeText の塗りに使う欄。事前調査 D）
 //   /Rotate   … 置いたときの表示の回転（規格外。pdf.js の FreeText エディタと同じ）
+//   /IT /FreeTextCallout・/CL・/RD・/LE /None … 吹き出しだけ（spec-4b-4b 確定事項H2。/RD は［左 下 右 上］。決定59 ③）
 // 枠線の色は /DA の色（free-text-wrapped.js）。/RC と /IC は書かない。
 
 function freeTextFields(entry, appearance, { PDFString, PDFHexString }) {
@@ -24,6 +25,12 @@ function freeTextFields(entry, appearance, { PDFString, PDFHexString }) {
     fields.C = appearance.fillRgb;
   if (entry.rotation !== 0)
     fields.Rotate = entry.rotation;
+  if (appearance.callout !== undefined) {
+    fields.IT = 'FreeTextCallout';
+    fields.CL = appearance.callout.cl;
+    fields.RD = appearance.callout.rd;
+    fields.LE = 'None';
+  }
   return fields;
 }
 

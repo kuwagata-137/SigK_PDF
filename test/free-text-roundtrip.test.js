@@ -85,7 +85,7 @@ async function roundTrips(entry, origin) {
     const { imported, detail } = await saveAndRead(saveEntryOf(current, result));
     const read = importedTextDetails.withTextDetails(imported, detail, { advanceOf, pageLengthOf });
     assert.ok(read !== null, `${round} 回目に表示のみになった`);
-    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'text', 'fill', 'borderColor', 'borderWidth', 'angle'])
+    for (const key of ['width', 'bold', 'italic', 'color', 'fontSize', 'rotation', 'text', 'fill', 'borderColor', 'borderWidth', 'angle', 'tip'])
       assert.deepEqual(read[key], first.entry[key], `${round} 回目の ${key}`);
     assert.deepEqual(read.rect, first.entry.rect, `${round} 回目の箱`);
     const again = placed(read, geometry.frameOrigin(read.rect, read.rotation));
@@ -131,4 +131,13 @@ test('回したテキスト（向き 0・90・270、書式・半透明・固定�
   await roundTrips(text({ angle: 137, rotation: 90, bold: true }), [200, 200]);
   await roundTrips(text({ angle: 300, rotation: 270, fill: '#fff2cc', borderColor: '#c00000', borderWidth: 2, opacity: 0.5 }), [500, 650]);
   await roundTrips(text({ angle: 15.5, width: 90.5, italic: true }), [100, 400]);
+});
+
+test('吹き出し（回していない・回した・向き 90・枠線だけ・塗りだけ・半透明）も 3 回往復して同じ箱・先・角度に戻る（spec-4b-4b 完了の判定6）', async () => {
+  const callout = (overrides) => text({ text: '期日は 10/31', fill: '#ffffff', borderColor: '#c00000', borderWidth: 2, ...overrides });
+  await roundTrips(callout({ tip: [110, 640] }), [100, 700]);
+  await roundTrips(callout({ tip: [330.5, 512.25], angle: 30 }), [300, 600]);
+  await roundTrips(callout({ tip: [60, 150], rotation: 90, angle: 137, opacity: 0.5 }), [100, 100]);
+  await roundTrips(callout({ tip: [40, 420], fill: undefined }), [100, 400]);
+  await roundTrips(callout({ tip: [300, 300], borderColor: undefined, borderWidth: undefined, fill: '#fff2cc', angle: 300 }), [250, 260]);
 });

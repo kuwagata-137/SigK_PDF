@@ -74,3 +74,49 @@ test('外観や /Rect が無ければ null', async () => {
   const bare = doc.context.obj({ Type: 'Annot', Subtype: 'FreeText' });
   assert.equal(freeTextRotationOf(bare, doc.context), null);
 });
+
+// ---- 吹き出し（spec-4b-4b 確定事項I2） ----
+
+const { freeTextFrameOf } = require('../worker/free-text-frame.js');
+const { fixturePath } = require('./fixtures/build.js');
+const fs = require('node:fs');
+
+function callout(overrides = {}) {
+  return wrapped({ fill: '#ffffff', borderColor: '#c00000', borderWidth: 2, tip: [130, 640], ...overrides });
+}
+
+test('SigK の吹き出しは、箱を /BBox − /RD［左 下 右 上］、先を /CL の始点で読む（回していなければ rotation は null）', async () => {
+  const entry = callout();
+  const { dict, context } = await savedDict(entry);
+  assert.deepEqual(freeTextFrameOf(dict, context), { rotation: null, callout: { box: entry.rect, tip: [130, 640] } });
+  assert.deepEqual(detailsOf(dict, context).callout, { box: entry.rect, tip: [130, 640] });
+});
+
+test('回した吹き出しは、回転の中心が箱の中心であることを確かめ、先を回す前へ戻す', async () => {
+  const entry = callout({ angle: 137, tip: [130.25, 640.5] });
+  const { dict, context } = await savedDict(entry);
+  const frame = freeTextFrameOf(dict, context);
+  assert.deepEqual(frame.rotation, { box: entry.rect, angle: 137 });
+  assert.deepEqual(frame.callout, { box: entry.rect, tip: [130.25, 640.5] });
+});
+
+test('吹き出しの /RD・/CL が崩れていれば unreadable、吹き出しでなければ callout は null', async () => {
+  const { dict, context } = await savedDict(callout());
+  dict.set(PDFName.of('RD'), context.obj([-1, 0, 0, 0]));
+  assert.equal(freeTextFrameOf(dict, context).callout, 'unreadable');
+  const second = await savedDict(callout());
+  second.dict.delete(PDFName.of('CL'));
+  assert.equal(freeTextFrameOf(second.dict, second.context).callout, 'unreadable');
+  const plain = await savedDict(wrapped());
+  assert.equal(freeTextFrameOf(plain.dict, plain.context).callout, null);
+});
+
+test('他のアプリの線と矢印の吹き出しと回した FreeText も読めはする（直せるかは画面が /DA の書体名で決める）', async () => {
+  const doc = await PDFDocument.load(fs.readFileSync(fixturePath('callouts.pdf')));
+  const annots = doc.context.lookup(doc.getPages()[0].node.get(PDFName.of('Annots')));
+  const [other, turned] = annots.asArray().map((ref) => doc.context.lookup(ref));
+  assert.deepEqual(freeTextFrameOf(other, doc.context), { rotation: null, callout: { box: [200, 600, 320, 640], tip: [120, 520] } });
+  const turnedFrame = freeTextFrameOf(turned, doc.context);
+  assert.equal(turnedFrame.rotation.angle, 30);
+  assert.equal(turnedFrame.callout, null);
+});

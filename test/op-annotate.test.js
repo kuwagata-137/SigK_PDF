@@ -771,3 +771,28 @@ test('半透明の text は透明グループの中にも書体を付け、外�
   assert.doesNotMatch(contentOf(saved, inner), /\/GS gs/);
   assert.equal(pick(dict, '/CA').asNumber(), 0.5);
 });
+
+test('吹き出しは /IT /FreeTextCallout・/CL・/RD［左 下 右 上］・/LE /None で書かれ、外観は輪郭を箱で切る前に描く（spec-4b-4b 確定事項H2・H3）', async () => {
+  const doc = await makeDoc(1);
+  const entry = wrappedText({ fill: '#ffffff', borderColor: '#c00000', borderWidth: 2, tip: [130, 600] });
+  await applyAnnotations(doc, { add: [entry, wrappedText({ fill: '#ffffff', borderColor: '#c00000', borderWidth: 2, tip: [130, 600], angle: 30 })] }, TOOLS, { now: NOW, fontSource });
+  const saved = await roundTrip(doc);
+  const [flat, turned] = annotsOf(saved, 0);
+  assert.equal(pick(flat.dict, '/IT').encodedName, '/FreeTextCallout');
+  assert.equal(pick(flat.dict, '/LE').encodedName, '/None');
+  const rd = numbersOf(saved, pick(flat.dict, '/RD'));
+  const bbox = numbersOf(saved, pick(extGStateOf(saved, flat.dict).normal.dict, '/BBox'));
+  assert.deepEqual([bbox[0] + rd[0], bbox[1] + rd[1], bbox[2] - rd[2], bbox[3] - rd[3]], entry.rect, '/BBox − /RD が箱');
+  assert.deepEqual(numbersOf(saved, pick(flat.dict, '/Rect')), bbox, '回していなければ /Rect は /BBox と同じ');
+  assert.deepEqual(numbersOf(saved, pick(flat.dict, '/CL')).slice(0, 2), [130, 600]);
+  const content = contentOf(saved, extGStateOf(saved, flat.dict).normal);
+  assert.ok(content.indexOf(' B') < content.indexOf(' re W n'), '輪郭は箱で切る前');
+  assert.equal(/ re f$/m.test(content), false, 'テキストの四角の塗りは描かない');
+  const turnedForm = extGStateOf(saved, turned.dict).normal;
+  assert.deepEqual(numbersOf(saved, pick(turnedForm.dict, '/Matrix')), matrixOf(entry.rect, 30), '回転の中心は箱の中心');
+  assert.deepEqual(numbersOf(saved, pick(turnedForm.dict, '/BBox')), bbox);
+  assert.notDeepEqual(numbersOf(saved, pick(turned.dict, '/CL')).slice(0, 2), [130, 600], '/CL は回した位置');
+  // 塗りと枠線を両方なしにした吹き出しは断る
+  const refused = await applyAnnotations(await makeDoc(1), { add: [wrappedText({ tip: [130, 600] })] }, TOOLS, { now: NOW, fontSource });
+  assert.deepEqual(refused, { error: '書き込み 1 の形が読めません。' });
+});
