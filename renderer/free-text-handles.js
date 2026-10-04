@@ -7,7 +7,8 @@
   //
   // 左右は文字の向き（置いたときの表示）で決める。箱の表示の左上と、表示の右・下の向きを表示の座標へ直し（回したテキストは箱の
   // 中心まわりに回してから直す）、枠は箱に余白を足した四角、つまみは左右の辺の中点の外（余白の分）に置く。つまみの id は left・right、
-  // 種類は width。回転のつまみは文字の向きでの上の辺の外（四角・丸と同じ規則。shape-handles.js の rotateHandleOf）。
+  // 種類は width。回転のつまみは文字の向きでの上の辺の外（四角・丸と同じ規則。shape-handles.js の rotateHandleOf）。吹き出しは
+  // しっぽの先にも白いつまみ（id・種類とも tip。callout-tail.js。spec-4b-4b 確定事項C3）。
 
   function geometry() {
     return root.SigK.freeTextGeometry;
@@ -66,6 +67,7 @@
     const center = middle(box.topLeft, box.bottomRight);
     const half = Math.hypot(box.bottomLeft[0] - box.topLeft[0], box.bottomLeft[1] - box.topLeft[1]) / 2 + pad;
     const rotate = shapeHandles().rotateHandleOf(center, [-box.down[0], -box.down[1]], half, room);
+    const tip = root.SigK.calloutTail?.handleOf(entry, viewport) ?? null;
     return {
       frame: { type: 'polygon', points: [outward(box.topLeft, -1, -1), outward(box.topRight, 1, -1), outward(box.bottomRight, 1, 1), outward(box.bottomLeft, -1, 1)] },
       stem: rotate.stem,
@@ -73,6 +75,7 @@
         { id: 'left', kind: 'width', at: offset(middle(box.topLeft, box.bottomLeft), box.right, -pad), cursor },
         { id: 'right', kind: 'width', at: offset(middle(box.topRight, box.bottomRight), box.right, pad), cursor },
         rotate.handle,
+        ...(tip === null ? [] : [tip]),
       ],
     };
   }

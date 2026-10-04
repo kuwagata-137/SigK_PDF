@@ -19,8 +19,8 @@
 
   const CORNERS = Object.freeze({ x1y1: [-1, -1], x2y1: [1, -1], x1y2: [-1, 1], x2y2: [1, 1] });
   const EDGES = Object.freeze({ x1: [-1, 0], x2: [1, 0], y1: [0, -1], y2: [0, 1] });
-  // 重なるときに先に当てる順（確定事項15）。
-  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, edge: 2, width: 2, end: 3 });
+  // 重なるときに先に当てる順（確定事項15）。吹き出しのしっぽの先は回転の次（spec-4b-4b 確定事項C3）。
+  const PRIORITY = Object.freeze({ rotate: 0, tip: 1, corner: 2, edge: 3, width: 3, end: 4 });
   const RESIZE_CURSORS = Object.freeze(['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']);
 
   function rotation() {
@@ -140,7 +140,7 @@
     return isBoxed(entry) ? boxHandles(entry, viewport, room) : lineHandles(entry, viewport);
   }
 
-  // 点（表示の座標）に当たるつまみ。半径 HIT_RADIUS 以内で、回転 → 角 → 辺 → 端 の順、同じ順なら近いもの。
+  // 点（表示の座標）に当たるつまみ。半径 HIT_RADIUS 以内で、回転 → しっぽの先 → 角 → 辺 → 端 の順、同じ順なら近いもの。
   function handleAt(handles, point, radius = HIT_RADIUS) {
     let best = null;
     for (const handle of handles ?? []) {

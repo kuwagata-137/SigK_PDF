@@ -1,7 +1,8 @@
 (function (root) {
   'use strict';
 
-  // つまみで四角・丸の大きさと向き、直線・矢印の端、テキストの幅を変える指揮（spec-4b-2 確定事項15〜22・24〜26、spec-4b-4a 確定事項F）。
+  // つまみで四角・丸の大きさと向き、直線・矢印の端、テキストの幅と向き、吹き出しのしっぽの先を変える指揮（spec-4b-2 確定事項15〜22・
+  // 24〜26、spec-4b-4a 確定事項F、spec-4b-4b 確定事項C・F）。
   //
   // 押したとき（begin）に、選んでいる書き込みのつまみ（annotation-frame.js が出している位置）に当たればドラッグを始める。
   // 紙の外（灰色）で押しても、選んでいる書き込みのページの座標で見る。動かしている間（move）は shape-resize.js の patch を
@@ -84,6 +85,8 @@
     const resize = root.SigK.shapeResize;
     if (handle.kind === 'width')
       return root.SigK.freeTextResize.widthPatch(entry, handle.id, press, point, viewport);
+    if (handle.kind === 'tip')
+      return root.SigK.calloutTail.tipPatch(entry, press, point, viewport, { shift });
     if (handle.kind === 'end')
       return resize.endpointMoved(entry, handle.id, press, point, viewport, { shift });
     if (handle.kind === 'rotate') {
