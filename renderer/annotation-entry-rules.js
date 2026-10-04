@@ -105,7 +105,8 @@
       case 'bold':
       case 'italic':
       case 'borderColor':
-      case 'borderWidth': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
+      case 'borderWidth':
+      case 'tip': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
       default: return false;
     }
   }

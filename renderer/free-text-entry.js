@@ -8,7 +8,9 @@
   //   bold・italic … true のときだけ持つ
   //   fill         … 塗り（'#rrggbb'）。無ければ持たない
   //   borderColor・borderWidth … 枠線の色（'#rrggbb'）と太さ（pt）。枠線があるときだけ、2 つそろえて持つ
-  // 今までの形は、太字・斜体・塗り・枠線を持てない（付けるときは新しい形へ移す。確定事項A2）。
+  //   tip          … 吹き出しのしっぽの先 [x, y]（回す前の紙の座標。spec-4b-4b 確定事項A3）。吹き出しだけが持ち、塗りと枠線を
+  //                  両方なしにはできない（確定事項A5）
+  // 今までの形は、太字・斜体・塗り・枠線・しっぽを持てない（付けるときは新しい形へ移す。確定事項A2）。
 
   const WIDTH_AUTO = 'auto';
   const FLAGS = Object.freeze(['bold', 'italic']);
@@ -18,6 +20,22 @@
 
   function isNewForm(entry) {
     return entry?.width !== undefined;
+  }
+
+  // 吹き出しか（spec-4b-4b 確定事項A3）。
+  function isCallout(entry) {
+    return Array.isArray(entry?.tip);
+  }
+
+  function validPoint(value) {
+    return Array.isArray(value) && value.length === 2 && value.every(Number.isFinite);
+  }
+
+  // 吹き出しのしっぽ。新しい形だけが持ち、塗りか枠線のどちらかが要る（確定事項A5）。
+  function validTip(entry) {
+    if (entry.tip === undefined)
+      return true;
+    return validPoint(entry.tip) && isNewForm(entry) && (isHex(entry.fill) || isHex(entry.borderColor));
   }
 
   function validWidth(value) {
@@ -42,6 +60,8 @@
       return false;
     if (!FLAGS.every((flag) => entry[flag] === undefined || entry[flag] === true) || !validDecor(entry))
       return false;
+    if (!validTip(entry))
+      return false;
     return isNewForm(entry) || [...FLAGS, ...DECOR].every((field) => entry[field] === undefined);
   }
 
@@ -53,6 +73,8 @@
       return typeof value === 'boolean';
     if (field === 'fill' || field === 'borderColor')
       return value === null || isHex(value);
+    if (field === 'tip')
+      return validPoint(value);
     return field === 'borderWidth' && Number.isFinite(value) && value > 0;
   }
 
@@ -84,13 +106,17 @@
       copy.borderColor = entry.borderColor;
       copy.borderWidth = entry.borderWidth;
     }
+    if (validPoint(entry.tip))
+      copy.tip = [entry.tip[0], entry.tip[1]];
     return copy;
   }
 
   function sameFields(a, b) {
     const border = a.borderColor ?? null;
+    const tip = (entry) => (validPoint(entry.tip) ? entry.tip.join(' ') : null);
     return a.width === b.width && FLAGS.every((flag) => (a[flag] === true) === (b[flag] === true))
-      && (a.fill ?? null) === (b.fill ?? null) && border === (b.borderColor ?? null) && (border === null || a.borderWidth === b.borderWidth);
+      && (a.fill ?? null) === (b.fill ?? null) && border === (b.borderColor ?? null) && (border === null || a.borderWidth === b.borderWidth)
+      && tip(a) === tip(b);
   }
 
   // ワーカーへ渡す欄（確定事項I1）。新しい形は、書式の欄と、画面で決めた行 lines と、箱の左上から中身の左上までの inset [左, 上]
@@ -109,6 +135,6 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.freeTextEntry = {
-    WIDTH_AUTO, FLAGS, DECOR, FIELDS, isNewForm, validWidth, validFields, validPatchValue, tidy, copyFields, sameFields, saveFields,
+    WIDTH_AUTO, FLAGS, DECOR, FIELDS, isNewForm, isCallout, validWidth, validFields, validPatchValue, tidy, copyFields, sameFields, saveFields,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

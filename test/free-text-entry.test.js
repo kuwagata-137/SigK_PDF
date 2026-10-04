@@ -83,3 +83,24 @@ test('tidy は null の塗りと、枠線の無いときの太さを外し、cop
   assert.equal(fields.sameFields({ width: 40 }, { width: 40, fill: null }), true);
   assert.deepEqual(fields.saveFields(styled, { lines: ['x'], inset: { left: 6, top: 6 } }), { ...styled, lines: ['x'], inset: [6, 6] });
 });
+
+test('吹き出しのしっぽの先は新しい形だけが持て、塗りか枠線が要り、写し・比較・保存に載る（spec-4b-4b 確定事項A3〜A5）', () => {
+  const callout = { width: 'auto', fill: '#ffffff', borderColor: '#c00000', borderWidth: 2, tip: [120, 600] };
+  assert.equal(fields.validFields(callout), true);
+  assert.equal(fields.isCallout(callout), true);
+  assert.equal(fields.isCallout({ width: 'auto' }), false);
+  assert.equal(fields.validFields({ ...callout, fill: undefined }), true, '枠線だけでもよい');
+  assert.equal(fields.validFields({ width: 'auto', tip: [1, 2] }), false, '塗りと枠線を両方なしにはできない');
+  assert.equal(fields.validFields({ fill: '#ffffff', tip: [1, 2] }), false, '今までの形は持てない');
+  assert.equal(fields.validFields({ ...callout, tip: [1] }), false);
+  assert.equal(fields.validFields({ ...callout, tip: [1, Number.NaN] }), false);
+  assert.equal(fields.validPatchValue('tip', [3, 4]), true);
+  assert.equal(fields.validPatchValue('tip', null), false);
+  const copy = fields.copyFields(callout, {});
+  assert.deepEqual(copy.tip, [120, 600]);
+  assert.notEqual(copy.tip, callout.tip, '写しは別の配列');
+  assert.equal(fields.sameFields(callout, { ...callout, tip: [120, 600] }), true);
+  assert.equal(fields.sameFields(callout, { ...callout, tip: [121, 600] }), false);
+  assert.equal(fields.sameFields(callout, { ...callout, tip: undefined }), false);
+  assert.deepEqual(fields.saveFields(callout, { lines: ['あ'], inset: { left: 2, top: 2 } }).tip, [120, 600]);
+});
