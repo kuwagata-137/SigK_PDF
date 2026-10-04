@@ -24,7 +24,7 @@ const TEXT_STATE = `
   const textOf = (entry) => ({
     key: entry.ref ?? entry.id, src: entry.src, text: entry.text, fontSize: entry.fontSize, rotation: entry.rotation, color: entry.color,
     opacity: entry.opacity, width: entry.width ?? null, bold: entry.bold === true, italic: entry.italic === true, fill: entry.fill ?? null,
-    borderColor: entry.borderColor ?? null, borderWidth: entry.borderWidth ?? null, rect: entry.rect.map(round),
+    borderColor: entry.borderColor ?? null, borderWidth: entry.borderWidth ?? null, rect: entry.rect.map(round), angle: entry.angle ?? 0,
     lines: entry.readonly === true ? null : SigK.freeTextMetrics.layoutOfEntry(entry).lines, readonly: entry.readonly === true,
   });
   const ownTexts = () => [...SigK.viewer.getAnnotations().added, ...Object.values(SigK.viewer.getImported()).flat()].filter((entry) => entry.kind === 'text').map(textOf);
@@ -32,11 +32,14 @@ const TEXT_STATE = `
 
 const TEXT_STEPS = `
     else if (name === 'fontsize') {
+      // 隠した窓はフォーカスを持たないので、focus()・blur() で focus・blur の出来事が出ない。打ち始めの相手を覚え直すよう、自分で出す。
       const field = document.getElementById('props-size');
       field.focus();
+      field.dispatchEvent(new FocusEvent('focus'));
       field.value = arg;
       field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       field.blur();
+      field.dispatchEvent(new FocusEvent('blur'));
     } else if (name === 'size-list') {
       const list = document.getElementById('props-size-list');
       list.value = arg;
@@ -91,10 +94,13 @@ const TEXT_STEPS = `
         }
         return { ink, over, ratio: ink === 0 ? 0 : Math.round((over / ink) * 10000) / 10000 };
       };
+      // 比べる範囲は 4 隅の外接（回したテキストは回した 4 隅。spec-4b-4b）。
       const boxOf = (entry) => {
-        const [x1, y1] = viewport.convertToViewportPoint(entry.rect[0], entry.rect[1]);
-        const [x2, y2] = viewport.convertToViewportPoint(entry.rect[2], entry.rect[3]);
-        return [Math.floor(Math.min(x1, x2)) - 2, Math.floor(Math.min(y1, y2)) - 2, Math.ceil(Math.max(x1, x2)) + 2, Math.ceil(Math.max(y1, y2)) + 2];
+        const quad = entry.quads[0];
+        const points = [0, 2, 4, 6].map((at) => viewport.convertToViewportPoint(quad[at], quad[at + 1]));
+        const xs = points.map((point) => point[0]);
+        const ys = points.map((point) => point[1]);
+        return [Math.floor(Math.min(...xs)) - 2, Math.floor(Math.min(...ys)) - 2, Math.ceil(Math.max(...xs)) + 2, Math.ceil(Math.max(...ys)) + 2];
       };
       // pdf.js が外観から読み戻す文字の大きさと色（半透明でも読めるか。完了判定3）。
       const pdfjsRead = (await page.getAnnotations()).filter((item) => item.subtype === 'FreeText')
@@ -134,7 +140,8 @@ const TEXT_REPORT = `
   })();
 `;
 
-// 保存先の FreeText の欄（spec-4b-4a の起動確認。/Rect・/DA・/DS・/C・/BS・/CA と、外観の透明グループ・外側の先頭の文字の命令・行の数）。
+// 保存先の FreeText の欄（spec-4b-4a の起動確認。/Rect・/DA・/DS・/C・/BS・/CA と、外観の透明グループ・外側の先頭の文字の命令・行の数。
+// spec-4b-4b で外観の /BBox・/Matrix を足した）。
 async function inspectTexts(file) {
   const { PDFDocument, PDFName, PDFArray, PDFDict } = require(path.join(__dirname, 'vendor', 'pdf-lib.min.js'));
   const zlib = require('node:zlib');
@@ -160,6 +167,8 @@ async function inspectTexts(file) {
       texts.push({
         page: index + 1,
         rect: numbers(field(dict, 'Rect')),
+        BBox: numbers(field(normal?.dict, 'BBox')),
+        Matrix: numbers(field(normal?.dict, 'Matrix')),
         DA: field(dict, 'DA')?.decodeText?.() ?? null,
         DS: field(dict, 'DS')?.decodeText?.() ?? null,
         C: numbers(field(dict, 'C')),
