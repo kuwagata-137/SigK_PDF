@@ -183,3 +183,19 @@ test('置いた吹き出しを直すときは輪郭の先が紙の上で動か�
   SigK.freeTextEditor.finish();
   assert.deepEqual(plain(SigK.annotate.selectedEntry().tip), plain(entry.tip));
 });
+
+test('選んだ吹き出しが断った「なし」は、次に付ける値にも覚えない（確定事項A5・G5）', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  placeCallout(shell, 100, 700, 'あいう');
+  assert.equal(SigK.annotateTextStyle.setBorder(null), true);
+  // 道具の次に付ける枠線を青にしてから、枠線なしの吹き出しを選び直して塗りなしを押す。
+  SigK.annotate.select(null);
+  SigK.annotate.setTool('callout');
+  assert.equal(SigK.annotateTextStyle.setBorder('#4472c4'), true);
+  SigK.annotate.setTool('select');
+  SigK.annotate.select(SigK.viewer.getAnnotations().added[0].id);
+  assert.equal(SigK.annotateTextStyle.setTextFill(null), false, '断る');
+  assert.equal(SigK.annotate.selectedEntry().fill, '#ffffff');
+  assert.equal(SigK.annotate.getTextStyle('callout').fill, '#ffffff', '次に付ける塗りも変えない');
+});

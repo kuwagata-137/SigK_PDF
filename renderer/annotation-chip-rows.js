@@ -55,7 +55,7 @@
     });
   }
 
-  // テキストの枠線のチップを押した（spec-4b-4a 確定事項G4）。［枠線なし］はいつでも選べる。
+  // テキストの枠線のチップを押した（spec-4b-4a 確定事項G4）。［枠線なし］は、塗りなしの吹き出しだけのときは選べない（spec-4b-4b 確定事項A5）。
   function openBorder(chip, view) {
     root.SigK.annotatePreview?.cancel();
     if (view === null || (view.border ?? null) === null)
@@ -63,7 +63,7 @@
     return popover().toggle(chip, {
       title: view.border.label,
       current: view.border.mixed ? null : view.border.value,
-      none: { label: '枠線なし', enabled: true },
+      none: { label: '枠線なし', enabled: view.borderNoneEnabled !== false },
       onPick: (color) => annotate().setBorder(color),
     });
   }

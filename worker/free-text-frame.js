@@ -36,12 +36,14 @@ function isCalloutDict(dict, context) {
   return intent?.encodedName === '/FreeTextCallout';
 }
 
-// 吹き出しの箱（/BBox − /RD）。/RD が崩れていれば null。
+// 吹き出しの箱（/BBox − /RD）。/RD が崩れていれば null。足し引きの端数（464.86 + 23.48 = 488.34000000000003）は /RD と同じ
+// 小数 4 桁で落とす。
 function calloutBoxOf(dict, context, outer) {
   const rd = numbersOf(context, pick(dict, '/RD'), 4);
   if (rd === null || rd.some((value) => value < 0))
     return null;
-  const box = [outer[0] + rd[0], outer[1] + rd[1], outer[2] - rd[2], outer[3] - rd[3]];
+  const fine = (value) => Math.round(value * 10000) / 10000;
+  const box = [outer[0] + rd[0], outer[1] + rd[1], outer[2] - rd[2], outer[3] - rd[3]].map(fine);
   return box[2] > box[0] && box[3] > box[1] ? box : null;
 }
 

@@ -129,6 +129,28 @@ test('複数に当てた値は、当てた種類ごとに次に付ける値に�
   assert.equal(SigK.annotate.getOpacity('text'), SigK.annotationPresets.DEFAULT_OPACITIES.text);
 });
 
+// 図形の塗り・線種・太さも、当てた種類で次に付ける値になる（spec-4b-4b の c8 で、種類の代わりに置き場の鍵を渡して覚えなくなった
+// 退行の見張り）。
+test('複数の図形に当てた塗り・線種・太さ・線の色は、図形の次に付ける値になる', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  const square = draw(shell, 'shape', 'square', [100, 700], [200, 600]);
+  const circle = draw(shell, 'shape', 'circle', [300, 700], [400, 600]);
+  SigK.annotate.selectKeys([square, circle]);
+  SigK.annotate.setFill('#ffee00');
+  SigK.annotate.setStrokeNone();
+  assert.equal(SigK.annotate.nextStyleOf('square').color, null, '線なしを覚える');
+  SigK.annotate.setColor('#123456');
+  SigK.annotate.setLineStyle('dashed');
+  SigK.annotate.setLineWidth(7);
+  const next = SigK.annotate.nextStyleOf('square');
+  assert.deepEqual([next.fill, next.lineStyle, next.color], ['#ffee00', 'dashed', '#123456'], '線の色を当てると線なしも外れる');
+  assert.equal(SigK.annotate.getLineWidth(), 7);
+  const calls = shell.uiCalls.map((call) => Object.keys(call)).flat();
+  for (const key of ['annotFills', 'annotLineStyles', 'annotLineWidth', 'annotStrokeNone'])
+    assert.ok(calls.includes(key), key);
+});
+
 test('複数を選んでいるとき、太さのスライダーの下見は太さを持てる全部に当たり、Esc で捨てる（確定事項I3）', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;

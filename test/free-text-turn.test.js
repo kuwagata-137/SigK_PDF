@@ -71,6 +71,32 @@ test('anglePatch は新しい形なら角度と回した 4 隅だけ、今まで
   assert.deepEqual(turn.anglePatch(legacy, 45), { angle: 45, width: 96, rect: [100, 650, 200, 700], quads: [rotation.quadOf([100, 650, 200, 700], 45)] });
 });
 
+test('anglePatch は 0° なら今までの形を新しい形へ移さない（回していないものは変えない。確定事項A2）', () => {
+  const legacy = { ...TEXT };
+  delete legacy.width;
+  for (const angle of [0, 360, -360])
+    assert.deepEqual(turn.anglePatch(legacy, angle), { angle: 0, rect: TEXT.rect, quads: [[100, 700, 220, 700, 100, 650, 220, 650]] }, String(angle));
+});
+
+test('今までの形のテキストで 0° を押しても、書き込みも履歴も変わらない', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  const placed = placeText(shell, 100, 700, 'あいう');
+  // 今までの形（幅を持たない）に置き換える。
+  const legacy = { ...plain(placed), id: 'legacy-1' };
+  delete legacy.width;
+  const state = SigK.annotationState;
+  const annots = state.addAnnot(state.removeAnnot(SigK.viewer.getAnnotations(), placed), legacy);
+  SigK.pageEdit.commitAnnots(annots, { annot: { before: placed.id, after: 'legacy-1' } });
+  SigK.annotate.select('legacy-1');
+  const at = SigK.pageEdit.getHistoryState().at;
+  SigK.annotationAngleRow.setAngle(0);
+  assert.equal(SigK.pageEdit.getHistoryState().at, at, '積まない');
+  const after = SigK.viewer.getAnnotations().added.find((entry) => entry.id === 'legacy-1');
+  assert.equal('width' in after, false, '新しい形へ移さない');
+  assert.deepEqual(plain(after.rect), legacy.rect);
+});
+
 test('回転の行と回転のつまみでテキストを回せ、1 世代ずつ積まれ、今までの形にも出す（確定事項C5・C6）', async (t) => {
   const shell = await withTextShell(t);
   const { document, window } = shell;

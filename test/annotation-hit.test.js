@@ -53,3 +53,29 @@ test('hits は回した四角・丸を、回した箱の中だけで当てる（
   assert.equal(hit.hits({ ...square, angle: undefined, quads: [[100, 700, 300, 700, 100, 600, 300, 600]] }, [295, 695], viewport, [0, 0]), true);
   assert.equal(hit.hits({ ...square, readonly: true }, [200, 650], viewport, [0, 0]), false);
 });
+
+// 吹き出しのしっぽの当たりは、枠線の太さの半分だけ外にはみ出した線も含む（spec-4b-4b 確定事項C4）。
+test('吹き出しのしっぽは、太い枠線のはみ出しにも当たる', () => {
+  require('../renderer/callout-geometry.js');
+  require('../renderer/callout-graphics.js');
+  const geometry = globalThis.SigK.calloutGeometry;
+  const entry = {
+    kind: 'text', rect: [100, 670, 200, 700], quads: [[100, 700, 200, 700, 100, 670, 200, 670]], rotation: 0, fontSize: 10,
+    fill: '#ffffff', borderColor: '#c00000', borderWidth: 10, tip: [125, 620], width: 'auto', text: 'a', color: '#000000',
+  };
+  const outline = globalThis.SigK.calloutGraphics.outlineOf(entry);
+  const at = outline.segments.findIndex((segment) => segment.op === 'L' && segment.points[0][0] === 25 && segment.points[0][1] === 80);
+  const toPaper = (point) => geometry.paperOf([100, 700], 0, point);
+  const [tip, base, other] = [toPaper([25, 80]), toPaper(outline.segments[at + 1].points[0]), toPaper(outline.segments[at - 1].points.at(-1))];
+  // しっぽの 1 辺の中ほどから、三角の外へ 6pt（枠線の半分 5 ＋ 余裕 3 の内、余裕 3 だけなら外）。
+  const middle = [(tip[0] + base[0]) / 2, (tip[1] + base[1]) / 2];
+  const length = Math.hypot(base[0] - tip[0], base[1] - tip[1]);
+  const normal = [(base[1] - tip[1]) / length, -(base[0] - tip[0]) / length];
+  const away = Math.sign(normal[0] * (middle[0] - other[0]) + normal[1] * (middle[1] - other[1]));
+  const outward = [normal[0] * away, normal[1] * away];
+  const point = [middle[0] + outward[0] * 6, middle[1] + outward[1] * 6];
+  assert.ok(point[1] < 670, '箱の外');
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits(entry, point, viewport, null), true, '太い枠線の上');
+  assert.equal(hit.hits({ ...entry, borderWidth: 1 }, point, viewport, null), false, '細い枠線なら外');
+});

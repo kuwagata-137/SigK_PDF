@@ -101,6 +101,8 @@
       bold: text ? entry.bold === true : null,
       italic: text ? entry.italic === true : null,
       border,
+      // 吹き出しは塗りと枠線を両方なしにはできない（spec-4b-4b 確定事項A5）。［なし］を選べるかに使う。
+      ...(text && Array.isArray(entry.tip) ? { callout: true } : {}),
     };
   }
 
@@ -134,10 +136,12 @@
       lineWidth: textView.widthViewOf(live),
       opacity: valueOf(live.filter((target) => isOpacityKind(target.kind)), 'opacity'),
       ...textView.textViewsOf(live),
-      // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸か、テキストがあるときに選べる。
+      // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸か、テキスト（吹き出しは枠線のあるもの）が
+      // あるときに選べる。枠線なしはテキスト（吹き出しは塗りのあるもの）があるときに選べる。
       boxed: boxed.length > 0,
       strokeNoneEnabled: boxed.some((target) => target.fill !== null),
-      fillNoneEnabled: boxed.some((target) => target.color !== null) || texts.length > 0,
+      fillNoneEnabled: boxed.some((target) => target.color !== null) || texts.some((target) => target.callout !== true || (target.border ?? null) !== null),
+      borderNoneEnabled: texts.some((target) => target.callout !== true || (target.fill ?? null) !== null),
     };
   }
 

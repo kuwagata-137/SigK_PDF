@@ -57,13 +57,14 @@
     return onPaper(entry, geometry().frameOrigin(entry.rect, entry.rotation));
   }
 
-  // 角度を変える patch（回転のつまみ・回転の行。確定事項A2・C6）。今までの形は、書式を付けたときと同じく固定の幅の新しい形へ
-  // 移す（spec-4b-4a 確定事項A2。行の並びは変わらない）。0° でも 4 隅を作り直す。
+  // 角度を変える patch（回転のつまみ・回転の行。確定事項A2・C6）。今までの形は、回すときだけ、書式を付けたときと同じく固定の幅の
+  // 新しい形へ移す（spec-4b-4a 確定事項A2。行の並びは変わらない）。0° なら移さず、何も変わらない patch になる（履歴にも積まない）。
+  // 0° でも 4 隅を作り直す。
   function anglePatch(entry, angle) {
     const normalized = rotation().normalizeAngle(angle);
     const patch = { angle: normalized };
     let rect = entry.rect;
-    if (entry.width === undefined) {
+    if (entry.width === undefined && normalized !== 0) {
       patch.width = root.SigK.freeTextStyle.fixedWidthOf(entry);
       rect = root.SigK.freeTextMetrics.reframe(entry, { width: patch.width }).rect;
     }

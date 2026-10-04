@@ -75,6 +75,9 @@
       return root.SigK.annotateBulk.applyField(field, value);
     const entry = annotate().selectedEntry();
     const patch = root.SigK.freeTextStyle.patchFor(field, value, entry);
+    // 吹き出しが断った値（塗りと枠線を両方なしにする）は、次に付ける値にも覚えない（spec-4b-4b 確定事項A5・G5）。
+    if (patch === null && Array.isArray(entry?.tip))
+      return false;
     if (patch !== null)
       updateSelected(entry, patch, field);
     rememberFor(field, value);

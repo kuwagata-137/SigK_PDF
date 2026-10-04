@@ -96,7 +96,7 @@
   function textToolTarget(key) {
     const { bold, italic, fill, border, borderWidth } = annotate().getTextStyle(key);
     const fontSize = root.SigK.annotateTextStyle?.fontSizeOf(key) ?? annotate().getFontSize();
-    return { fontSize, bold, italic, fill, border, lineWidth: border === null ? null : borderWidth };
+    return { fontSize, bold, italic, fill, border, lineWidth: border === null ? null : borderWidth, ...(key === 'callout' ? { callout: true } : {}) };
   }
 
   // 道具が描く種類（図形は道具の段で選んだ種類、ペンは ink、ほかは道具の名前）。

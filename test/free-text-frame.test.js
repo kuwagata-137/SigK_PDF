@@ -120,3 +120,12 @@ test('他のアプリの線と矢印の吹き出しと回した FreeText も読�
   assert.equal(turnedFrame.rotation.angle, 30);
   assert.equal(turnedFrame.callout, null);
 });
+
+test('吹き出しの箱（/BBox − /RD）は足し引きの端数を持ち込まない', async () => {
+  const { dict, context } = await savedDict(callout());
+  const normal = context.lookup(context.lookup(dict.get(PDFName.of('AP'))).get(PDFName.of('N')));
+  // 464.86 + 23.48 は浮動小数で 488.34000000000003 になる。
+  normal.dict.set(PDFName.of('BBox'), context.obj([464.86, 600, 600, 700]));
+  dict.set(PDFName.of('RD'), context.obj([23.48, 0, 0, 0]));
+  assert.deepEqual(freeTextFrameOf(dict, context).callout.box, [488.34, 600, 600, 700]);
+});

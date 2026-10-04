@@ -88,6 +88,23 @@ test('viewOf のパレットの［なし］は、線なしは塗りのある四�
   assert.equal(patch.viewOf([ARROW]).boxed, false);
 });
 
+// 吹き出しは塗りと枠線を両方なしにはできない（spec-4b-4b 確定事項A5）。もう一方が「なし」なら［なし］は選べない（四角・丸と同じ）。
+test('viewOf の［塗りなし］［枠線なし］は、吹き出しではもう一方があるときだけ選べ、テキストはいつでも選べる', async (t) => {
+  const patch = await withPatch(t);
+  const callout = { kind: 'text', color: '#000000', opacity: 1, fontSize: 12, fill: '#ffffff', borderColor: '#c00000', borderWidth: 2, tip: [0, 0] };
+  const both = patch.viewOf([patch.targetOf(callout)]);
+  assert.deepEqual([both.fillNoneEnabled, both.borderNoneEnabled], [true, true]);
+  const fillOnly = patch.viewOf([patch.targetOf({ ...callout, borderColor: null })]);
+  assert.deepEqual([fillOnly.fillNoneEnabled, fillOnly.borderNoneEnabled], [false, true]);
+  const borderOnly = patch.viewOf([patch.targetOf({ ...callout, fill: null })]);
+  assert.deepEqual([borderOnly.fillNoneEnabled, borderOnly.borderNoneEnabled], [true, false]);
+  const text = patch.viewOf([patch.targetOf({ ...TEXT, fontSize: 12 })]);
+  assert.deepEqual([text.fillNoneEnabled, text.borderNoneEnabled], [true, true]);
+  // 複数なら、当てられるものが 1 つでもあれば選べる。
+  const mixed = patch.viewOf([patch.targetOf({ ...callout, borderColor: null }), patch.targetOf({ ...TEXT, fontSize: 12 })]);
+  assert.deepEqual([mixed.fillNoneEnabled, mixed.borderNoneEnabled], [true, true]);
+});
+
 test('targetOf は書き込みを右パネルに渡す形にする', async (t) => {
   const patch = await withPatch(t);
   assert.deepEqual(plain(patch.targetOf({ kind: 'circle', color: '#000000', lineWidth: 2, readonly: true })), {
