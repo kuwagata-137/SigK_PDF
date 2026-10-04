@@ -24,7 +24,7 @@ const TEXT_STATE = `
   const textOf = (entry) => ({
     key: entry.ref ?? entry.id, src: entry.src, text: entry.text, fontSize: entry.fontSize, rotation: entry.rotation, color: entry.color,
     opacity: entry.opacity, width: entry.width ?? null, bold: entry.bold === true, italic: entry.italic === true, fill: entry.fill ?? null,
-    borderColor: entry.borderColor ?? null, borderWidth: entry.borderWidth ?? null, rect: entry.rect.map(round), angle: entry.angle ?? 0,
+    borderColor: entry.borderColor ?? null, borderWidth: entry.borderWidth ?? null, rect: entry.rect.map(round), angle: entry.angle ?? 0, tip: entry.tip?.map(round) ?? null,
     lines: entry.readonly === true ? null : SigK.freeTextMetrics.layoutOfEntry(entry).lines, readonly: entry.readonly === true,
   });
   const ownTexts = () => [...SigK.viewer.getAnnotations().added, ...Object.values(SigK.viewer.getImported()).flat()].filter((entry) => entry.kind === 'text').map(textOf);
@@ -94,10 +94,11 @@ const TEXT_STEPS = `
         }
         return { ink, over, ratio: ink === 0 ? 0 : Math.round((over / ink) * 10000) / 10000 };
       };
-      // 比べる範囲は 4 隅の外接（回したテキストは回した 4 隅。spec-4b-4b）。
+      // 比べる範囲は 4 隅の外接（回したテキストは回した 4 隅、吹き出しはしっぽの先も。spec-4b-4b）。
       const boxOf = (entry) => {
         const quad = entry.quads[0];
-        const points = [0, 2, 4, 6].map((at) => viewport.convertToViewportPoint(quad[at], quad[at + 1]));
+        const tips = Array.isArray(entry.tip) ? [SigK.calloutTail.tipOnPaper(entry)] : [];
+        const points = [0, 2, 4, 6].map((at) => [quad[at], quad[at + 1]]).concat(tips).map((point) => viewport.convertToViewportPoint(point[0], point[1]));
         const xs = points.map((point) => point[0]);
         const ys = points.map((point) => point[1]);
         return [Math.floor(Math.min(...xs)) - 2, Math.floor(Math.min(...ys)) - 2, Math.ceil(Math.max(...xs)) + 2, Math.ceil(Math.max(...ys)) + 2];
@@ -141,7 +142,7 @@ const TEXT_REPORT = `
 `;
 
 // 保存先の FreeText の欄（spec-4b-4a の起動確認。/Rect・/DA・/DS・/C・/BS・/CA と、外観の透明グループ・外側の先頭の文字の命令・行の数。
-// spec-4b-4b で外観の /BBox・/Matrix を足した）。
+// spec-4b-4b で外観の /BBox・/Matrix と、吹き出しの /IT・/CL・/RD・/LE を足した）。
 async function inspectTexts(file) {
   const { PDFDocument, PDFName, PDFArray, PDFDict } = require(path.join(__dirname, 'vendor', 'pdf-lib.min.js'));
   const zlib = require('node:zlib');
@@ -173,6 +174,10 @@ async function inspectTexts(file) {
         DS: field(dict, 'DS')?.decodeText?.() ?? null,
         C: numbers(field(dict, 'C')),
         BSW: field(field(dict, 'BS'), 'W')?.asNumber?.() ?? null,
+        IT: field(dict, 'IT')?.encodedName ?? null,
+        CL: numbers(field(dict, 'CL')),
+        RD: numbers(field(dict, 'RD')),
+        LE: field(dict, 'LE')?.encodedName ?? null,
         CA: field(dict, 'CA')?.asNumber?.() ?? null,
         group: group !== undefined,
         prefix: group === undefined ? null : content(normal).split('\n')[0],

@@ -43,6 +43,7 @@
 //   grab: angle: angle-preset:   大きさと向きの操作（smoke-annotate-transform.js の冒頭。spec-4b-2）
 //   ctrl-click: marquee: move: list-ctrl: list-shift: key:   選択と複数選択の操作（smoke-annotate-select.js の冒頭。spec-4b-3a）
 //   fontsize: size-list: reopen compare:   テキストの書式の操作（smoke-annotate-text.js の冒頭。spec-4b-4a）
+//   callout: callout-draft: click-tail:     吹き出しの操作（smoke-annotate-callout.js の冒頭。spec-4b-4b）
 // 各操作のあとに、履歴がいくつ進んだか（historyDelta）を控える。
 //
 // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
@@ -53,6 +54,7 @@
 // 例: SIGK_SMOKE_ANNOTATE=bar:square,palette:fill:3x8,stroke:none,style:cloudy,shape:square:0:100x700-300x600,slide:opacity:80;50;35,save,wait-details
 // 例: SIGK_SMOKE_ANNOTATE=shape:square:0:100x700-300x600,grab:x2y2:40x-20,grab:rotate:80x60,angle:45,save
 // 例: SIGK_SMOKE_ANNOTATE=shape:square:0:100x700-200x600,shape:square:0:300x700-400x600,bar:select,marquee:0:80x720-420x580,color:#00aa00,move:20x0:shift,move:0x-30:ctrl,undo,key:Backspace,undo,save
+// 例: SIGK_SMOKE_ANNOTATE=bar:callout,callout:0:100x700:確認|お願いします,grab:tip:60x20:shift,angle:30,click-tail:2,save,reopen,compare:2
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -63,6 +65,7 @@ const { STYLE_STEPS, inspectAnnotations } = require('./smoke-annotate-style.js')
 const { TRANSFORM_STEPS, TRANSFORM_REPORT } = require('./smoke-annotate-transform.js');
 const { SELECT_STEPS, SELECT_REPORT } = require('./smoke-annotate-select.js');
 const { TEXT_STATE, TEXT_STEPS, TEXT_REPORT, inspectTexts } = require('./smoke-annotate-text.js');
+const { CALLOUT_STEPS, CALLOUT_REPORT } = require('./smoke-annotate-callout.js');
 
 const annotateScript = (target, spec) => `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -125,7 +128,7 @@ ${TEXT_STATE}
     const arg = rest.join(':');
     const t0 = performance.now();
     const historyBefore = SigK.pageEdit.getHistoryState().at;
-${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}
+${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}${CALLOUT_STEPS}
     applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected(), count: SigK.annotate.getSelection().length, historyDelta: SigK.pageEdit.getHistoryState().at - historyBefore });
     await wait(120);
   }
@@ -133,6 +136,7 @@ ${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}
 ${TRANSFORM_REPORT}
 ${SELECT_REPORT}
 ${TEXT_REPORT}
+${CALLOUT_REPORT}
 ${REPORT}
 })()`;
 
