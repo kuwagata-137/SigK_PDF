@@ -1,9 +1,9 @@
 (function (root) {
   'use strict';
 
-  // 右パネルの「回転」の行（spec-4b-2 確定事項25〜27。モック screenshots/phase4b-2-square.png）。
+  // 右パネルの「回転」の行（spec-4b-2 確定事項25〜27、spec-4b-4b 確定事項C5。モック screenshots/phase4b-2-square.png）。
   //
-  // 四角・丸を選んでいるときだけ出す（次に描く図形は 0°）。スライダー（0〜359）を動かしている間は下見
+  // 四角・丸・テキストを 1 つ選んでいるときだけ出す（次に描く図形・置くテキストは 0°）。スライダー（0〜359）を動かしている間は下見
   // （annotate-preview.updateShape）、離したとき・数値欄の確定・0°/90°/180°/270° のボタンで 1 世代（annotate-transform.js の commit）。
   // 数値欄は小数を四捨五入し、範囲の外は 360 の余りにする（-30 → 330、370 → 10）。読み込んだ小数の角度は数値欄にそのまま出し、
   // スライダーは丸めた位置に置く。
@@ -20,8 +20,9 @@
     return root.SigK.shapeRotation;
   }
 
-  function isBoxed(entry) {
-    return entry?.kind === 'square' || entry?.kind === 'circle';
+  // 回せる書き込み（四角・丸・テキスト）。
+  function isTurnable(entry) {
+    return entry?.kind === 'square' || entry?.kind === 'circle' || entry?.kind === 'text';
   }
 
   // 数値欄の値を当てる相手（選んでいる書き込みの鍵の並びと、持っている道具）。打ちかけの値は打ち始めたときの相手にだけ当てる。
@@ -29,19 +30,22 @@
     return JSON.stringify([annotate().getSelection(), annotate().getTool()]);
   }
 
-  function selectedBoxed() {
+  function selectedTurnable() {
     const entry = annotate()?.selectedEntry() ?? null;
-    return isBoxed(entry) && entry.readonly !== true ? entry : null;
+    return isTurnable(entry) && entry.readonly !== true ? entry : null;
   }
 
   function anglePatch(entry, angle) {
     const normalized = rotation().normalizeAngle(Math.round(angle));
+    // テキストは free-text-turn.js（今までの形は新しい形へ移す。spec-4b-4b 確定事項A2）。
+    if (entry.kind === 'text')
+      return root.SigK.freeTextTurn.anglePatch(entry, normalized);
     return { angle: normalized, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, lineWidth: entry.lineWidth, angle: normalized }) };
   }
 
   // スライダーを動かしている間の下見。
   function previewAngle(angle) {
-    const entry = selectedBoxed();
+    const entry = selectedTurnable();
     if (entry === null || !Number.isFinite(angle))
       return false;
     return root.SigK.annotatePreview.updateShape(entry.ref ?? entry.id, anglePatch(entry, angle));
@@ -49,7 +53,7 @@
 
   // 確定（スライダーを離した・数値欄の確定・ボタン）。同じ角度なら積まない。
   function setAngle(angle) {
-    const entry = selectedBoxed();
+    const entry = selectedTurnable();
     root.SigK.annotatePreview.cancel();
     if (entry === null || !Number.isFinite(angle))
       return false;
@@ -69,7 +73,7 @@
   function render(entry) {
     if (el === null)
       return false;
-    const show = isBoxed(entry) && entry.readonly !== true;
+    const show = isTurnable(entry) && entry.readonly !== true;
     el.row.hidden = !show;
     if (!show)
       return false;

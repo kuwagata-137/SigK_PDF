@@ -144,3 +144,16 @@ test('svgOf は塗りと枠線を文字より先に置き、paint は半透明�
   assert.deepEqual(drawn.filter(([kind]) => kind !== 'alpha').map(([kind]) => kind), ['layer', 'layer', 'image']);
   assert.ok(drawn.some(([kind, value]) => kind === 'alpha' && value === 0.5));
 });
+
+test('回したテキストは、表示の左上を箱の中心まわりに回した点に置き、角度に angle を足す（spec-4b-4b 確定事項C1）', () => {
+  require('../renderer/shape-rotation.js');
+  require('../renderer/free-text-turn.js');
+  const turned = { ...ENTRY, angle: 90 };
+  const layout = shape.layoutOf(turned, viewport({ scale: 2 }));
+  // 箱 [100 690 164 720] の中心 (132, 705) まわりに表示の左上 (100, 720) を時計回りに 90° 回すと (147, 737)。
+  assert.ok(Math.abs(layout.origin[0] - 147 * 2) < 1e-9 && Math.abs(layout.origin[1] - (841.89 - 737) * 2) < 1e-9);
+  assert.equal(layout.angle, 90);
+  assert.equal(shape.layoutOf({ ...ENTRY, angle: 300 }, viewport({ rotation: 90 })).angle, 30);
+  const g = shape.svgOf(makeDoc(), turned, viewport());
+  assert.match(g.getAttribute('transform'), / rotate\(90\)$/);
+});

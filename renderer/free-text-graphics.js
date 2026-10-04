@@ -34,12 +34,15 @@
     return { lines: geometry().linesOf(entry.text), inset: [PADDING, PADDING] };
   }
 
-  // 画面に描くための位置。origin は表示の左上（CSS px）、angle は画面での回転（時計回り）。
+  // 画面に描くための位置。origin は表示の左上（CSS px）、angle は画面での回転（時計回り）。回したテキストは、表示の左上を箱の中心
+  // まわりに回した点に置き、角度に angle を足す（spec-4b-4b 確定事項C1。SVG・印刷・半透明の別の層が同じ位置になる）。
   function layoutOf(entry, viewport) {
-    const [x, y] = geometry().frameOrigin(entry.rect, entry.rotation);
+    const turn = root.SigK.freeTextTurn;
+    const [x, y] = turn === undefined ? geometry().frameOrigin(entry.rect, entry.rotation) : turn.originOnPaper(entry);
+    const extra = root.SigK.shapeRotation?.angleOf(entry) ?? 0;
     return {
       origin: viewport.convertToViewportPoint(x, y),
-      angle: geometry().screenAngle(viewport.rotation ?? 0, entry.rotation),
+      angle: (geometry().screenAngle(viewport.rotation ?? 0, entry.rotation) + extra) % 360,
       scale: viewport.scale ?? 1,
       ...linesAndInset(entry),
     };

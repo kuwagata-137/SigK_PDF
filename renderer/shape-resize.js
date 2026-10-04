@@ -92,6 +92,9 @@
     const turn = (Math.atan2(pointer[1] - center[1], pointer[0] - center[0]) - Math.atan2(press[1] - center[1], press[0] - center[0])) * 180 / Math.PI;
     const raw = rotation().angleOf(entry) + turn;
     const angle = shift ? rotation().snapAngle(raw, SHIFT_STEP) : rotation().normalizeAngle(Math.round(raw));
+    // テキストは free-text-turn.js（今までの形は新しい形へ移す。spec-4b-4b 確定事項A2）。
+    if (entry.kind === 'text')
+      return root.SigK.freeTextTurn.anglePatch(entry, angle);
     return { angle, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, lineWidth: entry.lineWidth, angle }) };
   }
 
