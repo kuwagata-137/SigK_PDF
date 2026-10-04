@@ -410,7 +410,7 @@ test('選んでいる注釈の不透明度を変えると 1 世代積み、層�
 test('覚えた不透明度と作成者は起動時に戻り、10〜100% の外は捨てる', async (t) => {
   const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotOpacity: { text: 0.5, shape: 0.05, pen: 0.35 }, annotAuthor: 'h.user' } });
   await shell.flush();
-  assert.deepEqual(plain(shell.SigK.annotateOpacity.getOpacities()), { text: 0.5, shape: 1, pen: 0.35, note: 1 });
+  assert.deepEqual(plain(shell.SigK.annotateOpacity.getOpacities()), { text: 0.5, callout: 1, shape: 1, pen: 0.35, note: 1 });
   assert.equal(shell.SigK.annotate.getAuthor(), 'h.user');
 });
 

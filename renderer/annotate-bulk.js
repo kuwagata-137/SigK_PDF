@@ -62,12 +62,13 @@
 
   // 当てた欄の値を、当てた書き込みの種類ごとに「次に付ける値」としても覚える（確定事項I4。1 件のときと同じ決まり）。
   // テキストの書式（文字の大きさ・太字・斜体・塗り・枠線・枠線の太さ）は annotate-text-style.js が覚える（spec-4b-4a 確定事項H）。
+  // kinds は当てた書き込みの置き場の鍵（吹き出しは 'callout'。spec-4b-4b 確定事項G5）。
   function rememberNext(field, value, kinds) {
     const next = root.SigK.annotateNextStyle;
     const style = root.SigK.shapeStyle;
     const boxed = kinds.some((kind) => style.isBoxedKind(kind));
-    if (kinds.includes('text') && field !== 'color' && field !== 'opacity')
-      root.SigK.annotateTextStyle.rememberFor(field, value);
+    if (field !== 'color' && field !== 'opacity')
+      kinds.filter((kind) => kind === 'text' || kind === 'callout').forEach((key) => root.SigK.annotateTextStyle.rememberFor(field, value, key));
     if (field === 'color') {
       kinds.forEach((kind) => next.rememberColor(kind, value));
       if (boxed)
@@ -107,7 +108,7 @@
       root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });
       annotate().selectKeys(after);
     }
-    rememberNext(field, value, [...new Set(targets.map((entry) => entry.kind))]);
+    rememberNext(field, value, [...new Set(targets.map((entry) => root.SigK.annotationPresets.nextKeyOf(entry)))]);
     root.SigK.annotationProps?.refresh();
     return true;
   }

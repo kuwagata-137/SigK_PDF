@@ -32,9 +32,11 @@
     return value === null || root.SigK.shapeStyle.isHexColor(value);
   }
 
-  // 当てられるか。表示のみには当てない。
+  // 当てられるか。表示のみには当てない。吹き出しは塗りと枠線を両方なしにはできない（spec-4b-4b 確定事項A5）。
   function appliesTo(field, entry, value) {
     if (!FIELDS.includes(field) || !isText(entry) || entry.readonly === true)
+      return false;
+    if (Array.isArray(entry.tip) && value === null && ((field === 'fill' && (entry.borderColor ?? null) === null) || (field === 'border' && (entry.fill ?? null) === null)))
       return false;
     if (field === 'fontSize')
       return presets().isFontSize(value);
@@ -73,7 +75,7 @@
   function borderFields(entry, color) {
     if (color === null)
       return { borderColor: null };
-    const width = entry.borderWidth ?? root.SigK.annotateTextStyle?.getNextStyle().borderWidth ?? 1;
+    const width = entry.borderWidth ?? root.SigK.annotateTextStyle?.getNextStyle(root.SigK.annotationPresets.nextKeyOf(entry)).borderWidth ?? 1;
     return { borderColor: color, borderWidth: width };
   }
 

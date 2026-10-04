@@ -57,20 +57,23 @@
 
   // ---- 置く（確定事項3） ----
 
-  // 次に置くテキストの太字・斜体・塗り・枠線（持つものだけ。spec-4b-4a 確定事項H）。
-  function nextFlags() {
-    const { bold, italic, fill, border, borderWidth } = annotate().getTextStyle();
+  // 次に置くテキストの太字・斜体・塗り・枠線（持つものだけ。spec-4b-4a 確定事項H）。key が 'callout' なら吹き出しの値
+  // （spec-4b-4b 確定事項G4）。
+  function nextFlags(key) {
+    const { bold, italic, fill, border, borderWidth } = annotate().getTextStyle(key);
     return root.SigK.freeTextEntry.copyFields({ width: 'auto', bold, italic, fill, borderColor: border, borderWidth }, {});
   }
 
-  // テキストの道具で紙を押して離した点（.pdf-page 基準の CSS px）に入力欄を出す。
-  function place({ index, point }) {
+  // テキスト（callout なら吹き出し）の道具で紙を押して離した点（.pdf-page 基準の CSS px）に入力欄を出す。吹き出しは、打っている間
+  // しっぽの先が本体の下に付いてくる（tipAuto。spec-4b-4b 確定事項D3）。
+  function place({ index, point, callout = false }) {
     const page = editor()?.pageOf(index);
     const src = viewer()?.getPlan()[index]?.src;
     if (!isOpen() || page === null || page === undefined || !Number.isInteger(src))
       return false;
     annotate().select(null);
     const origin = page.viewport.convertToPdfPoint(point[0], point[1]).map((value) => Math.round(value * 100) / 100);
+    const key = callout ? 'callout' : 'text';
     editor().begin({
       key: null,
       entry: null,
@@ -78,12 +81,13 @@
       index,
       origin,
       text: '',
-      fontSize: annotate().getFontSize(),
-      color: annotate().colorOf('text'),
+      fontSize: root.SigK.annotateTextStyle?.fontSizeOf(key) ?? annotate().getFontSize(),
+      color: annotate().colorOf(key),
       rotation: page.viewport.rotation ?? 0,
       // 新しく置くテキストは新しい形で、全角 12 字の自動の幅で折り返す（spec-4b-4a 確定事項C2・H2）。太字・斜体は次に付ける値。
       width: root.SigK.freeTextEntry.WIDTH_AUTO,
-      ...nextFlags(),
+      ...nextFlags(key),
+      ...(callout ? { callout: true, tipAuto: true } : {}),
     });
     return true;
   }

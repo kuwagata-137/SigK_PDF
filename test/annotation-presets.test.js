@@ -10,11 +10,11 @@ require('../renderer/annotation-presets.js');
 
 const presets = globalThis.SigK.annotationPresets;
 
-test('道具は 7 つで、マークアップは先頭の 3 つ', () => {
-  assert.deepEqual(presets.TOOLS, ['highlight', 'underline', 'strikeout', 'text', 'shape', 'pen', 'note']);
+test('道具は 8 つで、マークアップは先頭の 3 つ、吹き出しはテキストの隣（spec-4b-4b 確定事項G1）', () => {
+  assert.deepEqual(presets.TOOLS, ['highlight', 'underline', 'strikeout', 'text', 'callout', 'shape', 'pen', 'note']);
   assert.deepEqual(presets.MARKUP_TOOLS, ['highlight', 'underline', 'strikeout']);
   assert.deepEqual(presets.TOOL_LABELS, {
-    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', shape: '図形', pen: 'ペン', note: 'ノート',
+    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', note: 'ノート',
     square: '四角', circle: '丸', line: '直線', arrow: '矢印', ink: 'ペン',
   });
 });
@@ -47,7 +47,7 @@ test('既定の色は道具ごとのパレットの色', () => {
   require('../renderer/annotation-palette.js');
   const palette = globalThis.SigK.annotationPalette;
   assert.deepEqual(presets.DEFAULT_COLORS, {
-    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
   });
   assert.deepEqual(Object.keys(presets.DEFAULT_COLORS), presets.TOOLS);
   for (const color of Object.values(presets.DEFAULT_COLORS))
@@ -70,13 +70,14 @@ test('ノートの既定の色は黄', () => {
   assert.equal(presets.paletteOf('note'), 'note');
 });
 
-// 不透明度は 10〜100% で既定は 1。対象はテキスト・図形・ペン・ノート（spec-4-4 確定事項38、spec-4b-1b 確定事項20）。
-test('不透明度は 0.1〜1 で既定は 1、対象は 4 つの道具', () => {
+// 不透明度は 10〜100% で既定は 1。対象はテキスト・吹き出し・図形・ペン・ノート（spec-4-4 確定事項38、spec-4b-1b 確定事項20、
+// spec-4b-4b 確定事項G5）。
+test('不透明度は 0.1〜1 で既定は 1、対象は 5 つの道具', () => {
   assert.equal('OPACITIES' in presets, false, '選択肢の並びはやめた（スライダーと数値欄）');
   assert.equal(presets.OPACITY_MIN, 0.1);
   assert.equal(presets.DEFAULT_OPACITY, 1);
-  assert.deepEqual(presets.OPACITY_TOOLS, ['text', 'shape', 'pen', 'note']);
-  assert.deepEqual(presets.DEFAULT_OPACITIES, { text: 1, shape: 1, pen: 1, note: 1 });
+  assert.deepEqual(presets.OPACITY_TOOLS, ['text', 'callout', 'shape', 'pen', 'note']);
+  assert.deepEqual(presets.DEFAULT_OPACITIES, { text: 1, callout: 1, shape: 1, pen: 1, note: 1 });
   for (const value of [0.1, 0.35, 0.6, 1])
     assert.equal(presets.isOpacity(value), true, String(value));
   for (const value of [0.09, 0, 1.01, '1', NaN])
@@ -141,4 +142,19 @@ test('プリセットは凍結されている', () => {
   assert.ok(Object.isFrozen(presets.DEFAULT_STROKE_NONE));
   assert.ok(Object.isFrozen(presets.DEFAULT_LINE_STYLES));
   assert.ok(Object.isFrozen(presets.FONT_SIZES));
+});
+
+// 次に付ける値の鍵と、種類の名前の鍵（spec-4b-4b 確定事項G3・G5）。吹き出しは kind では 'text' のまま、別の置き場と名前を持つ。
+test('nextKeyOf は吹き出しを callout、図形 4 種を shape に、labelKeyOf は吹き出しを callout、ほかは kind に', () => {
+  const callout = { kind: 'text', tip: [0, 0] };
+  assert.equal(presets.nextKeyOf(callout), 'callout');
+  assert.equal(presets.nextKeyOf({ kind: 'text' }), 'text');
+  assert.equal(presets.nextKeyOf({ kind: 'arrow' }), 'shape');
+  assert.equal(presets.nextKeyOf({ kind: 'ink' }), 'pen');
+  assert.equal(presets.labelKeyOf(callout), 'callout');
+  assert.equal(presets.labelKeyOf({ kind: 'arrow' }), 'arrow');
+  assert.equal(presets.kindOfKey('callout'), 'text');
+  assert.equal(presets.kindOfKey('shape'), 'shape');
+  assert.deepEqual({ ...presets.DEFAULT_CALLOUT_STYLE }, { fontSize: 12, bold: false, italic: false, fill: '#ffffff', border: '#c00000', borderWidth: 2 });
+  assert.ok(Object.isFrozen(presets.DEFAULT_CALLOUT_STYLE));
 });

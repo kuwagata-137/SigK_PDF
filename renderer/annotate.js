@@ -142,7 +142,8 @@
     setTextFlag: (field, value) => root.SigK.annotateTextStyle?.setTextFlag(field, value) === true,
     // テキストの枠線の色（spec-4b-4a 確定事項G4）。null は枠線なし。
     setBorder: (color) => root.SigK.annotateTextStyle?.setBorder(color) === true,
-    getTextStyle: () => root.SigK.annotateTextStyle?.getNextStyle() ?? { bold: false, italic: false },
+    // key が 'callout' なら吹き出しの次に付ける書式（spec-4b-4b 確定事項G4）。
+    getTextStyle: (key) => root.SigK.annotateTextStyle?.getNextStyle(key) ?? { bold: false, italic: false },
     setLineWidth: (width) => root.SigK.annotateShape?.setLineWidth(width) === true,
     setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
     getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),

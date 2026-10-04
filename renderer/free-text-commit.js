@@ -46,8 +46,8 @@
       src: draft.src,
       kind: 'text',
       color: draft.color,
-      // 道具の「次に付ける不透明度」（spec-4b-1a 確定事項31。今までは 1 に固定していた）。
-      opacity: annotate().getOpacity('text'),
+      // 道具の「次に付ける不透明度」（spec-4b-1a 確定事項31。今までは 1 に固定していた）。吹き出しは吹き出しの値。
+      opacity: annotate().getOpacity(draft.callout === true ? 'callout' : 'text'),
       text: body,
       fontSize: draft.fontSize,
       rotation: draft.rotation,
@@ -55,12 +55,22 @@
     };
     const size = metrics().sizeOf(entry);
     const origin = text().fitOrigin(draft.origin, size, draft.index);
+    // 新しい吹き出しのしっぽの先は、確定した箱の下に置く（spec-4b-4b 確定事項D3。以後は打っても動かない）。
+    if (draft.callout === true)
+      entry.tip = tipBelow(origin, size, draft);
     const next = annotationState().addAnnot(viewer().getAnnotations(), {
       id: annotationState().newId(),
       ...entry,
       ...root.SigK.freeTextLayout.frameOf(origin, size, draft.rotation),
     });
     return commit(next, { before: null, target: null });
+  }
+
+  // 置いた直後の先（紙の座標。CheckListMaker と同じ位置。spec-4b-4b 確定事項D3）。
+  function tipBelow(origin, size, draft) {
+    const callout = root.SigK.calloutGeometry;
+    const local = callout.defaultTipOf(size.width, size.height, draft.fontSize);
+    return callout.paperOf(origin, draft.rotation, local).map((value) => Math.round(value * 100) / 100);
   }
 
   function commitExisting(draft, current, body) {

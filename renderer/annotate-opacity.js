@@ -89,7 +89,8 @@
       return false;
     if (entry.opacity !== value)
       updateSelected(entry, value);
-    rememberOpacity(entry.kind, value);
+    // 吹き出しは吹き出しの置き場に覚える（spec-4b-4b 確定事項G5）。
+    rememberOpacity(root.SigK.annotationPresets.nextKeyOf(entry), value);
     props()?.refresh();
     return true;
   }

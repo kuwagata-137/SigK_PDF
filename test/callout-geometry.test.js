@@ -87,3 +87,18 @@ test('ワーカーの outlineOps は、ローカルの点を文字の向きの c
   ], [100, 700]);
   assert.deepEqual(ops, ['101 698 m', '103 696 l', '101 699 102 698 103 697 c', 'h']);
 });
+
+// しっぽの当たり（確定事項C4）。三角の中か、しっぽの 2 辺から tolerance 以内。根元の辺（箱の縁）は箱の当たりが見る。
+test('hitsTail はしっぽの三角の中と、しっぽの 2 辺の近くで当たり、離れた点や先の向こうでは当たらない', () => {
+  const tip = [30, 80];
+  const outline = callout.outlineOf({ width: 100, height: 40, tip, fontSize: 10 });
+  const [bx] = outline.base;
+  assert.equal(callout.hitsTail(outline, tip, [bx, 50], 0), true, '根元と先の間');
+  assert.equal(callout.hitsTail(outline, tip, tip, 0), true, '先そのもの');
+  assert.equal(callout.hitsTail(outline, tip, [30, 83], 4), true, '先の少し先は許容の内');
+  assert.equal(callout.hitsTail(outline, tip, [30, 90], 4), false, '先の向こう');
+  assert.equal(callout.hitsTail(outline, tip, [60, 60], 4), false, '三角の外');
+  // 先が箱の中にあっても、しっぽは根元と先の三角のまま（特別な扱いはしない。確定事項F3）。
+  const inside = callout.outlineOf({ width: 100, height: 40, tip: [50, 20], fontSize: 10 });
+  assert.equal(callout.hitsTail(inside, [50, 20], [50, 20], 4), true, '箱の中の先も三角として見る');
+});

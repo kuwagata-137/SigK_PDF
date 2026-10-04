@@ -5,7 +5,8 @@
   //
   // 座標は箱の左上を原点にした表示の向き（free-text-graphics.js が箱の左上へ移して回してから描く）。塗りは箱いっぱい、枠線は箱の内側
   // （線の太さの半分だけ入れた四角）に描く。不透明度が 1 未満の印刷は、塗り・枠線・文字を箱だけの別の canvas に不透明で描いてから
-  // 重ねる（塗りと枠線と文字が重なっても濃くならない。図形と同じ。shape-print-layer.js）。
+  // 重ねる（塗りと枠線と文字が重なっても濃くならない。図形と同じ。shape-print-layer.js）。吹き出しは四角の代わりに、角の丸い箱と
+  // しっぽの輪郭を callout-graphics.js が描く（spec-4b-4b 確定事項C7）。
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -30,8 +31,14 @@
     return node;
   }
 
+  function callout(entry) {
+    return Array.isArray(entry?.tip) ? root.SigK.calloutGraphics : null;
+  }
+
   // SVG の塗りと枠線（文字より先に置く）。飾りが無ければ空。
   function svgParts(doc, entry, scale) {
+    if (callout(entry) !== null)
+      return callout(entry).svgParts(doc, entry, scale);
     const { width, height } = boxOf(entry, scale);
     const parts = [];
     if ((entry.fill ?? null) !== null)
@@ -48,6 +55,8 @@
 
   // canvas 2D の塗りと枠線（文字より先に描く）。
   function paint(ctx, entry, scale) {
+    if (callout(entry) !== null)
+      return callout(entry).paint(ctx, entry, scale);
     const { width, height } = boxOf(entry, scale);
     if ((entry.fill ?? null) !== null) {
       ctx.fillStyle = entry.fill;
@@ -66,9 +75,11 @@
   // origin は箱の左上（表示の座標）、angle は画面での回転（度）。
   function layerFor(ctx, entry, origin, angle, scale) {
     const { width, height } = boxOf(entry, scale);
+    // 吹き出しはしっぽも含む外接（ローカル px）。
+    const [left, top, right, bottom] = callout(entry)?.boundsOf(entry, scale) ?? [0, 0, width, height];
     const radians = (angle * Math.PI) / 180;
     const turn = ([x, y]) => [origin[0] + x * Math.cos(radians) - y * Math.sin(radians), origin[1] + x * Math.sin(radians) + y * Math.cos(radians)];
-    const corners = [[0, 0], [width, 0], [0, height], [width, height]].map(turn);
+    const corners = [[left, top], [right, top], [left, bottom], [right, bottom]].map(turn);
     const pad = root.SigK.shapePrintLayer.LAYER_PADDING;
     const xs = corners.map((point) => point[0]);
     const ys = corners.map((point) => point[1]);

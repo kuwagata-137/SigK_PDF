@@ -92,6 +92,10 @@ test('labelOf と iconOf は種類ごとの名前とアイコン', () => {
   assert.equal(index.iconOf({ kind: 'other', subtype: 'Polygon' }), 'shapeSquare');
   assert.equal(index.iconOf({ kind: 'other', subtype: 'Stamp' }), 'modeAnnot');
   assert.equal(index.iconOf({ kind: 'other', subtype: 'Ink' }), 'pen');
+  // 吹き出しは kind では 'text' のまま、名前とアイコンは別（spec-4b-4b 確定事項G3）。
+  assert.equal(index.labelOf({ kind: 'text', tip: [0, 0] }), '吹き出し');
+  assert.equal(index.iconOf({ kind: 'text', tip: [0, 0] }), 'callout');
+  assert.equal(index.labelOf({ kind: 'text' }), 'テキスト');
 });
 
 // 線なしの四角・丸は、行のアイコンを塗りの色で示す（spec-4b-1b 確定事項16）。

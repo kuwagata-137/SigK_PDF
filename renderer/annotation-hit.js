@@ -50,12 +50,15 @@
   }
 
   // 1 つの注釈に点が当たるか。直線・矢印・ペンは線からの距離、ノートは画面の箱（表示の点で見る。
-  // spec-4-4 確定事項13）、表示のみは当てない、回した四角・丸は回した箱、それ以外は四角（spec-4-3 確定事項12）。
+  // spec-4-4 確定事項13）、表示のみは当てない、回した四角・丸・テキストは回した箱、それ以外は四角（spec-4-3 確定事項12）。
+  // 吹き出しは箱に加えてしっぽの三角も見る（spec-4b-4b 確定事項C4）。
   function hits(entry, pdfPoint, viewport, point) {
     if (entry.readonly === true)
       return false;
     if (annotationState().isNoteKind(entry.kind))
       return root.SigK.noteGraphics.hits(entry, point, viewport);
+    if (Array.isArray(entry.tip) && root.SigK.calloutGraphics?.hitsTail(entry, pdfPoint, hitTolerance(0, viewport.scale ?? 1)) === true)
+      return true;
     if (root.SigK.shapeRotation?.isRotated(entry) === true)
       return hitsTurnedBox(entry, pdfPoint);
     if (!annotationState().isPathKind(entry.kind))

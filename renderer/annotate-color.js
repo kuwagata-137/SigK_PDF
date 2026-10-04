@@ -85,7 +85,8 @@
       return false;
     if (entry !== undefined && entry.color !== value && !updateSelected(entry, { color: value }, 'color'))
       return false;
-    next().rememberColor(kind, value);
+    // 吹き出しの色は吹き出しの置き場に覚える（spec-4b-4b 確定事項G5）。
+    next().rememberColor(entry === undefined ? kind : root.SigK.annotationPresets.nextKeyOf(entry), value);
     if (style().isBoxedKind(kind))
       next().rememberShape('strokeNone', false);
     refresh();
@@ -120,7 +121,7 @@
     if ((color !== null && value === null) || entry === null)
       return false;
     const kind = entry?.kind ?? toolKind();
-    if (kind === 'text')
+    if (root.SigK.annotationPresets.kindOfKey(kind) === 'text')
       return root.SigK.annotateTextStyle.setTextFill(value);
     const stroked = entry === undefined ? !next().strokeNoneOf(kind) : entry.color !== null;
     if (!style().isBoxedKind(kind) || (value === null && !stroked))

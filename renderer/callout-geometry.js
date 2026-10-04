@@ -84,6 +84,31 @@
     return { segments, edge, base };
   }
 
+  function cross([ax, ay], [bx, by], [px, py]) {
+    return (bx - ax) * (py - ay) - (by - ay) * (px - ax);
+  }
+
+  function distanceToSegment([px, py], [ax, ay], [bx, by]) {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const length = dx * dx + dy * dy;
+    const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / length));
+    return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
+  }
+
+  // しっぽの三角に点が当たるか（ローカル。確定事項C4）。三角の中か、辺から tolerance 以内。
+  function hitsTail(outline, tip, point, tolerance) {
+    const at = outline.segments.findIndex((segment) => segment.op === 'L' && segment.points[0][0] === tip[0] && segment.points[0][1] === tip[1]);
+    if (at <= 0 || at >= outline.segments.length - 1)
+      return false;
+    const a = outline.segments[at - 1].points.at(-1);
+    const b = outline.segments[at + 1].points[0];
+    const sides = [cross(a, tip, point), cross(tip, b, point), cross(b, a, point)];
+    if (sides.every((side) => side >= 0) || sides.every((side) => side <= 0))
+      return true;
+    return [[a, tip], [tip, b]].some(([from, to]) => distanceToSegment(point, from, to) <= tolerance);
+  }
+
   // 箱と先を含む外接（ローカル）。先は角を丸く結ぶので、線の太さの半分だけ外へ出る（事前調査 D）。箱の外周は枠線が内側なので広げない。
   function boundsOf(width, height, [tx, ty], lineWidth = 0) {
     const pad = Math.max(lineWidth / 2, 0.5);
@@ -120,6 +145,6 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.calloutGeometry = {
     CORNER_RATIO, BASE_RATIO, BASE_MIN, KAPPA, TIP_RIGHT_RATIO, TIP_RIGHT_MAX, TIP_DOWN_RATIO,
-    edgeOf, outlineOf, boundsOf, defaultTipOf, localOf, paperOf,
+    edgeOf, outlineOf, hitsTail, boundsOf, defaultTipOf, localOf, paperOf,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -20,6 +20,10 @@ function isFontSize(value) {
   return Number.isFinite(value) && value >= ANNOT_FONT_SIZE_MIN && value <= ANNOT_FONT_SIZE_MAX && Number.isInteger(value / ANNOT_FONT_SIZE_STEP);
 }
 
+// 次に置く吹き出しの書式（spec-4b-4b 確定事項G4。決定57 ⑪・決定59 ④）。テキストとは別に、文字の大きさも含めて覚える。
+// 文字の色は annotColors.callout、不透明度は annotOpacity.callout。
+const DEFAULT_ANNOT_CALLOUT_STYLE = Object.freeze({ fontSize: 12, bold: false, italic: false, fill: '#ffffff', border: '#c00000', borderWidth: 2 });
+
 // 範囲と刻みに合う大きさだけを受け取る。無ければ fallback、それも無ければ既定。
 function pickAnnotFontSize(raw, fallback) {
   if (isFontSize(raw))
@@ -48,7 +52,18 @@ function pickAnnotTextStyle(raw, fallback) {
   return picked;
 }
 
+// 吹き出しの書式を受け取る。受け取れない欄は fallback（それも無ければ既定）。塗りと枠線が両方なしなら既定の塗りと枠線へ戻す
+// （吹き出しは両方なしにできない。確定事項A5）。
+function pickAnnotCalloutStyle(raw, fallback) {
+  const source = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? raw : {};
+  const base = typeof fallback === 'object' && fallback !== null ? fallback : DEFAULT_ANNOT_CALLOUT_STYLE;
+  const style = pickAnnotTextStyle(source, { ...DEFAULT_ANNOT_CALLOUT_STYLE, ...base });
+  if (style.fill === null && style.border === null)
+    Object.assign(style, { fill: DEFAULT_ANNOT_CALLOUT_STYLE.fill, border: DEFAULT_ANNOT_CALLOUT_STYLE.border });
+  return { fontSize: isFontSize(source.fontSize) ? source.fontSize : pickAnnotFontSize(base.fontSize, DEFAULT_ANNOT_CALLOUT_STYLE.fontSize), ...style };
+}
+
 module.exports = {
   ANNOT_FONT_SIZES, ANNOT_FONT_SIZE_MIN, ANNOT_FONT_SIZE_MAX, ANNOT_FONT_SIZE_STEP, DEFAULT_ANNOT_FONT_SIZE, DEFAULT_ANNOT_TEXT_STYLE,
-  pickAnnotFontSize, pickAnnotTextStyle,
+  DEFAULT_ANNOT_CALLOUT_STYLE, pickAnnotFontSize, pickAnnotTextStyle, pickAnnotCalloutStyle,
 };

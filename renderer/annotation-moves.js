@@ -31,6 +31,9 @@
     const size = root.SigK.freeTextMetrics.sizeOf(entry);
     const rect = geometry.rectFromOrigin(origin, size, entry.rotation);
     const moved = { ...entry, rect: entry.rect.map((value, index) => round(value + delta[index % 2])) };
+    // 吹き出しのしっぽの先も一緒に動く（spec-4b-4b 確定事項B4。決定59 ②）。
+    if (Array.isArray(entry.tip))
+      moved.tip = [round(entry.tip[0] + delta[0]), round(entry.tip[1] + delta[1])];
     return root.SigK.freeTextMetrics.turned(moved, { rect, quads: [geometry.quadOfRect(rect)] });
   }
 

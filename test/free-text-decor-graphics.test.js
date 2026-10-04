@@ -7,6 +7,9 @@ const { JSDOM } = require('jsdom');
 require('../renderer/free-text-geometry.js');
 require('../renderer/shape-print-layer.js');
 require('../renderer/free-text-decor-graphics.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/callout-geometry.js');
+require('../renderer/callout-graphics.js');
 
 // テキストの塗りと枠線の画面と印刷の部品（spec-4b-4a 確定事項D1〜D3）。
 
@@ -48,4 +51,20 @@ test('layerFor は回した箱の外接だけの別の canvas を作り、作れ
   assert.ok(layer.canvas.width >= 34 && layer.canvas.width <= 35, `幅 ${layer.canvas.width}（cos 90° の端数で 1px 広がることがある）`);
   assert.deepEqual(made, [[-18, -58]]);
   assert.equal(decor.layerFor({ canvas: { ownerDocument: doc, width: 0, height: 0 } }, ENTRY, [0, 0], 0, 1), null);
+});
+
+// 吹き出しは四角の代わりに角の丸い箱としっぽの輪郭を描き、印刷の別の層はしっぽも含む（spec-4b-4b 確定事項C7）。
+test('吹き出しは svgParts・paint を callout-graphics に任せ、layerFor はしっぽを含む外接にする', () => {
+  const doc = new JSDOM('<!doctype html>').window.document;
+  const entry = { ...ENTRY, fontSize: 10, tip: [125, 650] };
+  const parts = decor.svgParts(doc, entry, 1);
+  assert.deepEqual(parts.map((node) => node.getAttribute('class')), ['free-text-callout']);
+  const calls = [];
+  const ctx = new Proxy({}, { get: (target, name) => (name in target ? target[name] : (...args) => calls.push(name)), set: (target, name, value) => { calls.push(`${String(name)}=${value}`); return true; } });
+  decor.paint(ctx, entry, 1);
+  assert.ok(calls.includes('bezierCurveTo') && !calls.includes('fillRect'));
+  const page = { width: 1000, height: 1000, ownerDocument: { createElement: () => ({ width: 0, height: 0, getContext: () => ({ translate: () => {} }) }) } };
+  // 回さなければ、しっぽの先（左上から下へ 50）まで含む: 高さ 50＋線の太さの半分 1＋余白 2×2。
+  const layer = decor.layerFor({ canvas: page }, entry, [50, 60], 0, 1);
+  assert.deepEqual([layer.x, layer.y, layer.canvas.width, layer.canvas.height], [48, 58, 104, 55]);
 });

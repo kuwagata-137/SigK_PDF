@@ -62,10 +62,45 @@
     node.style.padding = paddingOf(layout().insetOf(draft), scale);
     node.style.borderWidth = `${BORDER}px`;
     node.style.color = draft.color;
-    // 塗りは入力欄の地に出す。枠線は描かず、破線の枠のまま（spec-4b-4a 確定事項E2）。
-    node.style.background = draft.fill ?? '';
+    // 塗りは入力欄の地に出す。枠線は描かず、破線の枠のまま（spec-4b-4a 確定事項E2）。吹き出しは地を透明にし、入力欄の下に輪郭を
+    // 描く（spec-4b-4b 確定事項D2）。
+    node.style.background = isCallout(draft) ? '' : (draft.fill ?? '');
     node.style.transformOrigin = `${BORDER}px ${BORDER}px`;
     node.style.transform = angle === 0 ? '' : `rotate(${angle}deg)`;
+    if (isCallout(draft))
+      placeOutline(node, { at: [x, y], angle, scale });
+  }
+
+  function isCallout(draft) {
+    return draft.callout === true || Array.isArray(draft.tip);
+  }
+
+  // 吹き出しの輪郭の要素を入力欄のすぐ前に置き、箱の左上と角度を覚える。
+  function placeOutline(node, frame) {
+    const graphics = root.SigK.calloutGraphics;
+    if (graphics === undefined || node.parentNode === null)
+      return;
+    if (node.calloutOutline === undefined) {
+      node.calloutOutline = graphics.createEditorOutline(node.ownerDocument);
+      node.parentNode.insertBefore(node.calloutOutline, node);
+    }
+    node.calloutFrame = frame;
+  }
+
+  // 入力中の吹き出しの輪郭を、今の箱の大きさで描き直す。新しい吹き出しの先は本体の下に付いてくる（tipAuto。確定事項D3）。直している
+  // 吹き出しの先は、表示の左上から見て動かない（回した左上と紙の上の先がどちらも動かないため。確定事項B1・B3）。
+  function updateOutline(node, draft, size) {
+    if (node.calloutOutline === undefined || node.calloutFrame === undefined)
+      return;
+    const callout = root.SigK.calloutGeometry;
+    const tip = draft.tipAuto === true ? callout.defaultTipOf(size.width, size.height, draft.fontSize) : callout.localOf(draft.origin, draft.rotation, draft.tip);
+    root.SigK.calloutGraphics.placeEditorOutline(node.calloutOutline, draft, { ...node.calloutFrame, size, tip });
+  }
+
+  // 入力欄と輪郭を外す。
+  function remove(node) {
+    node?.calloutOutline?.remove();
+    node?.remove();
   }
 
   // 文字に合わせて大きさを決める（確定事項E1・E3）。幅は editorWidthOf、高さは行数×行送り。字面が行箱より大きいぶん（Noto の hhea。
@@ -73,7 +108,8 @@
   function autosize(node, draft, viewport) {
     const scale = viewport.scale ?? 1;
     const entry = { ...draft, kind: 'text', text: node.value };
-    const { lines } = metrics().layoutOfEntry(entry);
+    const { lines, size } = metrics().layoutOfEntry(entry);
+    updateOutline(node, entry, size);
     node.style.width = `${metrics().editorWidthOf(entry) * scale}px`;
     const height = Math.max(1, lines.length) * draft.fontSize * geometry().LINE_HEIGHT;
     node.style.height = `${height * scale}px`;
@@ -83,5 +119,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextEditorNode = { BORDER, create, place, autosize };
+  SigK.freeTextEditorNode = { BORDER, create, place, autosize, remove };
 })(typeof window !== 'undefined' ? window : globalThis);

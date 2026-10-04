@@ -38,6 +38,17 @@ test('turnedFrame は、回したテキストの組み直した箱の中心を�
   }
 });
 
+test('turnedFrame は吹き出しの先を紙の上で動かさない（確定事項B3。回していなければ回す前の座標のまま）', () => {
+  const callout = { ...TEXT, tip: [130, 600] };
+  const grown = { rect: [100, 600, 300, 700] };
+  assert.deepEqual(turn.turnedFrame(callout, grown).tip, [130, 600]);
+  const turned = { ...callout, angle: 30 };
+  const frame = turn.turnedFrame(turned, grown);
+  const before = rotation.rotatePoint(turned.tip, rotation.centerOf(turned.rect), 30);
+  near(rotation.rotatePoint(frame.tip, rotation.centerOf(frame.rect), 30), before);
+  assert.equal('tip' in turn.turnedFrame(TEXT, grown), false, '吹き出しでなければ tip を持たない');
+});
+
 test('onPaper・originOnPaper は回したテキストの点を箱の中心まわりに回す', () => {
   assert.deepEqual(turn.originOnPaper(TEXT), [100, 700]);
   near(turn.originOnPaper({ ...TEXT, angle: 90 }), rotation.rotatePoint([100, 700], [160, 675], 90));

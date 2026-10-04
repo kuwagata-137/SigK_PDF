@@ -18,6 +18,9 @@ const { HINTS } = hints;
 test('選んでいる書き込みの種類でヒントを選び、四角・丸には両方なしの注意と塗りの注意を添える', () => {
   assert.equal(hints.forSelected({ kind: 'other', readonly: true }), HINTS.readonly);
   assert.equal(hints.forSelected({ kind: 'text' }), HINTS.textSelected);
+  assert.equal(hints.forSelected({ kind: 'text', tip: [0, 0] }), HINTS.calloutSelected, '吹き出し（spec-4b-4b）');
+  assert.match(HINTS.textSelected, /上の丸いつまみで向きを変えられます（Shift で 15° ずつ）。/);
+  assert.match(HINTS.calloutSelected, /しっぽの先の白いつまみで先の位置を/);
   assert.equal(hints.forSelected({ kind: 'note' }), HINTS.noteSelected);
   assert.equal(hints.forSelected({ kind: 'highlight' }), HINTS.selected);
   // 四角・丸と直線・矢印は「掴んで動かせます。」のあとにつまみの説明を挟む（spec-4b-2 確定事項28）。ペンは挟まない。
@@ -34,6 +37,8 @@ test('道具のヒントは道具で選び、四角・丸の道具には同じ�
   assert.equal(hints.forTool(null, null, null), HINTS.none);
   assert.equal(hints.forTool('highlight', 'highlight', null), HINTS.tool);
   assert.equal(hints.forTool('pen', 'ink', null), HINTS.pen);
+  assert.equal(hints.forTool('callout', 'callout', null), HINTS.callout);
+  assert.equal(HINTS.callout, '紙の上を押すと吹き出しを置きます。しっぽの先の白いつまみを引くと向きが変わります（Shift で横か縦）。');
   assert.equal(hints.forTool('shape', 'line', null), HINTS.shape);
   assert.equal(hints.forTool('shape', 'square', null), `${HINTS.shape}${HINTS.box}`);
   assert.equal(hints.forTool('shape', 'circle', '#ffd966'), `${HINTS.shape}${HINTS.box}${HINTS.fill}`);

@@ -13,7 +13,7 @@
 
   // 種類ごとのアイコン（assets/icons.js）。表示のみは subtype で引き、無ければ注釈モードの絵。
   const ICONS = Object.freeze({
-    highlight: 'highlight', underline: 'underline', strikeout: 'strikeout', text: 'text',
+    highlight: 'highlight', underline: 'underline', strikeout: 'strikeout', text: 'text', callout: 'callout',
     square: 'shapeSquare', circle: 'shapeCircle', line: 'shapeLine', arrow: 'shapeArrow', ink: 'pen', note: 'note',
   });
   const READONLY_ICONS = Object.freeze({
@@ -40,13 +40,14 @@
   function labelOf(entry) {
     if (entry.readonly === true)
       return presets().readonlyLabelOf(entry.subtype);
-    return presets().TOOL_LABELS[entry.kind] ?? presets().readonlyLabelOf(entry.subtype);
+    // 吹き出しは「吹き出し」（spec-4b-4b 確定事項G3）。
+    return presets().TOOL_LABELS[presets().labelKeyOf(entry)] ?? presets().readonlyLabelOf(entry.subtype);
   }
 
   function iconOf(entry) {
     if (entry.kind === 'other')
       return READONLY_ICONS[entry.subtype] ?? 'modeAnnot';
-    return ICONS[entry.kind] ?? 'modeAnnot';
+    return ICONS[presets().labelKeyOf(entry)] ?? 'modeAnnot';
   }
 
   function rowOf(entry, page) {

@@ -90,7 +90,7 @@
   function unmount() {
     if (state.node !== null && state.draft !== null)
       state.draft.text = state.node.value;
-    state.node?.remove();
+    editorNode().remove(state.node);
     state.node = null;
     state.mountedIndex = null;
   }
