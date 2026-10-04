@@ -206,3 +206,30 @@ test('rotationOf は形の崩れた入力を null にする', () => {
   assert.equal(worker.rotationOf({ rect: [0, 0, 1, 1], bbox: [0, 0, 1, 1], matrix: [1, 0, 0] }), null);
   assert.equal(worker.rotationOf({ rect: [0, 0, 1, 1], bbox: [0, 0, 1, 1], matrix: [0, 0, 0, 0, 0, 0] }), null);
 });
+
+test('recentered は組み直した箱の中心を元の箱の中心まわりに回し、回す前に動かさなかった点を紙の上でも動かさない（spec-4b-4b 確定事項B1）', () => {
+  const box = [100, 600, 200, 650];
+  // 回す前の左上 (100, 650) を据え置いて、右へ 60・下へ 20 伸ばした箱。
+  const grown = [100, 580, 260, 650];
+  for (const angle of [0, 30, 90, 137, 300]) {
+    const next = rot.recentered(box, grown, angle);
+    assert.equal(next[2] - next[0], 160);
+    assert.equal(next[3] - next[1], 70);
+    const before = rot.rotatePoint([100, 650], rot.centerOf(box), angle);
+    const after = rot.rotatePoint([next[0], next[3]], rot.centerOf(next), angle);
+    nearPoint(after, before, 1e-9);
+  }
+  assert.deepEqual(rot.recentered(box, grown, 0), grown);
+  assert.notEqual(rot.recentered(box, grown, 0), grown, '回していなくても写しを返す');
+});
+
+test('ワーカーの turnOf は箱の中心まわりの /Matrix と、/BBox を写した外接の /Rect を返し、回していなければ空（spec-4b-4b 確定事項H1）', () => {
+  assert.deepEqual(worker.turnOf([100, 600, 200, 650], 0), {});
+  assert.deepEqual(worker.turnOf([100, 600, 200, 650], undefined), {});
+  const square = worker.turnOf([100, 600, 200, 650], 30);
+  assert.deepEqual(square, { matrix: worker.matrixOf([100, 600, 200, 650], 30), rect: worker.rectOf([100, 600, 200, 650], 30) });
+  // /BBox が箱より広い（吹き出しのしっぽ）ときも、回転の中心は箱の中心のまま、/Rect は /BBox の外接。
+  const wide = worker.turnOf([100, 600, 200, 650], 90, [90, 560, 210, 660]);
+  assert.deepEqual(wide.matrix, worker.matrixOf([100, 600, 200, 650], 90));
+  assert.deepEqual(wide.rect, [85, 565, 185, 685]);
+});

@@ -89,6 +89,17 @@
     return rotatePoint(point, centerOf(box), -angle);
   }
 
+  // 回す前の座標で組み直した新しい箱 next を、その中心を元の箱 box の中心まわりに angle 度回した位置へずらす（確定事項16）。
+  // 回す前の座標で動かさなかった点は、紙の上でも動かない（大きさ変えの反対側、spec-4b-4b 確定事項B1 のテキストの左上）。
+  // 丸めない（呼ぶ側が丸める）。回していなければ next の写し。
+  function recentered(box, next, angle) {
+    if (normalizeAngle(angle) === 0)
+      return [...next];
+    const center = rotatePoint(centerOf(next), centerOf(box), angle);
+    const half = [(next[2] - next[0]) / 2, (next[3] - next[1]) / 2];
+    return [center[0] - half[0], center[1] - half[1], center[0] + half[0], center[1] + half[1]];
+  }
+
   // 保存の /Matrix（確定事項29）。cos・sin と移動は小数 4 桁。worker/shape-rotation.js の matrixOf と同じ式。
   function matrixOf(box, angle) {
     const t = (angle * Math.PI) / 180;
@@ -129,6 +140,7 @@
     quadOf,
     boundsOf,
     toLocal,
+    recentered,
     matrixOf,
     svgTransformOf,
     viewRotationOf,

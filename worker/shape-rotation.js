@@ -61,6 +61,15 @@ function rectOf(box, angle) {
   return boundsOf(box, matrixOf(box, angle)).map((value) => round(value));
 }
 
+// 回した外観の外側の Form の /Matrix と、注釈の /Rect（確定事項29）。回していなければ空。回転の中心は box の中心で、/Rect は
+// bbox（外観の /BBox。省けば box）を /Matrix で写した外接（小数 2 桁）。shape-appearance.js から移した（spec-4b-4b）。
+function turnOf(box, angle, bbox = box) {
+  if (!Number.isFinite(angle) || angle === 0)
+    return {};
+  const matrix = matrixOf(box, angle);
+  return { matrix, rect: boundsOf(bbox, matrix).map((value) => round(value)) };
+}
+
 // /Rect を外接と比べた拡大の差の許し（割合）。0.1% か、/Rect の丸めが生む差の大きい方。
 function toleranceOf(rect) {
   const width = Math.abs(rect[2] - rect[0]);
@@ -110,4 +119,4 @@ function rotationOf({ rect, bbox, matrix = IDENTITY }) {
   return { box: [cx - halfWidth, cy - halfHeight, cx + halfWidth, cy + halfHeight].map((value) => round(value)), angle };
 }
 
-module.exports = { SIMILARITY_TOLERANCE, normalizeAngle, matrixOf, boundsOf, rectOf, rotationOf };
+module.exports = { SIMILARITY_TOLERANCE, normalizeAngle, matrixOf, boundsOf, rectOf, turnOf, rotationOf };

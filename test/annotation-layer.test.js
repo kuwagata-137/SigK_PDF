@@ -11,6 +11,7 @@ require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/free-text-geometry.js');
 require('../renderer/free-text-shape.js');
+require('../renderer/free-text-graphics.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');

@@ -85,6 +85,18 @@
     return room === null || (at[0] - r >= room.left && at[1] - r >= room.top && at[0] + r <= room.right && at[1] + r <= room.bottom);
   }
 
+  // 回転のつまみと、枠からつまみへの線（表示の座標）。c は箱の中心、up は上の辺へ向かう単位ベクトル、h は中心から枠（余白を含む）までの
+  // 長さ。つまみは上の辺の外で、そこが見える範囲 room から出て、下の辺の外なら収まるときだけ下の辺の外に出す（1 ページ目の上端の近くの
+  // 図形でも見えて押せるように。回し方は押した点の向きの変化なので、どちらでも同じに回る）。テキストも同じ規則（spec-4b-4b 確定事項C2）。
+  function rotateHandleOf(c, up, h, room) {
+    const at = (distance) => [c[0] + up[0] * distance, c[1] + up[1] * distance];
+    const side = !fits(at(h + ROTATE_GAP), room, ROTATE_RADIUS) && fits(at(-(h + ROTATE_GAP)), room, ROTATE_RADIUS) ? -1 : 1;
+    return {
+      handle: { id: 'rotate', kind: 'rotate', at: at(side * (h + ROTATE_GAP)), cursor: 'rotate' },
+      stem: { from: at(side * h), to: at(side * (h + ROTATE_GAP - ROTATE_RADIUS)) },
+    };
+  }
+
   function boxHandles(entry, viewport, room) {
     const frame = boxFrameOf(entry, viewport);
     const w = frame.halfWidth + FRAME_PADDING;
@@ -99,13 +111,12 @@
       if (across >= EDGE_HANDLE_MIN)
         handles.push(handle(id, 'edge', sign));
     }
-    // 回転のつまみは回す前の箱の上の辺の外。そこが見える範囲から出て、下の辺の外なら収まるときだけ下の辺の外に出す
-    // （1 ページ目の上端の近くの図形でも見えて押せるように。回し方は押した点の向きの変化なので、どちらでも同じに回る）。
-    const side = !fits(place(frame, 0, h + ROTATE_GAP), room, ROTATE_RADIUS) && fits(place(frame, 0, -(h + ROTATE_GAP)), room, ROTATE_RADIUS) ? -1 : 1;
-    handles.push({ id: 'rotate', kind: 'rotate', at: place(frame, 0, side * (h + ROTATE_GAP)), cursor: 'rotate' });
+    // 回転のつまみは回す前の箱の上の辺（紙の +y）の外。
+    const rotate = rotateHandleOf(frame.c, frame.uy, h, room);
+    handles.push(rotate.handle);
     return {
       frame: { type: 'polygon', points: [[-w, h], [w, h], [w, -h], [-w, -h]].map(([lx, ly]) => place(frame, lx, ly)) },
-      stem: { from: place(frame, 0, side * h), to: place(frame, 0, side * (h + ROTATE_GAP - ROTATE_RADIUS)) },
+      stem: rotate.stem,
       handles,
     };
   }
@@ -153,6 +164,7 @@
     EDGE_HANDLE_MIN,
     hasHandles,
     handlesOf,
+    rotateHandleOf,
     handleAt,
     resizeCursorOf,
   };

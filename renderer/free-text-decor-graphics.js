@@ -1,9 +1,9 @@
 (function (root) {
   'use strict';
 
-  // テキストの塗りと枠線を画面と印刷に描く部品（spec-4b-4a 確定事項D1〜D3）。free-text-shape.js の svgOf・paint が呼ぶ。
+  // テキストの塗りと枠線を画面と印刷に描く部品（spec-4b-4a 確定事項D1〜D3）。free-text-graphics.js の svgOf・paint が呼ぶ。
   //
-  // 座標は箱の左上を原点にした表示の向き（free-text-shape.js が箱の左上へ移して回してから描く）。塗りは箱いっぱい、枠線は箱の内側
+  // 座標は箱の左上を原点にした表示の向き（free-text-graphics.js が箱の左上へ移して回してから描く）。塗りは箱いっぱい、枠線は箱の内側
   // （線の太さの半分だけ入れた四角）に描く。不透明度が 1 未満の印刷は、塗り・枠線・文字を箱だけの別の canvas に不透明で描いてから
   // 重ねる（塗りと枠線と文字が重なっても濃くならない。図形と同じ。shape-print-layer.js）。
 

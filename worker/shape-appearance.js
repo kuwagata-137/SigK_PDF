@@ -9,7 +9,7 @@
 
 const { num, colorOps } = require('./annotation-appearance.js');
 const { cloudPathOf } = require('./cloud-appearance.js');
-const { matrixOf, rectOf } = require('./shape-rotation.js');
+const { turnOf } = require('./shape-rotation.js');
 const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 
 const KAPPA = 0.5523;
@@ -151,13 +151,6 @@ function styleFieldsOf(style, cloud, turned) {
   return fields;
 }
 
-// 回した四角・丸の外側の Form の /Matrix と、注釈の /Rect（回した外接。spec-4b-2 確定事項29）。回していなければ空。
-function turnOf(entry, bbox) {
-  if (!Number.isFinite(entry.angle) || entry.angle === 0)
-    return {};
-  return { matrix: matrixOf(bbox, entry.angle), rect: rectOf(bbox, entry.angle) };
-}
-
 // 外観の中身。戻り値は { content, group, bbox, subtype, rgb, fillRgb, dash, opacity, lineWidth, cloudIntensity?, rectDifference?,
 // vertices?, lineEndings?, inkList?, matrix?, rect? }。rgb は線が無ければ null。matrix と rect は回した四角・丸だけ（bbox は回す前の
 // 箱のまま）。形が違えば null。
@@ -168,7 +161,8 @@ function shapeAppearanceOf(entry) {
   const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
   const { ops, cloud } = opsOf(entry, style);
   const group = alpha < 1;
-  const turn = turnOf(entry, entry.rect.map(round));
+  // 回した四角・丸の外側の Form の /Matrix と、注釈の /Rect（回した外接。spec-4b-2 確定事項29）。
+  const turn = turnOf(entry.rect.map(round), entry.angle);
   return {
     content: group ? ops : `/GS gs\n${ops}`,
     group,

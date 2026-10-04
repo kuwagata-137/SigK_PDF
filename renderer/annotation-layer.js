@@ -5,7 +5,7 @@
   //
   // .pdf-page の中、canvas のあと・テキストレイヤーの前に <svg class="annot-layer"> を
   // 置く。ハイライトは mix-blend-mode: multiply の多角形（文字が透ける）、下線・
-  // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）、
+  // 取り消し線は <line>、テキストは free-text-graphics.js の <text>（spec-4-2 確定事項10）、
   // 図形・ペンは shape-graphics.js の <g>（spec-4-3 確定事項8）、ノートは note-graphics.js の
   // 付箋（spec-4-4 確定事項8）。描いている途中の下書きも同じ描き手で最後に置く（確定事項3）。
   // 「表示のみ」の注釈（readonly。pdf.js が描く）は描かない（選ばれていれば枠だけ出す。spec-4-4 確定事項32。枠は
@@ -82,7 +82,7 @@
     if (entry.opacity !== undefined && entry.opacity < 1)
       group.setAttribute('opacity', String(entry.opacity));
     if (entry.kind === 'text') {
-      group.append(root.SigK.freeTextShape.svgOf(doc, entry, viewport));
+      group.append(root.SigK.freeTextGraphics.svgOf(doc, entry, viewport));
       return group;
     }
     if (isDrawn(entry)) {
@@ -135,7 +135,7 @@
       if (entry.readonly === true)
         continue;
       if (entry.kind === 'text') {
-        root.SigK.freeTextShape.paint(ctx, entry, viewport);
+        root.SigK.freeTextGraphics.paint(ctx, entry, viewport);
         continue;
       }
       if (isDrawn(entry)) {

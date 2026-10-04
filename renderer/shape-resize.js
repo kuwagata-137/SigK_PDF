@@ -62,9 +62,7 @@
     const [ny1, ny2] = sideOf(box[1], box[3], signs[1], end[1] - start[1], minSide);
     const local = shift && handleId in CORNER_SIGNS ? keepRatio(box, [nx1, ny1, nx2, ny2], signs) : [nx1, ny1, nx2, ny2];
     // 回す前の座標の新しい箱の中心を、元の中心まわりに回して紙へ戻す（反対側が紙の上で動かない）。
-    const center = rotation().rotatePoint(rotation().centerOf(local), rotation().centerOf(box), angle);
-    const half = [(local[2] - local[0]) / 2, (local[3] - local[1]) / 2];
-    const rect = [center[0] - half[0], center[1] - half[1], center[0] + half[0], center[1] + half[1]].map(round);
+    const rect = rotation().recentered(box, local, angle).map(round);
     return geometry().rectOfShape({ kind: entry.kind, rect, lineWidth: entry.lineWidth, angle });
   }
 

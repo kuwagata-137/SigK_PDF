@@ -134,3 +134,16 @@ test('free-text-handles.js があれば、テキストは左右の幅のつま�
   assert.deepEqual(shape.handles.map((handle) => [handle.id, handle.kind, handle.cursor]), [['left', 'width', 'ew-resize'], ['right', 'width', 'ew-resize']]);
   assert.equal(handles.handleAt(shape.handles, [224 + 3 + 4, 841.89 - 685.5]).id, 'right');
 });
+
+test('rotateHandleOf は上の向きの辺の外に回転のつまみを置き、見える範囲から出るときだけ反対の辺の外へ逃がす（spec-4b-4b 確定事項C2）', () => {
+  const free = handles.rotateHandleOf([200, 300], [0, -1], 40, null);
+  assert.deepEqual(free.handle, { id: 'rotate', kind: 'rotate', at: [200, 300 - 40 - handles.ROTATE_GAP], cursor: 'rotate' });
+  assert.deepEqual(free.stem, { from: [200, 260], to: [200, 300 - 40 - handles.ROTATE_GAP + handles.ROTATE_RADIUS] });
+  // 上が見える範囲の外なら下へ。
+  const room = { left: 0, top: 250, right: 1000, bottom: 1000 };
+  const flipped = handles.rotateHandleOf([200, 300], [0, -1], 40, room);
+  assert.deepEqual(flipped.handle.at, [200, 300 + 40 + handles.ROTATE_GAP]);
+  // 斜めの上の向きでも、その向きに沿って置く。
+  const turned = handles.rotateHandleOf([0, 0], [Math.SQRT1_2, -Math.SQRT1_2], 10, null);
+  near(turned.handle.at, [(10 + handles.ROTATE_GAP) * Math.SQRT1_2, -(10 + handles.ROTATE_GAP) * Math.SQRT1_2]);
+});
