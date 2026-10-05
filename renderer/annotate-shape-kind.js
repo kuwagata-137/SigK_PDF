@@ -87,6 +87,9 @@
   function setShapeKind(kind) {
     if (!presets().isShapeKind(kind))
       return false;
+    // 描いている途中の多角形は、図形の種類を替える前に開いたまま確定する（spec-4b-5a 確定事項16）。
+    if (kind !== state.shapeKind)
+      root.SigK.annotatePolygon?.commitPending();
     state.shapeKind = kind;
     root.SigK.shell?.persist?.({ annotShapeKind: kind });
     syncBar();

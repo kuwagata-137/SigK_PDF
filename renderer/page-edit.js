@@ -112,6 +112,9 @@
   function step(direction) {
     if (!isOpen())
       return false;
+    // 描いている途中の多角形があれば、それを捨てるだけで履歴は動かさない（spec-4b-5a 確定事項16）。
+    if (root.SigK.annotate?.dropPendingShape?.() === true)
+      return true;
     // 入力欄の外から Ctrl+Z が来たら、下書きを確定してから戻す（spec-4-2 確定事項8）。つまみのドラッグ中なら先に取りやめる
     // （spec-4b-2 確定事項21）。
     root.SigK.annotate?.finishEditing?.();

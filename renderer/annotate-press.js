@@ -118,6 +118,9 @@
       root.SigK.annotateNote?.place({ index: page.index, point: page.point });
       return;
     }
+    // 多角形の道具は、書き込みの無い所の押し離しで 1 つ目の頂点を置く（spec-4b-5a 確定事項17）。
+    if (root.SigK.annotatePolygon?.start(page) === true)
+      return;
     annotate().select(null);
   }
 

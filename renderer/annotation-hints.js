@@ -15,6 +15,9 @@
     callout: '紙の上を押すと、そこに吹き出しを置けます。Enter で改行、枠の外を押すか Ctrl+Enter で確定します。しっぽの先は、置いたあとで白いつまみを引くと動きます。',
     calloutSelected: 'ダブルクリックか Enter で直せます。掴んで動かせます。しっぽの先の白いつまみを引くと、しっぽの向きが変わります（Shift で水平か垂直）。左右の白いつまみで幅を、丸いつまみで向きを変えられます。Delete で消せます。Ctrl+Z で元に戻せます。',
     shape: '紙の上をドラッグすると描けます。Shift を押しながらで正方形・正円・45° 刻みになります。Esc で道具を離します。',
+    // 多角形の道具（spec-4b-5a 確定事項31）。描いていないときと、描いている途中。
+    polygon: 'クリックで頂点を置きます。始点を押すと閉じ、ダブルクリックで開いたまま確定します。Shift で 45° 刻みになります。Esc で道具を離します。',
+    polygonDrawing: '始点を押すと閉じます。ダブルクリックで開いたまま確定、Esc か右クリックでやめます。',
     pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの書き込みになります。Esc で道具を離します。',
     shapeSelected: '掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     // 四角・丸と直線・矢印を選んだときに「掴んで動かせます。」のあとへ挟む（spec-4b-2 確定事項28）。
@@ -65,6 +68,10 @@
   function forTool(tool, kind, fill) {
     if (tool === null)
       return HINTS.none;
+    if (tool === 'shape' && kind === 'polygon') {
+      const drawing = root.SigK.annotatePolygon?.isDrawing() === true;
+      return drawing ? HINTS.polygonDrawing : `${HINTS.polygon}${boxHintOf(true, fill)}`;
+    }
     return `${HINTS[tool] ?? HINTS.tool}${boxHintOf(root.SigK.shapeStyle.isFillableKind(kind), fill)}`;
   }
 

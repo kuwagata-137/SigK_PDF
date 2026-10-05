@@ -57,8 +57,17 @@
   }
 
   // 開いているテキストの入力欄を確定して閉じる（spec-4-2 確定事項8）。
+  // 入力欄を確定する。描いている途中の多角形も、置ける形なら開いたまま確定する（タブ・モードを替える・保存・印刷の前。
+  // spec-4b-5a 確定事項16）。
   function finishEditing() {
-    return root.SigK.annotateText?.finishEditing() === true;
+    const text = root.SigK.annotateText?.finishEditing() === true;
+    const polygon = root.SigK.annotatePolygon?.commitPending() === true;
+    return text || polygon;
+  }
+
+  // 描いている途中の多角形を捨てる（Ctrl+Z・Ctrl+Y。履歴は動かさない。spec-4b-5a 確定事項16）。捨てたら true。
+  function dropPendingShape() {
+    return root.SigK.annotatePolygon?.cancel() === true;
   }
 
   // ---- 印刷（確定事項28） ----
@@ -156,6 +165,7 @@
     // Enter・ダブルクリック: テキストは入力欄、ノートは「本文」欄。
     editSelected: () => root.SigK.annotateText?.editSelected() === true || root.SigK.annotateNote?.editSelected() === true,
     finishEditing,
+    dropPendingShape,
     createFromSelection: (kind) => tools().createFromSelection(kind),
     // 選択（spec-4b-3a 確定事項A）。getSelected・selectedEntry は 1 件のときだけ。複数は getSelection・selectedEntries。
     getSelected: () => selection().getSelected(),
