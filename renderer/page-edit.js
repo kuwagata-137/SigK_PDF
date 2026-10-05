@@ -112,13 +112,10 @@
   function step(direction) {
     if (!isOpen())
       return false;
-    // 描いている途中の多角形があれば、それを捨てるだけで履歴は動かさない（spec-4b-5a 確定事項16）。
+    // 描きかけの多角形・始点合わせは捨てるだけ（spec-4b-5a 確定事項16）。ほかは下書きを確定し、つまみ・範囲選択を取りやめてから戻す（spec-4-2 確定事項8・spec-4b-2 確定事項21・spec-4b-3a 確定事項L3）。
     if (root.SigK.annotate?.dropPendingShape?.() === true)
       return true;
-    // 入力欄の外から Ctrl+Z が来たら、下書きを確定してから戻す（spec-4-2 確定事項8）。つまみのドラッグ中なら先に取りやめる
-    // （spec-4b-2 確定事項21）。
     root.SigK.annotate?.finishEditing?.();
-    // 押して引いている途中の操作（つまみ・範囲選択）も取りやめる（spec-4b-3a 確定事項L3）。
     root.SigK.annotate?.abortGestures?.();
     state.gesture = null;
 

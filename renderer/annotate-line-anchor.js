@@ -53,9 +53,11 @@
     if (viewport === null || !Number.isInteger(src))
       return false;
     const entries = root.SigK.annotationState.annotsOnPage(viewer().getAnnotations(), viewer().getImported(), src);
-    const from = root.SigK.lineSnap.nearest(entries, viewport, page.point);
-    if (from === null)
+    const snapped = root.SigK.lineSnap.nearest(entries, viewport, page.point);
+    if (snapped === null)
       return false;
+    // ほかの描き方と同じく小数 2 桁にそろえる（回した角・頂点は丸めない値で返るため）。
+    const from = root.SigK.shapeGeometry.roundPoint(snapped);
     event?.preventDefault?.();
     annotate().select(null);
     anchor = { index: page.index, src, viewport, kind, from, cursor: null };

@@ -133,3 +133,18 @@ test('新しい矢印（塗った三角）と開いた矢印は 3 回往復し�
   await roundTrips(arrowOf({ head: 'open' }), keys);
   await roundTrips(arrowOf({ lineStyle: 'dashed' }), keys);
 });
+
+// 点検で見つけた往復のずれ（大きな多角形を半端な角度で回したもの・1 辺がちょうど 1pt の ×印を回したもの）。
+test('大きな多角形を 37°・123° で回しても、3 回往復して頂点が変わらない', async () => {
+  const keys = ['kind', 'closed', 'paths', 'rect', 'angle'];
+  const vertices = [[100.12, 600.34], [380.5, 620.25], [300.75, 790.01], [150.33, 820.5], [90.2, 670.66]];
+  await roundTrips(polygonEntry({ vertices, angle: 37 }), keys);
+  await roundTrips(polygonEntry({ vertices, angle: 123 }), keys);
+  await roundTrips(polygonEntry({ vertices: [[50, 50], [540, 60], [520, 790], [60, 770]], angle: 301 }), keys);
+});
+
+test('1 辺がちょうど 1pt の ×印を回しても、3 回往復して ×印のまま', async () => {
+  const keys = ['kind', 'rect', 'angle'];
+  for (const angle of [30, 123, 301])
+    await roundTrips(crossEntry({ rect: [100.12, 600.34, 160.56, 601.34], angle }), keys);
+});

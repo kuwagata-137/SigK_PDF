@@ -64,7 +64,8 @@
       return null;
     const width = distance(a, c);
     const height = distance(a, d);
-    if (width < MIN_SIDE || height < MIN_SIDE)
+    // 辺の最小は小数 4 桁の丸めのぶんを許す（1 辺がちょうど 1pt の ×印を回すと、読み戻した辺が 0.9999… になるため）。
+    if (width < MIN_SIDE - DISTANCE_TOLERANCE || height < MIN_SIDE - DISTANCE_TOLERANCE)
       return null;
     // 箱の +x の向き a→c は、画面で時計回りに angle 回すと紙の座標で (cos, −sin) になる（shape-rotation.js の rotatePoint）。
     const angle = rotation().normalizeAngle((Math.atan2(-(c[1] - a[1]), c[0] - a[0]) * 180) / Math.PI);

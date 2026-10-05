@@ -106,3 +106,10 @@ test('vertexMoved は回した多角形でも、動かしていない頂点を�
     });
   }
 });
+
+test('contains は塗りと同じ非ゼロ巻き数の規則で、自分の辺と交わる星の真ん中も中とみなす', () => {
+  const star = [[50, 0], [79, 90], [2, 35], [98, 35], [21, 90]];
+  assert.equal(polygon.contains([50, 50], star), true, '真ん中の五角形');
+  assert.equal(polygon.contains([50, 10], star), true, '先の三角');
+  assert.equal(polygon.contains([5, 5], star), false);
+});

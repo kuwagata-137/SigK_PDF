@@ -123,14 +123,16 @@
   }
 
   // 多角形（spec-4b-5a 確定事項10）。回す前の頂点の折れ線で、閉じたものは polygon（塗れる）、開いたものは polyline。破線は輪郭の点列
-  // （閉じたものは始点へ戻す）。回すのは shape-graphics.js の <g>。
+  // （閉じたものは Z で閉じ、始点の角も保存の外観の h と同じ丸い角にする）。回すのは shape-graphics.js の <g>。
   function polygonParts(entry, viewport) {
     const toView = toViewOf(viewport);
     const vertices = entry.paths[0];
     const closed = entry.closed === true;
     const dash = style().dashOf(entry);
-    if (dash !== null)
-      return [dashPart(outline().polylineOutline(closed ? [...vertices, vertices[0]] : vertices), dash, viewport, closed)];
+    if (dash !== null) {
+      const segments = outline().polylineOutline(vertices);
+      return [dashPart(closed ? [...segments, { op: 'Z', points: [] }] : segments, dash, viewport, closed)];
+    }
     return [closed ? { type: 'polygon', points: vertices.map(toView), fillable: true } : { type: 'polyline', points: vertices.map(toView) }];
   }
 

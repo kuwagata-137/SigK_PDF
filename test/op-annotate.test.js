@@ -648,6 +648,27 @@ test('回した四角を焼くと、外観の /Matrix を Do が掛け、置く�
   assert.equal(numbers[2], 0);
 });
 
+test('回した多角形・×印・塗った三角の矢印も焼け、どれも置く行列は動かさないものになる（spec-4b-5a 完了判定11）', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [
+    { src: 0, kind: 'polygon', closed: true, color: '#c00000', fill: '#ffff00', opacity: 1, lineWidth: 2, angle: 30, rect: [99, 599, 201, 721], paths: [[[100, 600], [180, 620], [200, 720]]] },
+    { src: 0, kind: 'cross', color: '#c00000', opacity: 1, lineWidth: 2, rect: [99, 399, 161, 461], paths: [[[100, 460], [160, 400]], [[160, 460], [100, 400]]] },
+    arrow({ head: undefined, rect: [98.5, 541.7, 301.5, 601.5] }),
+  ] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  assert.equal(flattenDocument(saved, TOOLS).baked, 3);
+  const page = saved.getPages()[0];
+  const contents = saved.context.lookup(page.node.get(PDFName.of('Contents')));
+  // 焼いた 3 つは、ページの最後の中身に 1 行ずつ並ぶ
+  const lines = contentOf(saved, saved.context.lookup(contents.asArray().at(-1))).split('\n');
+  assert.equal(lines.length, 3);
+  for (const line of lines) {
+    const numbers = line.match(/^q (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) cm \/SigKF\d+ Do Q$/).slice(1).map(Number);
+    assert.ok(Math.abs(numbers[0] - 1) < 0.001 && Math.abs(numbers[3] - 1) < 0.001 && numbers[1] === 0 && numbers[2] === 0, line);
+  }
+  assert.equal(annotsOf(saved, 0).length, 0);
+});
+
 // ---- 新しい形（折り返す形）のテキスト（spec-4b-4a 確定事項I） ----
 
 function wrappedText(overrides = {}) {

@@ -54,19 +54,9 @@
     return root.SigK.annotateRightButton;
   }
 
-  // 描いている途中の多角形（spec-4b-5a 確定事項13〜17）。
-  function polygon() {
-    return root.SigK.annotatePolygon;
-  }
-
-  // 線の始点合わせ（spec-4b-5a 確定事項19）。
-  function anchor() {
-    return root.SigK.annotateLineAnchor;
-  }
-
-  // 頂点・終点を離した所に置く途中か（多角形を描いている・始点合わせの始点を決めた）。
+  // 離した所に頂点・終点を置く途中の操作（描いている多角形・始点合わせ。spec-4b-5a 確定事項13〜19）。
   function placing() {
-    return polygon()?.isDrawing() === true || anchor()?.isActive() === true;
+    return root.SigK.annotatePlacing;
   }
 
   function holdingHand() {
@@ -103,7 +93,7 @@
     }
     // 右は right-button へ（spec-4b-3b 確定事項D1・D6）。中ボタンなど、ほかのボタンは何もしない。描いている途中の多角形は、右の押しで
     // やめてメニューを出さない（spec-4b-5a 確定事項16）。
-    const dropped = (event.button ?? 0) === 2 && (polygon()?.cancel() === true || anchor()?.cancel() === true);
+    const dropped = (event.button ?? 0) === 2 && placing()?.cancel() === true;
     if ((event.button ?? 0) === 2)
       rightButton()?.down(event, { swallowed: closedEditor || closedMenu || dropped });
     if (closedEditor || closedMenu || !isLeft(event) || inEditor(event) || !inAnnotMode() || !isOpen()) {
@@ -111,7 +101,7 @@
       return;
     }
     // 描いている途中の多角形と始点合わせは、つまみも書き込みも見ずに、離したときに頂点・終点を置く（spec-4b-5a 確定事項17・19）。
-    if (placing()) {
+    if (placing()?.isActive() === true) {
       event.preventDefault();
       press().reset();
       return;
@@ -136,7 +126,7 @@
     if (rightButton()?.takeChordUp(event) === true || !isLeft(event))
       return;
     const pressed = press().take();
-    if (polygon()?.release(event) === true || anchor()?.release(event) === true)
+    if (placing()?.release(event) === true)
       return;
     if (hand().end() || transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
       return;
@@ -152,7 +142,7 @@
       return;
     // 描いている途中の多角形は、開いたまま確定する（spec-4b-5a 確定事項15）。直線・矢印の道具では、書き込みの端・角・頂点の近くを
     // 始点にして引き始める（確定事項19）。
-    if (polygon()?.doubleClick(event) === true || anchor()?.tryStart(event) === true)
+    if (placing()?.doubleClick(event) === true)
       return;
     const page = press().pageAt(event);
     if (page === null)
@@ -172,8 +162,7 @@
       return;
     grab().move(event);
     draw().move(event);
-    polygon()?.move(event);
-    anchor()?.move(event);
+    placing()?.move(event);
     // つまみの上のカーソル（掴んでいない・描いていないとき）。ハンドのときはつまみを見ないので、残っていれば外す。
     if (inAnnotMode() && holdingHand())
       transform()?.clearCursor();

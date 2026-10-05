@@ -365,15 +365,14 @@ test('閉じた多角形は Polygon で h で閉じ、塗りがあれば B（塗
   assert.match(shapeAppearanceOf(polygonEntry({ lineStyle: 'dashed' })).content, /\n2 w \[6 4\] 0 d 1 j\n/);
 });
 
-test('回した多角形は外観の /Matrix と外接の /Rect を付け、/Vertices は回した位置（小数 4 桁）、中身は回す前の頂点', () => {
-  const { matrixOf, rectOf } = require('../worker/shape-rotation.js');
-  const { transformPoint } = require('../worker/pdf-matrix.js');
+test('回した多角形は外観の /Matrix と外接の /Rect を付け、/Vertices は丸めない回転で回した位置（小数 4 桁）、中身は回す前の頂点', () => {
+  const { matrixOf, rectOf, rotatePoint } = require('../worker/shape-rotation.js');
   const appearance = shapeAppearanceOf(polygonEntry({ angle: 30 }));
   assert.deepEqual(appearance.matrix, matrixOf([99, 599, 201, 721], 30));
   assert.deepEqual(appearance.rect, rectOf([99, 599, 201, 721], 30));
   assert.deepEqual(appearance.bbox, [99, 599, 201, 721]);
   assert.match(appearance.content, /100 600 m 180 620 l 200 720 l h S$/);
-  const expected = [[100, 600], [180, 620], [200, 720]].flatMap((point) => transformPoint(point, appearance.matrix)).map((value) => Math.round(value * 10000) / 10000);
+  const expected = [[100, 600], [180, 620], [200, 720]].flatMap((point) => rotatePoint(point, [150, 660], 30)).map((value) => Math.round(value * 10000) / 10000);
   assert.deepEqual(appearance.vertices, expected);
 });
 

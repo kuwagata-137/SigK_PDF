@@ -51,16 +51,19 @@
     return u.map(([x, y]) => [round(x + turned[0] - cu[0]), round(y + turned[1] - cu[1])]);
   }
 
-  // 点が多角形の中か（偶奇の規則）。
+  // 点が多角形の中か。塗り（SVG・canvas・PDF の f と B）と同じ非ゼロ巻き数の規則で見る（自分の辺と交わる星の真ん中も中）。
   function contains(point, vertices) {
-    let inside = false;
-    for (let index = 0, prev = vertices.length - 1; index < vertices.length; prev = index, index += 1) {
-      const [xi, yi] = vertices[index];
-      const [xj, yj] = vertices[prev];
-      if ((yi > point[1]) !== (yj > point[1]) && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi)
-        inside = !inside;
+    let winding = 0;
+    for (let index = 0; index < vertices.length; index += 1) {
+      const a = vertices[index];
+      const b = vertices[(index + 1) % vertices.length];
+      const side = (b[0] - a[0]) * (point[1] - a[1]) - (point[0] - a[0]) * (b[1] - a[1]);
+      if (a[1] <= point[1] && b[1] > point[1] && side > 0)
+        winding += 1;
+      else if (a[1] > point[1] && b[1] <= point[1] && side < 0)
+        winding -= 1;
     }
-    return inside;
+    return winding !== 0;
   }
 
   // 辺までのいちばん近い距離。閉じた多角形は最後の頂点から最初の頂点への辺も見る。

@@ -6,6 +6,13 @@ const assert = require('node:assert/strict');
 require('../renderer/free-text-geometry.js');
 require('../renderer/shape-rotation.js');
 const worker = require('../worker/shape-rotation.js');
+
+test('保存側の rotatePoint と centerOf は画面側と同じ式（spec-4b-5a 確定事項36。多角形の /Vertices を回す）', () => {
+  const screen = globalThis.SigK.shapeRotation;
+  for (const angle of [0, 30, 37, 123, 200, 359.5])
+    assert.deepEqual(worker.rotatePoint([380.5, 620.25], [250, 700], angle), screen.rotatePoint([380.5, 620.25], [250, 700], angle));
+  assert.deepEqual(worker.centerOf([10, 20, 50, 80]), screen.centerOf([10, 20, 50, 80]));
+});
 const { transformPoint } = require('../worker/pdf-matrix.js');
 
 // 四角・丸の回転の純粋層（spec-4b-2 確定事項1〜7・19・29・32）。画面側（renderer/shape-rotation.js）とワーカー側

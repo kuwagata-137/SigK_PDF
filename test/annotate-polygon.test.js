@@ -92,6 +92,24 @@ test('道具の段の多角形で、クリックした所に頂点を置き、�
   assert.equal(SigK.pageEdit.canUndo(), false, '1 世代だけ');
 });
 
+test('1 つ目の頂点も、押してから少し引きずって離した所に置き、引きずっても文字を選ばない（spec-4b-5a 確定事項13）', async (t) => {
+  const shell = await withPolygon(t);
+  const { SigK } = shell;
+  const [sx, sy] = viewportOf(shell).convertToViewportPoint(100, 700);
+  const [ex, ey] = viewportOf(shell).convertToViewportPoint(110, 690);
+  const down = mouse(shell, 'mousedown', pageNode(shell), sx, sy, { buttons: 1 });
+  assert.equal(down.defaultPrevented, true);
+  mouse(shell, 'mousemove', pageNode(shell), ex, ey, { buttons: 1 });
+  mouse(shell, 'mouseup', pageNode(shell), ex, ey);
+  assert.equal(SigK.annotatePolygon.isDrawing(), true);
+  click(shell, [200, 690]);
+  click(shell, [180, 600]);
+  click(shell, [111, 689]);
+  const [polygon] = added(shell);
+  near(polygon.paths[0][0][0], 110);
+  near(polygon.paths[0][0][1], 690);
+});
+
 test('ダブルクリックで開いたまま確定し、頂点が 2 つなら直線になる', async (t) => {
   const shell = await withPolygon(t);
   click(shell, [100, 700]);

@@ -10,11 +10,10 @@
 
 const { num, colorOps } = require('./annotation-appearance.js');
 const { cloudPathOf } = require('./cloud-appearance.js');
-const { matrixOf, rectOf } = require('./shape-rotation.js');
+const { centerOf, rotatePoint, matrixOf, rectOf } = require('./shape-rotation.js');
 const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 const { ARROW_MIN_LENGTH, ARROW_LENGTH_RATIO, ARROW_ANGLE, arrowHead } = require('./arrow-head.js');
 const { point, dashOps, lineOps, arrowOps, closedArrowOps, crossOps, polygonOps, inkOps } = require('./shape-path-ops.js');
-const { transformPoint } = require('./pdf-matrix.js');
 
 const KAPPA = 0.5523;
 
@@ -118,10 +117,12 @@ function fieldsOf(entry) {
   // ×印は小数 4 桁（読み戻しで角度を形から求めるため。spec-4b-5a 確定事項35・39）。
   if (entry.kind === 'cross')
     return { inkList: entry.paths.map((path) => path.flat().map(round4)) };
-  // 多角形は回した位置の頂点を小数 4 桁で（読み戻しで回す前の頂点に戻すため。spec-4b-5a 確定事項36・40）。
+  // 多角形は回した位置の頂点を小数 4 桁で（読み戻しで回す前の頂点に戻すため。spec-4b-5a 確定事項36・40）。回すのは丸めない cos・sin で
+  // （/Matrix の 4 桁の丸めで回すと、大きな多角形では開き直すたびに頂点が 0.01pt ずつずれる）。中心は /BBox（回す前の箱）の中心。
   if (entry.kind === 'polygon') {
-    const turned = Number.isFinite(entry.angle) && entry.angle !== 0 ? matrixOf(entry.rect.map(round), entry.angle) : null;
-    return { vertices: entry.paths[0].flatMap((at) => (turned === null ? at : transformPoint(at, turned)).map(round4)) };
+    const turned = Number.isFinite(entry.angle) && entry.angle !== 0;
+    const center = centerOf(entry.rect.map(round));
+    return { vertices: entry.paths[0].flatMap((at) => (turned ? rotatePoint(at, center, entry.angle) : at).map(round4)) };
   }
   return {};
 }

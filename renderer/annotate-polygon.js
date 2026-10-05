@@ -173,5 +173,6 @@
     draftFor,
     marksFor,
     isDrawing: () => draft().isActive(),
+    isPolygonTool,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

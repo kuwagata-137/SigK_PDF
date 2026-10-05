@@ -86,6 +86,27 @@ test('矢印の道具でも引け、Shift で 45° 刻み。始点から 3px 以
   assert.equal(added(shell).length, count);
 });
 
+test('回した四角の角から引くと、始点は回した角の位置を小数 2 桁にそろえたもの', async (t) => {
+  const shell = await withLine(t);
+  const { SigK } = shell;
+  SigK.annotate.select('30R');
+  SigK.annotate.setTool('shape');
+  const square = SigK.annotate.selectedEntry();
+  const field = shell.document.getElementById('props-angle');
+  field.value = '30';
+  field.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  const turned = SigK.annotate.selectedEntry();
+  assert.equal(turned.angle, 30);
+  SigK.annotate.setShapeKind('line');
+  const corner = SigK.shapeRotation.cornersOf(turned.rect, 30)[1];
+  doubleClick(shell, corner);
+  click(shell, [corner[0] + 80, corner[1] - 60]);
+  const line = added(shell).at(-1);
+  assert.equal(line.kind, 'line');
+  assert.deepEqual([...line.paths[0][0]], [...corner].map((value) => Math.round(value * 100) / 100));
+  assert.equal(square.ref, '30R');
+});
+
 test('Esc・右クリック・道具の切り替えでやめ、吸い付く点の無い所のダブルクリックでは始めない', async (t) => {
   const shell = await withLine(t);
   const { SigK, document } = shell;

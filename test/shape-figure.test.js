@@ -172,7 +172,7 @@ test('×印は回す前の箱の対角線 2 本の <line>（破線なら点列�
 
 // ---- 多角形（spec-4b-5a 確定事項10） ----
 
-test('多角形は閉じたら塗れる polygon、開いたら polyline の部品で、破線は輪郭の点列（閉じたものは始点へ戻す）', () => {
+test('多角形は閉じたら塗れる polygon、開いたら polyline の部品で、破線は輪郭の点列（閉じたものは Z で閉じる）', () => {
   const view = viewport();
   const vertices = [[100, 600], [180, 620], [200, 720]];
   const closed = { id: 'p', src: 0, kind: 'polygon', closed: true, color: '#c00000', fill: '#ffff00', opacity: 1, lineWidth: 2, paths: [vertices], rect: [99, 599, 201, 721] };
@@ -190,5 +190,15 @@ test('多角形は閉じたら塗れる polygon、開いたら polyline の部�
   assert.equal(dashed.parts[0].type, 'path');
   assert.equal(dashed.parts[0].fillable, true);
   const segments = dashed.parts[0].segments;
-  assert.deepEqual(segments.at(-1).points.at(-1).map(r2), view.convertToViewportPoint(100, 600).map(r2), '始点へ戻る');
+  assert.equal(segments.at(-1).op, 'Z');
+  assert.deepEqual(segments[0].points[0].map(r2), view.convertToViewportPoint(100, 600).map(r2));
+});
+
+test('破線の閉じた多角形の輪郭は Z で閉じる（始点の角も保存の外観と同じ丸い角になる）', () => {
+  const closed = { id: 'p', src: 0, kind: 'polygon', closed: true, color: '#c00000', opacity: 1, lineWidth: 8, lineStyle: 'dashed', paths: [[[100, 600], [180, 620], [200, 720]]], rect: [96, 596, 204, 724] };
+  const segments = figure.figureOf(closed, viewport()).parts[0].segments;
+  assert.equal(segments.at(-1).op, 'Z');
+  assert.equal(segments.filter((segment) => segment.op === 'L').length, 2);
+  const open = figure.figureOf({ ...closed, closed: false }, viewport()).parts[0].segments;
+  assert.notEqual(open.at(-1).op, 'Z');
 });
