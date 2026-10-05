@@ -21,7 +21,7 @@
   }
 
   function isTurnable(entry) {
-    return entry?.kind === 'square' || entry?.kind === 'circle' || entry?.kind === 'text';
+    return entry?.kind === 'square' || entry?.kind === 'circle' || entry?.kind === 'text' || entry?.kind === 'cross';
   }
 
   // 数値欄の値を当てる相手（選んでいる書き込みの鍵の並びと、持っている道具）。打ちかけの値は打ち始めたときの相手にだけ当てる。

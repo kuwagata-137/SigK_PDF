@@ -45,9 +45,15 @@ function closedArrowOps([from, to], width, style) {
     `${point(left)} m ${point(to)} l ${point(right)} l h f`].join('\n');
 }
 
+// ×印（spec-4b-5a 確定事項35）: 対角線 2 本。実線は丸い端と角、破線は直線と同じく切りっぱなしの端。
+function crossOps(paths, width, style) {
+  const head = style.dash !== null ? `${num(width)} w ${dashOps(style.dash)}` : `${num(width)} w 1 J 1 j`;
+  return [`${colorOps(style.stroke)} RG`, head, ...paths.map(pathOps)].join('\n');
+}
+
 // ペン: path ごとの折れ線（丸い端と角）。
 function inkOps(paths, width, style) {
   return [`${colorOps(style.stroke)} RG`, `${num(width)} w 1 J 1 j`, ...paths.map(pathOps)].join('\n');
 }
 
-module.exports = { point, dashOps, pathOps, lineOps, arrowOps, closedArrowOps, inkOps };
+module.exports = { point, dashOps, pathOps, lineOps, arrowOps, closedArrowOps, crossOps, inkOps };

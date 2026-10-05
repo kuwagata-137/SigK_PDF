@@ -512,3 +512,33 @@ test('次に付ける不透明度が、図形とペンの下書きと描いた�
   drag(shell, [300, 300], [400, 250]);
   assert.equal(SigK.viewer.getAnnotations().added.at(-1).opacity, 0.5);
 });
+
+// ---- ×印（spec-4b-5a 確定事項12・20・21・26・27） ----
+
+test('道具の段の ×印で箱をドラッグすると ×印が描かれ、四角と同じ 8 つのつまみと回転のつまみ・回転の行が出る', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  document.querySelector('#edit-bar .edit-tool[data-shape="cross"]').click();
+  assert.equal(SigK.annotate.getTool(), 'shape');
+  assert.equal(SigK.annotateShape.getShapeKind(), 'cross');
+  drag(shell, [100, 700], [160, 640], { shift: true });
+  const [cross] = SigK.viewer.getAnnotations().added;
+  assert.equal(cross.kind, 'cross');
+  assert.deepEqual(plain(cross.rect), [100, 640, 160, 700]);
+  assert.equal(cross.paths, undefined);
+  assert.equal(SigK.annotate.getSelected(), cross.id);
+  assert.equal(pageNode(shell).querySelectorAll(`.annot-layer g[data-annot="${cross.id}"] g.shape.cross line`).length, 2);
+  const handles = SigK.shapeHandles.handlesOf(cross, viewportOf(shell));
+  assert.equal(handles.handles.filter((handle) => handle.kind === 'corner').length, 4);
+  assert.equal(handles.handles.filter((handle) => handle.kind === 'rotate').length, 1);
+  assert.equal(document.getElementById('props-angle-row').hidden, false);
+  assert.match(document.getElementById('props-hint').textContent, /四隅と辺の白いつまみ/);
+  assert.equal(document.getElementById('props-kind').textContent, '×印');
+  // 空いた箱の中を押しても選ばない（対角線の近くだけ当たる）
+  SigK.annotate.select(null);
+  SigK.annotate.setTool(null);
+  clickAt(shell, 130, 690);
+  assert.equal(SigK.annotate.getSelected(), null);
+  clickAt(shell, 130, 670);
+  assert.equal(SigK.annotate.getSelected(), cross.id);
+});

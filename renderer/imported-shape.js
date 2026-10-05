@@ -1,7 +1,8 @@
 (function (root) {
   'use strict';
 
-  // 図形・ペン（Square・Circle・Ink と 2 点の PolyLine）の 1 件を自前の形にする純粋層（spec-4-3 確定事項13）。
+  // 図形・ペン（Square・Circle・Ink と 2 点の PolyLine、×印の形の Ink）の 1 件を自前の形にする純粋層（spec-4-3 確定事項13、
+  // spec-4b-5a 確定事項38・39）。
   // imported-entry.js から移した（spec-4b-1a 確定事項36。中身は変えていない）。拾えなければ null を返し、
   // imported-entry.js が表示のみの entry にする。値の変換は imported-values.js。
 
@@ -109,9 +110,44 @@
     return undefined;
   }
 
+  // pdf.js の平たい数の並びを、丸めずに点列にする（×印の見分けは小数 2 桁の丸めでは角度がずれるため。spec-4b-5a 確定事項39）。
+  function rawPathOf(flat) {
+    const path = [];
+    for (let index = 0; index + 2 <= (flat?.length ?? 0); index += 2)
+      path.push([flat[index], flat[index + 1]]);
+    return path;
+  }
+
+  // 2 本の線の Ink が ×印の形なら、×印の entry（箱と角度。点列は持たない）。違えば null（spec-4b-5a 確定事項39）。
+  function importedCross(annotation, src) {
+    const cross = root.SigK.crossGeometry?.crossOf((annotation.inkLists ?? []).map(rawPathOf));
+    if (cross === null || cross === undefined)
+      return null;
+    const line = lineFieldsOf('cross', annotation);
+    if (line === null)
+      return null;
+    const entry = {
+      ref: annotation.id,
+      src,
+      kind: 'cross',
+      ...line,
+      opacity: Number.isFinite(annotation.opacity) ? annotation.opacity : 1,
+      rect: cross.rect,
+      quads: [root.SigK.shapeRotation.quadOf(cross.rect, cross.angle)],
+    };
+    if (cross.angle !== 0)
+      entry.angle = cross.angle;
+    return entry;
+  }
+
   // 図形・ペン。/Rect・/C・/BS /W・破線の間隔と、/Vertices（PolyLine）・/InkList（Ink）から組む（spec-4-3 確定事項13、
   // spec-4b-1b 確定事項36・37）。塗り・雲形・/RD・不透明度は pdf.js が返さないので、口の答えで当てる（annotation-details.js）。
   function importedShape(annotation, src) {
+    if (annotation.subtype === 'Ink' && values().isRect(annotation.rect)) {
+      const cross = importedCross(annotation, src);
+      if (cross !== null)
+        return cross;
+    }
     const kind = annotation.subtype === 'PolyLine' ? polylineKind(annotation) : SHAPE_KINDS[annotation.subtype];
     if (kind === null || kind === undefined || !values().isRect(annotation.rect))
       return null;

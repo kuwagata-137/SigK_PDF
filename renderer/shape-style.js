@@ -6,14 +6,15 @@
   //
   //   四角・丸   … color は '#rrggbb' か null（線なし。そのときは fill が要る）、fill は '#rrggbb' か null（塗りなし）、
   //                lineStyle は 'solid'・'dashed'・'cloudy'
-  //   直線・矢印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
+  //   直線・矢印・×印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
   //   ほかの種類 … 線種と塗りを持たない（実線）
   //   dash           … 'dashed' のときだけ持つ、線の太さに対する倍数の配列（読み込んだ間隔。無ければ 3:2）
   //   cloudIntensity … 'cloudy' のときだけ持つ強さ（0 より大きく 2 以下。SigK PDF で描く雲形は 1）
   // 無い欄は、fill が null・lineStyle が 'solid'・雲形の強さが 1 として扱う（今までの書き込みはこの形のまま読める）。
 
   const BOXED_KINDS = Object.freeze(['square', 'circle']);
-  const LINE_KINDS = Object.freeze(['line', 'arrow']);
+  // 実線と破線を選べる種類（直線・矢印、×印は spec-4b-5a 確定事項2）。
+  const LINE_KINDS = Object.freeze(['line', 'arrow', 'cross']);
   const LINE_STYLES = Object.freeze(['solid', 'dashed', 'cloudy']);
   const LINE_STYLES_OF_LINES = Object.freeze(['solid', 'dashed']);
   const SOLID_ONLY = Object.freeze(['solid']);

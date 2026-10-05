@@ -12,6 +12,7 @@ require('../renderer/annotation-state.js');
 require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-rotation.js');
+require('../renderer/cross-geometry.js');
 
 // 書き込みの角度（spec-4b-2 確定事項1〜5）。四角・丸だけが angle（画面で時計回りの度。0 は持たない）を持て、
 // rect は回す前の箱、quads は回した 4 隅。
@@ -148,4 +149,35 @@ test('rectOfEntry は書き込みの欄（矢印の先を含む）から形を�
   assert.deepEqual(wider, geo.rectOfShape({ kind: 'arrow', paths, lineWidth: 6, head: 'open' }));
   const turned = geo.rectOfEntry({ kind: 'square', rect: [10, 10, 50, 30], lineWidth: 2, angle: 30 }, { angle: 0 });
   assert.deepEqual(turned.rect, [10, 10, 50, 30]);
+});
+
+// ---- ×印（spec-4b-5a 確定事項1・2・35） ----
+
+function crossEntry(overrides = {}) {
+  const rect = [100, 600, 160, 640];
+  return { src: 0, kind: 'cross', color: '#c00000', opacity: 1, lineWidth: 2, rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)], ...overrides };
+}
+
+test('×印は図形の種類で、角度・実線と破線を持て、線なし・塗り・雲形・点列は断る', () => {
+  assert.equal(entries.isShapeKind('cross'), true);
+  assert.equal(entries.isDrawnKind('cross'), true);
+  assert.equal(entries.isPathKind('cross'), false);
+  assert.equal(entries.validEntry(crossEntry()), true);
+  assert.equal(entries.validEntry(crossEntry({ angle: 30 })), true);
+  assert.equal(entries.validEntry(crossEntry({ lineStyle: 'dashed' })), true);
+  assert.equal(entries.validEntry(crossEntry({ lineStyle: 'cloudy' })), false);
+  assert.equal(entries.validEntry(crossEntry({ color: null, fill: '#ffffff' })), false);
+  assert.equal(entries.validEntry(crossEntry({ fill: '#ffffff' })), false);
+  assert.deepEqual(entries.pickPatch({ angle: 45 }, 'cross'), { angle: 45 });
+  assert.equal(entries.pickPatch({ fill: '#ffffff' }, 'cross'), null);
+});
+
+test('×印の保存の形は、回した位置の対角線 2 本と外接の箱で、角度は持たない', () => {
+  const saved = entries.toSaveEntry(crossEntry({ angle: 90, lineStyle: 'dashed' }));
+  assert.equal(saved.kind, 'cross');
+  assert.equal(saved.angle, undefined);
+  assert.equal(saved.lineStyle, 'dashed');
+  assert.deepEqual(saved.paths, SigK.crossGeometry.diagonalsOf([100, 600, 160, 640], 90));
+  assert.deepEqual(saved.rect, SigK.crossGeometry.savedRectOf([100, 600, 160, 640], 90, 2));
+  assert.deepEqual(entries.toSaveEntry(crossEntry()).rect, [99, 599, 161, 641]);
 });

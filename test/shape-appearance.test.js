@@ -37,8 +37,8 @@ test('矢じりの寸法と翼の式は renderer/shape-geometry.js と同値', (
   assert.equal(KAPPA, 0.5523);
 });
 
-test('Subtype は矩形 Square・楕円 Circle・直線と矢印 PolyLine・ペン Ink', () => {
-  assert.deepEqual(SUBTYPES, { square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', ink: 'Ink' });
+test('Subtype は矩形 Square・楕円 Circle・直線と矢印 PolyLine・×印とペン Ink', () => {
+  assert.deepEqual(SUBTYPES, { square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', cross: 'Ink', ink: 'Ink' });
 });
 
 test('矩形は線幅の半分だけ内側に re S を書く', () => {
@@ -325,4 +325,20 @@ test('isShapeEntry は矢印の先の欄を、矢印の open だけ受ける', (
   assert.equal(isShapeEntry(line({ kind: 'arrow', head: 'closed' })), false);
   assert.equal(isShapeEntry(line({ head: 'open' })), false);
   assert.equal(shapeAppearanceOf(line({ kind: 'arrow', head: 'open' })).fillRgb, null);
+});
+
+// ---- ×印（spec-4b-5a 確定事項35） ----
+
+test('×印は Ink で、対角線 2 本を引き、/InkList は小数 4 桁。破線は間隔を書く', () => {
+  const crossEntry = { src: 0, kind: 'cross', color: RED, opacity: 1, rect: [99, 599, 161, 641], lineWidth: 2, paths: [[[100, 640], [160.12345, 600]], [[160.12345, 640], [100, 600]]] };
+  assert.equal(SUBTYPES.cross, 'Ink');
+  const appearance = shapeAppearanceOf(crossEntry);
+  assert.equal(appearance.subtype, 'Ink');
+  assert.deepEqual(appearance.inkList, [[100, 640, 160.1235, 600], [160.1235, 640, 100, 600]]);
+  assert.match(appearance.content, /^\/GS gs\n0\.851 0\.173 0\.173 RG\n2 w 1 J 1 j\n100 640 m [\d.]+ 600 l S\n[\d.]+ 640 m 100 600 l S$/);
+  assert.match(shapeAppearanceOf({ ...crossEntry, lineStyle: 'dashed' }).content, /\n2 w \[6 4\] 0 d\n/);
+  assert.equal(appearance.matrix, undefined);
+  assert.equal(isShapeEntry({ ...crossEntry, paths: crossEntry.paths.slice(0, 1) }), false);
+  assert.equal(isShapeEntry({ ...crossEntry, fill: '#ffffff' }), false);
+  assert.equal(isShapeEntry({ ...crossEntry, angle: 30 }), false, '角度は対角線に入れて渡す');
 });

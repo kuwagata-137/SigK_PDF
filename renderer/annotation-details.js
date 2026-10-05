@@ -16,7 +16,7 @@
   const SIZE_MAX = 100 * 1024 * 1024;
   const REFS_MAX = 10000;
   // 表示のみにするときの種類名（pdf.js の subtype）。一覧とヒントの呼び名はこれで引く。
-  const SUBTYPE_OF = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', ink: 'Ink', text: 'FreeText', note: 'Text' });
+  const SUBTYPE_OF = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', cross: 'Ink', ink: 'Ink', text: 'FreeText', note: 'Text' });
 
   // 次の呼び出しは前の呼び出しが終わるまで待つ（確定事項25）。
   let queue = Promise.resolve();

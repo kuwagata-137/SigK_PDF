@@ -13,11 +13,11 @@ const { cloudPathOf } = require('./cloud-appearance.js');
 const { matrixOf, rectOf } = require('./shape-rotation.js');
 const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 const { ARROW_MIN_LENGTH, ARROW_LENGTH_RATIO, ARROW_ANGLE, arrowHead } = require('./arrow-head.js');
-const { point, dashOps, lineOps, arrowOps, closedArrowOps, inkOps } = require('./shape-path-ops.js');
+const { point, dashOps, lineOps, arrowOps, closedArrowOps, crossOps, inkOps } = require('./shape-path-ops.js');
 
 const KAPPA = 0.5523;
 
-const SUBTYPES = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', ink: 'Ink' });
+const SUBTYPES = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', cross: 'Ink', ink: 'Ink' });
 
 function round(value) {
   return Math.round(value * 100) / 100;
@@ -82,6 +82,7 @@ function opsOf(entry, style) {
     case 'circle': return boxOps(entry, style);
     case 'line': return { ops: lineOps(entry.paths[0], entry.lineWidth, style), cloud: null };
     case 'arrow': return { ops: (isClosedArrow(entry) ? closedArrowOps : arrowOps)(entry.paths[0], entry.lineWidth, style), cloud: null };
+    case 'cross': return { ops: crossOps(entry.paths, entry.lineWidth, style), cloud: null };
     default: return { ops: inkOps(entry.paths, entry.lineWidth, style), cloud: null };
   }
 }
@@ -107,6 +108,9 @@ function fieldsOf(entry) {
   }
   if (entry.kind === 'ink')
     return { inkList: entry.paths.map((path) => path.flat().map(round)) };
+  // ×印は小数 4 桁（読み戻しで角度を形から求めるため。spec-4b-5a 確定事項35・39）。
+  if (entry.kind === 'cross')
+    return { inkList: entry.paths.map((path) => path.flat().map((value) => Math.round(value * 10000) / 10000)) };
   return {};
 }
 

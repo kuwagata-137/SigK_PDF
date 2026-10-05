@@ -76,9 +76,9 @@
     return entryModule().isPathKind(entry.kind) ? validPaths(entry.kind, entry.paths) : true;
   }
 
-  // 角度を持てる種類（四角・丸。spec-4b-2 確定事項4。テキスト。spec-4b-4b 確定事項A1）。
+  // 角度を持てる種類（四角・丸。spec-4b-2 確定事項4。テキスト。spec-4b-4b 確定事項A1。×印。spec-4b-5a 確定事項6）。
   function turnable(kind) {
-    return style().isBoxedKind(kind) || kind === 'text';
+    return style().isBoxedKind(kind) || kind === 'text' || kind === 'cross';
   }
 
   // 1 件の形。色・塗り・線種の組み合わせは shape-style.js が見る（線と塗りを両方なしにはできない、など）。

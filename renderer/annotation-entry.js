@@ -11,17 +11,18 @@
   //                四角・丸と同じ { angle }（spec-4b-4b 確定事項A1。rect は回す前の箱、quads は回した 4 隅）を持てる
   //   図形・ペン … さらに { lineWidth }。直線・矢印・ペンは { paths: [[[x, y], …], …] }（紙の座標）。矢印は { head: 'open' }
   //                （開いた矢じり。無ければ塗った三角。spec-4b-5a 確定事項4）を持てる。
-  //                quads は rect の四角 1 つ。四角・丸は { fill, lineStyle }（color は null で線なし）、直線・矢印は { lineStyle }、
+  //                quads は rect の四角 1 つ。四角・丸は { fill, lineStyle }（color は null で線なし）、直線・矢印・×印は { lineStyle }、
   //                破線は { dash }、雲形は { cloudIntensity } を持てる（shape-style.js）。四角・丸は { angle }（画面で時計回りの度。
-  //                0 は持たない）を持て、そのとき rect は回す前の箱、quads は回した 4 隅（spec-4b-2 確定事項1〜4）
+  //                0 は持たない）を持て、そのとき rect は回す前の箱、quads は回した 4 隅（spec-4b-2 確定事項1〜4）。×印は四角と同じ箱と
+  //                角度で持ち、点列は持たない（保存のときに対角線を組む。spec-4b-5a 確定事項2）
   //   ノート     … さらに { author }。text は本文（空を許す）。rect は 20×20pt で左上が基準。quads は rect の四角 1 つ
   //
   // 読み込んだだけで直せない「表示のみ」の注釈は { ref, kind: 'other', subtype, readonly: true } の形で imported に
   // だけ現れる（annotation-import.js）。KINDS には無く、ここでは作れない。
 
   const MARKUP_KINDS = Object.freeze(['highlight', 'underline', 'strikeout']);
-  // 「図形」の道具で描く 4 種と、点列（paths）を持つ 3 種（spec-4-3 確定事項14）。
-  const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow']);
+  // 「図形」の道具で描く種類と、点列（paths）を持つ種類（spec-4-3 確定事項14。×印は spec-4b-5a 確定事項1）。
+  const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross']);
   const PATH_KINDS = Object.freeze(['line', 'arrow', 'ink']);
   const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink', 'note']);
   const ROTATIONS = Object.freeze([0, 90, 180, 270]);
@@ -128,6 +129,12 @@
       && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && a.head === b.head && textFields().sameFields(a, b);
   }
 
+  // ×印の保存の欄（spec-4b-5a 確定事項35）。回した位置の対角線 2 本と、その外接に線幅の半分を足した箱。角度は対角線に入る。
+  function crossSaveFields(entry) {
+    const cross = root.SigK.crossGeometry;
+    return { rect: cross.savedRectOf(entry.rect, angleOf(entry), entry.lineWidth), paths: cross.diagonalsOf(entry.rect, angleOf(entry)) };
+  }
+
   // ワーカーへ渡す形（spec-4-1 確定事項22・spec-4-2 確定事項18・spec-4-3 確定事項18・spec-4-4 確定事項19・
   // spec-4b-1b 確定事項35・spec-4b-4a 確定事項I1）。id は要らない。マークアップは四角の並び、テキストは箱と本文・大きさ・回転
   // （新しい形は書式の欄と、layoutOf(entry) が返す画面で決めた行と余白も）、図形・ペンは箱と線幅（と点列、既定と違う見た目の欄）、
@@ -143,6 +150,8 @@
     }
     if (isNoteKind(kind))
       return { src, kind, color, opacity, rect: [...rect], text, author: author ?? '' };
+    if (kind === 'cross')
+      return { src, kind, color, opacity, lineWidth, ...style().saveStyle(entry), ...crossSaveFields(entry) };
     if (isDrawnKind(kind)) {
       const saved = { src, kind, color, opacity, rect: [...rect], lineWidth, ...style().saveStyle(entry) };
       if (isPathKind(kind))

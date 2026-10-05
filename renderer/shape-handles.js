@@ -28,8 +28,9 @@
     return root.SigK.shapeRotation;
   }
 
+  // 箱で持つ図形（四角・丸・×印。×印は spec-4b-5a 確定事項20）。
   function isBoxed(entry) {
-    return entry?.kind === 'square' || entry?.kind === 'circle';
+    return entry?.kind === 'square' || entry?.kind === 'circle' || entry?.kind === 'cross';
   }
 
   function isLine(entry) {

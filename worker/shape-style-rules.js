@@ -6,16 +6,17 @@
 //
 //   四角・丸   … color は '#rrggbb' か null（線なし。そのときは fill が要る）、fill は '#rrggbb' か null、
 //                lineStyle は 'solid'・'dashed'・'cloudy'
-//   直線・矢印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
+//   直線・矢印・×印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
 //   ペン       … 線種を持たない（実線）
 //   dash は破線のときだけの、線の太さに対する倍数（無ければ 3:2）。cloudIntensity は雲形のときだけの強さ（無ければ 1）。
 
 const { parseColor } = require('./annotation-appearance.js');
 
 // 図形・ペンの種類（shape-appearance.js が同じ名前で公開する）。
-const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'ink']);
+const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'ink']);
 const BOXED_KINDS = Object.freeze(['square', 'circle']);
-const LINE_KINDS = Object.freeze(['line', 'arrow']);
+// 実線と破線を選べる種類（×印は spec-4b-5a 確定事項2）。
+const LINE_KINDS = Object.freeze(['line', 'arrow', 'cross']);
 const LINE_STYLES = Object.freeze(['solid', 'dashed', 'cloudy']);
 const DEFAULT_DASH = Object.freeze([3, 2]);
 const DEFAULT_CLOUD_INTENSITY = 1;
@@ -79,11 +80,14 @@ function isPoint(point) {
 }
 
 // 点列は 1 本以上で各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（renderer/annotation-entry-rules.js と同じ約束）。
+// ×印は画面が組んだ対角線 2 本で、それぞれ 2 点（spec-4b-5a 確定事項35）。
 function validPaths(kind, paths) {
   if (!Array.isArray(paths) || paths.length === 0)
     return false;
   if (!paths.every((path) => Array.isArray(path) && path.length >= 2 && path.every(isPoint)))
     return false;
+  if (kind === 'cross')
+    return paths.length === 2 && paths.every((path) => path.length === 2);
   return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
 }
 

@@ -7,6 +7,7 @@ const { JSDOM } = require('jsdom');
 require('../renderer/free-text-geometry.js');
 require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
+require('../renderer/cross-geometry.js');
 require('../renderer/shape-style.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');

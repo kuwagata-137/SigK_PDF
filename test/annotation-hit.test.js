@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 require('../renderer/free-text-geometry.js');
 require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
+require('../renderer/cross-geometry.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/free-text-layout.js');
 require('../renderer/callout-shape.js');
@@ -89,4 +90,15 @@ test('hits は吹き出しのしっぽに、線と同じ余裕（枠線の太さ
   const { borderColor, borderWidth, ...bare } = callout;
   assert.equal(hit.hits(bare, point, { scale: 1 }, [0, 0]), false, '枠線が無ければ 3pt');
   assert.equal(hit.hits({ ...callout, readonly: true }, point, { scale: 1 }, [0, 0]), false);
+});
+
+test('hits は ×印を対角線の近くだけで当て、箱の中の空いた所は当てない（回したものも。spec-4b-5a 確定事項21）', () => {
+  const entry = { kind: 'cross', rect: [0, 0, 40, 40], lineWidth: 2, quads: [[0, 40, 40, 40, 0, 0, 40, 0]], color: '#c00000' };
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits(entry, [20, 20], viewport, null), true);
+  assert.equal(hit.hits(entry, [10, 10.5], viewport, null), true);
+  assert.equal(hit.hits(entry, [20, 4], viewport, null), false, '上の辺の中ほどは空いている');
+  const turned = { ...entry, angle: 45 };
+  assert.equal(hit.hits(turned, [20, 35], viewport, null), true);
+  assert.equal(hit.hits(turned, [10, 10], viewport, null), false);
 });

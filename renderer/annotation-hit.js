@@ -66,6 +66,9 @@
     if (entry.kind === 'text' && entry.callout !== undefined
       && root.SigK.calloutShape.hitsTail(entry, pdfPoint, hitTolerance(tailLineOf(entry), viewport.scale ?? 1)))
       return true;
+    // ×印は対角線 2 本からの距離（回したものは回す前の座標へ戻す。spec-4b-5a 確定事項21）。
+    if (entry.kind === 'cross')
+      return root.SigK.crossGeometry.distanceTo(entry, pdfPoint) <= hitTolerance(entry.lineWidth, viewport.scale ?? 1);
     if (root.SigK.shapeRotation?.isRotated(entry) === true)
       return hitsTurnedBox(entry, pdfPoint);
     if (!annotationState().isPathKind(entry.kind))

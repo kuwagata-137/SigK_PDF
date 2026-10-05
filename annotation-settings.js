@@ -43,7 +43,7 @@ const ANNOT_LINE_WIDTH_MIN = 1;
 const ANNOT_LINE_WIDTH_MAX = 40;
 const ANNOT_OPACITY_MIN = 0.1;
 const ANNOT_LINE_STYLES = ['solid', 'dashed', 'cloudy'];
-const ANNOT_SHAPE_KINDS = ['square', 'circle', 'line', 'arrow'];
+const ANNOT_SHAPE_KINDS = ['square', 'circle', 'line', 'arrow', 'cross'];
 const ANNOT_AUTHOR_MAX = 100;
 
 const HEX = /^#[0-9a-f]{6}$/i;

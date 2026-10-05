@@ -56,7 +56,7 @@
     if (entryKinds()?.isDrawnKind(entry.kind) !== true)
       return HINTS.selected;
     // つまみの説明は「掴んで動かせます。」のあと（spec-4b-2 確定事項28）。ペンはつまみを出さない。
-    const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
+    const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, cross: HINTS.boxTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
     const shape = HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${transform}`);
     return `${shape}${boxHintOf(entry.kind, root.SigK.shapeStyle.fillOf(entry))}`;
   }

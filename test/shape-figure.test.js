@@ -6,6 +6,8 @@ const assert = require('node:assert/strict');
 require('../renderer/free-text-geometry.js');
 require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/cross-geometry.js');
 require('../renderer/shape-style.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
@@ -147,4 +149,22 @@ test('新しい矢印（head が無い）は軸を三角の底の中点で止め
   assert.equal(dashed.parts[0].type, 'path');
   assert.ok(dashed.parts[0].dash.length > 0);
   assert.equal(dashed.parts[1].type, 'polygon');
+});
+
+// ---- ×印（spec-4b-5a 確定事項9） ----
+
+test('×印は回す前の箱の対角線 2 本の <line>（破線なら点列）で、丸い端と角', () => {
+  const crossEntry = { id: 'sigk-9', src: 0, kind: 'cross', color: '#c00000', opacity: 1, lineWidth: 2, rect: [100, 600, 160, 640], quads: [[100, 640, 160, 640, 100, 600, 160, 600]] };
+  const view = viewport();
+  const shape = figure.figureOf(crossEntry, view);
+  assert.equal(shape.cap, 'round');
+  assert.equal(shape.join, 'round');
+  assert.equal(shape.fill, null);
+  assert.deepEqual(shape.parts.map((part) => [part.type, part.from.map(r2), part.to.map(r2)]), [
+    ['line', view.convertToViewportPoint(100, 640).map(r2), view.convertToViewportPoint(160, 600).map(r2)],
+    ['line', view.convertToViewportPoint(160, 640).map(r2), view.convertToViewportPoint(100, 600).map(r2)],
+  ]);
+  const dashed = figure.figureOf({ ...crossEntry, lineStyle: 'dashed' }, view);
+  assert.deepEqual(dashed.parts.map((part) => part.type), ['path', 'path']);
+  assert.ok(dashed.parts.every((part) => part.dash.length > 0 && part.fillable === false));
 });

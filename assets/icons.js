@@ -165,6 +165,8 @@
     shapeCircle: [['ellipse', { cx: 12, cy: 12, rx: 8, ry: 6 }]],
     shapeLine: [['path', { d: 'M5 18L19 6' }]],
     shapeArrow: [['path', { d: 'M5 18L19 6M12 6h7v7' }]],
+    // 道具の段の「×印」（spec-4b-5a 確定事項27。見本 screenshots/phase4b-5a-shapes.png）。対角線 2 本。
+    shapeCross: [['path', { d: 'M6 6l12 12M18 6L6 18' }]],
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
     // 道具の段の「選択」（spec-4b-3a 確定事項C1）。マウスの矢印の形。
     pointerSelect: [['path', { d: 'M6.5 3.8v14.6l3.9-3.7 2.6 5.5 2.3-1.1-2.6-5.4h5.6z' }]],

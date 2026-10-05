@@ -103,3 +103,25 @@ test('dashRatiosOf は間隔を線の太さの倍数にし、3:2 なら null、�
   assert.equal(shape.dashRatiosOf([0, 0], 1), undefined);
   assert.deepEqual(shape.dashRatiosOf(new Float32Array([4, 2]), 4), [1, 0.5]);
 });
+
+// ---- ×印（spec-4b-5a 確定事項39） ----
+
+test('importedShape は ×印の形の Ink を、箱と角度の ×印にし、ほかの 2 本の Ink はペンのまま', () => {
+  require('../renderer/shape-rotation.js');
+  require('../renderer/cross-geometry.js');
+  const lists = globalThis.SigK.crossGeometry.diagonalsOf([100, 600, 160, 640], 30).map((line) => Float32Array.from(line.flat()));
+  const cross = shape.importedShape({ id: '60R', subtype: 'Ink', rect: [80, 580, 180, 660], color: [192, 0, 0], borderStyle: BORDER, inkLists: lists, opacity: 0.5 }, 0);
+  assert.equal(cross.kind, 'cross');
+  assert.deepEqual(cross.rect, [100, 600, 160, 640]);
+  assert.equal(cross.angle, 30);
+  assert.equal(cross.opacity, 0.5);
+  assert.equal(cross.paths, undefined);
+  assert.equal(cross.quads.length, 1);
+  const dashed = shape.importedShape({ id: '61R', subtype: 'Ink', rect: [80, 580, 180, 660], color: [192, 0, 0], borderStyle: { width: 2, style: 2, dashArray: [6, 4] }, inkLists: lists }, 0);
+  assert.equal(dashed.kind, 'cross');
+  assert.equal(dashed.lineStyle, 'dashed');
+  const pen = shape.importedShape({ id: '62R', subtype: 'Ink', rect: [0, 0, 100, 100], color: [0, 0, 0], borderStyle: BORDER, inkLists: [Float32Array.from([0, 0, 50, 50]), Float32Array.from([60, 0, 0, 60])] }, 0);
+  assert.equal(pen.kind, 'ink');
+  // ペンの破線は今までどおり表示のみ（null）
+  assert.equal(shape.importedShape({ id: '63R', subtype: 'Ink', rect: [0, 0, 100, 100], color: [0, 0, 0], borderStyle: { width: 2, style: 2, dashArray: [6, 4] }, inkLists: [Float32Array.from([0, 0, 50, 50, 90, 10])] }, 0), null);
+});

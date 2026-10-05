@@ -112,6 +112,15 @@
     return [axis, { type: 'polyline', points: [left, to, right].map(toView) }];
   }
 
+  // ×印（spec-4b-5a 確定事項9）。回す前の箱の対角線 2 本（回すのは shape-graphics.js の <g>）。破線は 1 本ずつ点列にする。
+  function crossParts(entry, viewport) {
+    const toView = toViewOf(viewport);
+    const dash = style().dashOf(entry);
+    return root.SigK.crossGeometry.localDiagonals(entry.rect).map(([from, to]) => (dash === null
+      ? { type: 'line', from: toView(from), to: toView(to) }
+      : dashPart(outline().polylineOutline([from, to]), dash, viewport, false)));
+  }
+
   function figureOf(entry, viewport) {
     const rounded = entry.kind !== 'square';
     const base = {
@@ -125,6 +134,8 @@
       return { ...base, fill: style().fillOf(entry), ...boxFigure(entry, viewport, base.stroke !== null) };
     if (entry.kind === 'ink')
       return { ...base, parts: entry.paths.map((path) => ({ type: 'polyline', points: path.map(toViewOf(viewport)) })) };
+    if (entry.kind === 'cross')
+      return { ...base, parts: crossParts(entry, viewport) };
     return { ...base, parts: lineParts(entry, viewport) };
   }
 
