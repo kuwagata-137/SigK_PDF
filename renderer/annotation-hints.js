@@ -24,6 +24,8 @@
     move: '掴んで動かせます。',
     boxTransform: '四隅と辺の白いつまみで大きさを、上の丸いつまみで向きを変えられます。Shift を押しながら引くと、四隅のつまみは縦と横の比を保ち、向きは 15° ずつ回ります。',
     lineTransform: '両端の白いつまみで向きと長さを変えられます。Shift を押しながら動かすと、端は横か縦にだけ動きます。',
+    // 多角形を選んだとき（spec-4b-5a 確定事項31）。
+    polygonTransform: '頂点の白いつまみで形を、上の丸いつまみで向きを変えられます。Shift を押しながら動かすと、頂点は横か縦にだけ動き、向きは 15° ずつ回ります。',
     note: '紙の上を押すと、そこに付箋を置けます。本文は「本文」の欄に書きます。Esc で道具を離します。',
     noteSelected: '本文は欄の外を押すか Ctrl+Enter で確定します。掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     readonly: '他のアプリで付けた書き込みです。Delete で消せます。直すことはできません。',
@@ -59,7 +61,7 @@
     if (entryKinds()?.isDrawnKind(entry.kind) !== true)
       return HINTS.selected;
     // つまみの説明は「掴んで動かせます。」のあと（spec-4b-2 確定事項28）。ペンはつまみを出さない。
-    const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, cross: HINTS.boxTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
+    const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, cross: HINTS.boxTransform, polygon: HINTS.polygonTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
     const shape = HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${transform}`);
     return `${shape}${boxHintOf(root.SigK.shapeStyle.canFill(entry), root.SigK.shapeStyle.fillOf(entry))}`;
   }

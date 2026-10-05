@@ -75,3 +75,34 @@ test('hits は辺の近くと、閉じて塗ったものの中だけ当たる（
   assert.equal(polygon.hits(turned, vertex, 1), true);
   assert.equal(polygon.hits(turned, PENTAGON[2], 1), false);
 });
+
+// ---- 頂点のつまみを引いた形（spec-4b-5a 確定事項23） ----
+
+require('../renderer/shape-resize.js');
+
+const VIEW = { scale: 1, convertToViewportPoint: (x, y) => [x, 1000 - y], convertToPdfPoint: (x, y) => [x, 1000 - y] };
+
+test('vertexMoved は回していない多角形の頂点を動きのぶんだけ動かし、Shift なら横か縦だけ。番号が違えば null', () => {
+  const entry = entryOf(PENTAGON);
+  const patch = polygon.vertexMoved(entry, 2, [200, 320], [230, 310], VIEW);
+  assert.deepEqual(patch.paths[0][2], [230, 690]);
+  assert.deepEqual(patch.paths[0].filter((_, at) => at !== 2), PENTAGON.filter((_, at) => at !== 2));
+  assert.deepEqual(patch.rect, polygon.rectOfVertices(patch.paths[0], 2));
+  const locked = polygon.vertexMoved(entry, 2, [200, 320], [230, 310], VIEW, { shift: true });
+  assert.deepEqual(locked.paths[0][2], [230, 680]);
+  assert.equal(polygon.vertexMoved(entry, 9, [0, 0], [1, 1], VIEW), null);
+});
+
+test('vertexMoved は回した多角形でも、動かしていない頂点を紙の上で止め、引いた頂点を指の下に置く', () => {
+  for (const angle of [30, 200]) {
+    const entry = entryOf(PENTAGON, { angle });
+    const before = polygon.worldVertices(entry, 4);
+    const [px, py] = VIEW.convertToViewportPoint(...before[1]);
+    const patch = polygon.vertexMoved(entry, 1, [px, py], [px + 40, py - 25], VIEW);
+    const after = polygon.worldVertices({ ...entry, ...patch }, 4);
+    after.forEach((point, at) => {
+      const expected = at === 1 ? VIEW.convertToPdfPoint(px + 40, py - 25) : before[at];
+      assert.ok(Math.hypot(point[0] - expected[0], point[1] - expected[1]) < 0.02, `${angle}° の ${at} 番目`);
+    });
+  }
+});

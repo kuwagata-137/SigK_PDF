@@ -81,6 +81,30 @@
     return entry.closed === true && (entry.fill ?? null) !== null && contains(local, vertices);
   }
 
+  // 頂点のつまみを引いた形（確定事項23。updateAnnot に渡す patch）。press・pointer は表示の座標で、押したときからの動きをその頂点の
+  // 位置に足す（Shift なら横か縦だけ）。回した多角形では外接の中心（回転の軸）が動くので、全頂点を d0 − R(d0)（d0 = 旧中心 − 新中心）
+  // ずらして打ち消し、動かしていない頂点を紙の上で止める。頂点の番号が違えば null。
+  function vertexMoved(entry, index, press, pointer, viewport, { shift = false } = {}) {
+    const vertices = verticesOf(entry);
+    if (!Number.isInteger(index) || index < 0 || index >= vertices.length)
+      return null;
+    const angle = rotation().angleOf(entry);
+    const center = rotation().centerOf(entry.rect);
+    const start = viewport.convertToViewportPoint(...rotation().rotatePoint(vertices[index], center, angle));
+    const delta = [pointer[0] - press[0], pointer[1] - press[1]];
+    const [dx, dy] = shift ? root.SigK.shapeResize.lockAxis(delta) : delta;
+    const world = viewport.convertToPdfPoint(start[0] + dx, start[1] + dy);
+    const moved = vertices.map((point, at) => (at === index ? rotation().rotatePoint(world, center, -angle) : [...point]));
+    const xs = moved.map((point) => point[0]);
+    const ys = moved.map((point) => point[1]);
+    const d0 = [center[0] - (Math.min(...xs) + Math.max(...xs)) / 2, center[1] - (Math.min(...ys) + Math.max(...ys)) / 2];
+    const turned = rotation().rotatePoint(d0, [0, 0], angle);
+    const shiftBy = [d0[0] - turned[0], d0[1] - turned[1]];
+    const next = moved.map(([x, y]) => [round(x + shiftBy[0]), round(y + shiftBy[1])]);
+    const rect = rectOfVertices(next, entry.lineWidth);
+    return { paths: [next], rect, quads: [rotation().quadOf(rect, angle)] };
+  }
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.polygonGeometry = { rectOfVertices, worldVertices, unrotated, contains, distanceToEdges, hits };
+  SigK.polygonGeometry = { rectOfVertices, worldVertices, unrotated, contains, distanceToEdges, hits, vertexMoved };
 })(typeof window !== 'undefined' ? window : globalThis);

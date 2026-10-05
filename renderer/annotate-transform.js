@@ -88,6 +88,9 @@
       return root.SigK.calloutHandles.tipPatch(entry, press, point, viewport, { shift });
     if (handle.kind === 'end')
       return resize.endpointMoved(entry, handle.id, press, point, viewport, { shift });
+    // 多角形の頂点（spec-4b-5a 確定事項23）。
+    if (handle.kind === 'vertex')
+      return root.SigK.polygonGeometry.vertexMoved(entry, root.SigK.polygonHandles.vertexIndexOf(handle.id), press, point, viewport, { shift });
     if (handle.kind === 'rotate') {
       const center = viewport.convertToViewportPoint(...rotation().centerOf(entry.rect));
       const patch = resize.rotatedBy(entry, press, point, center, { shift });

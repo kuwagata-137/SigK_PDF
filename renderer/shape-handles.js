@@ -20,8 +20,8 @@
   const CORNERS = Object.freeze({ x1y1: [-1, -1], x2y1: [1, -1], x1y2: [-1, 1], x2y2: [1, 1] });
   const EDGES = Object.freeze({ x1: [-1, 0], x2: [1, 0], y1: [0, -1], y2: [0, 1] });
   // 重なるときに先に当てる順（確定事項15）。
-  // 吹き出しのしっぽの先（tip。spec-4b-4b 確定事項F4）は角のつまみと同じ順。
-  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, tip: 1, edge: 2, width: 2, end: 3 });
+  // 吹き出しのしっぽの先（tip。spec-4b-4b 確定事項F4）と多角形の頂点（vertex。spec-4b-5a 確定事項22）は角のつまみと同じ順。
+  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, tip: 1, vertex: 1, edge: 2, width: 2, end: 3 });
   const RESIZE_CURSORS = Object.freeze(['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']);
 
   function rotation() {
@@ -41,9 +41,13 @@
     return entry?.kind === 'text' && root.SigK.freeTextHandles !== undefined;
   }
 
-  // つまみを出す書き込みか（四角・丸・直線・矢印・テキストで、表示のみでないもの）。
+  function isPolygon(entry) {
+    return entry?.kind === 'polygon' && Array.isArray(entry.paths) && root.SigK.polygonHandles !== undefined;
+  }
+
+  // つまみを出す書き込みか（四角・丸・×印・直線・矢印・テキスト・多角形で、表示のみでないもの）。
   function hasHandles(entry) {
-    return entry?.readonly !== true && (isBoxed(entry) || isText(entry) || (isLine(entry) && Array.isArray(entry.paths)));
+    return entry?.readonly !== true && (isBoxed(entry) || isText(entry) || isPolygon(entry) || (isLine(entry) && Array.isArray(entry.paths)));
   }
 
   function unit([x, y]) {
@@ -87,10 +91,25 @@
     return room === null || (at[0] - r >= room.left && at[1] - r >= room.top && at[0] + r <= room.right && at[1] + r <= room.bottom);
   }
 
-  function boxHandles(entry, viewport, room) {
+  // 回した箱の破線の枠と、回転のつまみとその枝（四角・丸と多角形で同じ。spec-4b-2 確定事項10、spec-4b-5a 確定事項22）。
+  // 回転のつまみは回す前の箱の上の辺の外で、そこが見える範囲から出て、下の辺の外なら収まるときだけ下の辺の外に出す
+  // （1 ページ目の上端の近くの図形でも見えて押せるように。回し方は押した点の向きの変化なので、どちらでも同じに回る）。
+  function turnedFrameOf(entry, viewport, room) {
     const frame = boxFrameOf(entry, viewport);
     const w = frame.halfWidth + FRAME_PADDING;
     const h = frame.halfHeight + FRAME_PADDING;
+    const side = !fits(place(frame, 0, h + ROTATE_GAP), room, ROTATE_RADIUS) && fits(place(frame, 0, -(h + ROTATE_GAP)), room, ROTATE_RADIUS) ? -1 : 1;
+    return {
+      box: { frame, w, h },
+      frame: { type: 'polygon', points: [[-w, h], [w, h], [w, -h], [-w, -h]].map(([lx, ly]) => place(frame, lx, ly)) },
+      stem: { from: place(frame, 0, side * h), to: place(frame, 0, side * (h + ROTATE_GAP - ROTATE_RADIUS)) },
+      rotate: { id: 'rotate', kind: 'rotate', at: place(frame, 0, side * (h + ROTATE_GAP)), cursor: 'rotate' },
+    };
+  }
+
+  function boxHandles(entry, viewport, room) {
+    const turned = turnedFrameOf(entry, viewport, room);
+    const { frame, w, h } = turned.box;
     const handle = (id, kind, [sx, sy]) => {
       const direction = [frame.ux[0] * sx + frame.uy[0] * sy, frame.ux[1] * sx + frame.uy[1] * sy];
       return { id, kind, at: place(frame, sx * w, sy * h), cursor: resizeCursorOf(direction) };
@@ -101,15 +120,8 @@
       if (across >= EDGE_HANDLE_MIN)
         handles.push(handle(id, 'edge', sign));
     }
-    // 回転のつまみは回す前の箱の上の辺の外。そこが見える範囲から出て、下の辺の外なら収まるときだけ下の辺の外に出す
-    // （1 ページ目の上端の近くの図形でも見えて押せるように。回し方は押した点の向きの変化なので、どちらでも同じに回る）。
-    const side = !fits(place(frame, 0, h + ROTATE_GAP), room, ROTATE_RADIUS) && fits(place(frame, 0, -(h + ROTATE_GAP)), room, ROTATE_RADIUS) ? -1 : 1;
-    handles.push({ id: 'rotate', kind: 'rotate', at: place(frame, 0, side * (h + ROTATE_GAP)), cursor: 'rotate' });
-    return {
-      frame: { type: 'polygon', points: [[-w, h], [w, h], [w, -h], [-w, -h]].map(([lx, ly]) => place(frame, lx, ly)) },
-      stem: { from: place(frame, 0, side * h), to: place(frame, 0, side * (h + ROTATE_GAP - ROTATE_RADIUS)) },
-      handles,
-    };
+    handles.push(turned.rotate);
+    return { frame: turned.frame, stem: turned.stem, handles };
   }
 
   function lineHandles(entry, viewport) {
@@ -128,6 +140,8 @@
       return null;
     if (isText(entry))
       return root.SigK.freeTextHandles.handlesOf(entry, viewport, room);
+    if (isPolygon(entry))
+      return root.SigK.polygonHandles.handlesOf(entry, viewport, room);
     return isBoxed(entry) ? boxHandles(entry, viewport, room) : lineHandles(entry, viewport);
   }
 
@@ -155,6 +169,7 @@
     EDGE_HANDLE_MIN,
     hasHandles,
     handlesOf,
+    turnedFrameOf,
     handleAt,
     resizeCursorOf,
     fits,

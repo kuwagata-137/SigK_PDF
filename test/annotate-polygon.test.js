@@ -175,3 +175,38 @@ test('描いていないときは書き込みの上の押し離しで選び、�
   assert.equal(open.fill, undefined);
   assert.equal(typeof open.color, 'string');
 });
+
+test('選んだ多角形の頂点のつまみを引くとその頂点だけが動き、回転のつまみで回る。どちらも 1 世代（spec-4b-5a 確定事項22・23・26）', async (t) => {
+  const shell = await withPolygon(t);
+  const { SigK, document } = shell;
+  click(shell, [100, 700]);
+  click(shell, [200, 700]);
+  click(shell, [180, 600]);
+  click(shell, [100, 700]);
+  const [polygon] = added(shell);
+  assert.equal(document.getElementById('props-angle-row').hidden, false);
+  assert.match(document.getElementById('props-hint').textContent, /頂点の白いつまみ/);
+  const viewport = viewportOf(shell);
+  const handles = SigK.shapeHandles.handlesOf(polygon, viewport).handles;
+  const vertex = handles.find((handle) => handle.id === 'v1');
+  mouse(shell, 'mousedown', pageNode(shell), ...vertex.at);
+  mouse(shell, 'mousemove', document.body, vertex.at[0] + 30, vertex.at[1] + 20);
+  mouse(shell, 'mouseup', pageNode(shell), vertex.at[0] + 30, vertex.at[1] + 20);
+  const moved = SigK.annotate.selectedEntry();
+  const target = viewport.convertToPdfPoint(vertex.at[0] + 30, vertex.at[1] + 20);
+  near(moved.paths[0][1][0], target[0]);
+  near(moved.paths[0][1][1], target[1]);
+  assert.deepEqual(moved.paths[0][0], polygon.paths[0][0]);
+  const rotate = SigK.shapeHandles.handlesOf(moved, viewport).handles.find((handle) => handle.kind === 'rotate');
+  const center = viewport.convertToViewportPoint(...SigK.shapeRotation.centerOf(moved.rect));
+  mouse(shell, 'mousedown', pageNode(shell), ...rotate.at);
+  // 中心から見て上 → 右へ（時計回りに 90°）
+  const radius = Math.hypot(rotate.at[0] - center[0], rotate.at[1] - center[1]);
+  mouse(shell, 'mousemove', document.body, center[0] + radius, center[1]);
+  mouse(shell, 'mouseup', pageNode(shell), center[0] + radius, center[1]);
+  assert.equal(SigK.annotate.selectedEntry().angle, 90);
+  SigK.pageEdit.undo();
+  assert.equal(SigK.annotate.selectedEntry().angle, undefined);
+  SigK.pageEdit.undo();
+  assert.deepEqual(SigK.annotate.selectedEntry().paths, polygon.paths);
+});
