@@ -69,6 +69,9 @@
     // ×印は対角線 2 本からの距離（回したものは回す前の座標へ戻す。spec-4b-5a 確定事項21）。
     if (entry.kind === 'cross')
       return root.SigK.crossGeometry.distanceTo(entry, pdfPoint) <= hitTolerance(entry.lineWidth, viewport.scale ?? 1);
+    // 多角形は辺からの距離と、閉じて塗ったものは中（spec-4b-5a 確定事項24）。
+    if (entry.kind === 'polygon')
+      return root.SigK.polygonGeometry.hits(entry, pdfPoint, hitTolerance(entry.lineWidth, viewport.scale ?? 1));
     if (root.SigK.shapeRotation?.isRotated(entry) === true)
       return hitsTurnedBox(entry, pdfPoint);
     if (!annotationState().isPathKind(entry.kind))

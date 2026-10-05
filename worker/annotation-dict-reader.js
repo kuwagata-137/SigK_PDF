@@ -22,8 +22,8 @@ const { freeTextRotationOf } = require('./free-text-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
-// 回転を読む種類（spec-4b-2 確定事項34。FreeText は spec-4b-4b 確定事項H1）。
-const BOXED_SUBTYPES = Object.freeze(['Square', 'Circle', 'FreeText']);
+// 回転を読む種類（spec-4b-2 確定事項34。FreeText は spec-4b-4b 確定事項H1。多角形の Polygon・PolyLine は spec-4b-5a 確定事項40）。
+const BOXED_SUBTYPES = Object.freeze(['Square', 'Circle', 'FreeText', 'Polygon', 'PolyLine']);
 
 // 一度に読む注釈の数の上限。画面の側も、これを超える文書では口を呼ばない（確定事項25）。
 const REFS_MAX = 10000;

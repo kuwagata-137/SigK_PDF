@@ -14,7 +14,8 @@
   //                quads は rect の四角 1 つ。四角・丸は { fill, lineStyle }（color は null で線なし）、直線・矢印・×印は { lineStyle }、
   //                破線は { dash }、雲形は { cloudIntensity } を持てる（shape-style.js）。四角・丸は { angle }（画面で時計回りの度。
   //                0 は持たない）を持て、そのとき rect は回す前の箱、quads は回した 4 隅（spec-4b-2 確定事項1〜4）。×印は四角と同じ箱と
-  //                角度で持ち、点列は持たない（保存のときに対角線を組む。spec-4b-5a 確定事項2）
+  //                角度で持ち、点列は持たない（保存のときに対角線を組む。spec-4b-5a 確定事項2）。多角形は { paths: [[頂点…]], closed }
+  //                （回す前の頂点 3 つ以上と、閉じたかどうか）と { angle } を持て、閉じたものだけ塗りと線なしを持てる（spec-4b-5a 確定事項3）
   //   ノート     … さらに { author }。text は本文（空を許す）。rect は 20×20pt で左上が基準。quads は rect の四角 1 つ
   //
   // 読み込んだだけで直せない「表示のみ」の注釈は { ref, kind: 'other', subtype, readonly: true } の形で imported に
@@ -22,8 +23,8 @@
 
   const MARKUP_KINDS = Object.freeze(['highlight', 'underline', 'strikeout']);
   // 「図形」の道具で描く種類と、点列（paths）を持つ種類（spec-4-3 確定事項14。×印は spec-4b-5a 確定事項1）。
-  const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross']);
-  const PATH_KINDS = Object.freeze(['line', 'arrow', 'ink']);
+  const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'polygon']);
+  const PATH_KINDS = Object.freeze(['line', 'arrow', 'ink', 'polygon']);
   const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink', 'note']);
   const ROTATIONS = Object.freeze([0, 90, 180, 270]);
 
@@ -100,6 +101,8 @@
       copy.paths = copyPaths(entry.paths);
     if (entry.head !== undefined)
       copy.head = entry.head;
+    if (entry.closed !== undefined)
+      copy.closed = entry.closed;
     if (isNoteKind(entry.kind))
       copy.author = entry.author ?? '';
     return copy;
@@ -126,7 +129,7 @@
     return a.id === b.id && a.src === b.src && a.kind === b.kind && a.color === b.color
       && a.opacity === b.opacity && a.text === b.text && a.fontSize === b.fontSize
       && a.rotation === b.rotation && a.lineWidth === b.lineWidth && a.author === b.author && sameNumbers(a.rect, b.rect)
-      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && a.head === b.head && textFields().sameFields(a, b);
+      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && a.head === b.head && a.closed === b.closed && textFields().sameFields(a, b);
   }
 
   // ×印の保存の欄（spec-4b-5a 確定事項35）。回した位置の対角線 2 本と、その外接に線幅の半分を足した箱。角度は対角線に入る。
@@ -160,6 +163,8 @@
         saved.angle = entry.angle;
       if (entry.head !== undefined)
         saved.head = entry.head;
+      if (entry.closed !== undefined)
+        saved.closed = entry.closed;
       return saved;
     }
     return { src, kind, color, opacity, quads: quads.map((quad) => [...quad]), rect: [...rect] };

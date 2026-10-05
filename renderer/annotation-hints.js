@@ -39,9 +39,9 @@
     return root.SigK.annotationEntry;
   }
 
-  // 四角・丸のヒントに添える文。
-  function boxHintOf(kind, fill) {
-    if (!root.SigK.shapeStyle.isBoxedKind(kind))
+  // 四角・丸・閉じた多角形（fillable）のヒントに添える文。
+  function boxHintOf(fillable, fill) {
+    if (!fillable)
       return '';
     return fill === null ? HINTS.box : `${HINTS.box}${HINTS.fill}`;
   }
@@ -58,14 +58,14 @@
     // つまみの説明は「掴んで動かせます。」のあと（spec-4b-2 確定事項28）。ペンはつまみを出さない。
     const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, cross: HINTS.boxTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
     const shape = HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${transform}`);
-    return `${shape}${boxHintOf(entry.kind, root.SigK.shapeStyle.fillOf(entry))}`;
+    return `${shape}${boxHintOf(root.SigK.shapeStyle.canFill(entry), root.SigK.shapeStyle.fillOf(entry))}`;
   }
 
   // 道具を持っているとき（kind はその道具が描く種類。図形は道具の段で選んだ種類）。道具が無ければ tool は null。
   function forTool(tool, kind, fill) {
     if (tool === null)
       return HINTS.none;
-    return `${HINTS[tool] ?? HINTS.tool}${boxHintOf(kind, fill)}`;
+    return `${HINTS[tool] ?? HINTS.tool}${boxHintOf(root.SigK.shapeStyle.isFillableKind(kind), fill)}`;
   }
 
   const SigK = (root.SigK = root.SigK || {});

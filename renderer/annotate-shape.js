@@ -63,7 +63,8 @@
     const kind = kindOfTool(annotate().getTool());
     const viewport = viewportOf(index);
     const src = viewer()?.getPlan()[index]?.src;
-    if (kind === null || !isOpen() || viewport === null || !Number.isInteger(src))
+    // 多角形はドラッグでは描かない（クリックで頂点を置く。spec-4b-5a 確定事項13）。
+    if (kind === null || kind === 'polygon' || !isOpen() || viewport === null || !Number.isInteger(src))
       return false;
     // 色・塗り・線種は次に付ける値（線なしなら色は null。spec-4b-1b 確定事項42）。
     const look = annotate().nextStyleOf(kind);

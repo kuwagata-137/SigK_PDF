@@ -13,10 +13,12 @@
 const { parseColor } = require('./annotation-appearance.js');
 
 // 図形・ペンの種類（shape-appearance.js が同じ名前で公開する）。
-const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'ink']);
+const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'polygon', 'ink']);
 const BOXED_KINDS = Object.freeze(['square', 'circle']);
-// 実線と破線を選べる種類（×印は spec-4b-5a 確定事項2）。
-const LINE_KINDS = Object.freeze(['line', 'arrow', 'cross']);
+// 実線と破線を選べる種類（×印・多角形は spec-4b-5a 確定事項2・3）。
+const LINE_KINDS = Object.freeze(['line', 'arrow', 'cross', 'polygon']);
+// 角度を持てる種類（四角・丸と多角形。×印は角度を対角線に入れて渡す）。
+const TURNABLE_KINDS = Object.freeze(['square', 'circle', 'polygon']);
 const LINE_STYLES = Object.freeze(['solid', 'dashed', 'cloudy']);
 const DEFAULT_DASH = Object.freeze([3, 2]);
 const DEFAULT_CLOUD_INTENSITY = 1;
@@ -41,9 +43,14 @@ function validCloudIntensity(value) {
   return Number.isFinite(value) && value > 0 && value <= CLOUD_INTENSITY_MAX;
 }
 
+// 塗りと線なしを持てる書き込みか（四角・丸と、閉じた多角形。renderer/shape-style.js の canFill と同じ。spec-4b-5a 確定事項5）。
+function canFill(entry) {
+  return BOXED_KINDS.includes(entry.kind) || (entry.kind === 'polygon' && entry.closed === true);
+}
+
 // 線と塗りの色（0〜1 の RGB。無ければ null）。読めない色・組み合わせなら null を返す（線と塗りを両方なしにはできない）。
 function colorsOf(entry) {
-  const boxed = BOXED_KINDS.includes(entry.kind);
+  const boxed = canFill(entry);
   const hasFill = entry.fill !== undefined && entry.fill !== null;
   const fill = hasFill ? parseColor(entry.fill) : null;
   if (hasFill && (!boxed || fill === null))
@@ -88,6 +95,9 @@ function validPaths(kind, paths) {
     return false;
   if (kind === 'cross')
     return paths.length === 2 && paths.every((path) => path.length === 2);
+  // 多角形は 1 本で 3 点以上（spec-4b-5a 確定事項3）。
+  if (kind === 'polygon')
+    return paths.length === 1 && paths[0].length >= 3;
   return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
 }
 
@@ -99,8 +109,11 @@ function isShapeEntry(entry) {
     return false;
   if (styleOf(entry) === null)
     return false;
-  // 角度は四角・丸だけが、0 以上 360 未満の数で持てる（spec-4b-2 確定事項1）。
-  if (entry.angle !== undefined && !(BOXED_KINDS.includes(entry.kind) && Number.isFinite(entry.angle) && entry.angle >= 0 && entry.angle < 360))
+  // 角度は四角・丸と多角形だけが、0 以上 360 未満の数で持てる（spec-4b-2 確定事項1、spec-4b-5a 確定事項6）。
+  if (entry.angle !== undefined && !(TURNABLE_KINDS.includes(entry.kind) && Number.isFinite(entry.angle) && entry.angle >= 0 && entry.angle < 360))
+    return false;
+  // 多角形は閉じたかどうかを必ず持ち、ほかの種類は持たない。
+  if ((entry.kind === 'polygon') !== (typeof entry.closed === 'boolean'))
     return false;
   // 矢印の先の形は矢印だけが 'open'（開いた矢じり）で持てる（spec-4b-5a 確定事項4）。
   if (entry.head !== undefined && !(entry.kind === 'arrow' && entry.head === 'open'))
@@ -108,4 +121,4 @@ function isShapeEntry(entry) {
   return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
 }
 
-module.exports = { KINDS, BOXED_KINDS, validPaths, isShapeEntry, LINE_STYLES, DEFAULT_DASH, DEFAULT_CLOUD_INTENSITY, lineStylesOf, validDash, validCloudIntensity, styleOf };
+module.exports = { KINDS, BOXED_KINDS, canFill, validPaths, isShapeEntry, LINE_STYLES, DEFAULT_DASH, DEFAULT_CLOUD_INTENSITY, lineStylesOf, validDash, validCloudIntensity, styleOf };

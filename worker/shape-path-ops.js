@@ -51,9 +51,27 @@ function crossOps(paths, width, style) {
   return [`${colorOps(style.stroke)} RG`, head, ...paths.map(pathOps)].join('\n');
 }
 
+// 多角形（spec-4b-5a 確定事項36）: 頂点の折れ線（丸い端と角）。閉じたものは h で閉じ、塗りがあれば塗る（線と塗りで B、塗りだけで f）。
+// 回すのは外観の外側の Form の /Matrix（頂点は回す前のまま描く）。
+function polygonOps(vertices, width, style, closed) {
+  const lines = [];
+  if (style.stroke !== null)
+    lines.push(`${colorOps(style.stroke)} RG`);
+  if (closed && style.fill !== null)
+    lines.push(`${colorOps(style.fill)} rg`);
+  if (style.stroke !== null)
+    lines.push(style.dash !== null ? `${num(width)} w ${dashOps(style.dash)} 1 j` : `${num(width)} w 1 J 1 j`);
+  const path = vertices.map((at, index) => `${point(at)} ${index === 0 ? 'm' : 'l'}`).join(' ');
+  let paint = 'S';
+  if (closed && style.fill !== null)
+    paint = style.stroke !== null ? 'B' : 'f';
+  lines.push(`${path}${closed ? ' h' : ''} ${paint}`);
+  return lines.join('\n');
+}
+
 // ペン: path ごとの折れ線（丸い端と角）。
 function inkOps(paths, width, style) {
   return [`${colorOps(style.stroke)} RG`, `${num(width)} w 1 J 1 j`, ...paths.map(pathOps)].join('\n');
 }
 
-module.exports = { point, dashOps, pathOps, lineOps, arrowOps, closedArrowOps, crossOps, inkOps };
+module.exports = { point, dashOps, pathOps, lineOps, arrowOps, closedArrowOps, crossOps, polygonOps, inkOps };

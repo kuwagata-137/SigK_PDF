@@ -181,3 +181,43 @@ test('×印の保存の形は、回した位置の対角線 2 本と外接の箱
   assert.deepEqual(saved.rect, SigK.crossGeometry.savedRectOf([100, 600, 160, 640], 90, 2));
   assert.deepEqual(entries.toSaveEntry(crossEntry()).rect, [99, 599, 161, 641]);
 });
+
+// ---- 多角形（spec-4b-5a 確定事項1・3・5・6） ----
+
+function polygonEntry(overrides = {}) {
+  const rect = [99, 599, 201, 721];
+  return { src: 0, kind: 'polygon', closed: true, color: '#c00000', opacity: 1, lineWidth: 2, rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)], paths: [[[100, 600], [180, 620], [200, 720]]], ...overrides };
+}
+
+test('多角形は 3 点以上と closed を持ち、閉じたものだけ塗りと線なしを持てる。線種は実線と破線、角度も持てる', () => {
+  assert.equal(entries.isPathKind('polygon'), true);
+  assert.equal(entries.validEntry(polygonEntry()), true);
+  assert.equal(entries.validEntry(polygonEntry({ closed: undefined })), false);
+  assert.equal(entries.validEntry(polygonEntry({ closed: 'yes' })), false);
+  assert.equal(entries.validEntry(polygonEntry({ paths: [[[0, 0], [1, 1]]] })), false, '2 点');
+  assert.equal(entries.validEntry(polygonEntry({ fill: '#ffff00' })), true);
+  assert.equal(entries.validEntry(polygonEntry({ closed: false, fill: '#ffff00' })), false);
+  assert.equal(entries.validEntry(polygonEntry({ color: null, fill: '#ffff00' })), true);
+  assert.equal(entries.validEntry(polygonEntry({ closed: false, color: null, fill: '#ffff00' })), false);
+  assert.equal(entries.validEntry(polygonEntry({ color: null })), false, '線も塗りも無い');
+  assert.equal(entries.validEntry(polygonEntry({ lineStyle: 'dashed', angle: 30 })), true);
+  assert.equal(entries.validEntry(polygonEntry({ lineStyle: 'cloudy' })), false);
+  assert.equal(entries.validEntry({ ...square(), closed: true }), false, 'closed は多角形だけ');
+  assert.deepEqual(entries.pickPatch({ fill: '#ffff00' }, 'polygon'), { fill: '#ffff00' });
+  assert.equal(entries.pickPatch({ closed: false }, 'polygon'), null, '閉じた・開いたは変えない');
+});
+
+test('多角形の写し・比較・保存の形は閉じたかどうかと回す前の頂点・角度を持つ', () => {
+  const entry = polygonEntry({ angle: 30, fill: '#ffff00' });
+  assert.equal(entries.copyEntry(entry).closed, true);
+  assert.equal(entries.sameEntry(entry, { ...entry, closed: false }), false);
+  const saved = entries.toSaveEntry(entry);
+  assert.equal(saved.closed, true);
+  assert.equal(saved.angle, 30);
+  assert.equal(saved.fill, '#ffff00');
+  assert.deepEqual(saved.paths, entry.paths);
+  assert.equal(SigK.shapeStyle.canFill(entry), true);
+  assert.equal(SigK.shapeStyle.canFill({ ...entry, closed: false }), false);
+  assert.equal(SigK.shapeStyle.isFillableKind('polygon'), true);
+  assert.equal(SigK.shapeStyle.isFillableKind('cross'), false);
+});

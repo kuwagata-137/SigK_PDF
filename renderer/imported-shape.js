@@ -58,11 +58,12 @@
   // 線の色・太さ・線種（spec-4b-1b 確定事項36・37）。線の見えない四角・丸（/C が無いか線幅 0）は線なしの候補にし、塗りは
   // 口の答えで当てる（annotation-details.js。塗りも無ければ表示のみ）。ほかの種類で線が見えないもの、描けない線の形
   // （立体・下線、ペンの破線、範囲の外の間隔）は null。
-  function lineFieldsOf(kind, annotation) {
+  // fillable は線なしの候補にできるか（四角・丸のほか、閉じた多角形。spec-4b-5a 確定事項40）。
+  function lineFieldsOf(kind, annotation, { fillable = BOXED_KINDS.includes(kind) } = {}) {
     const width = lineWidthOf(annotation.borderStyle);
     const invisible = width === 0 || annotation.color === null || annotation.color === undefined;
     if (invisible)
-      return BOXED_KINDS.includes(kind) ? { color: null, lineWidth: width === 0 ? RESTORE_LINE_WIDTH : width } : null;
+      return fillable ? { color: null, lineWidth: width === 0 ? RESTORE_LINE_WIDTH : width } : null;
     const fields = { color: values().hexOf(annotation.color), lineWidth: width };
     if (isSolidLine(annotation.borderStyle))
       return fields;
@@ -148,6 +149,9 @@
       if (cross !== null)
         return cross;
     }
+    // 3 点以上の Polygon・PolyLine は多角形（imported-polygon.js。spec-4b-5a 確定事項40）。
+    if (root.SigK.importedPolygon?.isPolygonData(annotation) === true)
+      return root.SigK.importedPolygon.importedPolygon(annotation, src);
     const kind = annotation.subtype === 'PolyLine' ? polylineKind(annotation) : SHAPE_KINDS[annotation.subtype];
     if (kind === null || kind === undefined || !values().isRect(annotation.rect))
       return null;
@@ -173,5 +177,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.importedShape = { importedShape, lineWidthOf, isSolidLine, dashRatiosOf };
+  SigK.importedShape = { importedShape, lineFieldsOf, lineWidthOf, isSolidLine, dashRatiosOf };
 })(typeof window !== 'undefined' ? window : globalThis);

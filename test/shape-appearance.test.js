@@ -342,3 +342,46 @@ test('×印は Ink で、対角線 2 本を引き、/InkList は小数 4 桁。�
   assert.equal(isShapeEntry({ ...crossEntry, fill: '#ffffff' }), false);
   assert.equal(isShapeEntry({ ...crossEntry, angle: 30 }), false, '角度は対角線に入れて渡す');
 });
+
+// ---- 多角形（spec-4b-5a 確定事項36） ----
+
+function polygonEntry(overrides = {}) {
+  return { src: 0, kind: 'polygon', closed: true, color: RED, opacity: 1, rect: [99, 599, 201, 721], lineWidth: 2, paths: [[[100, 600], [180, 620], [200, 720]]], ...overrides };
+}
+
+test('閉じた多角形は Polygon で h で閉じ、塗りがあれば B（塗りだけなら f）、開いたものは PolyLine で S、/LE は持たない', () => {
+  const closed = shapeAppearanceOf(polygonEntry());
+  assert.equal(closed.subtype, 'Polygon');
+  assert.equal(closed.content, '/GS gs\n0.851 0.173 0.173 RG\n2 w 1 J 1 j\n100 600 m 180 620 l 200 720 l h S');
+  assert.deepEqual(closed.vertices, [100, 600, 180, 620, 200, 720]);
+  assert.equal(closed.lineEndings, undefined);
+  const filled = shapeAppearanceOf(polygonEntry({ fill: '#ffff00' }));
+  assert.match(filled.content, /\n1 1 0 rg\n2 w 1 J 1 j\n.* h B$/);
+  assert.deepEqual(filled.fillRgb, [1, 1, 0]);
+  assert.match(shapeAppearanceOf(polygonEntry({ color: null, fill: '#ffff00' })).content, /^\/GS gs\n1 1 0 rg\n100 600 m .* h f$/);
+  const open = shapeAppearanceOf(polygonEntry({ closed: false }));
+  assert.equal(open.subtype, 'PolyLine');
+  assert.match(open.content, / 200 720 l S$/);
+  assert.match(shapeAppearanceOf(polygonEntry({ lineStyle: 'dashed' })).content, /\n2 w \[6 4\] 0 d 1 j\n/);
+});
+
+test('回した多角形は外観の /Matrix と外接の /Rect を付け、/Vertices は回した位置（小数 4 桁）、中身は回す前の頂点', () => {
+  const { matrixOf, rectOf } = require('../worker/shape-rotation.js');
+  const { transformPoint } = require('../worker/pdf-matrix.js');
+  const appearance = shapeAppearanceOf(polygonEntry({ angle: 30 }));
+  assert.deepEqual(appearance.matrix, matrixOf([99, 599, 201, 721], 30));
+  assert.deepEqual(appearance.rect, rectOf([99, 599, 201, 721], 30));
+  assert.deepEqual(appearance.bbox, [99, 599, 201, 721]);
+  assert.match(appearance.content, /100 600 m 180 620 l 200 720 l h S$/);
+  const expected = [[100, 600], [180, 620], [200, 720]].flatMap((point) => transformPoint(point, appearance.matrix)).map((value) => Math.round(value * 10000) / 10000);
+  assert.deepEqual(appearance.vertices, expected);
+});
+
+test('isShapeEntry は多角形の closed・3 点以上・開いたものの塗りを見る', () => {
+  assert.equal(isShapeEntry(polygonEntry()), true);
+  assert.equal(isShapeEntry(polygonEntry({ closed: undefined })), false);
+  assert.equal(isShapeEntry(polygonEntry({ paths: [[[0, 0], [1, 1]]] })), false);
+  assert.equal(isShapeEntry(polygonEntry({ closed: false, fill: '#ffff00' })), false);
+  assert.equal(isShapeEntry(polygonEntry({ closed: false, color: null, fill: '#ffff00' })), false);
+  assert.equal(isShapeEntry({ ...polygonEntry(), kind: 'square', closed: true }), false, 'closed は多角形だけ');
+});

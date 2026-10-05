@@ -11,7 +11,8 @@
 
   // 口が要る種類。pdf.js が不透明度（/CA）を返さないもの（事前調査 A）。ハイライト・下線・取り消し線・ペンは
   // pdf.js が返すので要らない。
-  const DETAIL_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'text', 'note']);
+  // 多角形は塗り・不透明度・回転を口で読む（spec-4b-5a 確定事項40）。
+  const DETAIL_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'polygon', 'text', 'note']);
   // 口を呼ぶ上限（確定事項25）。100MB を超えるファイルは、開くたびにワーカーが同じ大きさを読み直すのを避ける。
   const SIZE_MAX = 100 * 1024 * 1024;
   const REFS_MAX = 10000;
@@ -49,7 +50,7 @@
       ref: entry.ref,
       src: entry.src,
       kind: 'other',
-      subtype: SUBTYPE_OF[entry.kind] ?? 'Square',
+      subtype: entry.kind === 'polygon' ? (entry.closed === true ? 'Polygon' : 'PolyLine') : (SUBTYPE_OF[entry.kind] ?? 'Square'),
       color: entry.color,
       opacity: 1,
       quads: entry.quads,
@@ -77,6 +78,15 @@
     return detail.ca <= 0 ? null : { ...next, opacity: Math.min(1, detail.ca) };
   }
 
+  // 種類ごとの組み直し。自前のテキストは新しい形、多角形は塗り・回転（答えが無ければ回っていないとして頂点を丸める）。
+  function baseOf(entry, detail, answered, text) {
+    if (entry.kind === 'text')
+      return root.SigK.importedTextDetails.withTextDetails(entry, detail, { answered, ...text });
+    if (entry.kind === 'polygon')
+      return root.SigK.importedPolygon.withPolygonDetails(entry, detail ?? null);
+    return entry;
+  }
+
   // 答えを 1 件に当てる（spec-4b-1a 確定事項26、spec-4b-1b 確定事項36〜38）。その注釈の答えが無ければ pdf.js の値のまま
   // （①-a 確定事項27）。口がまるごと答えなかった（answered が false）ときの四角・丸は表示のみにする（回っているかと塗りが分からない
   // まま直すと、開いた時点で見た目が変わるため。spec-4b-2 確定事項36）。どちらでも、線も塗りも無いもの（線の見えない四角・丸で
@@ -85,11 +95,11 @@
   function applyDetails(entry, detail, { answered = true, text = {} } = {}) {
     if (entry.readonly === true)
       return entry;
-    if (!answered && (entry.kind === 'square' || entry.kind === 'circle'))
+    if (!answered && (entry.kind === 'square' || entry.kind === 'circle' || entry.kind === 'polygon'))
       return readonlyOf(entry);
     if (!closedArrowReadable(entry, detail))
       return readonlyOf(entry);
-    const base = entry.kind === 'text' ? root.SigK.importedTextDetails.withTextDetails(entry, detail, { answered, ...text }) : entry;
+    const base = baseOf(entry, detail, answered, text);
     if (base === null)
       return readonlyOf(entry);
     const next = detail === undefined || detail === null ? base : withDetails(base, detail);

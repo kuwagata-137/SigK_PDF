@@ -82,7 +82,7 @@
   // （'open' なら開いた矢じり、無ければ塗った三角。spec-4b-5a 確定事項11）。
   function rectOfShape({ kind, rect, paths, lineWidth, angle = 0, head: arrow }) {
     let box = rect;
-    if (kind === 'line' || kind === 'arrow' || kind === 'ink') {
+    if (kind === 'line' || kind === 'arrow' || kind === 'ink' || kind === 'polygon') {
       const points = paths.flat();
       if (kind === 'arrow')
         points.push(...head().outlineOf(paths[0][0], paths[0][1], lineWidth, arrow !== 'open'));

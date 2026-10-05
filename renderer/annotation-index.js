@@ -14,10 +14,10 @@
   // 種類ごとのアイコン（assets/icons.js）。表示のみは subtype で引き、無ければ注釈モードの絵。
   const ICONS = Object.freeze({
     highlight: 'highlight', underline: 'underline', strikeout: 'strikeout', text: 'text', callout: 'callout',
-    square: 'shapeSquare', circle: 'shapeCircle', line: 'shapeLine', arrow: 'shapeArrow', cross: 'shapeCross', ink: 'pen', note: 'note',
+    square: 'shapeSquare', circle: 'shapeCircle', line: 'shapeLine', arrow: 'shapeArrow', cross: 'shapeCross', polygon: 'shapePolygon', ink: 'pen', note: 'note',
   });
   const READONLY_ICONS = Object.freeze({
-    Text: 'note', FreeText: 'text', Line: 'shapeLine', PolyLine: 'shapeLine', Square: 'shapeSquare', Polygon: 'shapeSquare',
+    Text: 'note', FreeText: 'text', Line: 'shapeLine', PolyLine: 'shapeLine', Square: 'shapeSquare', Polygon: 'shapePolygon',
     Circle: 'shapeCircle', Highlight: 'highlight', Underline: 'underline', Squiggly: 'underline', StrikeOut: 'strikeout', Ink: 'pen',
   });
 

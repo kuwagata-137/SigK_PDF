@@ -8,6 +8,7 @@ require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/cross-geometry.js');
+require('../renderer/polygon-geometry.js');
 require('../renderer/shape-style.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
@@ -167,4 +168,27 @@ test('×印は回す前の箱の対角線 2 本の <line>（破線なら点列�
   const dashed = figure.figureOf({ ...crossEntry, lineStyle: 'dashed' }, view);
   assert.deepEqual(dashed.parts.map((part) => part.type), ['path', 'path']);
   assert.ok(dashed.parts.every((part) => part.dash.length > 0 && part.fillable === false));
+});
+
+// ---- 多角形（spec-4b-5a 確定事項10） ----
+
+test('多角形は閉じたら塗れる polygon、開いたら polyline の部品で、破線は輪郭の点列（閉じたものは始点へ戻す）', () => {
+  const view = viewport();
+  const vertices = [[100, 600], [180, 620], [200, 720]];
+  const closed = { id: 'p', src: 0, kind: 'polygon', closed: true, color: '#c00000', fill: '#ffff00', opacity: 1, lineWidth: 2, paths: [vertices], rect: [99, 599, 201, 721] };
+  const shape = figure.figureOf(closed, view);
+  assert.equal(shape.fill, '#ffff00');
+  assert.equal(shape.join, 'round');
+  assert.equal(shape.parts[0].type, 'polygon');
+  assert.equal(shape.parts[0].fillable, true);
+  assert.equal(shape.parts[0].paint, undefined);
+  assert.deepEqual(shape.parts[0].points.map((point) => point.map(r2)), vertices.map((point) => view.convertToViewportPoint(...point).map(r2)));
+  const open = figure.figureOf({ ...closed, closed: false, fill: undefined }, view);
+  assert.equal(open.fill, null);
+  assert.equal(open.parts[0].type, 'polyline');
+  const dashed = figure.figureOf({ ...closed, lineStyle: 'dashed' }, view);
+  assert.equal(dashed.parts[0].type, 'path');
+  assert.equal(dashed.parts[0].fillable, true);
+  const segments = dashed.parts[0].segments;
+  assert.deepEqual(segments.at(-1).points.at(-1).map(r2), view.convertToViewportPoint(100, 600).map(r2), '始点へ戻る');
 });

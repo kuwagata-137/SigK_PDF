@@ -98,3 +98,38 @@ test('×印は 3 回往復しても、箱・角度・色・太さ・線種・不
   await roundTrips(crossEntry({ angle: 200, lineStyle: 'dashed', opacity: 0.5 }), keys);
   await roundTrips(crossEntry({ rect: [300, 300, 304, 312], angle: 345, lineWidth: 1 }), keys);
 });
+
+// ---- 多角形と塗った三角の矢印 ----
+
+require('../renderer/polygon-geometry.js');
+require('../renderer/imported-polygon.js');
+
+function polygonEntry(overrides = {}) {
+  const vertices = overrides.vertices ?? [[100.12, 600.34], [180.5, 620.25], [200.75, 690.01], [150.33, 720.5], [90.2, 670.66]];
+  const lineWidth = overrides.lineWidth ?? 2;
+  const rect = globalThis.SigK.polygonGeometry.rectOfVertices(vertices, lineWidth);
+  const entry = { src: 0, kind: 'polygon', closed: true, color: '#c00000', opacity: 1, lineWidth, rect, paths: [vertices], ...overrides };
+  delete entry.vertices;
+  entry.quads = [globalThis.SigK.shapeRotation.quadOf(rect, entry.angle ?? 0)];
+  return entry;
+}
+
+test('多角形は 3 回往復しても、頂点・閉じたか・塗り・線なし・線種・角度・不透明度が変わらない', async () => {
+  const keys = ['kind', 'closed', 'paths', 'rect', 'angle', 'color', 'fill', 'lineWidth', 'lineStyle', 'opacity'];
+  await roundTrips(polygonEntry(), keys);
+  await roundTrips(polygonEntry({ fill: '#ffff00' }), keys);
+  await roundTrips(polygonEntry({ color: null, fill: '#a9ce91' }), keys);
+  await roundTrips(polygonEntry({ closed: false, lineStyle: 'dashed' }), keys);
+  await roundTrips(polygonEntry({ angle: 30, fill: '#ffff00', opacity: 0.6 }), keys);
+  await roundTrips(polygonEntry({ angle: 200, closed: false }), keys);
+  await roundTrips(polygonEntry({ angle: 359, vertices: [[300, 300], [302.5, 300], [301, 301.75]], lineWidth: 1 }), keys);
+});
+
+test('新しい矢印（塗った三角）と開いた矢印は 3 回往復しても先の形が変わらない', async () => {
+  const keys = ['kind', 'head', 'paths', 'rect', 'color', 'lineWidth', 'lineStyle'];
+  const paths = [[[100, 600], [300, 550]]];
+  const arrowOf = (overrides) => ({ src: 0, kind: 'arrow', color: '#c00000', opacity: 1, lineWidth: 3, paths, ...globalThis.SigK.shapeGeometry.rectOfShape({ kind: 'arrow', paths, lineWidth: 3, head: overrides.head }), ...overrides });
+  await roundTrips(arrowOf({}), keys);
+  await roundTrips(arrowOf({ head: 'open' }), keys);
+  await roundTrips(arrowOf({ lineStyle: 'dashed' }), keys);
+});

@@ -14,7 +14,8 @@
   // 戻り値は { stroke, fill, width, cap, join, parts }。stroke・fill は '#rrggbb' か null（なし）、width は表示の px の線幅。
   // parts は表示の座標の部品の並びで、{ type: 'rect', x, y, width, height }・{ type: 'ellipse', cx, cy, rx, ry }・
   // { type: 'line', from, to }・{ type: 'polyline', points }・{ type: 'path', segments }（segments は shape-outline.js の形）・
-  // { type: 'polygon', points, paint }（塗った三角。paint の色で塗り、線は引かない。spec-4b-5a 確定事項7）。
+  // { type: 'polygon', points, paint }（塗った三角。paint の色で塗り、線は引かない。spec-4b-5a 確定事項7）・
+  // { type: 'polygon', points, fillable }（閉じた多角形。spec-4b-5a 確定事項10）。
   // 塗りは fillable の部品（四角・丸）にだけ当てる。破線の部品は dash（px の配列）と cap を持つ。
 
   function geometry() {
@@ -121,6 +122,18 @@
       : dashPart(outline().polylineOutline([from, to]), dash, viewport, false)));
   }
 
+  // 多角形（spec-4b-5a 確定事項10）。回す前の頂点の折れ線で、閉じたものは polygon（塗れる）、開いたものは polyline。破線は輪郭の点列
+  // （閉じたものは始点へ戻す）。回すのは shape-graphics.js の <g>。
+  function polygonParts(entry, viewport) {
+    const toView = toViewOf(viewport);
+    const vertices = entry.paths[0];
+    const closed = entry.closed === true;
+    const dash = style().dashOf(entry);
+    if (dash !== null)
+      return [dashPart(outline().polylineOutline(closed ? [...vertices, vertices[0]] : vertices), dash, viewport, closed)];
+    return [closed ? { type: 'polygon', points: vertices.map(toView), fillable: true } : { type: 'polyline', points: vertices.map(toView) }];
+  }
+
   function figureOf(entry, viewport) {
     const rounded = entry.kind !== 'square';
     const base = {
@@ -136,6 +149,8 @@
       return { ...base, parts: entry.paths.map((path) => ({ type: 'polyline', points: path.map(toViewOf(viewport)) })) };
     if (entry.kind === 'cross')
       return { ...base, parts: crossParts(entry, viewport) };
+    if (entry.kind === 'polygon')
+      return { ...base, fill: style().canFill(entry) ? style().fillOf(entry) : null, parts: polygonParts(entry, viewport) };
     return { ...base, parts: lineParts(entry, viewport) };
   }
 

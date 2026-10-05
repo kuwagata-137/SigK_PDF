@@ -102,3 +102,13 @@ test('hits は ×印を対角線の近くだけで当て、箱の中の空いた
   assert.equal(hit.hits(turned, [20, 35], viewport, null), true);
   assert.equal(hit.hits(turned, [10, 10], viewport, null), false);
 });
+
+test('hits は多角形を辺の近くと、閉じて塗ったものの中で当てる（spec-4b-5a 確定事項24）', () => {
+  require('../renderer/polygon-geometry.js');
+  const entry = { kind: 'polygon', closed: true, color: '#c00000', lineWidth: 2, paths: [[[0, 0], [100, 0], [100, 100], [0, 100]]], rect: [-1, -1, 101, 101], quads: [[-1, 101, 101, 101, -1, -1, 101, -1]] };
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits(entry, [50, 2], viewport, null), true);
+  assert.equal(hit.hits(entry, [50, 50], viewport, null), false);
+  assert.equal(hit.hits({ ...entry, fill: '#ffff00' }, [50, 50], viewport, null), true);
+  assert.equal(hit.hits({ ...entry, closed: false }, [2, 50], viewport, null), false, '開いたものは最後の辺が無い');
+});

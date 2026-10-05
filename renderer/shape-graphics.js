@@ -42,7 +42,10 @@
       case 'ellipse': return { cx: fmt(part.cx), cy: fmt(part.cy), rx: fmt(part.rx), ry: fmt(part.ry) };
       case 'line': return { x1: fmt(part.from[0]), y1: fmt(part.from[1]), x2: fmt(part.to[0]), y2: fmt(part.to[1]) };
       case 'polyline': return { points: part.points.map((point) => point.map(fmt).join(',')).join(' '), fill: 'none' };
-      case 'polygon': return { points: part.points.map((point) => point.map(fmt).join(',')).join(' '), fill: part.paint ?? 'none', stroke: 'none' };
+      // 塗った三角（paint）は線を引かずにその色で塗り、閉じた多角形は <g> の線と塗りのまま（spec-4b-5a 確定事項7・10）。
+      case 'polygon': return part.paint === undefined
+        ? { points: part.points.map((point) => point.map(fmt).join(',')).join(' ') }
+        : { points: part.points.map((point) => point.map(fmt).join(',')).join(' '), fill: part.paint, stroke: 'none' };
       default: return { d: root.SigK.shapeOutline.svgPathOf(part.segments, same) };
     }
   }

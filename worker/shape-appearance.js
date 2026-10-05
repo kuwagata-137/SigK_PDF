@@ -13,7 +13,8 @@ const { cloudPathOf } = require('./cloud-appearance.js');
 const { matrixOf, rectOf } = require('./shape-rotation.js');
 const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 const { ARROW_MIN_LENGTH, ARROW_LENGTH_RATIO, ARROW_ANGLE, arrowHead } = require('./arrow-head.js');
-const { point, dashOps, lineOps, arrowOps, closedArrowOps, crossOps, inkOps } = require('./shape-path-ops.js');
+const { point, dashOps, lineOps, arrowOps, closedArrowOps, crossOps, polygonOps, inkOps } = require('./shape-path-ops.js');
+const { transformPoint } = require('./pdf-matrix.js');
 
 const KAPPA = 0.5523;
 
@@ -21,6 +22,11 @@ const SUBTYPES = Object.freeze({ square: 'Square', circle: 'Circle', line: 'Poly
 
 function round(value) {
   return Math.round(value * 100) / 100;
+}
+
+function round4(value) {
+  const rounded = Math.round(value * 10000) / 10000;
+  return Object.is(rounded, -0) ? 0 : rounded;
 }
 
 // 四角・丸を描く線幅。短い辺の半分で頭打ちにする（線が箱より太くても、箱をすべて覆う。確定事項30）。
@@ -83,6 +89,7 @@ function opsOf(entry, style) {
     case 'line': return { ops: lineOps(entry.paths[0], entry.lineWidth, style), cloud: null };
     case 'arrow': return { ops: (isClosedArrow(entry) ? closedArrowOps : arrowOps)(entry.paths[0], entry.lineWidth, style), cloud: null };
     case 'cross': return { ops: crossOps(entry.paths, entry.lineWidth, style), cloud: null };
+    case 'polygon': return { ops: polygonOps(entry.paths[0], entry.lineWidth, style, entry.closed === true), cloud: null };
     default: return { ops: inkOps(entry.paths, entry.lineWidth, style), cloud: null };
   }
 }
@@ -110,7 +117,12 @@ function fieldsOf(entry) {
     return { inkList: entry.paths.map((path) => path.flat().map(round)) };
   // ×印は小数 4 桁（読み戻しで角度を形から求めるため。spec-4b-5a 確定事項35・39）。
   if (entry.kind === 'cross')
-    return { inkList: entry.paths.map((path) => path.flat().map((value) => Math.round(value * 10000) / 10000)) };
+    return { inkList: entry.paths.map((path) => path.flat().map(round4)) };
+  // 多角形は回した位置の頂点を小数 4 桁で（読み戻しで回す前の頂点に戻すため。spec-4b-5a 確定事項36・40）。
+  if (entry.kind === 'polygon') {
+    const turned = Number.isFinite(entry.angle) && entry.angle !== 0 ? matrixOf(entry.rect.map(round), entry.angle) : null;
+    return { vertices: entry.paths[0].flatMap((at) => (turned === null ? at : transformPoint(at, turned)).map(round4)) };
+  }
   return {};
 }
 
@@ -148,7 +160,7 @@ function shapeAppearanceOf(entry) {
     content: group ? ops : `/GS gs\n${ops}`,
     group,
     bbox: entry.rect.map(round),
-    subtype: SUBTYPES[entry.kind],
+    subtype: entry.kind === 'polygon' ? (entry.closed === true ? 'Polygon' : 'PolyLine') : SUBTYPES[entry.kind],
     rgb: style.stroke,
     ...styleFieldsOf(style, cloud, turn.matrix !== undefined),
     // 塗った三角は /IC に線の色（spec-4b-5a 確定事項34）。

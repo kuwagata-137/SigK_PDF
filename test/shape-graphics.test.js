@@ -8,6 +8,7 @@ require('../renderer/free-text-geometry.js');
 require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/cross-geometry.js');
+require('../renderer/polygon-geometry.js');
 require('../renderer/shape-style.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
@@ -320,4 +321,18 @@ test('svgOf は塗った三角を線の色で塗った <polygon>（線なし）�
   assert.equal(calls.filter(([name]) => name === 'fill').length, 1);
   assert.equal(calls.filter(([name]) => name === 'closePath').length, 1);
   assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'fillStyle' && value === '#2c5cd9'));
+});
+
+test('svgOf は閉じた多角形を <g> の線と塗りのままの <polygon> にし、paint は閉じて塗ってから線を引く（spec-4b-5a 確定事項10）', () => {
+  const polygon = { id: 'p', src: 0, kind: 'polygon', closed: true, color: '#c00000', fill: '#ffff00', opacity: 1, lineWidth: 2, paths: [[[100, 600], [180, 620], [200, 720]]], rect: [99, 599, 201, 721], quads: [[99, 721, 201, 721, 99, 599, 201, 599]] };
+  const g = graphics.svgOf(makeDoc(), polygon, viewport());
+  assert.equal(g.getAttribute('fill'), '#ffff00');
+  const node = g.querySelector('polygon');
+  assert.equal(node.hasAttribute('fill'), false);
+  assert.equal(node.hasAttribute('stroke'), false);
+  const calls = [];
+  graphics.paint(recordingContext(calls), polygon, viewport());
+  const names = calls.map(([name]) => name);
+  assert.equal(names.filter((name) => name === 'closePath').length, 1);
+  assert.ok(names.indexOf('fill') < names.indexOf('stroke'));
 });

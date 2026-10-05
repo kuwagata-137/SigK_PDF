@@ -49,12 +49,15 @@
     return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
   }
 
-  // 点列は 1 本以上で、各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（spec-4-3 確定事項14）。
+  // 点列は 1 本以上で、各 path が 2 点以上。直線・矢印は 1 本ちょうどで 2 点（spec-4-3 確定事項14）。多角形は 1 本で 3 点以上
+  // （spec-4b-5a 確定事項3）。
   function validPaths(kind, paths) {
     if (!Array.isArray(paths) || paths.length === 0)
       return false;
     if (!paths.every((path) => Array.isArray(path) && path.length >= 2 && path.every(validPoint)))
       return false;
+    if (kind === 'polygon')
+      return paths.length === 1 && paths[0].length >= 3;
     return kind === 'ink' || (paths.length === 1 && paths[0].length === 2);
   }
 
@@ -71,14 +74,17 @@
     // 矢印の先の形（spec-4b-5a 確定事項4）。持てるのは矢印だけで、値は 'open'（開いた矢じり）だけ。
     if (entry.head !== undefined && !(entry.kind === 'arrow' && entry.head === 'open'))
       return false;
+    // 多角形は閉じたかどうかを必ず持つ（spec-4b-5a 確定事項3）。
+    if (entry.kind === 'polygon' && typeof entry.closed !== 'boolean')
+      return false;
     if (entry.angle !== undefined && !validAngle(entry.angle))
       return false;
     return entryModule().isPathKind(entry.kind) ? validPaths(entry.kind, entry.paths) : true;
   }
 
-  // 角度を持てる種類（四角・丸。spec-4b-2 確定事項4。テキスト。spec-4b-4b 確定事項A1。×印。spec-4b-5a 確定事項6）。
+  // 角度を持てる種類（四角・丸。spec-4b-2 確定事項4。テキスト。spec-4b-4b 確定事項A1。×印・多角形。spec-4b-5a 確定事項6）。
   function turnable(kind) {
-    return style().isBoxedKind(kind) || kind === 'text' || kind === 'cross';
+    return style().isBoxedKind(kind) || kind === 'text' || kind === 'cross' || kind === 'polygon';
   }
 
   // 1 件の形。色・塗り・線種の組み合わせは shape-style.js が見る（線と塗りを両方なしにはできない、など）。
@@ -87,7 +93,8 @@
     const shape = Number.isInteger(entry?.src) && entry.src >= 0 && kinds.isKind(entry.kind)
       && Array.isArray(entry.quads) && entry.quads.length > 0 && entry.quads.every(isQuad)
       && Array.isArray(entry.rect) && entry.rect.length === 4 && style().validStyle(entry);
-    if (!shape || (entry.angle !== undefined && !turnable(entry.kind)) || (entry.head !== undefined && entry.kind !== 'arrow'))
+    if (!shape || (entry.angle !== undefined && !turnable(entry.kind)) || (entry.head !== undefined && entry.kind !== 'arrow')
+      || (entry.closed !== undefined && entry.kind !== 'polygon'))
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);
@@ -98,8 +105,8 @@
 
   function validPatchValue(field, value, kind) {
     switch (field) {
-      case 'color': return typeof value === 'string' || (value === null && style().isBoxedKind(kind));
-      case 'fill': return kind === 'text' ? root.SigK.freeTextEntry.validPatchValue(field, value) : style().isBoxedKind(kind) && (value === null || style().isHexColor(value));
+      case 'color': return typeof value === 'string' || (value === null && style().isFillableKind(kind));
+      case 'fill': return kind === 'text' ? root.SigK.freeTextEntry.validPatchValue(field, value) : style().isFillableKind(kind) && (value === null || style().isHexColor(value));
       case 'lineStyle': return style().lineStylesOf(kind).includes(value);
       case 'text': return entryModule().isNoteKind(kind) ? typeof value === 'string' : validText(value);
       case 'opacity': return validOpacity(value);
