@@ -3,40 +3,24 @@
 // 図形・ペン注釈の外観（/AP /N）の中身を組む純粋層（spec-4-3 確定事項20〜22・30、spec-4b-1b 確定事項29〜35）。
 //
 // pdf-lib を知らない。content stream を文字列で返し、Form XObject と辞書に包むのは op-annotate.js。矢じりは
-// renderer/shape-geometry.js、四角・丸の輪郭は renderer/shape-outline.js、雲形は renderer/cloud-geometry.js と同じ式で、
+// renderer/shape-geometry.js（ここでは arrow-head.js）、四角・丸の輪郭は renderer/shape-outline.js、雲形は renderer/cloud-geometry.js と同じ式で、
 // 一致はテストで見張る（プロセスが違うので import できない）。四角・丸の線は /Rect の内側に収め、描く線幅は短い辺の半分で
 // 頭打ちにする。見た目の欄と形の決まり（isShapeEntry）は shape-style-rules.js。不透明度が 1 未満なら透明グループで包むよう group を立てる。
+// 直線・矢印・ペンの命令は shape-path-ops.js（spec-4b-5a a0 で移した）。
 
 const { num, colorOps } = require('./annotation-appearance.js');
 const { cloudPathOf } = require('./cloud-appearance.js');
 const { matrixOf, rectOf } = require('./shape-rotation.js');
 const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
+const { ARROW_MIN_LENGTH, ARROW_LENGTH_RATIO, ARROW_ANGLE, arrowHead } = require('./arrow-head.js');
+const { point, dashOps, lineOps, arrowOps, inkOps } = require('./shape-path-ops.js');
 
 const KAPPA = 0.5523;
-const ARROW_MIN_LENGTH = 9;
-const ARROW_LENGTH_RATIO = 6;
-const ARROW_ANGLE = Math.PI / 6;
 
 const SUBTYPES = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', ink: 'Ink' });
 
 function round(value) {
   return Math.round(value * 100) / 100;
-}
-
-// 矢じりの翼 2 点（終点 to から線の逆向きへ開く）。renderer/shape-geometry.js の arrowHead と同値。
-function arrowHead(from, to, lineWidth) {
-  const length = Math.max(ARROW_MIN_LENGTH, lineWidth * ARROW_LENGTH_RATIO);
-  const angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
-  const wing = (turn) => [to[0] + Math.cos(angle + turn) * length, to[1] + Math.sin(angle + turn) * length];
-  return [wing(Math.PI - ARROW_ANGLE), wing(-(Math.PI - ARROW_ANGLE))];
-}
-
-function point(values) {
-  return values.map(num).join(' ');
-}
-
-function dashOps(dash) {
-  return `[${dash.map(num).join(' ')}] 0 d`;
 }
 
 // 四角・丸を描く線幅。短い辺の半分で頭打ちにする（線が箱より太くても、箱をすべて覆う。確定事項30）。
@@ -90,30 +74,6 @@ function boxOps(entry, style) {
   else
     lines.push(...(head.length > 0 ? [head.join(' ')] : []), ellipsePath(entry.rect, inset), `h ${paint}`);
   return { ops: lines.join('\n'), cloud: null };
-}
-
-function pathOps(path) {
-  return `${path.map((at, index) => `${point(at)} ${index === 0 ? 'm' : 'l'}`).join(' ')} S`;
-}
-
-// 直線: 実線は丸い端の 1 本、破線は切りっぱなしの端（確定事項32）。
-function lineOps([from, to], width, style) {
-  const head = style.dash !== null ? `${num(width)} w ${dashOps(style.dash)}` : `${num(width)} w 1 J`;
-  return `${colorOps(style.stroke)} RG\n${head} ${pathOps([from, to])}`;
-}
-
-// 矢印: 直線のあとに終点の翼 2 本（丸い角）。破線でも矢じりは実線で描く。
-function arrowOps([from, to], width, style) {
-  const [left, right] = arrowHead(from, to, width);
-  if (style.dash === null)
-    return [`${colorOps(style.stroke)} RG`, `${num(width)} w 1 J 1 j`, pathOps([from, to]), pathOps([left, to, right])].join('\n');
-  return [`${colorOps(style.stroke)} RG`, `${num(width)} w ${dashOps(style.dash)}`, pathOps([from, to]),
-    '[] 0 d 1 J 1 j', pathOps([left, to, right])].join('\n');
-}
-
-// ペン: path ごとの折れ線（丸い端と角）。
-function inkOps(paths, width, style) {
-  return [`${colorOps(style.stroke)} RG`, `${num(width)} w 1 J 1 j`, ...paths.map(pathOps)].join('\n');
 }
 
 function opsOf(entry, style) {
