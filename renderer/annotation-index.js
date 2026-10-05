@@ -13,7 +13,7 @@
 
   // 種類ごとのアイコン（assets/icons.js）。表示のみは subtype で引き、無ければ注釈モードの絵。
   const ICONS = Object.freeze({
-    highlight: 'highlight', underline: 'underline', strikeout: 'strikeout', text: 'text',
+    highlight: 'highlight', underline: 'underline', strikeout: 'strikeout', text: 'text', callout: 'callout',
     square: 'shapeSquare', circle: 'shapeCircle', line: 'shapeLine', arrow: 'shapeArrow', ink: 'pen', note: 'note',
   });
   const READONLY_ICONS = Object.freeze({
@@ -40,13 +40,21 @@
   function labelOf(entry) {
     if (entry.readonly === true)
       return presets().readonlyLabelOf(entry.subtype);
-    return presets().TOOL_LABELS[entry.kind] ?? presets().readonlyLabelOf(entry.subtype);
+    return presets().TOOL_LABELS[presets().kindOf(entry)] ?? presets().readonlyLabelOf(entry.subtype);
   }
 
+  // 吹き出しは吹き出しのアイコン（spec-4b-4b 確定事項F6）。
   function iconOf(entry) {
     if (entry.kind === 'other')
       return READONLY_ICONS[entry.subtype] ?? 'modeAnnot';
-    return ICONS[entry.kind] ?? 'modeAnnot';
+    return ICONS[presets().kindOf(entry)] ?? 'modeAnnot';
+  }
+
+  // 行の色。線なしの四角・丸は塗りの色（spec-4b-1b 確定事項16）、吹き出しは枠線の色（無ければ文字の色。spec-4b-4b 確定事項F6）。
+  function colorOf(entry) {
+    if (entry.kind === 'text' && entry.callout !== undefined)
+      return entry.borderColor ?? entry.color;
+    return entry.color ?? entry.fill ?? null;
   }
 
   function rowOf(entry, page) {
@@ -60,8 +68,7 @@
       title: titleOf(entry),
       label: labelOf(entry),
       icon: iconOf(entry),
-      // 線なしの四角・丸は塗りの色で示す（spec-4b-1b 確定事項16）。
-      color: entry.color ?? entry.fill ?? null,
+      color: colorOf(entry),
     };
   }
 

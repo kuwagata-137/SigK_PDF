@@ -89,7 +89,8 @@
       return false;
     if (entry.opacity !== value)
       updateSelected(entry, value);
-    rememberOpacity(entry.kind, value);
+    // 吹き出しは吹き出しの道具の値として覚える（spec-4b-4b 確定事項F3）。
+    rememberOpacity(root.SigK.annotationPresets.kindOf(entry), value);
     props()?.refresh();
     return true;
   }

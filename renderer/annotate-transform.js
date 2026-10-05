@@ -84,11 +84,15 @@
     const resize = root.SigK.shapeResize;
     if (handle.kind === 'width')
       return root.SigK.freeTextResize.widthPatch(entry, handle.id, press, point, viewport);
+    if (handle.kind === 'tip')
+      return root.SigK.calloutHandles.tipPatch(entry, press, point, viewport, { shift });
     if (handle.kind === 'end')
       return resize.endpointMoved(entry, handle.id, press, point, viewport, { shift });
     if (handle.kind === 'rotate') {
       const center = viewport.convertToViewportPoint(...rotation().centerOf(entry.rect));
-      return resize.rotatedBy(entry, press, point, center, { shift });
+      const patch = resize.rotatedBy(entry, press, point, center, { shift });
+      // テキストは今までの形を新しい形へ移す（spec-4b-4b 確定事項A3）。
+      return entry.kind === 'text' ? root.SigK.freeTextTurn.anglePatch(entry, patch.angle) : patch;
     }
     return resize.resized(entry, handle.id, viewport.convertToPdfPoint(...press), viewport.convertToPdfPoint(...point), { shift });
   }

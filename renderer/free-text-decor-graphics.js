@@ -30,8 +30,15 @@
     return node;
   }
 
+  // 吹き出しの塗りと枠線は輪郭（callout-graphics.js）が描く（spec-4b-4b 確定事項E6）。
+  function isCallout(entry) {
+    return entry.callout !== undefined;
+  }
+
   // SVG の塗りと枠線（文字より先に置く）。飾りが無ければ空。
   function svgParts(doc, entry, scale) {
+    if (isCallout(entry))
+      return [];
     const { width, height } = boxOf(entry, scale);
     const parts = [];
     if ((entry.fill ?? null) !== null)
@@ -48,6 +55,8 @@
 
   // canvas 2D の塗りと枠線（文字より先に描く）。
   function paint(ctx, entry, scale) {
+    if (isCallout(entry))
+      return;
     const { width, height } = boxOf(entry, scale);
     if ((entry.fill ?? null) !== null) {
       ctx.fillStyle = entry.fill;
@@ -63,12 +72,14 @@
   }
 
   // 印刷の別の canvas（箱を回した外接の大きさ。ページの canvas と同じ座標で描ける）。作れなければ null（そのまま重ねて描く）。
-  // origin は箱の左上（表示の座標）、angle は画面での回転（度）。
-  function layerFor(ctx, entry, origin, angle, scale) {
+  // origin は箱の左上（表示の座標）、angle は画面での回転（度）。extra は一緒に囲む範囲（吹き出しの輪郭。表示の座標）。
+  function layerFor(ctx, entry, origin, angle, scale, extra = null) {
     const { width, height } = boxOf(entry, scale);
     const radians = (angle * Math.PI) / 180;
     const turn = ([x, y]) => [origin[0] + x * Math.cos(radians) - y * Math.sin(radians), origin[1] + x * Math.sin(radians) + y * Math.cos(radians)];
     const corners = [[0, 0], [width, 0], [0, height], [width, height]].map(turn);
+    if (extra !== null)
+      corners.push([extra.left, extra.top], [extra.right, extra.bottom]);
     const pad = root.SigK.shapePrintLayer.LAYER_PADDING;
     const xs = corners.map((point) => point[0]);
     const ys = corners.map((point) => point[1]);

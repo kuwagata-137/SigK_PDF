@@ -69,11 +69,13 @@
     return { ...next, ...metrics().reframe(entry, next) };
   }
 
-  // 枠線を付ける・外す・色を変える patch の書式の部分。付けるときの太さは今の太さか、次に付ける太さ。
+  // 枠線を付ける・外す・色を変える patch の書式の部分。付けるときの太さは今の太さか、次に付ける太さ（吹き出しは吹き出しの道具の値。
+  // spec-4b-4b 確定事項F3）。
   function borderFields(entry, color) {
     if (color === null)
       return { borderColor: null };
-    const width = entry.borderWidth ?? root.SigK.annotateTextStyle?.getNextStyle().borderWidth ?? 1;
+    const tool = presets().kindOf(entry) === 'callout' ? 'callout' : 'text';
+    const width = entry.borderWidth ?? root.SigK.annotateTextStyle?.getNextStyle(tool).borderWidth ?? 1;
     return { borderColor: color, borderWidth: width };
   }
 

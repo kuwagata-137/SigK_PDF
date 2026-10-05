@@ -50,3 +50,30 @@ test('pickAnnotTextStyle は太字・斜体の真偽値、塗り・枠線の #rr
   assert.deepEqual(settings.mergeAnnotUi({ annotTextStyle: { ...STYLE_DEFAULT, bold: true } }, { annotTextStyle: { italic: true, border: '#4472c4' } }).annotTextStyle,
     { ...STYLE_DEFAULT, bold: true, italic: true, border: '#4472c4' });
 });
+
+// テキストのキーの既定と取り出し（spec-4b-4b で annotation-settings.js からまとめた）。
+test('textDefaults と pickTextSettings は文字の大きさと書式のキーを並びのまま組み、受け取れない値は fallback へ落とす', () => {
+  const { textDefaults, pickTextSettings } = text;
+  const CALLOUT = { fontSize: 12, bold: false, italic: false, fill: '#ffffff', border: '#c00000', borderWidth: 1.5 };
+  assert.deepEqual(Object.keys(textDefaults()), ['annotFontSize', 'annotTextStyle', 'annotCalloutStyle']);
+  assert.deepEqual(textDefaults(), { annotFontSize: 12, annotTextStyle: STYLE_DEFAULT, annotCalloutStyle: CALLOUT });
+  assert.notEqual(textDefaults().annotTextStyle, textDefaults().annotTextStyle);
+  assert.deepEqual(pickTextSettings({ annotFontSize: 9.5, annotTextStyle: { bold: true } }, textDefaults()),
+    { annotFontSize: 9.5, annotTextStyle: { ...STYLE_DEFAULT, bold: true }, annotCalloutStyle: CALLOUT });
+  assert.deepEqual(pickTextSettings({ annotFontSize: 7 }, { annotFontSize: 14, annotTextStyle: { ...STYLE_DEFAULT, italic: true } }),
+    { annotFontSize: 14, annotTextStyle: { ...STYLE_DEFAULT, italic: true }, annotCalloutStyle: CALLOUT });
+  assert.deepEqual(pickTextSettings({}, undefined), textDefaults());
+});
+
+// 次に置く吹き出しの書式（spec-4b-4b 確定事項F3）。テキストの書式の決まりに、文字の大きさと既定の枠線の太さ 1.5 を足したもの。
+test('pickAnnotCalloutStyle は大きさ・書式・塗り・枠線を受け、枠線の太さは 1〜40 の整数か既定の 1.5 だけを受ける', () => {
+  const { DEFAULT_ANNOT_CALLOUT_STYLE, pickAnnotCalloutStyle } = text;
+  const CALLOUT = { fontSize: 12, bold: false, italic: false, fill: '#ffffff', border: '#c00000', borderWidth: 1.5 };
+  assert.deepEqual(DEFAULT_ANNOT_CALLOUT_STYLE, CALLOUT);
+  assert.deepEqual(pickAnnotCalloutStyle({ fontSize: 14, bold: true, fill: null, border: '#2F5597', borderWidth: 3 }),
+    { ...CALLOUT, fontSize: 14, bold: true, fill: null, border: '#2f5597', borderWidth: 3 });
+  assert.deepEqual(pickAnnotCalloutStyle({ fontSize: 7, borderWidth: 2.5 }), CALLOUT);
+  assert.deepEqual(pickAnnotCalloutStyle({ borderWidth: 1.5 }, { ...CALLOUT, borderWidth: 4 }), CALLOUT);
+  assert.deepEqual(settings.mergeAnnotUi({ annotCalloutStyle: { ...CALLOUT, bold: true } }, { annotCalloutStyle: { fill: '#ddebf7' } }).annotCalloutStyle,
+    { ...CALLOUT, bold: true, fill: '#ddebf7' });
+});

@@ -80,7 +80,7 @@
     const entry = editableSelected();
     if (value === null || entry === null)
       return false;
-    const kind = entry?.kind ?? toolKind();
+    const kind = entry === undefined ? toolKind() : root.SigK.annotationPresets.kindOf(entry);
     if (kind === null)
       return false;
     if (entry !== undefined && entry.color !== value && !updateSelected(entry, { color: value }, 'color'))
@@ -99,7 +99,7 @@
     const entry = editableSelected();
     if (entry === null)
       return false;
-    const kind = entry?.kind ?? toolKind();
+    const kind = entry === undefined ? toolKind() : root.SigK.annotationPresets.kindOf(entry);
     const fill = entry === undefined ? next().fillOf(kind) : style().fillOf(entry);
     if (!style().isBoxedKind(kind) || fill === null)
       return false;
@@ -119,8 +119,8 @@
     const entry = editableSelected();
     if ((color !== null && value === null) || entry === null)
       return false;
-    const kind = entry?.kind ?? toolKind();
-    if (kind === 'text')
+    const kind = entry === undefined ? toolKind() : root.SigK.annotationPresets.kindOf(entry);
+    if (kind === 'text' || kind === 'callout')
       return root.SigK.annotateTextStyle.setTextFill(value);
     const stroked = entry === undefined ? !next().strokeNoneOf(kind) : entry.color !== null;
     if (!style().isBoxedKind(kind) || (value === null && !stroked))
@@ -141,7 +141,7 @@
     const entry = editableSelected();
     if (entry === null)
       return false;
-    const kind = entry?.kind ?? toolKind();
+    const kind = entry === undefined ? toolKind() : root.SigK.annotationPresets.kindOf(entry);
     if (kind === null || !style().lineStylesOf(kind).includes(lineStyle))
       return false;
     if (entry !== undefined && style().lineStyleOf(entry) !== lineStyle && !updateSelected(entry, { lineStyle }, 'lineStyle'))

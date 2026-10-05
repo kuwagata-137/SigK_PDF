@@ -60,6 +60,7 @@
       "smoke-annotate-transform.js",
       "smoke-annotate-select.js",
       "smoke-annotate-text.js",
+      "smoke-annotate-inspect.js",
       "worker/**",
       "index.html",
       "renderer/**",

@@ -10,7 +10,10 @@
     none: '上の道具を選ぶか、文字を選んでから道具を押してください。',
     text: '紙の上を押すと、そこに文字を置けます。Enter で改行、枠の外を押すか Ctrl+Enter で確定します。',
     // 幅のつまみの説明は「掴んで動かせます。」のあと（spec-4b-4a 確定事項F。図形の spec-4b-2 確定事項28 と同じ並び）。
-    textSelected: 'ダブルクリックか Enter で直せます。掴んで動かせます。左右の白いつまみで幅を変えると、文字はその幅で折り返します。Delete で消せます。Ctrl+Z で元に戻せます。',
+    textSelected: 'ダブルクリックか Enter で直せます。掴んで動かせます。左右の白いつまみで幅を変えると、文字はその幅で折り返します。丸いつまみを引くと回ります（Shift で 15° ずつ）。Delete で消せます。Ctrl+Z で元に戻せます。',
+    // 吹き出し（spec-4b-4b 確定事項F6）。
+    callout: '紙の上を押すと、そこに吹き出しを置けます。Enter で改行、枠の外を押すか Ctrl+Enter で確定します。しっぽの先は、置いたあとで白いつまみを引くと動きます。',
+    calloutSelected: 'ダブルクリックか Enter で直せます。掴んで動かせます。しっぽの先の白いつまみを引くと、しっぽの向きが変わります（Shift で水平か垂直）。左右の白いつまみで幅を、丸いつまみで向きを変えられます。Delete で消せます。Ctrl+Z で元に戻せます。',
     shape: '紙の上をドラッグすると描けます。Shift を押しながらで正方形・正円・45° 刻みになります。Esc で道具を離します。',
     pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの書き込みになります。Esc で道具を離します。',
     shapeSelected: '掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
@@ -47,7 +50,7 @@
     if (entry.readonly === true)
       return HINTS.readonly;
     if (entry.kind === 'text')
-      return HINTS.textSelected;
+      return entry.callout === undefined ? HINTS.textSelected : HINTS.calloutSelected;
     if (entryKinds()?.isNoteKind(entry.kind) === true)
       return HINTS.noteSelected;
     if (entryKinds()?.isDrawnKind(entry.kind) !== true)

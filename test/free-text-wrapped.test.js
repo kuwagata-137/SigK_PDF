@@ -111,3 +111,50 @@ test('塗り・枠線の形が違えば断る', () => {
   for (const broken of [{ fill: 'yellow' }, { borderColor: '#c00000' }, { borderWidth: 2 }, { borderColor: '#c00000', borderWidth: 0 }])
     assert.equal(isWrappedEntry(wrapped(broken)), false, JSON.stringify(broken));
 });
+
+// ---- 回したテキスト（spec-4b-4b 確定事項G1） ----
+
+test('wrappedAppearanceOf は角度があれば外側の /Matrix を返し、/BBox は回す前の箱、/Rect は回した外接にする', () => {
+  const { matrixOf, rectOf } = require('../worker/shape-rotation.js');
+  const box = [100, 674.5, 224, 720.5];
+  const appearance = wrappedAppearanceOf(wrapped({ angle: 30 }), REGULAR);
+  assert.deepEqual(appearance.bbox, box);
+  assert.deepEqual(appearance.matrix, matrixOf(box, 30));
+  assert.deepEqual(appearance.rect, rectOf(box, 30));
+  const plain = wrappedAppearanceOf(wrapped({ angle: 0 }), REGULAR);
+  assert.equal(plain.matrix, undefined);
+  assert.deepEqual(plain.rect, box);
+  for (const angle of [360, -5, '30', Number.NaN])
+    assert.equal(isWrappedEntry(wrapped({ angle })), false, String(angle));
+});
+
+// ---- 吹き出し（spec-4b-4b 確定事項G2・G3） ----
+
+test('吹き出しは箱で切り抜かず、4 方向の cm の外に輪郭を描き、/BBox は箱と先の範囲、/CL と /RD を返す', () => {
+  const box = [100, 674.5, 224, 720.5];
+  const entry = wrapped({ fill: '#ffffff', borderColor: '#c00000', borderWidth: 1.5, callout: { tip: [80, 620] } });
+  const appearance = wrappedAppearanceOf(entry, REGULAR);
+  const lines = appearance.content.split('\n');
+  assert.equal(lines.some((line) => line.endsWith(' re W n')), false, '箱で切り抜かない');
+  const fill = lines.indexOf('1 1 1 rg');
+  const cm = lines.findIndex((line) => line.endsWith(' cm'));
+  const paint = lines.indexOf('B');
+  assert.ok(fill > 0 && paint > fill && cm > paint, '輪郭は cm の前（回す前の紙の座標）');
+  assert.equal(lines.some((line) => line.endsWith(' re f') || line.endsWith(' re S')), false, 'テキストの塗りと枠線の四角は描かない');
+  assert.deepEqual(appearance.bbox, [78.25, 618.25, 225.75, 722.25]);
+  assert.deepEqual(appearance.rect, appearance.bbox);
+  assert.deepEqual(appearance.callout.rd, [21.75, 56.25, 1.75, 1.75]);
+  assert.deepEqual(appearance.callout.cl.slice(0, 2), [80, 620]);
+  assert.equal(appearance.matrix, undefined);
+  assert.deepEqual(entry.rect, box);
+});
+
+test('回した吹き出しは箱の中心で回す /Matrix を返し、/Rect は /BBox の写しの外接', () => {
+  const { matrixOf, boundsOf } = require('../worker/shape-rotation.js');
+  const box = [100, 674.5, 224, 720.5];
+  const appearance = wrappedAppearanceOf(wrapped({ fill: '#ffffff', borderColor: '#c00000', borderWidth: 1.5, angle: 30, callout: { tip: [80, 620] } }), REGULAR);
+  assert.deepEqual(appearance.matrix, matrixOf(box, 30));
+  assert.deepEqual(appearance.rect, boundsOf(appearance.bbox, matrixOf(box, 30)).map((value) => Math.round(value * 100) / 100));
+  assert.equal(isWrappedEntry(wrapped({ callout: { tip: [1] } })), false);
+  assert.equal(isWrappedEntry(wrapped({ callout: { tip: [1, 2] } })), true);
+});

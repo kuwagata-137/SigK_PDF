@@ -8,12 +8,13 @@
   //   bold・italic … true のときだけ持つ
   //   fill         … 塗り（'#rrggbb'）。無ければ持たない
   //   borderColor・borderWidth … 枠線の色（'#rrggbb'）と太さ（pt）。枠線があるときだけ、2 つそろえて持つ
-  // 今までの形は、太字・斜体・塗り・枠線を持てない（付けるときは新しい形へ移す。確定事項A2）。
+  //   callout      … 吹き出し（spec-4b-4b 確定事項A2）。{ tip: [x, y] }（しっぽの先の紙の上の実際の点）。吹き出しのときだけ持つ
+  // 今までの形は、太字・斜体・塗り・枠線を持てず、吹き出しにもならない（付けるときは新しい形へ移す。確定事項A2）。
 
   const WIDTH_AUTO = 'auto';
   const FLAGS = Object.freeze(['bold', 'italic']);
   const DECOR = Object.freeze(['fill', 'borderColor', 'borderWidth']);
-  const FIELDS = Object.freeze(['width', ...FLAGS, ...DECOR]);
+  const FIELDS = Object.freeze(['width', ...FLAGS, ...DECOR, 'callout']);
   const HEX = /^#[0-9a-f]{6}$/i;
 
   function isNewForm(entry) {
@@ -26,6 +27,17 @@
 
   function isHex(value) {
     return typeof value === 'string' && HEX.test(value);
+  }
+
+  // 吹き出しの欄（{ tip: [x, y] } だけ）。
+  function validCallout(value) {
+    const tip = value?.tip;
+    return typeof value === 'object' && value !== null && Object.keys(value).length === 1
+      && Array.isArray(tip) && tip.length === 2 && tip.every(Number.isFinite);
+  }
+
+  function isCallout(entry) {
+    return entry?.callout !== undefined;
   }
 
   function validDecor(entry) {
@@ -42,7 +54,9 @@
       return false;
     if (!FLAGS.every((flag) => entry[flag] === undefined || entry[flag] === true) || !validDecor(entry))
       return false;
-    return isNewForm(entry) || [...FLAGS, ...DECOR].every((field) => entry[field] === undefined);
+    if (entry.callout !== undefined && !validCallout(entry.callout))
+      return false;
+    return isNewForm(entry) || [...FLAGS, ...DECOR, 'callout'].every((field) => entry[field] === undefined);
   }
 
   // patch の値。太字・斜体は true か false（false は外す）、塗り・枠線の色は '#rrggbb' か null（null は外す）。
@@ -53,6 +67,8 @@
       return typeof value === 'boolean';
     if (field === 'fill' || field === 'borderColor')
       return value === null || isHex(value);
+    if (field === 'callout')
+      return validCallout(value);
     return field === 'borderWidth' && Number.isFinite(value) && value > 0;
   }
 
@@ -84,13 +100,22 @@
       copy.borderColor = entry.borderColor;
       copy.borderWidth = entry.borderWidth;
     }
+    if (validCallout(entry.callout))
+      copy.callout = { tip: [...entry.callout.tip] };
     return copy;
+  }
+
+  function sameTip(a, b) {
+    if (a === undefined || b === undefined)
+      return a === b;
+    return a.tip[0] === b.tip[0] && a.tip[1] === b.tip[1];
   }
 
   function sameFields(a, b) {
     const border = a.borderColor ?? null;
     return a.width === b.width && FLAGS.every((flag) => (a[flag] === true) === (b[flag] === true))
-      && (a.fill ?? null) === (b.fill ?? null) && border === (b.borderColor ?? null) && (border === null || a.borderWidth === b.borderWidth);
+      && (a.fill ?? null) === (b.fill ?? null) && border === (b.borderColor ?? null) && (border === null || a.borderWidth === b.borderWidth)
+      && sameTip(a.callout, b.callout);
   }
 
   // ワーカーへ渡す欄（確定事項I1）。新しい形は、書式の欄と、画面で決めた行 lines と、箱の左上から中身の左上までの inset [左, 上]
@@ -109,6 +134,6 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.freeTextEntry = {
-    WIDTH_AUTO, FLAGS, DECOR, FIELDS, isNewForm, validWidth, validFields, validPatchValue, tidy, copyFields, sameFields, saveFields,
+    WIDTH_AUTO, FLAGS, DECOR, FIELDS, isNewForm, isCallout, validWidth, validCallout, validFields, validPatchValue, tidy, copyFields, sameFields, saveFields,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

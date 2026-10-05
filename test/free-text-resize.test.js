@@ -112,3 +112,22 @@ test('引いた幅が最長行とほぼ同じで行の並びも自動と同じ�
   const advanceOf = (unit, bold) => SigK.freeTextShape.advanceOf(shell.document, unit, bold);
   assert.equal(SigK.importedTextDetails.widthOf({ ...entry, ...patch }, { advanceOf, pageLength: SigK.freeTextMetrics.pageLengthOf(0, 0) }), patch.width);
 });
+
+// 回したテキスト（spec-4b-4b 確定事項B2・C3）。引いた量は回した右の向きに沿った分を見て、引かない辺は紙の上で動かない。
+test('回したテキストの幅のつまみは回した右の向きで引き、引かない辺を紙の上で動かさない', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  const placed = placeText(shell, 100, 700, FIFTEEN);
+  const entry = { ...placed, angle: 30, quads: [SigK.shapeRotation.quadOf(placed.rect, 30)] };
+  const viewport = SigK.viewer.getTextLayer(0).viewport;
+  const scale = viewport.scale;
+  const { right } = SigK.freeTextHandles.boxOf(entry, viewport);
+  // 回した右の向き（表示で右下へ 30°）に 40pt 狭める。
+  const narrower = SigK.freeTextResize.widthPatch(entry, 'right', [0, 0], [-40 * scale * right[0], -40 * scale * right[1]], viewport);
+  assert.ok(Math.abs(narrower.width - 104) < 0.011);
+  const leftMiddle = (target) => SigK.freeTextTurn.turnPoint([target.rect[0], (target.rect[1] + target.rect[3]) / 2], target);
+  const before = leftMiddle(entry);
+  const after = leftMiddle({ ...entry, rect: narrower.rect });
+  assert.ok(Math.abs(before[0] - after[0]) < 0.01 && Math.abs(before[1] - after[1]) < 0.01, `${before} → ${after}`);
+  assert.deepEqual(plain(narrower.quads), plain([SigK.shapeRotation.quadOf(narrower.rect, 30)]));
+});

@@ -18,11 +18,12 @@ const { parseRef } = require('./annotation-remove.js');
 const { pick } = require('./pdf-tree-reader.js');
 const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
+const { freeTextRotationOf } = require('./free-text-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
-// 回転を読む種類（spec-4b-2 確定事項34）。
-const BOXED_SUBTYPES = Object.freeze(['Square', 'Circle']);
+// 回転を読む種類（spec-4b-2 確定事項34。FreeText は spec-4b-4b 確定事項H1）。
+const BOXED_SUBTYPES = Object.freeze(['Square', 'Circle', 'FreeText']);
 
 // 一度に読む注釈の数の上限。画面の側も、これを超える文書では口を呼ばない（確定事項25）。
 const REFS_MAX = 10000;
@@ -48,18 +49,35 @@ function nameOf(context, value) {
   return typeof item?.encodedName === 'string' ? item.encodedName.slice(1) : null;
 }
 
-// 四角・丸の外観の回転（spec-4b-2 確定事項34）。{ box, angle }（回っている）・'skewed'（回転を読めない）・null（回っていない・
-// 外観が無い）。外観の中身が回す・ゆがめるものは 'skewed'。暗号化された文書では中身が読めないので、その見分けはしない。
+// 四角・丸・FreeText の外観の回転（spec-4b-2 確定事項34、spec-4b-4b 確定事項H1・H2）。{ box, angle }（回っている）・'skewed'
+// （回転を読めない）・null（回っていない・外観が無い）。外観の中身が回す・ゆがめるものは 'skewed'（FreeText は置いた向きの 4 方向の
+// cm を許す）。暗号化された文書では中身が読めないので、その見分けはしない。FreeText の箱は free-text-rotation.js が読む。
 function rotationOf(dict, context, { encrypted = false } = {}) {
-  if (!BOXED_SUBTYPES.includes(nameOf(context, pick(dict, '/Subtype'))))
+  const subtype = nameOf(context, pick(dict, '/Subtype'));
+  if (!BOXED_SUBTYPES.includes(subtype))
     return null;
   const appearance = appearanceOf(context, dict);
   const rect = fixedNumbersOf(context, pick(dict, '/Rect'), 4);
   if (appearance === null || rect === null)
     return null;
-  if (!encrypted && skewedContent(context, context.lookup(appearance.ref)))
+  const freeText = subtype === 'FreeText';
+  if (!encrypted && skewedContent(context, context.lookup(appearance.ref), 1, { quarterTurns: freeText }))
     return 'skewed';
-  return rotationOfAppearance({ rect, bbox: appearance.bbox, matrix: appearance.matrix });
+  const geometry = { rect, bbox: appearance.bbox, matrix: appearance.matrix };
+  if (!freeText)
+    return rotationOfAppearance(geometry);
+  const callout = nameOf(context, pick(dict, '/IT')) === 'FreeTextCallout';
+  return freeTextRotationOf({ ...geometry, inner: callout ? calloutBoxOf(dict, context, appearance.bbox) : null, callout });
+}
+
+// 吹き出しの回す前の箱（spec-4b-4b 確定事項H2）。/RD が /BBox を縮めて箱が残るなら、/BBox を /RD で縮めたもの
+// （回していても /BBox に対する差で書く。事前調査 O の O2）。そうでなければ null。
+function calloutBoxOf(dict, context, bbox) {
+  const rd = numbersOf(context, pick(dict, '/RD'));
+  if (rd === null || rd.length !== 4 || rd.some((value) => value < 0))
+    return null;
+  const box = [bbox[0] + rd[0], bbox[1] + rd[1], bbox[2] - rd[2], bbox[3] - rd[3]];
+  return box[2] > box[0] && box[3] > box[1] ? box : null;
 }
 
 // 1 つの注釈の辞書から、画面が要る欄を読む（確定事項23）。無い欄は null（cloudy は false）。雲形の強さ /BE /I は

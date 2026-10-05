@@ -193,3 +193,82 @@ test('直線・テキストなど四角・丸でないものは回転を返さ�
   assert.equal(result.details[ids['0:PolyLine@380,700']].rotation, null);
   assert.equal(result.details[ids['0:Text@540,760']].rotation, null);
 });
+
+// ---- 自前の FreeText の回転（spec-4b-4b 確定事項H1・H2。事前調査 P） ----
+
+const zlib = require('node:zlib');
+const { PDFName, PDFString, PDFHexString, PDFArray, PDFRef } = require('pdf-lib');
+const fontkit = require('@pdf-lib/fontkit');
+const { applyAnnotations } = require('../worker/op-annotate.js');
+const { createFontSource } = require('../worker/font-embed.js');
+const { detailsOf } = require('../worker/annotation-dict-reader.js');
+const { pick } = require('../worker/pdf-tree-reader.js');
+
+// 保存して読み直した 1 件目の FreeText の辞書と context。after(context, dict) で外観を他のアプリ風に書き換えられる。
+async function savedFreeText(entry, after = null) {
+  const doc = await PDFDocument.create();
+  doc.addPage([595.28, 841.89]);
+  const tools = { PDFName, PDFString, PDFHexString, PDFArray, PDFRef };
+  const result = await applyAnnotations(doc, { add: [entry] }, tools, { now: new Date(2026, 9, 2), fontSource: createFontSource({ fontkit }) });
+  assert.deepEqual(result, { ok: true, added: 1, removed: 0 });
+  const saved = await PDFDocument.load(await doc.save(), { updateMetadata: false });
+  const page = saved.getPages()[0];
+  const dict = saved.context.lookup(saved.context.lookup(page.node.get(PDFName.of('Annots'))).get(0));
+  if (after !== null)
+    after(saved.context, dict);
+  return detailsOf(dict, saved.context);
+}
+
+function freeText(rotation, extra = {}) {
+  const rect = rotation % 180 === 0 ? [100, 600, 140, 616] : [100, 600, 116, 640];
+  return { src: 0, kind: 'text', color: '#222a35', opacity: 1, rect, text: 'あいう', fontSize: 12, rotation, width: 'auto', lines: ['あいう'], inset: [2, 2], ...extra };
+}
+
+test('置いた向き 90°・270° の自前のテキストは、中身の 4 方向の cm を回転とも「ゆがみ」とも読まない', async () => {
+  for (const rotation of [0, 90, 180, 270]) {
+    assert.equal((await savedFreeText(freeText(rotation))).rotation, null, `新しい形 ${rotation}`);
+    assert.equal((await savedFreeText(freeText(rotation, { opacity: 0.6 }))).rotation, null, `半透明 ${rotation}`);
+    const legacy = freeText(rotation);
+    delete legacy.width;
+    delete legacy.lines;
+    delete legacy.inset;
+    assert.equal((await savedFreeText(legacy)).rotation, null, `今までの形 ${rotation}`);
+  }
+});
+
+test('回した自前のテキストは、回す前の箱（/BBox のまま）と角度を返す', async () => {
+  for (const [rotation, angle] of [[0, 30], [0, 359], [90, 30], [270, 200]]) {
+    const entry = freeText(rotation, { angle });
+    assert.deepEqual((await savedFreeText(entry)).rotation, { box: entry.rect, angle }, `置いた向き ${rotation}・${angle}°`);
+  }
+  const faded = freeText(0, { angle: 30, opacity: 0.6 });
+  assert.deepEqual((await savedFreeText(faded)).rotation, { box: faded.rect, angle: 30 });
+});
+
+test('中身を 30° 回す・ゆがめる・裏返す他のアプリ風の FreeText は skewed', async () => {
+  const foreign = (cm) => (context, dict) => {
+    const ap = context.lookup(pick(dict, '/AP'));
+    const stream = context.lookup(pick(ap, '/N'));
+    const raw = Buffer.from(stream.getContents());
+    const body = (pick(stream.dict, '/Filter') === undefined ? raw : zlib.inflateSync(raw)).toString('latin1');
+    const fresh = context.stream(body.replace(/^q\r?\n/, `q\n${cm} cm\n`), {
+      Type: 'XObject', Subtype: 'Form', BBox: context.lookup(pick(stream.dict, '/BBox')), Resources: stream.dict.get(PDFName.of('Resources')),
+    });
+    ap.set(PDFName.of('N'), context.register(fresh));
+  };
+  for (const cm of ['0.866 -0.5 0.5 0.866 0 0', '1 0 0.3 1 0 0', '0 1 1 0 0 0'])
+    assert.equal((await savedFreeText(freeText(0), foreign(cm))).rotation, 'skewed', cm);
+});
+
+// 吹き出し（spec-4b-4b 確定事項H2）。回した吹き出しは、/BBox を /RD で縮めた箱をそのまま回す前の箱にする。
+test('回した自前の吹き出しは、回す前の箱（/BBox を /RD で縮めたもの）と角度を返し、/IT と /CL も読む', async () => {
+  const callout = (angle) => freeText(0, { fill: '#ffffff', borderColor: '#c00000', borderWidth: 1.5, callout: { tip: [80, 560] }, ...(angle ? { angle } : {}) });
+  const plain = await savedFreeText(callout(0));
+  assert.equal(plain.rotation, null);
+  assert.equal(plain.intent, 'FreeTextCallout');
+  assert.deepEqual(plain.calloutLine.slice(0, 2), [80, 560]);
+  for (const angle of [30, 200, 359]) {
+    const entry = callout(angle);
+    assert.deepEqual((await savedFreeText(entry)).rotation, { box: entry.rect, angle }, `${angle}°`);
+  }
+});

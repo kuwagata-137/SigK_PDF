@@ -6,6 +6,8 @@ const assert = require('node:assert/strict');
 require('../renderer/free-text-geometry.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-rotation.js');
+require('../renderer/free-text-layout.js');
+require('../renderer/callout-shape.js');
 require('../renderer/markup-quads.js');
 require('../renderer/shape-style.js');
 require('../renderer/free-text-entry.js');
@@ -52,4 +54,25 @@ test('hits は回した四角・丸を、回した箱の中だけで当てる（
   // 回していなければ今までどおり四角で見る
   assert.equal(hit.hits({ ...square, angle: undefined, quads: [[100, 700, 300, 700, 100, 600, 300, 600]] }, [295, 695], viewport, [0, 0]), true);
   assert.equal(hit.hits({ ...square, readonly: true }, [200, 650], viewport, [0, 0]), false);
+});
+
+// 点検で見つけた誤り（2026-10-04）: 吹き出しのしっぽは三角の中だけで当たり、先へ細る所は押しにくかった（spec-4b-4b 確定事項C4）。
+test('hits は吹き出しのしっぽに、線と同じ余裕（枠線の太さの半分と 3px 相当。枠線が無ければ 3px 相当）で当てる', () => {
+  const rect = [100, 600, 220, 644];
+  const callout = {
+    kind: 'text', rect, quads: [[100, 644, 220, 644, 100, 600, 220, 600]], text: '確認', fontSize: 12, rotation: 0,
+    borderColor: '#c00000', borderWidth: 1.5, callout: { tip: [80, 540] },
+  };
+  // しっぽの左の辺（付け根の左から先へ）の中ほどから、三角の外へ 3.5pt
+  const tail = globalThis.SigK.calloutShape.tailOf(rect, [80, 540], 12);
+  const a = [tail.base[0] - tail.half, tail.base[1]];
+  const length = Math.hypot(80 - a[0], 540 - a[1]);
+  const away = [(540 - a[1]) / length, -(80 - a[0]) / length];
+  const point = [(a[0] + 80) / 2 + away[0] * 3.5, (a[1] + 540) / 2 + away[1] * 3.5];
+  assert.equal(globalThis.SigK.calloutShape.hitsTail(callout, point), false, '三角の外');
+  assert.equal(hit.hits(callout, point, { scale: 1 }, [0, 0]), true, '1.5 / 2 + 3 = 3.75pt 以内');
+  assert.equal(hit.hits(callout, point, { scale: 2 }, [0, 0]), false, '倍率 2 では 0.75 + 1.5 = 2.25pt');
+  const { borderColor, borderWidth, ...bare } = callout;
+  assert.equal(hit.hits(bare, point, { scale: 1 }, [0, 0]), false, '枠線が無ければ 3pt');
+  assert.equal(hit.hits({ ...callout, readonly: true }, point, { scale: 1 }, [0, 0]), false);
 });

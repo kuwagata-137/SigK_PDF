@@ -31,3 +31,26 @@ test('文書を閉じたあとの下書きは何もしない', async (t) => {
   await shell.SigK.tabs.forceCloseTab(shell.SigK.tabs.list()[0].id);
   assert.equal(shell.SigK.freeTextCommit.commitDraft({ entry: null, text: 'x', origin: [100, 700], fontSize: 12, color: '#222a35', rotation: 0, src: 0, index: 0 }), false);
 });
+
+// 回したテキスト（spec-4b-4b 確定事項B2・D2）。文字を足して箱が大きくなっても、回した箱の左上の角は紙の上で動かない。
+test('回したテキストを直して確定すると、回した箱の左上の角を保つ', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('text');
+  clickAt(shell, 100, 700);
+  typeText(shell, 'メモ');
+  SigK.freeTextEditor.finish();
+  const placed = SigK.viewer.getAnnotations().added[0];
+  SigK.annotateTransform.commit(placed, SigK.freeTextTurn.anglePatch(placed, 30));
+  const turned = SigK.viewer.getAnnotations().added[0];
+  assert.equal(turned.angle, 30);
+  const before = SigK.freeTextTurn.cornerOf(turned);
+  SigK.annotateText.beginEdit(turned.id);
+  typeText(shell, 'メモを長く書き足して二行にする');
+  SigK.freeTextEditor.finish();
+  const edited = SigK.viewer.getAnnotations().added[0];
+  assert.notDeepEqual(JSON.parse(JSON.stringify(edited.rect)), JSON.parse(JSON.stringify(turned.rect)));
+  const after = SigK.freeTextTurn.cornerOf(edited);
+  assert.ok(Math.abs(after[0] - before[0]) < 0.01 && Math.abs(after[1] - before[1]) < 0.01, `${before} → ${after}`);
+  assert.equal(edited.angle, 30);
+});

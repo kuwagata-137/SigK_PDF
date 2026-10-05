@@ -16,7 +16,7 @@ function makeWorld() {
   const calls = { redraw: 0, commits: [] };
   win.SigK.viewer = { redrawAnnotations: () => { calls.redraw += 1; } };
   win.SigK.annotateText = { commitDraft: (draft) => { calls.commits.push(draft); } };
-  for (const name of ['free-text-geometry', 'free-text-shape', 'free-text-wrap', 'free-text-layout', 'free-text-metrics', 'free-text-editor-node', 'free-text-editor']) {
+  for (const name of ['free-text-geometry', 'shape-rotation', 'free-text-turn', 'free-text-font', 'free-text-shape', 'free-text-wrap', 'free-text-layout', 'free-text-metrics', 'free-text-editor-node', 'free-text-editor']) {
     const script = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'renderer', `${name}.js`), 'utf8');
     win.eval(script);
   }

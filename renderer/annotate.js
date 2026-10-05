@@ -142,7 +142,7 @@
     setTextFlag: (field, value) => root.SigK.annotateTextStyle?.setTextFlag(field, value) === true,
     // テキストの枠線の色（spec-4b-4a 確定事項G4）。null は枠線なし。
     setBorder: (color) => root.SigK.annotateTextStyle?.setBorder(color) === true,
-    getTextStyle: () => root.SigK.annotateTextStyle?.getNextStyle() ?? { bold: false, italic: false },
+    getTextStyle: (tool = 'text') => root.SigK.annotateTextStyle?.getNextStyle(tool) ?? { bold: false, italic: false },
     setLineWidth: (width) => root.SigK.annotateShape?.setLineWidth(width) === true,
     setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
     getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),

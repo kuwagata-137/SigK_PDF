@@ -77,11 +77,18 @@ function contentText(stream) {
   }
 }
 
+// [a b c d] が 90° の倍数の回転（拡大は縦横で同じ・裏返さない）か。0°・180° は b・c が 0 なので turns が見ない。
+function quarterTurn([a, b, c, d]) {
+  return Math.abs(a) <= TURN_EPSILON && Math.abs(d) <= TURN_EPSILON && Math.abs(b + c) <= TURN_EPSILON && Math.abs(b) > TURN_EPSILON;
+}
+
 // 外観の中身とその 1 段下の Form（/Resources /XObject の Form）が、図形を回す・ゆがめるか（確定事項34）。中身が読めない
-// （暗号化・見ないフィルター）ものは false。呼ぶ側は暗号化された文書では呼ばない。
-function skewedContent(context, stream, depth = 1) {
+// （暗号化・見ないフィルター）ものは false。呼ぶ側は暗号化された文書では呼ばない。quarterTurns なら 90° の倍数の回転は
+// 見逃す（自前の FreeText は置いた向きの 4 方向を中身の cm で描くため。spec-4b-4b 確定事項H1。事前調査 P）。
+function skewedContent(context, stream, depth = 1, { quarterTurns = false } = {}) {
+  const skews = (matrix) => turns(matrix) && !(quarterTurns && quarterTurn(matrix));
   const text = contentText(stream);
-  if (text !== null && [...text.matchAll(CM)].some((match) => turns(match.slice(1, 7).map(Number))))
+  if (text !== null && [...text.matchAll(CM)].some((match) => skews(match.slice(1, 7).map(Number))))
     return true;
   if (depth <= 0)
     return false;
@@ -93,7 +100,7 @@ function skewedContent(context, stream, depth = 1) {
     if (!isStream(child) || pick(child.dict, '/Subtype')?.asString?.() !== '/Form')
       continue;
     const matrix = numbersOf(context, pick(child.dict, '/Matrix'), 6);
-    if ((matrix !== null && turns(matrix)) || skewedContent(context, child, depth - 1))
+    if ((matrix !== null && skews(matrix)) || skewedContent(context, child, depth - 1, { quarterTurns }))
       return true;
   }
   return false;

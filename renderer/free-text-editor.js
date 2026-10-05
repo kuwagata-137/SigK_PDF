@@ -50,6 +50,9 @@
       return;
     state.draft.text = state.node.value;
     autosize();
+    // 吹き出しは打つたびに本体の大きさが変わるので、注釈の層を描き直す（spec-4b-4b 確定事項D3）。
+    if (state.draft.callout !== undefined)
+      root.SigK.viewer?.redrawAnnotations();
   }
 
   function onKeyDown(event) {

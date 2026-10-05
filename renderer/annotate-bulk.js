@@ -66,8 +66,10 @@
     const next = root.SigK.annotateNextStyle;
     const style = root.SigK.shapeStyle;
     const boxed = kinds.some((kind) => style.isBoxedKind(kind));
-    if (kinds.includes('text') && field !== 'color' && field !== 'opacity')
-      root.SigK.annotateTextStyle.rememberFor(field, value);
+    if (field !== 'color' && field !== 'opacity') {
+      for (const tool of ['text', 'callout'].filter((each) => kinds.includes(each)))
+        root.SigK.annotateTextStyle.rememberFor(field, value, tool);
+    }
     if (field === 'color') {
       kinds.forEach((kind) => next.rememberColor(kind, value));
       if (boxed)
@@ -107,7 +109,8 @@
       root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });
       annotate().selectKeys(after);
     }
-    rememberNext(field, value, [...new Set(targets.map((entry) => entry.kind))]);
+    // 吹き出しは種類の鍵 callout で覚える（spec-4b-4b 確定事項A5）。
+    rememberNext(field, value, [...new Set(targets.map((entry) => root.SigK.annotationPresets.kindOf(entry)))]);
     root.SigK.annotationProps?.refresh();
     return true;
   }

@@ -220,3 +220,26 @@ test('入力欄は塗りを地に出す', async (t) => {
   const node = shell.document.querySelector('textarea.free-text-editor');
   assert.equal(node.style.background, 'rgb(255, 242, 204)');
 });
+
+// ---- 吹き出しの道具の次に付ける書式（spec-4b-4b 確定事項F2・F3）。テキストの道具とは別に覚える ----
+
+test('吹き出しの道具を持って書式を変えると吹き出しの次の値だけが変わり、テキストの次の値は変わらない', async (t) => {
+  const shell = await withTextShell(t);
+  const { SigK } = shell;
+  const CALLOUT = { fontSize: 12, bold: false, italic: false, fill: '#ffffff', border: '#c00000', borderWidth: 1.5 };
+  assert.deepEqual(plain(SigK.annotateTextStyle.getNextStyle('callout')), CALLOUT);
+  SigK.annotate.setTool('callout');
+  assert.equal(SigK.annotateTextStyle.setTextFlag('bold', true), true);
+  assert.equal(SigK.annotateTextStyle.setTextFill('#DDEBF7'), true);
+  assert.equal(SigK.annotateTextStyle.setFontSize(14), true);
+  assert.deepEqual(plain(SigK.annotateTextStyle.getNextStyle('callout')), { ...CALLOUT, fontSize: 14, bold: true, fill: '#ddebf7' });
+  assert.deepEqual(plain(SigK.annotateTextStyle.getNextStyle('text')), { bold: false, italic: false, fill: null, border: null, borderWidth: 1 });
+  assert.equal(SigK.annotate.getFontSize(), 12, 'テキストの次の大きさは変わらない');
+});
+
+test('覚えた吹き出しの書式は起動時に戻る', async (t) => {
+  const ui = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotCalloutStyle: { fontSize: 18, bold: true, fill: null, border: '#2f5597', borderWidth: 1.5 } };
+  const shell = await withTextShell(t, { ui });
+  await shell.flush();
+  assert.deepEqual(plain(shell.SigK.annotate.getTextStyle('callout')), { fontSize: 18, bold: true, italic: false, fill: null, border: '#2f5597', borderWidth: 1.5 });
+});

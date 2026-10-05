@@ -10,7 +10,7 @@ function makeWorld() {
   const dom = new JSDOM('<!doctype html><div class="pdf-page"></div>', { runScripts: 'outside-only' });
   const win = dom.window;
   win.SigK = {};
-  for (const name of ['free-text-geometry', 'free-text-shape', 'free-text-wrap', 'free-text-layout', 'free-text-metrics', 'free-text-editor-node']) {
+  for (const name of ['free-text-geometry', 'shape-rotation', 'free-text-turn', 'free-text-font', 'free-text-shape', 'free-text-wrap', 'free-text-layout', 'free-text-metrics', 'free-text-editor-node']) {
     const script = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'renderer', `${name}.js`), 'utf8');
     win.eval(script);
   }
@@ -73,4 +73,19 @@ test('autosize は新しい形なら真ん中の幅と折り返した行数の�
   // 12 字（120）と、送った 1 字を足した 130 の真ん中 125。2 行 × 12.5。どちらも倍率 2。
   assert.equal(area.style.width, '250px');
   assert.equal(area.style.height, '50px');
+});
+
+// ---- 回したテキストの入力欄（spec-4b-4b 確定事項D1。決定58） ----
+
+test('place は回したテキストを、回した箱の左上の角に置き、回した角度のまま出す', () => {
+  const { win, doc, node } = makeWorld();
+  const area = node.create(doc, '', { onInput() {}, onKeyDown() {} });
+  const viewport = { scale: 1, rotation: 0, convertToViewportPoint: (x, y) => [x, 842 - y] };
+  const entry = { kind: 'text', rect: [100, 660, 200, 700], rotation: 0, angle: 30 };
+  node.place(area, { origin: [100, 700], fontSize: 12, color: '#222a35', rotation: 0, entry }, viewport);
+  const [x, y] = viewport.convertToViewportPoint(...win.SigK.freeTextTurn.cornerOf(entry));
+  assert.equal(area.style.left, `${x - node.BORDER}px`);
+  assert.equal(area.style.top, `${y - node.BORDER}px`);
+  assert.equal(area.style.transform, 'rotate(30deg)');
+  assert.equal(area.style.transformOrigin, `${node.BORDER}px ${node.BORDER}px`);
 });

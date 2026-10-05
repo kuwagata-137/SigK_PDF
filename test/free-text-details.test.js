@@ -28,16 +28,26 @@ test('freeTextDetailsOf は /DS を { bold, italic, color } に読み、/DS が�
     DA: PDFString.of('/SigKJP 12 Tf 0.11 0.141 0.188 rg'),
     DS: PDFString.of('font: 12pt "Noto Sans JP"; color: #1C2430; font-weight: bold'),
   });
-  assert.deepEqual(freeTextDetailsOf(own.dict, own.context), { defaultStyle: { bold: true, italic: false, color: '#1c2430' }, daColor: '#1c2430' });
+  assert.deepEqual(freeTextDetailsOf(own.dict, own.context), { defaultStyle: { bold: true, italic: false, color: '#1c2430' }, daColor: '#1c2430', intent: null, calloutLine: null });
   const hex = await dictWith({ DS: PDFHexString.fromText('font-style: italic') });
   assert.deepEqual(freeTextDetailsOf(hex.dict, hex.context).defaultStyle, { bold: false, italic: true, color: null });
   const old = await dictWith({ DA: PDFString.of('/SigKJP 12 Tf 1 0 0 rg') });
-  assert.deepEqual(freeTextDetailsOf(old.dict, old.context), { defaultStyle: null, daColor: '#ff0000' });
+  assert.deepEqual(freeTextDetailsOf(old.dict, old.context), { defaultStyle: null, daColor: '#ff0000', intent: null, calloutLine: null });
 });
 
 test('freeTextDetailsOf は暗号化された文書では /DS を読めないと答え、/DA の色も読まない', async () => {
   const own = await dictWith({ DA: PDFString.of('/SigKJP 12 Tf 1 0 0 rg'), DS: PDFString.of('color: #ff0000') });
-  assert.deepEqual(freeTextDetailsOf(own.dict, own.context, { encrypted: true }), { defaultStyle: 'unreadable', daColor: null });
+  assert.deepEqual(freeTextDetailsOf(own.dict, own.context, { encrypted: true }), { defaultStyle: 'unreadable', daColor: null, intent: null, calloutLine: null });
   const old = await dictWith({ DA: PDFString.of('/SigKJP 12 Tf 1 0 0 rg') });
   assert.equal(freeTextDetailsOf(old.dict, old.context, { encrypted: true }).defaultStyle, null, '/DS が無いことは暗号化されていても分かる');
+});
+
+// 吹き出し（spec-4b-4b 確定事項H3）。/IT と /CL は数と名前なので、暗号化された文書でも読める。
+test('freeTextDetailsOf は /IT の名前と、4 つか 6 つの数の /CL を返す', async () => {
+  const own = await dictWith({ IT: 'FreeTextCallout', CL: [80, 540, 120.75, 600.75] });
+  assert.deepEqual(freeTextDetailsOf(own.dict, own.context), { defaultStyle: null, daColor: null, intent: 'FreeTextCallout', calloutLine: [80, 540, 120.75, 600.75] });
+  const six = await dictWith({ IT: 'FreeTextCallout', CL: [1, 2, 3, 4, 5, 6] });
+  assert.deepEqual(freeTextDetailsOf(six.dict, six.context, { encrypted: true }).calloutLine, [1, 2, 3, 4, 5, 6]);
+  const broken = await dictWith({ IT: 'FreeTextCallout', CL: [1, 2, 3] });
+  assert.equal(freeTextDetailsOf(broken.dict, broken.context).calloutLine, null);
 });

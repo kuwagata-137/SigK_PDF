@@ -14,6 +14,8 @@ const { LINE_HEIGHT, BASELINE, frameOf, isFreeTextEntry } = require('./free-text
 const { defaultStyleOf } = require('./default-style.js');
 const { DA_FONT_NAME } = require('./font-embed.js');
 const { decorOps, readableTextOps } = require('./free-text-decor.js');
+const { matrixOf, boundsOf } = require('./shape-rotation.js');
+const { calloutGeometryOf, outlineOps } = require('./callout-outline.js');
 
 // 斜体の傾き（Tm の c）。画面の CSS font-style: italic（斜体の書体が無いときの擬似斜体）と同じ形になる値（事前調査 B）。
 const ITALIC_SKEW = 0.25;
@@ -40,6 +42,16 @@ function matchesText(lines, text) {
   return at === lines.length;
 }
 
+// 角度（spec-4b-4b 確定事項G1）。無いか、0 以上 360 未満の数（0 は回さない）。
+function validAngle(angle) {
+  return angle === undefined || (Number.isFinite(angle) && angle >= 0 && angle < 360);
+}
+
+// 吹き出し（spec-4b-4b 確定事項G2）。無いか、{ tip: [x, y] }。
+function validCallout(callout) {
+  return callout === undefined || (Array.isArray(callout?.tip) && callout.tip.length === 2 && callout.tip.every(Number.isFinite));
+}
+
 function validWidth(width) {
   return width === 'auto' || (Number.isFinite(width) && width > 0);
 }
@@ -59,7 +71,9 @@ function validDecor(entry) {
 
 // 新しい形のテキストの entry の形（isFreeTextEntry に加えて、幅・行・中身の位置・太字・斜体・塗り・枠線）。
 function isWrappedEntry(entry) {
-  if (!isFreeTextEntry(entry) || !isWrapped(entry) || !validWidth(entry.width) || !validInset(entry.inset))
+  if (!isFreeTextEntry(entry) || !isWrapped(entry) || !validWidth(entry.width) || !validInset(entry.inset) || !validAngle(entry.angle))
+    return false;
+  if (!validCallout(entry.callout))
     return false;
   if (![entry.bold, entry.italic].every((flag) => flag === undefined || flag === true) || !validDecor(entry))
     return false;
@@ -99,19 +113,22 @@ function wrappedAppearanceOf(entry, measure) {
   const rect = entry.rect.map((value) => Math.round(value * 100) / 100);
   const { matrix, clip, first } = frameOf(rect, rotation);
   const origin = [first[0] + entry.inset[0], first[1] - entry.inset[1]];
+  // 吹き出しは箱で切り抜かず、輪郭（塗りと枠線）を 4 方向の cm の外（回す前の紙の座標）に描く（spec-4b-4b 確定事項G2）。
+  const callout = entry.callout === undefined ? null : calloutGeometryOf({ rect, angle: entry.angle, fontSize, borderWidth, callout: entry.callout });
   const content = [
     'q',
     ...(group ? [] : ['/GS gs']),
+    ...(callout === null ? [] : outlineOps(callout.segments, { fill: fillRgb, border: borderRgb, borderWidth })),
     `${matrix.map(num).join(' ')} 0 0 cm`,
-    `${clip.map(num).join(' ')} re W n`,
-    ...decorOps({ clip, fill: fillRgb, border: borderRgb, borderWidth }),
+    ...(callout === null ? [`${clip.map(num).join(' ')} re W n`, ...decorOps({ clip, fill: fillRgb, border: borderRgb, borderWidth })] : []),
     ...wrappedBlockOps({ lines: entry.lines, fontSize, rgb, origin, italic: entry.italic === true }, measure),
     'Q',
   ].join('\n');
+  const outer = callout === null ? rect : callout.bbox;
   const appearance = {
     content,
-    bbox: rect,
-    rect,
+    bbox: outer,
+    rect: outer,
     // /DA の書体名は太字でも自分の印の名前（確定事項I4）。色は枠線があれば枠線の色、無ければ文字の色（確定事項I5）。
     da: `/${DA_FONT_NAME} ${num(fontSize)} Tf ${colorOps(borderRgb ?? rgb)} rg`,
     ds: defaultStyleOf({ fontSize, color: entry.color, bold: entry.bold === true, italic: entry.italic === true }),
@@ -126,6 +143,14 @@ function wrappedAppearanceOf(entry, measure) {
   if (group) {
     appearance.group = true;
     appearance.prefix = readableTextOps({ name: measure.name, fontSize, rgb });
+  }
+  if (callout !== null)
+    appearance.callout = { cl: callout.cl, rd: callout.rd };
+  // 回したテキストは、外側の Form に /Matrix（箱の中心で紙の上の時計回り。吹き出しもしっぽを含めない箱の中心）を付け、/Rect を /BBox の
+  // 写しの外接にする（四角・丸と同じ。spec-4b-4b 確定事項G1）。/BBox は回す前の箱（吹き出しは箱としっぽの範囲）のまま。
+  if (entry.angle > 0) {
+    appearance.matrix = matrixOf(rect, entry.angle);
+    appearance.rect = boundsOf(outer, appearance.matrix).map((value) => Math.round(value * 100) / 100);
   }
   return appearance;
 }

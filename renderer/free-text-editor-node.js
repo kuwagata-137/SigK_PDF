@@ -43,11 +43,13 @@
     return sides.every((side) => side === sides[0]) ? sides[0] : sides.join(' ');
   }
 
-  // 位置・大きさ・向き。表示の左上（origin）へ枠線ぶんだけ外側に置き、画面での角度で回す。
+  // 位置・大きさ・向き。表示の左上（origin）へ枠線ぶんだけ外側に置き、画面での角度で回す。回したテキストは、回した箱の左上の角に置き、
+  // 回した角度のまま出す（spec-4b-4b 確定事項D1。決定58）。
   function place(node, draft, viewport) {
     const scale = viewport.scale ?? 1;
-    const [x, y] = viewport.convertToViewportPoint(draft.origin[0], draft.origin[1]);
-    const angle = geometry().screenAngle(viewport.rotation ?? 0, draft.rotation);
+    const turn = root.SigK.freeTextTurn;
+    const [x, y] = viewport.convertToViewportPoint(...turn.draftCornerOf(draft));
+    const angle = turn.draftAngleOf(viewport.rotation ?? 0, draft);
     const wrapped = draft.width !== undefined;
     node.wrap = wrapped ? 'soft' : 'off';
     node.classList.toggle('wrapped', wrapped);
@@ -60,8 +62,11 @@
     node.style.padding = paddingOf(layout().insetOf(draft), scale);
     node.style.borderWidth = `${BORDER}px`;
     node.style.color = draft.color;
-    // 塗りは入力欄の地に出す。枠線は描かず、破線の枠のまま（spec-4b-4a 確定事項E2）。
-    node.style.background = draft.fill ?? '';
+    // 塗りは入力欄の地に出す。枠線は描かず、破線の枠のまま（spec-4b-4a 確定事項E2）。吹き出しは本体（輪郭・塗り・枠線）を注釈の層が
+    // 描くので、地は透明にして破線の枠も出さない（spec-4b-4b 確定事項D3）。
+    const callout = draft.callout !== undefined;
+    node.classList.toggle('callout', callout);
+    node.style.background = callout ? '' : draft.fill ?? '';
     node.style.transformOrigin = `${BORDER}px ${BORDER}px`;
     node.style.transform = angle === 0 ? '' : `rotate(${angle}deg)`;
   }

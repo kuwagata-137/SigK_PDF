@@ -9,10 +9,11 @@
   // パレットの色（決定47 ⑧）。文字の大きさの並びは自前で決めたもので、他社製品の意匠を写していない（docs/06）。
 
   const MARKUP_TOOLS = Object.freeze(['highlight', 'underline', 'strikeout']);
-  const TOOLS = Object.freeze([...MARKUP_TOOLS, 'text', 'shape', 'pen', 'note']);
+  // 吹き出し（callout）はテキストの書き込み（kind: 'text' に callout の欄）を置く道具（spec-4b-4b 確定事項A2・F1）。
+  const TOOLS = Object.freeze([...MARKUP_TOOLS, 'text', 'callout', 'shape', 'pen', 'note']);
   // 道具と、注釈の種類（kind）の表示名。図形の道具（shape）は 4 種の kind を描き分ける。
   const TOOL_LABELS = Object.freeze({
-    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', shape: '図形', pen: 'ペン', note: 'ノート',
+    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', note: 'ノート',
     square: '四角', circle: '丸', line: '直線', arrow: '矢印', ink: 'ペン',
   });
   // 「表示のみ」の注釈（他のツールが付け、読み込んで直せないもの）の種類名。pdf.js の subtype で引く
@@ -30,8 +31,11 @@
   // 道具ごとの既定の色。今までの既定の色を、いちばん近いパレットの色へ置き換えた（spec-4b-1b 確定事項14）。色は右パネルの
   // チップからパレット（annotation-palette.js）か「その他の色…」で選び、#rrggbb なら何でも受ける。
   const DEFAULT_COLORS = Object.freeze({
-    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
   });
+  // 吹き出しの道具の、次に付ける書式の既定（決定57 ⑪。文字の色は DEFAULT_COLORS.callout）。枠線の太さ 1.5 は、右パネルの太さの行（1〜40 の
+  // 整数）では選べない既定の値として受ける（spec-4b-4b 確定事項F2・F3）。
+  const DEFAULT_CALLOUT_STYLE = Object.freeze({ fontSize: 12, bold: false, italic: false, fill: '#ffffff', border: '#c00000', borderWidth: 1.5 });
   // 図形の道具の、次に付ける塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。塗りなし・線あり・実線。
   const DEFAULT_FILLS = Object.freeze({ shape: null });
   const DEFAULT_STROKE_NONE = Object.freeze({ shape: false });
@@ -53,7 +57,7 @@
   // 画面から選べるのは 0.1〜1（右パネルでは 10〜100%）。ハイライトは multiply で既に文字が透けるので対象にしない。
   const OPACITY_MIN = 0.1;
   const DEFAULT_OPACITY = 1;
-  const OPACITY_TOOLS = Object.freeze(['text', 'shape', 'pen', 'note']);
+  const OPACITY_TOOLS = Object.freeze(['text', 'callout', 'shape', 'pen', 'note']);
   const DEFAULT_OPACITIES = Object.freeze(Object.fromEntries(OPACITY_TOOLS.map((tool) => [tool, DEFAULT_OPACITY])));
 
   // 道具ごとの値（色・不透明度）を引く鍵。図形 4 種は 'shape' を共有し、ペン（ink）は 'pen'（spec-4-3 確定事項28）。
@@ -61,6 +65,13 @@
     if (SHAPE_KINDS.includes(kind))
       return 'shape';
     return kind === 'ink' ? 'pen' : kind;
+  }
+
+  // 書き込みの種類の鍵（道具ごとの値・名前・アイコンを引く）。吹き出しのテキストは callout、ほかは kind（spec-4b-4b 確定事項A5）。
+  function kindOf(entry) {
+    if (entry === null || entry === undefined)
+      return null;
+    return entry.kind === 'text' && entry.callout !== undefined ? 'callout' : entry.kind;
   }
 
   // 画面から選べる大きさか（8〜200 の 0.5 刻み）。読み込んだ大きさはここを通さない。
@@ -109,6 +120,7 @@
     SHAPE_KINDS,
     DEFAULT_SHAPE_KIND,
     DEFAULT_COLORS,
+    DEFAULT_CALLOUT_STYLE,
     DEFAULT_FILLS,
     DEFAULT_STROKE_NONE,
     DEFAULT_LINE_STYLES,
@@ -125,6 +137,7 @@
     OPACITY_TOOLS,
     DEFAULT_OPACITIES,
     paletteOf,
+    kindOf,
     isFontSize,
     fontSizeOf,
     isLineWidth,

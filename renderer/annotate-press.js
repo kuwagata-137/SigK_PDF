@@ -110,8 +110,8 @@
       annotate().select(hit);
       return;
     }
-    if (tool === 'text') {
-      root.SigK.annotateText?.place({ index: page.index, point: page.point });
+    if (tool === 'text' || tool === 'callout') {
+      root.SigK.annotateText?.place({ index: page.index, point: page.point, callout: tool === 'callout' });
       return;
     }
     if (tool === 'note') {

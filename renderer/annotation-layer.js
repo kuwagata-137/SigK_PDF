@@ -4,8 +4,7 @@
   // 紙の上に重ねる注釈の層（spec-4-1 確定事項5・37）。
   //
   // .pdf-page の中、canvas のあと・テキストレイヤーの前に <svg class="annot-layer"> を
-  // 置く。ハイライトは mix-blend-mode: multiply の多角形（文字が透ける）、下線・
-  // 取り消し線は <line>、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）、
+  // 置く。ハイライト・下線・取り消し線は markup-graphics.js、テキストは free-text-shape.js の <text>（spec-4-2 確定事項10）、
   // 図形・ペンは shape-graphics.js の <g>（spec-4-3 確定事項8）、ノートは note-graphics.js の
   // 付箋（spec-4-4 確定事項8）。描いている途中の下書きも同じ描き手で最後に置く（確定事項3）。
   // 「表示のみ」の注釈（readonly。pdf.js が描く）は描かない（選ばれていれば枠だけ出す。spec-4-4 確定事項32。枠は
@@ -16,18 +15,9 @@
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  function quads() {
-    return root.SigK.markupQuads;
-  }
-
   // 図形・ペン（線幅を持つ種類）か。
   function isDrawn(entry) {
     return root.SigK.annotationEntry.isDrawnKind(entry.kind);
-  }
-
-  // 属性に書く数。小数 2 桁で十分で、浮動小数のごみを残さない。
-  function fmt(value) {
-    return String(Math.round(value * 100) / 100);
   }
 
   // 層を作ってページの枠へ入れる。返す要素はページと同じ寿命で、捨てるのは
@@ -40,28 +30,6 @@
     svg.setAttribute('aria-hidden', 'true');
     node.append(svg);
     return svg;
-  }
-
-  function shapeOf(doc, entry, points) {
-    if (entry.kind === 'highlight') {
-      const polygon = doc.createElementNS(SVG_NS, 'polygon');
-      const [ul, ur, ll, lr] = points;
-      polygon.setAttribute('points', [ul, ur, lr, ll].map((point) => point.map(fmt).join(',')).join(' '));
-      polygon.setAttribute('fill', entry.color);
-      polygon.setAttribute('class', 'highlight');
-      return polygon;
-    }
-    const line = doc.createElementNS(SVG_NS, 'line');
-    const [from, to] = quads().lineEndpoints(points, entry.kind);
-    line.setAttribute('x1', fmt(from[0]));
-    line.setAttribute('y1', fmt(from[1]));
-    line.setAttribute('x2', fmt(to[0]));
-    line.setAttribute('y2', fmt(to[1]));
-    line.setAttribute('stroke', entry.color);
-    line.setAttribute('stroke-width', fmt(quads().lineWidth(points)));
-    line.setAttribute('stroke-linecap', 'butt');
-    line.setAttribute('class', entry.kind);
-    return line;
   }
 
   function isNote(entry) {
@@ -93,8 +61,7 @@
       group.append(root.SigK.noteGraphics.svgOf(doc, entry, viewport));
       return group;
     }
-    for (const quad of entry.quads)
-      group.append(shapeOf(doc, entry, quads().quadToViewport(quad, viewport)));
+    group.append(...root.SigK.markupGraphics.svgOf(doc, entry, viewport));
     return group;
   }
 
@@ -113,7 +80,8 @@
   // editing は入力欄を開いているテキストの id か ref で、それは描かない（入力欄が代わり。spec-4-2 確定事項5）。
   // draft は描いている途中の図形（entry の形）で、いちばん上に描く。選択の枠は紙の外の層（annotation-frame.js。
   // spec-4b-2 確定事項9）が描く。
-  function draw(svg, entries, viewport, { editing = null, draft = null } = {}) {
+  // textDraft は開いているテキストの入力欄の下書き。吹き出しなら本体（輪郭）だけを描く（文字は入力欄。spec-4b-4b 確定事項D3）。
+  function draw(svg, entries, viewport, { editing = null, draft = null, textDraft = null } = {}) {
     const doc = svg.ownerDocument;
     svg.replaceChildren();
     for (const entry of entries) {
@@ -125,11 +93,21 @@
     }
     if (draft !== null && draft !== undefined)
       svg.append(draftOf(doc, draft, viewport));
+    const body = root.SigK.calloutGraphics?.draftEntryOf(textDraft) ?? null;
+    const outline = body === null ? null : root.SigK.calloutGraphics.svgOf(doc, body, viewport);
+    if (outline !== null) {
+      const group = doc.createElementNS(SVG_NS, 'g');
+      group.setAttribute('class', 'annot-draft');
+      if (body.opacity < 1)
+        group.setAttribute('opacity', String(body.opacity));
+      group.append(outline);
+      svg.append(group);
+    }
     return svg.childNodes.length;
   }
 
   // 同じ絵を canvas 2D に描く（印刷。確定事項28）。ctx は viewport と同じ座標系
-  // （CSS px 相当）で受ける。ハイライトは multiply で塗る。
+  // （CSS px 相当）で受ける。
   function paint(ctx, entries, viewport) {
     for (const entry of entries) {
       if (entry.readonly === true)
@@ -146,33 +124,7 @@
         root.SigK.noteGraphics.paint(ctx, entry, viewport);
         continue;
       }
-      ctx.save();
-      ctx.globalAlpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
-      ctx.globalCompositeOperation = entry.kind === 'highlight' ? 'multiply' : 'source-over';
-      ctx.fillStyle = entry.color;
-      ctx.strokeStyle = entry.color;
-      ctx.lineCap = 'butt';
-      for (const quad of entry.quads) {
-        const points = quads().quadToViewport(quad, viewport);
-        if (entry.kind === 'highlight') {
-          const [ul, ur, ll, lr] = points;
-          ctx.beginPath();
-          ctx.moveTo(ul[0], ul[1]);
-          ctx.lineTo(ur[0], ur[1]);
-          ctx.lineTo(lr[0], lr[1]);
-          ctx.lineTo(ll[0], ll[1]);
-          ctx.closePath();
-          ctx.fill();
-        } else {
-          const [from, to] = quads().lineEndpoints(points, entry.kind);
-          ctx.lineWidth = quads().lineWidth(points);
-          ctx.beginPath();
-          ctx.moveTo(from[0], from[1]);
-          ctx.lineTo(to[0], to[1]);
-          ctx.stroke();
-        }
-      }
-      ctx.restore();
+      root.SigK.markupGraphics.paint(ctx, entry, viewport);
     }
     return entries.length;
   }

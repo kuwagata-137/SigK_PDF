@@ -245,3 +245,28 @@ test('ドラッグ中の Ctrl+Z と Delete は、先にドラッグを取りや�
   assert.equal(SigK.annotateTransform.isDragging(), false);
   assert.equal(SigK.viewer.getAnnotations().added.some((item) => item.id === entry.id), false);
 });
+
+// ---- テキスト（spec-4b-4b 確定事項C1） ----
+
+test('テキストも回転のつまみで回し、箱は回す前のまま、四角は回した 4 隅になる', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('text');
+  const at = viewportOf(shell).convertToViewportPoint(100, 700);
+  mouse(shell, 'mousedown', pageNode(shell), at);
+  mouse(shell, 'mouseup', pageNode(shell), at);
+  const area = shell.document.querySelector('textarea.free-text-editor');
+  area.value = 'あいう';
+  area.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+  SigK.freeTextEditor.finish();
+  SigK.annotate.setTool(null);
+  const entry = SigK.viewer.getAnnotations().added.at(-1);
+  SigK.annotate.select(entry.id);
+  const center = viewportOf(shell).convertToViewportPoint((entry.rect[0] + entry.rect[2]) / 2, (entry.rect[1] + entry.rect[3]) / 2);
+  const knob = handleOf(shell, 'rotate').at;
+  pull(shell, 'rotate', [center[0] + 80 - knob[0], center[1] - knob[1]]);
+  const turned = SigK.viewer.getAnnotations().added.at(-1);
+  assert.equal(turned.angle, 90);
+  assert.deepEqual([...turned.rect], [...entry.rect]);
+  assert.deepEqual(JSON.parse(JSON.stringify(turned.quads)), JSON.parse(JSON.stringify([SigK.shapeRotation.quadOf(entry.rect, 90)])));
+});

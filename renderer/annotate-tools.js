@@ -66,7 +66,7 @@
   function setTool(tool) {
     state.tool = isTool(tool) ? tool : null;
     state.base = toolSwitch().remember(state.base, state.tool);
-    if (state.tool === 'text')
+    if (state.tool === 'text' || state.tool === 'callout')
       root.SigK.freeTextShape?.ensureLoaded(state.doc);
     syncTools();
     return state.tool;

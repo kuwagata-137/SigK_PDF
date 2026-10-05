@@ -158,3 +158,42 @@ test('angleOfText は小数を四捨五入し、範囲の外を 360 の余りに
   assert.equal(row.angleOfText(''), null);
   assert.equal(row.angleOfText('x'), null);
 });
+
+// ---- テキスト（spec-4b-4b 確定事項C2・A3） ----
+
+test('回転の行はテキストを選んでも出し、今までの形のテキストに角度を当てると固定の幅の新しい形に移る', async (t) => {
+  const shell = await withShell(t);
+  const { document, SigK } = shell;
+  const row = rowOf(document);
+  // 今までの形（width を持たない）のテキストを直に足して選ぶ。
+  const rect = [100, 684, 140, 700];
+  const legacy = {
+    id: SigK.annotationState.newId(), src: 0, kind: 'text', color: '#222a35', opacity: 1, text: 'あいう', fontSize: 12, rotation: 0,
+    rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)],
+  };
+  SigK.pageEdit.commitAnnots(SigK.annotationState.addAnnot(SigK.viewer.getAnnotations(), legacy), { annot: { before: null, after: legacy.id } });
+  SigK.annotate.select(legacy.id);
+  assert.equal(row.row.hidden, false);
+  assert.equal(SigK.annotationAngleRow.setAngle(30), true);
+  const turned = current(shell);
+  assert.equal(turned.angle, 30);
+  assert.equal(typeof turned.width, 'number');
+  assert.equal(row.number.value, '30');
+});
+
+// 点検で見つけた誤り: 今までの形のテキストで 0° を確定すると、角度が変わらないのに新しい形に移って 1 世代積んでいた（spec-4b-4b 確定事項A3）。
+test('今までの形のテキストで、今と同じ 0° を確定しても新しい形に移さず、積まない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  const rect = [100, 684, 140, 700];
+  const legacy = {
+    id: SigK.annotationState.newId(), src: 0, kind: 'text', color: '#222a35', opacity: 1, text: 'あいう', fontSize: 12, rotation: 0,
+    rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)],
+  };
+  SigK.pageEdit.commitAnnots(SigK.annotationState.addAnnot(SigK.viewer.getAnnotations(), legacy), { annot: { before: null, after: legacy.id } });
+  SigK.annotate.select(legacy.id);
+  const before = SigK.pageEdit.getHistoryState().at;
+  assert.equal(SigK.annotationAngleRow.setAngle(0), false);
+  assert.equal(SigK.pageEdit.getHistoryState().at, before);
+  assert.equal(current(shell).width, undefined);
+});

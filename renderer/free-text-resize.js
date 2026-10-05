@@ -34,7 +34,8 @@
     const next = { ...entry, width };
     const origin = root.SigK.freeTextLayout.shiftOrigin(root.SigK.freeTextGeometry.frameOrigin(entry.rect, entry.rotation), entry.rotation,
       [side === 'left' ? round(before - width) : 0, 0]);
-    return { width, ...root.SigK.freeTextLayout.frameOf(origin, metrics().sizeOf(next), entry.rotation) };
+    // 回したテキストは、引かない辺が回した紙の上でも動かないようにずらす（spec-4b-4b 確定事項B2）。
+    return { width, ...root.SigK.freeTextTurn.turned(entry, root.SigK.freeTextLayout.frameOf(origin, metrics().sizeOf(next), entry.rotation)) };
   }
 
   const SigK = (root.SigK = root.SigK || {});

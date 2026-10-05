@@ -83,3 +83,27 @@ test('tidy は null の塗りと、枠線の無いときの太さを外し、cop
   assert.equal(fields.sameFields({ width: 40 }, { width: 40, fill: null }), true);
   assert.deepEqual(fields.saveFields(styled, { lines: ['x'], inset: { left: 6, top: 6 } }), { ...styled, lines: ['x'], inset: [6, 6] });
 });
+
+// ---- 吹き出し（spec-4b-4b 確定事項A2・A4） ----
+
+test('validFields は新しい形の吹き出し（しっぽの先が 2 つの数）だけを受ける', () => {
+  assert.equal(fields.validFields({ width: 'auto', callout: { tip: [100, 600.5] } }), true);
+  for (const callout of [{}, { tip: [1] }, { tip: [1, Number.NaN] }, { tip: '1,2' }, null, { tip: [1, 2], extra: 1 }])
+    assert.equal(fields.validFields({ width: 'auto', callout }), false, JSON.stringify(callout));
+  assert.equal(fields.validFields({ callout: { tip: [1, 2] } }), false, '今までの形は吹き出しにならない');
+  assert.equal(fields.validPatchValue('callout', { tip: [3, 4] }), true);
+  assert.equal(fields.validPatchValue('callout', { tip: [3] }), false);
+});
+
+test('copyFields・sameFields・saveFields は吹き出しのしっぽの先を写して比べ、渡す', () => {
+  const callout = { width: 'auto', callout: { tip: [100, 600] } };
+  const copy = fields.copyFields(callout, {});
+  assert.deepEqual(copy.callout, { tip: [100, 600] });
+  assert.notEqual(copy.callout.tip, callout.callout.tip);
+  assert.equal(fields.sameFields(callout, { width: 'auto', callout: { tip: [100, 600] } }), true);
+  assert.equal(fields.sameFields(callout, { width: 'auto', callout: { tip: [100, 601] } }), false);
+  assert.equal(fields.sameFields(callout, { width: 'auto' }), false);
+  assert.deepEqual(fields.saveFields(callout, null).callout, { tip: [100, 600] });
+  assert.equal(fields.isCallout(callout), true);
+  assert.equal(fields.isCallout({ width: 'auto' }), false);
+});
