@@ -134,8 +134,10 @@
     const b = across ? [bx + tail.half, by] : [bx, by + tail.half];
     if (inTriangle(local, a, b, tip))
       return true;
+    if (!(tolerance > 0))
+      return false;
     const distance = root.SigK.shapeGeometry.distanceToSegment;
-    return tolerance > 0 && (distance(local, a, tip) <= tolerance || distance(local, b, tip) <= tolerance);
+    return distance(local, a, tip) <= tolerance || distance(local, b, tip) <= tolerance;
   }
 
   // 箱と先を囲む範囲（回す前の座標）。先が箱の中なら箱。
