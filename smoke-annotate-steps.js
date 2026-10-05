@@ -144,7 +144,7 @@ const STEPS = `
       SigK.pageEdit.redo();
     } else if (name === 'bar') {
       // 道具の段のボタン（spec-4b-1a 確定事項1〜5）。図形は種類で、ほかは道具の名前で引く。
-      const shapes = ['arrow', 'line', 'square', 'circle'];
+      const shapes = ['arrow', 'line', 'square', 'circle', 'cross', 'polygon'];
       const selector = shapes.includes(arg) ? '#edit-bar .edit-tool[data-shape="' + arg + '"]' : '#edit-bar .edit-tool[data-tool="' + arg + '"]:not([data-shape])';
       document.querySelector(selector)?.click();
     } else if (name === 'side') {

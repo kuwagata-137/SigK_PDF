@@ -64,7 +64,7 @@ const STYLE_STEPS = `
 `;
 
 // 描く種類の書き込み（保存先で見た目の欄を読むもの）。
-const DRAWN_SUBTYPES = Object.freeze(['Square', 'Circle', 'PolyLine', 'Ink']);
+const DRAWN_SUBTYPES = Object.freeze(['Square', 'Circle', 'PolyLine', 'Polygon', 'Ink']);
 
 // 保存先の図形・ペンの辞書の見た目の欄（spec-4b-1b 完了判定6）。/Subtype・/Rect・/C・/IC・/CA・/BS（/W・/S・/D）・/BE・/RD と、
 // 外観が透明グループで包まれているか。起動確認でしか使わないので、pdf-lib はここで初めて読む。
@@ -108,6 +108,10 @@ async function inspectAnnotations(file) {
         group: grouped(dict),
         bbox: numbers(field(normal?.dict, 'BBox')),
         matrix: numbers(field(normal?.dict, 'Matrix')),
+        // 矢印の先・多角形の頂点・×印の線（spec-4b-5a 確定事項34〜36）。
+        LE: field(dict, 'LE') instanceof PDFArray ? field(dict, 'LE').asArray().map((item) => name(lookup(item))) : null,
+        vertices: numbers(field(dict, 'Vertices'))?.length ?? null,
+        inkList: field(dict, 'InkList') instanceof PDFArray ? field(dict, 'InkList').asArray().length : null,
       });
     }
   });
