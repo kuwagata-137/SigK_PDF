@@ -55,9 +55,9 @@
       return false;
     switch (field) {
       case 'color': return true;
-      case 'strokeNone': return style().isBoxedKind(entry.kind) && style().fillOf(entry) !== null;
-      // 線なしのまま塗りなしにはできない（spec-4b-1b 確定事項4）。
-      case 'fill': return style().isBoxedKind(entry.kind) && (value !== null || entry.color !== null);
+      case 'strokeNone': return style().canFill(entry) && style().fillOf(entry) !== null;
+      // 線なしのまま塗りなしにはできない（spec-4b-1b 確定事項4）。塗れるのは四角・丸と閉じた多角形（spec-4b-5a 確定事項5）。
+      case 'fill': return style().canFill(entry) && (value !== null || entry.color !== null);
       case 'lineStyle': return hasLineStyles(entry.kind) && style().lineStylesOf(entry.kind).includes(value);
       case 'lineWidth': return isDrawnKind(entry.kind);
       case 'opacity': return isOpacityKind(entry.kind);
@@ -79,7 +79,7 @@
       case 'lineWidth':
         if (entry.lineWidth === value)
           return null;
-        return { lineWidth: value, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: value, angle: entry.angle }) };
+        return { lineWidth: value, ...root.SigK.shapeGeometry.rectOfEntry(entry, { lineWidth: value }) };
       case 'opacity': return (entry.opacity ?? 1) === value ? null : { opacity: value };
       default: return null;
     }
@@ -91,6 +91,7 @@
     const border = text ? (entry.borderColor ?? null) : null;
     return {
       kind: entry.kind,
+      ...(entry.closed === undefined ? {} : { closed: entry.closed }),
       readonly: entry.readonly === true,
       color: entry.color ?? null,
       fill: style().fillOf(entry),
@@ -112,12 +113,17 @@
     return { value, mixed: list.some((target) => target[field] !== value) };
   }
 
+  // 塗りと線なしを持てる相手か。書き込みは閉じた多角形まで見て、道具の次に付ける値（closed を持たない）は種類で見る（spec-4b-5a 確定事項5・28）。
+  function fillable(target) {
+    return target.kind === 'polygon' && target.closed === undefined ? style().isFillableKind(target.kind) : style().canFill(target);
+  }
+
   // 右パネルの行に出す形（確定事項I1）。targets は targetOf の形（道具の次に付ける値も同じ形）。表示のみは除き、残らなければ null。
   function viewOf(targets) {
     const live = targets.filter((target) => target !== null && target !== undefined && target.readonly !== true);
     if (live.length === 0)
       return null;
-    const boxed = live.filter((target) => style().isBoxedKind(target.kind));
+    const boxed = live.filter(fillable);
     const texts = live.filter((target) => target.kind === 'text');
     const styled = live.filter((target) => hasLineStyles(target.kind));
     const labels = [...new Set(live.map((target) => colorLabelOf(target.kind)))];
@@ -126,7 +132,7 @@
       colorLabel: labels.length === 1 ? labels[0] : '色',
       color: valueOf(live, 'color'),
       // 塗りは四角・丸とテキストに当たる（spec-4b-4a 確定事項G5）。
-      fill: valueOf(live.filter((target) => style().isBoxedKind(target.kind) || target.kind === 'text'), 'fill'),
+      fill: valueOf(live.filter((target) => fillable(target) || target.kind === 'text'), 'fill'),
       lineStyle: styled.length === 0 ? null : {
         ...valueOf(styled, 'lineStyle'),
         styles: style().LINE_STYLES.filter((each) => styled.some((target) => style().lineStylesOf(target.kind).includes(each))),

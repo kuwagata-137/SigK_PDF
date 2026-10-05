@@ -4,13 +4,10 @@
   // 図形・ペンの幾何の純粋層（spec-4-3 確定事項4・9・10・12・30）。DOM にも pdf.js にも触れない。
   //
   // 紙の座標（pt）で計算し、表示への変換は呼ぶ側（shape-graphics.js・annotate-shape.js）が
-  // viewport で行う。線の当たり判定は annotation-hit.js へ移した（spec-4b-2）。矢じりの寸法と翼の式は worker/shape-appearance.js に同じものを持ち、
-  // 一致はテストで見張る（プロセスが違うので import できない）。
+  // viewport で行う。線の当たり判定は annotation-hit.js へ移した（spec-4b-2）。矢印の先の形は arrow-head.js（worker/arrow-head.js に
+  // 同じ式を持ち、一致はテストで見張る）。
 
-  // 矢じり: 翼の長さは max(ARROW_MIN_LENGTH, 線幅 × ARROW_LENGTH_RATIO)、線からの開き ARROW_ANGLE。
-  const ARROW_MIN_LENGTH = 9;
-  const ARROW_LENGTH_RATIO = 6;
-  const ARROW_ANGLE = Math.PI / 6;
+  // 矢印の先の形は arrow-head.js（開いた矢じりと塗った三角。spec-4b-5a 確定事項7・8）。ここの arrowHead・ARROW_* は今までの呼び名で渡す。
   // ペンの間引き（表示の px）: 描きながらは直前の点から MIN_STEP 以上、離したら許容 SIMPLIFY_TOLERANCE。
   const MIN_STEP = 2;
   const SIMPLIFY_TOLERANCE = 1;
@@ -56,12 +53,13 @@
     return [from[0] + Math.cos(angle) * length, from[1] + Math.sin(angle) * length];
   }
 
-  // 矢じりの翼 2 点（終点 to から線の逆向きへ開く）。
+  function head() {
+    return root.SigK.arrowHead;
+  }
+
+  // 開いた矢じりの翼 2 点（終点 to から線の逆向きへ開く）。
   function arrowHead(from, to, lineWidth) {
-    const length = Math.max(ARROW_MIN_LENGTH, lineWidth * ARROW_LENGTH_RATIO);
-    const angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
-    const wing = (turn) => [to[0] + Math.cos(angle + turn) * length, to[1] + Math.sin(angle + turn) * length];
-    return [wing(Math.PI - ARROW_ANGLE), wing(-(Math.PI - ARROW_ANGLE))];
+    return head().arrowHead(from, to, lineWidth);
   }
 
   // 点群の外接 [minX minY maxX maxY] に pad を足したもの。
@@ -79,19 +77,26 @@
     return [round(minX - pad), round(minY - pad), round(maxX + pad), round(maxY + pad)];
   }
 
-  // 図形の /Rect と四角。矩形・楕円は箱そのもの、線は描く点（矢じりの翼を含む）の外接に線幅の半分（確定事項10）。
-  // 回した矩形・楕円は、四角を回した 4 隅にする（箱は回す前のまま。spec-4b-2 確定事項5）。
-  function rectOfShape({ kind, rect, paths, lineWidth, angle = 0 }) {
+  // 図形の /Rect と四角。矩形・楕円は箱そのもの、線は描く点（矢印の先の点を含む）の外接に線幅の半分（確定事項10）。
+  // 回した矩形・楕円は、四角を回した 4 隅にする（箱は回す前のまま。spec-4b-2 確定事項5）。矢印の先は head で決まる
+  // （'open' なら開いた矢じり、無ければ塗った三角。spec-4b-5a 確定事項11）。
+  function rectOfShape({ kind, rect, paths, lineWidth, angle = 0, head: arrow }) {
     let box = rect;
-    if (kind === 'line' || kind === 'arrow' || kind === 'ink') {
+    if (kind === 'line' || kind === 'arrow' || kind === 'ink' || kind === 'polygon') {
       const points = paths.flat();
       if (kind === 'arrow')
-        points.push(...arrowHead(paths[0][0], paths[0][1], lineWidth));
+        points.push(...head().outlineOf(paths[0][0], paths[0][1], lineWidth, arrow !== 'open'));
       box = boundsOf(points, lineWidth / 2);
     }
     const rotation = root.SigK.shapeRotation;
     const quad = rotation?.isRotated({ angle }) ? rotation.quadOf(box, angle) : root.SigK.freeTextGeometry.quadOfRect(box);
     return { rect: [...box], quads: [quad] };
+  }
+
+  // 書き込みの形の欄（種類・箱・点列・線幅・角度・矢印の先）から rectOfShape を引く。changes はその上に重ねる欄
+  // （太さ・箱・点列・角度を変えたとき）。呼ぶ側が矢印の先などの欄を渡し忘れないための口（spec-4b-5a）。
+  function rectOfEntry(entry, changes = {}) {
+    return rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: entry.lineWidth, angle: entry.angle ?? 0, head: entry.head, ...changes });
   }
 
   // 点から線分 a-b への最短距離。長さ 0 の線分は点までの距離。
@@ -148,9 +153,9 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.shapeGeometry = {
-    ARROW_MIN_LENGTH,
-    ARROW_LENGTH_RATIO,
-    ARROW_ANGLE,
+    get ARROW_MIN_LENGTH() { return head().ARROW_MIN_LENGTH; },
+    get ARROW_LENGTH_RATIO() { return head().ARROW_LENGTH_RATIO; },
+    get ARROW_ANGLE() { return head().ARROW_ANGLE; },
     MIN_STEP,
     SIMPLIFY_TOLERANCE,
     MIN_SIDE,
@@ -160,6 +165,7 @@
     arrowHead,
     boundsOf,
     rectOfShape,
+    rectOfEntry,
     distanceToSegment,
     farEnough,
     thinPoints,

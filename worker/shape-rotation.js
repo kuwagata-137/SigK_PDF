@@ -38,6 +38,17 @@ function centerOf([x1, y1, x2, y2]) {
   return [(x1 + x2) / 2, (y1 + y2) / 2];
 }
 
+// 紙の座標の点を center まわりに、画面で時計回りに angle 度回す（renderer/shape-rotation.js の rotatePoint と同じ式）。cos・sin は丸めない
+// （多角形の /Vertices を回すのに使う。/Matrix の 4 桁の丸めで回すと、開き直すたびに頂点がずれるため。spec-4b-5a 確定事項36）。
+function rotatePoint([x, y], [cx, cy], angle) {
+  const t = (angle * Math.PI) / 180;
+  const cos = Math.cos(t);
+  const sin = Math.sin(t);
+  const dx = x - cx;
+  const dy = y - cy;
+  return [cx + dx * cos + dy * sin, cy - dx * sin + dy * cos];
+}
+
 // 外観の /Matrix（確定事項29）。箱の中心まわりに、画面で時計回りに angle 度。cos・sin と移動は小数 4 桁。
 function matrixOf(box, angle) {
   const t = (angle * Math.PI) / 180;
@@ -110,4 +121,4 @@ function rotationOf({ rect, bbox, matrix = IDENTITY }) {
   return { box: [cx - halfWidth, cy - halfHeight, cx + halfWidth, cy + halfHeight].map((value) => round(value)), angle };
 }
 
-module.exports = { SIMILARITY_TOLERANCE, normalizeAngle, matrixOf, boundsOf, rectOf, rotationOf };
+module.exports = { SIMILARITY_TOLERANCE, normalizeAngle, centerOf, rotatePoint, matrixOf, boundsOf, rectOf, rotationOf };

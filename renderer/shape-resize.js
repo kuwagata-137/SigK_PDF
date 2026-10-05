@@ -65,7 +65,7 @@
     const center = rotation().rotatePoint(rotation().centerOf(local), rotation().centerOf(box), angle);
     const half = [(local[2] - local[0]) / 2, (local[3] - local[1]) / 2];
     const rect = [center[0] - half[0], center[1] - half[1], center[0] + half[0], center[1] + half[1]].map(round);
-    return geometry().rectOfShape({ kind: entry.kind, rect, lineWidth: entry.lineWidth, angle });
+    return geometry().rectOfEntry(entry, { rect, angle });
   }
 
   // Shift のときの動き: 小さい方の向きを 0（ちょうど等しいときは横を残す）。
@@ -86,7 +86,7 @@
     if (Math.hypot(point[0] - fixed[0], point[1] - fixed[1]) < MIN_LENGTH)
       return null;
     const path = index === 0 ? [point, [...fixed]] : [[...fixed], point];
-    return { paths: [path], ...geometry().rectOfShape({ kind: entry.kind, paths: [path], lineWidth: entry.lineWidth }) };
+    return { paths: [path], ...geometry().rectOfEntry(entry, { paths: [path] }) };
   }
 
   // 回転のつまみ（確定事項19）。press・pointer・center は表示の座標。
@@ -94,7 +94,7 @@
     const turn = (Math.atan2(pointer[1] - center[1], pointer[0] - center[0]) - Math.atan2(press[1] - center[1], press[0] - center[0])) * 180 / Math.PI;
     const raw = rotation().angleOf(entry) + turn;
     const angle = shift ? rotation().snapAngle(raw, SHIFT_STEP) : rotation().normalizeAngle(Math.round(raw));
-    return { angle, ...geometry().rectOfShape({ kind: entry.kind, rect: entry.rect, lineWidth: entry.lineWidth, angle }) };
+    return { angle, ...geometry().rectOfEntry(entry, { angle }) };
   }
 
   const SigK = (root.SigK = root.SigK || {});

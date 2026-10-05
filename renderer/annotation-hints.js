@@ -15,12 +15,20 @@
     callout: '紙の上を押すと、そこに吹き出しを置けます。Enter で改行、枠の外を押すか Ctrl+Enter で確定します。しっぽの先は、置いたあとで白いつまみを引くと動きます。',
     calloutSelected: 'ダブルクリックか Enter で直せます。掴んで動かせます。しっぽの先の白いつまみを引くと、しっぽの向きが変わります（Shift で水平か垂直）。左右の白いつまみで幅を、丸いつまみで向きを変えられます。Delete で消せます。Ctrl+Z で元に戻せます。',
     shape: '紙の上をドラッグすると描けます。Shift を押しながらで正方形・正円・45° 刻みになります。Esc で道具を離します。',
+    // 多角形の道具（spec-4b-5a 確定事項31）。描いていないときと、描いている途中。
+    polygon: 'クリックで頂点を置きます。始点を押すと閉じ、ダブルクリックで開いたまま確定します。Shift で 45° 刻みになります。Esc で道具を離します。',
+    polygonDrawing: '始点を押すと閉じます。ダブルクリックで開いたまま確定、Esc か右クリックでやめます。',
+    // 直線・矢印の道具に添える（spec-4b-5a 確定事項19・31）。始点を決めたあと。
+    lineSnap: '図形の端や角をダブルクリックすると、そこから引けます。',
+    lineAnchor: '押した所までの線を引きます（Shift で 45° 刻み）。Esc か右クリックでやめます。',
     pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの書き込みになります。Esc で道具を離します。',
     shapeSelected: '掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     // 四角・丸と直線・矢印を選んだときに「掴んで動かせます。」のあとへ挟む（spec-4b-2 確定事項28）。
     move: '掴んで動かせます。',
     boxTransform: '四隅と辺の白いつまみで大きさを、上の丸いつまみで向きを変えられます。Shift を押しながら引くと、四隅のつまみは縦と横の比を保ち、向きは 15° ずつ回ります。',
     lineTransform: '両端の白いつまみで向きと長さを変えられます。Shift を押しながら動かすと、端は横か縦にだけ動きます。',
+    // 多角形を選んだとき（spec-4b-5a 確定事項31）。
+    polygonTransform: '頂点の白いつまみで形を、上の丸いつまみで向きを変えられます。Shift を押しながら動かすと、頂点は横か縦にだけ動き、向きは 15° ずつ回ります。',
     note: '紙の上を押すと、そこに付箋を置けます。本文は「本文」の欄に書きます。Esc で道具を離します。',
     noteSelected: '本文は欄の外を押すか Ctrl+Enter で確定します。掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     readonly: '他のアプリで付けた書き込みです。Delete で消せます。直すことはできません。',
@@ -39,9 +47,9 @@
     return root.SigK.annotationEntry;
   }
 
-  // 四角・丸のヒントに添える文。
-  function boxHintOf(kind, fill) {
-    if (!root.SigK.shapeStyle.isBoxedKind(kind))
+  // 四角・丸・閉じた多角形（fillable）のヒントに添える文。
+  function boxHintOf(fillable, fill) {
+    if (!fillable)
       return '';
     return fill === null ? HINTS.box : `${HINTS.box}${HINTS.fill}`;
   }
@@ -56,16 +64,22 @@
     if (entryKinds()?.isDrawnKind(entry.kind) !== true)
       return HINTS.selected;
     // つまみの説明は「掴んで動かせます。」のあと（spec-4b-2 確定事項28）。ペンはつまみを出さない。
-    const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
+    const transform = { square: HINTS.boxTransform, circle: HINTS.boxTransform, cross: HINTS.boxTransform, polygon: HINTS.polygonTransform, line: HINTS.lineTransform, arrow: HINTS.lineTransform }[entry.kind] ?? '';
     const shape = HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${transform}`);
-    return `${shape}${boxHintOf(entry.kind, root.SigK.shapeStyle.fillOf(entry))}`;
+    return `${shape}${boxHintOf(root.SigK.shapeStyle.canFill(entry), root.SigK.shapeStyle.fillOf(entry))}`;
   }
 
   // 道具を持っているとき（kind はその道具が描く種類。図形は道具の段で選んだ種類）。道具が無ければ tool は null。
   function forTool(tool, kind, fill) {
     if (tool === null)
       return HINTS.none;
-    return `${HINTS[tool] ?? HINTS.tool}${boxHintOf(kind, fill)}`;
+    if (tool === 'shape' && (kind === 'line' || kind === 'arrow'))
+      return root.SigK.annotateLineAnchor?.isActive() === true ? HINTS.lineAnchor : `${HINTS.shape}${HINTS.lineSnap}`;
+    if (tool === 'shape' && kind === 'polygon') {
+      const drawing = root.SigK.annotatePolygon?.isDrawing() === true;
+      return drawing ? HINTS.polygonDrawing : `${HINTS.polygon}${boxHintOf(true, fill)}`;
+    }
+    return `${HINTS[tool] ?? HINTS.tool}${boxHintOf(root.SigK.shapeStyle.isFillableKind(kind), fill)}`;
   }
 
   const SigK = (root.SigK = root.SigK || {});

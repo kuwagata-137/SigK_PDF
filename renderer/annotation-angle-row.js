@@ -21,7 +21,7 @@
   }
 
   function isTurnable(entry) {
-    return entry?.kind === 'square' || entry?.kind === 'circle' || entry?.kind === 'text';
+    return ['square', 'circle', 'text', 'cross', 'polygon'].includes(entry?.kind);
   }
 
   // 数値欄の値を当てる相手（選んでいる書き込みの鍵の並びと、持っている道具）。打ちかけの値は打ち始めたときの相手にだけ当てる。
@@ -39,7 +39,7 @@
     const normalized = rotation().normalizeAngle(Math.round(angle));
     if (entry.kind === 'text')
       return root.SigK.freeTextTurn.anglePatch(entry, normalized);
-    return { angle: normalized, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, lineWidth: entry.lineWidth, angle: normalized }) };
+    return { angle: normalized, ...root.SigK.shapeGeometry.rectOfEntry(entry, { angle: normalized }) };
   }
 
   // スライダーを動かしている間の下見。

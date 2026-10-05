@@ -14,8 +14,8 @@
   }
 
   // Esc。右クリックのメニュー → つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→ 表示を引く（そこで終える）→
-  // パレットの窓 → スライダーの下見 → 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）→ 入力欄（確定）→ 選択を外す →
-  // 道具を外す、の順に、最初に当たった 1 つだけ。何も無ければ false。
+  // パレットの窓 → スライダーの下見 → 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）→ 描いている途中の多角形 →
+  // 入力欄（確定）→ 選択を外す → 道具を外す、の順に、最初に当たった 1 つだけ。何も無ければ false。
   function escape() {
     const steps = [
       () => root.SigK.annotationMenu?.close() === true,
@@ -26,6 +26,9 @@
       () => root.SigK.colorPopover?.close({ restoreFocus: true }) === true,
       () => root.SigK.annotatePreview?.cancel() === true,
       () => root.SigK.annotateDraw?.cancel() === true,
+      // 描いている途中の多角形と、始点合わせの始点（spec-4b-5a 確定事項16・19）。
+      () => root.SigK.annotatePolygon?.cancel() === true,
+      () => root.SigK.annotateLineAnchor?.cancel() === true,
       finishEditing,
       unselect,
       dropTool,
@@ -66,6 +69,8 @@
     abortGestures();
     root.SigK.annotateTransform?.clearCursor();
     root.SigK.annotateDraw?.cancel();
+    root.SigK.annotatePolygon?.cancel();
+    root.SigK.annotateLineAnchor?.cancel();
     root.SigK.annotatePress?.reset();
     win?.getSelection?.()?.removeAllRanges();
   }

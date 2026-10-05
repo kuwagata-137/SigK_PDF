@@ -54,6 +54,11 @@
     return root.SigK.annotateRightButton;
   }
 
+  // 離した所に頂点・終点を置く途中の操作（描いている多角形・始点合わせ。spec-4b-5a 確定事項13〜19）。
+  function placing() {
+    return root.SigK.annotatePlacing;
+  }
+
   function holdingHand() {
     return annotate().getTool() === 'hand';
   }
@@ -86,10 +91,18 @@
       press().reset();
       return;
     }
-    // 右は right-button へ（spec-4b-3b 確定事項D1・D6）。中ボタンなど、ほかのボタンは何もしない。
+    // 右は right-button へ（spec-4b-3b 確定事項D1・D6）。中ボタンなど、ほかのボタンは何もしない。描いている途中の多角形は、右の押しで
+    // やめてメニューを出さない（spec-4b-5a 確定事項16）。
+    const dropped = (event.button ?? 0) === 2 && placing()?.cancel() === true;
     if ((event.button ?? 0) === 2)
-      rightButton()?.down(event, { swallowed: closedEditor || closedMenu });
+      rightButton()?.down(event, { swallowed: closedEditor || closedMenu || dropped });
     if (closedEditor || closedMenu || !isLeft(event) || inEditor(event) || !inAnnotMode() || !isOpen()) {
+      press().reset();
+      return;
+    }
+    // 描いている途中の多角形と始点合わせは、つまみも書き込みも見ずに、離したときに頂点・終点を置く（spec-4b-5a 確定事項17・19）。
+    if (placing()?.isActive() === true) {
+      event.preventDefault();
       press().reset();
       return;
     }
@@ -113,6 +126,8 @@
     if (rightButton()?.takeChordUp(event) === true || !isLeft(event))
       return;
     const pressed = press().take();
+    if (placing()?.release(event) === true)
+      return;
     if (hand().end() || transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
       return;
     if (!inAnnotMode() || !isOpen())
@@ -124,6 +139,10 @@
   // 左＋右の最中と直後のダブルクリック（左＋右の左の押しと続けた押しで出る）は捨てる（spec-4b-3b 確定事項E4）。
   function onDoubleClick(event) {
     if (!inAnnotMode() || !isOpen() || holdingHand() || rightButton()?.recentlyChorded() === true)
+      return;
+    // 描いている途中の多角形は、開いたまま確定する（spec-4b-5a 確定事項15）。直線・矢印の道具では、書き込みの端・角・頂点の近くを
+    // 始点にして引き始める（確定事項19）。
+    if (placing()?.doubleClick(event) === true)
       return;
     const page = press().pageAt(event);
     if (page === null)
@@ -143,6 +162,7 @@
       return;
     grab().move(event);
     draw().move(event);
+    placing()?.move(event);
     // つまみの上のカーソル（掴んでいない・描いていないとき）。ハンドのときはつまみを見ないので、残っていれば外す。
     if (inAnnotMode() && holdingHand())
       transform()?.clearCursor();

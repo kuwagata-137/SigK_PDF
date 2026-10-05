@@ -1,7 +1,8 @@
 (function (root) {
   'use strict';
 
-  // 図形・ペン（Square・Circle・Ink と 2 点の PolyLine）の 1 件を自前の形にする純粋層（spec-4-3 確定事項13）。
+  // 図形・ペン（Square・Circle・Ink と 2 点の PolyLine、×印の形の Ink）の 1 件を自前の形にする純粋層（spec-4-3 確定事項13、
+  // spec-4b-5a 確定事項38・39）。
   // imported-entry.js から移した（spec-4b-1a 確定事項36。中身は変えていない）。拾えなければ null を返し、
   // imported-entry.js が表示のみの entry にする。値の変換は imported-values.js。
 
@@ -57,11 +58,12 @@
   // 線の色・太さ・線種（spec-4b-1b 確定事項36・37）。線の見えない四角・丸（/C が無いか線幅 0）は線なしの候補にし、塗りは
   // 口の答えで当てる（annotation-details.js。塗りも無ければ表示のみ）。ほかの種類で線が見えないもの、描けない線の形
   // （立体・下線、ペンの破線、範囲の外の間隔）は null。
-  function lineFieldsOf(kind, annotation) {
+  // fillable は線なしの候補にできるか（四角・丸のほか、閉じた多角形。spec-4b-5a 確定事項40）。
+  function lineFieldsOf(kind, annotation, { fillable = BOXED_KINDS.includes(kind) } = {}) {
     const width = lineWidthOf(annotation.borderStyle);
     const invisible = width === 0 || annotation.color === null || annotation.color === undefined;
     if (invisible)
-      return BOXED_KINDS.includes(kind) ? { color: null, lineWidth: width === 0 ? RESTORE_LINE_WIDTH : width } : null;
+      return fillable ? { color: null, lineWidth: width === 0 ? RESTORE_LINE_WIDTH : width } : null;
     const fields = { color: values().hexOf(annotation.color), lineWidth: width };
     if (isSolidLine(annotation.borderStyle))
       return fields;
@@ -85,14 +87,18 @@
     return path;
   }
 
-  // PolyLine の種類。2 点で矢じりが無ければ直線、終点だけ開いた矢じりなら矢印。それ以外は拾わない。
+  // 終点の矢じりの名前 → 矢印の先の形（spec-4b-5a 確定事項38）。開いた矢じりは head 'open'、塗った三角は head を持たない
+  // （/IC が /C と同じ色かは口の答えで確かめる。annotation-details.js）。
+  const ARROW_HEADS = Object.freeze({ OpenArrow: 'open', ClosedArrow: null });
+
+  // PolyLine の種類。2 点で矢じりが無ければ直線、終点だけ開いた矢じりか塗った三角なら矢印。それ以外は拾わない。
   function polylineKind(annotation) {
     const [start, end] = annotation.lineEndings ?? ['None', 'None'];
     if (annotation.vertices?.length !== 4 || start !== 'None')
       return null;
     if (end === 'None')
       return 'line';
-    return end === 'OpenArrow' ? 'arrow' : null;
+    return end in ARROW_HEADS ? 'arrow' : null;
   }
 
   function pathsOf(kind, annotation) {
@@ -105,9 +111,47 @@
     return undefined;
   }
 
+  // pdf.js の平たい数の並びを、丸めずに点列にする（×印の見分けは小数 2 桁の丸めでは角度がずれるため。spec-4b-5a 確定事項39）。
+  function rawPathOf(flat) {
+    const path = [];
+    for (let index = 0; index + 2 <= (flat?.length ?? 0); index += 2)
+      path.push([flat[index], flat[index + 1]]);
+    return path;
+  }
+
+  // 2 本の線の Ink が ×印の形なら、×印の entry（箱と角度。点列は持たない）。違えば null（spec-4b-5a 確定事項39）。
+  function importedCross(annotation, src) {
+    const cross = root.SigK.crossGeometry?.crossOf((annotation.inkLists ?? []).map(rawPathOf));
+    if (cross === null || cross === undefined)
+      return null;
+    const line = lineFieldsOf('cross', annotation);
+    if (line === null)
+      return null;
+    const entry = {
+      ref: annotation.id,
+      src,
+      kind: 'cross',
+      ...line,
+      opacity: Number.isFinite(annotation.opacity) ? annotation.opacity : 1,
+      rect: cross.rect,
+      quads: [root.SigK.shapeRotation.quadOf(cross.rect, cross.angle)],
+    };
+    if (cross.angle !== 0)
+      entry.angle = cross.angle;
+    return entry;
+  }
+
   // 図形・ペン。/Rect・/C・/BS /W・破線の間隔と、/Vertices（PolyLine）・/InkList（Ink）から組む（spec-4-3 確定事項13、
   // spec-4b-1b 確定事項36・37）。塗り・雲形・/RD・不透明度は pdf.js が返さないので、口の答えで当てる（annotation-details.js）。
   function importedShape(annotation, src) {
+    if (annotation.subtype === 'Ink' && values().isRect(annotation.rect)) {
+      const cross = importedCross(annotation, src);
+      if (cross !== null)
+        return cross;
+    }
+    // 3 点以上の Polygon・PolyLine は多角形（imported-polygon.js。spec-4b-5a 確定事項40）。
+    if (root.SigK.importedPolygon?.isPolygonData(annotation) === true)
+      return root.SigK.importedPolygon.importedPolygon(annotation, src);
     const kind = annotation.subtype === 'PolyLine' ? polylineKind(annotation) : SHAPE_KINDS[annotation.subtype];
     if (kind === null || kind === undefined || !values().isRect(annotation.rect))
       return null;
@@ -127,9 +171,11 @@
     };
     if (paths !== undefined)
       entry.paths = paths;
+    if (kind === 'arrow' && ARROW_HEADS[annotation.lineEndings[1]] === 'open')
+      entry.head = 'open';
     return entry;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.importedShape = { importedShape, lineWidthOf, isSolidLine, dashRatiosOf };
+  SigK.importedShape = { importedShape, lineFieldsOf, lineWidthOf, isSolidLine, dashRatiosOf };
 })(typeof window !== 'undefined' ? window : globalThis);

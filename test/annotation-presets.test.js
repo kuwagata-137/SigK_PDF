@@ -15,7 +15,7 @@ test('道具は 8 つで、マークアップは先頭の 3 つ。吹き出し�
   assert.deepEqual(presets.MARKUP_TOOLS, ['highlight', 'underline', 'strikeout']);
   assert.deepEqual(presets.TOOL_LABELS, {
     highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', note: 'ノート',
-    square: '四角', circle: '丸', line: '直線', arrow: '矢印', ink: 'ペン',
+    square: '四角', circle: '丸', line: '直線', arrow: '矢印', cross: '×印', polygon: '多角形', ink: 'ペン',
   });
 });
 
@@ -45,8 +45,8 @@ test('表示のみの注釈の種類名は subtype から引ける', () => {
   assert.ok(Object.isFrozen(presets.READONLY_LABELS));
 });
 
-test('図形の種類は 4 つで、既定は矩形', () => {
-  assert.deepEqual(presets.SHAPE_KINDS, ['square', 'circle', 'line', 'arrow']);
+test('図形の種類は ×印・多角形を足して 6 つで、既定は矩形（spec-4b-5a 確定事項27）', () => {
+  assert.deepEqual(presets.SHAPE_KINDS, ['square', 'circle', 'line', 'arrow', 'cross', 'polygon']);
   assert.equal(presets.DEFAULT_SHAPE_KIND, 'square');
   assert.equal(presets.isShapeKind('arrow'), true);
   assert.equal(presets.isShapeKind('ink'), false);

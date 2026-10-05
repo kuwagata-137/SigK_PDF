@@ -76,8 +76,21 @@
       return;
     }
     const tool = annotate().getTool();
+    // 多角形の道具は、書き込みの無い所で押しても描き始めず、文字も選ばせない（頂点は離したときに置く。spec-4b-5a 確定事項13）。
+    if (hit === null && root.SigK.annotatePolygon?.isPolygonTool() === true) {
+      event.preventDefault();
+      return;
+    }
     if (tool === 'shape' || tool === 'pen')
       root.SigK.annotateDraw.begin(event, page);
+  }
+
+  // 多角形の道具で、書き込みの無い所を押して離したら、押してから動いた量を問わず 1 つ目の頂点を置く（spec-4b-5a 確定事項13・17）。
+  function startPolygon(event, pressed) {
+    if (pressed === null || pressed.hit !== null || pressed.ctrl)
+      return false;
+    const page = pageAt(event);
+    return page !== null && annotate().hitTest(page.index, page.point) === null && root.SigK.annotatePolygon?.start(page) === true;
   }
 
   // Ctrl＋クリックを離した（確定事項B3）。選んでいたものを動かさずに離したら外す。書き込みの無い所なら何もしない。
@@ -90,6 +103,8 @@
   function up(event, pressed) {
     const tool = annotate().getTool();
     if (tool !== null && annotate().isMarkupTool(tool) && annotate().createFromSelection(tool))
+      return;
+    if (startPolygon(event, pressed))
       return;
     const selection = state.win?.getSelection?.();
     if (selection !== null && selection !== undefined && !selection.isCollapsed)

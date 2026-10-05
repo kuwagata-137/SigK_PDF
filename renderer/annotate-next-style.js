@@ -38,14 +38,14 @@
     return state.colors[key] ?? presets().DEFAULT_COLORS[key];
   }
 
-  // 塗りは四角・丸だけ（ほかは null）。
+  // 塗りは四角・丸・多角形だけ（ほかは null）。多角形は閉じて確定したときだけ当てる（spec-4b-5a 確定事項30）。
   function fillOf(kind) {
-    return style().isBoxedKind(kind) ? state.fills.shape ?? null : null;
+    return style().isFillableKind(kind) ? state.fills.shape ?? null : null;
   }
 
-  // 線なしは四角・丸で、塗りがあるときだけ。
+  // 線なしは四角・丸・多角形で、塗りがあるときだけ。
   function strokeNoneOf(kind) {
-    return style().isBoxedKind(kind) && state.strokeNone.shape === true && fillOf(kind) !== null;
+    return style().isFillableKind(kind) && state.strokeNone.shape === true && fillOf(kind) !== null;
   }
 
   // 線種はその種類で選べるものだけ（直線・矢印の雲形は実線）。

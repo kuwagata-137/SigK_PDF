@@ -80,9 +80,9 @@ test('ツールレールは 4 つのモードだけを持ち、編集の道具�
   // 先頭は描かない道具の「選択」「ハンド」と区切り（spec-4b-3a 確定事項C1、spec-4b-3b 確定事項A1）。
   assert.equal(document.querySelectorAll('#rail .rail-item').length, 4);
   const tools = [...document.querySelectorAll('#edit-bar .edit-tool')];
-  // 吹き出しはテキストの隣（spec-4b-4b 確定事項F1。決定57 ⑦）。
-  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['select', 'hand', 'highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'pen', 'note']);
-  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['選択', 'ハンド', 'ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', 'ペン', 'ノート']);
+  // 吹き出しはテキストの隣（spec-4b-4b 確定事項F1。決定57 ⑦）。×印・多角形は丸の後ろ（spec-4b-5a 確定事項27）。
+  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['select', 'hand', 'highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'cross', 'polygon', 'pen', 'note']);
+  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['選択', 'ハンド', 'ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', '×印', '多角形', 'ペン', 'ノート']);
   assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 4);
 });
 

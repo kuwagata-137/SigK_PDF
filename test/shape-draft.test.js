@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-draft.js');
 

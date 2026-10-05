@@ -6,14 +6,18 @@
   //
   //   四角・丸   … color は '#rrggbb' か null（線なし。そのときは fill が要る）、fill は '#rrggbb' か null（塗りなし）、
   //                lineStyle は 'solid'・'dashed'・'cloudy'
-  //   直線・矢印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
+  //   直線・矢印・×印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
+  //   多角形     … 閉じたものは四角・丸と同じく塗りと線なしを持て、lineStyle は 'solid'・'dashed'（spec-4b-5a 確定事項3）
   //   ほかの種類 … 線種と塗りを持たない（実線）
   //   dash           … 'dashed' のときだけ持つ、線の太さに対する倍数の配列（読み込んだ間隔。無ければ 3:2）
   //   cloudIntensity … 'cloudy' のときだけ持つ強さ（0 より大きく 2 以下。SigK PDF で描く雲形は 1）
   // 無い欄は、fill が null・lineStyle が 'solid'・雲形の強さが 1 として扱う（今までの書き込みはこの形のまま読める）。
 
   const BOXED_KINDS = Object.freeze(['square', 'circle']);
-  const LINE_KINDS = Object.freeze(['line', 'arrow']);
+  // 実線と破線を選べる種類（直線・矢印、×印・多角形は spec-4b-5a 確定事項2・3）。
+  const LINE_KINDS = Object.freeze(['line', 'arrow', 'cross', 'polygon']);
+  // 塗りと線なしを持てる種類（多角形は閉じたものだけ。canFill が 1 件で見る。spec-4b-5a 確定事項5）。
+  const FILLABLE_KINDS = Object.freeze(['square', 'circle', 'polygon']);
   const LINE_STYLES = Object.freeze(['solid', 'dashed', 'cloudy']);
   const LINE_STYLES_OF_LINES = Object.freeze(['solid', 'dashed']);
   const SOLID_ONLY = Object.freeze(['solid']);
@@ -28,6 +32,16 @@
 
   function isBoxedKind(kind) {
     return BOXED_KINDS.includes(kind);
+  }
+
+  // 塗りと線なしを持てるかもしれない種類（多角形は閉じているかを canFill で見る）。
+  function isFillableKind(kind) {
+    return FILLABLE_KINDS.includes(kind);
+  }
+
+  // この書き込みが塗りと線なしを持てるか（四角・丸と、閉じた多角形。spec-4b-5a 確定事項5）。
+  function canFill(entry) {
+    return isBoxedKind(entry?.kind) || (entry?.kind === 'polygon' && entry.closed === true);
   }
 
   // 種類ごとに選べる線種。
@@ -63,10 +77,10 @@
     return Number.isFinite(value) && value > 0 && value <= CLOUD_INTENSITY_MAX;
   }
 
-  // 線の色の欄。線なし（null）は四角・丸で塗りがあるときだけ。
+  // 線の色の欄。線なし（null）は塗りを持てる図形で塗りがあるときだけ。
   function validStroke(entry) {
     if (entry.color === null)
-      return isBoxedKind(entry.kind) && isHexColor(fillOf(entry));
+      return canFill(entry) && isHexColor(fillOf(entry));
     return typeof entry.color === 'string';
   }
 
@@ -74,7 +88,7 @@
   // 塗りを持てるのは四角・丸とテキスト（テキストの塗りは spec-4b-4a 確定事項A1）。
   function validStyle(entry) {
     const fill = fillOf(entry);
-    const fillable = isBoxedKind(entry.kind) || entry.kind === 'text';
+    const fillable = canFill(entry) || entry.kind === 'text';
     if (!validStroke(entry) || (fill !== null && (!fillable || !isHexColor(fill))))
       return false;
     const lineStyle = lineStyleOf(entry);
@@ -148,10 +162,13 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.shapeStyle = {
     BOXED_KINDS,
+    FILLABLE_KINDS,
     LINE_STYLES,
     DEFAULT_DASH,
     DEFAULT_CLOUD_INTENSITY,
     isBoxedKind,
+    isFillableKind,
+    canFill,
     lineStylesOf,
     isHexColor,
     fillOf,

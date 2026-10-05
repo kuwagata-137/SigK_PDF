@@ -58,7 +58,8 @@
   // 下書きを紙の座標の entry にする。points は表示の px の点列（ペンはここまでに間引いたもの）。
   function entryOf(points) {
     const base = styled({ src: draft.src, kind: draft.kind, color: draft.color, opacity: draft.opacity, lineWidth: draft.lineWidth });
-    if (draft.kind === 'square' || draft.kind === 'circle') {
+    // ×印も四角と同じく箱で描く（spec-4b-5a 確定事項12）。
+    if (draft.kind === 'square' || draft.kind === 'circle' || draft.kind === 'cross') {
       const box = geometry().boxOf(draft.start, draft.current, { square: draft.shift });
       const rect = geometry().boxOf(toPdf([box[0], box[1]]), toPdf([box[2], box[3]]));
       return { ...base, ...geometry().rectOfShape({ kind: draft.kind, rect }) };

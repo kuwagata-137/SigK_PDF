@@ -153,8 +153,8 @@ function textEntry(overrides = {}) {
   };
 }
 
-test('KINDS は text と図形 5 種を含み、MARKUP_KINDS は 3 種のまま', () => {
-  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text', 'square', 'circle', 'line', 'arrow', 'ink', 'note']);
+test('KINDS は text と図形 7 種を含み、MARKUP_KINDS は 3 種のまま', () => {
+  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text', 'square', 'circle', 'line', 'arrow', 'cross', 'polygon', 'ink', 'note']);
   assert.deepEqual(state.MARKUP_KINDS, ['highlight', 'underline', 'strikeout']);
   assert.equal(state.isKind('text'), true);
   assert.equal(state.isMarkupKind('text'), false);
@@ -329,9 +329,9 @@ function inkEntry(overrides = {}) {
   return { src: 1, kind: 'ink', color: '#2f9e5a', lineWidth: 2, quads: [quadOfRect(rect)], rect, paths: [[[100, 500], [120, 480], [150, 510]]], ...overrides };
 }
 
-test('SHAPE_KINDS は 4 種、PATH_KINDS は直線・矢印・ペン', () => {
-  assert.deepEqual(state.SHAPE_KINDS, ['square', 'circle', 'line', 'arrow']);
-  assert.deepEqual(state.PATH_KINDS, ['line', 'arrow', 'ink']);
+test('SHAPE_KINDS は ×印・多角形を足して 6 種、PATH_KINDS は直線・矢印・ペン・多角形', () => {
+  assert.deepEqual(state.SHAPE_KINDS, ['square', 'circle', 'line', 'arrow', 'cross', 'polygon']);
+  assert.deepEqual(state.PATH_KINDS, ['line', 'arrow', 'ink', 'polygon']);
   assert.equal(state.isShapeKind('circle'), true);
   assert.equal(state.isShapeKind('ink'), false);
   assert.equal(state.isPathKind('ink'), true);

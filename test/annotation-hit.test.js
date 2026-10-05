@@ -4,7 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
+require('../renderer/cross-geometry.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/free-text-layout.js');
 require('../renderer/callout-shape.js');
@@ -32,6 +34,19 @@ test('hitsPath は線分からの距離が許容以内なら当たり、矢印�
   // 複数の path のどれかに当たれば当たり
   assert.equal(hit.hitsPath([[[0, 0], [10, 0]], [[0, 50], [10, 50]]], [5, 51], 2), true);
   assert.equal(hit.hitsPath([[[0, 0], [10, 0]], [[0, 50], [10, 50]]], [5, 25], 2), false);
+});
+
+test('hitsPath は塗った三角の矢印の 3 辺と中に当たる（spec-4b-5a 確定事項25）', () => {
+  const paths = [[[0, 0], [100, 0]]];
+  // 線幅 2 の三角は長さ 12・開き 180°÷7。底は x = 89.19、底の幅の半分は 5.21
+  assert.equal(hit.hitsPath(paths, [93, 2.5], 0.1, { arrow: true, lineWidth: 2, closed: true }), true, '三角の中');
+  assert.equal(hit.hitsPath(paths, [93, 2.5], 0.1, { arrow: true, lineWidth: 2 }), false, '開いた矢じりなら中は当たらない');
+  assert.equal(hit.hitsPath(paths, [89.2, 5.5], 0.5, { arrow: true, lineWidth: 2, closed: true }), true, '底の角の近く');
+  assert.equal(hit.hitsPath(paths, [95, 6], 0.5, { arrow: true, lineWidth: 2, closed: true }), false);
+  const entry = { kind: 'arrow', paths, lineWidth: 2, quads: [[0, 6, 100, 6, 0, -6, 100, -6]], rect: [0, -6, 100, 6] };
+  const viewport = { scale: 10 };
+  assert.equal(hit.hits(entry, [93, 2.5], viewport, null), true);
+  assert.equal(hit.hits({ ...entry, head: 'open' }, [93, 2.5], viewport, null), false);
 });
 
 test('hitTolerance は線幅の半分に 3px 相当を足す', () => {
@@ -75,4 +90,25 @@ test('hits は吹き出しのしっぽに、線と同じ余裕（枠線の太さ
   const { borderColor, borderWidth, ...bare } = callout;
   assert.equal(hit.hits(bare, point, { scale: 1 }, [0, 0]), false, '枠線が無ければ 3pt');
   assert.equal(hit.hits({ ...callout, readonly: true }, point, { scale: 1 }, [0, 0]), false);
+});
+
+test('hits は ×印を対角線の近くだけで当て、箱の中の空いた所は当てない（回したものも。spec-4b-5a 確定事項21）', () => {
+  const entry = { kind: 'cross', rect: [0, 0, 40, 40], lineWidth: 2, quads: [[0, 40, 40, 40, 0, 0, 40, 0]], color: '#c00000' };
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits(entry, [20, 20], viewport, null), true);
+  assert.equal(hit.hits(entry, [10, 10.5], viewport, null), true);
+  assert.equal(hit.hits(entry, [20, 4], viewport, null), false, '上の辺の中ほどは空いている');
+  const turned = { ...entry, angle: 45 };
+  assert.equal(hit.hits(turned, [20, 35], viewport, null), true);
+  assert.equal(hit.hits(turned, [10, 10], viewport, null), false);
+});
+
+test('hits は多角形を辺の近くと、閉じて塗ったものの中で当てる（spec-4b-5a 確定事項24）', () => {
+  require('../renderer/polygon-geometry.js');
+  const entry = { kind: 'polygon', closed: true, color: '#c00000', lineWidth: 2, paths: [[[0, 0], [100, 0], [100, 100], [0, 100]]], rect: [-1, -1, 101, 101], quads: [[-1, 101, 101, 101, -1, -1, 101, -1]] };
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits(entry, [50, 2], viewport, null), true);
+  assert.equal(hit.hits(entry, [50, 50], viewport, null), false);
+  assert.equal(hit.hits({ ...entry, fill: '#ffff00' }, [50, 50], viewport, null), true);
+  assert.equal(hit.hits({ ...entry, closed: false }, [2, 50], viewport, null), false, '開いたものは最後の辺が無い');
 });

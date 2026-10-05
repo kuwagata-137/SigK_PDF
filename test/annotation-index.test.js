@@ -89,7 +89,10 @@ test('labelOf と iconOf は種類ごとの名前とアイコン', () => {
   assert.equal(index.iconOf({ kind: 'arrow' }), 'shapeArrow');
   assert.equal(index.iconOf({ kind: 'text' }), 'text');
   assert.equal(index.iconOf({ kind: 'other', subtype: 'FreeText' }), 'text');
-  assert.equal(index.iconOf({ kind: 'other', subtype: 'Polygon' }), 'shapeSquare');
+  assert.equal(index.iconOf({ kind: 'other', subtype: 'Polygon' }), 'shapePolygon');
+  assert.equal(index.iconOf({ kind: 'cross' }), 'shapeCross');
+  assert.equal(index.iconOf({ kind: 'polygon' }), 'shapePolygon');
+  assert.equal(index.labelOf({ kind: 'polygon', closed: false }), '多角形');
   assert.equal(index.iconOf({ kind: 'other', subtype: 'Stamp' }), 'modeAnnot');
   assert.equal(index.iconOf({ kind: 'other', subtype: 'Ink' }), 'pen');
 });

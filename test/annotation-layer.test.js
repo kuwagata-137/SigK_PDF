@@ -14,6 +14,7 @@ require('../renderer/free-text-geometry.js');
 require('../renderer/free-text-font.js');
 require('../renderer/free-text-shape.js');
 require('../renderer/free-text-turn.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-outline.js');
 require('../renderer/cloud-geometry.js');
@@ -181,7 +182,7 @@ test('keyOf は ref があれば ref、無ければ id', () => {
 // ---- 図形・ペン（spec-4-3 確定事項3・8・25） ----
 
 const SQUARE = { id: 'sigk-7', src: 0, kind: 'square', color: '#d92c2c', opacity: 1, lineWidth: 2, rect: [100, 600, 300, 700], quads: [[100, 700, 300, 700, 100, 600, 300, 600]] };
-const ARROW = { ref: '40R', src: 0, kind: 'arrow', color: '#2c5cd9', opacity: 0.5, lineWidth: 3, rect: [98.5, 543.55, 301.5, 601.5], quads: [[98.5, 601.5, 301.5, 601.5, 98.5, 543.55, 301.5, 543.55]], paths: [[[100, 600], [300, 550]]] };
+const ARROW = { ref: '40R', src: 0, kind: 'arrow', head: 'open', color: '#2c5cd9', opacity: 0.5, lineWidth: 3, rect: [98.5, 543.55, 301.5, 601.5], quads: [[98.5, 601.5, 301.5, 601.5, 98.5, 543.55, 301.5, 543.55]], paths: [[[100, 600], [300, 550]]] };
 
 test('draw は図形を shape-graphics の <g> に委ね、矢印の選択の枠は線に沿った破線と両端のつまみ（spec-4b-2 確定事項11）', () => {
   const dom = makeDom();

@@ -25,15 +25,16 @@
     return false;
   }
 
-  // 点列のどれかの線分に当たるか。矢印は翼 2 本も見る（spec-4-3 確定事項12）。
-  function hitsPath(paths, point, tolerance, { arrow = false, lineWidth = 1 } = {}) {
+  // 点列のどれかの線分に当たるか。矢印は先の輪郭（開いた矢じりは翼 2 本、塗った三角は 3 辺）も見て、塗った三角は中も当たる
+  // （spec-4-3 確定事項12、spec-4b-5a 確定事項25）。
+  function hitsPath(paths, point, tolerance, { arrow = false, lineWidth = 1, closed = false } = {}) {
     if (paths.some((path) => hitsSegments(path, point, tolerance)))
       return true;
     if (!arrow)
       return false;
     const [from, to] = paths[0];
-    const [left, right] = geometry().arrowHead(from, to, lineWidth);
-    return hitsSegments([left, to, right], point, tolerance);
+    const head = root.SigK.arrowHead;
+    return hitsSegments(head.outlineOf(from, to, lineWidth, closed), point, tolerance) || (closed && head.insideHead(point, from, to, lineWidth));
   }
 
   // 当たり判定の許容（pt）。線幅の半分に、表示の HIT_SLACK px を紙の座標へ直して足す。
@@ -65,12 +66,18 @@
     if (entry.kind === 'text' && entry.callout !== undefined
       && root.SigK.calloutShape.hitsTail(entry, pdfPoint, hitTolerance(tailLineOf(entry), viewport.scale ?? 1)))
       return true;
+    // ×印は対角線 2 本からの距離（回したものは回す前の座標へ戻す。spec-4b-5a 確定事項21）。
+    if (entry.kind === 'cross')
+      return root.SigK.crossGeometry.distanceTo(entry, pdfPoint) <= hitTolerance(entry.lineWidth, viewport.scale ?? 1);
+    // 多角形は辺からの距離と、閉じて塗ったものは中（spec-4b-5a 確定事項24）。
+    if (entry.kind === 'polygon')
+      return root.SigK.polygonGeometry.hits(entry, pdfPoint, hitTolerance(entry.lineWidth, viewport.scale ?? 1));
     if (root.SigK.shapeRotation?.isRotated(entry) === true)
       return hitsTurnedBox(entry, pdfPoint);
     if (!annotationState().isPathKind(entry.kind))
       return root.SigK.markupQuads.hitTest(entry.quads, pdfPoint);
     const tolerance = hitTolerance(entry.lineWidth, viewport.scale ?? 1);
-    return hitsPath(entry.paths, pdfPoint, tolerance, { arrow: entry.kind === 'arrow', lineWidth: entry.lineWidth });
+    return hitsPath(entry.paths, pdfPoint, tolerance, { arrow: entry.kind === 'arrow', lineWidth: entry.lineWidth, closed: root.SigK.arrowHead.isClosed(entry) });
   }
 
   // 点（.pdf-page 基準の CSS px）に当たる注釈。上に描いたもの（後ろ）が優先。

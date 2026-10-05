@@ -65,7 +65,7 @@
   function rememberNext(field, value, kinds) {
     const next = root.SigK.annotateNextStyle;
     const style = root.SigK.shapeStyle;
-    const boxed = kinds.some((kind) => style.isBoxedKind(kind));
+    const boxed = kinds.some((kind) => style.isFillableKind(kind));
     if (field !== 'color' && field !== 'opacity') {
       for (const tool of ['text', 'callout'].filter((each) => kinds.includes(each)))
         root.SigK.annotateTextStyle.rememberFor(field, value, tool);

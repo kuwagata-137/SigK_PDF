@@ -14,7 +14,7 @@
   // 道具と、注釈の種類（kind）の表示名。図形の道具（shape）は 4 種の kind を描き分ける。
   const TOOL_LABELS = Object.freeze({
     highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', note: 'ノート',
-    square: '四角', circle: '丸', line: '直線', arrow: '矢印', ink: 'ペン',
+    square: '四角', circle: '丸', line: '直線', arrow: '矢印', cross: '×印', polygon: '多角形', ink: 'ペン',
   });
   // 「表示のみ」の注釈（他のツールが付け、読み込んで直せないもの）の種類名。pdf.js の subtype で引く
   // （spec-4-4 確定事項36）。無ければ subtype をそのまま見せる。
@@ -24,8 +24,8 @@
     Ink: 'ペン', FileAttachment: '添付ファイル', Sound: '音声', Redact: '墨消し',
   });
 
-  // 「図形」の道具で描ける種類（spec-4-3 確定事項27）。
-  const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow']);
+  // 「図形」の道具で描ける種類（spec-4-3 確定事項27。×印・多角形は spec-4b-5a 確定事項27）。
+  const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'polygon']);
   const DEFAULT_SHAPE_KIND = 'square';
 
   // 道具ごとの既定の色。今までの既定の色を、いちばん近いパレットの色へ置き換えた（spec-4b-1b 確定事項14）。色は右パネルの

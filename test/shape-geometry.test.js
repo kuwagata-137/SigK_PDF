@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 
 // 図形・ペンの幾何（spec-4-3 確定事項4・9・10・12・30）。DOM に触れない純関数。
@@ -64,7 +65,7 @@ test('rectOfShape は矩形・楕円は箱そのもの、線は点と翼の外�
   const line = geo.rectOfShape({ kind: 'line', paths: [[[100, 600], [300, 550]]], lineWidth: 3 });
   assert.deepEqual(line.rect, [98.5, 548.5, 301.5, 601.5]);
   assert.deepEqual(line.quads, [[98.5, 601.5, 301.5, 601.5, 98.5, 548.5, 301.5, 548.5]]);
-  const arrow = geo.rectOfShape({ kind: 'arrow', paths: [[[100, 600], [300, 550]]], lineWidth: 3 });
+  const arrow = geo.rectOfShape({ kind: 'arrow', paths: [[[100, 600], [300, 550]]], lineWidth: 3, head: 'open' });
   assert.deepEqual(arrow.rect, [98.5, 543.55, 301.5, 601.5]);
   const ink = geo.rectOfShape({ kind: 'ink', paths: [[[100, 500], [120, 480], [150, 510]], [[90, 505], [95, 506]]], lineWidth: 2 });
   assert.deepEqual(ink.rect, [89, 479, 151, 511]);

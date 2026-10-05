@@ -19,7 +19,7 @@
     if (entry.paths !== undefined)
       patch.paths = entry.paths.map((path) => path.map((point) => [round(point[0] + delta[0]), round(point[1] + delta[1])]));
     const rect = [round(entry.rect[0] + delta[0]), round(entry.rect[1] + delta[1]), round(entry.rect[2] + delta[0]), round(entry.rect[3] + delta[1])];
-    return { ...patch, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect, paths: patch.paths, lineWidth: entry.lineWidth, angle: entry.angle }) };
+    return { ...patch, ...root.SigK.shapeGeometry.rectOfEntry(entry, { rect, paths: patch.paths }) };
   }
 
   // テキスト: 表示の左上をずらし、箱の大きさは本文から取り直す（読み込んだ /Rect の余白を引きずらない）。回したテキストは、ずらした箱の

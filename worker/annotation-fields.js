@@ -36,7 +36,8 @@ function shapeFields(appearance, { PDFName, PDFString }) {
     fields.RD = appearance.rectDifference;
   if (appearance.vertices !== undefined) {
     fields.Vertices = appearance.vertices;
-    if (appearance.lineEndings[1] !== 'None')
+    // 多角形は /LE を持たない（spec-4b-5a 確定事項36）。
+    if (appearance.lineEndings !== undefined && appearance.lineEndings[1] !== 'None')
       fields.LE = appearance.lineEndings.map((name) => PDFName.of(name));
   }
   if (appearance.inkList !== undefined)

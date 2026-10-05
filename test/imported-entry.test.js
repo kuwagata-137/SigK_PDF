@@ -9,6 +9,11 @@ require('../renderer/note-graphics.js');
 require('../renderer/imported-values.js');
 require('../renderer/shape-style.js');
 require('../renderer/imported-shape.js');
+require('../renderer/shape-rotation.js');
+require('../renderer/arrow-head.js');
+require('../renderer/shape-geometry.js');
+require('../renderer/polygon-geometry.js');
+require('../renderer/imported-polygon.js');
 require('../renderer/imported-entry.js');
 
 // ファイルにある注釈 1 件を自前の形にする層（spec-4-1 確定事項17、spec-4-3 確定事項13、spec-4-4 確定事項20）。
@@ -64,15 +69,25 @@ test('importedEntry は 2 点の PolyLine を直線か矢印として向きの�
   const arrow = imp.importedEntry({ id: '22R', subtype: 'PolyLine', rect: [80.5, 280.5, 499.5, 349.5], color: [217, 43, 43], borderStyle: BORDER, vertices: new Float32Array([480, 330, 100.4000015, 300]), lineEndings: ['None', 'OpenArrow'] }, 1);
   assert.equal(arrow.kind, 'arrow');
   assert.deepEqual(arrow.paths, [[[480, 330], [100.4, 300]]]);
-  // 3 点以上、矢じりが始点、両端の矢じり、閉じた矢じりは直せない（表示のみ。spec-4-4 確定事項20）
+  assert.equal(arrow.head, 'open', '開いた矢じりは head を持つ（spec-4b-5a 確定事項38）');
+  // 塗った三角は head を持たない矢印として拾う（/IC が /C と同じかは口の答えで見る。annotation-details.js）
+  const closed = imp.importedEntry({ id: '23R', subtype: 'PolyLine', rect: [0, 0, 100, 20], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 10, 100, 10], lineEndings: ['None', 'ClosedArrow'] }, 0);
+  assert.equal(closed.kind, 'arrow');
+  assert.equal(closed.head, undefined);
+  // 矢じりが始点、両端の矢じり、知らない矢じり、矢じり付きの 3 点以上は直せない（表示のみ。spec-4-4 確定事項20）。3 点以上で矢じりの
+  // 無い PolyLine は開いた多角形（spec-4b-5a 確定事項40）
   const readonly = (annotation) => imp.importedEntry(annotation, 0)?.readonly === true;
-  assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 5, 5, 10, 0], lineEndings: ['None', 'None'] }), true);
+  assert.equal(imp.importedEntry({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 5, 5, 10, 0], lineEndings: ['None', 'None'] }, 0).kind, 'polygon');
+  assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 5, 5, 10, 0], lineEndings: ['None', 'OpenArrow'] }), true);
   assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 10], lineEndings: ['OpenArrow', 'None'] }), true);
-  assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 10], lineEndings: ['None', 'ClosedArrow'] }), true);
+  assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 10], lineEndings: ['None', 'Circle'] }), true);
   assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: null, lineEndings: ['None', 'None'] }), true);
-  // Line（pdf.js が向きを落とす）と Polygon も表示のみ
+  // Line（pdf.js が向きを落とす）は表示のみ。3 点以上の Polygon は閉じた多角形（spec-4b-5a 確定事項40）
   assert.equal(readonly({ id: '1R', subtype: 'Line', rect: [0, 0, 10, 10], color: [0, 0, 0], lineCoordinates: [0, 0, 10, 10], lineEndings: ['None', 'None'] }), true);
-  assert.equal(readonly({ id: '1R', subtype: 'Polygon', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 0, 10, 10] }), true);
+  const polygon = imp.importedEntry({ id: '1R', subtype: 'Polygon', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 0, 10, 10] }, 0);
+  assert.equal(polygon.kind, 'polygon');
+  assert.equal(polygon.closed, true);
+  assert.equal(readonly({ id: '1R', subtype: 'Polygon', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 0] }), true, '2 点の Polygon');
 });
 
 test('importedEntry は Ink を path ごとの点列で拾い、2 点未満の path は捨てる', () => {

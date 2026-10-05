@@ -81,7 +81,8 @@
   // draft は描いている途中の図形（entry の形）で、いちばん上に描く。選択の枠は紙の外の層（annotation-frame.js。
   // spec-4b-2 確定事項9）が描く。
   // textDraft は開いているテキストの入力欄の下書き。吹き出しなら本体（輪郭）だけを描く（文字は入力欄。spec-4b-4b 確定事項D3）。
-  function draw(svg, entries, viewport, { editing = null, draft = null, textDraft = null } = {}) {
+  // marks は描いている途中の多角形の印（頂点・次の辺・輪。polygon-draft.js の svgOf。spec-4b-5a 確定事項13）。
+  function draw(svg, entries, viewport, { editing = null, draft = null, textDraft = null, marks = null } = {}) {
     const doc = svg.ownerDocument;
     svg.replaceChildren();
     for (const entry of entries) {
@@ -93,6 +94,8 @@
     }
     if (draft !== null && draft !== undefined)
       svg.append(draftOf(doc, draft, viewport));
+    if (marks !== null && marks !== undefined)
+      svg.append(root.SigK.polygonDraft.svgOf(doc, marks.preview, viewport, marks.look));
     const body = root.SigK.calloutGraphics?.draftEntryOf(textDraft) ?? null;
     const outline = body === null ? null : root.SigK.calloutGraphics.svgOf(doc, body, viewport);
     if (outline !== null) {

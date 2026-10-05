@@ -8,12 +8,14 @@
   // 決めて viewport で表示へ直す（回転した紙でも同じ点になる）。実線の四角・丸は rect・ellipse の部品、破線と雲形は保存の外観と
   // 同じ紙の座標の点列（shape-outline.js・cloud-geometry.js）を表示へ直した path にする（始点と向きが保存とそろい、破線の
   // 切れ目が同じ位置に来る。確定事項41）。四角・丸の線は箱の内側に収め、描く線幅は短い辺の半分で頭打ちにする（確定事項30）。
-  // 線なしは箱そのものを塗る。矢じりの翼は shape-geometry.js の arrowHead（保存の外観と同じ式）で紙の座標に置いてから直し、
+  // 線なしは箱そのものを塗る。矢印の先は arrow-head.js（保存の外観と同じ式）で紙の座標に置いてから直し、
   // 破線の矢印でも実線で描く（確定事項32）。
   //
   // 戻り値は { stroke, fill, width, cap, join, parts }。stroke・fill は '#rrggbb' か null（なし）、width は表示の px の線幅。
   // parts は表示の座標の部品の並びで、{ type: 'rect', x, y, width, height }・{ type: 'ellipse', cx, cy, rx, ry }・
-  // { type: 'line', from, to }・{ type: 'polyline', points }・{ type: 'path', segments }（segments は shape-outline.js の形）。
+  // { type: 'line', from, to }・{ type: 'polyline', points }・{ type: 'path', segments }（segments は shape-outline.js の形）・
+  // { type: 'polygon', points, paint }（塗った三角。paint の色で塗り、線は引かない。spec-4b-5a 確定事項7）・
+  // { type: 'polygon', points, fillable }（閉じた多角形。spec-4b-5a 確定事項10）。
   // 塗りは fillable の部品（四角・丸）にだけ当てる。破線の部品は dash（px の配列）と cap を持つ。
 
   function geometry() {
@@ -91,18 +93,47 @@
     return { width: width * scale, parts: [boxPart(entry.kind, viewBoxOf(entry.rect, viewport), stroked ? (width * scale) / 2 : 0)] };
   }
 
-  // 直線・矢印。破線は軸だけで、矢じりの翼（翼 → 終点 → 翼）は実線。
+  // 直線・矢印。破線は軸だけで、開いた矢じりの翼（翼 → 終点 → 翼）は実線。塗った三角（spec-4b-5a 確定事項7）は、軸を三角の底の
+  // 中点で止め、三角を線の色で塗る部品（paint。線は引かない）にする。
   function lineParts(entry, viewport) {
     const toView = toViewOf(viewport);
     const [from, to] = entry.paths[0];
     const dash = style().dashOf(entry);
+    const closed = root.SigK.arrowHead.isClosed(entry);
+    const head = closed ? root.SigK.arrowHead.closedHead(from, to, entry.lineWidth) : null;
+    const end = head === null ? to : head.base;
     const axis = dash === null
-      ? { type: 'line', from: toView(from), to: toView(to) }
-      : dashPart(outline().polylineOutline([from, to]), dash, viewport, false);
+      ? { type: 'line', from: toView(from), to: toView(end) }
+      : dashPart(outline().polylineOutline([from, end]), dash, viewport, false);
     if (entry.kind !== 'arrow')
       return [axis];
+    if (head !== null)
+      return [axis, { type: 'polygon', points: [head.left, to, head.right].map(toView), paint: entry.color }];
     const [left, right] = geometry().arrowHead(from, to, entry.lineWidth);
     return [axis, { type: 'polyline', points: [left, to, right].map(toView) }];
+  }
+
+  // ×印（spec-4b-5a 確定事項9）。回す前の箱の対角線 2 本（回すのは shape-graphics.js の <g>）。破線は 1 本ずつ点列にする。
+  function crossParts(entry, viewport) {
+    const toView = toViewOf(viewport);
+    const dash = style().dashOf(entry);
+    return root.SigK.crossGeometry.localDiagonals(entry.rect).map(([from, to]) => (dash === null
+      ? { type: 'line', from: toView(from), to: toView(to) }
+      : dashPart(outline().polylineOutline([from, to]), dash, viewport, false)));
+  }
+
+  // 多角形（spec-4b-5a 確定事項10）。回す前の頂点の折れ線で、閉じたものは polygon（塗れる）、開いたものは polyline。破線は輪郭の点列
+  // （閉じたものは Z で閉じ、始点の角も保存の外観の h と同じ丸い角にする）。回すのは shape-graphics.js の <g>。
+  function polygonParts(entry, viewport) {
+    const toView = toViewOf(viewport);
+    const vertices = entry.paths[0];
+    const closed = entry.closed === true;
+    const dash = style().dashOf(entry);
+    if (dash !== null) {
+      const segments = outline().polylineOutline(vertices);
+      return [dashPart(closed ? [...segments, { op: 'Z', points: [] }] : segments, dash, viewport, closed)];
+    }
+    return [closed ? { type: 'polygon', points: vertices.map(toView), fillable: true } : { type: 'polyline', points: vertices.map(toView) }];
   }
 
   function figureOf(entry, viewport) {
@@ -118,6 +149,10 @@
       return { ...base, fill: style().fillOf(entry), ...boxFigure(entry, viewport, base.stroke !== null) };
     if (entry.kind === 'ink')
       return { ...base, parts: entry.paths.map((path) => ({ type: 'polyline', points: path.map(toViewOf(viewport)) })) };
+    if (entry.kind === 'cross')
+      return { ...base, parts: crossParts(entry, viewport) };
+    if (entry.kind === 'polygon')
+      return { ...base, fill: style().canFill(entry) ? style().fillOf(entry) : null, parts: polygonParts(entry, viewport) };
     return { ...base, parts: lineParts(entry, viewport) };
   }
 

@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
 require('../renderer/imported-values.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/annotation-box-details.js');
 require('../renderer/free-text-wrap.js');
@@ -132,6 +133,21 @@ test('applyDetails は口がまるごと答えなかったときの四角・丸�
   assert.equal(details.applyDetails(same, undefined), same);
 });
 
+// 塗った三角の矢印は、/IC が /C と同じ色のときだけ直せる（spec-4b-5a 確定事項38）。
+test('applyDetails は塗った三角の矢印を、/IC が線の色と同じなら直せる形のままにし、違う色・無い・口が答えないなら表示のみにする', () => {
+  const closed = entry('arrow', { paths: [[[10, 10], [60, 40]]] });
+  assert.equal(details.applyDetails(closed, { interior: [1, 0, 0] }).readonly, undefined);
+  assert.equal(details.applyDetails(closed, { interior: [1, 0, 0], ca: 0.5 }).opacity, 0.5);
+  assert.equal(details.applyDetails(closed, { interior: [0, 0, 1] }).readonly, true);
+  assert.equal(details.applyDetails(closed, { interior: null }).subtype, 'PolyLine');
+  assert.equal(details.applyDetails(closed, undefined).readonly, true);
+  assert.equal(details.applyDetails(closed, undefined, { answered: false }).readonly, true);
+  // 開いた矢じりは /IC を見ない
+  const open = entry('arrow', { head: 'open', paths: [[[10, 10], [60, 40]]] });
+  assert.equal(details.applyDetails(open, { interior: null }).readonly, undefined);
+  assert.equal(details.applyDetails(open, undefined, { answered: false }), open);
+});
+
 // 自前のテキストは、口が答えなければ表示のみ。/DS があれば新しい形に組んでから不透明度を当てる（spec-4b-4a 確定事項J2〜J4）。
 test('applyDetails は自前のテキストを、口がまるごと答えなかった・答えが無いときに表示のみにし、/DS があれば新しい形にする', () => {
   const text = entry('text', { text: 'あいう', fontSize: 10, rotation: 0, rect: [10, 10, 44, 30] });
@@ -190,4 +206,21 @@ test('requestDetails は断られた答えと、口が投げたときを reason 
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'timeout', called: true });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'unreadable', called: true });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: true, details: {}, called: true });
+});
+
+test('applyDetails は多角形を、口が答えなければ表示のみ（Polygon・PolyLine）にし、答えがあれば塗りと不透明度を当てる（spec-4b-5a 確定事項40）', () => {
+  require('../renderer/arrow-head.js');
+  require('../renderer/shape-geometry.js');
+  require('../renderer/polygon-geometry.js');
+  require('../renderer/shape-style.js');
+  require('../renderer/imported-shape.js');
+  require('../renderer/imported-polygon.js');
+  const closed = entry('polygon', { closed: true, paths: [[[10, 10], [60, 10], [40, 40]]] });
+  assert.equal(details.applyDetails(closed, undefined, { answered: false }).subtype, 'Polygon');
+  assert.equal(details.applyDetails({ ...closed, closed: false }, undefined, { answered: false }).subtype, 'PolyLine');
+  const read = details.applyDetails(closed, { interior: [1, 1, 0], ca: 0.5 });
+  assert.equal(read.fill, '#ffff00');
+  assert.equal(read.opacity, 0.5);
+  assert.equal(details.applyDetails(closed, { cloudy: true, cloudIntensity: 1 }).readonly, true);
+  assert.equal(details.needsDetails(closed), true);
 });

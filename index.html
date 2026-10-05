@@ -88,6 +88,8 @@ body{
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="line" title="直線" aria-label="直線" aria-pressed="false"><span data-icon="shapeLine" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">直線</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="square" title="四角" aria-label="四角" aria-pressed="false"><span data-icon="shapeSquare" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">四角</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="circle" title="丸" aria-label="丸" aria-pressed="false"><span data-icon="shapeCircle" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">丸</span></span>
+    <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="cross" title="×印" aria-label="×印" aria-pressed="false"><span data-icon="shapeCross" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">×印</span></span>
+    <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="polygon" title="多角形" aria-label="多角形" aria-pressed="false"><span data-icon="shapePolygon" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">多角形</span></span>
     <span class="edit-sep"></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="pen" title="ペン" aria-label="ペン" aria-pressed="false"><span data-icon="pen" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ペン</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="note" title="ノート" aria-label="ノート" aria-pressed="false"><span data-icon="note" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ノート</span></span>
@@ -782,8 +784,11 @@ body{
 <script src="renderer/callout-shape.js"></script>
 <script src="renderer/callout-graphics.js"></script>
 <script src="renderer/callout-handles.js"></script>
+<script src="renderer/arrow-head.js"></script>
 <script src="renderer/shape-geometry.js"></script>
 <script src="renderer/shape-rotation.js"></script>
+<script src="renderer/cross-geometry.js"></script>
+<script src="renderer/polygon-geometry.js"></script>
 <script src="renderer/annotation-hit.js"></script>
 <script src="renderer/shape-outline.js"></script>
 <script src="renderer/cloud-geometry.js"></script>
@@ -792,12 +797,14 @@ body{
 <script src="renderer/shape-graphics.js"></script>
 <script src="renderer/note-graphics.js"></script>
 <script src="renderer/shape-handles.js"></script>
+<script src="renderer/polygon-handles.js"></script>
 <script src="renderer/frame-graphics.js"></script>
 <script src="renderer/annotation-frame.js"></script>
 <script src="renderer/markup-graphics.js"></script>
 <script src="renderer/annotation-layer.js"></script>
 <script src="renderer/imported-values.js"></script>
 <script src="renderer/imported-shape.js"></script>
+<script src="renderer/imported-polygon.js"></script>
 <script src="renderer/imported-entry.js"></script>
 <script src="renderer/annotation-box-details.js"></script>
 <script src="renderer/imported-text-details.js"></script>
@@ -870,6 +877,12 @@ body{
 <script src="renderer/free-text-style-view.js"></script>
 <script src="renderer/shape-draft.js"></script>
 <script src="renderer/annotate-shape.js"></script>
+<script src="renderer/annotate-shape-kind.js"></script>
+<script src="renderer/polygon-draft.js"></script>
+<script src="renderer/annotate-polygon.js"></script>
+<script src="renderer/line-snap.js"></script>
+<script src="renderer/annotate-line-anchor.js"></script>
+<script src="renderer/annotate-placing.js"></script>
 <script src="renderer/annotate-opacity.js"></script>
 <script src="renderer/annotate-next-style.js"></script>
 <script src="renderer/annotate-color.js"></script>

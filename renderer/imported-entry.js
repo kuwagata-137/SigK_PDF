@@ -16,7 +16,7 @@
   // pdf.js の subtype → 種類。PolyLine は頂点と矢じりで line／arrow に分ける。
   const SUBTYPES = Object.freeze({
     Highlight: 'highlight', Underline: 'underline', StrikeOut: 'strikeout', FreeText: 'text',
-    Square: 'square', Circle: 'circle', PolyLine: 'polyline', Ink: 'ink', Text: 'note',
+    Square: 'square', Circle: 'circle', PolyLine: 'polyline', Polygon: 'polygon', Ink: 'ink', Text: 'note',
   });
   // 規格が markup annotation とする種類（ISO 32000-1 表 170）。拾えなかったものは表示のみで一覧に出す。
   const MARKUP_SUBTYPES = Object.freeze([
@@ -119,7 +119,7 @@
       return importedText(annotation, src);
     if (kind === 'note')
       return importedNote(annotation, src);
-    if (kind === 'square' || kind === 'circle' || kind === 'polyline' || kind === 'ink')
+    if (kind === 'square' || kind === 'circle' || kind === 'polyline' || kind === 'polygon' || kind === 'ink')
       return root.SigK.importedShape.importedShape(annotation, src);
     const quads = values().quadsOf(annotation.quadPoints);
     if (quads.length === 0)

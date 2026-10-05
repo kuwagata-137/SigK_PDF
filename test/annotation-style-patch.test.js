@@ -97,3 +97,21 @@ test('targetOf は書き込みを右パネルに渡す形にする', async (t) =
   assert.equal(patch.targetOf({ kind: 'text', color: '#222a35', fontSize: 18 }).fontSize, 18);
   assert.deepEqual([patch.targetOf({ kind: 'text', bold: true }).bold, patch.targetOf({ kind: 'text' }).italic], [true, false]);
 });
+
+// 塗りと線なしは閉じた多角形にも当たり、開いた多角形と ×印には当たらない（spec-4b-5a 確定事項5・28・32）。
+test('appliesTo と viewOf は、塗りと線なしを閉じた多角形まで広げ、開いた多角形と ×印には出さない', async (t) => {
+  const patch = await withPatch(t);
+  const closed = { kind: 'polygon', closed: true, color: '#ff0000', fill: '#ffff00', lineStyle: 'solid', lineWidth: 2, opacity: 1, rect: [0, 0, 50, 50], paths: [[[0, 0], [50, 0], [25, 40]]] };
+  const open = { ...closed, closed: false, fill: null };
+  const cross = { kind: 'cross', color: '#ff0000', lineWidth: 2, opacity: 1, rect: [0, 0, 50, 50] };
+  assert.equal(patch.appliesTo('fill', closed, '#00ff00'), true);
+  assert.equal(patch.appliesTo('strokeNone', closed, null), true);
+  assert.equal(patch.appliesTo('fill', open, '#00ff00'), false);
+  assert.equal(patch.appliesTo('fill', cross, '#00ff00'), false);
+  assert.equal(patch.appliesTo('lineStyle', cross, 'dashed'), true);
+  assert.equal(patch.viewOf([patch.targetOf(closed)]).fill.value, '#ffff00');
+  assert.equal(patch.viewOf([patch.targetOf(open)]).fill, null);
+  assert.equal(patch.viewOf([patch.targetOf(cross)]).fill, null);
+  // 道具の次に付ける値（closed を持たない）は種類で見る
+  assert.notEqual(patch.viewOf([{ kind: 'polygon', color: '#ff0000', fill: null, lineStyle: 'solid', lineWidth: 2, opacity: 1 }]).fill, null);
+});

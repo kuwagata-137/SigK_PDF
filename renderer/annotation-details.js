@@ -11,12 +11,13 @@
 
   // 口が要る種類。pdf.js が不透明度（/CA）を返さないもの（事前調査 A）。ハイライト・下線・取り消し線・ペンは
   // pdf.js が返すので要らない。
-  const DETAIL_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'text', 'note']);
+  // 多角形は塗り・不透明度・回転を口で読む（spec-4b-5a 確定事項40）。
+  const DETAIL_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'polygon', 'text', 'note']);
   // 口を呼ぶ上限（確定事項25）。100MB を超えるファイルは、開くたびにワーカーが同じ大きさを読み直すのを避ける。
   const SIZE_MAX = 100 * 1024 * 1024;
   const REFS_MAX = 10000;
   // 表示のみにするときの種類名（pdf.js の subtype）。一覧とヒントの呼び名はこれで引く。
-  const SUBTYPE_OF = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', ink: 'Ink', text: 'FreeText', note: 'Text' });
+  const SUBTYPE_OF = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', cross: 'Ink', ink: 'Ink', text: 'FreeText', note: 'Text' });
 
   // 次の呼び出しは前の呼び出しが終わるまで待つ（確定事項25）。
   let queue = Promise.resolve();
@@ -49,7 +50,7 @@
       ref: entry.ref,
       src: entry.src,
       kind: 'other',
-      subtype: SUBTYPE_OF[entry.kind] ?? 'Square',
+      subtype: entry.kind === 'polygon' ? (entry.closed === true ? 'Polygon' : 'PolyLine') : (SUBTYPE_OF[entry.kind] ?? 'Square'),
       color: entry.color,
       opacity: 1,
       quads: entry.quads,
@@ -60,12 +61,30 @@
     };
   }
 
+  // 塗った三角の矢印は、/IC が /C と同じ色のときだけ直せる（spec-4b-5a 確定事項38。違う色や塗りの無い三角を、線の色で塗った
+  // 三角に描き直さないため）。
+  function closedArrowReadable(entry, detail) {
+    if (!root.SigK.arrowHead?.isClosed(entry))
+      return true;
+    const fill = root.SigK.importedValues.hexOfComponents(detail?.interior ?? null);
+    return fill !== null && typeof entry.color === 'string' && fill.toLowerCase() === entry.color.toLowerCase();
+  }
+
   function withDetails(entry, detail) {
     const next = entry.kind === 'square' || entry.kind === 'circle' ? root.SigK.annotationBoxDetails.withBoxDetails(entry, detail) : entry;
     if (next === null || !Number.isFinite(detail.ca))
       return next;
     // 不透明度 0（見えない）は直す形にしない。pdf.js が描くまま（見えないまま）にする。
     return detail.ca <= 0 ? null : { ...next, opacity: Math.min(1, detail.ca) };
+  }
+
+  // 種類ごとの組み直し。自前のテキストは新しい形、多角形は塗り・回転（答えが無ければ回っていないとして頂点を丸める）。
+  function baseOf(entry, detail, answered, text) {
+    if (entry.kind === 'text')
+      return root.SigK.importedTextDetails.withTextDetails(entry, detail, { answered, ...text });
+    if (entry.kind === 'polygon')
+      return root.SigK.importedPolygon.withPolygonDetails(entry, detail ?? null);
+    return entry;
   }
 
   // 答えを 1 件に当てる（spec-4b-1a 確定事項26、spec-4b-1b 確定事項36〜38）。その注釈の答えが無ければ pdf.js の値のまま
@@ -76,9 +95,11 @@
   function applyDetails(entry, detail, { answered = true, text = {} } = {}) {
     if (entry.readonly === true)
       return entry;
-    if (!answered && (entry.kind === 'square' || entry.kind === 'circle'))
+    if (!answered && (entry.kind === 'square' || entry.kind === 'circle' || entry.kind === 'polygon'))
       return readonlyOf(entry);
-    const base = entry.kind === 'text' ? root.SigK.importedTextDetails.withTextDetails(entry, detail, { answered, ...text }) : entry;
+    if (!closedArrowReadable(entry, detail))
+      return readonlyOf(entry);
+    const base = baseOf(entry, detail, answered, text);
     if (base === null)
       return readonlyOf(entry);
     const next = detail === undefined || detail === null ? base : withDetails(base, detail);

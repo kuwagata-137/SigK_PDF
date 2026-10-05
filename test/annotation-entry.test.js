@@ -9,8 +9,10 @@ require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/annotation-state.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-rotation.js');
+require('../renderer/cross-geometry.js');
 
 // 書き込みの角度（spec-4b-2 確定事項1〜5）。四角・丸だけが angle（画面で時計回りの度。0 は持たない）を持て、
 // rect は回す前の箱、quads は回した 4 隅。
@@ -117,4 +119,105 @@ test('テキストの角度は写し・比較・書き換え・ワーカーへ�
   assert.deepEqual(entries.pickPatch({ angle: 45 }, 'text'), { angle: 45 });
   assert.equal(entries.toSaveEntry(text({ angle: 30 })).angle, 30);
   assert.equal('angle' in entries.toSaveEntry(text()), false);
+});
+
+// ---- 矢印の先の形（spec-4b-5a 確定事項4） ----
+
+test('矢印は head: open を持てて、写し・比較・保存の形に入る。ほかの種類と open 以外の値は断る', () => {
+  const open = { ...line({ kind: 'arrow' }), head: 'open' };
+  assert.equal(entries.validEntry(open), true);
+  assert.equal(entries.validEntry({ ...open, head: 'closed' }), false);
+  assert.equal(entries.validEntry({ ...line(), head: 'open' }), false);
+  assert.equal(entries.validEntry({ ...square(), head: 'open' }), false);
+  assert.equal(entries.copyEntry(open).head, 'open');
+  assert.equal(entries.sameEntry(open, { ...open, head: undefined }), false);
+  assert.equal(entries.toSaveEntry(open).head, 'open');
+  assert.equal('head' in entries.toSaveEntry(line({ kind: 'arrow' })), false);
+  // 画面から変える口は無い
+  assert.equal(entries.pickPatch({ head: 'open' }, 'arrow'), null);
+});
+
+test('rectOfEntry は書き込みの欄（矢印の先を含む）から形を作り直し、changes を重ねる', () => {
+  const geo = SigK.shapeGeometry;
+  const paths = [[[100, 600], [300, 550]]];
+  const closed = geo.rectOfEntry({ kind: 'arrow', paths, lineWidth: 3, rect: [0, 0, 1, 1] });
+  const open = geo.rectOfEntry({ kind: 'arrow', paths, lineWidth: 3, head: 'open', rect: [0, 0, 1, 1] });
+  assert.deepEqual(closed, geo.rectOfShape({ kind: 'arrow', paths, lineWidth: 3 }));
+  assert.deepEqual(open, geo.rectOfShape({ kind: 'arrow', paths, lineWidth: 3, head: 'open' }));
+  assert.notDeepEqual(closed.rect, open.rect);
+  const wider = geo.rectOfEntry({ kind: 'arrow', paths, lineWidth: 3, head: 'open', rect: [0, 0, 1, 1] }, { lineWidth: 6 });
+  assert.deepEqual(wider, geo.rectOfShape({ kind: 'arrow', paths, lineWidth: 6, head: 'open' }));
+  const turned = geo.rectOfEntry({ kind: 'square', rect: [10, 10, 50, 30], lineWidth: 2, angle: 30 }, { angle: 0 });
+  assert.deepEqual(turned.rect, [10, 10, 50, 30]);
+});
+
+// ---- ×印（spec-4b-5a 確定事項1・2・35） ----
+
+function crossEntry(overrides = {}) {
+  const rect = [100, 600, 160, 640];
+  return { src: 0, kind: 'cross', color: '#c00000', opacity: 1, lineWidth: 2, rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)], ...overrides };
+}
+
+test('×印は図形の種類で、角度・実線と破線を持て、線なし・塗り・雲形・点列は断る', () => {
+  assert.equal(entries.isShapeKind('cross'), true);
+  assert.equal(entries.isDrawnKind('cross'), true);
+  assert.equal(entries.isPathKind('cross'), false);
+  assert.equal(entries.validEntry(crossEntry()), true);
+  assert.equal(entries.validEntry(crossEntry({ angle: 30 })), true);
+  assert.equal(entries.validEntry(crossEntry({ lineStyle: 'dashed' })), true);
+  assert.equal(entries.validEntry(crossEntry({ lineStyle: 'cloudy' })), false);
+  assert.equal(entries.validEntry(crossEntry({ color: null, fill: '#ffffff' })), false);
+  assert.equal(entries.validEntry(crossEntry({ fill: '#ffffff' })), false);
+  assert.deepEqual(entries.pickPatch({ angle: 45 }, 'cross'), { angle: 45 });
+  assert.equal(entries.pickPatch({ fill: '#ffffff' }, 'cross'), null);
+});
+
+test('×印の保存の形は、回した位置の対角線 2 本と外接の箱で、角度は持たない', () => {
+  const saved = entries.toSaveEntry(crossEntry({ angle: 90, lineStyle: 'dashed' }));
+  assert.equal(saved.kind, 'cross');
+  assert.equal(saved.angle, undefined);
+  assert.equal(saved.lineStyle, 'dashed');
+  assert.deepEqual(saved.paths, SigK.crossGeometry.diagonalsOf([100, 600, 160, 640], 90));
+  assert.deepEqual(saved.rect, SigK.crossGeometry.savedRectOf([100, 600, 160, 640], 90, 2));
+  assert.deepEqual(entries.toSaveEntry(crossEntry()).rect, [99, 599, 161, 641]);
+});
+
+// ---- 多角形（spec-4b-5a 確定事項1・3・5・6） ----
+
+function polygonEntry(overrides = {}) {
+  const rect = [99, 599, 201, 721];
+  return { src: 0, kind: 'polygon', closed: true, color: '#c00000', opacity: 1, lineWidth: 2, rect, quads: [SigK.freeTextGeometry.quadOfRect(rect)], paths: [[[100, 600], [180, 620], [200, 720]]], ...overrides };
+}
+
+test('多角形は 3 点以上と closed を持ち、閉じたものだけ塗りと線なしを持てる。線種は実線と破線、角度も持てる', () => {
+  assert.equal(entries.isPathKind('polygon'), true);
+  assert.equal(entries.validEntry(polygonEntry()), true);
+  assert.equal(entries.validEntry(polygonEntry({ closed: undefined })), false);
+  assert.equal(entries.validEntry(polygonEntry({ closed: 'yes' })), false);
+  assert.equal(entries.validEntry(polygonEntry({ paths: [[[0, 0], [1, 1]]] })), false, '2 点');
+  assert.equal(entries.validEntry(polygonEntry({ fill: '#ffff00' })), true);
+  assert.equal(entries.validEntry(polygonEntry({ closed: false, fill: '#ffff00' })), false);
+  assert.equal(entries.validEntry(polygonEntry({ color: null, fill: '#ffff00' })), true);
+  assert.equal(entries.validEntry(polygonEntry({ closed: false, color: null, fill: '#ffff00' })), false);
+  assert.equal(entries.validEntry(polygonEntry({ color: null })), false, '線も塗りも無い');
+  assert.equal(entries.validEntry(polygonEntry({ lineStyle: 'dashed', angle: 30 })), true);
+  assert.equal(entries.validEntry(polygonEntry({ lineStyle: 'cloudy' })), false);
+  assert.equal(entries.validEntry({ ...square(), closed: true }), false, 'closed は多角形だけ');
+  assert.deepEqual(entries.pickPatch({ fill: '#ffff00' }, 'polygon'), { fill: '#ffff00' });
+  assert.equal(entries.pickPatch({ closed: false }, 'polygon'), null, '閉じた・開いたは変えない');
+});
+
+test('多角形の写し・比較・保存の形は閉じたかどうかと回す前の頂点・角度を持つ', () => {
+  const entry = polygonEntry({ angle: 30, fill: '#ffff00' });
+  assert.equal(entries.copyEntry(entry).closed, true);
+  assert.equal(entries.sameEntry(entry, { ...entry, closed: false }), false);
+  const saved = entries.toSaveEntry(entry);
+  assert.equal(saved.closed, true);
+  assert.equal(saved.angle, 30);
+  assert.equal(saved.fill, '#ffff00');
+  assert.deepEqual(saved.paths, entry.paths);
+  assert.equal(SigK.shapeStyle.canFill(entry), true);
+  assert.equal(SigK.shapeStyle.canFill({ ...entry, closed: false }), false);
+  assert.equal(SigK.shapeStyle.isFillableKind('polygon'), true);
+  assert.equal(SigK.shapeStyle.isFillableKind('cross'), false);
 });

@@ -86,13 +86,18 @@
     if (entry !== undefined && entry.color !== value && !updateSelected(entry, { color: value }, 'color'))
       return false;
     next().rememberColor(kind, value);
-    if (style().isBoxedKind(kind))
+    if (style().isFillableKind(kind))
       next().rememberShape('strokeNone', false);
     refresh();
     return true;
   }
 
-  // 線なし（四角・丸で、塗りがあるときだけ）。
+  // 塗りと線なしを持てるか。選んだ書き込みは閉じた多角形まで見て、道具（entry が undefined）は種類で見る（spec-4b-5a 確定事項5）。
+  function fillableOf(entry, kind) {
+    return entry === undefined ? style().isFillableKind(kind) : style().canFill(entry);
+  }
+
+  // 線なし（四角・丸・閉じた多角形で、塗りがあるときだけ）。
   function setStrokeNone() {
     if (isMany())
       return bulk().applyField('strokeNone', null);
@@ -101,7 +106,7 @@
       return false;
     const kind = entry === undefined ? toolKind() : root.SigK.annotationPresets.kindOf(entry);
     const fill = entry === undefined ? next().fillOf(kind) : style().fillOf(entry);
-    if (!style().isBoxedKind(kind) || fill === null)
+    if (!fillableOf(entry, kind) || fill === null)
       return false;
     if (entry !== undefined && entry.color !== null && !updateSelected(entry, { color: null }, 'color'))
       return false;
@@ -123,7 +128,7 @@
     if (kind === 'text' || kind === 'callout')
       return root.SigK.annotateTextStyle.setTextFill(value);
     const stroked = entry === undefined ? !next().strokeNoneOf(kind) : entry.color !== null;
-    if (!style().isBoxedKind(kind) || (value === null && !stroked))
+    if (!fillableOf(entry, kind) || (value === null && !stroked))
       return false;
     if (entry !== undefined && style().fillOf(entry) !== value && !updateSelected(entry, { fill: value }, 'fill'))
       return false;
