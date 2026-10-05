@@ -31,3 +31,57 @@ test('翼の長さは線の向きによらない', () => {
     near(Math.hypot(right[0] - to[0], right[1] - to[1]), 12);
   }
 });
+
+// ---- 塗った三角と画面側（renderer/arrow-head.js。spec-4b-5a 確定事項4・7・8・25） ----
+
+require('../renderer/arrow-head.js');
+const worker = require('../worker/arrow-head.js');
+
+const head = globalThis.SigK.arrowHead;
+
+test('画面側と保存側の矢印の先は同じ式（開いた矢じりと塗った三角）', () => {
+  for (const name of ['ARROW_MIN_LENGTH', 'ARROW_LENGTH_RATIO', 'ARROW_ANGLE', 'CLOSED_MIN_LENGTH', 'CLOSED_LENGTH_RATIO', 'CLOSED_ANGLE'])
+    assert.equal(head[name], worker[name], name);
+  for (const [from, to, width] of [[[0, 0], [100, 0], 2], [[10, 10], [10, -20], 3], [[100, 600], [300, 550], 1], [[5, 5], [-40, 30], 12]]) {
+    assert.deepEqual(head.arrowHead(from, to, width), worker.arrowHead(from, to, width));
+    assert.deepEqual(head.closedHead(from, to, width), worker.closedHead(from, to, width));
+  }
+});
+
+test('塗った三角は長さ max(12, 線幅×4)・開き 180°÷7 で、軸を止める底の中点を返す', () => {
+  assert.equal(head.CLOSED_MIN_LENGTH, 12);
+  assert.equal(head.CLOSED_LENGTH_RATIO, 4);
+  assert.equal(head.CLOSED_ANGLE, Math.PI / 7);
+  const thin = head.closedHead([0, 0], [100, 0], 2);
+  near(Math.hypot(thin.left[0] - 100, thin.left[1]), 12);
+  near(thin.base[0], 100 - 12 * Math.cos(Math.PI / 7));
+  near(thin.base[1], 0);
+  near(thin.left[0], thin.right[0]);
+  near(thin.left[1], -thin.right[1]);
+  near(Math.abs(thin.left[1]), 12 * Math.sin(Math.PI / 7));
+  const wide = head.closedHead([0, 0], [0, 100], 5);
+  near(Math.hypot(wide.left[0], wide.left[1] - 100), 20);
+  near(wide.base[1], 100 - 20 * Math.cos(Math.PI / 7));
+});
+
+test('isClosed は head が open でない矢印だけ', () => {
+  assert.equal(head.isClosed({ kind: 'arrow' }), true);
+  assert.equal(head.isClosed({ kind: 'arrow', head: 'open' }), false);
+  assert.equal(head.isClosed({ kind: 'line' }), false);
+  assert.equal(head.isClosed(null), false);
+});
+
+test('outlineOf は開いた矢じりを 翼→先→翼、塗った三角を閉じた 3 角で返し、insideHead は三角の中だけ当たる', () => {
+  const open = head.outlineOf([0, 0], [100, 0], 2, false);
+  assert.equal(open.length, 3);
+  assert.deepEqual(open[1], [100, 0]);
+  const closed = head.outlineOf([0, 0], [100, 0], 2, true);
+  assert.equal(closed.length, 4);
+  assert.deepEqual(closed[0], closed[3]);
+  assert.equal(head.insideHead([95, 0], [0, 0], [100, 0], 2), true);
+  assert.equal(head.insideHead([100, 0], [0, 0], [100, 0], 2), true, '先の点は辺の上');
+  assert.equal(head.insideHead([95, 4], [0, 0], [100, 0], 2), false);
+  assert.equal(head.insideHead([80, 0], [0, 0], [100, 0], 2), false, '底より手前');
+  assert.equal(head.inTriangle([1, 1], [0, 0], [4, 0], [0, 4]), true);
+  assert.equal(head.inTriangle([3, 3], [0, 0], [4, 0], [0, 4]), false);
+});

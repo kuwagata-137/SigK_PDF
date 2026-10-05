@@ -26,6 +26,7 @@ function ink(overrides = {}) {
 
 test('矢じりの寸法と翼の式は renderer/shape-geometry.js と同値', () => {
   require('../renderer/free-text-geometry.js');
+  require('../renderer/arrow-head.js');
   require('../renderer/shape-geometry.js');
   const geo = globalThis.SigK.shapeGeometry;
   assert.equal(ARROW_MIN_LENGTH, geo.ARROW_MIN_LENGTH);
@@ -86,7 +87,7 @@ test('直線は丸い端の m l S で、/Vertices と /LE を返す', () => {
 });
 
 test('矢印は直線のあとに翼 2 本を丸い角で描き、/LE は終点だけ OpenArrow', () => {
-  const appearance = shapeAppearanceOf(line({ kind: 'arrow', rect: [98.5, 543.55, 301.5, 601.5] }));
+  const appearance = shapeAppearanceOf(line({ kind: 'arrow', head: 'open', rect: [98.5, 543.55, 301.5, 601.5] }));
   const [left, right] = arrowHead([100, 600], [300, 550], 3);
   assert.equal(appearance.content, [
     '/GS gs', '0.173 0.361 0.851 RG', '3 w 1 J 1 j',
@@ -170,7 +171,7 @@ test('破線は線の太さの倍数の間隔を d で書き、矢印の矢じ�
   assert.deepEqual(dashed.dash, [6, 4]);
   assert.deepEqual(shapeAppearanceOf(square({ lineStyle: 'dashed', dash: [4, 2], lineWidth: 1.5 })).dash, [6, 3]);
   assert.equal(shapeAppearanceOf(line({ lineStyle: 'dashed' })).content, '/GS gs\n0.173 0.361 0.851 RG\n3 w [9 6] 0 d 100 600 m 300 550 l S');
-  const arrowAppearance = shapeAppearanceOf(line({ kind: 'arrow', lineStyle: 'dashed' }));
+  const arrowAppearance = shapeAppearanceOf(line({ kind: 'arrow', head: 'open', lineStyle: 'dashed' }));
   const lines = arrowAppearance.content.split('\n');
   assert.deepEqual(lines.slice(0, 5), [
     '/GS gs', '0.173 0.361 0.851 RG', '3 w [9 6] 0 d', '100 600 m 300 550 l S', '[] 0 d 1 J 1 j',
@@ -293,4 +294,35 @@ test('shapeAppearanceOf は回した雲形に /RD の余白を付けない（/BE
   assert.ok(Array.isArray(flat.rectDifference));
   assert.equal(turned.rectDifference, undefined);
   assert.equal(turned.cloudIntensity, 1);
+});
+
+// ---- 塗った三角の矢印（spec-4b-5a 確定事項4・7・34） ----
+
+test('新しい矢印（head が無い）は軸を三角の底で止めて三角を f で塗り、/LE は ClosedArrow、/IC に線の色を返す', () => {
+  const { closedHead } = require('../worker/arrow-head.js');
+  const appearance = shapeAppearanceOf(line({ kind: 'arrow' }));
+  const { left, right, base } = closedHead([100, 600], [300, 550], 3);
+  const r = (v) => String(Math.round(v * 100) / 100);
+  const lines = appearance.content.split('\n');
+  assert.equal(lines[0], '/GS gs');
+  assert.equal(lines[1], '0.173 0.361 0.851 RG');
+  assert.equal(lines[2], `3 w 1 J 100 600 m ${r(base[0])} ${r(base[1])} l S`);
+  assert.equal(lines[3], '0.173 0.361 0.851 rg');
+  assert.equal(lines[4], `${r(left[0])} ${r(left[1])} m 300 550 l ${r(right[0])} ${r(right[1])} l h f`);
+  assert.deepEqual(appearance.lineEndings, ['None', 'ClosedArrow']);
+  assert.deepEqual(appearance.fillRgb, appearance.rgb);
+});
+
+test('破線の塗った三角は軸だけ破線で、三角は塗る', () => {
+  const appearance = shapeAppearanceOf(line({ kind: 'arrow', lineStyle: 'dashed' }));
+  const lines = appearance.content.split('\n');
+  assert.match(lines[2], /^3 w \[9 6\] 0 d 100 600 m [\d.]+ [\d.]+ l S$/);
+  assert.match(lines[4], / h f$/);
+});
+
+test('isShapeEntry は矢印の先の欄を、矢印の open だけ受ける', () => {
+  assert.equal(isShapeEntry(line({ kind: 'arrow', head: 'open' })), true);
+  assert.equal(isShapeEntry(line({ kind: 'arrow', head: 'closed' })), false);
+  assert.equal(isShapeEntry(line({ head: 'open' })), false);
+  assert.equal(shapeAppearanceOf(line({ kind: 'arrow', head: 'open' })).fillRgb, null);
 });

@@ -68,6 +68,9 @@
   function validDrawnFields(entry) {
     if (!validPositive(entry.lineWidth) || entry.quads.length !== 1)
       return false;
+    // 矢印の先の形（spec-4b-5a 確定事項4）。持てるのは矢印だけで、値は 'open'（開いた矢じり）だけ。
+    if (entry.head !== undefined && !(entry.kind === 'arrow' && entry.head === 'open'))
+      return false;
     if (entry.angle !== undefined && !validAngle(entry.angle))
       return false;
     return entryModule().isPathKind(entry.kind) ? validPaths(entry.kind, entry.paths) : true;
@@ -84,7 +87,7 @@
     const shape = Number.isInteger(entry?.src) && entry.src >= 0 && kinds.isKind(entry.kind)
       && Array.isArray(entry.quads) && entry.quads.length > 0 && entry.quads.every(isQuad)
       && Array.isArray(entry.rect) && entry.rect.length === 4 && style().validStyle(entry);
-    if (!shape || (entry.angle !== undefined && !turnable(entry.kind)))
+    if (!shape || (entry.angle !== undefined && !turnable(entry.kind)) || (entry.head !== undefined && entry.kind !== 'arrow'))
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);

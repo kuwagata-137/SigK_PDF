@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
 require('../renderer/imported-values.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/annotation-box-details.js');
 require('../renderer/free-text-wrap.js');
@@ -130,6 +131,21 @@ test('applyDetails は口がまるごと答えなかったときの四角・丸�
   // 口は答えたがその注釈の欄が無いときは、今までどおり pdf.js の値のまま
   const same = entry('square');
   assert.equal(details.applyDetails(same, undefined), same);
+});
+
+// 塗った三角の矢印は、/IC が /C と同じ色のときだけ直せる（spec-4b-5a 確定事項38）。
+test('applyDetails は塗った三角の矢印を、/IC が線の色と同じなら直せる形のままにし、違う色・無い・口が答えないなら表示のみにする', () => {
+  const closed = entry('arrow', { paths: [[[10, 10], [60, 40]]] });
+  assert.equal(details.applyDetails(closed, { interior: [1, 0, 0] }).readonly, undefined);
+  assert.equal(details.applyDetails(closed, { interior: [1, 0, 0], ca: 0.5 }).opacity, 0.5);
+  assert.equal(details.applyDetails(closed, { interior: [0, 0, 1] }).readonly, true);
+  assert.equal(details.applyDetails(closed, { interior: null }).subtype, 'PolyLine');
+  assert.equal(details.applyDetails(closed, undefined).readonly, true);
+  assert.equal(details.applyDetails(closed, undefined, { answered: false }).readonly, true);
+  // 開いた矢じりは /IC を見ない
+  const open = entry('arrow', { head: 'open', paths: [[[10, 10], [60, 40]]] });
+  assert.equal(details.applyDetails(open, { interior: null }).readonly, undefined);
+  assert.equal(details.applyDetails(open, undefined, { answered: false }), open);
 });
 
 // 自前のテキストは、口が答えなければ表示のみ。/DS があれば新しい形に組んでから不透明度を当てる（spec-4b-4a 確定事項J2〜J4）。

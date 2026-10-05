@@ -315,7 +315,7 @@ function shape(overrides = {}) {
 }
 
 function arrow(overrides = {}) {
-  return { src: 0, kind: 'arrow', color: '#2c5cd9', opacity: 1, rect: [98.5, 543.55, 301.5, 601.5], lineWidth: 3, paths: [[[100, 600], [300, 550]]], ...overrides };
+  return { src: 0, kind: 'arrow', head: 'open', color: '#2c5cd9', opacity: 1, rect: [98.5, 543.55, 301.5, 601.5], lineWidth: 3, paths: [[[100, 600], [300, 550]]], ...overrides };
 }
 
 function ink(overrides = {}) {
@@ -324,7 +324,7 @@ function ink(overrides = {}) {
 
 test('図形は Square・Circle・PolyLine・Ink の辞書と外観で書かれ、フォントは埋めない', async () => {
   const doc = await makeDoc(2);
-  const result = await applyAnnotations(doc, { add: [shape(), shape({ kind: 'circle' }), arrow({ kind: 'line', rect: [98.5, 548.5, 301.5, 601.5] }), arrow(), ink()] }, TOOLS, { now: NOW, fontSource });
+  const result = await applyAnnotations(doc, { add: [shape(), shape({ kind: 'circle' }), arrow({ kind: 'line', head: undefined, rect: [98.5, 548.5, 301.5, 601.5] }), arrow(), ink()] }, TOOLS, { now: NOW, fontSource });
   assert.deepEqual(result, { ok: true, added: 5, removed: 0 });
 
   const saved = await roundTrip(doc);
@@ -374,6 +374,17 @@ test('図形は Square・Circle・PolyLine・Ink の辞書と外観で書かれ�
   assert.equal(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(inkDict, '/AP')), '/N'))), '/GS gs\n0.184 0.62 0.353 RG\n2 w 1 J 1 j\n100 500 m 120 480 l 150 510 l S');
   // フォントは埋まらない
   assert.equal(type0FontsOf(saved).length, 0);
+});
+
+test('新しい矢印（塗った三角）は /LE の終点を ClosedArrow、/IC を線の色で書く（spec-4b-5a 確定事項34）', async () => {
+  const doc = await makeDoc(1);
+  const result = await applyAnnotations(doc, { add: [arrow({ head: undefined, rect: [98.5, 541.7, 301.5, 601.5] })] }, TOOLS, { now: NOW });
+  assert.deepEqual(result, { ok: true, added: 1, removed: 0 });
+  const saved = await roundTrip(doc);
+  const [{ dict }] = annotsOf(saved, 0);
+  assert.deepEqual(saved.context.lookup(pick(dict, '/LE')).asArray().map((name) => name.asString()), ['/None', '/ClosedArrow']);
+  assert.deepEqual(numbersOf(saved, pick(dict, '/IC')), numbersOf(saved, pick(dict, '/C')));
+  assert.match(contentOf(saved, saved.context.lookup(pick(saved.context.lookup(pick(dict, '/AP')), '/N'))), / h f$/);
 });
 
 test('図形とテキストを同じ保存で足すとフォントは 1 つで、図形の外観にフォントは付かない', async () => {

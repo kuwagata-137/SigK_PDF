@@ -169,9 +169,11 @@ test('種類を切り替えると楕円・直線・矢印が描け、直線は�
   near(line.rect[3], 701);
   assert.equal(arrow.kind, 'arrow');
   arrow.paths[0][1].forEach((value, i) => near(value, [300, 300][i]));
-  // 矢じりの翼のぶんだけ /Rect が広い
-  assert.ok(arrow.rect[1] < 299);
-  assert.equal(pageNode(shell).querySelectorAll(`.annot-layer g[data-annot="${arrow.id}"] g.shape.arrow polyline`).length, 1);
+  // 新しい矢印の先は塗った三角（spec-4b-5a 確定事項4・7）。/Rect は三角の点も含めた外接
+  assert.equal(arrow.head, undefined);
+  assert.deepEqual(arrow.rect, SigK.shapeGeometry.rectOfShape({ kind: 'arrow', paths: arrow.paths, lineWidth: arrow.lineWidth }).rect);
+  assert.equal(pageNode(shell).querySelectorAll(`.annot-layer g[data-annot="${arrow.id}"] g.shape.arrow polygon`).length, 1);
+  assert.equal(pageNode(shell).querySelectorAll(`.annot-layer g[data-annot="${arrow.id}"] g.shape.arrow polyline`).length, 0);
   assert.equal(SigK.annotate.setShapeKind('ink'), false);
   assert.equal(SigK.annotateShape.getShapeKind(), 'arrow');
   assert.deepEqual(plain(shell.uiCalls.filter((call) => 'annotShapeKind' in call).map((call) => call.annotShapeKind)), ['circle', 'line', 'arrow']);

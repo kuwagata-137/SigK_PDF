@@ -60,6 +60,15 @@
     };
   }
 
+  // 塗った三角の矢印は、/IC が /C と同じ色のときだけ直せる（spec-4b-5a 確定事項38。違う色や塗りの無い三角を、線の色で塗った
+  // 三角に描き直さないため）。
+  function closedArrowReadable(entry, detail) {
+    if (!root.SigK.arrowHead?.isClosed(entry))
+      return true;
+    const fill = root.SigK.importedValues.hexOfComponents(detail?.interior ?? null);
+    return fill !== null && typeof entry.color === 'string' && fill.toLowerCase() === entry.color.toLowerCase();
+  }
+
   function withDetails(entry, detail) {
     const next = entry.kind === 'square' || entry.kind === 'circle' ? root.SigK.annotationBoxDetails.withBoxDetails(entry, detail) : entry;
     if (next === null || !Number.isFinite(detail.ca))
@@ -77,6 +86,8 @@
     if (entry.readonly === true)
       return entry;
     if (!answered && (entry.kind === 'square' || entry.kind === 'circle'))
+      return readonlyOf(entry);
+    if (!closedArrowReadable(entry, detail))
       return readonlyOf(entry);
     const base = entry.kind === 'text' ? root.SigK.importedTextDetails.withTextDetails(entry, detail, { answered, ...text }) : entry;
     if (base === null)

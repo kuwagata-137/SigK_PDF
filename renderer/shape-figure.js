@@ -8,12 +8,13 @@
   // 決めて viewport で表示へ直す（回転した紙でも同じ点になる）。実線の四角・丸は rect・ellipse の部品、破線と雲形は保存の外観と
   // 同じ紙の座標の点列（shape-outline.js・cloud-geometry.js）を表示へ直した path にする（始点と向きが保存とそろい、破線の
   // 切れ目が同じ位置に来る。確定事項41）。四角・丸の線は箱の内側に収め、描く線幅は短い辺の半分で頭打ちにする（確定事項30）。
-  // 線なしは箱そのものを塗る。矢じりの翼は shape-geometry.js の arrowHead（保存の外観と同じ式）で紙の座標に置いてから直し、
+  // 線なしは箱そのものを塗る。矢印の先は arrow-head.js（保存の外観と同じ式）で紙の座標に置いてから直し、
   // 破線の矢印でも実線で描く（確定事項32）。
   //
   // 戻り値は { stroke, fill, width, cap, join, parts }。stroke・fill は '#rrggbb' か null（なし）、width は表示の px の線幅。
   // parts は表示の座標の部品の並びで、{ type: 'rect', x, y, width, height }・{ type: 'ellipse', cx, cy, rx, ry }・
-  // { type: 'line', from, to }・{ type: 'polyline', points }・{ type: 'path', segments }（segments は shape-outline.js の形）。
+  // { type: 'line', from, to }・{ type: 'polyline', points }・{ type: 'path', segments }（segments は shape-outline.js の形）・
+  // { type: 'polygon', points, paint }（塗った三角。paint の色で塗り、線は引かない。spec-4b-5a 確定事項7）。
   // 塗りは fillable の部品（四角・丸）にだけ当てる。破線の部品は dash（px の配列）と cap を持つ。
 
   function geometry() {
@@ -91,16 +92,22 @@
     return { width: width * scale, parts: [boxPart(entry.kind, viewBoxOf(entry.rect, viewport), stroked ? (width * scale) / 2 : 0)] };
   }
 
-  // 直線・矢印。破線は軸だけで、矢じりの翼（翼 → 終点 → 翼）は実線。
+  // 直線・矢印。破線は軸だけで、開いた矢じりの翼（翼 → 終点 → 翼）は実線。塗った三角（spec-4b-5a 確定事項7）は、軸を三角の底の
+  // 中点で止め、三角を線の色で塗る部品（paint。線は引かない）にする。
   function lineParts(entry, viewport) {
     const toView = toViewOf(viewport);
     const [from, to] = entry.paths[0];
     const dash = style().dashOf(entry);
+    const closed = root.SigK.arrowHead.isClosed(entry);
+    const head = closed ? root.SigK.arrowHead.closedHead(from, to, entry.lineWidth) : null;
+    const end = head === null ? to : head.base;
     const axis = dash === null
-      ? { type: 'line', from: toView(from), to: toView(to) }
-      : dashPart(outline().polylineOutline([from, to]), dash, viewport, false);
+      ? { type: 'line', from: toView(from), to: toView(end) }
+      : dashPart(outline().polylineOutline([from, end]), dash, viewport, false);
     if (entry.kind !== 'arrow')
       return [axis];
+    if (head !== null)
+      return [axis, { type: 'polygon', points: [head.left, to, head.right].map(toView), paint: entry.color }];
     const [left, right] = geometry().arrowHead(from, to, entry.lineWidth);
     return [axis, { type: 'polyline', points: [left, to, right].map(toView) }];
   }

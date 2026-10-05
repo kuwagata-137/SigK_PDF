@@ -39,7 +39,7 @@
     const normalized = rotation().normalizeAngle(Math.round(angle));
     if (entry.kind === 'text')
       return root.SigK.freeTextTurn.anglePatch(entry, normalized);
-    return { angle: normalized, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, lineWidth: entry.lineWidth, angle: normalized }) };
+    return { angle: normalized, ...root.SigK.shapeGeometry.rectOfEntry(entry, { angle: normalized }) };
   }
 
   // スライダーを動かしている間の下見。

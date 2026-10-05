@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
 require('../renderer/free-text-geometry.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-style.js');
 require('../renderer/shape-outline.js');
@@ -42,7 +43,7 @@ function viewport({ scale = 1, rotation = 0 } = {}) {
 const SQUARE = { id: 'sigk-1', src: 0, kind: 'square', color: '#d92c2c', opacity: 1, lineWidth: 2, rect: [100, 600, 300, 700], quads: [[100, 700, 300, 700, 100, 600, 300, 600]] };
 const CIRCLE = { ...SQUARE, id: 'sigk-2', kind: 'circle' };
 const LINE = { id: 'sigk-3', src: 0, kind: 'line', color: '#2c5cd9', opacity: 1, lineWidth: 3, rect: [98.5, 548.5, 301.5, 601.5], quads: [[98.5, 601.5, 301.5, 601.5, 98.5, 548.5, 301.5, 548.5]], paths: [[[100, 600], [300, 550]]] };
-const ARROW = { ...LINE, id: 'sigk-4', kind: 'arrow' };
+const ARROW = { ...LINE, id: 'sigk-4', kind: 'arrow', head: 'open' };
 const INK = { id: 'sigk-5', src: 0, kind: 'ink', color: '#2f9e5a', opacity: 1, lineWidth: 2, rect: [89, 479, 151, 511], quads: [[89, 511, 151, 511, 89, 479, 151, 479]], paths: [[[100, 500], [120, 480], [150, 510]], [[90, 505], [95, 506]]] };
 
 function num(value) {
@@ -301,4 +302,21 @@ test('paint は回した半透明の図形の別の canvas を、回した外接
   assert.deepEqual(layerCalls.filter(([name]) => name === 'rotate').length, 1, '別の canvas の上で回す');
   assert.deepEqual(calls.find(([name]) => name === 'drawImage').slice(2), [296, 179]);
   assert.equal(calls.some(([name]) => name === 'rotate'), false, 'ページの canvas は回さない');
+});
+
+// ---- 塗った三角の矢印（spec-4b-5a 確定事項7） ----
+
+test('svgOf は塗った三角を線の色で塗った <polygon>（線なし）にし、paint は三角を同じ色で fill するだけ', () => {
+  const closed = { ...ARROW, head: undefined };
+  const g = graphics.svgOf(makeDoc(), closed, viewport());
+  const polygon = g.querySelector('polygon');
+  assert.equal(polygon.getAttribute('fill'), '#2c5cd9');
+  assert.equal(polygon.getAttribute('stroke'), 'none');
+  assert.equal(g.querySelectorAll('polyline').length, 0);
+  const calls = [];
+  graphics.paint(recordingContext(calls), closed, viewport());
+  assert.equal(calls.filter(([name]) => name === 'stroke').length, 1, '線は軸だけ');
+  assert.equal(calls.filter(([name]) => name === 'fill').length, 1);
+  assert.equal(calls.filter(([name]) => name === 'closePath').length, 1);
+  assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'fillStyle' && value === '#2c5cd9'));
 });

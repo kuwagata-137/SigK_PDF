@@ -79,7 +79,7 @@
       case 'lineWidth':
         if (entry.lineWidth === value)
           return null;
-        return { lineWidth: value, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: value, angle: entry.angle }) };
+        return { lineWidth: value, ...root.SigK.shapeGeometry.rectOfEntry(entry, { lineWidth: value }) };
       case 'opacity': return (entry.opacity ?? 1) === value ? null : { opacity: value };
       default: return null;
     }

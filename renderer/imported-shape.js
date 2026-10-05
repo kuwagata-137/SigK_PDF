@@ -85,14 +85,18 @@
     return path;
   }
 
-  // PolyLine の種類。2 点で矢じりが無ければ直線、終点だけ開いた矢じりなら矢印。それ以外は拾わない。
+  // 終点の矢じりの名前 → 矢印の先の形（spec-4b-5a 確定事項38）。開いた矢じりは head 'open'、塗った三角は head を持たない
+  // （/IC が /C と同じ色かは口の答えで確かめる。annotation-details.js）。
+  const ARROW_HEADS = Object.freeze({ OpenArrow: 'open', ClosedArrow: null });
+
+  // PolyLine の種類。2 点で矢じりが無ければ直線、終点だけ開いた矢じりか塗った三角なら矢印。それ以外は拾わない。
   function polylineKind(annotation) {
     const [start, end] = annotation.lineEndings ?? ['None', 'None'];
     if (annotation.vertices?.length !== 4 || start !== 'None')
       return null;
     if (end === 'None')
       return 'line';
-    return end === 'OpenArrow' ? 'arrow' : null;
+    return end in ARROW_HEADS ? 'arrow' : null;
   }
 
   function pathsOf(kind, annotation) {
@@ -127,6 +131,8 @@
     };
     if (paths !== undefined)
       entry.paths = paths;
+    if (kind === 'arrow' && ARROW_HEADS[annotation.lineEndings[1]] === 'open')
+      entry.head = 'open';
     return entry;
   }
 

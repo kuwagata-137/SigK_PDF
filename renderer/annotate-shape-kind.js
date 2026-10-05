@@ -56,7 +56,7 @@
     if (entry?.kind === 'text' || (entry === null && ['text', 'callout'].includes(annotate().drawingTool())))
       return root.SigK.annotateTextStyle.setBorderWidth(width);
     if (entry !== null && entry.readonly !== true && annotationState().isDrawnKind(entry.kind) && entry.lineWidth !== width) {
-      const patch = { lineWidth: width, ...root.SigK.shapeGeometry.rectOfShape({ kind: entry.kind, rect: entry.rect, paths: entry.paths, lineWidth: width, angle: entry.angle }) };
+      const patch = { lineWidth: width, ...root.SigK.shapeGeometry.rectOfEntry(entry, { lineWidth: width }) };
       const annots = viewer().getAnnotations();
       // 続けて変えたら 1 世代に畳む（spec-4b-3a 確定事項J）。
       root.SigK.annotateShape.commit(annotationState().updateAnnot(annots, entry, patch), { before: annotate().getSelected(), target: entry, annots, gesture: 'lineWidth' });

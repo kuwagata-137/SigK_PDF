@@ -15,7 +15,8 @@
       case 'rect': return [[part.x, part.y], [part.x + part.width, part.y + part.height]];
       case 'ellipse': return [[part.cx - part.rx, part.cy - part.ry], [part.cx + part.rx, part.cy + part.ry]];
       case 'line': return [part.from, part.to];
-      case 'polyline': return part.points;
+      case 'polyline':
+      case 'polygon': return part.points;
       default: return part.segments.flatMap((segment) => segment.points);
     }
   }

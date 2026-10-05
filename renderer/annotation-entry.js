@@ -9,7 +9,8 @@
   //   共通       … { id, src, kind, color, opacity, quads, rect, text }
   //   テキスト   … さらに { fontSize, rotation }。quads は箱の四角 1 つ。新しい形は { width, bold, italic }（free-text-entry.js）と、
   //                四角・丸と同じ { angle }（spec-4b-4b 確定事項A1。rect は回す前の箱、quads は回した 4 隅）を持てる
-  //   図形・ペン … さらに { lineWidth }。直線・矢印・ペンは { paths: [[[x, y], …], …] }（紙の座標）。
+  //   図形・ペン … さらに { lineWidth }。直線・矢印・ペンは { paths: [[[x, y], …], …] }（紙の座標）。矢印は { head: 'open' }
+  //                （開いた矢じり。無ければ塗った三角。spec-4b-5a 確定事項4）を持てる。
   //                quads は rect の四角 1 つ。四角・丸は { fill, lineStyle }（color は null で線なし）、直線・矢印は { lineStyle }、
   //                破線は { dash }、雲形は { cloudIntensity } を持てる（shape-style.js）。四角・丸は { angle }（画面で時計回りの度。
   //                0 は持たない）を持て、そのとき rect は回す前の箱、quads は回した 4 隅（spec-4b-2 確定事項1〜4）
@@ -96,6 +97,8 @@
       copy.angle = entry.angle;
     if (isPathKind(entry.kind))
       copy.paths = copyPaths(entry.paths);
+    if (entry.head !== undefined)
+      copy.head = entry.head;
     if (isNoteKind(entry.kind))
       copy.author = entry.author ?? '';
     return copy;
@@ -122,7 +125,7 @@
     return a.id === b.id && a.src === b.src && a.kind === b.kind && a.color === b.color
       && a.opacity === b.opacity && a.text === b.text && a.fontSize === b.fontSize
       && a.rotation === b.rotation && a.lineWidth === b.lineWidth && a.author === b.author && sameNumbers(a.rect, b.rect)
-      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && textFields().sameFields(a, b);
+      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && a.head === b.head && textFields().sameFields(a, b);
   }
 
   // ワーカーへ渡す形（spec-4-1 確定事項22・spec-4-2 確定事項18・spec-4-3 確定事項18・spec-4-4 確定事項19・
@@ -146,6 +149,8 @@
         saved.paths = copyPaths(paths);
       if (angleOf(entry) !== 0)
         saved.angle = entry.angle;
+      if (entry.head !== undefined)
+        saved.head = entry.head;
       return saved;
     }
     return { src, kind, color, opacity, quads: quads.map((quad) => [...quad]), rect: [...rect] };

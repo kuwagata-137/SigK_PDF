@@ -98,6 +98,9 @@ function isShapeEntry(entry) {
   // 角度は四角・丸だけが、0 以上 360 未満の数で持てる（spec-4b-2 確定事項1）。
   if (entry.angle !== undefined && !(BOXED_KINDS.includes(entry.kind) && Number.isFinite(entry.angle) && entry.angle >= 0 && entry.angle < 360))
     return false;
+  // 矢印の先の形は矢印だけが 'open'（開いた矢じり）で持てる（spec-4b-5a 確定事項4）。
+  if (entry.head !== undefined && !(entry.kind === 'arrow' && entry.head === 'open'))
+    return false;
   return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
 }
 

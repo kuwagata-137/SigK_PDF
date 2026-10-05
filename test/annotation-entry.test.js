@@ -9,6 +9,7 @@ require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
 require('../renderer/annotation-state.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-rotation.js');
 
@@ -117,4 +118,34 @@ test('テキストの角度は写し・比較・書き換え・ワーカーへ�
   assert.deepEqual(entries.pickPatch({ angle: 45 }, 'text'), { angle: 45 });
   assert.equal(entries.toSaveEntry(text({ angle: 30 })).angle, 30);
   assert.equal('angle' in entries.toSaveEntry(text()), false);
+});
+
+// ---- 矢印の先の形（spec-4b-5a 確定事項4） ----
+
+test('矢印は head: open を持てて、写し・比較・保存の形に入る。ほかの種類と open 以外の値は断る', () => {
+  const open = { ...line({ kind: 'arrow' }), head: 'open' };
+  assert.equal(entries.validEntry(open), true);
+  assert.equal(entries.validEntry({ ...open, head: 'closed' }), false);
+  assert.equal(entries.validEntry({ ...line(), head: 'open' }), false);
+  assert.equal(entries.validEntry({ ...square(), head: 'open' }), false);
+  assert.equal(entries.copyEntry(open).head, 'open');
+  assert.equal(entries.sameEntry(open, { ...open, head: undefined }), false);
+  assert.equal(entries.toSaveEntry(open).head, 'open');
+  assert.equal('head' in entries.toSaveEntry(line({ kind: 'arrow' })), false);
+  // 画面から変える口は無い
+  assert.equal(entries.pickPatch({ head: 'open' }, 'arrow'), null);
+});
+
+test('rectOfEntry は書き込みの欄（矢印の先を含む）から形を作り直し、changes を重ねる', () => {
+  const geo = SigK.shapeGeometry;
+  const paths = [[[100, 600], [300, 550]]];
+  const closed = geo.rectOfEntry({ kind: 'arrow', paths, lineWidth: 3, rect: [0, 0, 1, 1] });
+  const open = geo.rectOfEntry({ kind: 'arrow', paths, lineWidth: 3, head: 'open', rect: [0, 0, 1, 1] });
+  assert.deepEqual(closed, geo.rectOfShape({ kind: 'arrow', paths, lineWidth: 3 }));
+  assert.deepEqual(open, geo.rectOfShape({ kind: 'arrow', paths, lineWidth: 3, head: 'open' }));
+  assert.notDeepEqual(closed.rect, open.rect);
+  const wider = geo.rectOfEntry({ kind: 'arrow', paths, lineWidth: 3, head: 'open', rect: [0, 0, 1, 1] }, { lineWidth: 6 });
+  assert.deepEqual(wider, geo.rectOfShape({ kind: 'arrow', paths, lineWidth: 6, head: 'open' }));
+  const turned = geo.rectOfEntry({ kind: 'square', rect: [10, 10, 50, 30], lineWidth: 2, angle: 30 }, { angle: 0 });
+  assert.deepEqual(turned.rect, [10, 10, 50, 30]);
 });

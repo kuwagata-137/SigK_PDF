@@ -13,7 +13,7 @@ const { cloudPathOf } = require('./cloud-appearance.js');
 const { matrixOf, rectOf } = require('./shape-rotation.js');
 const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 const { ARROW_MIN_LENGTH, ARROW_LENGTH_RATIO, ARROW_ANGLE, arrowHead } = require('./arrow-head.js');
-const { point, dashOps, lineOps, arrowOps, inkOps } = require('./shape-path-ops.js');
+const { point, dashOps, lineOps, arrowOps, closedArrowOps, inkOps } = require('./shape-path-ops.js');
 
 const KAPPA = 0.5523;
 
@@ -81,9 +81,20 @@ function opsOf(entry, style) {
     case 'square':
     case 'circle': return boxOps(entry, style);
     case 'line': return { ops: lineOps(entry.paths[0], entry.lineWidth, style), cloud: null };
-    case 'arrow': return { ops: arrowOps(entry.paths[0], entry.lineWidth, style), cloud: null };
+    case 'arrow': return { ops: (isClosedArrow(entry) ? closedArrowOps : arrowOps)(entry.paths[0], entry.lineWidth, style), cloud: null };
     default: return { ops: inkOps(entry.paths, entry.lineWidth, style), cloud: null };
   }
+}
+
+// 塗った三角の矢印か（head が 'open' でない矢印。spec-4b-5a 確定事項4）。
+function isClosedArrow(entry) {
+  return entry.kind === 'arrow' && entry.head !== 'open';
+}
+
+function lineEndingOf(entry) {
+  if (entry.kind !== 'arrow')
+    return 'None';
+  return isClosedArrow(entry) ? 'ClosedArrow' : 'OpenArrow';
 }
 
 // 種類ごとの辞書の欄（pdf-lib の名前は op-annotate.js が付ける）。
@@ -91,7 +102,7 @@ function fieldsOf(entry) {
   if (entry.kind === 'line' || entry.kind === 'arrow') {
     return {
       vertices: entry.paths[0].flat().map(round),
-      lineEndings: ['None', entry.kind === 'arrow' ? 'OpenArrow' : 'None'],
+      lineEndings: ['None', lineEndingOf(entry)],
     };
   }
   if (entry.kind === 'ink')
@@ -136,6 +147,8 @@ function shapeAppearanceOf(entry) {
     subtype: SUBTYPES[entry.kind],
     rgb: style.stroke,
     ...styleFieldsOf(style, cloud, turn.matrix !== undefined),
+    // 塗った三角は /IC に線の色（spec-4b-5a 確定事項34）。
+    ...(isClosedArrow(entry) ? { fillRgb: style.stroke } : {}),
     opacity: alpha,
     lineWidth: round(entry.lineWidth),
     ...fieldsOf(entry),

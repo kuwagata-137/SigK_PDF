@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
+require('../renderer/arrow-head.js');
 require('../renderer/shape-geometry.js');
 require('../renderer/shape-style.js');
 require('../renderer/shape-outline.js');
@@ -26,7 +27,7 @@ function viewport({ scale = 1, rotation = 0 } = {}) {
 }
 
 const SQUARE = { id: 'sigk-1', src: 0, kind: 'square', color: '#c00000', opacity: 1, lineWidth: 2, rect: [100, 600, 300, 700], quads: [[100, 700, 300, 700, 100, 600, 300, 600]] };
-const ARROW = { id: 'sigk-2', src: 0, kind: 'arrow', color: '#4472c4', opacity: 1, lineWidth: 3, rect: [98.5, 548.5, 301.5, 601.5], quads: [[98.5, 601.5, 301.5, 601.5, 98.5, 548.5, 301.5, 548.5]], paths: [[[100, 600], [300, 550]]] };
+const ARROW = { id: 'sigk-2', src: 0, kind: 'arrow', head: 'open', color: '#4472c4', opacity: 1, lineWidth: 3, rect: [98.5, 548.5, 301.5, 601.5], quads: [[98.5, 601.5, 301.5, 601.5, 98.5, 548.5, 301.5, 548.5]], paths: [[[100, 600], [300, 550]]] };
 
 function r2(value) {
   return Math.round(value * 100) / 100;
@@ -127,4 +128,23 @@ test('破線の矢印は軸だけ破線で、矢じりは実線（確定事項32
   const ink = figure.figureOf({ ...ARROW, kind: 'ink', paths: [[[100, 500], [120, 480], [150, 510]], [[90, 505], [95, 506]]] }, vp);
   assert.deepEqual(ink.parts.map((part) => [part.type, part.points.length]), [['polyline', 3], ['polyline', 2]]);
   assert.equal(ink.fill, null);
+});
+
+// ---- 塗った三角の矢印（spec-4b-5a 確定事項7） ----
+
+test('新しい矢印（head が無い）は軸を三角の底の中点で止め、三角を線の色で塗る部品（線は引かない）にする', () => {
+  const closed = { ...ARROW, head: undefined };
+  const shape = figure.figureOf(closed, viewport());
+  const { left, right, base } = globalThis.SigK.arrowHead.closedHead([100, 600], [300, 550], 3);
+  const view = viewport();
+  const [axis, triangle] = shape.parts;
+  assert.equal(axis.type, 'line');
+  assert.deepEqual(axis.to.map(r2), view.convertToViewportPoint(...base).map(r2));
+  assert.equal(triangle.type, 'polygon');
+  assert.equal(triangle.paint, '#4472c4');
+  assert.deepEqual(triangle.points.map((point) => point.map(r2)), [left, [300, 550], right].map((point) => view.convertToViewportPoint(...point).map(r2)));
+  const dashed = figure.figureOf({ ...closed, lineStyle: 'dashed' }, viewport());
+  assert.equal(dashed.parts[0].type, 'path');
+  assert.ok(dashed.parts[0].dash.length > 0);
+  assert.equal(dashed.parts[1].type, 'polygon');
 });

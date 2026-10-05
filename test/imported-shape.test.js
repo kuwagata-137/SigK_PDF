@@ -36,10 +36,10 @@ test('importedShape は 2 点の PolyLine を直線か矢印に、Ink を点列�
   assert.deepEqual(ink.paths, [[[1, 2], [3, 4], [5, 6]]], '2 点未満の path は捨てる');
 });
 
-test('importedShape は拾えない形（線の見えない直線・3 点以上の PolyLine・閉じた矢じり・知らない種類）に null を返す', () => {
+test('importedShape は拾えない形（線の見えない直線・3 点以上の PolyLine・知らない矢じり・知らない種類）に null を返す', () => {
   assert.equal(shape.importedShape({ id: '50R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: null, borderStyle: BORDER, vertices: [0, 0, 10, 0], lineEndings: ['None', 'None'] }, 0), null);
   assert.equal(shape.importedShape({ id: '51R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 0, 5, 5, 10, 0], lineEndings: ['None', 'None'] }, 0), null);
-  assert.equal(shape.importedShape({ id: '52R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 0, 10, 0], lineEndings: ['None', 'ClosedArrow'] }, 0), null);
+  assert.equal(shape.importedShape({ id: '52R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 0, 10, 0], lineEndings: ['None', 'Diamond'] }, 0), null);
   assert.equal(shape.importedShape({ id: '53R', subtype: 'Polygon', rect: [0, 0, 10, 10], color: [0, 0, 0], borderStyle: BORDER }, 0), null);
 });
 

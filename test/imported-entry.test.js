@@ -64,11 +64,16 @@ test('importedEntry は 2 点の PolyLine を直線か矢印として向きの�
   const arrow = imp.importedEntry({ id: '22R', subtype: 'PolyLine', rect: [80.5, 280.5, 499.5, 349.5], color: [217, 43, 43], borderStyle: BORDER, vertices: new Float32Array([480, 330, 100.4000015, 300]), lineEndings: ['None', 'OpenArrow'] }, 1);
   assert.equal(arrow.kind, 'arrow');
   assert.deepEqual(arrow.paths, [[[480, 330], [100.4, 300]]]);
-  // 3 点以上、矢じりが始点、両端の矢じり、閉じた矢じりは直せない（表示のみ。spec-4-4 確定事項20）
+  assert.equal(arrow.head, 'open', '開いた矢じりは head を持つ（spec-4b-5a 確定事項38）');
+  // 塗った三角は head を持たない矢印として拾う（/IC が /C と同じかは口の答えで見る。annotation-details.js）
+  const closed = imp.importedEntry({ id: '23R', subtype: 'PolyLine', rect: [0, 0, 100, 20], color: [0, 0, 0], borderStyle: BORDER, vertices: [0, 10, 100, 10], lineEndings: ['None', 'ClosedArrow'] }, 0);
+  assert.equal(closed.kind, 'arrow');
+  assert.equal(closed.head, undefined);
+  // 3 点以上の矢じり無し（多角形は塊⑤-a）、矢じりが始点、両端の矢じり、知らない矢じりは直せない（表示のみ。spec-4-4 確定事項20）
   const readonly = (annotation) => imp.importedEntry(annotation, 0)?.readonly === true;
   assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 5, 5, 10, 0], lineEndings: ['None', 'None'] }), true);
   assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 10], lineEndings: ['OpenArrow', 'None'] }), true);
-  assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 10], lineEndings: ['None', 'ClosedArrow'] }), true);
+  assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: [0, 0, 10, 10], lineEndings: ['None', 'Circle'] }), true);
   assert.equal(readonly({ id: '1R', subtype: 'PolyLine', rect: [0, 0, 10, 10], color: [0, 0, 0], vertices: null, lineEndings: ['None', 'None'] }), true);
   // Line（pdf.js が向きを落とす）と Polygon も表示のみ
   assert.equal(readonly({ id: '1R', subtype: 'Line', rect: [0, 0, 10, 10], color: [0, 0, 0], lineCoordinates: [0, 0, 10, 10], lineEndings: ['None', 'None'] }), true);
