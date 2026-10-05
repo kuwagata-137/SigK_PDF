@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 
 require('../renderer/free-text-geometry.js');
 require('../renderer/free-text-layout.js');
+require('../renderer/shape-geometry.js');
 require('../renderer/shape-rotation.js');
 require('../renderer/callout-shape.js');
 
@@ -92,6 +93,42 @@ test('hitsTail は回す前の座標で、しっぽの三角（付け根の 2 �
   assert.equal(callout.hitsTail(entry, [110, 580]), true);
   assert.equal(callout.hitsTail(entry, [150, 580]), false);
   assert.equal(callout.hitsTail({ ...entry, callout: { tip: [150, 620] } }, [150, 620]), false, 'しっぽが無ければ当たらない');
+});
+
+// しっぽの 2 辺の外側（もう一方の付け根と反対の側）へ、辺の中ほどから distance だけ離れた点（回す前の座標。先は紙の座標で持つので戻す）。
+function besideTail(entry, distance) {
+  const tip = callout.localTipOf(entry);
+  const tail = callout.tailOf(entry.rect, tip, entry.fontSize);
+  const [bx, by] = tail.base;
+  const [a, b] = [[bx - tail.half, by], [bx + tail.half, by]];
+  const mid = [(a[0] + tip[0]) / 2, (a[1] + tip[1]) / 2];
+  const length = Math.hypot(tip[0] - a[0], tip[1] - a[1]);
+  const normal = [-(tip[1] - a[1]) / length, (tip[0] - a[0]) / length];
+  const away = normal[0] * (b[0] - mid[0]) + normal[1] * (b[1] - mid[1]) > 0 ? -1 : 1;
+  return [mid[0] + normal[0] * distance * away, mid[1] + normal[1] * distance * away];
+}
+
+// 点検で見つけた誤り（2026-10-04）: しっぽの当たりが三角の中だけで、先へ細る所は押しにくかった（線は太さの半分と 3px 相当の余裕で当たる）。
+test('hitsTail は許容（pt）を渡すと、しっぽの 2 辺から許容以内の点にも当たる。渡さなければ今までどおり三角の中だけ', () => {
+  const entry = { rect: BOX, fontSize: 12, callout: { tip: [80, 540] } };
+  const outside = besideTail(entry, 1.5);
+  assert.equal(callout.hitsTail(entry, outside), false);
+  assert.equal(callout.hitsTail(entry, outside, 2), true);
+  assert.equal(callout.hitsTail(entry, outside, 1), false);
+  // 先の向こう 1pt（付け根の中ほどから先への向き）
+  const [bx, by] = callout.tailOf(BOX, [80, 540], 12).base;
+  const length = Math.hypot(80 - bx, 540 - by);
+  const beyond = [80 + (80 - bx) / length, 540 + (540 - by) / length];
+  assert.equal(callout.hitsTail(entry, beyond), false);
+  assert.equal(callout.hitsTail(entry, beyond, 2), true);
+  assert.equal(callout.hitsTail({ ...entry, callout: { tip: [150, 620] } }, [150, 620], 5), false, 'しっぽが無ければ許容があっても当たらない');
+});
+
+test('hitsTail の許容は、回した吹き出しでも回す前の座標の辺から測る', () => {
+  const entry = { rect: BOX, fontSize: 12, angle: 30, callout: { tip: [80, 540] } };
+  const paper = (point) => SigK.shapeRotation.rotatePoint(point, [160, 622], 30);
+  assert.equal(callout.hitsTail(entry, paper(besideTail(entry, 1.5)), 2), true);
+  assert.equal(callout.hitsTail(entry, paper(besideTail(entry, 2.5)), 2), false);
 });
 
 test('extentOf は箱と先を囲む範囲（回す前の座標）', () => {

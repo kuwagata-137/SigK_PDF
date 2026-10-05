@@ -41,6 +41,11 @@
     return lineWidth / 2 + HIT_SLACK / (scale > 0 ? scale : 1);
   }
 
+  // 吹き出しのしっぽの線の太さ（枠線の太さ。枠線が無ければ 0）。
+  function tailLineOf(entry) {
+    return (entry.borderColor ?? null) === null ? 0 : entry.borderWidth ?? 0;
+  }
+
   // 回した四角・丸に点が当たるか。点を回す前の座標へ戻して箱で見る（spec-4b-2 確定事項15）。
   function hitsTurnedBox(entry, pdfPoint) {
     const rotation = root.SigK.shapeRotation;
@@ -56,8 +61,9 @@
       return false;
     if (annotationState().isNoteKind(entry.kind))
       return root.SigK.noteGraphics.hits(entry, point, viewport);
-    // 吹き出しはしっぽの三角も当たる（spec-4b-4b 確定事項C4）。
-    if (entry.kind === 'text' && entry.callout !== undefined && root.SigK.calloutShape.hitsTail(entry, pdfPoint))
+    // 吹き出しはしっぽの三角も当たる（spec-4b-4b 確定事項C4）。余裕は線と同じ（決定59 の直し）。
+    if (entry.kind === 'text' && entry.callout !== undefined
+      && root.SigK.calloutShape.hitsTail(entry, pdfPoint, hitTolerance(tailLineOf(entry), viewport.scale ?? 1)))
       return true;
     if (root.SigK.shapeRotation?.isRotated(entry) === true)
       return hitsTurnedBox(entry, pdfPoint);

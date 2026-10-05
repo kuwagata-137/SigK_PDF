@@ -119,8 +119,9 @@
     return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
   }
 
-  // しっぽの三角に点（紙の座標）が当たるか（確定事項C4）。
-  function hitsTail(entry, point) {
+  // しっぽの三角に点（紙の座標）が当たるか（確定事項C4）。tolerance（pt）を渡すと、しっぽの 2 辺から tolerance 以内の点にも当たる
+  // （先へ細る所も押せるように。annotation-hit.js が線と同じ余裕を渡す。決定59 の直し）。
+  function hitsTail(entry, point, tolerance = 0) {
     const tip = localTipOf(entry);
     const tail = tailOf(entry.rect, tip, entry.fontSize);
     if (tail === null)
@@ -131,7 +132,10 @@
     const [bx, by] = tail.base;
     const a = across ? [bx - tail.half, by] : [bx, by - tail.half];
     const b = across ? [bx + tail.half, by] : [bx, by + tail.half];
-    return inTriangle(local, a, b, tip);
+    if (inTriangle(local, a, b, tip))
+      return true;
+    const distance = root.SigK.shapeGeometry.distanceToSegment;
+    return tolerance > 0 && (distance(local, a, tip) <= tolerance || distance(local, b, tip) <= tolerance);
   }
 
   // 箱と先を囲む範囲（回す前の座標）。先が箱の中なら箱。
