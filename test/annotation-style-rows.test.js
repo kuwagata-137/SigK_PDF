@@ -129,7 +129,7 @@ test('四角・丸のヒントに「両方なしにはできない」を添え�
   SigK.annotate.setFill('#ffff00');
   assert.equal(hint(), `${HINTS.shape}${HINTS.box}${HINTS.fill}`);
   SigK.annotate.setShapeKind('arrow');
-  assert.equal(hint(), HINTS.shape);
+  assert.equal(hint(), `${HINTS.shape}${HINTS.lineSnap}`);
   SigK.annotate.setTool('pen');
   assert.equal(hint(), HINTS.pen);
 });

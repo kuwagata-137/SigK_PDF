@@ -66,6 +66,7 @@
   function setTool(tool) {
     // 描いている途中の多角形は、道具を替える前に開いたまま確定する（spec-4b-5a 確定事項16）。
     root.SigK.annotatePolygon?.commitPending();
+    root.SigK.annotateLineAnchor?.cancel();
     state.tool = isTool(tool) ? tool : null;
     state.base = toolSwitch().remember(state.base, state.tool);
     if (state.tool === 'text' || state.tool === 'callout')

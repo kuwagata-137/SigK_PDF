@@ -107,7 +107,7 @@
       // 描いている途中の図形（spec-4-3 確定事項3）。
       const textDraft = root.SigK.freeTextEditor?.getDraft() ?? null;
       // 描いている途中の多角形は、置いた辺を下書きに、頂点などの印を marks に（spec-4b-5a 確定事項13）。
-      const draft = root.SigK.annotateShape?.draftFor(index) ?? root.SigK.annotatePolygon?.draftFor(index) ?? null;
+      const draft = root.SigK.annotateShape?.draftFor(index) ?? root.SigK.annotatePolygon?.draftFor(index) ?? root.SigK.annotateLineAnchor?.draftFor(index) ?? null;
       const marks = root.SigK.annotatePolygon?.marksFor(index) ?? null;
       layer.draw(entry.annots.svg, shown, entry.annots.viewport, { editing, draft, textDraft: textDraft?.index === index ? textDraft : null, marks });
       // 選択の枠とつまみは紙の外の層へ（spec-4b-2 確定事項9）。

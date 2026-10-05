@@ -18,6 +18,9 @@
     // 多角形の道具（spec-4b-5a 確定事項31）。描いていないときと、描いている途中。
     polygon: 'クリックで頂点を置きます。始点を押すと閉じ、ダブルクリックで開いたまま確定します。Shift で 45° 刻みになります。Esc で道具を離します。',
     polygonDrawing: '始点を押すと閉じます。ダブルクリックで開いたまま確定、Esc か右クリックでやめます。',
+    // 直線・矢印の道具に添える（spec-4b-5a 確定事項19・31）。始点を決めたあと。
+    lineSnap: '図形の端や角をダブルクリックすると、そこから引けます。',
+    lineAnchor: '押した所までの線を引きます（Shift で 45° 刻み）。Esc か右クリックでやめます。',
     pen: '紙の上をなぞると線が引けます。1 回のなぞりが 1 つの書き込みになります。Esc で道具を離します。',
     shapeSelected: '掴んで動かせます。Delete で消せます。Ctrl+Z で元に戻せます。',
     // 四角・丸と直線・矢印を選んだときに「掴んで動かせます。」のあとへ挟む（spec-4b-2 確定事項28）。
@@ -70,6 +73,8 @@
   function forTool(tool, kind, fill) {
     if (tool === null)
       return HINTS.none;
+    if (tool === 'shape' && (kind === 'line' || kind === 'arrow'))
+      return root.SigK.annotateLineAnchor?.isActive() === true ? HINTS.lineAnchor : `${HINTS.shape}${HINTS.lineSnap}`;
     if (tool === 'shape' && kind === 'polygon') {
       const drawing = root.SigK.annotatePolygon?.isDrawing() === true;
       return drawing ? HINTS.polygonDrawing : `${HINTS.polygon}${boxHintOf(true, fill)}`;

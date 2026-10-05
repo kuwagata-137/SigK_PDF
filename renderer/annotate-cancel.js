@@ -26,8 +26,9 @@
       () => root.SigK.colorPopover?.close({ restoreFocus: true }) === true,
       () => root.SigK.annotatePreview?.cancel() === true,
       () => root.SigK.annotateDraw?.cancel() === true,
-      // 描いている途中の多角形（spec-4b-5a 確定事項16）。
+      // 描いている途中の多角形と、始点合わせの始点（spec-4b-5a 確定事項16・19）。
       () => root.SigK.annotatePolygon?.cancel() === true,
+      () => root.SigK.annotateLineAnchor?.cancel() === true,
       finishEditing,
       unselect,
       dropTool,
@@ -69,6 +70,7 @@
     root.SigK.annotateTransform?.clearCursor();
     root.SigK.annotateDraw?.cancel();
     root.SigK.annotatePolygon?.cancel();
+    root.SigK.annotateLineAnchor?.cancel();
     root.SigK.annotatePress?.reset();
     win?.getSelection?.()?.removeAllRanges();
   }

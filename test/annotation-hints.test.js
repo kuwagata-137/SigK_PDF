@@ -34,7 +34,8 @@ test('道具のヒントは道具で選び、四角・丸の道具には同じ�
   assert.equal(hints.forTool(null, null, null), HINTS.none);
   assert.equal(hints.forTool('highlight', 'highlight', null), HINTS.tool);
   assert.equal(hints.forTool('pen', 'ink', null), HINTS.pen);
-  assert.equal(hints.forTool('shape', 'line', null), HINTS.shape);
+  // 直線・矢印の道具には始点合わせの説明を添える（spec-4b-5a 確定事項31）
+  assert.equal(hints.forTool('shape', 'line', null), `${HINTS.shape}${HINTS.lineSnap}`);
   assert.equal(hints.forTool('shape', 'square', null), `${HINTS.shape}${HINTS.box}`);
   assert.equal(hints.forTool('shape', 'circle', '#ffd966'), `${HINTS.shape}${HINTS.box}${HINTS.fill}`);
   assert.ok(Object.isFrozen(HINTS));

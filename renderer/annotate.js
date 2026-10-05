@@ -62,12 +62,16 @@
   function finishEditing() {
     const text = root.SigK.annotateText?.finishEditing() === true;
     const polygon = root.SigK.annotatePolygon?.commitPending() === true;
-    return text || polygon;
+    // 始点合わせは始点しか無いので確定せずにやめる（spec-4b-5a 確定事項19）。
+    const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
+    return text || polygon || anchor;
   }
 
   // 描いている途中の多角形を捨てる（Ctrl+Z・Ctrl+Y。履歴は動かさない。spec-4b-5a 確定事項16）。捨てたら true。
   function dropPendingShape() {
-    return root.SigK.annotatePolygon?.cancel() === true;
+    const polygon = root.SigK.annotatePolygon?.cancel() === true;
+    const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
+    return polygon || anchor;
   }
 
   // ---- 印刷（確定事項28） ----
