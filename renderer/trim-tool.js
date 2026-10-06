@@ -43,17 +43,21 @@
     const result = root.SigK.trimCommit.apply(frame.index, frame.box, state.scope);
     if (result.count > 0)
       viewer().goToPage(frame.index);
-    if (state.scope === 'all')
+    // 何も変わらなければ（枠が今の見える範囲と同じ）帯も出さない（点検 6）。
+    if (state.scope === 'all' && result.count + result.small + result.inserted > 0)
       announce(result);
     refresh();
     return true;
   }
 
-  // ［トリミングを外す］（確定事項19）: 紙全体を読み終えるのを待ってから、今のページ（すべてなら元のページ全部）を戻す。戻したら true。
+  // ［トリミングを外す］（確定事項19）: 紙全体を読み終えるのを待ってから、押したときのページ（すべてなら元のページ全部）を戻す。戻したら true。
+  // 押したときの並びと当てるページを控え、待つ間に切り直す・並べ替えるなどしてページが変わったら、当てずに帯で知らせる（点検 1）。
   async function remove() {
     if (state.removing || viewer()?.getState().open !== true)
       return false;
     const { file, current } = viewer().getState();
+    const before = viewer().getPlan();
+    const scope = state.scope;
     state.removing = true;
     refresh();
     try {
@@ -61,17 +65,26 @@
     } finally {
       state.removing = false;
     }
-    // 待っている間にタブを替えた・開き直したら当てない。
-    const done = viewer().getState().file === file && root.SigK.trimCommit.remove(current, state.scope) > 0;
+    // 待っている間にタブを替えた・開き直したら、何もしない。
+    if (viewer().getState().file !== file) {
+      refresh();
+      return false;
+    }
+    if (!root.SigK.pagePlan.samePlan(before, viewer().getPlan())) {
+      root.SigK.viewBanner?.show('読み込みを待つ間にページが変わったので、トリミングを外しませんでした。もう一度押してください。', { tone: 'warn' });
+      refresh();
+      return false;
+    }
+    const done = root.SigK.trimCommit.remove(current, scope) > 0;
     refresh();
     return done;
   }
 
   // 今の文書の紙全体をまだ読んでいなければ裏で読み、読み終えたら右パネルを描き直す（確定事項10。道具を持った・保存して開き直した・
-  // タブを替えたとき。右パネルが描くたびに呼ぶ）。
+  // タブを替えたとき。右パネルが描くたびに呼ぶ）。パスが空なら読まない（page-boxes.js が鍵を作れず、読み終えたことにならないため。点検 7）。
   function ensureBoxes() {
     const file = viewer()?.getState().file ?? null;
-    if (typeof file?.path === 'string' && root.SigK.pageBoxes?.statusOf(file) === 'none')
+    if (typeof file?.path === 'string' && file.path !== '' && root.SigK.pageBoxes?.statusOf(file) === 'none')
       root.SigK.pageBoxes.load(file).then(refresh);
   }
 

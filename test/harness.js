@@ -190,6 +190,8 @@ function createPdfjsStub({
   // ページごとのファイルの見える範囲（本物の page.view。CropBox と MediaBox の重なり。0 起点）。埋まっていないページは
   // [0, 0, 幅, 高さ]（spec-4b-6a。ほかのアプリで切ってあるページを作る）。sizes にはこの箱の幅と高さを渡す。
   views = null,
+  // ページごとの UserUnit（本物の page.userUnit。0 起点）。埋まっていないページは 1（spec-4b-6a の寸法）。
+  userUnits = null,
 } = {}) {
   const rendered = [];
   // 試されたパスワードの並び。何度聞き直したかをテストから見る。
@@ -234,6 +236,7 @@ function createPdfjsStub({
         // pdf.js は /Rotate を 90 の倍数へ正規化して持つ。
         const rotate = normalizeAngle(rotations?.[number - 1] ?? 0);
         const view = views?.[number - 1] ?? [0, 0, size.width, size.height];
+        const userUnit = userUnits?.[number - 1] ?? 1;
         return {
           // 何ページ目を借りたのかをテストから見る。plan の写像の検証に使う。
           pageNumber: number,
@@ -245,11 +248,11 @@ function createPdfjsStub({
           view: [...view],
           // 本物と同じく、rotation は絶対値として置き換える。既定値はページ
           // 自身の rotate である（spec-1-5 の事前調査）。
-          userUnit: 1,
+          userUnit,
           getViewport: ({ scale, rotation = rotate }) => {
             const angle = normalizeAngle(rotation);
             viewportCalls.push({ page: number, rotation: angle, scale });
-            return new FakeViewport({ viewBox: [...view], userUnit: 1, scale, rotation: angle });
+            return new FakeViewport({ viewBox: [...view], userUnit, scale, rotation: angle });
           },
           render: (options = {}) => {
             rendered.push(number);

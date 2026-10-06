@@ -263,3 +263,52 @@ test('原点のずれた紙（ほかのアプリで切ってあるページ）�
   pull(shell, 0, [0, 1000], [200, 300]);
   assert.deepEqual(frameOf(shell), { index: 0, box: [50, 300, 200, 560] });
 });
+
+test('枠があるときの Ctrl+Z は枠を捨てるだけで、前に切ったものは戻さない（描きかけの多角形と同じ。点検 3）', async (t) => {
+  const shell = await withTrim(t);
+  const { SigK } = shell;
+  drawFrame(shell);
+  key(shell, 'Enter');
+  await shell.flush();
+  drawFrame(shell, [150, 250, 350, 550]);
+  assert.ok(frameOf(shell) !== null);
+
+  SigK.pageEdit.undo();
+  assert.equal(frameOf(shell), null);
+  assert.deepEqual([...SigK.viewer.getPlan()[0].crop], BOX);
+  SigK.pageEdit.undo();
+  assert.equal(SigK.viewer.getPlan()[0].crop, undefined);
+});
+
+test('右パネルのボタンの上で Enter を押しても切らず、ボタンに任せる（点検 2）', async (t) => {
+  const shell = await withTrim(t);
+  const { SigK, document } = shell;
+  drawFrame(shell);
+  const enterOn = (node) => {
+    const event = new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    node.dispatchEvent(event);
+    return event;
+  };
+  for (const id of ['props-trim-cancel', 'props-trim-apply'])
+    assert.equal(enterOn(document.getElementById(id)).defaultPrevented, false, id);
+  assert.equal(enterOn(document.querySelector('#props-trim-scope button[data-scope="all"]')).defaultPrevented, false);
+  assert.ok(frameOf(shell) !== null);
+  assert.equal(SigK.viewer.getPlan()[0].crop, undefined);
+});
+
+test('タブを替える・印刷を開くと、枠を捨てる', async (t) => {
+  const B = 'C:\\work\\b.pdf';
+  const shell = await withTrim(t);
+  const { SigK } = shell;
+  drawFrame(shell);
+  await SigK.print.open();
+  assert.equal(frameOf(shell), null);
+  SigK.print.close?.();
+
+  drawFrame(shell);
+  shell.files[B] = makeSource({ path: B, name: 'b.pdf' });
+  await SigK.tabs.openPath(B);
+  await shell.flush();
+  assert.equal(frameOf(shell), null);
+  assert.equal(shell.document.querySelector('.trim-layer'), null);
+});

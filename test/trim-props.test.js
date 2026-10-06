@@ -142,3 +142,36 @@ test('トリミングを持ったまま開き直すと、その文書の紙全�
   assert.deepEqual(shell.boxesCalls[1].expect, { size: 2048, mtimeMs: 2000 });
   assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '切ってあります（幅 141 mm × 高さ 176 mm）']);
 });
+
+test('トリミングを持ったまま文書を閉じると、このページの行は「–」で［トリミングを外す］は押せない（点検 4）', async (t) => {
+  const shell = await withShell(t);
+  await holdTrim(shell);
+  shell.SigK.viewer.close();
+  shell.SigK.trimProps.refresh();
+
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '–']);
+  assert.deepEqual(panel(shell).buttons, ['props-trim-remove（押せない）']);
+});
+
+test('トリミングを持っていても、注釈一覧などから書き込みを選べば、その書き込みの右パネルと［削除］を出す（点検 5）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  // 四角を 1 つ描いてから、トリミングを持つ（持つと選択が外れる）。
+  SigK.annotate.setTool('shape');
+  SigK.annotate.setShapeKind('square');
+  const viewport = SigK.viewer.getTextLayer(0).viewport;
+  const node = document.querySelector('.pdf-page[data-page="1"]');
+  const fire = (type, target, [x, y], buttons) => target.dispatchEvent(new shell.window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons }));
+  fire('mousedown', node, viewport.convertToViewportPoint(100, 700), 1);
+  fire('mousemove', document.body, viewport.convertToViewportPoint(200, 600), 1);
+  fire('mouseup', node, viewport.convertToViewportPoint(200, 600), 0);
+  const id = SigK.viewer.getAnnotations().added.at(-1).id;
+  await holdTrim(shell);
+  assert.equal(SigK.annotate.getSelection().length, 0);
+
+  SigK.annotate.select(id);
+  const { rows, buttons } = panel(shell);
+  assert.deepEqual(rows[0], ['種類', '四角']);
+  assert.equal(rows.some(([name]) => ['当てるページ', 'このページ', '残す大きさ'].includes(name)), false);
+  assert.deepEqual(buttons, ['props-delete']);
+});

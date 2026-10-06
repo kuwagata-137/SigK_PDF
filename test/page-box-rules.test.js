@@ -102,3 +102,24 @@ test('applyCrop は箱の値をそのまま書き、幅を足し戻す端数（5
   assert.deepEqual(rules.applyCrop(page, [39.81, 380.43, 559.17, 790.55], TOOLS), { ok: true, box: [39.81, 380.43, 559.17, 790.55] });
   assert.deepEqual(boxOf(page, 'CropBox'), [39.81, 380.43, 559.17, 790.55]);
 });
+
+test('pushDownInherited は中間の /Pages の Resources も写す（文字のフォントが消えないように）', async () => {
+  const doc = await PDFDocument.create();
+  doc.addPage([600, 800]);
+  const ctx = doc.context;
+  const page = doc.getPages()[0];
+  const font = ctx.register(ctx.obj({ Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica' }));
+  const mid = ctx.register(ctx.obj({ Type: 'Pages', Parent: doc.catalog.get(PDFName.of('Pages')), Kids: [page.ref], Count: 1,
+    Resources: { Font: { F1: font } } }));
+  page.node.delete(PDFName.of('Resources'));
+  page.node.set(PDFName.of('Parent'), mid);
+  doc.catalog.Pages().set(PDFName.of('Kids'), ctx.obj([mid]));
+  const loaded = await PDFDocument.load(await doc.save());
+  const target = loaded.getPages()[0];
+  assert.equal(target.node.get(PDFName.of('Resources')), undefined);
+
+  rules.pushDownInherited(target, TOOLS);
+  const resources = target.node.context.lookup(target.node.get(PDFName.of('Resources')));
+  const fonts = target.node.context.lookup(resources.get(PDFName.of('Font')));
+  assert.ok(fonts.get(PDFName.of('F1')) !== undefined);
+});

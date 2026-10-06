@@ -32,11 +32,13 @@
   }
 
   // 描いている途中の多角形を捨てる（Ctrl+Z・Ctrl+Y。履歴は動かさない。spec-4b-5a 確定事項16）。捨てたら true。
+  // トリミングの枠も描きかけと同じく捨てるだけにし、前に切ったものは戻さない（spec-4b-6a 確定事項15。点検 3）。
   function dropPendingShape() {
     const polygon = root.SigK.annotatePolygon?.cancel() === true;
     const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
     const erase = root.SigK.annotateErase?.cancel() === true;
-    return polygon || anchor || erase;
+    const trim = root.SigK.annotateTrim?.discard() === true;
+    return polygon || anchor || erase || trim;
   }
 
   // Esc。道具の段の「その他」の一覧（spec-4b-5b 確定事項28）→ 右クリックのメニュー → つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→ 表示を引く（そこで終える）→

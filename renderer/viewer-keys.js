@@ -128,25 +128,32 @@
       grid?.clearSelection();
       return true;
     }
+    return handleAnnotKey(event, doc);
+  }
 
-    // 注釈モードの Delete と Esc（spec-4-1 確定事項7）。Delete は選んだ注釈を消し、
-    // Esc は選択を解除、無ければ道具を離す。Backspace も Delete と同じく選んだ全部を消す（spec-4b-3a 確定事項H1）。
+  // 注釈モードの Delete と Esc（spec-4-1 確定事項7）。Delete は選んだ注釈を消し、
+  // Esc は選択を解除、無ければ道具を離す。Backspace も Delete と同じく選んだ全部を消す（spec-4b-3a 確定事項H1）。
+  // 70 行になった handlePageEditKey から分けた（spec-4b-6a の点検 8。中身は変えていない）。
+  function handleAnnotKey(event, doc) {
     const annotate = root.SigK.annotate;
-    const inAnnotMode = doc.documentElement.getAttribute('data-mode') === 'annot';
-    if ((event.key === 'Delete' || event.key === 'Backspace') && inAnnotMode && annotate !== undefined) {
+    if (annotate === undefined || doc.documentElement.getAttribute('data-mode') !== 'annot')
+      return false;
+    if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
       annotate.remove();
       return true;
     }
-    if (event.key === 'Escape' && inAnnotMode && annotate !== undefined)
+    if (event.key === 'Escape')
       return annotate.escape();
     // トリミングの枠があれば、Enter で切る（spec-4b-6a 確定事項14・26）。選んでいるテキストを直すより先に見る。
-    if (event.key === 'Enter' && inAnnotMode && root.SigK.annotateTrim?.hasFrame() === true) {
+    // ボタン（右パネルの［取消］など）にフォーカスがあるときは、そのボタンを押す Enter なので奪わない（点検 2）。
+    const onButton = (event.target?.closest?.('button') ?? null) !== null;
+    if (event.key === 'Enter' && !onButton && root.SigK.annotateTrim?.hasFrame() === true) {
       event.preventDefault();
       return root.SigK.trimTool.apply();
     }
     // 選んでいるテキストは Enter で直せる（spec-4-2 確定事項5）。
-    if (event.key === 'Enter' && inAnnotMode && annotate !== undefined && annotate.editSelected()) {
+    if (event.key === 'Enter' && annotate.editSelected()) {
       event.preventDefault();
       return true;
     }

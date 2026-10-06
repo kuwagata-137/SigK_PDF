@@ -96,6 +96,32 @@ test('中間の /Pages から箱を受け継ぐ PDF を保存しても、紙と�
   assert.deepEqual(await boxesOf(file), before);
 });
 
+test('中間の /Pages から Resources を受け継ぐ PDF を保存しても、各ページのフォントが残る', async (t) => {
+  const ws = workspace(t);
+  const file = ws.file('resources.pdf');
+  const doc = await PDFDocument.create();
+  doc.addPage([600, 800]);
+  doc.addPage([600, 800]);
+  const ctx = doc.context;
+  const pages = doc.getPages();
+  const font = ctx.register(ctx.obj({ Type: 'Font', Subtype: 'Type1', BaseFont: 'Helvetica' }));
+  const mid = ctx.register(ctx.obj({ Type: 'Pages', Parent: doc.catalog.get(PDFName.of('Pages')), Kids: pages.map((page) => page.ref), Count: 2,
+    Resources: { Font: { F1: font } } }));
+  for (const page of pages) {
+    page.node.delete(PDFName.of('Resources'));
+    page.node.set(PDFName.of('Parent'), mid);
+  }
+  doc.catalog.Pages().set(PDFName.of('Kids'), ctx.obj([mid]));
+  fs.writeFileSync(file, await doc.save());
+
+  await save(file, [{ src: 1, rotate: 0 }, { src: 0, rotate: 0, crop: [10, 10, 300, 300] }]);
+  const saved = await PDFDocument.load(fs.readFileSync(file));
+  for (const page of saved.getPages()) {
+    const resources = saved.context.lookup(page.node.get(PDFName.of('Resources')));
+    assert.ok(saved.context.lookup(resources.get(PDFName.of('Font'))).get(PDFName.of('F1')) !== undefined);
+  }
+});
+
 test('切り方の正しくない plan は保存を断り、ファイルを変えない', async (t) => {
   const ws = workspace(t);
   const file = ws.file('a.pdf');

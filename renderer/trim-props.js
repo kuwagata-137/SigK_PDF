@@ -66,19 +66,22 @@
     tool().ensureBoxes();
     const scope = tool().getScope();
     const status = root.SigK.trimCommit.statusOf(root.SigK.viewer?.getState().current ?? 0, scope);
+    // 文書を閉じたあと（道具は持ったまま）は、切ってあるかを出さない（点検 4）。
+    const open = root.SigK.viewer?.getState().open === true;
     el.sizeLabel.textContent = scope === 'all' ? 'すべてのページ' : 'このページ';
-    el.size.textContent = statusText(scope, status);
+    el.size.textContent = open ? statusText(scope, status) : '–';
     el.actions.hidden = true;
     el.remove.hidden = false;
-    setEnabled(el.remove, status.count > 0 && !tool().isRemoving());
+    setEnabled(el.remove, open && status.count > 0 && !tool().isRemoving());
     props.hint.textContent = status.count > 0 ? hints().trimCropped : hints().trim;
   }
 
   // props は annotation-props.js の要素（kind・pageRow・textRow・hint・remove）。トリミングを持っていなければ自分の行を隠して false。
+  // 持っていても、注釈一覧などから書き込みを選んだら、その書き込みの出し方（［削除］つき）に任せる（点検 5）。
   function render(props) {
     if (el === null)
       return false;
-    if (!holding()) {
+    if (!holding() || (root.SigK.annotate?.getSelection().length ?? 0) > 0) {
       hideOwn();
       props.remove.hidden = false;
       return false;

@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, makeSource, A4 } = require('./harness.js');
+const { createShell, createPdfjsStub, makeSource, A4 } = require('./harness.js');
 
 // 切った範囲を画面へ映す経路（spec-4b-6a 確定事項5〜8・25）。plan の crop を当てると、ページの器の大きさ・描く viewport・
 // 文字の層・サムネイル・印刷・紙の範囲（テキストの自動の幅）が、どれも切った範囲になる。
@@ -82,4 +82,18 @@ test('紙の範囲（テキストの自動の幅の上限）は切った範囲�
   await flush();
   assert.deepEqual([...SigK.viewer.getPaperBox(0)], CROP);
   assert.deepEqual([...SigK.viewer.getPaperBox(1)], [0, 0, A4.width, A4.height]);
+});
+
+test('UserUnit が 1 でないページは、切った範囲の寸法にも UserUnit を掛け、回したら幅と高さを入れ替える', async (t) => {
+  const shell = await createShell({ pdfjs: createPdfjsStub({ userUnits: [2, 1, 1], rotations: [90, 0, 0] }) });
+  t.after(() => shell.cleanup());
+  const { SigK } = shell;
+  await SigK.viewer.open(makeSource());
+  await shell.flush();
+  assert.deepEqual({ ...SigK.viewer.getSizes()[0] }, { width: A4.height * 2, height: A4.width * 2 });
+
+  SigK.viewer.applyPlan(withCrop(SigK, 0, CROP));
+  // 300pt × 400pt を UserUnit 2 で 600 × 800、/Rotate 90 で入れ替えて 800 × 600。
+  assert.deepEqual({ ...SigK.viewer.getSizes()[0] }, { width: 800, height: 600 });
+  assert.deepEqual({ ...SigK.viewer.getSizes()[1] }, { width: A4.width, height: A4.height });
 });

@@ -255,3 +255,32 @@ test('切った範囲の外の書き込みは消えずに残り、外すとま�
   assert.equal(SigK.viewer.getAnnotations().added.some((entry) => entry.id === id), true);
   assert.equal(drawn(), true);
 });
+
+test('外すのを待つ間に切り直したら、待ち明けに外さず、帯で知らせる（点検 1）', async (t) => {
+  let release = null;
+  const shell = await withTrim(t, { boxesResults: [() => new Promise((resolve) => { release = resolve; })] });
+  const { SigK } = shell;
+  drawFrame(shell);
+  key(shell, 'Enter');
+  await shell.flush();
+  const removing = SigK.trimTool.remove();
+  // 待つ間に、同じページを切り直す。
+  drawFrame(shell, [150, 250, 350, 550]);
+  key(shell, 'Enter');
+  release({ ok: true, boxes: [PAPER, PAPER, PAPER] });
+
+  assert.equal(await removing, false);
+  assert.deepEqual(crops(shell), [[150, 250, 350, 550], null, null]);
+  assert.equal(SigK.viewBanner.text(), '読み込みを待つ間にページが変わったので、トリミングを外しませんでした。もう一度押してください。');
+});
+
+test('すべてのページで、枠が今の見える範囲と同じなら、何も積まず帯も出さない（点検 6）', async (t) => {
+  const shell = await withTrim(t);
+  const { SigK } = shell;
+  SigK.trimTool.setScope('all');
+  drawFrame(shell, [-50, -50, A4.width + 50, A4.height + 50]);
+  key(shell, 'Enter');
+
+  assert.deepEqual(crops(shell), [null, null, null]);
+  assert.equal(SigK.viewBanner.isVisible(), false);
+});
