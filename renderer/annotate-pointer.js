@@ -7,8 +7,8 @@
   // annotate.js から切り出した。mousedown／mouseup／dblclick を #view に結び、文書の mousemove／mouseup で、押して引いている
   // 操作（表示を引く・つまみ・範囲選択・掴んで動かす・描く）を進めて終える。書き込みを描く・置く・掴む・選ぶのは左ボタンだけで、
   // テキストの入力欄の中の押し離しは入力欄に任せる（spec-4b-3a 確定事項B1・B2）。押した・離したときの判断は annotate-press.js、
-  // 表示を引くのは annotate-hand.js、つまみは annotate-transform.js、範囲選択は annotate-marquee.js、掴んで動かす・写すのは
-  // annotate-grab.js、描くのは annotate-draw.js が持つ。ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）。
+  // 押して引いている操作の「動かす」と「離す」の振り分けは annotate-drag-route.js（spec-4b-5b b0）が持つ。
+  // ダブルクリックしたテキストは入力欄を開く（ノートは右パネルの「本文」欄へ）。
   // ハンドを持っているときは、左ボタンでは書き込みを見ない（当たり・つまみ・ダブルクリック・つまみの上のカーソル）。
 
   // 押して離すまでの動きがこれ以下なら「押した」と見なす（CSS px）。
@@ -42,8 +42,8 @@
     return root.SigK.annotateDraw;
   }
 
-  function marquee() {
-    return root.SigK.annotateMarquee;
+  function route() {
+    return root.SigK.annotateDragRoute;
   }
 
   function hand() {
@@ -126,9 +126,7 @@
     if (rightButton()?.takeChordUp(event) === true || !isLeft(event))
       return;
     const pressed = press().take();
-    if (placing()?.release(event) === true)
-      return;
-    if (hand().end() || transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event))
+    if (route().end(event))
       return;
     if (!inAnnotMode() || !isOpen())
       return;
@@ -152,26 +150,11 @@
       event.preventDefault();
   }
 
-  // 押して引いている操作を進める。左＋右の後なら文字の選択を外すだけ。表示を引く → つまみ → 範囲選択 → 掴む・描く の順。
+  // 押して引いている操作を進める。左＋右の後なら文字の選択を外すだけ。
   function onMouseMove(event) {
-    if (rightButton()?.whileChord(event) === true || hand().move(event))
+    if (rightButton()?.whileChord(event) === true)
       return;
-    if (transform()?.move(event) === true)
-      return;
-    if (marquee().move(event))
-      return;
-    grab().move(event);
-    draw().move(event);
-    placing()?.move(event);
-    // つまみの上のカーソル（掴んでいない・描いていないとき）。ハンドのときはつまみを見ないので、残っていれば外す。
-    if (inAnnotMode() && holdingHand())
-      transform()?.clearCursor();
-    else if (inAnnotMode() && !grab().isGrabbing() && !draw().isDrawing())
-      transform()?.hover(event);
-  }
-
-  function isBusy() {
-    return hand().isPanning() || grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true;
+    route().move(event, state.doc);
   }
 
   function init(doc, win) {
@@ -189,7 +172,7 @@
     // ドラッグ中・描いている間はページビューの外で離しても拾う。
     doc.addEventListener('mousemove', onMouseMove);
     doc.addEventListener('mouseup', (event) => {
-      if (isBusy() && !(view?.contains(event.target) ?? false))
+      if (route().isBusy() && !(view?.contains(event.target) ?? false))
         onMouseUp(event);
     });
     return true;
