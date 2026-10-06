@@ -98,12 +98,27 @@ async function removeQuietly(filePath, fsLike) {
   }
 }
 
+// 前からある控え（target.bak）を消す。無ければ何もしない。消せた（か無かった）ら true。
+async function removeStaleBackup(target, fsLike) {
+  const backup = backupPathFor(target);
+  if ((await readSignature(backup, { fsLike })) === null)
+    return true;
+  try {
+    await fsLike.promises.rm(backup, { force: true });
+  } catch {
+    return false;
+  }
+  return (await readSignature(backup, { fsLike })) === null;
+}
+
 // bytes を target へ書く。
 //
 //   makeBackup … 上書きのときだけ true。名前を付けて保存では元ファイルを
 //                触らないので false（確定事項18）。
+//   dropBackup … モザイクを含む上書き（spec-4b-6b 確定事項23。決定64 ⑧）。控えを作らず、書けたら前からある控えを消す。
+//                消せなければ backupLeft: true を返す（保存は成功のまま）。
 //   expect     … 開いたときの signature。渡すと、書く前に照合する。
-async function writeDocument(target, bytes, { makeBackup = false, expect = null, fsLike = fs } = {}) {
+async function writeDocument(target, bytes, { makeBackup = false, dropBackup = false, expect = null, fsLike = fs } = {}) {
   const temp = tempPathFor(target);
   const current = await readSignature(target, { fsLike });
   const replacing = current !== null;
@@ -116,7 +131,7 @@ async function writeDocument(target, bytes, { makeBackup = false, expect = null,
   if (replacing && !(await isWritable(target, fsLike)))
     return { error: describeWriteFailure({ code: 'EPERM' }, 'permission'), code: 'EPERM', phase: 'permission' };
 
-  const backup = replacing && makeBackup ? backupPathFor(target) : null;
+  const backup = replacing && makeBackup && !dropBackup ? backupPathFor(target) : null;
   // 前回の保存で作られた .bak は、今回の保存が転んでも消してはいけない。
   const backupExisted = backup === null ? false : (await readSignature(backup, { fsLike })) !== null;
 
@@ -133,7 +148,8 @@ async function writeDocument(target, bytes, { makeBackup = false, expect = null,
     await fsLike.promises.rename(temp, target);
 
     const saved = await readSignature(target, { fsLike });
-    return { ok: true, path: target, backup, bytes: bytes.length, signature: saved };
+    const backupLeft = replacing && dropBackup ? !(await removeStaleBackup(target, fsLike)) : false;
+    return { ok: true, path: target, backup, bytes: bytes.length, signature: saved, backupLeft };
   } catch (error) {
     // 転んだら、こちらが作ったものは残さない。元からあった .bak には触れない。
     if (backup !== null && !backupExisted)

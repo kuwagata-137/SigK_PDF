@@ -254,3 +254,46 @@ test('前からあった .bak は、転んでも消さない', async () => {
     assert.equal(fs.readFileSync(backupPathFor(target), 'utf8'), 'OLD');
   } finally { ws.cleanup(); }
 });
+
+// モザイクを含む上書き（spec-4b-6b 確定事項23。決定64 ⑧）。控えを作らず、書けたら前からある控えを消す。
+test('dropBackup では .bak を作らず（makeBackup があっても）、書けたら前からある .bak を消す', async () => {
+  const ws = workspace();
+  try {
+    const target = ws.seed('a.pdf', 'OLD');
+    ws.seed('a.pdf.bak', 'ひとつ前の内容');
+    const result = await writeDocument(target, bytes('NEW'), { makeBackup: true, dropBackup: true });
+    assert.equal(result.ok, true);
+    assert.equal(result.backup, null);
+    assert.equal(result.backupLeft, false);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'NEW');
+    assert.equal(fs.existsSync(backupPathFor(target)), false);
+    assert.deepEqual(fs.readdirSync(ws.dir), ['a.pdf']);
+  } finally { ws.cleanup(); }
+});
+
+test('dropBackup で .bak を消せなければ、保存は成功のまま backupLeft を返す', async () => {
+  const ws = workspace();
+  try {
+    const target = ws.seed('a.pdf', 'OLD');
+    ws.seed('a.pdf.bak', 'ひとつ前の内容');
+    const result = await writeDocument(target, bytes('NEW'), { dropBackup: true, fsLike: failingFs('rm', 'EPERM') });
+    assert.equal(result.ok, true);
+    assert.equal(result.backupLeft, true);
+    assert.equal(fs.readFileSync(target, 'utf8'), 'NEW');
+    assert.equal(fs.existsSync(backupPathFor(target)), true);
+  } finally { ws.cleanup(); }
+});
+
+test('dropBackup でも、書くのに転んだら前からある .bak は消さない。新しいファイルへ書くときは何もしない', async () => {
+  const ws = workspace();
+  try {
+    const target = ws.seed('a.pdf', 'OLD');
+    ws.seed('a.pdf.bak', 'ひとつ前の内容');
+    const failed = await writeDocument(target, bytes('NEW'), { dropBackup: true, fsLike: failingFs('rename', 'EPERM') });
+    assert.equal(failed.phase, 'replace');
+    assert.equal(fs.existsSync(backupPathFor(target)), true);
+    const fresh = await writeDocument(ws.file('b.pdf'), bytes('NEW'), { dropBackup: true });
+    assert.equal(fresh.ok, true);
+    assert.equal(fresh.backupLeft, false);
+  } finally { ws.cleanup(); }
+});

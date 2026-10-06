@@ -18,6 +18,7 @@ const fs = require('node:fs');
 const { applyForSave, applyForExtract } = require('./save-apply.js');
 const { buildPreview } = require('./op-insert.js');
 const { writeDocument } = require('../pdf-write.js');
+const { pruneOrphans } = require('./orphan-objects.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
   describeLoadFailure, describeSourceReadFailure, insertReader,
@@ -57,7 +58,7 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
 // （選んだページだけを新規文書へ複製する）。違うのは apply の段だけで、
 // 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null } = spec ?? {};
+  const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null, mosaics = [], dropBackup = false } = spec ?? {};
   if (typeof source !== 'string' || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
 
@@ -79,10 +80,13 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
 
   advance('apply');
   const applied = kind === 'extract'
-    ? await applyForExtract(doc, pages, annotations)
-    : await applyForSave(doc, pages, inserts, fsLike, annotations);
+    ? await applyForExtract(doc, pages, annotations, mosaics)
+    : await applyForSave(doc, pages, inserts, fsLike, annotations, mosaics);
   if (applied.ok !== true)
     return applied;
+  // モザイクで差し替えた古い中身を、ファイルに残さない（spec-4b-6b 確定事項22）。モザイクの無い保存の振る舞いは変えない。
+  if (applied.mosaics > 0)
+    pruneOrphans(applied.doc, TOOLS);
 
   advance('save');
   let output;
@@ -93,7 +97,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   }
 
   advance('write');
-  const written = await writeDocument(target, Buffer.from(output), { makeBackup, expect, fsLike });
+  const written = await writeDocument(target, Buffer.from(output), { makeBackup, dropBackup, expect, fsLike });
   if (written.ok !== true)
     return written;
 
@@ -105,6 +109,8 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     pages: applied.pages,
     signature: written.signature,
     pruned: applied.pruned,
+    // 前からある控えを消せなかった（spec-4b-6b 確定事項23。画面が帯で知らせる）。
+    backupLeft: written.backupLeft === true,
   };
 }
 
