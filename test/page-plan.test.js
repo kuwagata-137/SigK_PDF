@@ -81,6 +81,16 @@ test('rotatePages は範囲外の index を無視する', () => {
   assert.deepEqual(after.map((page) => page.rotate), [90, 0]);
 });
 
+test('rotatePages は差し込んだページの形を保つ（spec-1-6 確定事項65）', () => {
+  // 差し込んだページは { insert, rotate } である。回したときに src へ化けると、
+  // 元ファイルの別のページが描かれ、保存もワーカーに断られる。
+  const before = [{ src: 0, rotate: 0 }, { insert: 0, rotate: 0 }];
+  const after = plan.rotatePages(before, [0, 1], 90);
+
+  assert.deepEqual(after, [{ src: 0, rotate: 90 }, { insert: 0, rotate: 90 }]);
+  assert.equal('src' in after[1], false, 'src を足さない');
+});
+
 // ---- 並べ替え（確定事項30・34） ----
 
 test('movePages は1枚を後ろへ動かす', () => {
