@@ -125,6 +125,45 @@ function normalizeAngle(degrees) {
   return (((Math.round(degrees / 90) * 90) % 360) + 360) % 360;
 }
 
+// pdf.js の PageViewport と同じ式（pdf.js 6.3.289 の page_viewport.js を写した）。viewBox は紙の座標の箱で、原点が 0 でなくてもよい
+// （spec-4b-6a 確定事項5。トリミングは getViewport の戻り値の constructor に別の viewBox を渡して作る）。
+class FakeViewport {
+  constructor({ viewBox, userUnit = 1, scale, rotation }) {
+    this.viewBox = viewBox;
+    this.userUnit = userUnit;
+    this.scale = scale;
+    this.rotation = rotation;
+    const total = scale * userUnit;
+    const centerX = (viewBox[2] + viewBox[0]) / 2;
+    const centerY = (viewBox[3] + viewBox[1]) / 2;
+    const [a, b, c, d] = { 0: [1, 0, 0, -1], 90: [0, 1, 1, 0], 180: [-1, 0, 0, 1], 270: [0, -1, -1, 0] }[normalizeAngle(rotation)];
+    const sideways = a === 0;
+    const offsetX = (sideways ? Math.abs(centerY - viewBox[1]) : Math.abs(centerX - viewBox[0])) * total;
+    const offsetY = (sideways ? Math.abs(centerX - viewBox[0]) : Math.abs(centerY - viewBox[1])) * total;
+    this.width = (sideways ? viewBox[3] - viewBox[1] : viewBox[2] - viewBox[0]) * total;
+    this.height = (sideways ? viewBox[2] - viewBox[0] : viewBox[3] - viewBox[1]) * total;
+    this.transform = [a * total, b * total, c * total, d * total,
+      offsetX - a * total * centerX - c * total * centerY, offsetY - b * total * centerX - d * total * centerY];
+  }
+
+  get rawDims() {
+    const box = this.viewBox;
+    return { pageWidth: box[2] - box[0], pageHeight: box[3] - box[1], pageX: box[0], pageY: box[1] };
+  }
+
+  // 本物と同じ座標の往復（spec-4-1 確定事項11）。
+  convertToViewportPoint(x, y) {
+    const [a, b, c, d, e, f] = this.transform;
+    return [a * x + c * y + e, b * x + d * y + f];
+  }
+
+  convertToPdfPoint(px, py) {
+    const [a, b, c, d, e, f] = this.transform;
+    const det = a * d - b * c;
+    return [(d * (px - e) - c * (py - f)) / det, (-b * (px - e) + a * (py - f)) / det];
+  }
+}
+
 // pdf.js の代わり。ページの寸法を返し、描画は即座に終わったことにする。
 //
 // getDocument() は呼ばれるたびに別の文書を作る。タブは複数の文書を同時に
@@ -148,6 +187,11 @@ function createPdfjsStub({
   annotations = {},
   // getTextContent() の styles（fontName → { ascent, descent, vertical }）。
   textStyles = {},
+  // ページごとのファイルの見える範囲（本物の page.view。CropBox と MediaBox の重なり。0 起点）。埋まっていないページは
+  // [0, 0, 幅, 高さ]（spec-4b-6a。ほかのアプリで切ってあるページを作る）。sizes にはこの箱の幅と高さを渡す。
+  views = null,
+  // ページごとの UserUnit（本物の page.userUnit。0 起点）。埋まっていないページは 1（spec-4b-6a の寸法）。
+  userUnits = null,
 } = {}) {
   const rendered = [];
   // 試されたパスワードの並び。何度聞き直したかをテストから見る。
@@ -162,17 +206,6 @@ function createPdfjsStub({
   const cleanups = [];
   // page.render() に届いた { page, annotationMode } の並び（spec-4-1 確定事項18）。
   const renderCalls = [];
-
-  // pdf.js の PageViewport と同じ変換（回転 0/90/180/270）。注釈の四角の往復に要る。
-  function viewportTransform({ scale, rotation, width, height }) {
-    if (rotation === 90)
-      return [0, scale, scale, 0, 0, 0];
-    if (rotation === 180)
-      return [-scale, 0, 0, scale, width * scale, 0];
-    if (rotation === 270)
-      return [0, -scale, -scale, 0, height * scale, width * scale];
-    return [scale, 0, 0, -scale, 0, height * scale];
-  }
 
   // pdf.js の annotationStorage の代わり。setValue / remove / get / size だけ。
   function createAnnotationStorage() {
@@ -202,6 +235,8 @@ function createPdfjsStub({
         const size = sizes[number - 1];
         // pdf.js は /Rotate を 90 の倍数へ正規化して持つ。
         const rotate = normalizeAngle(rotations?.[number - 1] ?? 0);
+        const view = views?.[number - 1] ?? [0, 0, size.width, size.height];
+        const userUnit = userUnits?.[number - 1] ?? 1;
         return {
           // 何ページ目を借りたのかをテストから見る。plan の写像の検証に使う。
           pageNumber: number,
@@ -210,27 +245,14 @@ function createPdfjsStub({
           docId: document.id,
           rotate,
           // 本物の page.view（CropBox。紙の座標）。透かしのプレビューが置き方の基準に使う（spec-4-5 確定事項12）。
-          view: [0, 0, size.width, size.height],
+          view: [...view],
           // 本物と同じく、rotation は絶対値として置き換える。既定値はページ
           // 自身の rotate である（spec-1-5 の事前調査）。
+          userUnit,
           getViewport: ({ scale, rotation = rotate }) => {
             const angle = normalizeAngle(rotation);
-            const swapped = angle % 180 !== 0;
             viewportCalls.push({ page: number, rotation: angle, scale });
-            const [a, b, c, d, e, f] = viewportTransform({ scale, rotation: angle, width: size.width, height: size.height });
-            const det = a * d - b * c;
-            return {
-              width: (swapped ? size.height : size.width) * scale,
-              height: (swapped ? size.width : size.height) * scale,
-              rotation: angle,
-              scale,
-              // 本物と同じ座標の往復（spec-4-1 確定事項11）。
-              convertToViewportPoint: (x, y) => [a * x + c * y + e, b * x + d * y + f],
-              convertToPdfPoint: (px, py) => [
-                (d * (px - e) - c * (py - f)) / det,
-                (-b * (px - e) + a * (py - f)) / det,
-              ],
-            };
+            return new FakeViewport({ viewBox: [...view], userUnit, scale, rotation: angle });
           },
           render: (options = {}) => {
             rendered.push(number);
@@ -396,6 +418,9 @@ async function createShell({
   // annotationAPI.readDetails() が返すものの並び（spec-4b-1a 確定事項20）。1 本ずつ取り出し、無ければ
   // { ok: true, details: {} }（読めたが、足す欄が無い）を返す。
   detailsResults = [],
+  // pdfAPI.readBoxes() が返すものの並び（spec-4b-6a 確定事項9）。1 本ずつ取り出し（関数なら spec を渡して呼ぶ）、無ければ
+  // { ok: false, reason: 'unreadable' }（読めなかった。画面は開いたときの見える範囲で代える）を返す。
+  boxesResults = [],
   // pdfAPI.pickSavePath() が返すものの並び。
   savePathResults = [],
   // pdfAPI.pickInsertSource() が返すものの並び（spec-1-6 確定事項53）。
@@ -446,6 +471,8 @@ async function createShell({
   const taskCalls = [];
   // annotationAPI.readDetails() に届いた spec の並び（spec-4b-1a 確定事項20）。
   const detailsCalls = [];
+  // pdfAPI.readBoxes() に届いた spec の並び（spec-4b-6a 確定事項9）。
+  const boxesCalls = [];
   const taskCancels = [];
   const progressHandlers = [];
   const saveRequestHandlers = [];
@@ -488,6 +515,12 @@ async function createShell({
       read: async (filePath) => files[filePath]
         ?? openResults.shift()
         ?? { error: '読み込み結果が用意されていません。' },
+      // 紙全体の大きさ（spec-4b-6a 確定事項9）。実際に読むのはワーカーなので、ここは届いた spec と返す結果だけを扱う。
+      readBoxes: async (spec) => {
+        boxesCalls.push(structuredClone(spec ?? {}));
+        const next = boxesResults.shift();
+        return typeof next === 'function' ? next(spec) : (next ?? { ok: false, reason: 'unreadable' });
+      },
       // 本物は webUtils.getPathForFile を呼ぶ。ここでは仕込んだパスを返す。
       pathForFile: (file) => file?.__path ?? null,
       onOpenRequest: (callback) => openRequestHandlers.push(callback),
@@ -724,6 +757,9 @@ async function createShell({
     // annotationAPI.readDetails() に届いた spec の並びと、返す結果の並び（テストから足せる）。
     detailsCalls,
     detailsResults,
+    // pdfAPI.readBoxes() に届いた spec の並びと、返す結果の並び（spec-4b-6a）。
+    boxesCalls,
+    boxesResults,
     // pdfAPI.pickSavePath() に届いたオプションの並び。
     savePathCalls,
     insertSourceCalls,

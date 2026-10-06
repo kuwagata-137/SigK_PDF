@@ -217,7 +217,8 @@
         devicePixelRatio: root.devicePixelRatio,
       });
       const rotation = (page.rotate ?? 0) + (state.plan[index]?.rotate ?? 0);
-      const viewport = page.getViewport({ scale, rotation });
+      // 切った範囲で描く（spec-4b-6a 確定事項6）。
+      const viewport = root.SigK.pageViewbox.viewportFor(page, { scale, rotation, box: state.plan[index]?.crop ?? null });
       if (!canDrawCanvas())
         return;
 

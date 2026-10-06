@@ -17,6 +17,7 @@
 //     挿すからであり、こちらにその制約は無い。
 
 const { normalizeRotation } = require('./op-pages.js');
+const { applyCrop } = require('./page-box-rules.js');
 
 // 取り出す plan がこの文書に当てられる形かを見る。
 function validateSelection(plan, pageCount) {
@@ -31,8 +32,9 @@ function validateSelection(plan, pageCount) {
   return { ok: true };
 }
 
-// plan の並びで新しい文書を組み立てる。source は変更しない。
-async function extractPages(source, plan, { PDFDocument }) {
+// plan の並びで新しい文書を組み立てる。source は変更しない。PDFName を渡せば、plan の crop を /CropBox に当てる
+// （spec-4b-6a 確定事項23。copyPages は受け継いだ箱をページへ写してから複製する）。
+async function extractPages(source, plan, { PDFDocument, PDFName }) {
   const pageCount = source.getPageCount();
   const check = validateSelection(plan, pageCount);
   if (check.ok !== true)
@@ -48,6 +50,14 @@ async function extractPages(source, plan, { PDFDocument }) {
     page.setRotation({ type: 'degrees', angle: angles[index] });
     doc.addPage(page);
   });
+
+  for (const [index, entry] of plan.entries()) {
+    if (entry?.crop === undefined)
+      continue;
+    const cropped = PDFName === undefined ? { error: 'ページの切り方を保存できません。' } : applyCrop(copied[index], entry.crop, { PDFName });
+    if (cropped.ok !== true)
+      return cropped;
+  }
 
   return { ok: true, doc, pages: plan.length, angles };
 }

@@ -55,7 +55,7 @@ async function applyForSave(doc, pages, inserts, fsLike, annotations) {
   if (annotated.ok !== true)
     return annotated;
 
-  const applied = applyPlan(doc, pages, { inserted: prepared.pages });
+  const applied = applyPlan(doc, pages, { inserted: prepared.pages, tools: TOOLS });
   if (applied.ok !== true)
     return applied;
   rebuildLabels(doc, pages, labelsBefore, TOOLS);
@@ -73,7 +73,7 @@ async function applyForExtract(doc, pages, annotations) {
   const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
   if (annotated.ok !== true)
     return annotated;
-  const extracted = await extractPages(doc, pages, { PDFDocument });
+  const extracted = await extractPages(doc, pages, { PDFDocument, PDFName: TOOLS.PDFName });
   if (extracted.ok !== true)
     return extracted;
   rebuildLabels(extracted.doc, pages, labelsBefore, TOOLS);

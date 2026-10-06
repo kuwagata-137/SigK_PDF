@@ -22,6 +22,8 @@
 // であった。ファイルサイズは copyPages のほうが小さくなるが、文書の構造を失う
 // 代償のほうが大きい（ユーザー確定 2026-09-01）。
 
+const { normalizeBox, pushDownInherited, applyCrop } = require('./page-box-rules.js');
+
 const QUARTER = 90;
 const FULL = 360;
 
@@ -50,6 +52,9 @@ function validatePlan(plan, pageCount, insertCount = 0) {
   const seen = new Set();
   const seenInserts = new Set();
   for (const entry of plan) {
+    // 切った範囲は元のページだけに付く（spec-4b-6a 確定事項1・22）。
+    if (entry?.crop !== undefined && (isInsert(entry) || normalizeBox(entry.crop) === null))
+      return { error: 'ページの切り方が正しくありません。' };
     if (isInsert(entry)) {
       // 差し込みも同じ理由で重複を弾く。実体は1つしか組み立てないので、
       // 2か所へ置くと回転を共有してしまう。
@@ -76,12 +81,20 @@ function resolveRotations(plan, baseRotations, insertRotations = []) {
   });
 }
 
-// inserted は「insert 番号 → 差し込むページ」の配列（op-insert.js が作る）。
-function applyPlan(doc, plan, { inserted = [] } = {}) {
+// inserted は「insert 番号 → 差し込むページ」の配列（op-insert.js が作る）。tools は pdf-lib の PDFName を持つ道具
+// （pdf-task.js の TOOLS）。渡されれば、外す前に受け継いだ欄をページへ写し、plan の crop を /CropBox に当てる
+// （spec-4b-6a 確定事項21・22）。
+function applyPlan(doc, plan, { inserted = [], tools = null } = {}) {
   const original = doc.getPages();
   const check = validatePlan(plan, original.length, inserted.length);
   if (check.ok !== true)
     return check;
+  if (plan.some((entry) => entry?.crop !== undefined) && tools?.PDFName === undefined)
+    return { error: 'ページの切り方を保存できません。' };
+
+  // 外すと親が根に付け替わり、ページ木の中間の /Pages から受け継いでいた箱や Resources が消える（事前調査 C）。外す前に写す。
+  if (tools?.PDFName !== undefined)
+    original.forEach((page) => pushDownInherited(page, tools));
 
   // 外す前に元の角度を控える。外したあとに読むと、当てた値が混ざる。
   const baseRotations = original.map((page) => page.getRotation().angle);
@@ -97,6 +110,14 @@ function applyPlan(doc, plan, { inserted = [] } = {}) {
     page.setRotation({ type: 'degrees', angle: angles[index] });
     doc.insertPage(index, page);
   });
+
+  for (const entry of plan) {
+    if (entry.crop === undefined)
+      continue;
+    const cropped = applyCrop(original[entry.src], entry.crop, tools);
+    if (cropped.ok !== true)
+      return cropped;
+  }
 
   return { ok: true, pages: plan.length, angles };
 }

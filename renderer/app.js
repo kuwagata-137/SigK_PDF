@@ -140,6 +140,7 @@
     root.SigK.annotatePointer.init(doc, win);
     // 消しゴムの輪のカーソル（spec-4b-5b 確定事項24）。
     root.SigK.annotateErase.init(doc, win);
+    root.SigK.annotateTrim.init(doc, win);
     root.SigK.annotationMenu.init(doc, win);
     root.SigK.annotateRightButton.init(doc, win);
     root.SigK.annotationProps.init(doc, win);

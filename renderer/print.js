@@ -136,10 +136,13 @@
     const images = root.SigK.pageImage;
     // 未保存の注釈も紙に載せる（spec-4-1 確定事項28）。読み込んだテキストマークアップは
     // pdf.js に描かせず、画面と同じ層の描き手で重ねる。
-    const src = viewer().getPlan()[number - 1]?.src;
+    const entry = viewer().getPlan()[number - 1];
+    const src = entry?.src;
     const drawn = await images.renderToCanvas(el.doc, page, {
       scale: PRINT_SCALE,
       rotation: viewer().viewportRotation(number, page),
+      // 切った範囲で刷る（spec-4b-6a 確定事項25）。
+      box: entry?.crop ?? null,
       annotationMode: root.SigK.pdfjs?.lib?.AnnotationMode?.ENABLE_STORAGE,
       overlay: root.SigK.annotate?.painterFor(src) ?? null,
     });

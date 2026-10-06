@@ -45,6 +45,7 @@
 //   fontsize: size-list: reopen compare:   テキストの書式の操作（smoke-annotate-text.js の冒頭。spec-4b-4a）
 //   polygon: snap: reshape compare-shapes:  図形の追加の操作（smoke-annotate-shapes.js の冒頭。spec-4b-5a）
 //   marker: erase: bar-width: more: reink marker-pixels:  マーカー・消しゴム・「その他」の操作（smoke-annotate-erase.js の冒頭。spec-4b-5b）
+//   trim: trim-draft: trim-move: untrim: trim-tool fit:   トリミングの操作（smoke-annotate-trim.js の冒頭。spec-4b-6a）
 // 各操作のあとに、履歴がいくつ進んだか（historyDelta）を控える。
 //
 // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
@@ -67,6 +68,7 @@ const { SELECT_STEPS, SELECT_REPORT } = require('./smoke-annotate-select.js');
 const { TEXT_STATE, TEXT_STEPS, TEXT_REPORT, inspectTexts } = require('./smoke-annotate-text.js');
 const { SHAPE_STATE, SHAPE_STEPS, SHAPE_REPORT } = require('./smoke-annotate-shapes.js');
 const { ERASE_STATE, ERASE_STEPS, ERASE_REPORT, pixelsIn } = require('./smoke-annotate-erase.js');
+const { TRIM_STATE, TRIM_STEPS, TRIM_REPORT, inspectBoxes } = require('./smoke-annotate-trim.js');
 
 const annotateScript = (target, spec) => `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -123,6 +125,7 @@ const annotateScript = (target, spec) => `(async () => {
 ${TEXT_STATE}
 ${SHAPE_STATE}
 ${ERASE_STATE}
+${TRIM_STATE}
   for (const raw of ${JSON.stringify(spec)}.split(',')) {
     const step = raw.trim();
     if (step.length === 0)
@@ -131,7 +134,7 @@ ${ERASE_STATE}
     const arg = rest.join(':');
     const t0 = performance.now();
     const historyBefore = SigK.pageEdit.getHistoryState().at;
-${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}${SHAPE_STEPS}${ERASE_STEPS}
+${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}${SHAPE_STEPS}${ERASE_STEPS}${TRIM_STEPS}
     applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected(), count: SigK.annotate.getSelection().length, historyDelta: SigK.pageEdit.getHistoryState().at - historyBefore });
     await wait(120);
   }
@@ -141,6 +144,7 @@ ${SELECT_REPORT}
 ${TEXT_REPORT}
 ${SHAPE_REPORT}
 ${ERASE_REPORT}
+${TRIM_REPORT}
 ${REPORT}
 })()`;
 
@@ -157,4 +161,4 @@ async function countEmbeddedFonts(file) {
   return count;
 }
 
-module.exports = { annotateScript, countEmbeddedFonts, inspectAnnotations, inspectTexts, pixelsIn };
+module.exports = { annotateScript, countEmbeddedFonts, inspectAnnotations, inspectTexts, inspectBoxes, pixelsIn };

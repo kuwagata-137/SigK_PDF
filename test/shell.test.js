@@ -81,10 +81,11 @@ test('ツールレールは 4 つのモードだけを持ち、編集の道具�
   assert.equal(document.querySelectorAll('#rail .rail-item').length, 4);
   const tools = [...document.querySelectorAll('#edit-bar .edit-tool[data-tool]')];
   // 吹き出しはテキストの隣（spec-4b-4b 確定事項F1。決定57 ⑦）。×印・多角形は丸の後ろ（spec-4b-5a 確定事項27）。マーカーと消しゴムは
-  // ペンの後ろ（spec-4b-5b 確定事項2・18）。
-  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['select', 'hand', 'highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'cross', 'polygon', 'pen', 'marker', 'eraser', 'note']);
-  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['選択', 'ハンド', 'ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', '×印', '多角形', 'ペン', 'マーカー', '消しゴム', 'ノート']);
-  assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 4);
+  // ペンの後ろ（spec-4b-5b 確定事項2・18）。トリミングはノートの後ろに区切りを挟む（spec-4b-6a 確定事項11）。
+  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['select', 'hand', 'highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'cross', 'polygon', 'pen', 'marker', 'eraser', 'note', 'trim']);
+  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['選択', 'ハンド', 'ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', '×印', '多角形', 'ペン', 'マーカー', '消しゴム', 'ノート', 'トリミング']);
+  assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 5);
+  assert.equal(tools.at(-1).closest('.edit-item').previousElementSibling.className, 'edit-sep');
   // 右端の「その他」は入りきらないときだけ出す（spec-4b-5b 確定事項25）。
   const more = document.getElementById('edit-more');
   assert.equal(more.closest('.edit-item').hidden, true);
@@ -214,6 +215,7 @@ test('ページ編集のレンダラーが index.html から読み込まれる',
 
   for (const src of [
     'renderer/page-plan.js',
+    'renderer/page-grid-rules.js',
     'renderer/edit-history.js',
     'renderer/page-grid.js',
     'renderer/page-edit.js',

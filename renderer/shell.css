@@ -851,6 +851,29 @@ html[data-panning] #view, html[data-panning] #view *{cursor:grabbing !important}
 html[data-mode="annot"][data-tool="note"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="note"] .textLayer span{user-select:none}
 .annot-draft{pointer-events:none}
+/* トリミング（spec-4b-6a 確定事項12・13・27。見本 screenshots/phase4b-6-trim-frame.png）。紙の上は十字で、文字は選ばせない。枠のつまみと
+   中の上では annotate-trim.js が html に data-trim-cursor（nwse・nesw・ns・ew・move）を付ける。 */
+html[data-mode="annot"][data-tool="trim"] .pdf-page,
+html[data-mode="annot"][data-tool="trim"] .pdf-page *{cursor:crosshair; user-select:none}
+html[data-mode="annot"][data-tool="trim"][data-trim-cursor="nwse"] .pdf-page *{cursor:nwse-resize}
+html[data-mode="annot"][data-tool="trim"][data-trim-cursor="nesw"] .pdf-page *{cursor:nesw-resize}
+html[data-mode="annot"][data-tool="trim"][data-trim-cursor="ns"] .pdf-page *{cursor:ns-resize}
+html[data-mode="annot"][data-tool="trim"][data-trim-cursor="ew"] .pdf-page *{cursor:ew-resize}
+html[data-mode="annot"][data-tool="trim"][data-trim-cursor="move"] .pdf-page *{cursor:move}
+/* 枠の外側を暗くする 4 枚・2px の枠・8 点のつまみ（白地にアクセント色の縁の 10px）・大きさの札。押し離しはページが受ける。
+   重なりは 3: 文字の層（0）・入力欄（2）より上、道具の段と「その他」の一覧（4）より下、帯（3。DOM で後ろ）より下。 */
+.trim-layer{position:absolute; inset:0; z-index:3; pointer-events:none}
+.trim-shade{position:absolute; background:rgba(0,0,0,0.45)}
+.trim-box{position:absolute; box-sizing:border-box; border:2px solid var(--accent)}
+.trim-handle{position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; box-sizing:border-box; background:#fff; border:1.6px solid var(--accent)}
+.trim-label{position:absolute; padding:3px 6px; border-radius:4px; background:var(--accent); color:#fff; font-size:11.5px; line-height:16px; white-space:nowrap}
+/* 右パネルの当てるページ（文字のボタン）と、［取消］［適用］の 2 つ並び。 */
+.trim-scope{flex-wrap:wrap}
+.props-kinds.trim-scope button{width:auto; padding:0 10px; font-family:inherit; font-size:12px}
+.trim-actions{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+.trim-actions[hidden], .props-actions .act[hidden]{display:none}
+.act.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
+.act.primary:hover{background:var(--primary); filter:brightness(1.08)}
 
 /* 右のプロパティ（確定事項4）。注釈モードの間は常に出す。幅はサイドパネルと
    同じ意匠で 260px（docs/04 第3章）。 */

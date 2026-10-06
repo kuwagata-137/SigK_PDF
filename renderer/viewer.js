@@ -96,6 +96,8 @@
   function syncPage() {
     controls()?.syncPage(el.doc, getState());
     root.SigK.thumbnails?.setCurrent(state.current);
+    // 右パネルの「このページが切ってあるか」（spec-4b-6a 確定事項17）。トリミングを持っていなければ何もしない。
+    root.SigK.trimProps?.refresh();
   }
 
   function getState() {
@@ -162,10 +164,20 @@
     return state.basePages.length;
   }
 
-  // 元ページ src の紙の範囲（pdf.js の page.view）。分からなければ null。
+  // 元ページ src の紙の範囲（pdf.js の page.view）。切ってあれば切った範囲（spec-4b-6a 確定事項8）。分からなければ null。
   function getPaperBox(src) {
-    const view = state.basePages[src]?.view;
+    const crop = state.plan.find((page) => page.src === src)?.crop;
+    const view = Array.isArray(crop) ? crop : state.basePages[src]?.view;
     return Array.isArray(view) ? [...view] : null;
+  }
+
+  // 元ページ src のファイルの見える範囲（page.view）・自身の /Rotate・UserUnit（spec-4b-6a 確定事項14・18・19）。切っても変わらない。
+  // 分からなければ null。
+  function getBasePage(src) {
+    const base = state.basePages[src];
+    if (!Array.isArray(base?.view))
+      return null;
+    return { view: [...base.view], rotate: base.rotate ?? 0, userUnit: base.userUnit ?? 1 };
   }
 
   function getPlan() {
@@ -271,6 +283,11 @@
   // ページ番号入力・Home/End・印刷範囲・検索の走査本数がすべて追従する。
   function sizesFromPlan(plan) {
     return plan.map((page) => {
+      // 切ってあれば、その箱の大きさ（ページ自身の /Rotate と plan の回転、userUnit を込みで。spec-4b-6a 確定事項7）。
+      if (Array.isArray(page.crop) && Number.isInteger(page.src)) {
+        const own = state.basePages[page.src];
+        return root.SigK.pageCrop.sizeOf(page.crop, (own?.rotate ?? 0) + page.rotate, own?.userUnit ?? 1);
+      }
       const base = (Number.isInteger(page.insert)
         ? state.inserts[page.insert]?.size
         : state.basePages[page.src]) ?? { width: 0, height: 0 };
@@ -302,6 +319,8 @@
       ? (isDirty() ? 1 : 0)
       : tabs.list().filter((info) => tabs.isDirty(info.id)).length;
     root.appCloseAPI?.setDirty?.(count);
+    // 切った・外した・元に戻した・開き直したあとの右パネル（spec-4b-6a 確定事項17）。トリミングを持っていなければ何もしない。
+    root.SigK.trimProps?.refresh();
   }
 
   // 編集後の並びを画面へ映す（確定事項43）。ページビュー・ページ番号・
@@ -699,7 +718,9 @@
     for (let number = 1; number <= doc.numPages; number += 1) {
       const page = await doc.getPage(number);
       const viewport = page.getViewport({ scale: 1 });
-      sizes.push({ width: viewport.width, height: viewport.height, view: Array.isArray(page.view) ? [...page.view] : null });
+      // rotate と userUnit は、切った範囲の寸法を作るのに要る（spec-4b-6a 確定事項7）。
+      sizes.push({ width: viewport.width, height: viewport.height, view: Array.isArray(page.view) ? [...page.view] : null,
+        rotate: page.rotate ?? 0, userUnit: page.userUnit ?? 1 });
     }
     return sizes;
   }
@@ -971,6 +992,7 @@
     getPage,
     viewportRotation,
     getPlan,
+    getBasePage,
     applyPlan,
     openCanceled,
     addInserts,
