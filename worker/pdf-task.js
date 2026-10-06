@@ -15,13 +15,8 @@
 
 const fs = require('node:fs');
 
-const { applyPlan } = require('./op-pages.js');
-const { extractPages } = require('./op-extract.js');
-const { buildPreview, prepareInserts } = require('./op-insert.js');
-const { readLabels, rebuildLabels } = require('./op-page-labels.js');
-const { pruneDestinations } = require('./op-outline.js');
-const { applyAnnotations } = require('./op-annotate.js');
-const { createFontSource } = require('./font-embed.js');
+const { applyForSave, applyForExtract } = require('./save-apply.js');
+const { buildPreview } = require('./op-insert.js');
 const { writeDocument } = require('../pdf-write.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
@@ -31,54 +26,7 @@ const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./to
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
 
-// テキスト注釈の同梱フォント（spec-4-2 確定事項22・23）。読むのはテキストのある保存の
-// 初回だけで、ワーカーは保存ごとに fork される新プロセスなので 1 回きりである。
-const fontSource = createFontSource();
-
-// apply の段。開いた文書をその場で並べ替える（上書き・名前を付けて保存）。
-//
-// ページラベルは applyPlan の**前**に読む。当てたあとでは元の対応が失われる。
-// 作り直しは applyPlan の**あと**で、ページ数が合っていないと最後のラベルが
-// 引き延ばされる。この前後関係は入れ替えられない。
-//
-// 注釈も applyPlan の**前**に当てる（spec-4-1 確定事項23）。src は読んだ文書の
-// ページ番号であり、並べ替えたあとでは指す先が変わる。当てた注釈はページ実体に
-// 付いて一緒に動くので、順序はこれで足りる。
-async function applyForSave(doc, pages, inserts, fsLike, annotations) {
-  const labelsBefore = readLabels(doc);
-  // 差し込むページを先に組み立てる。
-  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, insertReader(fsLike));
-  if (prepared.ok !== true)
-    return prepared;
-
-  const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
-  if (annotated.ok !== true)
-    return annotated;
-
-  const applied = applyPlan(doc, pages, { inserted: prepared.pages, tools: TOOLS });
-  if (applied.ok !== true)
-    return applied;
-  rebuildLabels(doc, pages, labelsBefore, TOOLS);
-  // 削除で飛び先を失ったしおりから /Dest と /A を落とす（見出しは残す）。
-  return { ok: true, doc, pages: applied.pages, pruned: pruneDestinations(doc, TOOLS) };
-}
-
-// apply の段。新規文書へ複製する（抽出。確定事項47）。
-//
-// ページラベルは保存と同じ規則で引き継ぐ（確定事項45）。しおりも名前付き宛先も
-// 新しい文書へは来ないので、掃除するものが無い。
-async function applyForExtract(doc, pages, annotations) {
-  const labelsBefore = readLabels(doc);
-  // 注釈を当ててから複製する。抽出先にも付いていく（spec-4-1 確定事項21）。
-  const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
-  if (annotated.ok !== true)
-    return annotated;
-  const extracted = await extractPages(doc, pages, { PDFDocument, PDFName: TOOLS.PDFName });
-  if (extracted.ok !== true)
-    return extracted;
-  rebuildLabels(extracted.doc, pages, labelsBefore, TOOLS);
-  return { ok: true, doc: extracted.doc, pages: extracted.pages, pruned: { outlines: 0, names: 0 } };
-}
+// apply の段（applyForSave・applyForExtract）は save-apply.js にある（spec-4b-6b m0）。
 
 // 差し込むページを1つの PDF として組み立てて返す（確定事項93・94）。
 //
