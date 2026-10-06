@@ -112,6 +112,11 @@
       press().reset();
       return;
     }
+    // 消しゴムは書き込みを選ばず掴まず、つまみも見ずに消し始める（spec-4b-5b 確定事項21）。
+    if (root.SigK.annotateErase?.begin(event) === true) {
+      press().reset();
+      return;
+    }
     // 選んでいる書き込みのつまみは、本体や紙の外より先に見る（spec-4b-2 確定事項15）。
     if (transform()?.begin(event) === true) {
       press().reset();
@@ -136,7 +141,7 @@
   // ダブルクリックしたテキストは入力欄を開く（spec-4-2 確定事項5）。ノートは「本文」欄へ（spec-4-4 確定事項7）。
   // 左＋右の最中と直後のダブルクリック（左＋右の左の押しと続けた押しで出る）は捨てる（spec-4b-3b 確定事項E4）。
   function onDoubleClick(event) {
-    if (!inAnnotMode() || !isOpen() || holdingHand() || rightButton()?.recentlyChorded() === true)
+    if (!inAnnotMode() || !isOpen() || holdingHand() || annotate().getTool() === 'eraser' || rightButton()?.recentlyChorded() === true)
       return;
     // 描いている途中の多角形は、開いたまま確定する（spec-4b-5a 確定事項15）。直線・矢印の道具では、書き込みの端・角・頂点の近くを
     // 始点にして引き始める（確定事項19）。

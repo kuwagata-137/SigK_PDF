@@ -36,20 +36,25 @@
     return root.SigK.annotatePlacing;
   }
 
+  // 消しゴム（spec-4b-5b 確定事項18〜24）。
+  function erase() {
+    return root.SigK.annotateErase;
+  }
+
   function inAnnotMode(doc) {
     return doc?.documentElement.getAttribute('data-mode') === 'annot';
   }
 
   // 離した。頂点・終点を置いたか、押して引いている操作を終えたら true（押し離しの残りの経路へは流さない）。
   function end(event) {
-    if (placing()?.release(event) === true)
+    if (placing()?.release(event) === true || erase()?.end(event) === true)
       return true;
     return hand().end() || transform()?.end(event) === true || marquee().end(event) || grab().end(event) || draw().end(event);
   }
 
   // 押して引いている操作を進める。表示を引く → つまみ → 範囲選択 → 掴む・描く の順。
   function move(event, doc) {
-    if (hand().move(event))
+    if (hand().move(event) || erase()?.move(event) === true)
       return;
     if (transform()?.move(event) === true)
       return;
@@ -58,15 +63,16 @@
     grab().move(event);
     draw().move(event);
     placing()?.move(event);
-    // つまみの上のカーソル（掴んでいない・描いていないとき）。ハンドのときはつまみを見ないので、残っていれば外す。
-    if (inAnnotMode(doc) && annotate().getTool() === 'hand')
+    // つまみの上のカーソル（掴んでいない・描いていないとき）。ハンドと消しゴムのときはつまみを見ないので、残っていれば外す。
+    if (inAnnotMode(doc) && ['hand', 'eraser'].includes(annotate().getTool()))
       transform()?.clearCursor();
     else if (inAnnotMode(doc) && !grab().isGrabbing() && !draw().isDrawing())
       transform()?.hover(event);
   }
 
   function isBusy() {
-    return hand().isPanning() || grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true;
+    return hand().isPanning() || grab().isGrabbing() || draw().isDrawing() || marquee().isActive() || transform()?.isDragging() === true
+      || erase()?.isErasing() === true;
   }
 
   const SigK = (root.SigK = root.SigK || {});

@@ -39,9 +39,9 @@ test('入りきらない道具に隠す印を付けて「その他」を出し�
   assert.equal(item.hidden, true, 'jsdom では段の幅が 0 なので何も隠さない');
   assert.equal(overflow.fit(measured(document, 2)), true);
   const hidden = childrenOf(document).filter((node) => node.classList.contains(overflow.OVERFLOW));
-  assert.deepEqual(hidden.map((node) => node.querySelector('.edit-name').textContent), ['マーカー', 'ノート']);
+  assert.deepEqual(hidden.map((node) => node.querySelector('.edit-name').textContent), ['消しゴム', 'ノート']);
   assert.equal(item.hidden, false);
-  assert.deepEqual([...overflow.hiddenButtons().map((button) => button.dataset.tool)], ['marker', 'note']);
+  assert.deepEqual([...overflow.hiddenButtons().map((button) => button.dataset.tool)], ['eraser', 'note']);
   // 入りきる幅なら全部見せる。
   const all = measured(document, 0);
   assert.equal(overflow.fit({ ...all, available: 10000 }), false);
@@ -81,6 +81,6 @@ test('測るときは子の幅に左右の余白を足し、段の内側の余�
   assert.equal(SigK.editBarOverflow.fit(), false, 'ちょうど入る');
   Object.defineProperty(bar, 'clientWidth', { configurable: true, value: total - 1 });
   assert.equal(SigK.editBarOverflow.fit(), true);
-  // 1px 足りないと、ノート（48＋間 5）を隠しても「その他」（48＋間 5）を置くぶんで足りず、マーカーも隠れる。
-  assert.deepEqual([...SigK.editBarOverflow.hiddenButtons().map((button) => button.dataset.tool)], ['marker', 'note']);
+  // 1px 足りないと、ノート（48＋間 5）を隠しても「その他」（48＋間 5）を置くぶんで足りず、消しゴムも隠れる。
+  assert.deepEqual([...SigK.editBarOverflow.hiddenButtons().map((button) => button.dataset.tool)], ['eraser', 'note']);
 });

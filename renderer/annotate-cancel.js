@@ -24,6 +24,8 @@
       () => root.SigK.annotateMarquee?.cancel() === true,
       () => root.SigK.annotateGrab?.cancel() === true,
       () => root.SigK.annotateHand?.cancel() === true,
+      // なぞっている途中の消しゴム（spec-4b-5b 確定事項23）。
+      () => root.SigK.annotateErase?.cancel() === true,
       () => root.SigK.colorPopover?.close({ restoreFocus: true }) === true,
       () => root.SigK.annotatePreview?.cancel() === true,
       () => root.SigK.annotateDraw?.cancel() === true,
@@ -60,8 +62,9 @@
     const marqueed = root.SigK.annotateMarquee?.cancel() === true;
     const grabbed = root.SigK.annotateGrab?.cancel() === true;
     const panned = root.SigK.annotateHand?.cancel() === true;
+    const erased = root.SigK.annotateErase?.cancel() === true;
     const closed = root.SigK.annotationMenu?.close() === true;
-    return transformed || marqueed || grabbed || panned || closed;
+    return transformed || marqueed || grabbed || panned || erased || closed;
   }
 
   // 左＋右（spec-4b-3b 確定事項E2）。メニュー・つまみ・範囲選択（押す前の選択に戻す）・掴む（写しを捨てて元の位置）・表示を引く・

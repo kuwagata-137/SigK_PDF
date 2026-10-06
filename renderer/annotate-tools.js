@@ -9,9 +9,9 @@
   // プリセット（確定事項33、spec-4-2 確定事項34・35、spec-4-3 確定事項27〜29）は annotation-presets.js が持つ。
   const { TOOLS, MARKUP_TOOLS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
 
-  // 書き込みを描かない道具（spec-4b-3a 確定事項C3、spec-4b-3b 確定事項A2）。色の既定を持つ描く道具（TOOLS）とは別に持つ。
-  // 「選択」は紙のどこから引いても範囲選択になり、「ハンド」は紙のどこを引いても表示が動く。
-  const POINTER_TOOLS = Object.freeze(['select', 'hand']);
+  // 書き込みを描かない道具（spec-4b-3a 確定事項C3、spec-4b-3b 確定事項A2、spec-4b-5b 確定事項18）。色の既定を持つ描く道具（TOOLS）とは
+  // 別に持つ。「選択」は紙のどこから引いても範囲選択になり、「ハンド」は紙のどこを引いても表示が動き、「消しゴム」は紙の上をなぞると消す。
+  const POINTER_TOOLS = Object.freeze(['select', 'hand', 'eraser']);
 
   const state = {
     doc: null,
@@ -67,6 +67,8 @@
     // 描いている途中の多角形は、道具を替える前に開いたまま確定する（spec-4b-5a 確定事項16）。
     root.SigK.annotatePolygon?.commitPending();
     root.SigK.annotateLineAnchor?.cancel();
+    root.SigK.annotateErase?.cancel();
+    root.SigK.annotateErase?.hideRing();
     state.tool = isTool(tool) ? tool : null;
     state.base = toolSwitch().remember(state.base, state.tool);
     if (state.tool === 'text' || state.tool === 'callout')
