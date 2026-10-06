@@ -124,3 +124,21 @@ test('道具を替えると、トリミングの行とボタンを隠して［�
   assert.equal(rows.some(([name]) => ['当てるページ', 'このページ', '残す大きさ'].includes(name)), false);
   assert.deepEqual(buttons, ['props-delete（押せない）']);
 });
+
+test('トリミングを持ったまま開き直すと、その文書の紙全体を読み直して右パネルを描き直す', async (t) => {
+  const pdfjs = createPdfjsStub({ sizes: [{ width: 400, height: 500 }, A4, A4], views: [[50, 60, 450, 560]] });
+  const shell = await withShell(t, { pdfjs, boxesResults: [{ ok: false, reason: 'unreadable' }, { ok: true, boxes: [PAPER, PAPER, PAPER] }] });
+  const { SigK } = shell;
+  await holdTrim(shell);
+  // 1 回目は読めなかったので、開いたときの見える範囲を紙全体と見なす。
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '紙全体のままです']);
+
+  // 保存したことにして、大きさと更新時刻の変わったファイルを開き直す。
+  shell.files[A] = makeSource({ path: A, name: 'a.pdf', size: 2048, mtimeMs: 2000 });
+  assert.equal(await SigK.viewer.reopen(), true);
+  await shell.flush();
+
+  assert.equal(shell.boxesCalls.length, 2);
+  assert.deepEqual(shell.boxesCalls[1].expect, { size: 2048, mtimeMs: 2000 });
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '切ってあります（幅 141 mm × 高さ 176 mm）']);
+});

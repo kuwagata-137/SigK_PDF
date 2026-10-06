@@ -62,6 +62,8 @@
 
   // 枠が無いとき: 今のページ（すべてなら全部）が切ってあるかと［トリミングを外す］。
   function renderStatus(props) {
+    // 保存して開き直した・タブを替えたあとは、その文書の紙全体を読み直す（読み終えたら描き直す）。
+    tool().ensureBoxes();
     const scope = tool().getScope();
     const status = root.SigK.trimCommit.statusOf(root.SigK.viewer?.getState().current ?? 0, scope);
     el.sizeLabel.textContent = scope === 'all' ? 'すべてのページ' : 'このページ';

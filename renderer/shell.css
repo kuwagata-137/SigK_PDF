@@ -860,8 +860,9 @@ html[data-mode="annot"][data-tool="trim"][data-trim-cursor="nesw"] .pdf-page *{c
 html[data-mode="annot"][data-tool="trim"][data-trim-cursor="ns"] .pdf-page *{cursor:ns-resize}
 html[data-mode="annot"][data-tool="trim"][data-trim-cursor="ew"] .pdf-page *{cursor:ew-resize}
 html[data-mode="annot"][data-tool="trim"][data-trim-cursor="move"] .pdf-page *{cursor:move}
-/* 枠の外側を暗くする 4 枚・2px の枠・8 点のつまみ（白地にアクセント色の縁の 10px）・大きさの札。押し離しはページが受ける。 */
-.trim-layer{position:absolute; inset:0; z-index:5; pointer-events:none}
+/* 枠の外側を暗くする 4 枚・2px の枠・8 点のつまみ（白地にアクセント色の縁の 10px）・大きさの札。押し離しはページが受ける。
+   重なりは 3: 文字の層（0）・入力欄（2）より上、道具の段と「その他」の一覧（4）より下、帯（3。DOM で後ろ）より下。 */
+.trim-layer{position:absolute; inset:0; z-index:3; pointer-events:none}
 .trim-shade{position:absolute; background:rgba(0,0,0,0.45)}
 .trim-box{position:absolute; box-sizing:border-box; border:2px solid var(--accent)}
 .trim-handle{position:absolute; width:10px; height:10px; margin:-5px 0 0 -5px; box-sizing:border-box; background:#fff; border:1.6px solid var(--accent)}

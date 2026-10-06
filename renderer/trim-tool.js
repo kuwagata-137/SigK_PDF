@@ -67,11 +67,19 @@
     return done;
   }
 
+  // 今の文書の紙全体をまだ読んでいなければ裏で読み、読み終えたら右パネルを描き直す（確定事項10。道具を持った・保存して開き直した・
+  // タブを替えたとき。右パネルが描くたびに呼ぶ）。
+  function ensureBoxes() {
+    const file = viewer()?.getState().file ?? null;
+    if (typeof file?.path === 'string' && root.SigK.pageBoxes?.statusOf(file) === 'none')
+      root.SigK.pageBoxes.load(file).then(refresh);
+  }
+
   // 道具を持った（annotate-tools.js）。当てるページを［このページ］へ戻し、選択を外し、紙全体を裏で読む（確定事項10・17）。
   function onPicked() {
     state.scope = 'page';
     root.SigK.annotate?.select(null);
-    root.SigK.pageBoxes?.load(viewer()?.getState().file ?? null).then(refresh);
+    ensureBoxes();
   }
 
   function setScope(scope) {
@@ -81,5 +89,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.trimTool = { apply, remove, onPicked, setScope, labelOf, getScope: () => state.scope, isRemoving: () => state.removing };
+  SigK.trimTool = { apply, remove, onPicked, ensureBoxes, setScope, labelOf, getScope: () => state.scope, isRemoving: () => state.removing };
 })(typeof window !== 'undefined' ? window : globalThis);

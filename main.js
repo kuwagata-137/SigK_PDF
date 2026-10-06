@@ -1753,6 +1753,8 @@ function installSmokeCheck(win, mode) {
           annotate.written = annotate.save === null ? null : await smokeAnnotate.inspectAnnotations(annotateTarget);
           // 保存先のテキストの欄（spec-4b-4a の起動確認。/DA・/DS・/C・/BS と、半透明の透明グループ・行の数）。
           annotate.writtenTexts = annotate.save === null ? null : await smokeAnnotate.inspectTexts(annotateTarget);
+          // 保存先の各ページの /MediaBox と /CropBox（spec-4b-6a の起動確認。切った範囲が /CropBox に入ったか）。
+          annotate.writtenBoxes = annotate.save === null ? null : await smokeAnnotate.inspectBoxes(annotateTarget);
         }
         if (process.env.SIGK_SMOKE_SAVE && saveSource !== undefined) {
           const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);
