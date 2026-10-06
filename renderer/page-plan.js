@@ -61,8 +61,9 @@
 
   function rotatePages(plan, indices, delta) {
     const targets = new Set(normalizeIndices(indices, plan.length));
+    // 回す要素も copyPage を通す。差し込み（{ insert }）を src へ化けさせない（spec-1-6 確定事項65）。
     return plan.map((page, index) => (targets.has(index)
-      ? { src: page.src, rotate: normalizeRotation(page.rotate + delta) }
+      ? { ...copyPage(page), rotate: normalizeRotation(page.rotate + delta) }
       : copyPage(page)));
   }
 

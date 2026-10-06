@@ -223,6 +223,28 @@ test('保存では、控えも一緒にワーカーへ渡す', async (t) => {
   assert.deepEqual(spec.inserts, [{ path: PHOTO, page: 0, size: { width: 100, height: 200 } }]);
 });
 
+test('差し込んだページを回しても、差し込んだ文書から引かれたまま保存へ渡る', async (t) => {
+  const shell = await withOpenDocument(t, {
+    insertSourceResults: [{ path: PHOTO }],
+    taskResults: [preview([{ width: 100, height: 200 }]), { ok: true, path: A, backup: `${A}.bak` }],
+  });
+
+  await shell.SigK.insert.run();
+  await shell.flush();
+  // 末尾（4ページ目）に差し込んだ写真を右へ回す。
+  shell.SigK.pageEdit.rotate(90, [3]);
+  await shell.flush();
+
+  // { insert } が src へ化けると、元の文書の存在しない4ページ目を引き、寸法も 0×0 になる。
+  assert.deepEqual(plain(shell.SigK.viewer.getPlan().at(-1)), { insert: 0, rotate: 90 });
+  assert.deepEqual(plain(shell.SigK.viewer.getSizes().at(-1)), { width: 200, height: 100 }, '幅と高さが入れ替わる');
+  assert.equal((await shell.SigK.viewer.getPage(4)).docId, 1, '差し込んだ文書から引かれる');
+
+  await shell.SigK.save.saveActive();
+  // ワーカーは { src: undefined } を「ページの指定が元の文書と合いません」で断る。
+  assert.deepEqual(shell.taskCalls[1].spec.pages.at(-1), { insert: 0, rotate: 90 });
+});
+
 test('ファイルを選ばなければ何も起きない', async (t) => {
   const shell = await withOpenDocument(t, { insertSourceResults: [{ canceled: true }] });
 
