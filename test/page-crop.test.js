@@ -100,3 +100,17 @@ test('visibleOf は切った箱、無ければファイルの見える範囲', (
   assert.deepEqual(crop.visibleOf({ src: 0, crop: [1, 2, 3, 4] }, [0, 0, 10, 10]), [1, 2, 3, 4]);
   assert.deepEqual(crop.visibleOf({ src: 0 }, [0, 0, 10, 10]), [0, 0, 10, 10]);
 });
+
+test('sizeLabel は画面で見る向きの幅と高さを mm の整数で書く（UserUnit は掛けない）', () => {
+  // 495pt × 550pt は 174.6mm × 194.0mm（見本 phase4b-6-trim-frame.png の札）。
+  assert.equal(crop.sizeLabel([50, 252, 545, 802], 0), '幅 175 mm × 高さ 194 mm');
+  assert.equal(crop.sizeLabel([50, 252, 545, 802], 90), '幅 194 mm × 高さ 175 mm');
+  assert.equal(crop.toMm(72), 25);
+  assert.equal(crop.sizeLabel(null, 0), '幅 0 mm × 高さ 0 mm');
+});
+
+test('normalizeBox は紙の端の少し外を丸めた -0 を 0 にする', () => {
+  const box = crop.normalizeBox([-0.001, -0.004, 100, 100]);
+  assert.equal(Object.is(box[0], 0), true);
+  assert.equal(Object.is(box[1], 0), true);
+});

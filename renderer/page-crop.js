@@ -12,8 +12,10 @@
   // 切ったあとの幅と高さの下限（pt。確定事項13・18）。
   const MIN_SIZE = 10;
 
+  // 小数 2 桁に丸める。-0（紙の端の少し外を 0 に丸めたとき）は 0 にする。
   function round2(value) {
-    return Math.round(value * 100) / 100;
+    const rounded = Math.round(value * 100) / 100;
+    return rounded === 0 ? 0 : rounded;
   }
 
   // 並べ直して小数 2 桁に丸める。数でない・幅か高さが 0 なら null。
@@ -96,6 +98,17 @@
     return quarter(rotation) % 2 === 1 ? { width: height, height: width } : { width, height };
   }
 
+  // pt を mm にして整数に丸める（1pt = 25.4/72 mm）。
+  function toMm(pt) {
+    return Math.round((pt * 25.4) / 72);
+  }
+
+  // 画面で見る向きの「幅 ○ mm × 高さ ○ mm」（確定事項12・17）。UserUnit は掛けない（既知の限界）。
+  function sizeLabel(box, rotation) {
+    const { width, height } = sizeOf(box, rotation);
+    return `幅 ${toMm(width)} mm × 高さ ${toMm(height)} mm`;
+  }
+
   // plan の要素へ切った範囲を当てた写し（確定事項1・2）。box がファイルの見える範囲 view と同じなら欄を消す。box が null なら欄を消す。
   function withCrop(entry, box, view) {
     const next = { ...entry };
@@ -113,5 +126,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageCrop = { EPSILON, MIN_SIZE, normalizeBox, sameBox, intersectBox, marginsOf, shrinkBy, sizeOf, withCrop, visibleOf };
+  SigK.pageCrop = { EPSILON, MIN_SIZE, normalizeBox, sameBox, intersectBox, marginsOf, shrinkBy, sizeOf, toMm, sizeLabel, withCrop, visibleOf };
 })(typeof window !== 'undefined' ? window : globalThis);

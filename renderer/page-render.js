@@ -87,6 +87,8 @@
       drawAnnotations(index, entry);
       // テキストの入力欄は枠と同じ寿命で、下書きは生き残る（spec-4-2 確定事項9）。
       root.SigK.freeTextEditor?.onPageRendered(index, node, viewport);
+      // トリミングの枠は紙の座標で持つので、描き直したページに描き直す（spec-4b-6a 確定事項15）。
+      root.SigK.annotateTrim?.onPageRendered(index, node, viewport);
       // 一覧から飛んできていれば、描けたこの時点で注釈へ寄せる（spec-4-4 確定事項30）。
       root.SigK.annotationList?.onPageRendered(index);
     }

@@ -60,11 +60,12 @@ function addedValues(SigK, field, fallback) {
   return [...SigK.viewer.getAnnotations().added].map((entry) => entry[field] ?? fallback);
 }
 
-test('行の並びは 種類 → 色 → 文字の大きさ → 書式 → 塗り → 線種 → 枠線 → 線の太さ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
+test('行の並びは 種類 → トリミングの当てるページと大きさ → 色 → 文字の大きさ → 書式 → 塗り → 線種 → 枠線 → 線の太さ → 不透明度 → 回転 → 本文 → 作成者 → ページ', async (t) => {
   const shell = await withShell(t);
   const ids = [...shell.document.querySelectorAll('#props .props-body > .prop')].map((node) => node.id || 'kind');
   // 回転の行は不透明度の下（spec-4b-2 確定事項25）。文字の大きさは色の直後（spec-4b-4a 確定事項G1。960×600 でも見えるように）
-  assert.deepEqual(ids, ['kind', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
+  // トリミングの 2 行は種類の直後（spec-4b-6a 確定事項17。道具を持っている間だけ出す）。
+  assert.deepEqual(ids, ['kind', 'props-trim-scope-row', 'props-trim-size-row', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
     'props-opacity-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
 });
 

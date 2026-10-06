@@ -96,6 +96,8 @@
   function syncPage() {
     controls()?.syncPage(el.doc, getState());
     root.SigK.thumbnails?.setCurrent(state.current);
+    // 右パネルの「このページが切ってあるか」（spec-4b-6a 確定事項17）。トリミングを持っていなければ何もしない。
+    root.SigK.trimProps?.refresh();
   }
 
   function getState() {
@@ -167,6 +169,15 @@
     const crop = state.plan.find((page) => page.src === src)?.crop;
     const view = Array.isArray(crop) ? crop : state.basePages[src]?.view;
     return Array.isArray(view) ? [...view] : null;
+  }
+
+  // 元ページ src のファイルの見える範囲（page.view）・自身の /Rotate・UserUnit（spec-4b-6a 確定事項14・18・19）。切っても変わらない。
+  // 分からなければ null。
+  function getBasePage(src) {
+    const base = state.basePages[src];
+    if (!Array.isArray(base?.view))
+      return null;
+    return { view: [...base.view], rotate: base.rotate ?? 0, userUnit: base.userUnit ?? 1 };
   }
 
   function getPlan() {
@@ -308,6 +319,8 @@
       ? (isDirty() ? 1 : 0)
       : tabs.list().filter((info) => tabs.isDirty(info.id)).length;
     root.appCloseAPI?.setDirty?.(count);
+    // 切った・外した・元に戻した・開き直したあとの右パネル（spec-4b-6a 確定事項17）。トリミングを持っていなければ何もしない。
+    root.SigK.trimProps?.refresh();
   }
 
   // 編集後の並びを画面へ映す（確定事項43）。ページビュー・ページ番号・
@@ -979,6 +992,7 @@
     getPage,
     viewportRotation,
     getPlan,
+    getBasePage,
     applyPlan,
     openCanceled,
     addInserts,

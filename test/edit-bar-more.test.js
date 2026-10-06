@@ -13,7 +13,7 @@ function childrenOf(document) {
   return [...document.getElementById('edit-bar').children].filter((node) => node.matches('.edit-sep, .edit-item:not(.edit-more)'));
 }
 
-// 右端の hide 個（ノートから左へ）を隠す。
+// 右端の hide 個（トリミングから左へ。区切り線も 1 個に数える）を隠す。
 function hideRight(shell, hide) {
   const children = childrenOf(shell.document).map((node) => ({ width: node.classList.contains('edit-sep') ? 7 : 48, sep: node.classList.contains('edit-sep') }));
   const keep = children.length - hide;
@@ -21,7 +21,7 @@ function hideRight(shell, hide) {
   shell.SigK.editBarOverflow.fit({ children, available: span + 5 + 48, gap: 5, padding: [0, 0], moreWidth: 48 });
 }
 
-async function withHidden(t, hide = 2) {
+async function withHidden(t, hide = 4) {
   const shell = await createShell({ pdfjs: createPdfjsStub(), files: { [A]: makeSource({ path: A, name: 'a.pdf' }) } });
   t.after(() => shell.cleanup());
   await shell.SigK.tabs.openPath(A);
@@ -46,7 +46,7 @@ test('「その他」を押すと隠した道具の一覧が開き、もう一�
   button.click();
   assert.equal(menu.hidden, false);
   assert.equal(button.getAttribute('aria-expanded'), 'true');
-  assert.deepEqual(rowNames(document), ['消しゴム', 'ノート']);
+  assert.deepEqual(rowNames(document), ['消しゴム', 'ノート', 'トリミング']);
   assert.ok(document.querySelector('#edit-more-menu .edit-more-row svg') !== null, '行に道具のアイコン');
   assert.equal(document.activeElement.textContent, '消しゴム', '先頭の行に移る');
   button.click();
@@ -78,20 +78,20 @@ test('一覧の道具を押すとその道具を持ち、一覧は閉じて「�
 });
 
 test('キーボード: ↓ で開き、↑↓・Home・End で移り、Enter で選び、Esc で閉じて「その他」へ戻る', async (t) => {
-  const shell = await withHidden(t, 3);
+  const shell = await withHidden(t, 5);
   const { document, SigK } = shell;
   const button = document.getElementById('edit-more');
   key(shell, button, 'ArrowDown');
-  assert.deepEqual(rowNames(document), ['マーカー', '消しゴム', 'ノート']);
+  assert.deepEqual(rowNames(document), ['マーカー', '消しゴム', 'ノート', 'トリミング']);
   const menu = document.getElementById('edit-more-menu');
   key(shell, menu, 'ArrowDown');
   assert.equal(document.activeElement.textContent, '消しゴム');
   key(shell, menu, 'End');
-  assert.equal(document.activeElement.textContent, 'ノート');
+  assert.equal(document.activeElement.textContent, 'トリミング');
   key(shell, menu, 'ArrowDown');
   assert.equal(document.activeElement.textContent, 'マーカー', '端で反対の端へ');
   key(shell, menu, 'ArrowUp');
-  assert.equal(document.activeElement.textContent, 'ノート');
+  assert.equal(document.activeElement.textContent, 'トリミング');
   key(shell, menu, 'Home');
   assert.equal(document.activeElement.textContent, 'マーカー');
   const enter = key(shell, menu, 'Enter');

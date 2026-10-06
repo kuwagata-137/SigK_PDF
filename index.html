@@ -95,6 +95,10 @@ body{
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="marker" title="マーカー" aria-label="マーカー" aria-pressed="false"><span data-icon="marker" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">マーカー</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="eraser" title="消しゴム" aria-label="消しゴム" aria-pressed="false"><span data-icon="eraser" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">消しゴム</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="note" title="ノート" aria-label="ノート" aria-pressed="false"><span data-icon="note" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ノート</span></span>
+    <!-- 「トリミング」はノートの後ろに区切りを挟んで置く（spec-4b-6a 確定事項11。見本 screenshots/phase4b-6-trim-frame.png）。描かない道具で、
+         紙の上を引いて残す範囲を囲む。 -->
+    <span class="edit-sep"></span>
+    <span class="edit-item"><button type="button" class="edit-tool" data-tool="trim" title="トリミング" aria-label="トリミング" aria-pressed="false"><span data-icon="trim" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">トリミング</span></span>
     <!-- 入りきらない道具の入れ物（spec-4b-5b 確定事項25〜28。見本 screenshots/phase4b-5b-more.png）。入りきらないときだけ出す。
          結線は edit-bar-overflow.js（隠す）と edit-bar-more.js（一覧）。 -->
     <span class="edit-item edit-more" hidden><button type="button" class="edit-tool" id="edit-more" title="その他" aria-label="その他" aria-haspopup="menu" aria-expanded="false" aria-pressed="false"><span data-icon="more" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">その他</span></span>
@@ -574,6 +578,11 @@ body{
       <div class="side-head"><span>プロパティ</span></div>
       <div class="props-body">
         <div class="prop"><span class="k">種類</span><span class="v" id="props-kind">–</span></div>
+        <!-- トリミング（spec-4b-6a 確定事項17。見本 screenshots/phase4b-6-trim-frame.png・-trim-applied.png）。道具を持っている間だけ出す。
+             当てるページと、残す大きさ（枠があるとき）か今のページが切ってあるか。中身は trim-props.js。 -->
+        <div class="prop" id="props-trim-scope-row" hidden><span class="k">当てるページ</span>
+          <div class="props-kinds trim-scope" id="props-trim-scope" role="group" aria-label="当てるページ"><button type="button" data-scope="page" aria-pressed="true">このページ</button><button type="button" data-scope="all" aria-pressed="false">すべてのページ</button></div></div>
+        <div class="prop" id="props-trim-size-row" hidden><span class="k" id="props-trim-size-label">残す大きさ</span><span class="v" id="props-trim-size"></span></div>
         <!-- 色・塗り・線種・線の太さ・不透明度（spec-4b-1b 確定事項1〜9）。中身と出し入れは annotation-style-rows.js。
              色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
         <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
@@ -607,6 +616,9 @@ body{
         <p class="props-hint" id="props-hint"></p>
       </div>
       <div class="props-actions">
+        <!-- トリミングの［取消］［適用］（枠があるとき）と［トリミングを外す］（枠が無いとき）。結線は trim-props.js。 -->
+        <div class="trim-actions" id="props-trim-actions" hidden><button type="button" class="act" id="props-trim-cancel">取消</button><button type="button" class="act primary" id="props-trim-apply">適用</button></div>
+        <button type="button" class="act wide" id="props-trim-remove" hidden>トリミングを外す</button>
         <button type="button" class="act danger wide" id="props-delete" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>削除</button>
       </div>
     </div>
@@ -768,6 +780,8 @@ body{
 <script src="renderer/page-grid-rules.js"></script>
 <script src="renderer/page-crop.js"></script>
 <script src="renderer/page-viewbox.js"></script>
+<script src="renderer/page-boxes.js"></script>
+<script src="renderer/trim-drag.js"></script>
 <script src="renderer/annotation-presets.js"></script>
 <script src="renderer/annotation-palette.js"></script>
 <script src="renderer/free-text-geometry.js"></script>
@@ -917,6 +931,10 @@ body{
 <script src="renderer/annotate-right-button.js"></script>
 <script src="renderer/eraser-draft.js"></script>
 <script src="renderer/annotate-erase.js"></script>
+<script src="renderer/trim-frame.js"></script>
+<script src="renderer/trim-commit.js"></script>
+<script src="renderer/annotate-trim.js"></script>
+<script src="renderer/trim-tool.js"></script>
 <script src="renderer/annotate-drag-route.js"></script>
 <script src="renderer/annotate-pointer.js"></script>
 <script src="renderer/annotation-note-rows.js"></script>
@@ -928,6 +946,7 @@ body{
 <script src="renderer/annotation-angle-row.js"></script>
 <script src="renderer/annotation-bulk-props.js"></script>
 <script src="renderer/annotation-text-rows.js"></script>
+<script src="renderer/trim-props.js"></script>
 <script src="renderer/annotation-props.js"></script>
 <script src="renderer/annotation-index.js"></script>
 <script src="renderer/annotation-list.js"></script>

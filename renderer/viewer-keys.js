@@ -140,6 +140,11 @@
     }
     if (event.key === 'Escape' && inAnnotMode && annotate !== undefined)
       return annotate.escape();
+    // トリミングの枠があれば、Enter で切る（spec-4b-6a 確定事項14・26）。選んでいるテキストを直すより先に見る。
+    if (event.key === 'Enter' && inAnnotMode && root.SigK.annotateTrim?.hasFrame() === true) {
+      event.preventDefault();
+      return root.SigK.trimTool.apply();
+    }
     // 選んでいるテキストは Enter で直せる（spec-4-2 確定事項5）。
     if (event.key === 'Enter' && inAnnotMode && annotate !== undefined && annotate.editSelected()) {
       event.preventDefault();

@@ -26,7 +26,9 @@
     const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
     // なぞっている途中の消しゴムは当てずにやめる（spec-4b-5b 確定事項23）。
     const erase = root.SigK.annotateErase?.cancel() === true;
-    return text || polygon || anchor || erase;
+    // トリミングの枠は捨てる（spec-4b-6a 確定事項15）。
+    const trim = root.SigK.annotateTrim?.discard() === true;
+    return text || polygon || anchor || erase || trim;
   }
 
   // 描いている途中の多角形を捨てる（Ctrl+Z・Ctrl+Y。履歴は動かさない。spec-4b-5a 確定事項16）。捨てたら true。
@@ -38,6 +40,7 @@
   }
 
   // Esc。道具の段の「その他」の一覧（spec-4b-5b 確定事項28）→ 右クリックのメニュー → つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→ 表示を引く（そこで終える）→
+  // なぞっている途中の消しゴム → トリミングの引いている途中（引く前の枠へ）→ トリミングの枠（spec-4b-6a 確定事項15・26）→
   // パレットの窓 → スライダーの下見 → 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）→ 描いている途中の多角形 →
   // 入力欄（確定）→ 選択を外す → 道具を外す、の順に、最初に当たった 1 つだけ。何も無ければ false。
   function escape() {
@@ -50,6 +53,8 @@
       () => root.SigK.annotateHand?.cancel() === true,
       // なぞっている途中の消しゴム（spec-4b-5b 確定事項23）。
       () => root.SigK.annotateErase?.cancel() === true,
+      () => root.SigK.annotateTrim?.cancelDrag() === true,
+      () => root.SigK.annotateTrim?.dropFrame() === true,
       () => root.SigK.colorPopover?.close({ restoreFocus: true }) === true,
       () => root.SigK.annotatePreview?.cancel() === true,
       () => root.SigK.annotateDraw?.cancel() === true,
@@ -79,16 +84,17 @@
     return true;
   }
 
-  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす・表示を引く）を取りやめ、メニューを閉じる。取り消し・やり直しの
-  // 前に呼ぶ（spec-4b-3a 確定事項L3、spec-4b-3b 確定事項G）。どれか取りやめたら true。
+  // 押して引いている途中の操作（つまみ・範囲選択・掴んで動かす・表示を引く）を取りやめ、メニューを閉じ、トリミングの枠を捨てる。
+  // 取り消し・やり直しの前と左＋右で呼ぶ（spec-4b-3a 確定事項L3、spec-4b-3b 確定事項G、spec-4b-6a 確定事項15）。どれか取りやめたら true。
   function abortGestures() {
     const transformed = root.SigK.annotateTransform?.cancel() === true;
     const marqueed = root.SigK.annotateMarquee?.cancel() === true;
     const grabbed = root.SigK.annotateGrab?.cancel() === true;
     const panned = root.SigK.annotateHand?.cancel() === true;
     const erased = root.SigK.annotateErase?.cancel() === true;
+    const trimmed = root.SigK.annotateTrim?.discard() === true;
     const closed = root.SigK.annotationMenu?.close() === true;
-    return transformed || marqueed || grabbed || panned || erased || closed;
+    return transformed || marqueed || grabbed || panned || erased || trimmed || closed;
   }
 
   // 左＋右（spec-4b-3b 確定事項E2）。メニュー・つまみ・範囲選択（押す前の選択に戻す）・掴む（写しを捨てて元の位置）・表示を引く・
