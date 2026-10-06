@@ -20,7 +20,11 @@
 
   // viewport を作る。rotation を渡さなければ pdf.js の既定（ページ自身の
   // /Rotate）に任せる。渡すときは絶対角である（spec-1-5 確定事項39）。
-  function viewportFor(page, { scale, rotation }) {
+  // box は描く範囲（印刷が plan の crop を渡す。spec-4b-6a 確定事項6）。口が読まれていなければ元の範囲で描く。
+  function viewportFor(page, { scale, rotation, box = null }) {
+    const viewbox = root.SigK?.pageViewbox;
+    if (viewbox !== undefined)
+      return viewbox.viewportFor(page, { scale, rotation, box });
     return rotation === undefined ? page.getViewport({ scale }) : page.getViewport({ scale, rotation });
   }
 
@@ -30,8 +34,8 @@
   // annotationMode は pdf.js の描き方（spec-4-1 確定事項18・28。読み込んだテキスト
   // マークアップを pdf.js に描かせないとき ENABLE_STORAGE）。overlay(ctx, viewport) は
   // 描いたあとに呼ぶ口で、印刷が未保存の注釈を同じ canvas に重ねる（確定事項28）。
-  async function renderToCanvas(doc, page, { scale, rotation, annotationMode, overlay = null }) {
-    const viewport = viewportFor(page, { scale, rotation });
+  async function renderToCanvas(doc, page, { scale, rotation, box = null, annotationMode, overlay = null }) {
+    const viewport = viewportFor(page, { scale, rotation, box });
     const width = Math.round(viewport.width);
     const height = Math.round(viewport.height);
     if (!hasCanvas(doc.defaultView))

@@ -44,6 +44,11 @@
       return (page?.rotate ?? 0) + (state.plan[index]?.rotate ?? 0);
     }
 
+    // 描く範囲は plan の crop（spec-4b-6a 確定事項5・6）。canvas・注釈の層・文字の層で同じ箱を使う。
+    function viewportAt(index, page, scale) {
+      return root.SigK.pageViewbox.viewportFor(page, { scale, rotation: rotationFor(index, page), box: state.plan[index]?.crop ?? null });
+    }
+
     // ページ1枚を canvas に描く。描けない環境では null を返す。
     //
     // 「描けないなら打ち切る」ではなく「絵だけ無い」で返すのは、テキスト
@@ -51,7 +56,7 @@
     // 作れるので、絵が出せない環境（jsdom）でも組み立てて確かめられる。
     async function drawCanvas({ entry, page, index }) {
       const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
-      const viewport = page.getViewport({ scale, rotation: rotationFor(index, page) });
+      const viewport = viewportAt(index, page, scale);
       if (!canDrawCanvas())
         return null;
 
@@ -77,10 +82,7 @@
       const node = ctx.el().pageNodes[index];
       if (layer === undefined || node === undefined || node === null)
         return;
-      const viewport = page.getViewport({
-        scale: state.zoom * layout().CSS_UNITS,
-        rotation: rotationFor(index, page),
-      });
+      const viewport = viewportAt(index, page, state.zoom * layout().CSS_UNITS);
       entry.annots = { svg: layer.mount(ctx.el().doc, node, viewport), viewport };
       drawAnnotations(index, entry);
       // テキストの入力欄は枠と同じ寿命で、下書きは生き残る（spec-4-2 確定事項9）。
@@ -209,10 +211,7 @@
       // 掛けない CSS ピクセル基準のものを渡す（text-layer.js の注記を参照）。
       // 回転は canvas と揃える。揃えないと、回した紙の上で文字だけが
       // 元の向きに残る。
-      const viewport = page.getViewport({
-        scale: state.zoom * layout().CSS_UNITS,
-        rotation: rotationFor(index, page),
-      });
+      const viewport = viewportAt(index, page, state.zoom * layout().CSS_UNITS);
       const handle = await textLayer.render({ doc: ctx.el().doc, page, viewport });
       if (handle === null)
         return;

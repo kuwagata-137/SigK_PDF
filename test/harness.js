@@ -125,6 +125,45 @@ function normalizeAngle(degrees) {
   return (((Math.round(degrees / 90) * 90) % 360) + 360) % 360;
 }
 
+// pdf.js の PageViewport と同じ式（pdf.js 6.3.289 の page_viewport.js を写した）。viewBox は紙の座標の箱で、原点が 0 でなくてもよい
+// （spec-4b-6a 確定事項5。トリミングは getViewport の戻り値の constructor に別の viewBox を渡して作る）。
+class FakeViewport {
+  constructor({ viewBox, userUnit = 1, scale, rotation }) {
+    this.viewBox = viewBox;
+    this.userUnit = userUnit;
+    this.scale = scale;
+    this.rotation = rotation;
+    const total = scale * userUnit;
+    const centerX = (viewBox[2] + viewBox[0]) / 2;
+    const centerY = (viewBox[3] + viewBox[1]) / 2;
+    const [a, b, c, d] = { 0: [1, 0, 0, -1], 90: [0, 1, 1, 0], 180: [-1, 0, 0, 1], 270: [0, -1, -1, 0] }[normalizeAngle(rotation)];
+    const sideways = a === 0;
+    const offsetX = (sideways ? Math.abs(centerY - viewBox[1]) : Math.abs(centerX - viewBox[0])) * total;
+    const offsetY = (sideways ? Math.abs(centerX - viewBox[0]) : Math.abs(centerY - viewBox[1])) * total;
+    this.width = (sideways ? viewBox[3] - viewBox[1] : viewBox[2] - viewBox[0]) * total;
+    this.height = (sideways ? viewBox[2] - viewBox[0] : viewBox[3] - viewBox[1]) * total;
+    this.transform = [a * total, b * total, c * total, d * total,
+      offsetX - a * total * centerX - c * total * centerY, offsetY - b * total * centerX - d * total * centerY];
+  }
+
+  get rawDims() {
+    const box = this.viewBox;
+    return { pageWidth: box[2] - box[0], pageHeight: box[3] - box[1], pageX: box[0], pageY: box[1] };
+  }
+
+  // 本物と同じ座標の往復（spec-4-1 確定事項11）。
+  convertToViewportPoint(x, y) {
+    const [a, b, c, d, e, f] = this.transform;
+    return [a * x + c * y + e, b * x + d * y + f];
+  }
+
+  convertToPdfPoint(px, py) {
+    const [a, b, c, d, e, f] = this.transform;
+    const det = a * d - b * c;
+    return [(d * (px - e) - c * (py - f)) / det, (-b * (px - e) + a * (py - f)) / det];
+  }
+}
+
 // pdf.js の代わり。ページの寸法を返し、描画は即座に終わったことにする。
 //
 // getDocument() は呼ばれるたびに別の文書を作る。タブは複数の文書を同時に
@@ -162,17 +201,6 @@ function createPdfjsStub({
   const cleanups = [];
   // page.render() に届いた { page, annotationMode } の並び（spec-4-1 確定事項18）。
   const renderCalls = [];
-
-  // pdf.js の PageViewport と同じ変換（回転 0/90/180/270）。注釈の四角の往復に要る。
-  function viewportTransform({ scale, rotation, width, height }) {
-    if (rotation === 90)
-      return [0, scale, scale, 0, 0, 0];
-    if (rotation === 180)
-      return [-scale, 0, 0, scale, width * scale, 0];
-    if (rotation === 270)
-      return [0, -scale, -scale, 0, height * scale, width * scale];
-    return [scale, 0, 0, -scale, 0, height * scale];
-  }
 
   // pdf.js の annotationStorage の代わり。setValue / remove / get / size だけ。
   function createAnnotationStorage() {
@@ -213,24 +241,11 @@ function createPdfjsStub({
           view: [0, 0, size.width, size.height],
           // 本物と同じく、rotation は絶対値として置き換える。既定値はページ
           // 自身の rotate である（spec-1-5 の事前調査）。
+          userUnit: 1,
           getViewport: ({ scale, rotation = rotate }) => {
             const angle = normalizeAngle(rotation);
-            const swapped = angle % 180 !== 0;
             viewportCalls.push({ page: number, rotation: angle, scale });
-            const [a, b, c, d, e, f] = viewportTransform({ scale, rotation: angle, width: size.width, height: size.height });
-            const det = a * d - b * c;
-            return {
-              width: (swapped ? size.height : size.width) * scale,
-              height: (swapped ? size.width : size.height) * scale,
-              rotation: angle,
-              scale,
-              // 本物と同じ座標の往復（spec-4-1 確定事項11）。
-              convertToViewportPoint: (x, y) => [a * x + c * y + e, b * x + d * y + f],
-              convertToPdfPoint: (px, py) => [
-                (d * (px - e) - c * (py - f)) / det,
-                (-b * (px - e) + a * (py - f)) / det,
-              ],
-            };
+            return new FakeViewport({ viewBox: [0, 0, size.width, size.height], userUnit: 1, scale, rotation: angle });
           },
           render: (options = {}) => {
             rendered.push(number);
