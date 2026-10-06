@@ -83,6 +83,12 @@ async function inspectAnnotations(file) {
     const xobjects = field(field(normal?.dict, 'Resources'), 'XObject');
     return xobjects instanceof PDFDict && xobjects.entries().some(([, ref]) => lookup(ref)?.dict?.has(PDFName.of('Group')) === true);
   };
+  // 外観の外側の ExtGState の重ね方（マーカーの /BM /Multiply。spec-4b-5b 確定事項10）。無ければ null。
+  const blendOf = (dict) => {
+    const states = field(field(field(field(dict, 'AP'), 'N')?.dict, 'Resources'), 'ExtGState');
+    const names = states instanceof PDFDict ? states.entries().map(([, ref]) => name(field(lookup(ref), 'BM'))).filter((value) => value !== null) : [];
+    return names[0] ?? null;
+  };
   const written = [];
   doc.getPages().forEach((page, index) => {
     const annots = lookup(page.node.get(PDFName.of('Annots')));
@@ -106,6 +112,7 @@ async function inspectAnnotations(file) {
         BE: be instanceof PDFDict ? { S: name(field(be, 'S')), I: number(field(be, 'I')) } : null,
         RD: numbers(field(dict, 'RD')),
         group: grouped(dict),
+        BM: blendOf(dict),
         bbox: numbers(field(normal?.dict, 'BBox')),
         matrix: numbers(field(normal?.dict, 'Matrix')),
         // 矢印の先・多角形の頂点・×印の線（spec-4b-5a 確定事項34〜36）。

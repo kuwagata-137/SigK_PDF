@@ -62,6 +62,7 @@
       "smoke-annotate-text.js",
       "smoke-annotate-inspect.js",
       "smoke-annotate-shapes.js",
+      "smoke-annotate-erase.js",
       "worker/**",
       "index.html",
       "renderer/**",
