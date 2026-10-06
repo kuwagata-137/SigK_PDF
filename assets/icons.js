@@ -175,6 +175,12 @@
     // 道具の段の「多角形」（spec-4b-5a 確定事項27）。五角形。
     shapePolygon: [['path', { d: 'M12 3.6l8.2 6-3.1 10H6.9l-3.1-10z' }]],
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
+    // 道具の段の「その他」（spec-4b-5b 確定事項25）。横に並べた 3 つの点。
+    more: [
+      ['circle', { cx: 6, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }],
+      ['circle', { cx: 12, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }],
+      ['circle', { cx: 18, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }],
+    ],
     // 道具の段の「選択」（spec-4b-3a 確定事項C1）。マウスの矢印の形。
     pointerSelect: [['path', { d: 'M6.5 3.8v14.6l3.9-3.7 2.6 5.5 2.3-1.1-2.6-5.4h5.6z' }]],
     // 道具の段の「ハンド」（spec-4b-3b 確定事項A1。モック screenshots/phase4b-3-bar.png と同じ形）。開いた手の甲。

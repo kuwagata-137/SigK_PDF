@@ -131,6 +131,9 @@
     root.SigK.annotateShape.init(doc, win);
     // 道具の段（spec-4b-1a 確定事項1〜7）。図形の種類を読むので annotateShape の後。
     root.SigK.editBar.init(doc, win);
+    // 入りきらない道具の「その他」（spec-4b-5b 確定事項25〜28）。一覧を先に結ぶ（隠すたびに一覧を閉じるため）。
+    root.SigK.editBarMore.init(doc, win);
+    root.SigK.editBarOverflow.init(doc, win);
     root.SigK.annotateOpacity.init(doc, win);
     root.SigK.annotateNote.init(doc, win);
     root.SigK.annotateTransform.init(doc, win);

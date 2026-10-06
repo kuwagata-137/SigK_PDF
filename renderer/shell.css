@@ -733,6 +733,18 @@ html[data-mode="annot"] #edit-bar{display:flex}
 .edit-name{margin-top:3px; font-size:10.5px; line-height:1.1; white-space:nowrap; color:var(--muted)}
 .edit-tool.active + .edit-name{color:var(--primary)}
 .edit-sep{width:1px; align-self:stretch; margin:3px 3px 16px; background:var(--border)}
+/* 道具の段に入りきらない道具（spec-4b-5b 確定事項25〜28。見本 screenshots/phase4b-5b-more.png）。段の子は縮めない（幅を測って、
+   入りきらないものを右から隠す）。隠したものは右端の「その他」の一覧に出す。 */
+#edit-bar > .edit-item, #edit-bar > .edit-sep{flex:0 0 auto}
+#edit-bar > .edit-overflow, #edit-bar > .edit-item[hidden]{display:none}
+.edit-more-menu{
+  position:absolute; z-index:60; top:calc(100% - 4px); min-width:150px; padding:4px; background:var(--surface);
+  border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 18px rgba(16,24,40,.16); font-size:13px; color:var(--text);
+}
+.edit-more-menu[hidden]{display:none}
+.edit-more-row{display:flex; align-items:center; gap:10px; width:100%; padding:6px 12px; border-radius:6px; cursor:pointer; text-align:left; color:var(--text)}
+.edit-more-row:hover, .edit-more-row:focus-visible{background:var(--select)}
+.edit-more-row.active{background:var(--primary); color:#fff}
 
 /* 紙の上に重ねる注釈の層（確定事項5）。canvas のあと・テキストレイヤーの前。
    ハイライトは multiply で文字を残す。当たり判定は annotate.js が四角で行うので

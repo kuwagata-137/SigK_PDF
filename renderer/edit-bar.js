@@ -30,6 +30,8 @@
       button.classList.toggle('active', on);
       button.setAttribute('aria-pressed', on ? 'true' : 'false');
     }
+    // 押している道具が「その他」に隠れていれば「その他」に印（spec-4b-5b 確定事項27）。
+    root.SigK.editBarMore?.syncPressed();
     return true;
   }
 
