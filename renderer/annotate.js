@@ -56,27 +56,6 @@
     return root.SigK.annotateNextStyle;
   }
 
-  // 開いているテキストの入力欄を確定して閉じる（spec-4-2 確定事項8）。
-  // 入力欄を確定する。描いている途中の多角形も、置ける形なら開いたまま確定する（タブ・モードを替える・保存・印刷の前。
-  // spec-4b-5a 確定事項16）。
-  function finishEditing() {
-    const text = root.SigK.annotateText?.finishEditing() === true;
-    const polygon = root.SigK.annotatePolygon?.commitPending() === true;
-    // 始点合わせは始点しか無いので確定せずにやめる（spec-4b-5a 確定事項19）。
-    const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
-    // なぞっている途中の消しゴムは当てずにやめる（spec-4b-5b 確定事項23）。
-    const erase = root.SigK.annotateErase?.cancel() === true;
-    return text || polygon || anchor || erase;
-  }
-
-  // 描いている途中の多角形を捨てる（Ctrl+Z・Ctrl+Y。履歴は動かさない。spec-4b-5a 確定事項16）。捨てたら true。
-  function dropPendingShape() {
-    const polygon = root.SigK.annotatePolygon?.cancel() === true;
-    const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
-    const erase = root.SigK.annotateErase?.cancel() === true;
-    return polygon || anchor || erase;
-  }
-
   // ---- 印刷（確定事項28） ----
 
   // ページ src の注釈を canvas 2D に描く口。無ければ null。
@@ -97,7 +76,7 @@
   function onModeChanged(mode) {
     root.SigK.annotationMenu?.close();
     if (mode !== 'annot') {
-      finishEditing();
+      root.SigK.annotateCancel.finishEditing();
       root.SigK.annotateHand?.cancel();
     }
     if (mode !== 'annot' && selection().getSelection().length > 0)
@@ -171,8 +150,9 @@
     getAuthor: () => root.SigK.annotateNote?.getAuthor() ?? '',
     // Enter・ダブルクリック: テキストは入力欄、ノートは「本文」欄。
     editSelected: () => root.SigK.annotateText?.editSelected() === true || root.SigK.annotateNote?.editSelected() === true,
-    finishEditing,
-    dropPendingShape,
+    // 入力欄の確定と、描きかけを捨てる口（中身は annotate-cancel.js）。
+    finishEditing: () => root.SigK.annotateCancel.finishEditing(),
+    dropPendingShape: () => root.SigK.annotateCancel.dropPendingShape(),
     createFromSelection: (kind) => tools().createFromSelection(kind),
     // 選択（spec-4b-3a 確定事項A）。getSelected・selectedEntry は 1 件のときだけ。複数は getSelection・selectedEntries。
     getSelected: () => selection().getSelected(),
