@@ -19,10 +19,16 @@
   // 要素は2種類ある（spec-1-6 確定事項65）。{ src, rotate } は元ファイルの
   // ページ、{ insert, rotate } は差し込んだページである。**両方とも運ぶ。**
   // 落とすと、undo で戻したときに差し込みが元ページ 0 に化ける。
+  //
+  // 元ファイルのページは、切った範囲 crop（[x1, y1, x2, y2]。PDF の座標・回す前）を持てる（spec-4b-6a 確定事項1・3）。
+  // 無ければファイルのまま。これも運ぶ（配列は新しく作る）。
   function copyPage(page) {
-    return Number.isInteger(page?.insert)
+    const copy = Number.isInteger(page?.insert)
       ? { insert: page.insert, rotate: page.rotate }
       : { src: page.src, rotate: page.rotate };
+    if (Array.isArray(page?.crop))
+      copy.crop = [...page.crop];
+    return copy;
   }
 
   function clonePlan(plan) {
@@ -61,8 +67,9 @@
 
   function rotatePages(plan, indices, delta) {
     const targets = new Set(normalizeIndices(indices, plan.length));
+    // 回す要素も copyPage を通す。差し込み（{ insert }）を src へ化けさせない（spec-1-6 確定事項65）。
     return plan.map((page, index) => (targets.has(index)
-      ? { src: page.src, rotate: normalizeRotation(page.rotate + delta) }
+      ? { ...copyPage(page), rotate: normalizeRotation(page.rotate + delta) }
       : copyPage(page)));
   }
 
@@ -113,6 +120,20 @@
     return { plan: next, selection: [at], changed: true };
   }
 
+  // ---- トリミング（spec-4b-6a 確定事項1〜3） ----
+
+  // 切った範囲を当てた並び。crops は「表示 index → plan の要素の写しを作る関数」。表にない要素はそのまま写す。
+  // 欄を付けるか消すか（ファイルの見える範囲と同じなら消す）は、渡す側（page-crop.js の withCrop）が決める。
+  function cropPages(plan, crops) {
+    return plan.map((page, index) => (crops.has(index) ? copyPage(crops.get(index)(copyPage(page))) : copyPage(page)));
+  }
+
+  function sameCrop(a, b) {
+    if (a === undefined || b === undefined)
+      return a === b;
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((value, index) => value === b[index]);
+  }
+
   // ---- 未保存の判定（確定事項6） ----
 
   // 2つの並びが同じか。保存したあとの未保存判定に使う（spec-1-6「穴1」）。
@@ -120,7 +141,8 @@
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length)
       return false;
     return a.every((page, index) =>
-      page.src === b[index].src && page.insert === b[index].insert && page.rotate === b[index].rotate);
+      page.src === b[index].src && page.insert === b[index].insert && page.rotate === b[index].rotate
+      && sameCrop(page.crop, b[index].crop));
   }
 
   // plan の要素から「どの文書の何ページ目を描くか」を返す（spec-1-6 確定事項93）。
@@ -146,7 +168,7 @@
   function isDirty(plan, pageCount) {
     if (!Array.isArray(plan) || plan.length !== pageCount)
       return true;
-    return plan.some((page, index) => page.src !== index || page.rotate !== 0);
+    return plan.some((page, index) => page.src !== index || page.rotate !== 0 || page.crop !== undefined);
   }
 
   const SigK = (root.SigK = root.SigK || {});
@@ -159,6 +181,7 @@
     movePages,
     canDelete,
     deletePages,
+    cropPages,
     isDirty,
     samePlan,
     sourceOf,
