@@ -13,16 +13,19 @@
     return root.SigK.annotateText?.finishEditing() === true;
   }
 
-  // Esc。右クリックのメニュー → つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→ 表示を引く（そこで終える）→
+  // Esc。道具の段の「その他」の一覧（spec-4b-5b 確定事項28）→ 右クリックのメニュー → つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→ 表示を引く（そこで終える）→
   // パレットの窓 → スライダーの下見 → 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）→ 描いている途中の多角形 →
   // 入力欄（確定）→ 選択を外す → 道具を外す、の順に、最初に当たった 1 つだけ。何も無ければ false。
   function escape() {
     const steps = [
+      () => root.SigK.editBarMore?.close({ restoreFocus: true }) === true,
       () => root.SigK.annotationMenu?.close() === true,
       () => root.SigK.annotateTransform?.cancel() === true,
       () => root.SigK.annotateMarquee?.cancel() === true,
       () => root.SigK.annotateGrab?.cancel() === true,
       () => root.SigK.annotateHand?.cancel() === true,
+      // なぞっている途中の消しゴム（spec-4b-5b 確定事項23）。
+      () => root.SigK.annotateErase?.cancel() === true,
       () => root.SigK.colorPopover?.close({ restoreFocus: true }) === true,
       () => root.SigK.annotatePreview?.cancel() === true,
       () => root.SigK.annotateDraw?.cancel() === true,
@@ -59,8 +62,9 @@
     const marqueed = root.SigK.annotateMarquee?.cancel() === true;
     const grabbed = root.SigK.annotateGrab?.cancel() === true;
     const panned = root.SigK.annotateHand?.cancel() === true;
+    const erased = root.SigK.annotateErase?.cancel() === true;
     const closed = root.SigK.annotationMenu?.close() === true;
-    return transformed || marqueed || grabbed || panned || closed;
+    return transformed || marqueed || grabbed || panned || erased || closed;
   }
 
   // 左＋右（spec-4b-3b 確定事項E2）。メニュー・つまみ・範囲選択（押す前の選択に戻す）・掴む（写しを捨てて元の位置）・表示を引く・

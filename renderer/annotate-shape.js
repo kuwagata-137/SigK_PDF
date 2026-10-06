@@ -40,10 +40,13 @@
     return root.SigK.freeTextEditor?.pageOf(index)?.viewport ?? viewer()?.getTextLayer(index)?.viewport ?? null;
   }
 
-  // 道具が描く種類。「図形」は道具の段で選んだ種類、「ペン」は ink。ほかの道具は null。
+  // 道具が描く種類。「図形」は道具の段で選んだ種類、「ペン」は ink、「マーカー」は道具の値を引く鍵の marker（描くのは乗算の
+  // ink。spec-4b-5b 確定事項2）。ほかの道具は null。
   function kindOfTool(tool) {
     if (tool === 'pen')
       return 'ink';
+    if (tool === 'marker')
+      return 'marker';
     return tool === 'shape' ? getShapeKind() : null;
   }
 
@@ -66,9 +69,10 @@
     // 多角形はドラッグでは描かない（クリックで頂点を置く。spec-4b-5a 確定事項13）。
     if (kind === null || kind === 'polygon' || !isOpen() || viewport === null || !Number.isInteger(src))
       return false;
-    // 色・塗り・線種は次に付ける値（線なしなら色は null。spec-4b-1b 確定事項42）。
+    // 色・塗り・線種は次に付ける値（線なしなら色は null。spec-4b-1b 確定事項42）。マーカーは乗算のペンとして描く。
     const look = annotate().nextStyleOf(kind);
-    return draft().begin({ index, src, viewport, kind, point, shift, ...look, lineWidth: getLineWidth(), opacity: annotate().getOpacity(kind) });
+    const drawn = kind === 'marker' ? { kind: 'ink', blend: 'multiply' } : { kind };
+    return draft().begin({ index, src, viewport, ...drawn, point, shift, ...look, lineWidth: getLineWidth(kind), opacity: annotate().getOpacity(kind) });
   }
 
   function updateDraft(point, shift = false) {
@@ -121,8 +125,8 @@
     return root.SigK.annotateShapeKind;
   }
 
-  function getLineWidth() {
-    return kindModule().getLineWidth();
+  function getLineWidth(kind) {
+    return kindModule().getLineWidth(kind);
   }
 
   function getShapeKind() {
@@ -151,7 +155,8 @@
     commit,
     getLineWidth,
     applyLineWidth: (width) => kindModule().applyLineWidth(width),
-    rememberLineWidth: (width) => kindModule().rememberLineWidth(width),
+    rememberLineWidth: (width, kind) => kindModule().rememberLineWidth(width, kind),
+    applyMarkerWidth: (width) => kindModule().applyMarkerWidth(width),
     setLineWidth: (width) => kindModule().setLineWidth(width),
     getShapeKind,
     applyShapeKind: (kind) => kindModule().applyShapeKind(kind),

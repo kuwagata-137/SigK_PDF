@@ -57,7 +57,7 @@ test('styled.pdf の不透明度・塗り・線幅 0・破線・雲形・/RD・�
   assert.equal(result.ok, true);
   const at = (key) => result.details[ids[key]];
 
-  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, cloudIntensity: null, rectDifference: null, rotation: null });
+  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, cloudIntensity: null, rectDifference: null, rotation: null, blend: null });
   assert.equal(at('0:Circle@220,700').ca, 0.5);
   assert.equal(at('0:PolyLine@380,700').ca, 0.5);
   assert.equal(at('0:Text@540,760').ca, 0.5, 'ノートの不透明度も読める（pdf.js は返さない）');
@@ -86,11 +86,12 @@ test('styled.pdf の不透明度・塗り・線幅 0・破線・雲形・/RD・�
   assert.equal(Object.values(ids).includes('direct'), true);
 });
 
-test('辞書でないもの・/Subtype の無いもの・無い番号は答えに入れない', async () => {
+test('辞書でないもの・/Subtype の無いもの・無い番号は答えに入れず、読めなかった参照（unread）に並べる', async () => {
   const file = fixturePath('styled.pdf');
-  // 1R は文書の目録など（注釈ではない）。99999R は無い。
+  // 1R は文書の目録など（注釈ではない）。99999R は無い。暗号化した文書で、辞書がオブジェクトストリームの中にあって読めないときも同じ
+  // （spec-4b-5b 点検 4。レンダラーは口が答えなかったときと同じに扱う）。
   const result = await runAnnotationDetails({ source: file, expect: expectOf(file), refs: ['1R', '99999R'] });
-  assert.deepEqual(result, { ok: true, details: {} });
+  assert.deepEqual(result, { ok: true, details: {}, unread: ['1R', '99999R'] });
 });
 
 test('開いたあとで大きさか更新時刻が変わっていれば読まない（changed）', async () => {

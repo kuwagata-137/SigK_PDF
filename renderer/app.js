@@ -62,6 +62,8 @@
       // 吹き出しの書式（spec-4b-4b 確定事項F3）。
       root.SigK.annotateTextStyle?.applyNextStyle(result.ui.annotCalloutStyle, 'callout');
       root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
+      // マーカーの太さ（spec-4b-5b 確定事項32）。
+      root.SigK.annotateShape?.applyMarkerWidth(result.ui.annotMarkerWidth);
       root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);
       // 不透明度と作成者（spec-4-4 確定事項21）。作成者が空ならメインが OS のユーザー名で埋めている。
       root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);
@@ -129,10 +131,15 @@
     root.SigK.annotateShape.init(doc, win);
     // 道具の段（spec-4b-1a 確定事項1〜7）。図形の種類を読むので annotateShape の後。
     root.SigK.editBar.init(doc, win);
+    // 入りきらない道具の「その他」（spec-4b-5b 確定事項25〜28）。一覧を先に結ぶ（隠すたびに一覧を閉じるため）。
+    root.SigK.editBarMore.init(doc, win);
+    root.SigK.editBarOverflow.init(doc, win);
     root.SigK.annotateOpacity.init(doc, win);
     root.SigK.annotateNote.init(doc, win);
     root.SigK.annotateTransform.init(doc, win);
     root.SigK.annotatePointer.init(doc, win);
+    // 消しゴムの輪のカーソル（spec-4b-5b 確定事項24）。
+    root.SigK.annotateErase.init(doc, win);
     root.SigK.annotationMenu.init(doc, win);
     root.SigK.annotateRightButton.init(doc, win);
     root.SigK.annotationProps.init(doc, win);

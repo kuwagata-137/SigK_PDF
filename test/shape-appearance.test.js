@@ -384,3 +384,25 @@ test('isShapeEntry は多角形の closed・3 点以上・開いたものの塗�
   assert.equal(isShapeEntry(polygonEntry({ closed: false, color: null, fill: '#ffff00' })), false);
   assert.equal(isShapeEntry({ ...polygonEntry(), kind: 'square', closed: true }), false, 'closed は多角形だけ');
 });
+
+// ---- マーカー（spec-4b-5b 確定事項10・11） ----
+
+test('マーカーは不透明度 100% でも group を立て、外側の重ね方に Multiply を返す。ペンは返さない', () => {
+  const marker = shapeAppearanceOf(ink({ color: '#ffff00', lineWidth: 12, blend: 'multiply' }));
+  assert.equal(marker.group, true);
+  assert.equal(marker.blend, 'Multiply');
+  assert.equal(marker.opacity, 1);
+  assert.equal(marker.subtype, 'Ink');
+  assert.equal(marker.content.includes('/GS gs'), false, '中身には /GS gs を書かない（外側で当てる）');
+  assert.equal(shapeAppearanceOf(ink({ blend: 'multiply', opacity: 0.4 })).opacity, 0.4);
+  assert.equal(shapeAppearanceOf(ink()).blend, undefined);
+  assert.equal(shapeAppearanceOf(ink()).group, false);
+});
+
+test('isShapeEntry は重ね方を、ペンの multiply だけ受ける', () => {
+  assert.equal(isShapeEntry(ink({ blend: 'multiply' })), true);
+  assert.equal(isShapeEntry(ink({ blend: 'screen' })), false);
+  assert.equal(isShapeEntry(ink({ blend: 'Multiply' })), false);
+  assert.equal(isShapeEntry(line({ blend: 'multiply' })), false);
+  assert.equal(isShapeEntry(square({ blend: 'multiply' })), false);
+});

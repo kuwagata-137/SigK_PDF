@@ -64,14 +64,17 @@
     const polygon = root.SigK.annotatePolygon?.commitPending() === true;
     // 始点合わせは始点しか無いので確定せずにやめる（spec-4b-5a 確定事項19）。
     const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
-    return text || polygon || anchor;
+    // なぞっている途中の消しゴムは当てずにやめる（spec-4b-5b 確定事項23）。
+    const erase = root.SigK.annotateErase?.cancel() === true;
+    return text || polygon || anchor || erase;
   }
 
   // 描いている途中の多角形を捨てる（Ctrl+Z・Ctrl+Y。履歴は動かさない。spec-4b-5a 確定事項16）。捨てたら true。
   function dropPendingShape() {
     const polygon = root.SigK.annotatePolygon?.cancel() === true;
     const anchor = root.SigK.annotateLineAnchor?.cancel() === true;
-    return polygon || anchor;
+    const erase = root.SigK.annotateErase?.cancel() === true;
+    return polygon || anchor || erase;
   }
 
   // ---- 印刷（確定事項28） ----
@@ -158,7 +161,7 @@
     getTextStyle: (tool = 'text') => root.SigK.annotateTextStyle?.getNextStyle(tool) ?? { bold: false, italic: false },
     setLineWidth: (width) => root.SigK.annotateShape?.setLineWidth(width) === true,
     setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
-    getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),
+    getLineWidth: (kind) => root.SigK.annotateShape?.getLineWidth(kind),
     getShapeKind: () => root.SigK.annotateShape?.getShapeKind(),
     // 不透明度・本文・作成者（spec-4-4）。
     setOpacity: (value) => root.SigK.annotateOpacity?.setOpacity(value) === true,

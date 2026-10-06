@@ -11,8 +11,8 @@
 
   // 口が要る種類。pdf.js が不透明度（/CA）を返さないもの（事前調査 A）。ハイライト・下線・取り消し線・ペンは
   // pdf.js が返すので要らない。
-  // 多角形は塗り・不透明度・回転を口で読む（spec-4b-5a 確定事項40）。
-  const DETAIL_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'polygon', 'text', 'note']);
+  // 多角形は塗り・不透明度・回転を口で読む（spec-4b-5a 確定事項40）。ペンと ×印は外観の重ね方を口で読む（spec-4b-5b 確定事項14）。
+  const DETAIL_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'polygon', 'ink', 'text', 'note']);
   // 口を呼ぶ上限（確定事項25）。100MB を超えるファイルは、開くたびにワーカーが同じ大きさを読み直すのを避ける。
   const SIZE_MAX = 100 * 1024 * 1024;
   const REFS_MAX = 10000;
@@ -70,6 +70,22 @@
     return fill !== null && typeof entry.color === 'string' && fill.toLowerCase() === entry.color.toLowerCase();
   }
 
+  // ペンと ×印の重ね方（spec-4b-5b 確定事項14〜16）。マーカー（乗算）のペンは blend を足し、ふつうのペンはそのまま（そのペンの答えが
+  // 無ければ、ほかの種類と同じく足す欄が無いものとしてペンのまま）。口がまるごと答えなかったペン（ペンかマーカーかを確かめられない）と、
+  // ほかの重ね方のペン、ふつうでない重ね方の ×印は null（表示のみ）。
+  function blendedOf(entry, detail, answered) {
+    const blend = detail?.blend ?? null;
+    if (entry.kind === 'cross')
+      return blend === null ? entry : null;
+    if (entry.kind !== 'ink')
+      return entry;
+    if (!answered)
+      return null;
+    if (blend === 'Multiply')
+      return { ...entry, blend: 'multiply' };
+    return blend === null ? entry : null;
+  }
+
   function withDetails(entry, detail) {
     const next = entry.kind === 'square' || entry.kind === 'circle' ? root.SigK.annotationBoxDetails.withBoxDetails(entry, detail) : entry;
     if (next === null || !Number.isFinite(detail.ca))
@@ -99,7 +115,10 @@
       return readonlyOf(entry);
     if (!closedArrowReadable(entry, detail))
       return readonlyOf(entry);
-    const base = baseOf(entry, detail, answered, text);
+    const blended = blendedOf(entry, detail, answered);
+    if (blended === null)
+      return readonlyOf(entry);
+    const base = baseOf(blended, detail, answered, text);
     if (base === null)
       return readonlyOf(entry);
     const next = detail === undefined || detail === null ? base : withDetails(base, detail);
@@ -121,7 +140,8 @@
     return refs.length > REFS_MAX ? 'too-many' : null;
   }
 
-  // 口を 1 本ずつ順番に呼ぶ。答えは { ok: true, details } か { ok: false, reason }（called は口を呼んだか）。
+  // 口を 1 本ずつ順番に呼ぶ。答えは { ok: true, details, unread } か { ok: false, reason }（called は口を呼んだか。unread は口が
+  // 読めなかった参照）。
   function requestDetails(file, refs) {
     const reason = unavailableReason(file, refs);
     if (reason !== null) {
@@ -137,8 +157,9 @@
       } catch {
         answer = { ok: false, reason: 'unreadable' };
       }
+      const unread = Array.isArray(answer?.unread) ? answer.unread.filter((id) => typeof id === 'string') : [];
       const result = answer?.ok === true
-        ? { ok: true, details: answer.details ?? {}, called: true }
+        ? { ok: true, details: answer.details ?? {}, unread, called: true }
         : { ok: false, reason: answer?.reason ?? 'unreadable', called: true };
       last = { called: true, refs: refs.length, answered: result.ok ? Object.keys(result.details).length : 0, ms: Date.now() - started, reason: result.ok ? null : result.reason };
       return result;

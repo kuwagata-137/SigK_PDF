@@ -148,3 +148,48 @@ test('1 辺がちょうど 1pt の ×印を回しても、3 回往復して ×�
   for (const angle of [30, 123, 301])
     await roundTrips(crossEntry({ rect: [100.12, 600.34, 160.56, 601.34], angle }), keys);
 });
+
+// ---- マーカー（spec-4b-5b 確定事項10〜14） ----
+
+require('../renderer/shape-outline.js');
+
+function inkEntry(overrides = {}) {
+  const paths = overrides.paths ?? [[[100.12, 600.34], [180.5, 620.25], [260.75, 605.01]], [[120.5, 640.25], [220.33, 650.5]]];
+  const lineWidth = overrides.lineWidth ?? 12;
+  const entry = { src: 0, kind: 'ink', color: '#ffff00', opacity: 1, lineWidth, paths, ...overrides };
+  Object.assign(entry, globalThis.SigK.shapeGeometry.rectOfShape(entry));
+  return entry;
+}
+
+test('マーカーは 3 回往復しても、マーカーのまま色・太さ・不透明度・線が変わらない。ペンはペンのまま', async () => {
+  const keys = ['kind', 'blend', 'paths', 'rect', 'color', 'lineWidth', 'opacity'];
+  await roundTrips(inkEntry({ blend: 'multiply' }), keys);
+  await roundTrips(inkEntry({ blend: 'multiply', color: '#92d050', opacity: 0.4, lineWidth: 20 }), keys);
+  await roundTrips(inkEntry({ color: '#c00000', lineWidth: 2 }), keys);
+});
+
+// 保存した辞書の欄（キー）と外観。マーカーとペンで辞書の欄は同じ（独自の欄が無い。決定61 ②）、外観は透明グループと乗算。
+async function savedOf(entry) {
+  const doc = await PDFDocument.create();
+  doc.addPage([595.28, 841.89]);
+  await applyAnnotations(doc, { add: [entries.toSaveEntry({ ...entry, id: 'sigk-1' })] }, TOOLS, { now: NOW });
+  const saved = await PDFDocument.load(await doc.save({ addDefaultPage: false }), { updateMetadata: false });
+  const annots = saved.context.lookup(saved.getPages()[0].node.get(PDFName.of('Annots')));
+  return { context: saved.context, dict: saved.context.lookup(annots.get(0)) };
+}
+
+test('マーカーの辞書の欄はペンと同じで、外観は透明グループを外側の /BM /Multiply で重ねる', async () => {
+  const marker = await savedOf(inkEntry({ blend: 'multiply' }));
+  const pen = await savedOf(inkEntry({ color: '#c00000', lineWidth: 2 }));
+  const keysOf = ({ dict }) => [...dict.entries()].map(([key]) => key.asString()).sort();
+  assert.deepEqual(keysOf(marker), keysOf(pen));
+  const outer = marker.context.lookup(pick(marker.context.lookup(pick(marker.dict, '/AP')), '/N'));
+  const resources = marker.context.lookup(pick(outer.dict, '/Resources'));
+  const gs = marker.context.lookup(pick(marker.context.lookup(pick(resources, '/ExtGState')), '/GS'));
+  assert.equal(pick(gs, '/BM').asString(), '/Multiply');
+  assert.equal(pick(gs, '/CA').asNumber(), 1);
+  const g0 = marker.context.lookup(pick(marker.context.lookup(pick(resources, '/XObject')), '/G0'));
+  assert.equal(pick(marker.context.lookup(pick(g0.dict, '/Group')), '/S').asString(), '/Transparency');
+  const penGs = pen.context.lookup(pick(pen.context.lookup(pick(pen.context.lookup(pick(pen.context.lookup(pick(pen.dict, '/AP')), '/N')).dict, '/Resources')), '/ExtGState'));
+  assert.equal(pick(pen.context.lookup(pick(penGs, '/GS')), '/BM'), undefined);
+});

@@ -117,11 +117,11 @@
     // 図形は道具の段で選んだ種類の名前を出す（「四角（次に付ける）」。spec-4b-1a 確定事項8）。「選択」など描かない道具なら出さない。
     const tool = annotate().drawingTool();
     const kind = tool === null ? null : kindOfTool(tool);
-    // 吹き出しの道具はテキストと同じ行を出す（spec-4b-4b 確定事項F6）。
-    const rowKind = kind === 'callout' ? 'text' : kind;
+    // 吹き出しの道具はテキストと同じ行を出す（spec-4b-4b 確定事項F6）。マーカーの道具はペンと同じ行（spec-4b-5b 確定事項30）。
+    const rowKind = { callout: 'text', marker: 'ink' }[kind] ?? kind;
     el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に付ける）`;
     styleRows()?.render(tool === null ? null : {
-      kind: rowKind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(), opacity: annotate().getOpacity(kind),
+      kind: rowKind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(kind), opacity: annotate().getOpacity(kind),
       ...(rowKind === 'text' ? textToolTarget(kind) : { fontSize: null, bold: null, italic: null, border: null }),
     });
     noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });

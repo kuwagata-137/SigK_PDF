@@ -298,3 +298,25 @@ test('下書きの group に不透明度が付く（1 なら付けない）', ()
   layer.draw(svg, [], viewport(), { draft: { ...draft, opacity: 1 } });
   assert.equal(svg.lastElementChild.getAttribute('opacity'), null);
 });
+
+// ---- マーカー（spec-4b-5b 確定事項7） ----
+
+test('draw はマーカーの <g> と下書きに marker の印を付け、ペンには付けない', () => {
+  const { doc, node } = makeDom();
+  const svg = layer.mount(doc, node, viewport());
+  const pen = { id: 'sigk-7', src: 0, kind: 'ink', color: '#c00000', opacity: 1, lineWidth: 2, rect: [89, 479, 151, 511], quads: [[89, 511, 151, 511, 89, 479, 151, 479]], paths: [[[100, 500], [150, 510]]] };
+  const marker = { ...pen, id: 'sigk-8', color: '#ffff00', lineWidth: 12, blend: 'multiply', opacity: 0.4 };
+  layer.draw(svg, [pen, marker], viewport(), { draft: { ...marker, id: undefined } });
+  const groups = [...svg.children];
+  assert.equal(groups[0].getAttribute('class'), null);
+  assert.equal(groups[1].getAttribute('class'), 'marker');
+  assert.equal(groups[1].getAttribute('opacity'), '0.4');
+  assert.equal(groups[2].getAttribute('class'), 'annot-draft marker');
+});
+
+test('shell.css はマーカーの <g> を紙と乗算し、層には z-index を付けない', () => {
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'renderer', 'shell.css'), 'utf8');
+  assert.match(css, /\.annot-layer \.marker\{mix-blend-mode:multiply\}/);
+  const rule = css.match(/\.annot-layer\{([^}]*)\}/)[1];
+  assert.equal(/z-index/.test(rule), false);
+});

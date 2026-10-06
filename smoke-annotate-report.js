@@ -91,6 +91,8 @@ const REPORT = `
     text: textReport,
     // 図形の追加（spec-4b-5a の起動確認。smoke-annotate-shapes.js の SHAPE_REPORT）。
     shapes: shapeReport,
+    // マーカー・消しゴム・「その他」（spec-4b-5b の起動確認。smoke-annotate-erase.js の ERASE_REPORT）。
+    erase: eraseReport,
     // 右パネルの見た目の行（出している行・色の行の見出し・チップの値・押している線種・太さと不透明度・ヒント）。
     propsRows: {
       shown: ['color', 'fill', 'style', 'width', 'size', 'opacity'].filter((row) => !document.getElementById('props-' + row + '-row').hidden),

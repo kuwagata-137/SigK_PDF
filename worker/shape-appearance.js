@@ -155,7 +155,9 @@ function shapeAppearanceOf(entry) {
   const style = styleOf(entry);
   const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
   const { ops, cloud } = opsOf(entry, style);
-  const group = alpha < 1;
+  // マーカーは不透明度によらず透明グループで包み、外側で乗算する（spec-4b-5b 確定事項10。線どうしの交わりを濃くしない。事前調査 E）。
+  const marker = entry.blend === 'multiply';
+  const group = alpha < 1 || marker;
   const turn = turnOf(entry, entry.rect.map(round));
   return {
     content: group ? ops : `/GS gs\n${ops}`,
@@ -167,6 +169,7 @@ function shapeAppearanceOf(entry) {
     // 塗った三角は /IC に線の色（spec-4b-5a 確定事項34）。
     ...(isClosedArrow(entry) ? { fillRgb: style.stroke } : {}),
     opacity: alpha,
+    ...(marker ? { blend: 'Multiply' } : {}),
     lineWidth: round(entry.lineWidth),
     ...fieldsOf(entry),
     ...turn,

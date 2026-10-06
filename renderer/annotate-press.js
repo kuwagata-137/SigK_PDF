@@ -81,7 +81,7 @@
       event.preventDefault();
       return;
     }
-    if (tool === 'shape' || tool === 'pen')
+    if (tool === 'shape' || tool === 'pen' || tool === 'marker')
       root.SigK.annotateDraw.begin(event, page);
   }
 

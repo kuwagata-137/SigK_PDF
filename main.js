@@ -1896,6 +1896,9 @@ function installSmokeCheck(win, mode) {
           fs.mkdirSync(path.dirname(screenshot), { recursive: true });
           fs.writeFileSync(screenshot, image.toPNG());
           shot = { isEmpty: image.isEmpty(), ...image.getSize() };
+          // マーカーの下の文字の画面の画素（spec-4b-5b 完了判定1。画面の乗算が効いているか）。
+          if (annotate?.erase?.probe)
+            annotate.erase.screenPixels = smokeAnnotate.pixelsIn(image, annotate.erase.probe);
           if (shot.isEmpty)
             problems.push('capturePage: 空の画像が返りました');
         } catch (err) {

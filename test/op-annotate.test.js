@@ -669,6 +669,25 @@ test('回した多角形・×印・塗った三角の矢印も焼け、どれも
   assert.equal(annotsOf(saved, 0).length, 0);
 });
 
+// マーカー（spec-4b-5b 確定事項12・完了判定13）。焼いた外観の Form は、その /Resources の乗算を持ったまま紙に置かれる。
+test('マーカーを焼くと、乗算の外観の Form がそのまま紙に置かれる', async () => {
+  const doc = await makeDoc(1);
+  await applyAnnotations(doc, { add: [
+    { src: 0, kind: 'ink', blend: 'multiply', color: '#ffff00', opacity: 1, lineWidth: 12, rect: [94, 594, 306, 636], paths: [[[100, 600], [300, 630]]] },
+  ] }, TOOLS, { now: NOW });
+  const saved = await roundTrip(doc);
+  assert.equal(flattenDocument(saved, TOOLS).baked, 1);
+  const page = saved.getPages()[0];
+  const contents = saved.context.lookup(page.node.get(PDFName.of('Contents')));
+  const name = contentOf(saved, saved.context.lookup(contents.asArray().at(-1))).match(/\/(SigKF\d+) Do/)[1];
+  const xobjects = saved.context.lookup(page.node.Resources().get(PDFName.of('XObject')));
+  const placed = saved.context.lookup(xobjects.get(PDFName.of(name)));
+  const resources = saved.context.lookup(pick(placed.dict, '/Resources'));
+  const gs = saved.context.lookup(pick(saved.context.lookup(pick(resources, '/ExtGState')), '/GS'));
+  assert.equal(pick(gs, '/BM').asString(), '/Multiply');
+  assert.equal(annotsOf(saved, 0).length, 0);
+});
+
 // ---- 新しい形（折り返す形）のテキスト（spec-4b-4a 確定事項I） ----
 
 function wrappedText(overrides = {}) {

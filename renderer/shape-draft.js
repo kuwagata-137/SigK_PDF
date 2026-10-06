@@ -9,7 +9,7 @@
   // 幾何は shape-geometry.js。正方形・正円・45° の判定は表示の座標で行う（90° 単位の回転なので
   // 紙でも同じ形になる。確定事項4）。
 
-  // { index, src, viewport, kind, start, current, points, shift, color, lineWidth, opacity, fill, lineStyle }
+  // { index, src, viewport, kind, start, current, points, shift, color, lineWidth, opacity, fill, lineStyle, blend }
   let draft = null;
 
   function geometry() {
@@ -17,10 +17,11 @@
   }
 
   // opacity は道具の「次に付ける不透明度」（spec-4b-1a 確定事項31）。fill・lineStyle は次に付ける塗りと線種で、color は
-  // 四角・丸の線なしなら null（spec-4b-1b 確定事項42）。描いている途中も確定後と同じ見た目で描く。
-  function begin({ index, src, viewport, kind, point, shift = false, color, lineWidth, opacity = 1, fill = null, lineStyle = 'solid' }) {
+  // 四角・丸の線なしなら null（spec-4b-1b 確定事項42）。blend はマーカーの 'multiply'（spec-4b-5b 確定事項1）。描いている途中も
+  // 確定後と同じ見た目で描く。
+  function begin({ index, src, viewport, kind, point, shift = false, color, lineWidth, opacity = 1, fill = null, lineStyle = 'solid', blend }) {
     draft = {
-      index, src, viewport, kind, shift, color, lineWidth, opacity, fill, lineStyle,
+      index, src, viewport, kind, shift, color, lineWidth, opacity, fill, lineStyle, blend,
       start: [point[0], point[1]],
       current: [point[0], point[1]],
       points: [[point[0], point[1]]],
@@ -57,7 +58,8 @@
 
   // 下書きを紙の座標の entry にする。points は表示の px の点列（ペンはここまでに間引いたもの）。
   function entryOf(points) {
-    const base = styled({ src: draft.src, kind: draft.kind, color: draft.color, opacity: draft.opacity, lineWidth: draft.lineWidth });
+    const base = styled({ src: draft.src, kind: draft.kind, color: draft.color, opacity: draft.opacity, lineWidth: draft.lineWidth,
+      ...(draft.blend === undefined ? {} : { blend: draft.blend }) });
     // ×印も四角と同じく箱で描く（spec-4b-5a 確定事項12）。
     if (draft.kind === 'square' || draft.kind === 'circle' || draft.kind === 'cross') {
       const box = geometry().boxOf(draft.start, draft.current, { square: draft.shift });

@@ -17,6 +17,7 @@ const { PDFDocument, LOAD_OPTIONS, TOOLS } = require('./pdf-io.js');
 const { parseRef } = require('./annotation-remove.js');
 const { pick } = require('./pdf-tree-reader.js');
 const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
+const { blendOf } = require('./appearance-blend.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
 const { freeTextRotationOf } = require('./free-text-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
@@ -82,11 +83,12 @@ function calloutBoxOf(dict, context, bbox) {
 
 // 1 つの注釈の辞書から、画面が要る欄を読む（確定事項23）。無い欄は null（cloudy は false）。雲形の強さ /BE /I は
 // spec-4b-1b 確定事項38 で、四角・丸の回転は spec-4b-2 確定事項34 で足した（規格の既定は 0 で、効果が無い）。FreeText は
-// /DS と /DA の色も読む（free-text-details.js。spec-4b-4a 確定事項J1）。
+// /DS と /DA の色も読む（free-text-details.js。spec-4b-4a 確定事項J1）。Ink は外観の重ね方も読む（spec-4b-5b 確定事項13）。
 function detailsOf(dict, context, options = {}) {
   const border = context.lookup(pick(dict, '/BS'));
   const effect = context.lookup(pick(dict, '/BE'));
-  const text = nameOf(context, pick(dict, '/Subtype')) === 'FreeText' ? freeTextDetailsOf(dict, context, options) : {};
+  const subtype = nameOf(context, pick(dict, '/Subtype'));
+  const text = subtype === 'FreeText' ? freeTextDetailsOf(dict, context, options) : {};
   return {
     ...text,
     ca: numberOf(context, pick(dict, '/CA')),
@@ -99,24 +101,28 @@ function detailsOf(dict, context, options = {}) {
     cloudIntensity: numberOf(context, pick(effect, '/I')),
     rectDifference: numbersOf(context, pick(dict, '/RD')),
     rotation: rotationOf(dict, context, options),
+    blend: subtype === 'Ink' ? blendOf(context, dict) : null,
   };
 }
 
-// 読める注釈だけを { id: 欄 } にする。辞書でないもの・/Subtype の無いものは飛ばす。
+// 読める注釈だけを { id: 欄 } にし、読めなかった参照（辞書でないもの・/Subtype の無いもの・見つからないもの）を unread に並べる。
+// 暗号化した文書で辞書がオブジェクトストリームの中にあると、pdf-lib は暗号のままの入れ物をほどけずに飛ばすので、見つからない
+// （spec-4b-5b 点検 4）。レンダラーは unread の注釈を、口が答えなかったときと同じに扱う。
 function collectDetails(doc, refs) {
   const context = doc.context;
   const encrypted = context.trailerInfo?.Encrypt !== undefined;
   const details = {};
+  const unread = [];
   for (const id of refs) {
     const ref = parseRef(id);
-    if (ref === null)
+    const dict = ref === null ? undefined : context.lookup(TOOLS.PDFRef.of(ref.num, ref.gen));
+    if (typeof dict?.entries !== 'function' || pick(dict, '/Subtype') === undefined) {
+      unread.push(id);
       continue;
-    const dict = context.lookup(TOOLS.PDFRef.of(ref.num, ref.gen));
-    if (typeof dict?.entries !== 'function' || pick(dict, '/Subtype') === undefined)
-      continue;
+    }
     details[id] = detailsOf(dict, context, { encrypted });
   }
-  return details;
+  return { details, unread };
 }
 
 // spec の形を確かめる。崩れていれば null。同じ id は 1 つにまとめる。
@@ -133,7 +139,7 @@ function requestOf(spec) {
   return { source, expect: { size: expect.size, mtimeMs: expect.mtimeMs }, refs: [...new Set(refs)] };
 }
 
-// ワーカーの入口（tool-tasks.js の TOOL_TASKS）。戻り値は { ok: true, details } か { ok: false, reason }。
+// ワーカーの入口（tool-tasks.js の TOOL_TASKS）。戻り値は { ok: true, details, unread } か { ok: false, reason }。
 async function runAnnotationDetails(spec, { fsLike = fs } = {}) {
   const request = requestOf(spec);
   if (request === null)
@@ -144,7 +150,7 @@ async function runAnnotationDetails(spec, { fsLike = fs } = {}) {
   try {
     const bytes = await fsLike.promises.readFile(request.source);
     const doc = await PDFDocument.load(bytes, { ...LOAD_OPTIONS, ignoreEncryption: true });
-    return { ok: true, details: collectDetails(doc, request.refs) };
+    return { ok: true, ...collectDetails(doc, request.refs) };
   } catch {
     return { ok: false, reason: 'unreadable' };
   }

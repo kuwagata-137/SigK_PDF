@@ -263,3 +263,26 @@ test('口を待つ間に次のファイルを開いても、前のタブの書�
   assert.equal(entries.length, 1, 'a.pdf の書き込みが a.pdf のタブに届いている');
   assert.equal(entries[0].opacity, 0.5);
 });
+
+// ---- 点検で直したこと（spec-4b-5b） ----
+
+const ink = (id, extra = {}) => ({ id, subtype: 'Ink', rect: [9, 9, 61, 41], color: [0, 0, 255], borderStyle: { width: 2, rawWidth: 2, style: 1 }, inkLists: [[10, 10, 60, 40]], ...extra });
+
+test('口が読めなかった注釈（unread）は、口がまるごと答えなかったときと同じに扱う。ペン・四角は表示のみ、直線はそのまま（点検 4）', async (t) => {
+  stubs(t, { answer: { ok: true, details: { '41R': {} }, unread: ['30R', '40R', '42R'] } });
+  const doc = makeDoc([[square('30R'), ink('40R'), ink('41R'), line('42R')]]);
+  const imported = await imp.importDocument(doc, { file: FILE });
+  assert.deepEqual(imported[0].map((entry) => [entry.ref, entry.readonly === true]), [['30R', true], ['40R', true], ['41R', false], ['42R', false]]);
+});
+
+test('口に頼む参照が上限を超えるときは、ペンと ×印を後回しにして表示のみにし、ほかの種類だけで頼む（点検 6）', async (t) => {
+  const { requests } = stubs(t);
+  const max = globalThis.SigK.annotationDetails.REFS_MAX;
+  const inks = Array.from({ length: max }, (_, index) => ink(`${index + 100}R`));
+  const doc = makeDoc([[square('30R'), ...inks]]);
+  const imported = await imp.importDocument(doc, { file: FILE });
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0].refs, ['30R']);
+  assert.equal(imported[0][0].readonly, undefined, '四角は ⑤-b の前と同じく直せる');
+  assert.equal(imported[0].filter((entry) => entry.readonly === true).length, max, '後回しにしたペンは表示のみ');
+});

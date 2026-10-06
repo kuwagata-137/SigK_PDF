@@ -733,6 +733,18 @@ html[data-mode="annot"] #edit-bar{display:flex}
 .edit-name{margin-top:3px; font-size:10.5px; line-height:1.1; white-space:nowrap; color:var(--muted)}
 .edit-tool.active + .edit-name{color:var(--primary)}
 .edit-sep{width:1px; align-self:stretch; margin:3px 3px 16px; background:var(--border)}
+/* 道具の段に入りきらない道具（spec-4b-5b 確定事項25〜28。見本 screenshots/phase4b-5b-more.png）。段の子は縮めない（幅を測って、
+   入りきらないものを右から隠す）。隠したものは右端の「その他」の一覧に出す。 */
+#edit-bar > .edit-item, #edit-bar > .edit-sep{flex:0 0 auto}
+#edit-bar > .edit-overflow, #edit-bar > .edit-item[hidden]{display:none}
+.edit-more-menu{
+  position:absolute; z-index:60; top:calc(100% - 4px); min-width:150px; padding:4px; background:var(--surface);
+  border:1px solid var(--border); border-radius:8px; box-shadow:0 6px 18px rgba(16,24,40,.16); font-size:13px; color:var(--text);
+}
+.edit-more-menu[hidden]{display:none}
+.edit-more-row{display:flex; align-items:center; gap:10px; width:100%; padding:6px 12px; border-radius:6px; cursor:pointer; text-align:left; color:var(--text)}
+.edit-more-row:hover, .edit-more-row:focus-visible{background:var(--select)}
+.edit-more-row.active{background:var(--primary); color:#fff}
 
 /* 紙の上に重ねる注釈の層（確定事項5）。canvas のあと・テキストレイヤーの前。
    ハイライトは multiply で文字を残す。当たり判定は annotate.js が四角で行うので
@@ -741,6 +753,8 @@ html[data-mode="annot"] #edit-bar{display:flex}
    multiply が下の canvas と混ざらなくなる（CSS Compositing の規則）。 */
 .annot-layer{position:absolute; inset:0; pointer-events:none; overflow:visible}
 .annot-layer .highlight{mix-blend-mode:multiply}
+/* マーカー（spec-4b-5b 確定事項7）は書き込みの <g> ごと乗算する。<g> は 1 つの絵として重なり、1 つのマーカーの交わりは濃くならない。 */
+.annot-layer .marker{mix-blend-mode:multiply}
 .annot-frame{fill:none; stroke:var(--accent); stroke-width:1.5; stroke-dasharray:4 3}
 /* 描いている途中の多角形の印（spec-4b-5a 確定事項13。見本 screenshots/phase4b-5a-shapes.png）。頂点は白い丸（始点は大きめ）、
    3 つ以上置いたら始点のまわりに閉じられる範囲の点線の輪。次の辺の点線は線の色で、属性に付ける。 */
@@ -803,9 +817,26 @@ html[data-mode="annot"][data-tool="text"] .textLayer,
 html[data-mode="annot"][data-tool="callout"] .textLayer{cursor:text}
 /* 図形・ペン（spec-4-3 確定事項1・3・8）。ドラッグで描くので文字を選ばせない。下書きは確定後と同じ見た目。 */
 html[data-mode="annot"][data-tool="shape"] .textLayer,
-html[data-mode="annot"][data-tool="pen"] .textLayer{cursor:crosshair; user-select:none}
+html[data-mode="annot"][data-tool="pen"] .textLayer,
+html[data-mode="annot"][data-tool="marker"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="shape"] .textLayer span,
-html[data-mode="annot"][data-tool="pen"] .textLayer span{user-select:none}
+html[data-mode="annot"][data-tool="pen"] .textLayer span,
+html[data-mode="annot"][data-tool="marker"] .textLayer span{user-select:none}
+/* 消しゴム（spec-4b-5b 確定事項24。見本 screenshots/phase4b-5b-eraser.png）。紙の上ではカーソルを消し、消える範囲と同じ直径 16px の輪
+   （白い縁取りの黒い輪。中心が押す点）を annotate-erase.js が押す点に置く。文字は選ばせない。 */
+html[data-mode="annot"][data-tool="eraser"] .pdf-page,
+html[data-mode="annot"][data-tool="eraser"] .pdf-page *{cursor:crosshair; user-select:none}
+/* 輪を出している間だけ（マウスを紙の上で動かした後）カーソルを消す。持ち替えた直後やモードを戻した直後は十字のまま（点検 9）。 */
+html[data-mode="annot"][data-tool="eraser"][data-eraser-ring] .pdf-page,
+html[data-mode="annot"][data-tool="eraser"][data-eraser-ring] .pdf-page *{cursor:none}
+.eraser-ring{
+  position:fixed; z-index:50; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; pointer-events:none; box-sizing:border-box;
+  border:1.2px solid #111; box-shadow:0 0 0 1.5px #fff, inset 0 0 0 1.5px #fff;
+}
+/* マウスを動かす前にモードや道具が替わっても残さない。 */
+.eraser-ring[hidden],
+html:not([data-mode="annot"]) .eraser-ring,
+html:not([data-tool="eraser"]) .eraser-ring{display:none}
 /* 範囲選択の枠（spec-4b-3a 確定事項D3。モック screenshots/phase4b-3-marquee.png）。.pdf-page の中に置き、紙の中に収める。 */
 .annot-marquee{position:absolute; z-index:4; pointer-events:none; border:1px dashed var(--primary); background:color-mix(in srgb, var(--primary) 8%, transparent)}
 /* 「選択」の道具（spec-4b-3a 確定事項C4）。紙のどこから引いても範囲選択なので、文字を選ばせない。カーソルは矢印のまま。 */

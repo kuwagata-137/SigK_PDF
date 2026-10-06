@@ -26,14 +26,15 @@ function withApi(t, readDetails, available = true) {
   t.after(() => { delete globalThis.annotationAPI; });
 }
 
-test('口が要るのは表示のみでない四角・丸・直線・矢印・テキスト・ノートで、refsOf はその参照を並べる', () => {
-  for (const kind of ['square', 'circle', 'line', 'arrow', 'text', 'note'])
+test('口が要るのは表示のみでない四角・丸・直線・矢印・×印・多角形・ペン・テキスト・ノートで、refsOf はその参照を並べる', () => {
+  // ペンと ×印は外観の重ね方を読む（spec-4b-5b 確定事項14）。
+  for (const kind of ['square', 'circle', 'line', 'arrow', 'cross', 'polygon', 'ink', 'text', 'note'])
     assert.equal(details.needsDetails(entry(kind)), true, kind);
-  for (const kind of ['highlight', 'underline', 'strikeout', 'ink'])
+  for (const kind of ['highlight', 'underline', 'strikeout'])
     assert.equal(details.needsDetails(entry(kind)), false, kind);
   assert.equal(details.needsDetails(entry('square', { readonly: true })), false);
   assert.equal(details.needsDetails(entry('square', { ref: undefined })), false, '自分で足したもの（ref が無い）は頼まない');
-  assert.deepEqual(details.refsOf({ 0: [entry('square', { ref: '1R' }), entry('ink', { ref: '2R' })], 3: [entry('note', { ref: '9R1' })] }), ['1R', '9R1']);
+  assert.deepEqual(details.refsOf({ 0: [entry('square', { ref: '1R' }), entry('highlight', { ref: '2R' })], 3: [entry('note', { ref: '9R1' })] }), ['1R', '9R1']);
   assert.deepEqual(details.refsOf(undefined), []);
 });
 
@@ -187,7 +188,7 @@ test('requestDetails は 1 本ずつ順番に呼び、答えを揃える', async
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(order, ['start 1R'], '2 本目は 1 本目が終わるまで呼ばない');
   releases[0]();
-  assert.deepEqual(await first, { ok: true, details: { '1R': { ca: 0.5 } }, called: true });
+  assert.deepEqual(await first, { ok: true, details: { '1R': { ca: 0.5 } }, unread: [], called: true });
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(order, ['start 1R', 'end 1R', 'start 2R']);
   releases[1]();
@@ -205,7 +206,7 @@ test('requestDetails は断られた答えと、口が投げたときを reason 
   });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'timeout', called: true });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'unreadable', called: true });
-  assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: true, details: {}, called: true });
+  assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: true, details: {}, unread: [], called: true });
 });
 
 test('applyDetails は多角形を、口が答えなければ表示のみ（Polygon・PolyLine）にし、答えがあれば塗りと不透明度を当てる（spec-4b-5a 確定事項40）', () => {
@@ -223,4 +224,39 @@ test('applyDetails は多角形を、口が答えなければ表示のみ（Poly
   assert.equal(read.opacity, 0.5);
   assert.equal(details.applyDetails(closed, { cloudy: true, cloudIntensity: 1 }).readonly, true);
   assert.equal(details.needsDetails(closed), true);
+});
+
+// ペンと ×印の重ね方（spec-4b-5b 確定事項14〜16。決定62 ④）。
+test('applyDetails は乗算のペンをマーカーにし、ふつうのペンはそのまま、ほかの重ね方は表示のみにする', () => {
+  const ink = entry('ink', { paths: [[[10, 10], [60, 40]]] });
+  const marker = details.applyDetails(ink, { blend: 'Multiply', ca: null });
+  assert.equal(marker.blend, 'multiply');
+  assert.equal(marker.kind, 'ink');
+  assert.equal(marker.readonly, undefined);
+  assert.equal(details.applyDetails(ink, { blend: null, ca: null }).blend, undefined);
+  assert.equal(details.applyDetails(ink, { blend: null, ca: 0.4 }).opacity, 0.4);
+  const screen = details.applyDetails(ink, { blend: 'Screen', ca: null });
+  assert.equal(screen.readonly, true);
+  assert.equal(screen.subtype, 'Ink');
+});
+
+test('applyDetails は口がまるごと答えなかったペンを表示のみにし、答えの無いペンはペンのまま（spec-4b-5b 確定事項15）', () => {
+  const ink = entry('ink', { paths: [[[10, 10], [60, 40]]] });
+  const unknown = details.applyDetails(ink, undefined, { answered: false });
+  assert.equal(unknown.readonly, true);
+  assert.equal(unknown.subtype, 'Ink');
+  assert.equal(details.applyDetails(ink, undefined), ink);
+});
+
+test('applyDetails は ×印の形の乗算やほかの重ね方を表示のみにし、ふつうの ×印と口が答えなかった ×印はそのまま（spec-4b-5b 確定事項16）', () => {
+  const cross = entry('cross');
+  assert.equal(details.applyDetails(cross, { blend: 'Multiply', ca: null }).readonly, true);
+  assert.equal(details.applyDetails(cross, { blend: 'Darken', ca: null }).subtype, 'Ink');
+  assert.equal(details.applyDetails(cross, { blend: null, ca: null }).kind, 'cross');
+  assert.equal(details.applyDetails(cross, undefined, { answered: false }), cross);
+});
+
+test('requestDetails は口が読めなかった参照（unread）を渡し、文字列でないものは捨てる（spec-4b-5b 点検 4）', async (t) => {
+  withApi(t, async () => ({ ok: true, details: {}, unread: ['2R', 3, '4R'] }));
+  assert.deepEqual(await details.requestDetails(FILE, ['1R', '2R', '4R']), { ok: true, details: {}, unread: ['2R', '4R'], called: true });
 });

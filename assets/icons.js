@@ -160,6 +160,11 @@
       ['circle', { cx: 16, cy: 16, r: 4 }],
     ],
     pen: [['path', { d: 'M4 18c3-8 6-8 8-2s5 6 8-4' }]],
+    // 道具の段の「マーカー」（spec-4b-5b 確定事項29。見本 screenshots/phase4b-5b-more.png）。斜めのペン先と、太く薄い線。
+    marker: [
+      ['path', { d: 'M14.5 4.5l5 5-8 8H6.5v-5z' }],
+      ['path', { d: 'M4 20.5h9', 'stroke-width': 3.2, opacity: 0.45 }],
+    ],
     // 右パネルの「図形の種類」（spec-4-3 確定事項2）。
     shapeSquare: [['rect', { x: 4, y: 6, width: 16, height: 12, rx: 1 }]],
     shapeCircle: [['ellipse', { cx: 12, cy: 12, rx: 8, ry: 6 }]],
@@ -170,6 +175,17 @@
     // 道具の段の「多角形」（spec-4b-5a 確定事項27）。五角形。
     shapePolygon: [['path', { d: 'M12 3.6l8.2 6-3.1 10H6.9l-3.1-10z' }]],
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
+    // 道具の段の「消しゴム」（spec-4b-5b 確定事項29。見本 screenshots/phase4b-5b-more.png）。斜めに置いた消しゴムと、下の線。
+    eraser: [
+      ['path', { d: 'M8.2 19.5L3.8 15a1.6 1.6 0 0 1 0-2.3l8.5-8.5a1.6 1.6 0 0 1 2.3 0l5.6 5.6a1.6 1.6 0 0 1 0 2.3l-7.5 7.4z' }],
+      ['path', { d: 'M9 9.5l6.5 6.5M8.5 19.5H20' }],
+    ],
+    // 道具の段の「その他」（spec-4b-5b 確定事項25）。横に並べた 3 つの点。
+    more: [
+      ['circle', { cx: 6, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }],
+      ['circle', { cx: 12, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }],
+      ['circle', { cx: 18, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }],
+    ],
     // 道具の段の「選択」（spec-4b-3a 確定事項C1）。マウスの矢印の形。
     pointerSelect: [['path', { d: 'M6.5 3.8v14.6l3.9-3.7 2.6 5.5 2.3-1.1-2.6-5.4h5.6z' }]],
     // 道具の段の「ハンド」（spec-4b-3b 確定事項A1。モック screenshots/phase4b-3-bar.png と同じ形）。開いた手の甲。
