@@ -112,11 +112,11 @@
       press().reset();
       return;
     }
-    // 消しゴムとトリミングは書き込みを選ばず掴まず、つまみも見ずに始める。紙の外（はみ出したつまみの上も）では何もしない（spec-4b-5b
-    // 確定事項21・点検 2・7、spec-4b-6a 確定事項12）。
-    const tool = annotate().getTool();
-    if (tool === 'eraser' || tool === 'trim') {
-      (tool === 'eraser' ? root.SigK.annotateErase : root.SigK.annotateTrim)?.begin(event);
+    // 消しゴム・モザイク・トリミングは書き込みを選ばず掴まず、つまみも見ずに始める。紙の外（はみ出したつまみの上も）では何もしない
+    // （spec-4b-5b 確定事項21・点検 2・7、spec-4b-6a 確定事項12、spec-4b-6b 確定事項11）。
+    const gesture = { eraser: 'annotateErase', mosaic: 'annotateMosaic', trim: 'annotateTrim' }[annotate().getTool()];
+    if (gesture !== undefined) {
+      root.SigK[gesture]?.begin(event);
       press().reset();
       return;
     }
@@ -144,7 +144,7 @@
   // ダブルクリックしたテキストは入力欄を開く（spec-4-2 確定事項5）。ノートは「本文」欄へ（spec-4-4 確定事項7）。
   // 左＋右の最中と直後のダブルクリック（左＋右の左の押しと続けた押しで出る）は捨てる（spec-4b-3b 確定事項E4）。
   function onDoubleClick(event) {
-    if (!inAnnotMode() || !isOpen() || holdingHand() || ['eraser', 'trim'].includes(annotate().getTool()) || rightButton()?.recentlyChorded() === true)
+    if (!inAnnotMode() || !isOpen() || holdingHand() || ['eraser', 'mosaic', 'trim'].includes(annotate().getTool()) || rightButton()?.recentlyChorded() === true)
       return;
     // 描いている途中の多角形は、開いたまま確定する（spec-4b-5a 確定事項15）。直線・矢印の道具では、書き込みの端・角・頂点の近くを
     // 始点にして引き始める（確定事項19）。

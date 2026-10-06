@@ -14,7 +14,7 @@ const {
 const settings = require('../settings.js');
 
 const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFontSize', 'annotTextStyle', 'annotCalloutStyle', 'annotLineWidth', 'annotMarkerWidth',
-  'annotShapeKind', 'annotOpacity', 'annotAuthor', 'annotPaletteVersion'];
+  'annotShapeKind', 'annotOpacity', 'annotAuthor', 'annotMosaicBlock', 'annotPaletteVersion'];
 const UI_KEYS = KEYS.filter((key) => key !== 'annotPaletteVersion');
 
 test('settings.js の既定は、注釈のキーを annotation-settings.js の既定のまま同じ位置に持つ', () => {

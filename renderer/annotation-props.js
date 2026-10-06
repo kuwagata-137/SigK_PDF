@@ -109,6 +109,9 @@
     // トリミングの道具を持っている間は、その行とボタンだけを出す（spec-4b-6a 確定事項17。trim-props.js）。
     if (root.SigK.trimProps?.render(el) === true)
       return true;
+    // モザイクの道具も同じく、その行とボタンだけ（spec-4b-6b 確定事項14。mosaic-props.js）。
+    if (root.SigK.mosaicProps?.render(el) === true)
+      return true;
     // 2 件以上を選んでいれば、まとめた出し方（spec-4b-3a 確定事項I）。
     if (annotate().getSelection().length > 1)
       return root.SigK.annotationBulkProps.render(el.doc, annotate().selectedEntries());
@@ -167,6 +170,7 @@
     root.SigK.annotationAngleRow?.init(doc, win);
     root.SigK.annotationTextRows?.init(doc, win);
     root.SigK.trimProps?.init(doc, win);
+    root.SigK.mosaicProps?.init(doc, win);
     el.remove.addEventListener('click', () => {
       if (el.remove.getAttribute('aria-disabled') !== 'true')
         annotate().remove();

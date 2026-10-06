@@ -860,6 +860,12 @@ html[data-mode="annot"][data-tool="trim"][data-trim-cursor="nesw"] .pdf-page *{c
 html[data-mode="annot"][data-tool="trim"][data-trim-cursor="ns"] .pdf-page *{cursor:ns-resize}
 html[data-mode="annot"][data-tool="trim"][data-trim-cursor="ew"] .pdf-page *{cursor:ew-resize}
 html[data-mode="annot"][data-tool="trim"][data-trim-cursor="move"] .pdf-page *{cursor:move}
+/* モザイク（spec-4b-6b 確定事項11・29・30。見本 screenshots/phase4b-6-mosaic-preview.png）。紙の上は十字で、文字は選ばせない。引いている間は
+   破線の四角（1.5px・6 4・薄い塗り）。重なりはトリミングの枠と同じ 3。 */
+html[data-mode="annot"][data-tool="mosaic"] .pdf-page,
+html[data-mode="annot"][data-tool="mosaic"] .pdf-page *{cursor:crosshair; user-select:none}
+.mosaic-draft{position:absolute; z-index:3; box-sizing:border-box; pointer-events:none; border:1.5px dashed var(--accent); background:rgba(47,111,235,0.06)}
+.props-kinds.mosaic-blocks button{width:auto; padding:0 10px; font-family:inherit; font-size:12px}
 /* 枠の外側を暗くする 4 枚・2px の枠・8 点のつまみ（白地にアクセント色の縁の 10px）・大きさの札。押し離しはページが受ける。
    重なりは 3: 文字の層（0）・入力欄（2）より上、道具の段と「その他」の一覧（4）より下、帯（3。DOM で後ろ）より下。 */
 .trim-layer{position:absolute; inset:0; z-index:3; pointer-events:none}

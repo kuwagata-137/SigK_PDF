@@ -96,8 +96,10 @@
   function syncPage() {
     controls()?.syncPage(el.doc, getState());
     root.SigK.thumbnails?.setCurrent(state.current);
-    // 右パネルの「このページが切ってあるか」（spec-4b-6a 確定事項17）。トリミングを持っていなければ何もしない。
+    // 右パネルの「このページが切ってあるか」「このページのモザイクの数」（spec-4b-6a 確定事項17、spec-4b-6b 確定事項14）。
+    // その道具を持っていなければ何もしない。
     root.SigK.trimProps?.refresh();
+    root.SigK.mosaicProps?.refresh();
   }
 
   function getState() {
@@ -319,8 +321,9 @@
       ? (isDirty() ? 1 : 0)
       : tabs.list().filter((info) => tabs.isDirty(info.id)).length;
     root.appCloseAPI?.setDirty?.(count);
-    // 切った・外した・元に戻した・開き直したあとの右パネル（spec-4b-6a 確定事項17）。トリミングを持っていなければ何もしない。
+    // 切った・外した・モザイクを置いた・元に戻した・開き直したあとの右パネル（spec-4b-6a 確定事項17、spec-4b-6b 確定事項14）。
     root.SigK.trimProps?.refresh();
+    root.SigK.mosaicProps?.refresh();
   }
 
   // 編集後の並びを画面へ映す（確定事項43）。ページビュー・ページ番号・

@@ -64,6 +64,8 @@
       root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
       // マーカーの太さ（spec-4b-5b 確定事項32）。
       root.SigK.annotateShape?.applyMarkerWidth(result.ui.annotMarkerWidth);
+      // モザイクの粗さ（spec-4b-6b 確定事項14）。
+      root.SigK.annotateMosaic?.applyBlock(result.ui.annotMosaicBlock);
       root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);
       // 不透明度と作成者（spec-4-4 確定事項21）。作成者が空ならメインが OS のユーザー名で埋めている。
       root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);
@@ -141,6 +143,7 @@
     // 消しゴムの輪のカーソル（spec-4b-5b 確定事項24）。
     root.SigK.annotateErase.init(doc, win);
     root.SigK.annotateTrim.init(doc, win);
+    root.SigK.annotateMosaic.init(doc, win);
     root.SigK.annotationMenu.init(doc, win);
     root.SigK.annotateRightButton.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
