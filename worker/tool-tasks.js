@@ -15,6 +15,7 @@ const { splitDocument } = require('./op-split.js');
 const { runConvert } = require('./convert-task.js');
 const { runWatermark, runFlatten, runFlattenPreview } = require('./rewrite-task.js');
 const { runAnnotationDetails } = require('./annotation-dict-reader.js');
+const { runPageBoxes } = require('./page-boxes-task.js');
 const { writeDocument } = require('../pdf-write.js');
 const { PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure } = require('./pdf-io.js');
 
@@ -152,7 +153,7 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
 
 // runTask が kind で引く表。表に無い kind は保存（runSave）へ落ちる（pdf-task.js）。
 // flatten-preview はファイルを書かず、進捗も送らない（差し込みの下見と同じ）。注釈の辞書の読み戻し
-// （annotation-details。spec-4b-1a 確定事項22）も同じく読むだけで、進捗を送らない。
+// （annotation-details。spec-4b-1a 確定事項22）と紙全体の大きさ（page-boxes。spec-4b-6a 確定事項9）も同じく読むだけで、進捗を送らない。
 const TOOL_TASKS = Object.freeze({
   merge: runMerge,
   split: runSplit,
@@ -161,6 +162,8 @@ const TOOL_TASKS = Object.freeze({
   flatten: runFlatten,
   'flatten-preview': runFlattenPreview,
   'annotation-details': runAnnotationDetails,
+  // 紙全体の大きさ（MediaBox）を読むだけ（spec-4b-6a 確定事項9）。
+  'page-boxes': runPageBoxes,
 });
 
 function isToolKind(kind) {

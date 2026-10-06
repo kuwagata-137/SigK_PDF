@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   open: () => ipcRenderer.invoke('pdf:open'),
   // パス指定で読む。{ ok, ... } / { error }
   read: (filePath) => ipcRenderer.invoke('pdf:read', filePath),
+  // 開いているファイルの紙全体の大きさ（MediaBox）をワーカーで読む（spec-4b-6a 確定事項9）。spec は { source, expect: { size, mtimeMs } }。
+  // { ok: true, boxes: [[x1, y1, x2, y2] | null, ...] } / { ok: false, reason: 'invalid' | 'changed' | 'unreadable' | 'timeout' }
+  readBoxes: (spec) => ipcRenderer.invoke('pdf:readBoxes', spec),
 
   // ドロップされた File から実際のパスを取る（spec-1-2 確定事項6）。
   // File.path は Electron 32 で削除されたため、webUtils が唯一の経路である。

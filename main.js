@@ -54,6 +54,9 @@ const ROOT_DIR = __dirname;
 // 注釈の辞書の読み戻しの時間の上限（spec-4b-1a 確定事項21）と、タスクの名前に付ける連番。
 const ANNOTATION_DETAILS_TIMEOUT_MS = 10000;
 let annotationDetailsSerial = 0;
+// 紙全体の大きさを読む口（spec-4b-6a 確定事項9）。ファイルを丸ごと読むので、注釈の口より長く待つ。
+const PAGE_BOXES_TIMEOUT_MS = 20000;
+let pageBoxesSerial = 0;
 
 let errorLog = null;
 let settings = null;
@@ -399,6 +402,22 @@ function registerIpc() {
       return { ok: false, reason: 'timeout' };
     if (result?.ok === true)
       return { ok: true, details: result.details ?? {} };
+    return { ok: false, reason: typeof result?.reason === 'string' ? result.reason : 'unreadable' };
+  });
+
+  // 紙全体の大きさ（MediaBox）の読み取り（spec-4b-6a 確定事項9・10）。トリミングの道具を初めて持ったときに 1 回だけ呼ぶ。
+  // 注釈の口と同じく、帯も「実行中」の表示も出さず、進捗も返さない。
+  ipcMain.handle('pdf:readBoxes', async (_event, spec) => {
+    if (typeof spec?.source !== 'string' || !isExistingFile(spec.source))
+      return { ok: false, reason: 'invalid' };
+    pageBoxesSerial += 1;
+    const result = await taskRunner.run(`page-boxes-${pageBoxesSerial}`, {
+      kind: 'page-boxes', source: spec.source, expect: spec.expect,
+    }, { timeoutMs: PAGE_BOXES_TIMEOUT_MS });
+    if (result?.timedOut === true)
+      return { ok: false, reason: 'timeout' };
+    if (result?.ok === true && Array.isArray(result.boxes))
+      return { ok: true, boxes: result.boxes };
     return { ok: false, reason: typeof result?.reason === 'string' ? result.reason : 'unreadable' };
   });
 
