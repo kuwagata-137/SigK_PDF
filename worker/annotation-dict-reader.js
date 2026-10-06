@@ -17,6 +17,7 @@ const { PDFDocument, LOAD_OPTIONS, TOOLS } = require('./pdf-io.js');
 const { parseRef } = require('./annotation-remove.js');
 const { pick } = require('./pdf-tree-reader.js');
 const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
+const { blendOf } = require('./appearance-blend.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
 const { freeTextRotationOf } = require('./free-text-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
@@ -82,11 +83,12 @@ function calloutBoxOf(dict, context, bbox) {
 
 // 1 つの注釈の辞書から、画面が要る欄を読む（確定事項23）。無い欄は null（cloudy は false）。雲形の強さ /BE /I は
 // spec-4b-1b 確定事項38 で、四角・丸の回転は spec-4b-2 確定事項34 で足した（規格の既定は 0 で、効果が無い）。FreeText は
-// /DS と /DA の色も読む（free-text-details.js。spec-4b-4a 確定事項J1）。
+// /DS と /DA の色も読む（free-text-details.js。spec-4b-4a 確定事項J1）。Ink は外観の重ね方も読む（spec-4b-5b 確定事項13）。
 function detailsOf(dict, context, options = {}) {
   const border = context.lookup(pick(dict, '/BS'));
   const effect = context.lookup(pick(dict, '/BE'));
-  const text = nameOf(context, pick(dict, '/Subtype')) === 'FreeText' ? freeTextDetailsOf(dict, context, options) : {};
+  const subtype = nameOf(context, pick(dict, '/Subtype'));
+  const text = subtype === 'FreeText' ? freeTextDetailsOf(dict, context, options) : {};
   return {
     ...text,
     ca: numberOf(context, pick(dict, '/CA')),
@@ -99,6 +101,7 @@ function detailsOf(dict, context, options = {}) {
     cloudIntensity: numberOf(context, pick(effect, '/I')),
     rectDifference: numbersOf(context, pick(dict, '/RD')),
     rotation: rotationOf(dict, context, options),
+    blend: subtype === 'Ink' ? blendOf(context, dict) : null,
   };
 }
 

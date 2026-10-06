@@ -741,6 +741,8 @@ html[data-mode="annot"] #edit-bar{display:flex}
    multiply が下の canvas と混ざらなくなる（CSS Compositing の規則）。 */
 .annot-layer{position:absolute; inset:0; pointer-events:none; overflow:visible}
 .annot-layer .highlight{mix-blend-mode:multiply}
+/* マーカー（spec-4b-5b 確定事項7）は書き込みの <g> ごと乗算する。<g> は 1 つの絵として重なり、1 つのマーカーの交わりは濃くならない。 */
+.annot-layer .marker{mix-blend-mode:multiply}
 .annot-frame{fill:none; stroke:var(--accent); stroke-width:1.5; stroke-dasharray:4 3}
 /* 描いている途中の多角形の印（spec-4b-5a 確定事項13。見本 screenshots/phase4b-5a-shapes.png）。頂点は白い丸（始点は大きめ）、
    3 つ以上置いたら始点のまわりに閉じられる範囲の点線の輪。次の辺の点線は線の色で、属性に付ける。 */

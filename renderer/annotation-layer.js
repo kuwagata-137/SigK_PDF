@@ -40,6 +40,13 @@
     return entry.ref ?? entry.id;
   }
 
+  // マーカーは <g> ごと紙と乗算する（spec-4b-5b 確定事項7。CSS の .marker）。<g> は 1 つの絵として重なるので、交わりは濃くならない。
+  function markBlend(group, entry) {
+    if (root.SigK.shapeStyle.isMarker(entry))
+      group.setAttribute('class', group.getAttribute('class') === null ? 'marker' : `${group.getAttribute('class')} marker`);
+    return group;
+  }
+
   // 1 つの注釈の <g>。表示のみ（pdf.js が描く）は null。
   function groupOf(doc, entry, viewport) {
     if (entry.readonly === true)
@@ -49,6 +56,7 @@
     group.setAttribute('data-kind', entry.kind);
     if (entry.opacity !== undefined && entry.opacity < 1)
       group.setAttribute('opacity', String(entry.opacity));
+    markBlend(group, entry);
     if (entry.kind === 'text') {
       group.append(root.SigK.freeTextShape.svgOf(doc, entry, viewport));
       return group;
@@ -72,6 +80,7 @@
     group.setAttribute('class', 'annot-draft');
     if (draft.opacity !== undefined && draft.opacity < 1)
       group.setAttribute('opacity', String(draft.opacity));
+    markBlend(group, draft);
     group.append(root.SigK.shapeGraphics.svgOf(doc, draft, viewport));
     return group;
   }

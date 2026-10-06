@@ -7,7 +7,7 @@
 //   四角・丸   … color は '#rrggbb' か null（線なし。そのときは fill が要る）、fill は '#rrggbb' か null、
 //                lineStyle は 'solid'・'dashed'・'cloudy'
 //   直線・矢印・×印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
-//   ペン       … 線種を持たない（実線）
+//   ペン       … 線種を持たない（実線）。blend: 'multiply' でマーカー（spec-4b-5b 確定事項1）
 //   dash は破線のときだけの、線の太さに対する倍数（無ければ 3:2）。cloudIntensity は雲形のときだけの強さ（無ければ 1）。
 
 const { parseColor } = require('./annotation-appearance.js');
@@ -117,6 +117,9 @@ function isShapeEntry(entry) {
     return false;
   // 矢印の先の形は矢印だけが 'open'（開いた矢じり）で持てる（spec-4b-5a 確定事項4）。
   if (entry.head !== undefined && !(entry.kind === 'arrow' && entry.head === 'open'))
+    return false;
+  // 重ね方はペンだけが 'multiply'（マーカー）で持てる（spec-4b-5b 確定事項1）。
+  if (entry.blend !== undefined && !(entry.kind === 'ink' && entry.blend === 'multiply'))
     return false;
   return BOXED_KINDS.includes(entry.kind) ? true : validPaths(entry.kind, entry.paths);
 }

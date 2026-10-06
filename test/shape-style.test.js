@@ -114,3 +114,21 @@ test('破線の間隔は倍数に線の太さを掛ける。破線でなけれ�
   assert.deepEqual(style.dashOf(square({ lineStyle: 'dashed', lineWidth: 4 })), [12, 8]);
   assert.deepEqual(style.dashOf(line({ lineStyle: 'dashed', dash: [4, 2], lineWidth: 1.5 })), [6, 3]);
 });
+
+// マーカー（重ね方が乗算のペン。spec-4b-5b 確定事項1・5）。
+test('重ね方はペンだけが multiply で持て、写し・比べ・保存に載る', () => {
+  const ink = (fields = {}) => ({ kind: 'ink', color: '#ffff00', lineWidth: 12, ...fields });
+  assert.equal(style.validStyle(ink({ blend: 'multiply' })), true);
+  assert.equal(style.validStyle(ink({ blend: 'screen' })), false);
+  assert.equal(style.validStyle(line({ blend: 'multiply' })), false);
+  assert.equal(style.validStyle(square({ blend: 'multiply' })), false);
+  assert.equal(style.isMarker(ink({ blend: 'multiply' })), true);
+  assert.equal(style.isMarker(ink()), false);
+  assert.equal(style.isMarker(null), false);
+  assert.deepEqual(style.copyStyle(ink({ blend: 'multiply' }), {}), { blend: 'multiply' });
+  assert.deepEqual(style.copyStyle(ink(), {}), {});
+  assert.equal(style.sameStyle(ink({ blend: 'multiply' }), ink({ blend: 'multiply' })), true);
+  assert.equal(style.sameStyle(ink({ blend: 'multiply' }), ink()), false);
+  assert.deepEqual(style.saveStyle(ink({ blend: 'multiply' })), { blend: 'multiply' });
+  assert.deepEqual(style.saveStyle(ink()), {});
+});

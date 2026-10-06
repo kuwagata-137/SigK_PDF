@@ -8,7 +8,7 @@
   //                lineStyle は 'solid'・'dashed'・'cloudy'
   //   直線・矢印・×印 … color は '#rrggbb'、lineStyle は 'solid'・'dashed'
   //   多角形     … 閉じたものは四角・丸と同じく塗りと線なしを持て、lineStyle は 'solid'・'dashed'（spec-4b-5a 確定事項3）
-  //   ほかの種類 … 線種と塗りを持たない（実線）
+  //   ほかの種類 … 線種と塗りを持たない（実線）。ペンは blend: 'multiply' でマーカー（spec-4b-5b 確定事項1）
   //   dash           … 'dashed' のときだけ持つ、線の太さに対する倍数の配列（読み込んだ間隔。無ければ 3:2）
   //   cloudIntensity … 'cloudy' のときだけ持つ強さ（0 より大きく 2 以下。SigK PDF で描く雲形は 1）
   // 無い欄は、fill が null・lineStyle が 'solid'・雲形の強さが 1 として扱う（今までの書き込みはこの形のまま読める）。
@@ -84,12 +84,17 @@
     return typeof entry.color === 'string';
   }
 
+  // マーカー（重ね方が乗算のペン。spec-4b-5b 確定事項1）か。
+  function isMarker(entry) {
+    return entry?.kind === 'ink' && entry.blend === 'multiply';
+  }
+
   // 見た目の欄の組み合わせが正しいか（線と塗りを両方なしにはできない。線種は種類で選べるもの。確定事項16〜18）。
-  // 塗りを持てるのは四角・丸とテキスト（テキストの塗りは spec-4b-4a 確定事項A1）。
+  // 塗りを持てるのは四角・丸とテキスト（テキストの塗りは spec-4b-4a 確定事項A1）。重ね方を持てるのはペンだけで、値は 'multiply' だけ。
   function validStyle(entry) {
     const fill = fillOf(entry);
     const fillable = canFill(entry) || entry.kind === 'text';
-    if (!validStroke(entry) || (fill !== null && (!fillable || !isHexColor(fill))))
+    if (!validStroke(entry) || (fill !== null && (!fillable || !isHexColor(fill))) || (entry.blend !== undefined && !isMarker(entry)))
       return false;
     const lineStyle = lineStyleOf(entry);
     if (!lineStylesOf(entry.kind).includes(lineStyle))
@@ -109,6 +114,8 @@
       copy.dash = [...entry.dash];
     if (entry.cloudIntensity !== undefined)
       copy.cloudIntensity = entry.cloudIntensity;
+    if (entry.blend !== undefined)
+      copy.blend = entry.blend;
     return copy;
   }
 
@@ -120,7 +127,7 @@
 
   // 見た目が同じか。無い欄は既定の値として比べる（lineStyle が無いものと 'solid' のものは同じ）。
   function sameStyle(a, b) {
-    return fillOf(a) === fillOf(b) && lineStyleOf(a) === lineStyleOf(b) && sameDash(a.dash, b.dash)
+    return fillOf(a) === fillOf(b) && lineStyleOf(a) === lineStyleOf(b) && sameDash(a.dash, b.dash) && a.blend === b.blend
       && (lineStyleOf(a) !== 'cloudy' || cloudIntensityOf(a) === cloudIntensityOf(b));
   }
 
@@ -136,9 +143,9 @@
     return next;
   }
 
-  // ワーカーへ渡す見た目の欄（確定事項35）。既定と違うものだけを載せる（塗りなし・実線は載せない）。
+  // ワーカーへ渡す見た目の欄（確定事項35）。既定と違うものだけを載せる（塗りなし・実線・ふつうの重ね方は載せない）。
   function saveStyle(entry) {
-    const saved = {};
+    const saved = entry.blend === undefined ? {} : { blend: entry.blend };
     if (fillOf(entry) !== null)
       saved.fill = entry.fill;
     const lineStyle = lineStyleOf(entry);
@@ -169,6 +176,7 @@
     isBoxedKind,
     isFillableKind,
     canFill,
+    isMarker,
     lineStylesOf,
     isHexColor,
     fillOf,

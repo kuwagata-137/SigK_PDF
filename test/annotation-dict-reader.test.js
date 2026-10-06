@@ -57,7 +57,7 @@ test('styled.pdf の不透明度・塗り・線幅 0・破線・雲形・/RD・�
   assert.equal(result.ok, true);
   const at = (key) => result.details[ids[key]];
 
-  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, cloudIntensity: null, rectDifference: null, rotation: null });
+  assert.deepEqual(at('0:Square@60,700'), { ca: 0.5, interior: null, stroke: [1, 0, 0], borderWidth: 2, borderStyle: 'S', dash: null, cloudy: false, cloudIntensity: null, rectDifference: null, rotation: null, blend: null });
   assert.equal(at('0:Circle@220,700').ca, 0.5);
   assert.equal(at('0:PolyLine@380,700').ca, 0.5);
   assert.equal(at('0:Text@540,760').ca, 0.5, 'ノートの不透明度も読める（pdf.js は返さない）');

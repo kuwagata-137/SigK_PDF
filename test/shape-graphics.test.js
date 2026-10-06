@@ -336,3 +336,37 @@ test('svgOf は閉じた多角形を <g> の線と塗りのままの <polygon> �
   assert.equal(names.filter((name) => name === 'closePath').length, 1);
   assert.ok(names.indexOf('fill') < names.indexOf('stroke'));
 });
+
+// ---- マーカー（spec-4b-5b 確定事項8） ----
+
+test('paint はマーカーを不透明度 100% でも別の canvas に描き、乗算で重ねる（交わりを濃くしない）', () => {
+  const calls = [];
+  const layerCalls = [];
+  const made = [];
+  const doc = {
+    createElement: (tag) => {
+      const canvas = { tag, width: 0, height: 0, getContext: () => { made.push([canvas.width, canvas.height]); return recordingContext(layerCalls); } };
+      return canvas;
+    },
+  };
+  const page = { width: 1191, height: 1684, ownerDocument: doc };
+  graphics.paint(recordingContext(calls, { canvas: page }), { ...INK, color: '#ffff00', lineWidth: 12, blend: 'multiply' }, viewport({ scale: 2 }));
+  assert.equal(made.length, 1);
+  assert.ok(layerCalls.some(([name]) => name === 'stroke'));
+  assert.equal(layerCalls.some(([name, key]) => name === 'set' && key === 'globalCompositeOperation'), false, '別の canvas にはふつうに描く');
+  assert.deepEqual(calls.map(([name, ...rest]) => (name === 'drawImage' ? [name] : [name, ...rest])), [
+    ['save'], ['set', 'globalAlpha', 1], ['set', 'globalCompositeOperation', 'multiply'], ['drawImage'], ['restore'],
+  ]);
+  // 半透明のマーカーも同じ（不透明度は重ねるときに当てる）。
+  calls.length = 0;
+  graphics.paint(recordingContext(calls, { canvas: page }), { ...INK, blend: 'multiply', opacity: 0.4 }, viewport({ scale: 2 }));
+  assert.deepEqual(calls.filter(([name]) => name === 'set').map((call) => call.slice(1)), [['globalAlpha', 0.4], ['globalCompositeOperation', 'multiply']]);
+});
+
+test('paint は別の canvas を作れないとき、マーカーを乗算のまま直に描く', () => {
+  const calls = [];
+  graphics.paint(recordingContext(calls), { ...INK, blend: 'multiply' }, viewport());
+  assert.ok(calls.some(([name, key, value]) => name === 'set' && key === 'globalCompositeOperation' && value === 'multiply'));
+  assert.ok(calls.some(([name]) => name === 'stroke'));
+  assert.equal(calls.some(([name]) => name === 'drawImage'), false);
+});

@@ -131,14 +131,18 @@
 
   // 同じ絵を canvas 2D に描く（印刷。spec-4-3 確定事項25）。ctx は viewport と同じ座標系（CSS px 相当）で受ける。
   // 不透明度が 1 未満なら別の canvas に不透明で描いてから重ねる。別の canvas を作れなければ globalAlpha のまま描く。
+  // マーカーは不透明度によらず別の canvas に描いて乗算で重ねる（spec-4b-5b 確定事項8。作れなければ乗算のまま直に描く）。
   // 回した四角・丸は canvas を回してから描く（spec-4b-2 確定事項7）。
   function paint(ctx, entry, viewport) {
     const shape = figure().figureOf(entry, viewport);
     const alpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
+    const marker = root.SigK.shapeStyle.isMarker(entry);
     const turn = root.SigK.shapeRotation?.viewRotationOf(entry, viewport) ?? null;
-    const layer = alpha < 1 ? printLayer().layerOf(ctx, printLayer().turnedExtent(printLayer().extentOf(shape), turn)) : null;
+    const layer = alpha < 1 || marker ? printLayer().layerOf(ctx, printLayer().turnedExtent(printLayer().extentOf(shape), turn)) : null;
     ctx.save();
     ctx.globalAlpha = alpha;
+    if (marker)
+      ctx.globalCompositeOperation = 'multiply';
     if (layer === null) {
       printLayer().turnContext(ctx, turn);
       drawFigure(ctx, shape);
