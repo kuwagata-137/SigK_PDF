@@ -92,7 +92,9 @@
           const page = await viewer().getPage(number);
           if (page === null || token !== state.textToken)
             return null;
-          const content = await page.getTextContent();
+          // モザイクの範囲に重なる行は検索で当てない（spec-4b-6b 確定事項9）。文字の層と同じ写しを作る。
+          const read = await page.getTextContent();
+          const content = root.SigK.mosaicText?.blankContent(read, viewer().getPlan?.()[number - 1]?.mosaic) ?? read;
           if (token !== state.textToken)
             return null;
           pages.push((content?.items ?? []).map((item) => (typeof item?.str === 'string' ? item.str : '')));

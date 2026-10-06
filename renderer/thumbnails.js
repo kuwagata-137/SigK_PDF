@@ -227,6 +227,8 @@
       canvas.height = Math.round(viewport.height);
       entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
       await entry.task.promise;
+      // モザイクの下見（spec-4b-6b 確定事項7）。
+      await root.SigK.mosaicPaint?.paintOver(el.doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; } });
       if (isStale())
         return;
       el.sheets[index]?.replaceChildren(canvas);

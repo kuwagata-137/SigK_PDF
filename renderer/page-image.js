@@ -33,8 +33,9 @@
   //
   // annotationMode は pdf.js の描き方（spec-4-1 確定事項18・28。読み込んだテキスト
   // マークアップを pdf.js に描かせないとき ENABLE_STORAGE）。overlay(ctx, viewport) は
-  // 描いたあとに呼ぶ口で、印刷が未保存の注釈を同じ canvas に重ねる（確定事項28）。
-  async function renderToCanvas(doc, page, { scale, rotation, box = null, annotationMode, overlay = null }) {
+  // 描いたあとに呼ぶ口で、印刷が未保存の注釈を同じ canvas に重ねる（確定事項28）。mosaic は plan の要素のモザイクの並びで、
+  // overlay の前に塗る（spec-4b-6b 確定事項7。書き込みはモザイクの上）。
+  async function renderToCanvas(doc, page, { scale, rotation, box = null, annotationMode, overlay = null, mosaic = null }) {
     const viewport = viewportFor(page, { scale, rotation, box });
     const width = Math.round(viewport.width);
     const height = Math.round(viewport.height);
@@ -46,6 +47,7 @@
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     await page.render({ canvasContext: ctx, viewport, annotationMode }).promise;
+    await root.SigK.mosaicPaint?.paintOver(doc, canvas, page, viewport, mosaic);
     if (typeof overlay === 'function')
       overlay(ctx, viewport);
     return { canvas, width, height };

@@ -65,6 +65,8 @@
       canvas.height = Math.round(viewport.height);
       entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport, annotationMode: annotationMode() });
       await entry.task.promise;
+      // モザイクの下見（spec-4b-6b 確定事項7）。書き込みを描かない絵をもう 1 枚描いて比べ、書き込みは塗らない。
+      await root.SigK.mosaicPaint?.paintOver(ctx.el().doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; } });
       return canvas;
     }
 
@@ -214,7 +216,8 @@
       // 回転は canvas と揃える。揃えないと、回した紙の上で文字だけが
       // 元の向きに残る。
       const viewport = viewportAt(index, page, state.zoom * layout().CSS_UNITS);
-      const handle = await textLayer.render({ doc: ctx.el().doc, page, viewport });
+      // モザイクの範囲に重なる行は選べなくする（spec-4b-6b 確定事項9）。
+      const handle = await textLayer.render({ doc: ctx.el().doc, page, viewport, mosaic: state.plan[index]?.mosaic });
       if (handle === null)
         return;
       // 待っている間に捨てられていたら貼らない。遅れて届いたテキストが、
