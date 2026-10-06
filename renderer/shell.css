@@ -805,9 +805,11 @@ html[data-mode="annot"][data-tool="text"] .textLayer,
 html[data-mode="annot"][data-tool="callout"] .textLayer{cursor:text}
 /* 図形・ペン（spec-4-3 確定事項1・3・8）。ドラッグで描くので文字を選ばせない。下書きは確定後と同じ見た目。 */
 html[data-mode="annot"][data-tool="shape"] .textLayer,
-html[data-mode="annot"][data-tool="pen"] .textLayer{cursor:crosshair; user-select:none}
+html[data-mode="annot"][data-tool="pen"] .textLayer,
+html[data-mode="annot"][data-tool="marker"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="shape"] .textLayer span,
-html[data-mode="annot"][data-tool="pen"] .textLayer span{user-select:none}
+html[data-mode="annot"][data-tool="pen"] .textLayer span,
+html[data-mode="annot"][data-tool="marker"] .textLayer span{user-select:none}
 /* 範囲選択の枠（spec-4b-3a 確定事項D3。モック screenshots/phase4b-3-marquee.png）。.pdf-page の中に置き、紙の中に収める。 */
 .annot-marquee{position:absolute; z-index:4; pointer-events:none; border:1px dashed var(--primary); background:color-mix(in srgb, var(--primary) 8%, transparent)}
 /* 「選択」の道具（spec-4b-3a 確定事項C4）。紙のどこから引いても範囲選択なので、文字を選ばせない。カーソルは矢印のまま。 */

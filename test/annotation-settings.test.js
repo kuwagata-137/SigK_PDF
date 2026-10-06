@@ -13,8 +13,8 @@ const {
 } = require('../annotation-settings.js');
 const settings = require('../settings.js');
 
-const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFontSize', 'annotTextStyle', 'annotCalloutStyle', 'annotLineWidth', 'annotShapeKind',
-  'annotOpacity', 'annotAuthor', 'annotPaletteVersion'];
+const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFontSize', 'annotTextStyle', 'annotCalloutStyle', 'annotLineWidth', 'annotMarkerWidth',
+  'annotShapeKind', 'annotOpacity', 'annotAuthor', 'annotPaletteVersion'];
 const UI_KEYS = KEYS.filter((key) => key !== 'annotPaletteVersion');
 
 test('settings.js の既定は、注釈のキーを annotation-settings.js の既定のまま同じ位置に持つ', () => {
@@ -33,12 +33,15 @@ test('settings.js の既定は、注釈のキーを annotation-settings.js の�
 
 test('既定の色はパレットの色で、塗りは無し・線あり・実線、移し替えの印は 1', () => {
   assert.deepEqual(ANNOT_DEFAULTS.annotColors, {
-    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', note: '#ffd966',
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', marker: '#ffff00',
+    note: '#ffd966',
   });
   assert.deepEqual(ANNOT_DEFAULTS.annotFills, { shape: null });
   assert.deepEqual(ANNOT_DEFAULTS.annotStrokeNone, { shape: false });
   assert.deepEqual(ANNOT_DEFAULTS.annotLineStyles, { shape: 'solid' });
   assert.equal(ANNOT_DEFAULTS.annotLineWidth, 2);
+  // マーカーの太さは別に覚え、既定は 12pt（spec-4b-5b 確定事項3・32）。
+  assert.equal(ANNOT_DEFAULTS.annotMarkerWidth, 12);
   assert.equal(ANNOT_DEFAULTS.annotPaletteVersion, ANNOT_PALETTE_VERSION);
   assert.equal(ANNOT_PALETTE_VERSION, 1);
   assert.deepEqual(ANNOT_LINE_STYLES, ['solid', 'dashed', 'cloudy']);
@@ -69,8 +72,9 @@ test('pickAnnotSettings は注釈のキーだけを検証して取り出し、�
   assert.deepEqual(picked.annotLineStyles, { shape: 'cloudy' });
   assert.equal(picked.annotFontSize, 12, '0.5 刻みでない大きさは既定へ落ちる');
   assert.equal(picked.annotLineWidth, 17);
+  assert.equal(picked.annotMarkerWidth, 12, '無ければ既定の 12');
   assert.equal(picked.annotShapeKind, 'arrow');
-  assert.deepEqual(picked.annotOpacity, { text: 1, callout: 1, shape: 0.35, pen: 0.33, note: 1 }, '0.1 未満は既定、小数は 2 桁');
+  assert.deepEqual(picked.annotOpacity, { text: 1, callout: 1, shape: 0.35, pen: 0.33, marker: 1, note: 1 }, '0.1 未満は既定、小数は 2 桁');
   assert.equal(picked.annotAuthor, '総務');
   assert.equal(picked.annotPaletteVersion, 1);
 });
@@ -101,7 +105,8 @@ test('移し替えの印が無い設定は、今までの候補の色をパレ�
   };
   const picked = pickAnnotSettings(old);
   assert.deepEqual(picked.annotColors, {
-    highlight: '#ffd966', underline: '#c00000', strikeout: '#4472c4', text: '#222a35', callout: '#222a35', shape: '#00b050', pen: '#123456', note: '#ffa8c8',
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#4472c4', text: '#222a35', callout: '#222a35', shape: '#00b050', pen: '#123456', marker: '#ffff00',
+    note: '#ffa8c8',
   });
   assert.equal(picked.annotPaletteVersion, 1);
   assert.deepEqual(pickAnnotSettings({ annotColors: { highlight: '#8ce99a', note: '#8fbfff' } }).annotColors.highlight, '#a9ce91');
@@ -133,8 +138,9 @@ test('mergeAnnotUi は色・塗り・線なし・線種・不透明度を種類�
   assert.deepEqual(merged.annotFills, { shape: '#ffd966' });
   assert.deepEqual(merged.annotStrokeNone, { shape: true });
   assert.deepEqual(merged.annotLineStyles, { shape: 'dashed' });
-  assert.deepEqual(merged.annotOpacity, { text: 1, callout: 1, shape: 1, pen: 1, note: 0.25 });
+  assert.deepEqual(merged.annotOpacity, { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 0.25 });
   assert.equal(merged.annotLineWidth, 3);
+  assert.equal(merged.annotMarkerWidth, 12, 'マーカーの太さは送られなければ今の値のまま');
   assert.equal(merged.annotAuthor, '総務');
   // 受け取れない値は今の値のまま。塗りを無くせば線なしも外れる。
   const invalid = mergeAnnotUi(current, { annotColors: { pen: 'blue' }, annotLineWidth: 50, annotOpacity: { shape: 2 } });
@@ -155,4 +161,16 @@ test('pickAnnotAuthor は文字列の前後の空白を落として上限で切�
   assert.equal(pickAnnotAuthor('a'.repeat(ANNOT_AUTHOR_MAX + 5), ''), 'a'.repeat(ANNOT_AUTHOR_MAX));
   assert.equal(pickAnnotAuthor(7, '経理'), '経理');
   assert.equal(pickAnnotAuthor(undefined, 3), '');
+});
+
+// マーカーの太さ（spec-4b-5b 確定事項3・32）。図形・ペンの太さとは別に、1〜40 の整数だけを受け取る。
+test('マーカーの太さは別に受け取り、範囲の外は既定の 12、部分更新では今の値を残す', () => {
+  assert.equal(pickAnnotSettings({ annotMarkerWidth: 20, annotLineWidth: 3 }).annotMarkerWidth, 20);
+  assert.equal(pickAnnotSettings({ annotMarkerWidth: 20, annotLineWidth: 3 }).annotLineWidth, 3);
+  for (const width of [0, 41, 2.5, '12', null])
+    assert.equal(pickAnnotSettings({ annotMarkerWidth: width }).annotMarkerWidth, 12, String(width));
+  const current = { ...ANNOT_DEFAULTS, annotMarkerWidth: 20 };
+  assert.equal(mergeAnnotUi(current, { annotMarkerWidth: 8 }).annotMarkerWidth, 8);
+  assert.equal(mergeAnnotUi(current, { annotMarkerWidth: 99 }).annotMarkerWidth, 20);
+  assert.equal(mergeAnnotUi(current, { annotLineWidth: 5 }).annotMarkerWidth, 20);
 });

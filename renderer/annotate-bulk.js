@@ -82,8 +82,12 @@
         next.rememberShape('strokeNone', false);
     } else if (field === 'lineStyle' && kinds.some((kind) => style.lineStylesOf(kind).length > 1)) {
       next.rememberShape('lineStyles', value);
-    } else if (field === 'lineWidth' && kinds.some((kind) => root.SigK.annotationEntry.isDrawnKind(kind))) {
-      root.SigK.annotateShape.rememberLineWidth(value);
+    } else if (field === 'lineWidth' && kinds.some((kind) => kind === 'marker' || root.SigK.annotationEntry.isDrawnKind(kind))) {
+      // マーカーの太さは別に覚える（spec-4b-5b 確定事項4）。
+      if (kinds.includes('marker'))
+        root.SigK.annotateShape.rememberLineWidth(value, 'marker');
+      if (kinds.some((kind) => root.SigK.annotationEntry.isDrawnKind(kind)))
+        root.SigK.annotateShape.rememberLineWidth(value);
     } else if (field === 'opacity') {
       kinds.forEach((kind) => root.SigK.annotateOpacity.rememberOpacity(kind, value));
     }

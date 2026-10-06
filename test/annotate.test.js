@@ -317,8 +317,8 @@ test('注釈を選んでいなければ、パレットの色は道具の色（�
 test('覚えた色は起動時に戻る', async (t) => {
   const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotColors: { highlight: '#ffa8c8', underline: '#222a35', strikeout: '#c00000', text: '#4472c4', shape: '#00b050', pen: '#222a35' } } });
   await shell.flush();
-  // 覚えていない種類（吹き出し・ノート）は既定の色。
-  assert.deepEqual(plain(shell.SigK.annotate.getColors()), { highlight: '#ffa8c8', underline: '#222a35', strikeout: '#c00000', text: '#4472c4', callout: '#222a35', shape: '#00b050', pen: '#222a35', note: '#ffd966' });
+  // 覚えていない種類（吹き出し・マーカー・ノート）は既定の色。
+  assert.deepEqual(plain(shell.SigK.annotate.getColors()), { highlight: '#ffa8c8', underline: '#222a35', strikeout: '#c00000', text: '#4472c4', callout: '#222a35', shape: '#00b050', pen: '#222a35', marker: '#ffff00', note: '#ffd966' });
 });
 
 // ---- 履歴・dirty・タブ（確定事項15・19） ----

@@ -62,6 +62,8 @@
       // 吹き出しの書式（spec-4b-4b 確定事項F3）。
       root.SigK.annotateTextStyle?.applyNextStyle(result.ui.annotCalloutStyle, 'callout');
       root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
+      // マーカーの太さ（spec-4b-5b 確定事項32）。
+      root.SigK.annotateShape?.applyMarkerWidth(result.ui.annotMarkerWidth);
       root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);
       // 不透明度と作成者（spec-4-4 確定事項21）。作成者が空ならメインが OS のユーザー名で埋めている。
       root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);

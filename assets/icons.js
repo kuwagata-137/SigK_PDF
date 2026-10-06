@@ -160,6 +160,11 @@
       ['circle', { cx: 16, cy: 16, r: 4 }],
     ],
     pen: [['path', { d: 'M4 18c3-8 6-8 8-2s5 6 8-4' }]],
+    // 道具の段の「マーカー」（spec-4b-5b 確定事項29。見本 screenshots/phase4b-5b-more.png）。斜めのペン先と、太く薄い線。
+    marker: [
+      ['path', { d: 'M14.5 4.5l5 5-8 8H6.5v-5z' }],
+      ['path', { d: 'M4 20.5h9', 'stroke-width': 3.2, opacity: 0.45 }],
+    ],
     // 右パネルの「図形の種類」（spec-4-3 確定事項2）。
     shapeSquare: [['rect', { x: 4, y: 6, width: 16, height: 12, rx: 1 }]],
     shapeCircle: [['ellipse', { cx: 12, cy: 12, rx: 8, ry: 6 }]],

@@ -158,7 +158,7 @@
     getTextStyle: (tool = 'text') => root.SigK.annotateTextStyle?.getNextStyle(tool) ?? { bold: false, italic: false },
     setLineWidth: (width) => root.SigK.annotateShape?.setLineWidth(width) === true,
     setShapeKind: (kind) => root.SigK.annotateShape?.setShapeKind(kind) === true,
-    getLineWidth: () => root.SigK.annotateShape?.getLineWidth(),
+    getLineWidth: (kind) => root.SigK.annotateShape?.getLineWidth(kind),
     getShapeKind: () => root.SigK.annotateShape?.getShapeKind(),
     // 不透明度・本文・作成者（spec-4-4）。
     setOpacity: (value) => root.SigK.annotateOpacity?.setOpacity(value) === true,
