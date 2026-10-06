@@ -95,3 +95,10 @@ test('applyCrop は重ならない・1pt 未満・形の違う値を断る', asy
     assert.match(rules.applyCrop(page, crop, TOOLS).error, /切り方が正しくありません/, JSON.stringify(crop));
   assert.equal(page.node.get(PDFName.of('CropBox')), undefined);
 });
+
+test('applyCrop は箱の値をそのまま書き、幅を足し戻す端数（559.1699999999998 など）を出さない', async () => {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([595.28, 841.89]);
+  assert.deepEqual(rules.applyCrop(page, [39.81, 380.43, 559.17, 790.55], TOOLS), { ok: true, box: [39.81, 380.43, 559.17, 790.55] });
+  assert.deepEqual(boxOf(page, 'CropBox'), [39.81, 380.43, 559.17, 790.55]);
+});

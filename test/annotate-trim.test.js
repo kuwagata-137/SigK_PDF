@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, makeSource, A4 } = require('./harness.js');
+const { createShell, createPdfjsStub, makeSource, A4 } = require('./harness.js');
 
 // トリミングの枠の押し離し（spec-4b-6a 確定事項12〜16・26。決定64 ①）。切る・外すは trim-tool.test.js、右パネルは trim-props.test.js。
 // jsdom はレイアウトしないので、ページの枠の左上は (0,0) で、clientX/Y がそのまま .pdf-page 基準の CSS px になる。
@@ -252,4 +252,14 @@ test('差し込んだ未保存のページで引くと、枠を出さずに帯�
   assert.equal(frameOf(shell), null);
   assert.equal(SigK.viewBanner.text(), '差し込んだページは、保存してから切ってください。');
   assert.equal(document.getElementById('view-banner').getAttribute('data-tone'), 'warn');
+});
+
+test('原点のずれた紙（ほかのアプリで切ってあるページ）でも、引いた枠が紙の座標で合い、見える範囲から出ない', async (t) => {
+  const pdfjs = createPdfjsStub({ sizes: [{ width: 400, height: 500 }, A4, A4], views: [[50, 60, 450, 560]] });
+  const shell = await withTrim(t, { pdfjs });
+  drawFrame(shell, [100, 150, 300, 400]);
+  assert.deepEqual(frameOf(shell), { index: 0, box: [100, 150, 300, 400] });
+  // 見える範囲の外から引いても、見える範囲の中に収める。
+  pull(shell, 0, [0, 1000], [200, 300]);
+  assert.deepEqual(frameOf(shell), { index: 0, box: [50, 300, 200, 560] });
 });

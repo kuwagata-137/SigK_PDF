@@ -69,7 +69,8 @@ function applyCrop(page, crop, { PDFName }) {
     if (page.node.getInheritableAttribute(name) === undefined)
       return { ok: true, box: null };
   }
-  page.setCropBox(box[0], box[1], box[2] - box[0], box[3] - box[1]);
+  // 配列をそのまま書く。pdf-lib の setCropBox(x, y, 幅, 高さ) は x＋幅 を計算し直すので、559.17 が 559.1699999999998 になる。
+  page.node.set(name, page.node.context.obj(box));
   return { ok: true, box };
 }
 

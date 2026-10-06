@@ -225,3 +225,33 @@ test('外すのを待っている間にタブを替えたら当てない', async
   assert.equal(await removing, false);
   assert.deepEqual(crops(shell), [null, null, null]);
 });
+
+test('切った範囲の外の書き込みは消えずに残り、外すとまた見える（決定64 ④）', async (t) => {
+  const shell = await withTrim(t);
+  const { SigK, document } = shell;
+  // 切る範囲の外（紙の左下）に四角を描く。
+  SigK.annotate.setTool('shape');
+  SigK.annotate.setShapeKind('square');
+  const viewport = SigK.viewer.getTextLayer(0).viewport;
+  const from = viewport.convertToViewportPoint(20, 120);
+  const to = viewport.convertToViewportPoint(80, 40);
+  fire(shell, 'mousedown', pageNode(shell), from, 1);
+  fire(shell, 'mousemove', document.body, to, 1);
+  fire(shell, 'mouseup', pageNode(shell), to);
+  const id = SigK.viewer.getAnnotations().added.at(-1).id;
+  const drawn = () => pageNode(shell).querySelector(`.annot-layer g[data-annot="${id}"]`) !== null;
+  assert.equal(drawn(), true);
+
+  SigK.annotate.setTool('trim');
+  drawFrame(shell);
+  key(shell, 'Enter');
+  await shell.flush();
+  assert.deepEqual(crops(shell), [BOX, null, null]);
+  assert.equal(SigK.viewer.getAnnotations().added.some((entry) => entry.id === id), true);
+
+  document.getElementById('props-trim-remove').click();
+  await shell.flush();
+  assert.deepEqual(crops(shell), [null, null, null]);
+  assert.equal(SigK.viewer.getAnnotations().added.some((entry) => entry.id === id), true);
+  assert.equal(drawn(), true);
+});
