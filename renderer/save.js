@@ -23,6 +23,11 @@
     return root.SigK.tabs;
   }
 
+  // モザイクのページを画像にする層（spec-4b-6b）。読み込まれていなければ、モザイクは無いものとして扱う。
+  function mosaicSave() {
+    return root.SigK.mosaicSave ?? { prepare: async () => ({ ok: true, mosaics: [] }) };
+  }
+
   function isBusy() {
     return state.running !== null;
   }
@@ -180,8 +185,9 @@
 
   // 保存でワーカーへ渡す形（docs/02 2-3）。差し込みの控えも一緒に渡す
   // （確定事項65。plan の { insert } がこの配列の番号を指す）。注釈は
-  // 「ファイルとの差分」{ add, remove } で渡す（spec-4-1 確定事項22）。
-  function saveSpec({ source, target, makeBackup, expect }) {
+  // 「ファイルとの差分」{ add, remove } で渡す（spec-4-1 確定事項22）。モザイクのページの画像と、前の控えを消すかも渡す
+  // （spec-4b-6b 確定事項20・23。mosaic-save.js）。
+  function saveSpec({ source, target, makeBackup, expect, mosaics = [], dropBackup = false }) {
     return {
       kind: 'save',
       source,
@@ -192,13 +198,15 @@
       target,
       makeBackup,
       expect,
+      mosaics,
+      dropBackup,
     };
   }
 
   // 保存の1往復。外部で書き換えられていたら聞き直す（確定事項21）。
-  async function writeTo({ source, target, makeBackup, name, label = '保存' }) {
+  async function writeTo({ source, target, makeBackup, name, label = '保存', mosaics = [], dropBackup = false }) {
     const file = viewer().getState().file;
-    let result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: signatureOf(file) }), label });
+    let result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: signatureOf(file), mosaics, dropBackup }), label });
 
     if (result?.changed === true) {
       const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
@@ -208,7 +216,7 @@
         return { canceled: true };
       }
       // 了承されたので、照合を外してもう一度回す。
-      result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: null }), label });
+      result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: null, mosaics, dropBackup }), label });
     }
 
     if (result?.canceled === true) {
@@ -239,6 +247,11 @@
         signature: result.signature ?? null,
       });
     }
+    // 前の控えを消せなかったら、保存は成功のまま黄色の帯で知らせる（spec-4b-6b 確定事項23）。
+    if (result.backupLeft === true) {
+      banner().show('保存しました。控えのファイル（.bak）を消せませんでした。元の内容が残っているので、手で消してください。', { autoHideMs: 0, tone: 'warn' });
+      return result;
+    }
     // 成功は失敗ではないので赤く塗らない（確定事項6・30、決定48）。帯の既定の色は失敗の赤である。
     banner().show('保存しました。', { autoHideMs: 2500, tone: 'info' });
     return result;
@@ -268,12 +281,19 @@
     // dirty でなければ何もしない（確定事項24）。押せはするが、書く理由がない。
     if (!viewer().isDirty())
       return { ok: true, unchanged: true };
+    // モザイクがあれば、確認を出してページを画像にする（spec-4b-6b 確定事項18・19）。
+    const mosaic = await mosaicSave().prepare({ mode: 'overwrite', name: view.file.name });
+    if (mosaic.ok !== true)
+      return mosaic;
+    const mosaicked = mosaic.mosaics.length > 0;
 
     return writeTo({
       source: view.file.path,
       target: view.file.path,
-      // 上書きのときだけ .bak を作る（確定事項18・20）。
-      makeBackup: true,
+      // 上書きのときだけ .bak を作る（確定事項18・20）。モザイクを含むときは作らず、前の控えも消す（決定64 ⑧）。
+      makeBackup: !mosaicked,
+      dropBackup: mosaicked,
+      mosaics: mosaic.mosaics,
       name: view.file.name,
     });
   }
@@ -306,12 +326,19 @@
       return { error: refused };
     }
 
+    const name = picked.path.split(/[\\/]/).pop();
+    // モザイクがあれば、確認を出してページを画像にする（spec-4b-6b 確定事項18・19。元のファイルは変えない）。
+    const mosaic = await mosaicSave().prepare({ mode: 'saveAs', name, sourceName: view.file.name });
+    if (mosaic.ok !== true)
+      return mosaic;
+
     return writeTo({
       source: view.file.path,
       target: picked.path,
       // 元ファイルを触らないので退避は要らない（確定事項18）。
       makeBackup: false,
-      name: picked.path.split(/[\\/]/).pop(),
+      mosaics: mosaic.mosaics,
+      name,
     });
   }
 

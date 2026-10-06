@@ -745,6 +745,21 @@ body{
     </div>
   </dialog>
 
+  <!-- モザイクを入れて保存する前の確認（spec-4b-6b 確定事項18。見本 screenshots/phase4b-6-mosaic-confirm.png・phase4b-6b-mosaic-saveas.png）。
+       置き換えるページ・保存先・失うもの・控えを作らないことを名指しする。既定のフォーカスは「キャンセル」（中身は confirm-mosaic.js）。 -->
+  <dialog id="confirm-mosaic">
+    <div class="dlg-head"><span>モザイクを入れて保存しますか</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-mosaic-text">モザイクを入れたページを、丸ごと画像に置き換えて保存します。</p>
+      <p class="dlg-text" id="confirm-mosaic-loss"></p>
+      <p class="dlg-text" id="confirm-mosaic-backup" hidden></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn" id="confirm-mosaic-cancel">キャンセル</button>
+      <button type="button" class="dlg-btn danger" id="confirm-mosaic-ok">置き換えて保存</button>
+    </div>
+  </dialog>
+
   <!-- 出力先の同名確認の3択（spec-2-1 確定事項26〜28・docs/04 第7章）。
        既定のフォーカスは安全側の「中止」。「上書き」だけを danger で塗る。 -->
   <dialog id="confirm-replace">
@@ -886,9 +901,11 @@ body{
 <script src="renderer/tools-watermark-view.js"></script>
 <script src="renderer/watermark-preview.js"></script>
 <script src="renderer/confirm-flatten.js"></script>
+<script src="renderer/confirm-mosaic.js"></script>
 <script src="renderer/tools-flatten.js"></script>
 <script src="renderer/tools-flatten-view.js"></script>
 <script src="renderer/save.js"></script>
+<script src="renderer/mosaic-save.js"></script>
 <script src="renderer/extract.js"></script>
 <script src="renderer/insert.js"></script>
 <script src="renderer/find-text.js"></script>

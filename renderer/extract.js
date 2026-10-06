@@ -66,7 +66,9 @@
     if (pages.length === 0)
       return { error: '抽出するページが選ばれていません。' };
 
-    if (await root.SigK.confirmExtract.ask({ count: pages.length }) !== true)
+    // モザイクのあるページは、抽出したファイルでも画像に置き換える（spec-4b-6b 確定事項25。決定66 ②）。確認でそう伝える。
+    const mosaicCount = selection().filter((index) => root.SigK.pageMosaic?.countOf(plan[index]) > 0).length;
+    if (await root.SigK.confirmExtract.ask({ count: pages.length, mosaicCount }) !== true)
       return { canceled: true };
 
     const picked = await root.pdfAPI.pickSavePath({
@@ -85,8 +87,13 @@
       return { error: refused };
     }
 
+    const mosaic = mosaicCount === 0 ? { ok: true, mosaics: [] } : await root.SigK.mosaicSave.prepare({ mode: 'extract', indices: selection() });
+    if (mosaic.ok !== true)
+      return mosaic;
+
     const result = await root.SigK.save.runTask({
       kind: 'extract',
+      mosaics: mosaic.mosaics,
       source: view.file.path,
       target: picked.path,
       pages,

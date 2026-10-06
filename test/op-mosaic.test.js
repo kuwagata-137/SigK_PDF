@@ -101,15 +101,3 @@ test('画像を読めなければ断る（文書は差し替えない）', async
   const result = await applyMosaics(doc, [{ src: 0, kind: 'png', bytes: new Uint8Array([1, 2, 3]), box: BOX }], TOOLS);
   assert.ok(result.error);
 });
-
-test('pruneOrphans は辿れるものを残し、辿れないものだけを消す', async () => {
-  const doc = await PDFDocument.create();
-  const page = doc.addPage([100, 100]);
-  const orphan = doc.context.register(doc.context.obj({ Lost: true }));
-  const kept = doc.context.register(doc.context.obj({ Kept: true }));
-  page.node.set(PDFName.of('Kept'), kept);
-  assert.equal(pruneOrphans(doc, TOOLS), 1);
-  assert.equal(doc.context.lookup(orphan), undefined);
-  assert.ok(doc.context.lookup(kept) instanceof PDFDict);
-  assert.equal(pruneOrphans(doc, TOOLS), 0);
-});

@@ -114,6 +114,8 @@
     root.SigK.toolsWatermarkView.init(doc, win);
     root.SigK.watermarkPreview.init(doc, win);
     root.SigK.confirmFlatten.init(doc, win);
+    // モザイクを入れて保存する前の確認（spec-4b-6b 確定事項18）。
+    root.SigK.confirmMosaic.init(doc, win);
     root.SigK.toolsFlatten.init(doc, win);
     root.SigK.toolsFlattenView.init(doc, win);
     // パスワードの入力は viewer.open() の途中から呼ばれる。先に用意しておく。
