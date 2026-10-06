@@ -81,18 +81,21 @@
     return { lines, width, region: filled ? lines[0] : null };
   }
 
-  // 直線・矢印の線と、矢印の先の輪郭（塗った三角は中も）。
+  // 直線・矢印の線と、矢印の先。開いた矢じりは線の太さで引くので線と同じに見る。塗った三角は線を引かずに塗るだけなので、軸は描く所
+  // （底の中点）までを線の太さで、三角は太さ 0 の輪郭（bare）と中で見る（点検 5）。
   function lineShape(entry) {
     const [from, to] = entry.paths[0];
-    const lines = [entry.paths[0]];
-    let region = null;
-    if (entry.kind === 'arrow') {
-      const closed = root.SigK.arrowHead.isClosed(entry);
-      lines.push(root.SigK.arrowHead.outlineOf(from, to, entry.lineWidth, closed));
-      if (closed)
-        region = (point) => root.SigK.arrowHead.insideHead(point, from, to, entry.lineWidth);
-    }
-    return { lines, width: entry.lineWidth, region };
+    const head = root.SigK.arrowHead;
+    if (entry.kind !== 'arrow')
+      return { lines: [entry.paths[0]], width: entry.lineWidth, region: null };
+    if (!head.isClosed(entry))
+      return { lines: [entry.paths[0], head.outlineOf(from, to, entry.lineWidth, false)], width: entry.lineWidth, region: null };
+    return {
+      lines: [[from, head.closedHead(from, to, entry.lineWidth).base]],
+      width: entry.lineWidth,
+      bare: [head.outlineOf(from, to, entry.lineWidth, true)],
+      region: (point) => head.insideHead(point, from, to, entry.lineWidth),
+    };
   }
 
   function polygonShape(entry) {
@@ -162,7 +165,7 @@
       return false;
     const angle = rotation().angleOf(entry);
     const local = angle === 0 ? trail : trail.map((point) => rotation().toLocal(point, entry.rect, angle));
-    if (near(shape.lines, local, radius + shape.width / 2))
+    if (near(shape.lines, local, radius + shape.width / 2) || (shape.bare !== undefined && near(shape.bare, local, radius)))
       return true;
     return shape.region !== null && local.some((point) => inRegion(shape.region, point));
   }

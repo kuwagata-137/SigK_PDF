@@ -112,8 +112,10 @@
       press().reset();
       return;
     }
-    // 消しゴムは書き込みを選ばず掴まず、つまみも見ずに消し始める（spec-4b-5b 確定事項21）。
-    if (root.SigK.annotateErase?.begin(event) === true) {
+    // 消しゴムは書き込みを選ばず掴まず、つまみも見ずに消し始める。紙の外（はみ出したつまみの上も）では何もしない（spec-4b-5b
+    // 確定事項21・点検 2・7）。
+    if (annotate().getTool() === 'eraser') {
+      root.SigK.annotateErase?.begin(event);
       press().reset();
       return;
     }

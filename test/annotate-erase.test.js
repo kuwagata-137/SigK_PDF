@@ -276,3 +276,83 @@ test('消しゴムを持つと右パネルにヒントが出て、ダブルク�
   fire(shell, 'dblclick', pageNode(shell), px(shell, [110, 690]));
   assert.equal(SigK.freeTextEditor.isEditing(), true);
 });
+
+// ---- 点検で直したこと ----
+
+test('離しが届かなかったら、左を押していない動きと窓のフォーカスが外れたときに取りやめ、あとの押し離しで消さない（点検 1）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const pen = drawPen(shell, [[100, 500], [300, 500]]);
+  SigK.annotate.setTool('eraser');
+  // ペンに触れない所で押して動かし、離しは窓の外で起きて届かなかったとする
+  press(shell, [[150, 600], [150, 590]]);
+  fire(shell, 'mousemove', document.body, px(shell, [150, 520]));
+  assert.equal(SigK.annotateErase.isErasing(), false);
+  fire(shell, 'mousemove', document.body, px(shell, [150, 480]));
+  const bar = document.getElementById('edit-bar');
+  fire(shell, 'mousedown', bar, [10, 10], { buttons: 1 });
+  fire(shell, 'mouseup', bar, [10, 10]);
+  assert.equal(added(shell, pen).paths.length, 1);
+  // 窓のフォーカスが外れたら（Alt+Tab など）やめる
+  press(shell, [[150, 600], [150, 590]]);
+  shell.window.dispatchEvent(new shell.window.Event('blur'));
+  assert.equal(SigK.annotateErase.isErasing(), false);
+  fire(shell, 'mousemove', document.body, px(shell, [150, 480]), { buttons: 1 });
+  release(shell, [150, 480]);
+  assert.equal(added(shell, pen).paths.length, 1);
+});
+
+test('消しゴムでは、紙の外にはみ出したつまみを押しても回さず、紙の外を押しても選択を外さない（点検 2・7）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const square = drawSquare(shell, [100, 780], [300, 830]);
+  SigK.annotate.select(square);
+  SigK.annotate.setTool('eraser');
+  await shell.flush();
+  const rotate = SigK.annotationFrame.shown().shape.handles.find((handle) => handle.kind === 'rotate');
+  const gray = document.getElementById('view-pages');
+  fire(shell, 'mousedown', gray, rotate.at, { buttons: 1 });
+  fire(shell, 'mousemove', document.body, [rotate.at[0] + 80, rotate.at[1] + 30], { buttons: 1 });
+  fire(shell, 'mouseup', gray, [rotate.at[0] + 80, rotate.at[1] + 30]);
+  assert.equal(added(shell, square).angle, undefined);
+  assert.deepEqual([...SigK.annotate.getSelection()], [square]);
+});
+
+test('なぞっている途中で倍率が変わったら取りやめ、なぞっていない所を消さない（点検 3）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const pen = drawPen(shell, [[100, 500], [300, 500]]);
+  SigK.annotate.setTool('eraser');
+  press(shell, [[100, 600]]);
+  SigK.viewer.setZoom(SigK.viewer.getState().zoom * 2);
+  await shell.flush();
+  const at = px(shell, [120, 600]);
+  fire(shell, 'mousemove', document.body, at, { buttons: 1 });
+  assert.equal(SigK.annotateErase.isErasing(), false);
+  fire(shell, 'mouseup', pageNode(shell), at);
+  assert.equal(added(shell, pen).paths.length, 1);
+  assert.equal(SigK.pageEdit.getHistoryState().at, 1, 'ペンを描いた 1 世代だけ');
+});
+
+test('紙の上のカーソルは輪を出している間だけ消し、動かす前は十字のまま（点検 9）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const html = document.documentElement;
+  SigK.annotate.setTool('eraser');
+  assert.equal(html.hasAttribute('data-eraser-ring'), false, '持っただけでは輪が無いので、カーソルを消さない');
+  fire(shell, 'mousemove', pageNode(shell), [50, 60]);
+  assert.equal(html.hasAttribute('data-eraser-ring'), true);
+  fire(shell, 'mousemove', document.body, [50, 60]);
+  assert.equal(html.hasAttribute('data-eraser-ring'), false);
+  fire(shell, 'mousemove', pageNode(shell), [50, 60]);
+  SigK.annotate.setTool('pen');
+  assert.equal(html.hasAttribute('data-eraser-ring'), false);
+  // CSS: 紙の上のカーソルを消すのは輪を出している間だけ
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'renderer', 'shell.css'), 'utf8');
+  const selectors = [...css.matchAll(/([^{}]+)\{[^{}]*cursor:none[^{}]*\}/g)]
+    .flatMap((match) => match[1].split(',').map((part) => part.trim()))
+    .filter((selector) => selector.includes('data-tool="eraser"'));
+  assert.ok(selectors.length > 0);
+  for (const selector of selectors)
+    assert.ok(selector.includes('[data-eraser-ring]'), selector);
+});

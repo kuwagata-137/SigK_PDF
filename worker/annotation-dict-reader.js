@@ -105,21 +105,24 @@ function detailsOf(dict, context, options = {}) {
   };
 }
 
-// 読める注釈だけを { id: 欄 } にする。辞書でないもの・/Subtype の無いものは飛ばす。
+// 読める注釈だけを { id: 欄 } にし、読めなかった参照（辞書でないもの・/Subtype の無いもの・見つからないもの）を unread に並べる。
+// 暗号化した文書で辞書がオブジェクトストリームの中にあると、pdf-lib は暗号のままの入れ物をほどけずに飛ばすので、見つからない
+// （spec-4b-5b 点検 4）。レンダラーは unread の注釈を、口が答えなかったときと同じに扱う。
 function collectDetails(doc, refs) {
   const context = doc.context;
   const encrypted = context.trailerInfo?.Encrypt !== undefined;
   const details = {};
+  const unread = [];
   for (const id of refs) {
     const ref = parseRef(id);
-    if (ref === null)
+    const dict = ref === null ? undefined : context.lookup(TOOLS.PDFRef.of(ref.num, ref.gen));
+    if (typeof dict?.entries !== 'function' || pick(dict, '/Subtype') === undefined) {
+      unread.push(id);
       continue;
-    const dict = context.lookup(TOOLS.PDFRef.of(ref.num, ref.gen));
-    if (typeof dict?.entries !== 'function' || pick(dict, '/Subtype') === undefined)
-      continue;
+    }
     details[id] = detailsOf(dict, context, { encrypted });
   }
-  return details;
+  return { details, unread };
 }
 
 // spec の形を確かめる。崩れていれば null。同じ id は 1 つにまとめる。
@@ -136,7 +139,7 @@ function requestOf(spec) {
   return { source, expect: { size: expect.size, mtimeMs: expect.mtimeMs }, refs: [...new Set(refs)] };
 }
 
-// ワーカーの入口（tool-tasks.js の TOOL_TASKS）。戻り値は { ok: true, details } か { ok: false, reason }。
+// ワーカーの入口（tool-tasks.js の TOOL_TASKS）。戻り値は { ok: true, details, unread } か { ok: false, reason }。
 async function runAnnotationDetails(spec, { fsLike = fs } = {}) {
   const request = requestOf(spec);
   if (request === null)
@@ -147,7 +150,7 @@ async function runAnnotationDetails(spec, { fsLike = fs } = {}) {
   try {
     const bytes = await fsLike.promises.readFile(request.source);
     const doc = await PDFDocument.load(bytes, { ...LOAD_OPTIONS, ignoreEncryption: true });
-    return { ok: true, details: collectDetails(doc, request.refs) };
+    return { ok: true, ...collectDetails(doc, request.refs) };
   } catch {
     return { ok: false, reason: 'unreadable' };
   }

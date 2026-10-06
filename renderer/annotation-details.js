@@ -140,7 +140,8 @@
     return refs.length > REFS_MAX ? 'too-many' : null;
   }
 
-  // 口を 1 本ずつ順番に呼ぶ。答えは { ok: true, details } か { ok: false, reason }（called は口を呼んだか）。
+  // 口を 1 本ずつ順番に呼ぶ。答えは { ok: true, details, unread } か { ok: false, reason }（called は口を呼んだか。unread は口が
+  // 読めなかった参照）。
   function requestDetails(file, refs) {
     const reason = unavailableReason(file, refs);
     if (reason !== null) {
@@ -156,8 +157,9 @@
       } catch {
         answer = { ok: false, reason: 'unreadable' };
       }
+      const unread = Array.isArray(answer?.unread) ? answer.unread.filter((id) => typeof id === 'string') : [];
       const result = answer?.ok === true
-        ? { ok: true, details: answer.details ?? {}, called: true }
+        ? { ok: true, details: answer.details ?? {}, unread, called: true }
         : { ok: false, reason: answer?.reason ?? 'unreadable', called: true };
       last = { called: true, refs: refs.length, answered: result.ok ? Object.keys(result.details).length : 0, ms: Date.now() - started, reason: result.ok ? null : result.reason };
       return result;

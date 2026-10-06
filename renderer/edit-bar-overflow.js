@@ -87,8 +87,8 @@
     el = { doc, win, bar, item };
     if (typeof win.ResizeObserver === 'function')
       new win.ResizeObserver(() => fit()).observe(bar);
-    else
-      win.addEventListener('resize', () => fit());
+    // 窓の大きさが変われば測り直す（高さだけが変わって段の幅が同じでも、開いている一覧は閉じる。確定事項28・点検 8）。
+    win.addEventListener('resize', () => fit());
     // 書体を読み終えると名前の幅が変わる。
     doc.fonts?.ready?.then(() => fit());
     fit();

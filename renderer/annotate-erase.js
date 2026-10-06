@@ -8,7 +8,8 @@
   // 触れなければ積まない。当てたら選択を外す。Esc・左＋右・Ctrl+Z・道具やモードを替える・保存や印刷の前は、なぞっている途中を
   // 取りやめる（cancel）。消しゴムを持っている間、紙の上では直径 16px の輪（.eraser-ring）をカーソルの代わりに出す（確定事項24）。
 
-  const state = { doc: null, node: null, ring: null };
+  // scale は押したときのページの倍率（なぞっている間に変われば取りやめる。点検 3）。
+  const state = { doc: null, node: null, ring: null, scale: null };
 
   function annotate() {
     return root.SigK.annotate;
@@ -57,6 +58,7 @@
       return false;
     event.preventDefault();
     state.node = page.node;
+    state.scale = viewport.scale;
     draft().begin({ index: page.index, src, viewport, point: page.point, entries: entriesOf(src) });
     viewer().redrawAnnotations();
     return true;
@@ -66,11 +68,21 @@
     return viewer().getPlan()[draft().pageIndex()]?.src;
   }
 
-  // 動かした。なぞっている間は跡を伸ばして下見を描き直す。持っているだけなら輪を動かす。
+  // 押したときと同じ倍率か。変わっていれば、押したときの倍率で紙の点に直せない（点検 3）。
+  function sameScale() {
+    return viewportOf(draft().pageIndex())?.scale === state.scale;
+  }
+
+  // 動かした。なぞっている間は跡を伸ばして下見を描き直す。持っているだけなら輪を動かす。左を離した mouseup が届かなかった（窓の外で
+  // 離した・Alt+Tab で捕捉が外れた）・倍率が変わったときは、当てずにやめる（点検 1・3。確定事項23）。
   function move(event) {
     hover(event);
     if (!draft().isErasing())
       return false;
+    if (((event.buttons ?? 0) & 1) === 0 || !sameScale()) {
+      cancel();
+      return false;
+    }
     draft().extend(pointIn(state.node, event), entriesOf(srcOfDraft()));
     viewer().redrawAnnotations();
     return true;
@@ -80,6 +92,8 @@
   function end(event) {
     if (!draft().isErasing())
       return false;
+    if (!sameScale())
+      return cancel();
     draft().extend(pointIn(state.node, event), entriesOf(srcOfDraft()));
     const done = draft().finish();
     state.node = null;
@@ -138,11 +152,14 @@
     node.hidden = false;
     node.style.left = `${event.clientX}px`;
     node.style.top = `${event.clientY}px`;
+    // 紙の上のカーソルは、輪を出している間だけ消す（動かす前は十字のまま。点検 9）。
+    state.doc.documentElement.setAttribute('data-eraser-ring', '');
   }
 
   function hideRing() {
     if (state.ring !== null)
       state.ring.hidden = true;
+    state.doc?.documentElement.removeAttribute('data-eraser-ring');
   }
 
   function init(doc, win) {
@@ -151,6 +168,8 @@
     win.__sigkAnnotateEraseReady = true;
     state.doc = doc;
     doc.documentElement.addEventListener('mouseleave', hideRing);
+    // 窓のフォーカスが外れたらやめる（離しが届かないことがあるため。点検 1）。
+    win.addEventListener('blur', () => cancel());
     return true;
   }
 

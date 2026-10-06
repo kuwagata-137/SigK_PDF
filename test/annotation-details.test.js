@@ -188,7 +188,7 @@ test('requestDetails は 1 本ずつ順番に呼び、答えを揃える', async
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(order, ['start 1R'], '2 本目は 1 本目が終わるまで呼ばない');
   releases[0]();
-  assert.deepEqual(await first, { ok: true, details: { '1R': { ca: 0.5 } }, called: true });
+  assert.deepEqual(await first, { ok: true, details: { '1R': { ca: 0.5 } }, unread: [], called: true });
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(order, ['start 1R', 'end 1R', 'start 2R']);
   releases[1]();
@@ -206,7 +206,7 @@ test('requestDetails は断られた答えと、口が投げたときを reason 
   });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'timeout', called: true });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'unreadable', called: true });
-  assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: true, details: {}, called: true });
+  assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: true, details: {}, unread: [], called: true });
 });
 
 test('applyDetails は多角形を、口が答えなければ表示のみ（Polygon・PolyLine）にし、答えがあれば塗りと不透明度を当てる（spec-4b-5a 確定事項40）', () => {
@@ -254,4 +254,9 @@ test('applyDetails は ×印の形の乗算やほかの重ね方を表示のみ�
   assert.equal(details.applyDetails(cross, { blend: 'Darken', ca: null }).subtype, 'Ink');
   assert.equal(details.applyDetails(cross, { blend: null, ca: null }).kind, 'cross');
   assert.equal(details.applyDetails(cross, undefined, { answered: false }), cross);
+});
+
+test('requestDetails は口が読めなかった参照（unread）を渡し、文字列でないものは捨てる（spec-4b-5b 点検 4）', async (t) => {
+  withApi(t, async () => ({ ok: true, details: {}, unread: ['2R', 3, '4R'] }));
+  assert.deepEqual(await details.requestDetails(FILE, ['1R', '2R', '4R']), { ok: true, details: {}, unread: ['2R', '4R'], called: true });
 });

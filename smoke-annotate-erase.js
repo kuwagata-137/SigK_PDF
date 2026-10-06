@@ -50,9 +50,11 @@ const ERASE_STEPS = `
       const index = Number(page);
       const screen = points.split(';').map((point) => point.split('x').map(Number)).map(([x, y]) => screenPoint(index, x, y));
       SigK.annotate.setTool(name === 'marker' ? 'marker' : 'eraser');
-      mouse('mousedown', pageNode(index), screen[0][0], screen[0][1]);
+      // 消しゴムは左を押していない動きで取りやめるので、押している間の動きには buttons を付ける（spec-4b-5b 点検 1）。
+      const held = (type, x, y) => pageNode(index).dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, buttons: 1 }));
+      held('mousedown', screen[0][0], screen[0][1]);
       for (const [x, y] of screen.slice(1)) {
-        mouse('mousemove', pageNode(index), x, y);
+        held('mousemove', x, y);
         await wait(30);
       }
       if (name !== 'erase-draft')

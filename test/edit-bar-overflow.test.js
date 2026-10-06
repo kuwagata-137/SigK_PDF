@@ -84,3 +84,16 @@ test('測るときは子の幅に左右の余白を足し、段の内側の余�
   // 1px 足りないと、ノート（48＋間 5）を隠しても「その他」（48＋間 5）を置くぶんで足りず、消しゴムも隠れる。
   assert.deepEqual([...SigK.editBarOverflow.hiddenButtons().map((button) => button.dataset.tool)], ['eraser', 'note']);
 });
+
+test('ResizeObserver があっても、窓の大きさが変われば測り直して開いている一覧を閉じる（高さだけが変わったとき。点検 8）', async (t) => {
+  const { document, SigK } = await withShell(t);
+  const listeners = {};
+  const win = { ResizeObserver: class { observe() {} }, addEventListener: (type, fn) => { listeners[type] = fn; } };
+  assert.equal(SigK.editBarOverflow.init(document, win), true);
+  SigK.editBarOverflow.fit(measured(document, 2));
+  document.getElementById('edit-more').click();
+  assert.equal(SigK.editBarMore.isOpen(), true);
+  assert.equal(typeof listeners.resize, 'function');
+  listeners.resize();
+  assert.equal(SigK.editBarMore.isOpen(), false);
+});

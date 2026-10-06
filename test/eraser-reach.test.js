@@ -73,8 +73,9 @@ test('直線・矢印の先・塗った三角の中・×印・多角形', () => 
   assert.equal(touches(line, [[50, 9]], R), true);
   assert.equal(touches(line, [[50, 9.5]], R), false);
   const arrow = { ...line, kind: 'arrow', lineWidth: 4 };
-  // 塗った三角は 太さ×4＝16pt、開き 180°÷7。底の外側の翼の近く
-  assert.equal(touches(arrow, [[90, 14]], R), true);
+  // 塗った三角は 太さ×4＝16pt、開き 180°÷7。線を引かずに塗るだけなので、輪郭から R 以内で触れる（(90, 13.5) は 7.83pt、(90, 14) は 8.28pt）
+  assert.equal(touches(arrow, [[90, 13.5]], R), true);
+  assert.equal(touches(arrow, [[90, 14]], R), false);
   assert.equal(touches(arrow, [[97, 0]], 0.1), true, '三角の中');
   const cross = { kind: 'cross', color: '#c00000', opacity: 1, lineWidth: 2, rect: [0, 0, 100, 100] };
   assert.equal(touches(cross, [[50, 50]], 1), true);
@@ -100,4 +101,16 @@ test('ペン・テキスト・ハイライト・ノート・表示のみ・跡�
     assert.equal(touches({ kind, color: '#c00000', rect: [100, 100, 300, 200], paths: [[[100, 150], [300, 150]]] }, [[200, 150]], R), false, kind);
   assert.equal(touches(square({ readonly: true }), [[150, 199]], R), false);
   assert.equal(touches(square(), [], R), false);
+});
+
+test('塗った三角の矢印は、軸を底の中点までの太さの線、三角を太さ 0 の輪郭と中で見る（点検 5）', () => {
+  const arrow = { kind: 'arrow', color: '#c00000', opacity: 1, lineWidth: 40, rect: [80, 450, 320, 550], paths: [[[100, 500], [300, 500]]] };
+  assert.equal(touches(arrow, [[318, 500]], 6), false, '先から 18pt 外は、描いていない所');
+  assert.equal(touches(arrow, [[305, 500]], 6), true, '先から 5pt');
+  assert.equal(touches(arrow, [[290, 500]], 6), true, '三角の中');
+  // 三角は長さ 160pt で底の中点は x≈155.8。軸はそこまでを太さ 40 で見る
+  assert.equal(touches(arrow, [[120, 525]], 6), true, '軸の縁（中心から 20）から 5pt');
+  assert.equal(touches(arrow, [[120, 527]], 6), false);
+  // 開いた矢じりは今までどおり、翼と先も線の太さで見る
+  assert.equal(touches({ ...arrow, head: 'open' }, [[318, 500]], 6), true);
 });

@@ -55,11 +55,23 @@
 
   // 口の答えを全部に当てる。answered は口が答えたか（答えなければ四角・丸と自前のテキストは表示のみ。spec-4b-2 確定事項36、
   // spec-4b-4a 確定事項J4）。
-  function applyAll(imported, answers, answered, text) {
+  // unread は口が読めなかった参照（と、上限で頼まなかったペン）。口がまるごと答えなかったときと同じに扱う（spec-4b-5b 点検 4・6）。
+  function applyAll(imported, answers, answered, text, unread = new Set()) {
     const applied = {};
     for (const [page, entries] of Object.entries(imported))
-      applied[page] = entries.map((entry) => details().applyDetails(entry, answers[entry.ref], { answered, text }));
+      applied[page] = entries.map((entry) => details().applyDetails(entry, answers[entry.ref], { answered: answered && !unread.has(entry.ref), text }));
     return applied;
+  }
+
+  // 口に頼む参照と、頼まずに読めなかったものとする参照。合わせて上限を超えるときは、ペンと ×印を後回しにしてほかの種類だけで頼む
+  // （⑤-b で足したペンのせいで、四角・丸などまで直せなくならないように。後回しにしたペンは確かめられないので表示のみ。点検 6）。
+  function planOf(imported) {
+    const refs = details().refsOf(imported);
+    if (refs.length <= details().REFS_MAX)
+      return { refs, unread: [] };
+    const later = (entry) => entry.kind === 'ink' || entry.kind === 'cross';
+    const entries = Object.values(imported).flat().filter((entry) => details().needsDetails(entry));
+    return { refs: entries.filter((entry) => !later(entry)).map((entry) => entry.ref), unread: entries.filter(later).map((entry) => entry.ref) };
   }
 
   // 表示のみでないものは自前で描くので、pdf.js には描かせない（事前調査 B ①）。
@@ -79,8 +91,8 @@
     if (collected === null)
       return null;
     const { imported, views } = collected;
-    const refs = details().refsOf(imported);
-    const answer = refs.length === 0 ? null : await details().requestDetails(file, refs);
+    const plan = planOf(imported);
+    const answer = plan.refs.length === 0 ? null : await details().requestDetails(file, plan.refs);
     // 自前のテキストがあれば画面のフォントを先読みする（spec-4-2 確定事項33）。新しい形の幅を見分けるのに字を測るので、
     // 当てる前に待つ（spec-4b-4a 確定事項J3）。
     if (hasOwnText(imported))
@@ -90,7 +102,8 @@
     // 答えが無くても当てる（線も塗りも無いもの、口が答えなかった四角・丸と自前のテキストを表示のみにそろえる。spec-4b-1b 確定事項36、
     // spec-4b-2 確定事項36、spec-4b-4a 確定事項J4）。
     const answered = answer?.ok === true;
-    const applied = applyAll(imported, answered ? answer.details : {}, answered, textMeasureOf(views));
+    const unread = new Set([...plan.unread, ...(answered ? answer.unread ?? [] : [])]);
+    const applied = applyAll(imported, answered ? answer.details : {}, answered, textMeasureOf(views), unread);
     markNoView(doc, applied);
     root.SigK.viewer?.deliverImported(doc, applied, { rerender: Object.keys(applied).map(Number) });
     return applied;
