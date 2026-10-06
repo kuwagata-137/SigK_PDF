@@ -214,6 +214,7 @@ test('ページ編集のレンダラーが index.html から読み込まれる',
 
   for (const src of [
     'renderer/page-plan.js',
+    'renderer/page-grid-rules.js',
     'renderer/edit-history.js',
     'renderer/page-grid.js',
     'renderer/page-edit.js',

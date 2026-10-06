@@ -46,6 +46,11 @@
     return root.SigK.pagePlan;
   }
 
+  // 選択と並べ替えの当たり判定（spec-4b-6a a0 で page-plan.js から分けた）。
+  function gridRules() {
+    return root.SigK.pageGridRules;
+  }
+
   function viewer() {
     return root.SigK.viewer;
   }
@@ -153,7 +158,7 @@
   }
 
   function selectAll() {
-    return setSelection(pagePlan().selectAll(pageCount()), { anchor: 0 });
+    return setSelection(gridRules().selectAll(pageCount()), { anchor: 0 });
   }
 
   // thumbnails.js のクリックから呼ばれる。ページモードで受け取ったら true を
@@ -169,7 +174,7 @@
       return true;
     }
 
-    const next = pagePlan().resolveClick({
+    const next = gridRules().resolveClick({
       selection: state.selection,
       anchor: state.anchor,
       index,
@@ -275,7 +280,7 @@
   // 長い文書で端まで運べない（確定事項36）。
   function updateAutoScroll(event) {
     const rect = el.scroll.getBoundingClientRect();
-    const step = pagePlan().autoScrollStep({
+    const step = gridRules().autoScrollStep({
       y: event.clientY - rect.top,
       viewportHeight: el.scroll.clientHeight,
       edge: AUTO_SCROLL_EDGE,
@@ -355,7 +360,7 @@
     }
 
     const point = pointInList(event);
-    drag.at = pagePlan().dropIndex({
+    drag.at = gridRules().dropIndex({
       layout: thumbnails()?.getLayout(),
       columns: thumbnails()?.getState()?.columns ?? 1,
       x: point.x,
