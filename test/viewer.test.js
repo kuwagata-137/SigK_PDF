@@ -189,6 +189,23 @@ test('描くのは見えている範囲とその前後だけである', async (t
   assert.equal(rendered.includes(0), false, '見えなくなったページを抱えたまま');
 });
 
+test('画面から外れて手放したページは pdf.js の資源も片付け、倍率を変えて描き直すときは片付けない（spec-4b-7a 点検の直し）', async (t) => {
+  const sizes = Array.from({ length: 40 }, () => A4);
+  const shell = await withOpenDocument(t, { pdfjs: createPdfjsStub({ sizes }) });
+  const { SigK } = shell;
+  assert.deepEqual([...shell.pdfjs.cleanups], []);
+
+  SigK.viewer.goToPage(20);
+  await shell.flush();
+  // 1・2 ページ目（index 0・1）を手放した。
+  assert.ok(shell.pdfjs.cleanups.includes(1) && shell.pdfjs.cleanups.includes(2), `片付けていない: ${[...shell.pdfjs.cleanups]}`);
+
+  const before = shell.pdfjs.cleanups.length;
+  SigK.viewer.setZoom(1.5);
+  await shell.flush();
+  assert.equal(shell.pdfjs.cleanups.length, before, '倍率を変えただけで片付けた');
+});
+
 test('幅の違うページが混ざっていても中央に並ぶ', async (t) => {
   const { document, SigK } = await withOpenDocument(t, { pdfjs: createPdfjsStub({ sizes: [A4, A5, A4] }) });
   const nodes = [...document.querySelectorAll('.pdf-page')];

@@ -136,12 +136,17 @@
       }
     }
 
-    function releasePage(index) {
+    // cleanup は、画面から外れて手放すとき（update）だけ true にする。pdf.js のページが展開した画像などを捨てる（spec-4b-7a 点検の直し。
+    // 捨てないと、スクロールで触れたページの分だけメモリが伸び続けた。描画が残っていれば pdf.js が終わるまで待つ）。倍率を変えて
+    // 全部を描き直すとき（releaseAll）は、すぐまた使うので捨てない。
+    function releasePage(index, { cleanup = false } = {}) {
       const entry = state.rendered.get(index);
       if (entry === undefined)
         return;
       state.rendered.delete(index);
       entry.task?.cancel();
+      if (cleanup)
+        entry.page?.cleanup?.();
       // テキストレイヤーは canvas と同じ寿命にする（spec-1-3 確定事項21）。
       // 注釈の層も同じで、枠ごと捨てる。
       entry.text?.cancel();
@@ -161,7 +166,7 @@
         return;
 
       const token = state.token;
-      const entry = { task: null, text: null, annots: null };
+      const entry = { task: null, text: null, annots: null, page: null };
       state.rendered.set(index, entry);
 
       // 捨てられたかどうかは、地図に載っているのが自分の entry かどうかで見る。
@@ -176,6 +181,7 @@
           return;
         }
         const page = await source.doc.getPage(source.number);
+        entry.page = page;
         if (isStale())
           return;
 
@@ -276,7 +282,7 @@
 
       for (const index of [...state.rendered.keys()]) {
         if (!targets.includes(index))
-          releasePage(index);
+          releasePage(index, { cleanup: true });
       }
       for (const index of targets)
         renderPage(index);
