@@ -150,6 +150,20 @@ test('renderTargets は上限を超えたら現在ページの周りを残す', 
   assert.deepEqual(targets, [22, 23, 24, 25, 26, 27, 28, 29]);
 });
 
+test('renderLimit は見えている枚数＋前後の先読みにし、8 枚より少なくせず、24 枚で頭打ちにする（spec-4b-7a 確定事項H1）', () => {
+  assert.equal(layout.RENDER_CAP, 24);
+  assert.equal(layout.renderLimit({ first: 3, last: 4, ahead: 1 }), 8);
+  assert.equal(layout.renderLimit({ first: 10, last: 27, ahead: 2 }), 22);
+  assert.equal(layout.renderLimit({ first: 0, last: 40, ahead: 2 }), 24);
+  assert.equal(layout.renderLimit({ first: 0, last: -1 }), 8);
+  // 頭打ちでも、見えている 22 枚は現在ページの周りに残る（2560×1400 の窓の見開き 10% の形）。
+  const max = layout.renderLimit({ first: 10, last: 31, ahead: 2 });
+  const targets = layout.renderTargets({ count: 100, first: 10, last: 31, current: 12, ahead: 2, max });
+  assert.equal(targets.length, 24);
+  for (let index = 10; index <= 31; index += 1)
+    assert.ok(targets.includes(index), `${index} が落ちている`);
+});
+
 test('scrollTopForPage はページの上端を視野の先頭に置く', () => {
   const { pages } = layout.layoutPages({ sizes: [A4, A4, A4], zoom: 1 });
 

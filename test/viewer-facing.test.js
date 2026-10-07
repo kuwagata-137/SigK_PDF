@@ -161,7 +161,37 @@ test('見開きでは前後2ページまで先に描く（確定事項12）', as
 
   const { rendered } = SigK.viewer.getState();
   assert.ok(rendered.includes(4) && rendered.includes(5), `前の組が描かれていない: ${rendered}`);
-  assert.ok(rendered.length <= SigK.viewerLayout.MAX_RENDERED);
+  // 上限は見えている枚数（4〜9 の 6 枚）＋前後 2 枚ずつ（spec-4b-7a 確定事項H1。今までの 8 枚では先読みが落ちていた）。
+  assert.deepEqual([...rendered], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.ok(rendered.length <= SigK.viewerLayout.renderLimit({ first: 4, last: 9, ahead: SigK.viewerLayout.FACING_AHEAD }));
+});
+
+// 低い倍率では見えているページが 8 枚を超える（spec-4b-7a 事前調査 T）。上限を見えている枚数に合わせて上げる（確定事項H）。
+async function facingAtTenPercent(t, viewport) {
+  const sizes = Array.from({ length: 40 }, () => A4);
+  const shell = await withOpenDocument(t, { sizes, viewport });
+  const { document, SigK, flush } = shell;
+  SigK.shell.setPageLayout(document, 'facing');
+  SigK.viewer.setZoom(0.1);
+  SigK.viewer.goToPage(20);
+  await flush();
+  const { pages } = expectedLayout(SigK, sizes, true);
+  const range = SigK.viewerLayout.visibleRange({ pages, scrollTop: document.getElementById('view').scrollTop, viewportHeight: viewport.height });
+  return { SigK, range, rendered: SigK.viewer.getState().rendered };
+}
+
+test('10% の見開きでは、見えているページをすべて描く（spec-4b-7a 確定事項H）', async (t) => {
+  const { SigK, range, rendered } = await facingAtTenPercent(t, DEFAULT_VIEWPORT);
+  assert.ok(range.last - range.first + 1 > SigK.viewerLayout.MAX_RENDERED, `見えている枚数が 8 枚を超えていない: ${JSON.stringify(range)}`);
+  for (let index = range.first; index <= range.last; index += 1)
+    assert.ok(rendered.includes(index), `${index} が描かれていない: ${rendered}`);
+  assert.ok(rendered.length <= SigK.viewerLayout.RENDER_CAP);
+});
+
+test('見えているページが多すぎる窓では、24 枚で頭打ちにする（spec-4b-7a 確定事項H1）', async (t) => {
+  const { SigK, rendered } = await facingAtTenPercent(t, { width: 900, height: 2400 });
+  assert.equal(rendered.length, SigK.viewerLayout.RENDER_CAP);
+  assert.ok(rendered.includes(20));
 });
 
 test('ページ編集のあとも見開きのまま並び直る（確定事項22）', async (t) => {

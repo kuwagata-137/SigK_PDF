@@ -259,13 +259,16 @@
         ctx.syncPage();
       }
 
+      // 見開きでは1行に2枚出るので、先読みも2枚にする（確定事項12）。
+      const ahead = state.facing ? layout().FACING_AHEAD : layout().RENDER_AHEAD;
       const targets = layout().renderTargets({
         count: pages.length,
         first: range.first,
         last: range.last,
         current: state.current,
-        // 見開きでは1行に2枚出るので、先読みも2枚にする（確定事項12）。
-        ahead: state.facing ? layout().FACING_AHEAD : layout().RENDER_AHEAD,
+        ahead,
+        // 低い倍率では見えている枚数に合わせて上限を上げる（spec-4b-7a 確定事項H）。
+        max: layout().renderLimit({ first: range.first, last: range.last, ahead }),
       });
 
       for (const index of [...state.rendered.keys()]) {

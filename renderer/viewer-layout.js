@@ -24,6 +24,9 @@
   const RENDER_AHEAD = 1;
   const MAX_RENDERED = 8;
   const MAX_CANVAS_SCALE = 3;
+  // 低い倍率で描く枚数の頭打ち（spec-4b-7a 確定事項H）。1 枚あたり約 12MB（事前調査 T）。2560×1400 の窓の見開き 10% で、
+  // 見えている 22 枚が全部描ける。
+  const RENDER_CAP = 24;
 
   // 見開き（spec-2-3 確定事項11・12）。組の2枚の間隔は縦の間隔と同じにする。
   // モックで見て、詰めなくても組として読めると判断した。先読みは 1 だと隣の行の
@@ -331,6 +334,13 @@
     return targets;
   }
 
+  // ページビューの描く枚数の上限。見えている枚数＋前後の先読みにし、MAX_RENDERED より少なくはせず、RENDER_CAP で頭打ちにする
+  // （spec-4b-7a 確定事項H1）。高い倍率で大きな canvas を多く持たないよう、固定では上げない。サムネイルは使わない。
+  function renderLimit({ first, last, ahead = RENDER_AHEAD }) {
+    const wanted = last - first + 1 + ahead * 2;
+    return Math.min(RENDER_CAP, Math.max(MAX_RENDERED, Number.isFinite(wanted) ? wanted : 0));
+  }
+
   function scrollTopForPage({ pages, index }) {
     const page = pages[Math.min(pages.length - 1, Math.max(0, index))];
     if (page === undefined)
@@ -368,6 +378,7 @@
     SIDE_MARGIN,
     RENDER_AHEAD,
     MAX_RENDERED,
+    RENDER_CAP,
     MAX_CANVAS_SCALE,
     FACING_GAP,
     FACING_AHEAD,
@@ -396,6 +407,7 @@
     visibleRange,
     currentPageIndex,
     renderTargets,
+    renderLimit,
     scrollTopForPage,
     renderScale,
     formatZoom,
