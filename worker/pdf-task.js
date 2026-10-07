@@ -17,7 +17,7 @@ const fs = require('node:fs');
 
 const { applyForSave, applyForExtract } = require('./save-apply.js');
 const { buildPreview } = require('./op-insert.js');
-const { writeDocument } = require('../pdf-write.js');
+const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
 const { pruneOrphans } = require('./orphan-objects.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
@@ -26,6 +26,8 @@ const {
 const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./tool-tasks.js');
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
+const SOURCE_CHANGED = '開いたあとで元のファイルが別のアプリで変更されたので、モザイクを入れたページを書き出せません。元のファイルは変更していません。'
+  + '開き直してから、もう一度モザイクを入れてください。';
 
 // Windows のパスとして同じファイルか（大文字小文字と区切りの字をそろえる。recent-documents.js の pathKey と同じ比べ方）。
 function samePath(a, b) {
@@ -64,9 +66,14 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
 // （選んだページだけを新規文書へ複製する）。違うのは apply の段だけで、
 // 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null, mosaics = [], dropBackup = false } = spec ?? {};
+  const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null, mosaics = [], dropBackup = false,
+    expectSource = null } = spec ?? {};
   if (typeof source !== 'string' || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
+  // モザイクのある保存・抽出は、元のファイルが開いたときのままかを読む前に確かめる。画像は開いたときの文書から描いたので、外で書き換わった
+  // ファイルに当てると、ページの番号がずれて元の中身が残り得る（spec-4b-6b。コードの点検で足した）。
+  if (Array.isArray(mosaics) && mosaics.length > 0 && expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
+    return { error: SOURCE_CHANGED };
 
   advance('read');
   let bytes;

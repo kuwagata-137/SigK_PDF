@@ -3,50 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, makeSource } = require('./harness.js');
+const { A, B, PAPER, withMosaic, stubImages, byId, spec, okResult, makeSource } = require('./fixtures/mosaic-shell.js');
 
 // 保存・抽出の前にモザイクのページを画像にする（spec-4b-6b 確定事項18・19・23〜25。決定64 ⑤⑧・決定66 ①②）。jsdom には 2D コンテキストが
-// 無いので、描く部品（pageImage.renderToCanvas・toBytes）を差し替えて、確認・ワーカーへ渡す spec・帯を見る。描いた画像に元の文字が
-// 残らないことはワーカーのテスト（mosaic-save-worker.test.js）と起動確認が見る。
-
-const A = 'C:\\work\\a.pdf';
-const B = 'C:\\work\\b.pdf';
-const PAPER = [0, 0, 595.28, 841.89];
-const MOSAIC = [{ box: [100, 200, 300, 400], block: 8 }];
-
-async function withMosaic(t, options = {}, pages = [0]) {
-  const shell = await createShell({
-    files: { [A]: makeSource({ path: A, name: 'a.pdf', size: 1024, mtimeMs: 1000 }) },
-    boxesResults: [{ ok: true, boxes: [PAPER, PAPER, PAPER] }],
-    ...options,
-  });
-  t.after(() => shell.cleanup());
-  await shell.SigK.tabs.openPath(A);
-  await shell.flush();
-  const { SigK } = shell;
-  SigK.pageEdit.commit(SigK.pagePlan.editPages(SigK.viewer.getPlan(), new Map(pages.map((index) => [index, (entry) => ({ ...entry, mosaic: MOSAIC })]))));
-  await shell.flush();
-  return shell;
-}
-
-// 描く部品の代わり。renderToCanvas に届いた { page, scale, rotation, box, annotationMode } を残し、PNG・JPEG は指定の長さのバイト列を返す。
-function stubImages(t, shell, { png = 10, jpeg = 8, onRender = () => {} } = {}) {
-  const images = shell.SigK.pageImage;
-  const original = { renderToCanvas: images.renderToCanvas, toBytes: images.toBytes };
-  const calls = [];
-  images.renderToCanvas = async (_doc, page, options) => {
-    calls.push({ page: page.pageNumber, scale: options.scale, rotation: options.rotation, box: [...options.box], annotationMode: options.annotationMode });
-    onRender(calls.length);
-    return { canvas: { width: 1, height: 1, getContext: () => null }, width: 1, height: 1 };
-  };
-  images.toBytes = async (_canvas, { type }) => new Uint8Array(type === images.PNG ? png : jpeg).fill(1);
-  t.after(() => Object.assign(images, original));
-  return calls;
-}
-
-const byId = (shell, id) => shell.document.getElementById(id);
-const spec = (shell) => shell.taskCalls.at(-1)?.spec;
-const okResult = () => ({ ok: true, signature: { size: 2048, mtimeMs: 2000 } });
+// 無いので、描く部品を差し替えて（fixtures/mosaic-shell.js）、確認・ワーカーへ渡す spec・帯を見る。描いた画像に元の文字が残らないことは
+// ワーカーのテスト（mosaic-save-worker.test.js）と起動確認が見る。画像にしている間の編集・中止・照合は mosaic-save-guard.test.js。
 
 test('上書き保存: 確認でページ・保存先・控えを作らないことを名指しし、了承すると 300dpi・回転 0・紙全体・書き込みなしで描いて渡す', async (t) => {
   const shell = await withMosaic(t, { taskResults: [okResult()] }, [0, 2]);

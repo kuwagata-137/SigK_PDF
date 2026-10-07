@@ -82,6 +82,11 @@
     return reason;
   }
 
+  // Windows のパスとして同じファイルかを比べる鍵（大文字小文字と区切りの字をそろえる。output-target.js と同じ）。
+  function pathKey(filePath) {
+    return String(filePath).replace(/\//g, '\\').toLowerCase();
+  }
+
   function signatureOf(file) {
     if (file === null || file === undefined || file.mtimeMs === null || file.mtimeMs === undefined)
       return null;
@@ -186,7 +191,8 @@
   // 保存でワーカーへ渡す形（docs/02 2-3）。差し込みの控えも一緒に渡す
   // （確定事項65。plan の { insert } がこの配列の番号を指す）。注釈は
   // 「ファイルとの差分」{ add, remove } で渡す（spec-4-1 確定事項22）。モザイクのページの画像と、前の控えを消すかも渡す
-  // （spec-4b-6b 確定事項20・23。mosaic-save.js）。
+  // （spec-4b-6b 確定事項20・23。mosaic-save.js）。モザイクがあれば、開いたときの元のファイルの印（expectSource）も渡し、ワーカーが
+  // 読む前に照合する（画像は開いたときの文書から描いたので、外で書き換わったファイルには当てない。コードの点検で足した）。
   function saveSpec({ source, target, makeBackup, expect, mosaics = [], dropBackup = false }) {
     return {
       kind: 'save',
@@ -200,6 +206,7 @@
       expect,
       mosaics,
       dropBackup,
+      expectSource: mosaics.length > 0 ? signatureOf(viewer().getState().file) : null,
     };
   }
 
@@ -327,8 +334,11 @@
     }
 
     const name = picked.path.split(/[\\/]/).pop();
+    // 開いているファイル自身を選んだら、モザイクの確認と控えは上書き保存と同じに扱う（元のファイルが変わり、前の控えに元の内容が残るため。
+    // コードの点検で直した）。
+    const self = pathKey(picked.path) === pathKey(view.file.path);
     // モザイクがあれば、確認を出してページを画像にする（spec-4b-6b 確定事項18・19。元のファイルは変えない）。
-    const mosaic = await mosaicSave().prepare({ mode: 'saveAs', name, sourceName: view.file.name });
+    const mosaic = await mosaicSave().prepare({ mode: self ? 'overwrite' : 'saveAs', name, sourceName: view.file.name });
     if (mosaic.ok !== true)
       return mosaic;
 
@@ -337,6 +347,7 @@
       target: picked.path,
       // 元ファイルを触らないので退避は要らない（確定事項18）。
       makeBackup: false,
+      dropBackup: self && mosaic.mosaics.length > 0,
       mosaics: mosaic.mosaics,
       name,
     });
@@ -362,5 +373,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, runTask, runLocal, saveActive, saveAsActive, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
+  SigK.save = { init, isBusy, runTask, runLocal, saveActive, saveAsActive, signatureOf, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
 })(typeof window !== 'undefined' ? window : globalThis);

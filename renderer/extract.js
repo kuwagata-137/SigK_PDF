@@ -60,14 +60,16 @@
       return { error: '文書が開かれていません。' };
 
     // 画面の並び（plan）から選択の位置を引く。src は元ファイルのページ番号なので、
-    // 並べ替えたあとでも「いま見えている順」で取り出せる。
+    // 並べ替えたあとでも「いま見えている順」で取り出せる。plan と選択はここで控え、確認とダイアログのあとも同じものを使う
+    // （間に編集されたら mosaic-save.js が取りやめる。spec-4b-6b。コードの点検で直した）。
     const plan = viewer().getPlan();
-    const pages = selection().map((index) => plan[index]).filter((entry) => entry !== undefined);
+    const indices = selection();
+    const pages = indices.map((index) => plan[index]).filter((entry) => entry !== undefined);
     if (pages.length === 0)
       return { error: '抽出するページが選ばれていません。' };
 
     // モザイクのあるページは、抽出したファイルでも画像に置き換える（spec-4b-6b 確定事項25。決定66 ②）。確認でそう伝える。
-    const mosaicCount = selection().filter((index) => root.SigK.pageMosaic?.countOf(plan[index]) > 0).length;
+    const mosaicCount = indices.filter((index) => root.SigK.pageMosaic?.countOf(plan[index]) > 0).length;
     if (await root.SigK.confirmExtract.ask({ count: pages.length, mosaicCount }) !== true)
       return { canceled: true };
 
@@ -87,7 +89,8 @@
       return { error: refused };
     }
 
-    const mosaic = mosaicCount === 0 ? { ok: true, mosaics: [] } : await root.SigK.mosaicSave.prepare({ mode: 'extract', indices: selection() });
+    // モザイクが無くても通す（確認と保存先のダイアログの間に置かれたモザイクも、plan の食い違いとして取りやめる）。
+    const mosaic = await root.SigK.mosaicSave?.prepare({ mode: 'extract', indices, plan }) ?? { ok: true, mosaics: [] };
     if (mosaic.ok !== true)
       return mosaic;
 
@@ -100,9 +103,11 @@
       // 選んだページに付いた注釈も一緒に出す（spec-4-1 確定事項21）。
       // 新しい形のテキストは画面で決めた行を添える（spec-4b-4a 確定事項I1）。
       annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations(), { layoutOf: root.SigK.freeTextMetrics.layoutOfEntry }),
-      // 元ファイルを触らないので、退避も外部変更の照合も要らない（確定事項18・21）。
+      // 元ファイルを触らないので、退避も外部変更の照合も要らない（確定事項18・21）。モザイクがあれば、元のファイルが開いたときのままかを
+      // ワーカーが読む前に照合する（spec-4b-6b。コードの点検で足した）。
       makeBackup: false,
       expect: null,
+      expectSource: mosaic.mosaics.length > 0 ? root.SigK.save.signatureOf(view.file) : null,
       label: '抽出',
     });
 
