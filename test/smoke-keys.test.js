@@ -8,7 +8,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
-const { keyEvent, parseSpec, pointOf, OP_NAMES } = require('../smoke-keys.js');
+const { keyEvent, parseSpec, pointOf, spanOf, numberOf, run, OP_NAMES } = require('../smoke-keys.js');
 const page = require('../smoke-keys-page.js');
 const { createShell, makeSource } = require('./harness.js');
 
@@ -26,7 +26,55 @@ test('操作列は , で区切り、空の項目を飛ばし、: の後ろを引
   assert.deepEqual(pointOf('100x700'), [100, 700]);
 });
 
+test('数・座標・範囲が読めなければ止める（黙って 0 にしない）', () => {
+  assert.deepEqual(spanOf('0-3'), [0, 3]);
+  assert.equal(numberOf('0.5', '割合'), 0.5);
+  assert.throws(() => numberOf('x', '回数'), /回数/);
+  assert.throws(() => numberOf('', '回数'), /回数/);
+  assert.throws(() => pointOf('100'), /<x>x<y>/);
+  assert.throws(() => pointOf('100xa'), /座標/);
+  assert.throws(() => spanOf('3'), /<a>-<b>/);
+});
+
+// debugger と executeJavaScript の代わり。送ったコマンドと流した式を控える。
+function fakeWindow({ attachError = null } = {}) {
+  const sent = [];
+  let attached = false;
+  return {
+    sent,
+    webContents: {
+      debugger: {
+        attach: () => {
+          if (attachError !== null)
+            throw new Error(attachError);
+          attached = true;
+        },
+        detach: () => { attached = false; },
+        isAttached: () => attached,
+        sendCommand: async (name, params) => { sent.push([name, params.type ?? params.text]); },
+      },
+      executeJavaScript: async () => null,
+    },
+  };
+}
+
+test('失敗した操作は、その操作の名前を添えて problems に書き、そこで止める', async () => {
+  const win = fakeWindow();
+  const report = await run(win, 'esc,zoomout:x,esc');
+  assert.deepEqual(report.applied, ['esc']);
+  assert.equal(report.problems.length, 1);
+  assert.match(report.problems[0], /zoomout:x/);
+  assert.equal(win.webContents.debugger.isAttached(), false, '止めても debugger を外す');
+  assert.deepEqual(win.sent.map(([name]) => name), ['Input.dispatchKeyEvent', 'Input.dispatchKeyEvent']);
+
+  assert.match((await run(fakeWindow(), 'nothing:1')).problems[0], /nothing:1: 知らない操作/);
+  assert.match((await run(fakeWindow(), 'select-pages:3')).problems[0], /select-pages:3/);
+  assert.match((await run(fakeWindow({ attachError: '使えない' }), 'esc')).problems[0], /\(attach\): 使えない/);
+});
+
 test('キーの名前を Input.dispatchKeyEvent の引数にする（Ctrl・Shift・Alt と - を読む）', () => {
+  assert.equal(keyEvent('Ctrl+z').modifiers, 2, '修飾キーは大文字小文字を問わない');
+  assert.equal(keyEvent('ctrl+f').code, 'KeyF');
   assert.deepEqual(keyEvent('Escape'), { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27, modifiers: 0 });
   assert.deepEqual([keyEvent('ctrl+-').key, keyEvent('ctrl+-').code, keyEvent('ctrl+-').modifiers], ['-', 'Minus', 2]);
   assert.equal(keyEvent('-').modifiers, 0);

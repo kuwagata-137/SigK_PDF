@@ -11,15 +11,21 @@
 //   shape:<kind>:<page>:<x1>x<y1>-<x2>x<y2>（合成のマウスで描く）
 //   mode・find・dialog:<info|print>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
 //   fit・scroll:<割合>（画面の口を呼ぶ。smoke-keys-page.js）
-//   wait:<ms> / state（様子を控える）
+//   wait:<ms> / state（様子を控える）/ memory（アプリ全体の実メモリを控える）
 // 例: SIGK_SMOKE_KEYS=mode:annot,shape:square:0:100x700-300x600,find:text,dialog:info,esc,state,esc,state
+//
+// 数・範囲が読めない操作は、黙って 0 回にせず、止めて problems に書く。mode・facing は設定に残るので、起動確認の決まりどおり
+// --user-data-dir=<scratchpad> で常用の設定から切り離して流す。操作の相手は、その時に映しているタブ（SIGK_SMOKE_DROP と一緒に
+// 使えば、落としたファイルのタブ）。
 
 const page = require('./smoke-keys-page.js');
 
 // キーの名前 → [windowsVirtualKeyCode, code]。
 const KEYS = {
   Escape: [27, 'Escape'], Delete: [46, 'Delete'], Backspace: [8, 'Backspace'], Enter: [13, 'Enter'],
-  PageDown: [34, 'PageDown'], PageUp: [33, 'PageUp'], '-': [189, 'Minus'], '=': [187, 'Equal'], z: [90, 'KeyZ'], w: [87, 'KeyW'],
+  PageDown: [34, 'PageDown'], PageUp: [33, 'PageUp'], Home: [36, 'Home'], End: [35, 'End'], Tab: [9, 'Tab'], F3: [114, 'F3'],
+  ArrowUp: [38, 'ArrowUp'], ArrowDown: [40, 'ArrowDown'], '-': [189, 'Minus'], '=': [187, 'Equal'],
+  f: [70, 'KeyF'], p: [80, 'KeyP'], w: [87, 'KeyW'], y: [89, 'KeyY'], z: [90, 'KeyZ'],
 };
 
 // 'ctrl+z' → Input.dispatchKeyEvent の引数（type を除く）。知らない名前は null。
@@ -27,7 +33,7 @@ function keyEvent(name) {
   const text = String(name);
   const plus = text.lastIndexOf('+', text.length - 2);
   const key = plus < 0 ? text : text.slice(plus + 1);
-  const mods = plus < 0 ? [] : text.slice(0, plus).split('+');
+  const mods = plus < 0 ? [] : text.slice(0, plus).toLowerCase().split('+');
   const entry = KEYS[key];
   if (entry === undefined)
     return null;
@@ -43,10 +49,37 @@ function parseSpec(spec) {
   });
 }
 
+// 数として読む。読めなければ止める（黙って 0 にしない）。
+function numberOf(text, label) {
+  const value = Number(text);
+  if (String(text ?? '').trim() === '' || !Number.isFinite(value))
+    throw new Error(`${label} を数として読めない: ${text}`);
+  return value;
+}
+
 // '100x700' → [100, 700]。
 function pointOf(text) {
-  return String(text).split('x').map(Number);
+  const parts = String(text).split('x');
+  if (parts.length !== 2)
+    throw new Error(`座標は <x>x<y> で書く: ${text}`);
+  return parts.map((part) => numberOf(part, '座標'));
 }
+
+// '0-3' → [0, 3]。
+function spanOf(text) {
+  const parts = String(text).split('-');
+  if (parts.length !== 2)
+    throw new Error(`範囲は <a>-<b> で書く: ${text}`);
+  return parts.map((part) => numberOf(part, '範囲'));
+}
+
+// 画面の操作の引数を、流す前に確かめる。
+const CHECK_ACTION = {
+  'select-pages': (arg) => spanOf(arg),
+  'select-text': (arg) => numberOf(arg, 'ページ'),
+  zoom: (arg) => numberOf(arg, '倍率'),
+  scroll: (arg) => numberOf(arg, '割合'),
+};
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -85,7 +118,7 @@ const OPS = {
     await wait(100);
   },
   zoomout: async (ctx, [count]) => {
-    for (let index = 0; index < Number(count); index += 1)
+    for (let index = 0; index < numberOf(count, '回数'); index += 1)
       await sendKey(ctx, 'ctrl+-');
   },
   press: async (ctx, [index, at]) => pressAt(ctx, await ctx.js(page.pointScript(index, ...pointOf(at)))),
@@ -93,45 +126,65 @@ const OPS = {
   release: (ctx) => mouse(ctx, 'mouseReleased', ctx.last ?? [0, 0], 0),
   slide: async (ctx, [id, from, to]) => {
     const box = await ctx.js(page.boxScript(id));
-    const at = (ratio) => [box.left + box.width * Number(ratio), box.top + box.height / 2];
+    if (box === null)
+      throw new Error(`要素が無い: ${id}`);
+    const at = (ratio) => [box.left + box.width * numberOf(ratio, '割合'), box.top + box.height / 2];
     await pressAt(ctx, at(from));
     await moveTo(ctx, at(to));
   },
   'thumb-drag': async (ctx, [span]) => {
-    const [from, to] = span.split('-').map(Number);
+    const [from, to] = spanOf(span);
     await pressAt(ctx, await ctx.js(page.thumbScript(from)));
     await moveTo(ctx, await ctx.js(page.thumbScript(to)));
   },
-  shape: (ctx, [kind, index, span]) => ctx.js(page.shapeScript(kind, index, ...span.split('-').map(pointOf))),
-  wait: (ctx, [ms]) => wait(Number(ms) || 0),
+  shape: (ctx, [kind, index, span]) => ctx.js(page.shapeScript(kind, numberOf(index, 'ページ'), ...String(span).split('-').map(pointOf))),
+  wait: (ctx, [ms]) => wait(numberOf(ms, '待ち時間')),
   state: async (ctx, args, step) => {
     ctx.states.push({ at: step.index, ...(await ctx.js(page.stateScript)) });
   },
+  // アプリ全体の実メモリ（MB。main.js の memorySnapshot と同じ数え方）。electron は起動確認のときだけ読む（テストは node で読む）。
+  memory: async (ctx, args, step) => {
+    const metrics = require('electron').app.getAppMetrics();
+    const kb = metrics.reduce((sum, entry) => sum + (entry.memory?.workingSetSize ?? 0), 0);
+    ctx.states.push({ at: step.index, memoryMb: Math.round(kb / 1024 * 10) / 10 });
+  },
 };
 
-// 操作列を流し、控えた様子を返す。失敗した操作は problems に書き、そこで止める。
+// 1 つの操作を流す。
+async function runStep(ctx, step, index) {
+  const op = OPS[step.name];
+  if (op !== undefined)
+    return op(ctx, step.args, { ...step, index });
+  const arg = step.args.join(':');
+  const script = page.actionScript(step.name, arg);
+  if (script === null)
+    throw new Error('知らない操作');
+  CHECK_ACTION[step.name]?.(arg);
+  return ctx.js(script);
+}
+
+// 操作列を流し、控えた様子を返す。失敗した操作は、その操作の名前を添えて problems に書き、そこで止める。
 async function run(win, spec) {
   const steps = parseSpec(spec);
   const ctx = { dbg: win.webContents.debugger, js: (code) => win.webContents.executeJavaScript(code), last: null, states: [] };
   const applied = [];
   const problems = [];
-  ctx.dbg.attach('1.3');
+  let current = '(attach)';
   try {
+    ctx.dbg.attach('1.3');
     for (const [index, step] of steps.entries()) {
-      const op = OPS[step.name];
-      const script = op === undefined ? page.actionScript(step.name, step.args.join(':')) : null;
-      if (op === undefined && script === null)
-        throw new Error(`知らない操作: ${step.raw}`);
-      await (op === undefined ? ctx.js(script) : op(ctx, step.args, { ...step, index }));
+      current = step.raw;
+      await runStep(ctx, step, index);
       applied.push(step.raw);
       await wait(120);
     }
   } catch (err) {
-    problems.push(`smoke-keys: ${err.message}`);
+    problems.push(`smoke-keys: ${current}: ${err.message}`);
   } finally {
-    ctx.dbg.detach();
+    if (ctx.dbg.isAttached())
+      ctx.dbg.detach();
   }
   return { applied, states: ctx.states, problems };
 }
 
-module.exports = { KEYS, keyEvent, parseSpec, pointOf, run, OP_NAMES: Object.keys(OPS) };
+module.exports = { KEYS, keyEvent, parseSpec, pointOf, spanOf, numberOf, run, OP_NAMES: Object.keys(OPS) };
