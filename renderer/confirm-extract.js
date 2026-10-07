@@ -35,14 +35,16 @@
 
   // 抽出してよければ true。組み立てられない環境では、失うものを伝えないまま
   // 書き出すより「進めない」ほうを採る。
-  function ask({ count = 0 } = {}) {
+  // mosaicCount はモザイクのあるページの数（spec-4b-6b 確定事項25）。あれば、画像に置き換えて書き出すことを添える。
+  function ask({ count = 0, mosaicCount = 0 } = {}) {
     if (el === null)
       return Promise.resolve(false);
     if (pending !== null)
       return pending.promise;
 
     el.text.textContent = `選択した ${count} ページを別のファイルへ書き出します。`
-      + 'しおり・入力欄・名前付きのリンク先は引き継がれません。元のファイルは変更されません。';
+      + 'しおり・入力欄・名前付きのリンク先は引き継がれません。元のファイルは変更されません。'
+      + (mosaicCount > 0 ? `モザイクを入れた ${mosaicCount} ページは、画像に置き換えて書き出します。` : '');
 
     pending = Promise.withResolvers();
     if (typeof el.dialog.showModal === 'function')

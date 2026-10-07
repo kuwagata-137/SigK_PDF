@@ -235,7 +235,7 @@ const DEFAULT_CALLOUT_STYLE = { fontSize: 12, bold: false, italic: false, fill: 
 test('pickUi はモードとサイドパネルと編集モードの左と注釈の色・塗り・線なし・線種・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, ...DEFAULT_SHAPE_STYLE, annotFontSize: 12, annotTextStyle: DEFAULT_TEXT_STYLE, annotCalloutStyle: DEFAULT_CALLOUT_STYLE, annotLineWidth: 2, annotMarkerWidth: 12, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '' });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, ...DEFAULT_SHAPE_STYLE, annotFontSize: 12, annotTextStyle: DEFAULT_TEXT_STYLE, annotCalloutStyle: DEFAULT_CALLOUT_STYLE, annotLineWidth: 2, annotMarkerWidth: 12, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '', annotMosaicBlock: 8 });
   // 色の移し替えの印はメインだけが使い、レンダラーへは渡さない（spec-4b-1b 確定事項15）。
   assert.equal('annotPaletteVersion' in ui, false);
 });
@@ -258,6 +258,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotShapeKind: 'square',
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
+    annotMosaicBlock: 8,
   });
   assert.deepEqual(mergeUi(current, { mode: 'annot' }), {
     mode: 'annot',
@@ -273,6 +274,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotShapeKind: 'square',
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
+    annotMosaicBlock: 8,
   });
   // 使えない値は現在値のまま。何も送らなくても壊れない。
   assert.deepEqual(mergeUi(current, { mode: 'zzz', sidePanel: { width: 9999 } }), {
@@ -289,8 +291,9 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotShapeKind: 'square',
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
+    annotMosaicBlock: 8,
   });
-  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs', ...DEFAULT_SHAPE_STYLE });
+  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs', ...DEFAULT_SHAPE_STYLE, annotMosaicBlock: 8 });
 });
 
 // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。既定はサムネイルで、使えない値は今の値か既定へ落ちる。
@@ -455,6 +458,16 @@ test('fillAuthor は空の作成者だけを OS のユーザー名で埋める',
 });
 
 // 線の太さは 1〜40 の整数（spec-4b-1b 確定事項26）、図形の種類は 4 つのどれか。
+// モザイクの粗さ（spec-4b-6b 確定事項14）。細かい 4・ふつう 8・粗い 14 だけを受け取り、既定はふつう。
+test('annotMosaicBlock は 4・8・14 だけを受け取り、既定は 8', () => {
+  assert.equal(pickUi(mergeDefaults({ annotMosaicBlock: 14 })).annotMosaicBlock, 14);
+  assert.equal(pickUi(mergeDefaults({ annotMosaicBlock: 10 })).annotMosaicBlock, 8);
+  assert.equal(pickUi(mergeDefaults({})).annotMosaicBlock, 8);
+  const current = pickUi(mergeDefaults({ annotMosaicBlock: 4 }));
+  assert.equal(mergeUi(current, { annotMosaicBlock: 14 }).annotMosaicBlock, 14);
+  assert.equal(mergeUi(current, { annotMosaicBlock: 'x' }).annotMosaicBlock, 4);
+});
+
 test('annotLineWidth は 1〜40 の整数、annotShapeKind は図形の 4 種を受け取る', () => {
   assert.equal(DEFAULTS.annotLineWidth, 2);
   assert.equal(DEFAULTS.annotShapeKind, 'square');

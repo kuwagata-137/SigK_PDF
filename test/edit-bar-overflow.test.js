@@ -37,12 +37,12 @@ test('入りきらない道具に隠す印を付けて「その他」を出し�
   const overflow = SigK.editBarOverflow;
   const item = document.querySelector('#edit-bar .edit-more');
   assert.equal(item.hidden, true, 'jsdom では段の幅が 0 なので何も隠さない');
-  // 右端の 4 個（消しゴム・ノート・区切り線・トリミング）が入らない幅。
-  assert.equal(overflow.fit(measured(document, 4)), true);
+  // 右端の 5 個（消しゴム・ノート・区切り線・モザイク・トリミング）が入らない幅。
+  assert.equal(overflow.fit(measured(document, 5)), true);
   const hidden = childrenOf(document).filter((node) => node.classList.contains(overflow.OVERFLOW));
-  assert.deepEqual(hidden.map((node) => node.querySelector('.edit-name')?.textContent ?? '|'), ['消しゴム', 'ノート', '|', 'トリミング']);
+  assert.deepEqual(hidden.map((node) => node.querySelector('.edit-name')?.textContent ?? '|'), ['消しゴム', 'ノート', '|', 'モザイク', 'トリミング']);
   assert.equal(item.hidden, false);
-  assert.deepEqual([...overflow.hiddenButtons().map((button) => button.dataset.tool)], ['eraser', 'note', 'trim']);
+  assert.deepEqual([...overflow.hiddenButtons().map((button) => button.dataset.tool)], ['eraser', 'note', 'mosaic', 'trim']);
   // 入りきる幅なら全部見せる。
   const all = measured(document, 0);
   assert.equal(overflow.fit({ ...all, available: 10000 }), false);
@@ -82,9 +82,10 @@ test('測るときは子の幅に左右の余白を足し、段の内側の余�
   assert.equal(SigK.editBarOverflow.fit(), false, 'ちょうど入る');
   Object.defineProperty(bar, 'clientWidth', { configurable: true, value: total - 1 });
   assert.equal(SigK.editBarOverflow.fit(), true);
-  // 1px 足りないと、トリミング（48＋間 5）と、末尾に残る区切り線（7＋間 5）を隠せば「その他」（48＋間 5）が入る。
-  assert.deepEqual([...SigK.editBarOverflow.hiddenButtons().map((button) => button.dataset.tool)], ['trim']);
-  assert.deepEqual(children.slice(-2).map((node) => node.classList.contains(SigK.editBarOverflow.OVERFLOW)), [true, true]);
+  // 1px 足りないと、「その他」（48＋間 5）を入れるのに、トリミング（48＋間 5）だけでは 1px 足りず、モザイク（48＋間 5）も隠す。
+  // 末尾に残る区切り線も隠す。
+  assert.deepEqual([...SigK.editBarOverflow.hiddenButtons().map((button) => button.dataset.tool)], ['mosaic', 'trim']);
+  assert.deepEqual(children.slice(-3).map((node) => node.classList.contains(SigK.editBarOverflow.OVERFLOW)), [true, true, true]);
 });
 
 test('ResizeObserver があっても、窓の大きさが変われば測り直して開いている一覧を閉じる（高さだけが変わったとき。点検 8）', async (t) => {

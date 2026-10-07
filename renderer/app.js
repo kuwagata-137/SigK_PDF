@@ -64,6 +64,8 @@
       root.SigK.annotateShape?.applyLineWidth(result.ui.annotLineWidth);
       // マーカーの太さ（spec-4b-5b 確定事項32）。
       root.SigK.annotateShape?.applyMarkerWidth(result.ui.annotMarkerWidth);
+      // モザイクの粗さ（spec-4b-6b 確定事項14）。
+      root.SigK.annotateMosaic?.applyBlock(result.ui.annotMosaicBlock);
       root.SigK.annotateShape?.applyShapeKind(result.ui.annotShapeKind);
       // 不透明度と作成者（spec-4-4 確定事項21）。作成者が空ならメインが OS のユーザー名で埋めている。
       root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);
@@ -112,6 +114,8 @@
     root.SigK.toolsWatermarkView.init(doc, win);
     root.SigK.watermarkPreview.init(doc, win);
     root.SigK.confirmFlatten.init(doc, win);
+    // モザイクを入れて保存する前の確認（spec-4b-6b 確定事項18）。
+    root.SigK.confirmMosaic.init(doc, win);
     root.SigK.toolsFlatten.init(doc, win);
     root.SigK.toolsFlattenView.init(doc, win);
     // パスワードの入力は viewer.open() の途中から呼ばれる。先に用意しておく。
@@ -141,6 +145,7 @@
     // 消しゴムの輪のカーソル（spec-4b-5b 確定事項24）。
     root.SigK.annotateErase.init(doc, win);
     root.SigK.annotateTrim.init(doc, win);
+    root.SigK.annotateMosaic.init(doc, win);
     root.SigK.annotationMenu.init(doc, win);
     root.SigK.annotateRightButton.init(doc, win);
     root.SigK.annotationProps.init(doc, win);

@@ -13,21 +13,35 @@
   // 削除前の番号か削除後の番号か、という問いが生まれない）② undo がスナップ
   // ショット列で書ける ③ 適用が冪等 ④ 並べ替え・回転・削除がすべて配列の操作に落ちる。
   //
-  // その undo の履歴そのものは renderer/edit-history.js にある（塊④ の page-history.js を
-  // 注釈と 1 本にした）。編集の状態を受け取って返すだけで、この層の関数を1つも呼ばないためである。
+  // undo の履歴そのものは renderer/edit-history.js にある（注釈と 1 本。この層の関数を呼ばない）。
 
   // 要素は2種類ある（spec-1-6 確定事項65）。{ src, rotate } は元ファイルの
   // ページ、{ insert, rotate } は差し込んだページである。**両方とも運ぶ。**
   // 落とすと、undo で戻したときに差し込みが元ページ 0 に化ける。
   //
-  // 元ファイルのページは、切った範囲 crop（[x1, y1, x2, y2]。PDF の座標・回す前）を持てる（spec-4b-6a 確定事項1・3）。
-  // 無ければファイルのまま。これも運ぶ（配列は新しく作る）。
+  // 元ファイルのページに付く欄。どれも写し・比べ・未保存の判定で運ぶ（配列と箱は新しく作る）。無ければファイルのまま。
+  //   crop   … 切った範囲 [x1, y1, x2, y2]（PDF の座標・回す前。spec-4b-6a 確定事項1・3）
+  //   mosaic … モザイクの並び [{ box: [x1, y1, x2, y2], block }]（block は pt。spec-4b-6b 確定事項1・2）
+  const sameNumbers = (a, b) => a.length === b.length && a.every((value, index) => value === b[index]);
+  const FIELDS = {
+    crop: { copy: (value) => [...value], same: sameNumbers },
+    mosaic: {
+      copy: (value) => value.map((item) => ({ box: [...item.box], block: item.block })),
+      same: (a, b) => a.length === b.length && a.every((item, index) => item.block === b[index].block && sameNumbers(item.box, b[index].box)),
+    },
+  };
+  const FIELD_NAMES = Object.keys(FIELDS);
+  // 欄が両方に無ければ同じ、片方だけなら違う。
+  const sameField = (name, a, b) => (a === undefined || b === undefined ? a === b : Array.isArray(a) && Array.isArray(b) && FIELDS[name].same(a, b));
+
   function copyPage(page) {
     const copy = Number.isInteger(page?.insert)
       ? { insert: page.insert, rotate: page.rotate }
       : { src: page.src, rotate: page.rotate };
-    if (Array.isArray(page?.crop))
-      copy.crop = [...page.crop];
+    for (const name of FIELD_NAMES) {
+      if (Array.isArray(page?.[name]))
+        copy[name] = FIELDS[name].copy(page[name]);
+    }
     return copy;
   }
 
@@ -120,18 +134,12 @@
     return { plan: next, selection: [at], changed: true };
   }
 
-  // ---- トリミング（spec-4b-6a 確定事項1〜3） ----
+  // ---- トリミング・モザイク（spec-4b-6a 確定事項1〜3、spec-4b-6b 確定事項1・2） ----
 
-  // 切った範囲を当てた並び。crops は「表示 index → plan の要素の写しを作る関数」。表にない要素はそのまま写す。
-  // 欄を付けるか消すか（ファイルの見える範囲と同じなら消す）は、渡す側（page-crop.js の withCrop）が決める。
-  function cropPages(plan, crops) {
-    return plan.map((page, index) => (crops.has(index) ? copyPage(crops.get(index)(copyPage(page))) : copyPage(page)));
-  }
-
-  function sameCrop(a, b) {
-    if (a === undefined || b === undefined)
-      return a === b;
-    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((value, index) => value === b[index]);
+  // 欄を作り替えた並び。edits は「表示 index → plan の要素の写しを作る関数」。表にない要素はそのまま写す。
+  // 欄を付けるか消すかは、渡す側（page-crop.js の withCrop・page-mosaic.js の withMosaic）が決める。
+  function editPages(plan, edits) {
+    return plan.map((page, index) => (edits.has(index) ? copyPage(edits.get(index)(copyPage(page))) : copyPage(page)));
   }
 
   // ---- 未保存の判定（確定事項6） ----
@@ -142,7 +150,7 @@
       return false;
     return a.every((page, index) =>
       page.src === b[index].src && page.insert === b[index].insert && page.rotate === b[index].rotate
-      && sameCrop(page.crop, b[index].crop));
+      && FIELD_NAMES.every((name) => sameField(name, page[name], b[index][name])));
   }
 
   // plan の要素から「どの文書の何ページ目を描くか」を返す（spec-1-6 確定事項93）。
@@ -168,7 +176,7 @@
   function isDirty(plan, pageCount) {
     if (!Array.isArray(plan) || plan.length !== pageCount)
       return true;
-    return plan.some((page, index) => page.src !== index || page.rotate !== 0 || page.crop !== undefined);
+    return plan.some((page, index) => page.src !== index || page.rotate !== 0 || FIELD_NAMES.some((name) => page[name] !== undefined));
   }
 
   const SigK = (root.SigK = root.SigK || {});
@@ -181,7 +189,9 @@
     movePages,
     canDelete,
     deletePages,
-    cropPages,
+    editPages,
+    // トリミングの呼び名（trim-commit.js）。中身は editPages と同じ。
+    cropPages: editPages,
     isDirty,
     samePlan,
     sourceOf,

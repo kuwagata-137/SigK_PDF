@@ -1755,6 +1755,8 @@ function installSmokeCheck(win, mode) {
           annotate.writtenTexts = annotate.save === null ? null : await smokeAnnotate.inspectTexts(annotateTarget);
           // 保存先の各ページの /MediaBox と /CropBox（spec-4b-6a の起動確認。切った範囲が /CropBox に入ったか）。
           annotate.writtenBoxes = annotate.save === null ? null : await smokeAnnotate.inspectBoxes(annotateTarget);
+          // 保存先のモザイクのページ（spec-4b-6b の起動確認。画像 1 枚になったか・元の文字が残っていないか・控えが無いか）。
+          annotate.writtenMosaic = annotate.save === null ? null : await smokeAnnotate.inspectMosaic(annotateTarget, annotate.mosaic?.secrets ?? []);
         }
         if (process.env.SIGK_SMOKE_SAVE && saveSource !== undefined) {
           const savePath = path.resolve(process.env.SIGK_SMOKE_SAVE);

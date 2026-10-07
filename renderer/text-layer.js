@@ -38,12 +38,15 @@
   //
   // viewport は CSS ピクセル基準のものを渡すこと。canvas 用の（devicePixelRatio
   // を掛けた）viewport を渡すと、文字だけが拡大されて紙からはみ出す。
-  async function render({ doc, page, viewport }) {
+  //
+  // mosaic は plan の要素のモザイクの並び。範囲に重なる項目の文字を空にして、選択とコピーの対象から外す（spec-4b-6b 確定事項9）。
+  async function render({ doc, page, viewport, mosaic = null }) {
     const TextLayerClass = textLayerClass();
     if (TextLayerClass === null)
       return null;
 
-    const textContentSource = await page.getTextContent();
+    const content = await page.getTextContent();
+    const textContentSource = root.SigK.mosaicText?.blankContent(content, mosaic) ?? content;
     const node = doc.createElement('div');
     node.className = 'textLayer';
 

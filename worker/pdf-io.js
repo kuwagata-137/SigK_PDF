@@ -27,6 +27,13 @@ const TOOLS = {
   PDFString: pdfLib.PDFString,             // 注釈の /NM・/M・/Contents（op-annotate.js。spec-4-1 確定事項25）
   PDFArray: pdfLib.PDFArray,
   PDFRef: pdfLib.PDFRef,
+  // モザイクのページの構造ツリーと、辿れない中身を消す（struct-tree-page.js・orphan-objects.js。spec-4b-6b 確定事項21・22）。
+  PDFDict: pdfLib.PDFDict,
+  PDFNumber: pdfLib.PDFNumber,
+  PDFStream: pdfLib.PDFStream,
+  PDFRawStream: pdfLib.PDFRawStream,
+  // 内容の流れをほどいて、使う名前を読む（resource-narrow.js。spec-4b-6b 確定事項22）。
+  decodePDFRawStream: pdfLib.decodePDFRawStream,
 };
 
 // save() のオプション（spec-1-6 事前調査 B）。

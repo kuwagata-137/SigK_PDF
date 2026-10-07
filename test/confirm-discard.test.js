@@ -327,3 +327,90 @@ test('終了しようとしたときも「保存」を選べる', async (t) => {
   assert.deepEqual(shell.closeAnswers, [true], '保存できたので終了を通す');
   assert.equal(shell.taskCalls.length, 1);
 });
+
+// ---- 映していないタブを閉じる（不具合の直し。2026-10-07） ----
+//
+// 映していないタブを × で閉じて「保存」を選ぶと、映しているタブを保存し（saveActive は映しているタブが対象）、
+// 閉じたタブの編集が消えていた。聞く前にそのタブを映し、閉じ終えたら元のタブへ戻る。
+
+const A = 'C:\\work\\a.pdf';
+const B = 'C:\\work\\b.pdf';
+
+// a.pdf と b.pdf を開き、a.pdf を編集して b.pdf を映した状態（bEdited なら b.pdf も編集する）。
+async function withEditedBehind(t, { bEdited = false, taskResults = [] } = {}) {
+  const shell = await withShell(t, { openResults: [makeSource({ path: A }), makeSource({ path: B })], taskResults });
+  const { SigK } = shell;
+  await SigK.tabs.openViaDialog();
+  await shell.flush();
+  await SigK.tabs.openViaDialog();
+  await shell.flush();
+  const [a, b] = SigK.tabs.list();
+  SigK.tabs.activate(a.id);
+  await shell.flush();
+  edit(shell);
+  SigK.tabs.activate(b.id);
+  await shell.flush();
+  if (bEdited)
+    edit(shell);
+  return { shell, a, b };
+}
+
+const tabOf = (shell, id) => shell.SigK.tabs.list().find((tab) => tab.id === id);
+
+test('映していないタブを閉じて「保存」を選ぶと、そのタブを保存してから閉じ、元のタブへ戻る', async (t) => {
+  const saved = { ok: true, path: A, signature: { size: 9, mtimeMs: 9 } };
+  const { shell, a, b } = await withEditedBehind(t, { taskResults: [saved] });
+  const closing = shell.SigK.tabs.closeTab(a.id);
+  await shell.flush();
+  shell.document.getElementById('confirm-discard-save').click();
+  assert.equal(await closing, true);
+  await shell.flush();
+
+  assert.equal(shell.taskCalls.length, 1, '閉じるタブを保存している');
+  assert.equal(shell.taskCalls[0].spec.source, A);
+  assert.equal(tabOf(shell, a.id), undefined, '保存できたので閉じる');
+  assert.equal(shell.SigK.tabs.activeId(), b.id, '元のタブへ戻る');
+});
+
+test('映しているタブも未保存なら、映していないタブの「保存」は映しているタブを保存せず、その編集も残す', async (t) => {
+  const saved = { ok: true, path: A, signature: { size: 9, mtimeMs: 9 } };
+  const { shell, a, b } = await withEditedBehind(t, { bEdited: true, taskResults: [saved] });
+  const closing = shell.SigK.tabs.closeTab(a.id);
+  await shell.flush();
+  shell.document.getElementById('confirm-discard-save').click();
+  await closing;
+  await shell.flush();
+
+  assert.deepEqual(shell.taskCalls.map((call) => call.spec.source), [A]);
+  assert.equal(shell.SigK.tabs.activeId(), b.id);
+  assert.equal(shell.SigK.tabs.isDirty(b.id), true, '映していたタブの編集は残る');
+});
+
+test('映していないタブを閉じる確認は、そのタブを映して聞く。「保存しない」なら閉じて元のタブへ戻る', async (t) => {
+  const { shell, a, b } = await withEditedBehind(t);
+  const closing = shell.SigK.tabs.closeTab(a.id);
+  await shell.flush();
+  assert.equal(isDialogOpen(shell.document), true);
+  assert.match(shell.document.getElementById('confirm-discard-text').textContent, /a\.pdf/);
+  assert.equal(shell.SigK.tabs.activeId(), a.id, '聞いている間は閉じるタブを映す');
+  shell.document.getElementById('confirm-discard-discard').click();
+  assert.equal(await closing, true);
+  await shell.flush();
+
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(tabOf(shell, a.id), undefined);
+  assert.equal(shell.SigK.tabs.activeId(), b.id);
+});
+
+test('映していないタブを閉じる確認で「キャンセル」なら閉じず、聞いたタブを映したまま編集も残す', async (t) => {
+  const { shell, a } = await withEditedBehind(t);
+  const closing = shell.SigK.tabs.closeTab(a.id);
+  await shell.flush();
+  shell.document.getElementById('confirm-discard-cancel').click();
+  assert.equal(await closing, false);
+  await shell.flush();
+
+  assert.equal(shell.SigK.tabs.count(), 2);
+  assert.equal(shell.SigK.tabs.activeId(), a.id, 'アプリの終了の確認（askAll）と同じく、聞いたタブのまま');
+  assert.equal(shell.SigK.tabs.isDirty(a.id), true);
+});

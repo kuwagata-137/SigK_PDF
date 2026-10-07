@@ -12,9 +12,8 @@ const { ANNOT_FONT_SIZES, textDefaults, pickTextSettings } = require('./annotati
 // 候補の色の移し替え（確定事項15）を済ませた設定に書く印。
 const ANNOT_PALETTE_VERSION = 1;
 
-// 種類ごとに最後に使った色・図形の塗り（null は塗りなし）・図形の線なし・図形の線種・テキストの文字の大きさ（pt）・
-// 図形とペンの線の太さ（pt）・マーカーの太さ（pt。spec-4b-5b 確定事項3）・「図形」の道具の種類・道具ごとの不透明度・ノートの作成者。作成者が空ならメインが
-// OS のユーザー名で埋めて渡す。既定の色はパレットの色（確定事項14。決定47 ⑧）。
+// 種類ごとに最後に使った色・図形の塗り（null は塗りなし）・図形の線なし・図形の線種・テキストの文字の大きさ（pt）・図形とペンの線の太さ（pt）・マーカーの太さ（pt。
+// spec-4b-5b 確定事項3）・「図形」の道具の種類・道具ごとの不透明度・ノートの作成者（空ならメインが OS のユーザー名で埋める）・モザイクの粗さ（pt。spec-4b-6b 確定事項14）。
 const ANNOT_DEFAULTS = {
   annotColors: { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' },
   annotFills: { shape: null },
@@ -26,6 +25,7 @@ const ANNOT_DEFAULTS = {
   annotShapeKind: 'square',
   annotOpacity: { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 },
   annotAuthor: '',
+  annotMosaicBlock: 8,
   annotPaletteVersion: ANNOT_PALETTE_VERSION,
 };
 
@@ -46,6 +46,7 @@ const ANNOT_OPACITY_MIN = 0.1;
 const ANNOT_LINE_STYLES = ['solid', 'dashed', 'cloudy'];
 const ANNOT_SHAPE_KINDS = ['square', 'circle', 'line', 'arrow', 'cross', 'polygon'];
 const ANNOT_AUTHOR_MAX = 100;
+const ANNOT_MOSAIC_BLOCKS = [4, 8, 14]; // renderer/page-mosaic.js の BLOCKS と同じ（細かい・ふつう・粗い）
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
@@ -100,8 +101,7 @@ function pickAnnotColors(raw, fallback) {
   return picked;
 }
 
-// 移し替えの印が無い（古い）設定の色のうち、今までの候補の色とちょうど同じものをパレットの色へ移す（確定事項15）。
-// 自分で選んだほかの色はそのまま。
+// 移し替えの印が無い（古い）設定の色のうち、今までの候補の色とちょうど同じものをパレットの色へ移す（確定事項15。自分で選んだ色はそのまま）。
 function migrateColors(raw) {
   if (!isPlainObject(raw))
     return raw;
@@ -157,6 +157,7 @@ function pickAnnotSettings(source) {
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, raw.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind),
     annotOpacity: pickAnnotOpacity(raw.annotOpacity, ANNOT_DEFAULTS.annotOpacity),
     annotAuthor: pickAnnotAuthor(raw.annotAuthor, ANNOT_DEFAULTS.annotAuthor),
+    annotMosaicBlock: pickFromList(ANNOT_MOSAIC_BLOCKS, raw.annotMosaicBlock, ANNOT_DEFAULTS.annotMosaicBlock, ANNOT_DEFAULTS.annotMosaicBlock),
     annotPaletteVersion: ANNOT_PALETTE_VERSION,
   };
 }
@@ -178,6 +179,7 @@ function mergeAnnotUi(current, next) {
     annotShapeKind: pickFromList(ANNOT_SHAPE_KINDS, next.annotShapeKind, current.annotShapeKind, ANNOT_DEFAULTS.annotShapeKind),
     annotOpacity: pickAnnotOpacity(merged('annotOpacity'), current.annotOpacity),
     annotAuthor: pickAnnotAuthor(next.annotAuthor, pickAnnotAuthor(current.annotAuthor, ANNOT_DEFAULTS.annotAuthor)),
+    annotMosaicBlock: pickFromList(ANNOT_MOSAIC_BLOCKS, next.annotMosaicBlock, current.annotMosaicBlock, ANNOT_DEFAULTS.annotMosaicBlock),
   };
 }
 

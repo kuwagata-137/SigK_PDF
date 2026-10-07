@@ -15,14 +15,10 @@
 
 const fs = require('node:fs');
 
-const { applyPlan } = require('./op-pages.js');
-const { extractPages } = require('./op-extract.js');
-const { buildPreview, prepareInserts } = require('./op-insert.js');
-const { readLabels, rebuildLabels } = require('./op-page-labels.js');
-const { pruneDestinations } = require('./op-outline.js');
-const { applyAnnotations } = require('./op-annotate.js');
-const { createFontSource } = require('./font-embed.js');
-const { writeDocument } = require('../pdf-write.js');
+const { applyForSave, applyForExtract } = require('./save-apply.js');
+const { buildPreview } = require('./op-insert.js');
+const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
+const { pruneOrphans } = require('./orphan-objects.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
   describeLoadFailure, describeSourceReadFailure, insertReader,
@@ -30,55 +26,16 @@ const {
 const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./tool-tasks.js');
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
+const SOURCE_CHANGED = '開いたあとで元のファイルが別のアプリで変更されたので、モザイクを入れたページを書き出せません。元のファイルは変更していません。'
+  + '開き直してから、もう一度モザイクを入れてください。';
 
-// テキスト注釈の同梱フォント（spec-4-2 確定事項22・23）。読むのはテキストのある保存の
-// 初回だけで、ワーカーは保存ごとに fork される新プロセスなので 1 回きりである。
-const fontSource = createFontSource();
-
-// apply の段。開いた文書をその場で並べ替える（上書き・名前を付けて保存）。
-//
-// ページラベルは applyPlan の**前**に読む。当てたあとでは元の対応が失われる。
-// 作り直しは applyPlan の**あと**で、ページ数が合っていないと最後のラベルが
-// 引き延ばされる。この前後関係は入れ替えられない。
-//
-// 注釈も applyPlan の**前**に当てる（spec-4-1 確定事項23）。src は読んだ文書の
-// ページ番号であり、並べ替えたあとでは指す先が変わる。当てた注釈はページ実体に
-// 付いて一緒に動くので、順序はこれで足りる。
-async function applyForSave(doc, pages, inserts, fsLike, annotations) {
-  const labelsBefore = readLabels(doc);
-  // 差し込むページを先に組み立てる。
-  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, insertReader(fsLike));
-  if (prepared.ok !== true)
-    return prepared;
-
-  const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
-  if (annotated.ok !== true)
-    return annotated;
-
-  const applied = applyPlan(doc, pages, { inserted: prepared.pages, tools: TOOLS });
-  if (applied.ok !== true)
-    return applied;
-  rebuildLabels(doc, pages, labelsBefore, TOOLS);
-  // 削除で飛び先を失ったしおりから /Dest と /A を落とす（見出しは残す）。
-  return { ok: true, doc, pages: applied.pages, pruned: pruneDestinations(doc, TOOLS) };
+// Windows のパスとして同じファイルか（大文字小文字と区切りの字をそろえる。recent-documents.js の pathKey と同じ比べ方）。
+function samePath(a, b) {
+  const key = (value) => value.replace(/\//g, '\\').toLowerCase();
+  return key(a) === key(b);
 }
 
-// apply の段。新規文書へ複製する（抽出。確定事項47）。
-//
-// ページラベルは保存と同じ規則で引き継ぐ（確定事項45）。しおりも名前付き宛先も
-// 新しい文書へは来ないので、掃除するものが無い。
-async function applyForExtract(doc, pages, annotations) {
-  const labelsBefore = readLabels(doc);
-  // 注釈を当ててから複製する。抽出先にも付いていく（spec-4-1 確定事項21）。
-  const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
-  if (annotated.ok !== true)
-    return annotated;
-  const extracted = await extractPages(doc, pages, { PDFDocument, PDFName: TOOLS.PDFName });
-  if (extracted.ok !== true)
-    return extracted;
-  rebuildLabels(extracted.doc, pages, labelsBefore, TOOLS);
-  return { ok: true, doc: extracted.doc, pages: extracted.pages, pruned: { outlines: 0, names: 0 } };
-}
+// apply の段（applyForSave・applyForExtract）は save-apply.js にある（spec-4b-6b m0）。
 
 // 差し込むページを1つの PDF として組み立てて返す（確定事項93・94）。
 //
@@ -109,9 +66,14 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
 // （選んだページだけを新規文書へ複製する）。違うのは apply の段だけで、
 // 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null } = spec ?? {};
+  const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null, mosaics = [], dropBackup = false,
+    expectSource = null } = spec ?? {};
   if (typeof source !== 'string' || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
+  // モザイクのある保存・抽出は、元のファイルが開いたときのままかを読む前に確かめる。画像は開いたときの文書から描いたので、外で書き換わった
+  // ファイルに当てると、ページの番号がずれて元の中身が残り得る（spec-4b-6b。コードの点検で足した）。
+  if (Array.isArray(mosaics) && mosaics.length > 0 && expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
+    return { error: SOURCE_CHANGED };
 
   advance('read');
   let bytes;
@@ -131,10 +93,16 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
 
   advance('apply');
   const applied = kind === 'extract'
-    ? await applyForExtract(doc, pages, annotations)
-    : await applyForSave(doc, pages, inserts, fsLike, annotations);
+    ? await applyForExtract(doc, pages, annotations, mosaics)
+    : await applyForSave(doc, pages, inserts, fsLike, annotations, mosaics);
   if (applied.ok !== true)
     return applied;
+  // モザイクで差し替えた古い中身を、ファイルに残さない（spec-4b-6b 確定事項22）。モザイクの無い保存の振る舞いは変えない。
+  if (applied.mosaics > 0)
+    pruneOrphans(applied.doc, TOOLS);
+  // 名前を付けて保存で開いているファイル自身を選んだときも、モザイクのある保存は上書き保存と同じく控えを残さない（決定64 ⑧。画面側で
+  // 上書きとして扱うことの保険。コードの点検で直した）。
+  const dropOwnBackup = dropBackup || (applied.mosaics > 0 && kind === 'save' && samePath(source, target));
 
   advance('save');
   let output;
@@ -145,7 +113,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   }
 
   advance('write');
-  const written = await writeDocument(target, Buffer.from(output), { makeBackup, expect, fsLike });
+  const written = await writeDocument(target, Buffer.from(output), { makeBackup, dropBackup: dropOwnBackup, expect, fsLike });
   if (written.ok !== true)
     return written;
 
@@ -157,6 +125,8 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     pages: applied.pages,
     signature: written.signature,
     pruned: applied.pruned,
+    // 前からある控えを消せなかった（spec-4b-6b 確定事項23。画面が帯で知らせる）。
+    backupLeft: written.backupLeft === true,
   };
 }
 

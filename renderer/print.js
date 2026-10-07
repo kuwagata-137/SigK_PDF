@@ -143,6 +143,8 @@
       rotation: viewer().viewportRotation(number, page),
       // 切った範囲で刷る（spec-4b-6a 確定事項25）。
       box: entry?.crop ?? null,
+      // モザイクの下見のとおりに刷る（spec-4b-6b 確定事項27）。
+      mosaic: entry?.mosaic ?? null,
       annotationMode: root.SigK.pdfjs?.lib?.AnnotationMode?.ENABLE_STORAGE,
       overlay: root.SigK.annotate?.painterFor(src) ?? null,
     });

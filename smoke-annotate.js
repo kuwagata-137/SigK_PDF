@@ -46,6 +46,7 @@
 //   polygon: snap: reshape compare-shapes:  図形の追加の操作（smoke-annotate-shapes.js の冒頭。spec-4b-5a）
 //   marker: erase: bar-width: more: reink marker-pixels:  マーカー・消しゴム・「その他」の操作（smoke-annotate-erase.js の冒頭。spec-4b-5b）
 //   trim: trim-draft: trim-move: untrim: trim-tool fit:   トリミングの操作（smoke-annotate-trim.js の冒頭。spec-4b-6a）
+//   mosaic: mosaic-draft: unmosaic: mosaic-tool mosaic-save   モザイクの操作（smoke-annotate-mosaic.js の冒頭。spec-4b-6b）
 // 各操作のあとに、履歴がいくつ進んだか（historyDelta）を控える。
 //
 // 例: SIGK_SMOKE_ANNOTATE=select:0:2-3,highlight,color:#8ce99a,select:0:5-5,underline,undo,redo,save
@@ -69,6 +70,7 @@ const { TEXT_STATE, TEXT_STEPS, TEXT_REPORT, inspectTexts } = require('./smoke-a
 const { SHAPE_STATE, SHAPE_STEPS, SHAPE_REPORT } = require('./smoke-annotate-shapes.js');
 const { ERASE_STATE, ERASE_STEPS, ERASE_REPORT, pixelsIn } = require('./smoke-annotate-erase.js');
 const { TRIM_STATE, TRIM_STEPS, TRIM_REPORT, inspectBoxes } = require('./smoke-annotate-trim.js');
+const { MOSAIC_STATE, MOSAIC_STEPS, MOSAIC_REPORT, inspectMosaic } = require('./smoke-annotate-mosaic.js');
 
 const annotateScript = (target, spec) => `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -126,6 +128,7 @@ ${TEXT_STATE}
 ${SHAPE_STATE}
 ${ERASE_STATE}
 ${TRIM_STATE}
+${MOSAIC_STATE}
   for (const raw of ${JSON.stringify(spec)}.split(',')) {
     const step = raw.trim();
     if (step.length === 0)
@@ -134,7 +137,7 @@ ${TRIM_STATE}
     const arg = rest.join(':');
     const t0 = performance.now();
     const historyBefore = SigK.pageEdit.getHistoryState().at;
-${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}${SHAPE_STEPS}${ERASE_STEPS}${TRIM_STEPS}
+${STEPS}${STYLE_STEPS}${TRANSFORM_STEPS}${SELECT_STEPS}${TEXT_STEPS}${SHAPE_STEPS}${ERASE_STEPS}${TRIM_STEPS}${MOSAIC_STEPS}
     applied.push({ step, ms: round(performance.now() - t0), selected: SigK.annotate.getSelected(), count: SigK.annotate.getSelection().length, historyDelta: SigK.pageEdit.getHistoryState().at - historyBefore });
     await wait(120);
   }
@@ -145,6 +148,7 @@ ${TEXT_REPORT}
 ${SHAPE_REPORT}
 ${ERASE_REPORT}
 ${TRIM_REPORT}
+${MOSAIC_REPORT}
 ${REPORT}
 })()`;
 
@@ -161,4 +165,4 @@ async function countEmbeddedFonts(file) {
   return count;
 }
 
-module.exports = { annotateScript, countEmbeddedFonts, inspectAnnotations, inspectTexts, inspectBoxes, pixelsIn };
+module.exports = { annotateScript, countEmbeddedFonts, inspectAnnotations, inspectTexts, inspectBoxes, inspectMosaic, pixelsIn };

@@ -180,6 +180,13 @@
       ['path', { d: 'M8.2 19.5L3.8 15a1.6 1.6 0 0 1 0-2.3l8.5-8.5a1.6 1.6 0 0 1 2.3 0l5.6 5.6a1.6 1.6 0 0 1 0 2.3l-7.5 7.4z' }],
       ['path', { d: 'M9 9.5l6.5 6.5M8.5 19.5H20' }],
     ],
+    // 道具の段の「モザイク」（spec-4b-6b 確定事項10。見本 screenshots/phase4b-6-mosaic-preview.png）。角の丸い四角 4 つ。
+    mosaic: [
+      ['rect', { x: 3.5, y: 3.5, width: 7, height: 7, rx: 1 }],
+      ['rect', { x: 13.5, y: 3.5, width: 7, height: 7, rx: 1 }],
+      ['rect', { x: 3.5, y: 13.5, width: 7, height: 7, rx: 1 }],
+      ['rect', { x: 13.5, y: 13.5, width: 7, height: 7, rx: 1 }],
+    ],
     // 道具の段の「トリミング」（spec-4b-6a 確定事項11。見本 screenshots/phase4b-6-trim-frame.png）。かぎ形 2 本。
     trim: [
       ['path', { d: 'M6.5 2v15.5H22' }],
