@@ -101,6 +101,7 @@ const stateScript = `(() => {
     tool: SigK.annotate.getTool(),
     annotSelected: SigK.annotate.getSelection().length,
     annotCount: SigK.viewer.getAnnotations().added.length,
+    annotRects: SigK.viewer.getAnnotations().added.slice(0, 3).map((entry) => (entry.rect ?? []).map((value) => Math.round(value))),
     drawing: SigK.annotateDraw.isDrawing(),
     pending: SigK.annotatePress.isPending(),
     preview: SigK.annotatePreview.isActive(),
