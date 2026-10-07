@@ -29,6 +29,7 @@ const { smokeWindowMode } = require('./smoke-window.js');
 const smokeRewrite = require('./smoke-rewrite.js');
 const smokeLaunch = require('./smoke-launch.js');
 const smokeAnnotate = require('./smoke-annotate.js');
+const smokeKeys = require('./smoke-keys.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -1687,6 +1688,7 @@ function installSmokeCheck(win, mode) {
       let drop = null;
       let watermark = null;
       let flatten = null;
+      let keys = null;
       let perfOpen = null;
       const memoryAtRest = perfPath === undefined ? null : snapshotMemory();
       let memoryAfterOpen = null;
@@ -1901,6 +1903,11 @@ function installSmokeCheck(win, mode) {
           await dispatchDrop(path.resolve(process.env.SIGK_SMOKE_DROP));
           drop = await win.webContents.executeJavaScript(dropResultScript);
         }
+        // 本物のキーとマウスで Esc の順と倍率を確かめる（spec-4b-7a 確定事項J。操作列は smoke-keys.js の頭に）。
+        if (process.env.SIGK_SMOKE_KEYS) {
+          keys = await smokeKeys.run(win, process.env.SIGK_SMOKE_KEYS);
+          problems.push(...keys.problems);
+        }
       } catch (err) {
         problems.push(`executeJavaScript: ${err.message}`);
       }
@@ -1974,6 +1981,7 @@ function installSmokeCheck(win, mode) {
         drop,
         watermark,
         flatten,
+        keys,
         perf,
         window: windowState,
         screenshot,
