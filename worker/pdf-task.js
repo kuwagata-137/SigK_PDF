@@ -27,6 +27,12 @@ const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./to
 
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
 
+// Windows のパスとして同じファイルか（大文字小文字と区切りの字をそろえる。recent-documents.js の pathKey と同じ比べ方）。
+function samePath(a, b) {
+  const key = (value) => value.replace(/\//g, '\\').toLowerCase();
+  return key(a) === key(b);
+}
+
 // apply の段（applyForSave・applyForExtract）は save-apply.js にある（spec-4b-6b m0）。
 
 // 差し込むページを1つの PDF として組み立てて返す（確定事項93・94）。
@@ -87,6 +93,9 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   // モザイクで差し替えた古い中身を、ファイルに残さない（spec-4b-6b 確定事項22）。モザイクの無い保存の振る舞いは変えない。
   if (applied.mosaics > 0)
     pruneOrphans(applied.doc, TOOLS);
+  // 名前を付けて保存で開いているファイル自身を選んだときも、モザイクのある保存は上書き保存と同じく控えを残さない（決定64 ⑧。画面側で
+  // 上書きとして扱うことの保険。コードの点検で直した）。
+  const dropOwnBackup = dropBackup || (applied.mosaics > 0 && kind === 'save' && samePath(source, target));
 
   advance('save');
   let output;
@@ -97,7 +106,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   }
 
   advance('write');
-  const written = await writeDocument(target, Buffer.from(output), { makeBackup, dropBackup, expect, fsLike });
+  const written = await writeDocument(target, Buffer.from(output), { makeBackup, dropBackup: dropOwnBackup, expect, fsLike });
   if (written.ok !== true)
     return written;
 

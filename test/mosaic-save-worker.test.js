@@ -121,3 +121,29 @@ test('モザイクの指定が正しくなければ保存を断り、元のフ�
   assert.ok(result.error);
   assert.deepEqual(fs.readFileSync(file), before);
 });
+
+// コードの点検で足したもの。
+test('plan でモザイクのあるページの画像が来ていなければ、保存も抽出も断り、何も書かない', async (t) => {
+  const ws = workspace(t);
+  const file = await seed(ws);
+  const before = fs.readFileSync(file);
+  const marked = { src: 1, rotate: 0, mosaic: [{ box: [0, 0, 100, 100], block: 8 }] };
+  const saved = await runSave({ kind: 'save', source: file, target: file, pages: [{ src: 0, rotate: 0 }, marked], mosaics: [{ ...MOSAIC, bytes: pngBytes() }], dropBackup: true, expect: await readSignature(file) });
+  assert.match(saved.error ?? '', /画像がそろっていない/);
+  assert.deepEqual(fs.readFileSync(file), before);
+  const target = ws.file('extract.pdf');
+  const extracted = await runSave({ kind: 'extract', source: file, target, pages: [marked], mosaics: [] });
+  assert.match(extracted.error ?? '', /画像がそろっていない/);
+  assert.equal(fs.existsSync(target), false);
+});
+
+test('名前を付けて保存で開いているファイル自身（区切りの字が違う書き方）を選んでも、モザイクがあれば前の控えを消す', async (t) => {
+  const ws = workspace(t);
+  const file = await seed(ws);
+  fs.writeFileSync(backupPathFor(file), 'ひとつ前の内容');
+  const result = await runSave({ kind: 'save', source: file, target: file.replace(/\\/g, '/'), pages: [{ src: 0, rotate: 0 }, { src: 1, rotate: 0 }],
+    mosaics: [{ ...MOSAIC, bytes: pngBytes() }], makeBackup: false, expect: await readSignature(file) });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(fs.existsSync(backupPathFor(file)), false);
+  assert.equal(scan(fs.readFileSync(file), ['SECRET-ONE'])['SECRET-ONE'], 0);
+});

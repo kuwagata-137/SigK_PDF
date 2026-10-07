@@ -8,11 +8,13 @@ const assert = require('node:assert/strict');
 
 const pdfLib = require('pdf-lib');
 const { PDFDocument, PDFName, PDFDict, PDFArray, PDFNumber } = pdfLib;
-const { applyMosaics, validateMosaics, IMAGE_NAME } = require('../worker/op-mosaic.js');
+const { applyMosaics, validateMosaics, unpaintedSources, IMAGE_NAME } = require('../worker/op-mosaic.js');
+const { builders } = require('./fixtures/mosaic-leaks.js');
 const { pruneOrphans } = require('../worker/orphan-objects.js');
 const { SECRETS, KEEPS, scan, buildMosaicSample, pngBytes } = require('./fixtures/mosaic-sample.js');
 
-const TOOLS = { PDFName, PDFDict, PDFArray, PDFRef: pdfLib.PDFRef, PDFNumber, PDFStream: pdfLib.PDFStream, PDFRawStream: pdfLib.PDFRawStream };
+const TOOLS = { PDFName, PDFDict, PDFArray, PDFRef: pdfLib.PDFRef, PDFNumber, PDFStream: pdfLib.PDFStream, PDFRawStream: pdfLib.PDFRawStream,
+  decodePDFRawStream: pdfLib.decodePDFRawStream };
 const BOX = [0, 0, 595, 842];
 
 async function mosaicked({ prune = true } = {}) {
@@ -100,4 +102,30 @@ test('画像を読めなければ断る（文書は差し替えない）', async
   const doc = await PDFDocument.load(await buildMosaicSample());
   const result = await applyMosaics(doc, [{ src: 0, kind: 'png', bytes: new Uint8Array([1, 2, 3]), box: BOX }], TOOLS);
   assert.ok(result.error);
+});
+
+// コードの点検で足したもの。
+test('ページの /AF（関連ファイル）と /AA（ページを開いたときの動作）も外し、辿れない中身を消せば残らない', async () => {
+  const doc = await PDFDocument.load(await builders.pageKeys());
+  await applyMosaics(doc, [{ src: 0, kind: 'png', bytes: pngBytes(), box: BOX }], TOOLS);
+  const page = doc.getPages()[0].node;
+  assert.equal(page.get(PDFName.of('AF')), undefined);
+  assert.equal(page.get(PDFName.of('AA')), undefined);
+  pruneOrphans(doc, TOOLS);
+  assert.deepEqual(scan(await doc.save(), ['AFSECRET', 'AASECRET']), { AFSECRET: 0, AASECRET: 0 });
+});
+
+test('画像は差し替えたその場で埋め込む（展開した画素を保存まで抱えない）', async () => {
+  const doc = await PDFDocument.load(await buildMosaicSample());
+  await applyMosaics(doc, [{ src: 0, kind: 'png', bytes: pngBytes(), box: BOX }], TOOLS);
+  const ref = doc.getPages()[0].node.Resources().lookup(PDFName.of('XObject'), PDFDict).get(PDFName.of(IMAGE_NAME));
+  assert.ok(doc.context.lookup(ref) instanceof pdfLib.PDFStream, '保存の前から context に入っている');
+});
+
+test('unpaintedSources は、plan でモザイクがあるのに画像が来ていないページの src を返す', () => {
+  const pages = [{ src: 0, mosaic: [{ box: [0, 0, 1, 1], block: 8 }] }, { src: 1 }, { src: 2, mosaic: [] }, { insert: 0 }, { src: 3, mosaic: [{ box: [0, 0, 1, 1], block: 4 }] }];
+  assert.deepEqual(unpaintedSources(pages, [{ src: 0 }]), [3]);
+  assert.deepEqual(unpaintedSources(pages, [{ src: 0 }, { src: 3 }]), []);
+  assert.deepEqual(unpaintedSources(pages, undefined), [0, 3]);
+  assert.deepEqual(unpaintedSources(undefined, []), []);
 });

@@ -6,14 +6,16 @@
 // 元の文字が入っていることがあり、根から辿れるので保存のあとも残る（試作で確かめた）。そこで:
 //   - そのページの内容の印（MCID の数と、/Pg がそのページの MCR）を外す
 //   - そのページの要素（/Pg がそのページ。持たなければ親から受け継ぐ）は、子が残らなければ外す
-//   - そのページの要素で、ほかのページの子が残るものは、/ActualText・/Alt・/E だけを外して残す
+//   - そのページの要素と、子を 1 つでも外した要素（ページをまたぐ段落）は、/ActualText・/Alt・/E を外す。外す要素からも外す
+//     （/IDTree・しおりの /SE・/Ref から辿れて残るため。コードの点検で直した）
 //   - /ParentTree（数の木）からそのページの /StructParents の項を消す
-// 書き込みを指す OBJR は残す（書き込みは書き込みのまま残る。決定64 ⑥）。pdf-lib は require しない（tools で受け取る）。
+// 書き込みを指す OBJR は残す（書き込みは書き込みのまま残る。決定64 ⑥）。そのページのフォーム・画像（流れ）を指す OBJR は外す
+// （指す先が辿れて残るため。コードの点検で直した）。pdf-lib は require しない（tools で受け取る）。
 
 const TEXT_KEYS = ['ActualText', 'Alt', 'E'];
 
 function createWalker(doc, pageRef, tools) {
-  const { PDFName, PDFDict, PDFArray, PDFRef, PDFNumber } = tools;
+  const { PDFName, PDFDict, PDFArray, PDFRef, PDFNumber, PDFStream } = tools;
   const ctx = doc.context;
   const resolve = (value) => (value instanceof PDFRef ? ctx.lookup(value) : value);
   const isTarget = (value) => value instanceof PDFRef && value.toString() === pageRef.toString();
@@ -39,9 +41,11 @@ function createWalker(doc, pageRef, tools) {
     const own = value.get(name('Pg')) ?? page;
     if (value.get(name('S')) !== undefined)
       return visit(value, own);
-    // 内容の印（MCR）はそのページなら外す。書き込みの参照（OBJR）は残す。
+    // 内容の印（MCR）はそのページなら外す。書き込みの参照（OBJR）は残し、そのページの流れ（フォーム・画像）を指す OBJR は外す。
     if (value.get(name('MCID')) !== undefined)
       return !isTarget(own);
+    if (value.get(name('Obj')) !== undefined)
+      return !(isTarget(own) && resolve(value.get(name('Obj'))) instanceof PDFStream);
     return true;
   }
 
@@ -49,15 +53,14 @@ function createWalker(doc, pageRef, tools) {
   function visit(holder, page) {
     const before = kidsOf(holder);
     const kept = before.filter((kid) => keepKid(kid, page));
-    if (kept.length !== before.length)
+    const lost = kept.length !== before.length;
+    if (lost)
       holder.set(name('K'), ctx.obj(kept));
-    if (!isTarget(page))
+    if (!isTarget(page) && !lost)
       return true;
-    if (kept.length === 0)
-      return false;
     for (const key of TEXT_KEYS)
       holder.delete(name(key));
-    return true;
+    return !(isTarget(page) && kept.length === 0);
   }
 
   // 数の木（/Nums か /Kids）から、鍵が key の項を消す。
@@ -87,7 +90,7 @@ function createWalker(doc, pageRef, tools) {
 }
 
 // doc の構造ツリーから、pageRef のページの要素を外す。structParents はそのページの /StructParents（無ければ undefined）。
-// 構造ツリーが無ければ何もしない。tools は { PDFName, PDFDict, PDFArray, PDFRef, PDFNumber }。
+// 構造ツリーが無ければ何もしない。tools は { PDFName, PDFDict, PDFArray, PDFRef, PDFNumber, PDFStream }。
 function dropPageFromStructTree(doc, pageRef, structParents, tools) {
   const { PDFName, PDFDict } = tools;
   const walker = createWalker(doc, pageRef, tools);

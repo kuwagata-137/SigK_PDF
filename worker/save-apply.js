@@ -11,7 +11,7 @@ const { readLabels, rebuildLabels } = require('./op-page-labels.js');
 const { pruneDestinations } = require('./op-outline.js');
 const { applyAnnotations } = require('./op-annotate.js');
 const { createFontSource } = require('./font-embed.js');
-const { applyMosaics } = require('./op-mosaic.js');
+const { applyMosaics, unpaintedSources } = require('./op-mosaic.js');
 const { PDFDocument, TOOLS, insertReader } = require('./pdf-io.js');
 
 // テキスト注釈の同梱フォント（spec-4-2 確定事項22・23）。読むのはテキストのある保存の
@@ -30,7 +30,12 @@ const fontSource = createFontSource();
 //
 // モザイク（spec-4b-6b 確定事項20・21）も applyPlan の前に、ページの中身を画像に差し替える。src が元のページ番号のうちに当てるためで、
 // 書き込みとは別のオブジェクトなので、注釈との前後は問わない。mosaics の数を返す（保存の直前に辿れない中身を消すかどうか。pdf-task.js）。
+// plan にモザイクがあるのに画像が来ていないページがあれば、何もせずに断る（元の中身のまま書かない）。
+const UNPAINTED = 'モザイクを入れたページの画像がそろっていないので、取りやめました。もう一度やり直してください。';
+
 async function applyForSave(doc, pages, inserts, fsLike, annotations, mosaics = []) {
+  if (unpaintedSources(pages, mosaics).length > 0)
+    return { error: UNPAINTED };
   const labelsBefore = readLabels(doc);
   // 差し込むページを先に組み立てる。
   const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, insertReader(fsLike));
@@ -58,6 +63,8 @@ async function applyForSave(doc, pages, inserts, fsLike, annotations, mosaics = 
 // 新しい文書へは来ないので、掃除するものが無い。モザイクは、複製する前の元の文書のページを画像に差し替える（spec-4b-6b 確定事項25。
 // 決定66 ②）。複製は差し替えたページから辿れるものだけを写すので、古い中身は新しい文書へ来ない。
 async function applyForExtract(doc, pages, annotations, mosaics = []) {
+  if (unpaintedSources(pages, mosaics).length > 0)
+    return { error: UNPAINTED };
   const labelsBefore = readLabels(doc);
   // 注釈を当ててから複製する。抽出先にも付いていく（spec-4-1 確定事項21）。
   const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });

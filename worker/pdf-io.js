@@ -32,6 +32,8 @@ const TOOLS = {
   PDFNumber: pdfLib.PDFNumber,
   PDFStream: pdfLib.PDFStream,
   PDFRawStream: pdfLib.PDFRawStream,
+  // 内容の流れをほどいて、使う名前を読む（resource-narrow.js。spec-4b-6b 確定事項22）。
+  decodePDFRawStream: pdfLib.decodePDFRawStream,
 };
 
 // save() のオプション（spec-1-6 事前調査 B）。
