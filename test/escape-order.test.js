@@ -350,3 +350,27 @@ test('スライダーを引いている途中の Esc は、下見を捨てて引
   range.dispatchEvent(new window.Event('input', { bubbles: true }));
   assert.equal(SigK.annotatePreview.isActive(), true);
 });
+
+test('タッチで引いて離した（mouseup が来ない）あとは、控えが外れ、次の Esc とスライダーの矢印キーを飲まない（点検の直し）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  drawSquare(shell);
+  const range = document.getElementById('props-opacity-range');
+  shell.firePointer(range, 'pointerdown');
+  range.value = '45';
+  range.dispatchEvent(new window.Event('input', { bubbles: true }));
+  shell.firePointer(document, 'pointerup');
+  range.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(SigK.propsRange.isHeld(), false);
+  assert.equal(SigK.propsRange.cancelDrag(), false, '控えが残っていない');
+  // 矢印キーで動かした値は、そのまま当たる。
+  range.value = '40';
+  range.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.equal(range.value, '40');
+  // 窓が外れたとき（blur）も外れる。
+  shell.firePointer(range, 'pointerdown');
+  window.dispatchEvent(new window.Event('blur'));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(SigK.propsRange.isHeld(), false);
+});

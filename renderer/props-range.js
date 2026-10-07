@@ -47,17 +47,24 @@
     state.typingFor = state.targetOf !== null && isFocused(number) ? state.targetOf() : null;
   }
 
-  // clamp は数値欄の丸め方（既定は範囲の端へ寄せる clampOf。回転の行は 360 の余り。spec-4b-2 確定事項26）。
-  // 押したとき。離したあとの change を見終えてから外す（Chromium は mouseup の中で change を出す）。
+  // 押したとき。離したあとの change を見終えてから外す（Chromium は離したあとに change を出す）。タッチで引くと mouseup が来ず、
+  // 窓が外れたときも来ないので、pointerup・pointercancel・窓の blur でも外す（spec-4b-7a 点検の直し。控えが残ると、後の Esc が
+  // 空振りし、矢印キーの変更も飲まれていた）。
   function hold(range, number, state, onCancel) {
     held = { range, number, state, start: range.value, canceled: false, onCancel };
     const mine = held;
-    range.ownerDocument.addEventListener('mouseup', () => {
+    const doc = range.ownerDocument;
+    const targets = [[doc, 'pointerup'], [doc, 'pointercancel'], [doc, 'mouseup'], [doc.defaultView, 'blur']];
+    const release = () => {
+      for (const [target, type] of targets)
+        target?.removeEventListener(type, release);
       setTimeout(() => {
         if (held === mine)
           held = null;
       }, 0);
-    }, { once: true });
+    };
+    for (const [target, type] of targets)
+      target?.addEventListener(type, release);
   }
 
   // 取りやめたあとの引き続け・離しは、値を引く前に戻して何もしない。
@@ -78,6 +85,7 @@
     return true;
   }
 
+  // clamp は数値欄の丸め方（既定は範囲の端へ寄せる clampOf。回転の行は 360 の余り。spec-4b-2 確定事項26）。
   function bind(range, number, { min, max, onPreview, onCommit, onCancel = null, clamp = (text) => clampOf(text, min, max), targetOf = null }) {
     const state = { text: null, targetOf, typingFor: null };
     states.set(number, state);
