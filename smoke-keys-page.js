@@ -62,6 +62,7 @@ function shapeScript(kind, page, from, to) {
 // 画面の操作。name は smoke-keys.js の操作の名前、arg はその引数（文字列）。
 const ACTIONS = {
   mode: (arg) => `SigK.shell.setMode(document, ${JSON.stringify(arg)})`,
+  tool: (arg) => `SigK.annotate.setTool(${arg === 'none' ? 'null' : JSON.stringify(arg)})`,
   find: (arg) => `(SigK.findBar.open(), (() => { const input = document.getElementById('find-input'); input.value = ${JSON.stringify(arg)}; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); })())`,
   dialog: (arg) => (arg === 'print' ? 'SigK.print.open()' : 'SigK.docInfo.open(document)'),
   'print-prepare': () => `(window.__smokeKeysPrint = 'pending', SigK.print.prepare({ mode: 'all' }).then((r) => { window.__smokeKeysPrint = { ok: r.ok === true, canceled: r.canceled === true, pages: r.pages?.length ?? null }; }), true)`,

@@ -9,7 +9,7 @@
 //   press:<page>:<x>x<y> / drag:<page>:<x>x<y> / release（紙の座標 pt で本物のマウス。drag は押したまま動かす）
 //   slide:<id>:<割合>:<割合>（スライダーを押して動かす。離さない）/ thumb-drag:<from>-<to>（サムネイルを押して動かす。離さない）
 //   shape:<kind>:<page>:<x1>x<y1>-<x2>x<y2>（合成のマウスで描く）
-//   mode・find・dialog:<info|print>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
+//   mode・tool:<名前|none>・find・dialog:<info|print>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
 //   fit・scroll:<割合>（画面の口を呼ぶ。smoke-keys-page.js）
 //   wait:<ms> / state（様子を控える）/ memory（アプリ全体の実メモリを控える）
 // 例: SIGK_SMOKE_KEYS=mode:annot,shape:square:0:100x700-300x600,find:text,dialog:info,esc,state,esc,state
