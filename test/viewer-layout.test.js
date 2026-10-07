@@ -9,8 +9,9 @@ const layout = globalThis.SigK.viewerLayout;
 const A4 = { width: 595.28, height: 841.89 };
 const A5 = { width: 419.53, height: 595.28 };
 
-test('clampZoom は 25〜400% に収める', () => {
-  assert.equal(layout.clampZoom(0.1), 0.25);
+test('clampZoom は 10〜400% に収める（spec-4b-7a 確定事項G1）', () => {
+  assert.equal(layout.clampZoom(0.01), 0.1);
+  assert.equal(layout.clampZoom(0.1), 0.1);
   assert.equal(layout.clampZoom(9), 4);
   assert.equal(layout.clampZoom(1.5), 1.5);
   assert.equal(layout.clampZoom(Number.NaN), 1);
@@ -19,9 +20,38 @@ test('clampZoom は 25〜400% に収める', () => {
 
 test('段送りは上限と下限で止まる', () => {
   assert.equal(layout.nextZoom(4), 4);
-  assert.equal(layout.prevZoom(0.25), 0.25);
+  assert.equal(layout.prevZoom(0.1), 0.1);
   assert.equal(layout.nextZoom(1), 1.25);
   assert.equal(layout.prevZoom(1), 0.75);
+});
+
+test('25% の下は 20・15・10% を 1 段ずつ送る（spec-4b-7a 確定事項G1。段は 16）', () => {
+  assert.equal(layout.ZOOM_STEPS.length, 16);
+  assert.equal(layout.MIN_ZOOM, 0.1);
+  assert.equal(layout.prevZoom(0.25), 0.2);
+  assert.equal(layout.prevZoom(0.2), 0.15);
+  assert.equal(layout.prevZoom(0.15), 0.1);
+  assert.equal(layout.nextZoom(0.1), 0.15);
+  assert.equal(layout.nextZoom(0.2), 0.25);
+  assert.equal(layout.formatZoom(0.1), '10%');
+  assert.equal(layout.formatZoom(0.15), '15%');
+  assert.equal(layout.formatZoom(0.01), '10%');
+});
+
+test('「全体」は A0 の紙でも 25% より下げて窓に収める（spec-4b-7a 確定事項G2）', () => {
+  const A0 = { width: 2383.94, height: 3370.39 };
+  const zoom = layout.fitPageZoom({ pageWidth: A0.width, pageHeight: A0.height, viewportWidth: 951, viewportHeight: 694 });
+  assert.ok(zoom > 0.1 && zoom < 0.25, String(zoom));
+  assert.ok(Math.abs(zoom - 0.146) < 0.001, String(zoom));
+  assert.ok(A0.height * zoom * layout.CSS_UNITS <= 694 - 2 * 18 + 1e-6);
+  // もっと大きな紙は 10% で止まる。
+  assert.equal(layout.fitWidthZoom({ pageWidth: A0.width * 4, viewportWidth: 951 }), 0.1);
+});
+
+test('layoutPages は、ごく小さいページでも 1px 以上にする（spec-4b-7a 確定事項G3）', () => {
+  const { pages } = layout.layoutPages({ sizes: [{ width: 2, height: 2 }, A4], zoom: 0.1 });
+  assert.deepEqual([pages[0].width, pages[0].height], [1, 1]);
+  assert.deepEqual([pages[1].width, pages[1].height], [79, 112]);
 });
 
 // 「幅に合わせる」の結果は段の間の値になる。そこから押しても同じ段に留まると

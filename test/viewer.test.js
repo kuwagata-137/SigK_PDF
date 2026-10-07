@@ -164,11 +164,11 @@ test('倍率を変えるとページの枠も付いてくる', async (t) => {
   assert.equal(SigK.viewer.getState().zoom, 2);
 });
 
-test('倍率は 25〜400% を超えない', async (t) => {
+test('倍率は 10〜400% を超えない（spec-4b-7a 確定事項G1）', async (t) => {
   const { SigK } = await withOpenDocument(t);
 
   assert.equal(SigK.viewer.setZoom(99), 4);
-  assert.equal(SigK.viewer.setZoom(0.01), 0.25);
+  assert.equal(SigK.viewer.setZoom(0.01), 0.1);
 });
 
 // 1,000ページの文書でも canvas を持ち続けないことが要る（spec-1-1 確定事項9）。

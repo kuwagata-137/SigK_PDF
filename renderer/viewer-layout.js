@@ -10,7 +10,8 @@
   // scale = zoom × CSS_UNITS で変換する（spec-1-1 確定事項6）。
   const CSS_UNITS = 96 / 72;
 
-  const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
+  // 下限は 10%（spec-4b-7a 確定事項G1。決定68 ④）。25% の下に 20・15・10% を刻む（1 段で 4 分の 1 に飛ばないため）。
+  const ZOOM_STEPS = [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
   const MIN_ZOOM = ZOOM_STEPS[0];
   const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1];
 
@@ -124,14 +125,15 @@
   // 高いほうに合わせて上揃え。横は綴じ目を基準にし、左ページは綴じ目へ右寄せ、
   // 右ページは綴じ目から左寄せにする。幅の違うページが混ざっても綴じ目が
   // 一直線に通る。奇数の末尾は左に単独で置く。
+  // 寸法は 1px 以上にする。ごく小さいページを低い倍率で出しても 0px にならず描ける（spec-4b-7a 確定事項G3）。
   function layoutPages({ sizes, zoom, facing = false }) {
     const scale = zoom * CSS_UNITS;
     const pages = sizes.map((size, index) => ({
       index,
       top: 0,
       left: 0,
-      width: Math.round(size.width * scale),
-      height: Math.round(size.height * scale),
+      width: Math.max(1, Math.round(size.width * scale)),
+      height: Math.max(1, Math.round(size.height * scale)),
     }));
     if (pages.length === 0)
       return { pages, contentWidth: 0, totalHeight: 0 };

@@ -61,8 +61,9 @@
         return null;
 
       const canvas = ctx.el().doc.createElement('canvas');
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
+      // 1px 以上（spec-4b-7a 確定事項G3。幅 0 の canvas には描けない）。
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
       entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport, annotationMode: annotationMode() });
       await entry.task.promise;
       // モザイクの下見（spec-4b-6b 確定事項7）。書き込みを描かない絵をもう 1 枚描いて比べ、書き込みは塗らない。

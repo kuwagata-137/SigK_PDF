@@ -147,9 +147,13 @@ test('最大・最小に達したら、それ以上は変えず表示も動か�
   wheel(shell, { deltaY: -100, ctrl: true });
   assert.equal(zoomOf(shell), 4);
   assert.equal(view(shell).scrollTop, 500);
+  // 下限は 10%（spec-4b-7a 確定事項G1）。25% からは 20% へ下がる。
   SigK.viewer.setZoom(0.25);
   wheel(shell, { deltaY: 100, ctrl: true });
-  assert.equal(zoomOf(shell), 0.25);
+  assert.equal(zoomOf(shell), 0.2);
+  SigK.viewer.setZoom(0.1);
+  wheel(shell, { deltaY: 100, ctrl: true });
+  assert.equal(zoomOf(shell), 0.1);
 });
 
 test('文書が開いていなければ何もしない（確定事項C1）', async (t) => {
