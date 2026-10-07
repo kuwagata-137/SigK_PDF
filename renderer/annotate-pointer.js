@@ -180,8 +180,15 @@
     // ドラッグ中・描いている間はページビューの外で離しても拾う。
     doc.addEventListener('mousemove', onMouseMove);
     doc.addEventListener('mouseup', (event) => {
-      if (route().isBusy() && !(view?.contains(event.target) ?? false))
+      if (view?.contains(event.target) ?? false)
+        return;
+      if (route().isBusy()) {
         onMouseUp(event);
+        return;
+      }
+      // #view の外で離した押下は捨てる（取り残された控えで Esc が空振りしないため。spec-4b-7a 確定事項A3）。
+      if (isLeft(event))
+        press().reset();
     });
     return true;
   }

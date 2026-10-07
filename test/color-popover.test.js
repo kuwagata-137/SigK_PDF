@@ -82,6 +82,8 @@ test('Esc・外を押す・同じチップをもう 1 度押す、のどれで�
   assert.equal(pop.hidden, false);
   document.querySelector('.pdf-page[data-page="1"]').dispatchEvent(new shell.window.MouseEvent('mousedown', { bubbles: true }));
   assert.equal(pop.hidden, true);
+  // 押したままだと四角の描きかけが残り、次の Esc はそちらを先に取りやめる（spec-4b-7a 確定事項A1）。離して終える。
+  document.querySelector('.pdf-page[data-page="1"]').dispatchEvent(new shell.window.MouseEvent('mouseup', { bubbles: true }));
 
   click(shell, chip);
   click(shell, chip);

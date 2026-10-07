@@ -148,5 +148,6 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotatePress = { init, pageAt, down, up, take, reset: () => { state.pressed = null; } };
+  // isPending は押してまだ離していない間（Esc で捨てる。spec-4b-7a 確定事項A3）。
+  SigK.annotatePress = { init, pageAt, down, up, take, isPending: () => state.pressed !== null, reset: () => { state.pressed = null; } };
 })(typeof window !== 'undefined' ? window : globalThis);

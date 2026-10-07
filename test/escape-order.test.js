@@ -18,8 +18,8 @@ async function withShell(t, mode = 'annot') {
   return shell;
 }
 
-function mouse(shell, type, target, [x, y]) {
-  target.dispatchEvent(new shell.window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }));
+function mouse(shell, type, target, [x, y], { buttons = 0 } = {}) {
+  target.dispatchEvent(new shell.window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons }));
 }
 
 function px(shell, point) {
@@ -107,4 +107,134 @@ test('窓が開いていれば、検索バーが開いていても Esc は検索
   await SigK.docInfo.open(document);
   esc(shell, document.getElementById('doc-info'));
   assert.equal(SigK.findBar.isOpen(), true);
+});
+
+// ---- 決定68 ①の順（spec-4b-7a 確定事項A1） ----
+
+function pageNode(shell) {
+  return shell.document.querySelector('.pdf-page[data-page="1"]');
+}
+
+// 紙の座標 from から to まで引く。release が false なら離さない。
+function pull(shell, from, to, { release = true } = {}) {
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, from), { buttons: 1 });
+  mouse(shell, 'mousemove', shell.document.body, px(shell, to), { buttons: 1 });
+  if (release)
+    mouse(shell, 'mouseup', pageNode(shell), px(shell, to));
+}
+
+test('押して引いている途中の操作は、検索バーより先に取りやめ、そのまま離しても置かない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('shape');
+  SigK.annotate.setShapeKind('square');
+  SigK.findBar.open();
+  pull(shell, [100, 700], [200, 600], { release: false });
+  assert.equal(SigK.annotateDraw.isDrawing(), true);
+  assert.equal(esc(shell).defaultPrevented, true);
+  assert.equal(SigK.annotateDraw.isDrawing(), false);
+  assert.equal(SigK.findBar.isOpen(), true);
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [200, 600]));
+  assert.equal(SigK.viewer.getAnnotations().added.length, 0);
+  esc(shell);
+  assert.equal(SigK.findBar.isOpen(), false);
+});
+
+test('浮いている小窓（色のパレット）は、検索バーより先に閉じる', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  drawSquare(shell);
+  SigK.findBar.open();
+  document.getElementById('props-color').dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
+  assert.equal(document.getElementById('color-pop').hidden, false);
+  esc(shell);
+  assert.equal(document.getElementById('color-pop').hidden, true);
+  assert.equal(SigK.findBar.isOpen(), true);
+  assert.equal(SigK.annotate.getSelection().length, 1);
+});
+
+test('描きかけ（トリミングの枠）は、検索バーの外で押した Esc なら検索バーより先に捨て、検索バーの中で押した Esc なら残す', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('trim');
+  pull(shell, [100, 600], [400, 200]);
+  assert.equal(SigK.annotateTrim.hasFrame(), true);
+  SigK.findBar.open();
+  esc(shell, document.getElementById('find-input'));
+  assert.equal(SigK.findBar.isOpen(), false, '検索バーの中の Esc は検索バーを閉じる');
+  assert.equal(SigK.annotateTrim.hasFrame(), true);
+  SigK.findBar.open();
+  esc(shell);
+  assert.equal(SigK.annotateTrim.hasFrame(), false, 'ほかの場所の Esc は枠を先に捨てる');
+  assert.equal(SigK.findBar.isOpen(), true);
+});
+
+test('置く前の押下（ノート）は Esc で捨て、離しても置かない。道具は外さない（確定事項A3）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('note');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [200, 600]));
+  assert.equal(SigK.annotatePress.isPending(), true);
+  assert.equal(esc(shell).defaultPrevented, true);
+  assert.equal(SigK.annotatePress.isPending(), false);
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [200, 600]));
+  assert.equal(SigK.viewer.getAnnotations().added.length, 0);
+  assert.equal(SigK.annotate.getTool(), 'note');
+});
+
+test('#view の外で離した押下は捨てる（確定事項A3）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('note');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [200, 600]));
+  mouse(shell, 'mouseup', document.getElementById('side'), [5, 5]);
+  assert.equal(SigK.annotatePress.isPending(), false);
+  esc(shell);
+  assert.equal(SigK.annotate.getTool(), null, '空振りせずに道具を外す');
+});
+
+test('紙の上の文字の選択を Esc で外す。紙の外の選択には触れない（確定事項F1）', async (t) => {
+  const shell = await withShell(t, 'view');
+  const { document, window } = shell;
+  const span = document.querySelector('#view .textLayer span');
+  assert.ok(span !== null);
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(span);
+  selection.addRange(range);
+  assert.equal(esc(shell).defaultPrevented, true);
+  assert.equal(selection.rangeCount, 0);
+  const outside = document.createRange();
+  outside.selectNodeContents(document.getElementById('side-title'));
+  selection.addRange(outside);
+  assert.equal(esc(shell).defaultPrevented, false);
+  assert.equal(selection.rangeCount, 1);
+});
+
+test('文字の選択は、書き込みの選択より先に外す（編集モード）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  drawSquare(shell);
+  const range = document.createRange();
+  range.selectNodeContents(document.querySelector('#view .textLayer span'));
+  window.getSelection().addRange(range);
+  esc(shell);
+  assert.equal(window.getSelection().rangeCount, 0);
+  assert.equal(SigK.annotate.getSelection().length, 1);
+});
+
+test('Esc で道具を外すと、戻り先は「道具なし」になる（確定事項A4）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('select');
+  SigK.annotate.setTool('shape');
+  assert.equal(SigK.annotateTools.getBase(), 'select');
+  esc(shell);
+  assert.equal(SigK.annotate.getTool(), null);
+  assert.equal(SigK.annotateTools.getBase(), null);
+});
+
+test('ページ編集モードで選択が無ければ、何もしない（preventDefault もしない）', async (t) => {
+  const shell = await withShell(t, 'pages');
+  assert.equal(esc(shell).defaultPrevented, false);
 });
