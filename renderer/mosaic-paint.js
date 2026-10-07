@@ -9,6 +9,8 @@
   // 下見（表示・サムネイル・印刷）は、pdf.js が canvas に描いた表示のみの書き込みを塗らないために、書き込みを描かない絵
   // （annotationMode: DISABLE）をもう 1 枚描いて base にする。平均色は base から取り、canvas と base で色が違う画素（＝書き込み）は
   // 塗らずに残す。保存の画像は初めから書き込みを描かないので base は要らない。2D コンテキストの無い環境（jsdom）では何もしない。
+  // 下見では塗った色を base にも書き戻す。重ねて置いた次の範囲が、保存の画像と同じく「前の範囲を塗ったあとの絵」から平均を取るため
+  // （書き戻さないと、前の範囲で塗った画素が書き込みと見なされて残り、粗さを替えて重ねても下見が変わらなかった。コードの点検で直した）。
 
   function pageMosaic() {
     return root.SigK.pageMosaic;
@@ -29,7 +31,8 @@
     return [Math.max(0, left), Math.max(0, top), Math.min(width, right), Math.min(height, bottom)];
   }
 
-  // 1 つのブロック（outer の中の [左, 上, 右, 下]）を塗る。平均は sample から取り、keep なら target と sample で違う画素は残す。
+  // 1 つのブロック（outer の中の [左, 上, 右, 下]）を塗る。平均は sample から取り、keep なら target と sample で違う画素は残し、
+  // sample には全部の画素を塗る（下見の base への書き戻し）。
   function fillBlock(target, sample, stride, [left, top, right, bottom], keep) {
     let r = 0;
     let g = 0;
@@ -50,7 +53,14 @@
     for (let y = top; y < bottom; y += 1) {
       for (let x = left; x < right; x += 1) {
         const at = (y * stride + x) * 4;
-        if (keep && (target[at] !== sample[at] || target[at + 1] !== sample[at + 1] || target[at + 2] !== sample[at + 2]))
+        const kept = keep && (target[at] !== sample[at] || target[at + 1] !== sample[at + 1] || target[at + 2] !== sample[at + 2]);
+        if (keep) {
+          sample[at] = color[0];
+          sample[at + 1] = color[1];
+          sample[at + 2] = color[2];
+          sample[at + 3] = 255;
+        }
+        if (kept)
           continue;
         target[at] = color[0];
         target[at + 1] = color[1];
@@ -72,7 +82,8 @@
     if (w <= 0 || h <= 0)
       return;
     const image = ctx.getImageData(ox, oy, w, h);
-    const sample = base === null ? image.data : base.getImageData(ox, oy, w, h).data;
+    const baseImage = base === null ? null : base.getImageData(ox, oy, w, h);
+    const sample = baseImage === null ? image.data : baseImage.data;
     for (let j = 0; j + 1 < grid.ys.length; j += 1) {
       for (let i = 0; i + 1 < grid.xs.length; i += 1) {
         const [left, top, right, bottom] = clip(pixelRectOf(viewport, grid.xs[i], grid.ys[j + 1], grid.xs[i + 1], grid.ys[j]), ox2, oy2);
@@ -80,6 +91,8 @@
       }
     }
     ctx.putImageData(image, ox, oy);
+    if (baseImage !== null)
+      base.putImageData(baseImage, ox, oy);
   }
 
   // ctx（そのページを viewport で描いた canvas の 2D コンテキスト）に、モザイクの並びを置いた順に塗る（確定事項5・6）。
@@ -99,7 +112,14 @@
     base.height = canvas.height;
     const task = page.render({ canvasContext: base.getContext('2d'), viewport, annotationMode: root.SigK.pdfjs?.lib?.AnnotationMode?.DISABLE });
     track(task);
-    await task.promise;
+    try {
+      await task.promise;
+    } catch (error) {
+      // 取り消された・描けなかったときも、大きな canvas を GC 任せにせず手放す。
+      base.width = 0;
+      base.height = 0;
+      throw error;
+    }
     return base;
   }
 

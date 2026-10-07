@@ -98,3 +98,56 @@ test('paintOver は 2D コンテキストの無い canvas（jsdom）では何も
   assert.equal(await paint.paintOver({}, canvas, page, viewport(10), [{ box: [0, 0, 5, 5], block: 4 }]), false);
   assert.equal(await paint.paintOver({}, canvas, page, viewport(10), null), false);
 });
+
+// コードの点検で足したもの。
+test('重ねて置いた範囲は、下見（base あり・書き込み無し）と保存（base なし）で同じ画素になる。書き込みの画素は下見で残る', () => {
+  const fill = (x, y) => [(x * 37 + y * 11) % 256, (x * 5 + y * 53) % 256, (x * y) % 256];
+  const mosaic = [{ box: [0, 0, 16, 16], block: 2 }, { box: [2, 2, 14, 14], block: 7 }];
+  const saved = fakeContext(16, 16, fill);
+  paint.paint(saved, viewport(16), mosaic);
+  const base = fakeContext(16, 16, fill);
+  const preview = fakeContext(16, 16, fill);
+  paint.paint(preview, viewport(16), mosaic, { base });
+  assert.deepEqual([...preview.data], [...saved.data]);
+  // 書き込み（base と違う色の画素）は、重なった所でも残る。
+  const annotated = fakeContext(16, 16, (x, y) => (x === 8 && y === 8 ? [255, 0, 0] : fill(x, y)));
+  paint.paint(annotated, viewport(16), mosaic, { base: fakeContext(16, 16, fill) });
+  assert.deepEqual(annotated.at(8, 8), [255, 0, 0]);
+  assert.deepEqual(annotated.at(3, 3), saved.at(3, 3));
+});
+
+function fakeDoc(width, height, fill) {
+  const made = [];
+  return {
+    made,
+    createElement: () => {
+      const ctx = fakeContext(width, height, fill);
+      const canvas = { width: 0, height: 0, getContext: () => ctx };
+      made.push(canvas);
+      return canvas;
+    },
+  };
+}
+
+test('paintOver は書き込みを描かない絵をもう 1 枚描いて（task を track に渡す）塗り、描き終えたら手放す', async () => {
+  const doc = fakeDoc(8, 8, () => [100, 100, 100]);
+  const ctx = fakeContext(8, 8, (x, y) => (x === 1 && y === 1 ? [0, 0, 255] : [100, 100, 100]));
+  const canvas = { width: 8, height: 8, getContext: () => ctx };
+  const tracked = [];
+  const page = { render: (options) => ({ promise: Promise.resolve(), options }) };
+  assert.equal(await paint.paintOver(doc, canvas, page, viewport(8), [{ box: [0, 0, 8, 8], block: 8 }], { track: (task) => tracked.push(task) }), true);
+  assert.equal(tracked.length, 1);
+  assert.equal(tracked[0].options.viewport.scale, 1);
+  assert.deepEqual(ctx.at(1, 1), [0, 0, 255], '書き込みは残る');
+  assert.deepEqual(ctx.at(5, 5), [100, 100, 100]);
+  assert.equal(doc.made[0].width, 0, '2 枚目は手放す');
+});
+
+test('2 枚目の描画が取り消されたら、2 枚目を手放して例外をそのまま返す', async () => {
+  const doc = fakeDoc(8, 8, () => [0, 0, 0]);
+  const canvas = { width: 8, height: 8, getContext: () => fakeContext(8, 8) };
+  const page = { render: () => ({ promise: Promise.reject(new Error('RenderingCancelledException')) }) };
+  await assert.rejects(paint.paintOver(doc, canvas, page, viewport(8), [{ box: [0, 0, 8, 8], block: 8 }]), /RenderingCancelled/);
+  assert.equal(doc.made[0].width, 0);
+  assert.equal(doc.made[0].height, 0);
+});

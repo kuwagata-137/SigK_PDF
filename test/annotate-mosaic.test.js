@@ -245,3 +245,18 @@ test('回したページでも、引いた範囲が紙の座標（回す前）�
   assert.deepEqual(mosaicOf(shell), [{ box: BOX, block: 8 }]);
   assert.equal(SigK.viewer.getPlan()[0].rotate, 90);
 });
+
+test('モザイクからトリミングへ持ち替えると、モザイクの行と［このページのモザイクを外す］を隠す（コードの点検で直した）', async (t) => {
+  const shell = await withMosaic(t);
+  const { SigK, document } = shell;
+  await placeBox(shell);
+  SigK.annotate.setTool('trim');
+  await shell.flush();
+  for (const id of ['props-mosaic-block-row', 'props-mosaic-count-row', 'props-mosaic-remove'])
+    assert.equal(document.getElementById(id).hidden, true, id);
+  assert.equal(document.getElementById('props-trim-scope-row').hidden, false, 'トリミングの行は出す');
+  SigK.annotate.setTool('mosaic');
+  await shell.flush();
+  assert.equal(document.getElementById('props-mosaic-remove').hidden, false);
+  assert.equal(document.getElementById('props-trim-scope-row').hidden, true);
+});
