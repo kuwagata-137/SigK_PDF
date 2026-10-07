@@ -155,12 +155,14 @@
       min: LINE_WIDTH_MIN, max: LINE_WIDTH_MAX,
       onPreview: (value) => preview().update('lineWidth', value),
       onCommit: (value) => preview().commit('lineWidth', value),
+      onCancel: () => preview().cancel(),
       targetOf: targetKey,
     });
     range().bind(el.opacityRange, el.opacity, {
       min: Math.round(OPACITY_MIN * 100), max: 100,
       onPreview: (percent) => preview().update('opacity', percent / 100),
       onCommit: (percent) => preview().commit('opacity', percent / 100),
+      onCancel: () => preview().cancel(),
       targetOf: targetKey,
     });
     // 別の欄の操作で下見を捨てる（確定事項8）。スライダー自身は除く。

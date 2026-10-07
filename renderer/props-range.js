@@ -10,9 +10,16 @@
   // bind に targetOf（値を当てる相手を表す文字列を返す関数）を渡すと、数値欄に打ちかけの値は打ち始めたときの相手にだけ当てる。
   // 欄にフォーカスを置いたまま紙の上の別の書き込みを選ぶと、show が欄をその相手の値に替え、打ちかけの値は捨てる。この部品は
   // 相手が何か（選んでいる書き込みや道具）を知らず、targetOf の返す文字列を比べるだけ。
+  //
+  // スライダーを押して引いている途中の Esc（cancelDrag。spec-4b-7a 確定事項E3）は、下見を捨て（onCancel）、スライダーと数値欄を
+  // 引く前の値に戻す。ボタンを離すまでは、引き続けても値を動かさず、離しても当てない。数値欄とスライダーの Esc（打ちかけを捨てて
+  // 戻す・抜ける）は field-escape.js に登録する（確定事項E1・E2）。
 
   // 数値欄ごとの覚え（bind で作る）。text はいま見せている文字、typingFor はフォーカスが入ったときの相手（無ければ null）。
   const states = new WeakMap();
+
+  // 押して引いている途中のスライダー。{ range, number, state, start, canceled, onCancel }。押していなければ null。
+  let held = null;
 
   // 数値欄の値を範囲へ丸める。読めなければ null。
   function clampOf(text, min, max) {
@@ -41,14 +48,50 @@
   }
 
   // clamp は数値欄の丸め方（既定は範囲の端へ寄せる clampOf。回転の行は 360 の余り。spec-4b-2 確定事項26）。
-  function bind(range, number, { min, max, onPreview, onCommit, clamp = (text) => clampOf(text, min, max), targetOf = null }) {
+  // 押したとき。離したあとの change を見終えてから外す（Chromium は mouseup の中で change を出す）。
+  function hold(range, number, state, onCancel) {
+    held = { range, number, state, start: range.value, canceled: false, onCancel };
+    const mine = held;
+    range.ownerDocument.addEventListener('mouseup', () => {
+      setTimeout(() => {
+        if (held === mine)
+          held = null;
+      }, 0);
+    }, { once: true });
+  }
+
+  // 取りやめたあとの引き続け・離しは、値を引く前に戻して何もしない。
+  function swallowCanceled(range) {
+    if (held?.range !== range || !held.canceled)
+      return false;
+    range.value = held.start;
+    return true;
+  }
+
+  function cancelDrag() {
+    if (held === null || held.canceled)
+      return false;
+    held.canceled = true;
+    held.range.value = held.start;
+    held.number.value = held.state.text ?? held.start;
+    held.onCancel?.();
+    return true;
+  }
+
+  function bind(range, number, { min, max, onPreview, onCommit, onCancel = null, clamp = (text) => clampOf(text, min, max), targetOf = null }) {
     const state = { text: null, targetOf, typingFor: null };
     states.set(number, state);
+    range.addEventListener('pointerdown', () => hold(range, number, state, onCancel));
     range.addEventListener('input', () => {
+      if (swallowCanceled(range))
+        return;
       number.value = range.value;
       onPreview(Number(range.value));
     });
-    range.addEventListener('change', () => onCommit(Number(range.value)));
+    range.addEventListener('change', () => {
+      if (!swallowCanceled(range))
+        onCommit(Number(range.value));
+    });
     // 数でないか、打ち始めたときと相手が替わっていれば、当てずにいま見せている値へ戻す。当てたあとは、写しに替わって鍵が
     // 変わっても続けて打てるよう、今の相手を覚え直す。
     const commitNumber = () => {
@@ -72,6 +115,8 @@
       event.preventDefault();
       commitNumber();
     });
+    root.SigK.fieldEscape?.bind(number, { shown: () => state.text ?? range.value });
+    root.SigK.fieldEscape?.bind(range);
   }
 
   // 値を見せる。text は数値欄に出す文字（既定は値。そろっていない値なら空）。数値欄に打っている途中なら数値欄は上書きしない
@@ -89,5 +134,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.propsRange = { clampOf, bind, show };
+  SigK.propsRange = { clampOf, bind, show, cancelDrag, isHeld: () => held !== null && !held.canceled };
 })(typeof window !== 'undefined' ? window : globalThis);

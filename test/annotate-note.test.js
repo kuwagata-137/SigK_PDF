@@ -187,11 +187,12 @@ test('「本文」欄にフォーカスがある間、Delete・Ctrl+Z・Esc は�
   assert.equal(undo.defaultPrevented, false);
   assert.equal(SigK.viewer.getAnnotations().added.length, 1);
   assert.equal(SigK.annotate.getSelected() !== null, true);
-  // 「作成者」欄も同じ。
+  // 「作成者」欄の Esc は欄から抜けるだけで、道具は離さない（spec-4b-7a 確定事項E1。決定68 ②）。
   SigK.annotate.select(null);
   const author = shell.document.getElementById('props-author');
   author.focus();
-  assert.equal(key(shell, author, { key: 'Escape' }).defaultPrevented, false);
+  assert.equal(key(shell, author, { key: 'Escape' }).defaultPrevented, true);
+  assert.notEqual(shell.document.activeElement, author);
   assert.equal(SigK.annotate.getTool(), 'note', 'Esc で道具を離さない');
 });
 

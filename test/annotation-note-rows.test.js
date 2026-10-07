@@ -70,12 +70,13 @@ test('本文は欄の外・Ctrl+Enter・Esc で、作成者は変えたときに
   assert.equal(contents[0], 'Ctrl+Enter で確定');
   assert.notEqual(shell.document.activeElement, el.contents, '確定したら欄を離れる');
 
-  // Enter だけでは改行で、確定しない。Esc は欄を離れる（＝確定）。
+  // Enter だけでは改行で、確定しない。Esc は欄を離れる（＝確定）。Esc は振り分け（escape-order.js）が field-escape.js を通して
+  // 呼ぶ（spec-4b-7a 確定事項E2・E4。振り分けを通した確かめは escape-order.test.js）。ここは文書を開いていないので直に呼ぶ。
   el.contents.focus();
   el.contents.value = 'Esc で確定';
   el.contents.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
   assert.equal(contents.includes('Esc で確定'), false);
-  el.contents.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  assert.equal(shell.SigK.fieldEscape.leave(el.contents), true);
   assert.equal(contents.at(-1), 'Esc で確定');
   assert.notEqual(shell.document.activeElement, el.contents);
 

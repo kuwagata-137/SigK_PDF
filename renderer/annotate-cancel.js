@@ -46,7 +46,8 @@
 
   // 押して引いている途中の操作（spec-4b-7a 確定事項A1 の 2）。つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→
   // 表示を引く（そこで終える）→ なぞっている途中の消しゴム（spec-4b-5b 確定事項23）→ モザイクの引いている途中（spec-4b-6b 確定事項28）→
-  // トリミングの引いている途中（引く前の枠へ）→ スライダーの下見 → 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）。
+  // トリミングの引いている途中（引く前の枠へ）→ スライダーを引いている途中（引く前の値へ。spec-4b-7a 確定事項E3）→ スライダーの下見 →
+  // 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）。
   const HELD = [
     () => root.SigK.annotateTransform?.cancel() === true,
     () => root.SigK.annotateMarquee?.cancel() === true,
@@ -55,6 +56,7 @@
     () => root.SigK.annotateErase?.cancel() === true,
     () => root.SigK.annotateMosaic?.cancel() === true,
     () => root.SigK.annotateTrim?.cancelDrag() === true,
+    () => root.SigK.propsRange?.cancelDrag() === true,
     () => root.SigK.annotatePreview?.cancel() === true,
     () => root.SigK.annotateDraw?.cancel() === true,
   ];

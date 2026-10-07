@@ -5,7 +5,7 @@
   // 窓が開いている間は handleKey が先に返すので、ここへは来ない（確定事項B1）。
   //
   // Esc 1 回で取りやめるのは 1 つだけで、手元の操作から先に止める。
-  //   押して引いている途中の操作 → 浮いている小窓 → 欄 → 検索バーの中で押したなら検索バー → 描きかけ → 検索バー →
+  //   押して引いている途中の操作 → 浮いている小窓 → 欄（戻して抜ける）→ 検索バーの中で押したなら検索バー → 描きかけ → 検索バー →
   //   紙の上の文字の選択 → 書き込み・ページの選択 → 道具
   // 編集モードの分は annotate-cancel.js の段（cancelHeld・closeOverlays・dropDrafts・unselect・dropTool）が持つ。
   // ページ・ツールの一覧の行のドラッグは、page-grid.js・row-drag.js が先に受けて取りやめる（確定事項C1）。
@@ -27,7 +27,8 @@
     return (event.target?.closest?.('#find-bar') ?? null) !== null;
   }
 
-  // 欄の中の Esc は欄のもの（検索バーの入力欄は除く）。紙の上の入力欄とパレットの窓は自分で受ける。
+  // 欄の中の Esc は欄のもの（検索バーの入力欄は除く）。field-escape.js に登録した欄は戻す・確定して抜ける（確定事項E）。
+  // 紙の上の入力欄とパレットの窓は自分で受ける。登録していない入力欄（ツールの画面の欄など）は何もしない。
   function inField(event) {
     if (inFindBar(event))
       return false;
@@ -74,7 +75,7 @@
     if (annot && (cancel().cancelHeld() || cancel().closeOverlays()))
       return true;
     if (inField(event))
-      return false;
+      return root.SigK.fieldEscape?.leave(event.target) === true;
     if (inFindBar(event) && closeFindBar())
       return true;
     if (annot && cancel().dropDrafts())

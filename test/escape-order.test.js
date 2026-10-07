@@ -238,3 +238,115 @@ test('ページ編集モードで選択が無ければ、何もしない（preve
   const shell = await withShell(t, 'pages');
   assert.equal(esc(shell).defaultPrevented, false);
 });
+
+// ---- 欄の Esc（確定事項E。決定68 ②） ----
+
+function type(shell, field, value) {
+  field.focus();
+  field.value = value;
+  field.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+}
+
+function enter(shell, field) {
+  field.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+}
+
+test('太さの数値欄の Esc は、打ちかけを捨てて今の値に戻し、欄から抜ける。当てない・選択は残す', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const id = drawSquare(shell);
+  const width = document.getElementById('props-width');
+  const before = width.value;
+  const at = SigK.pageEdit.getHistoryState().at;
+  type(shell, width, '9');
+  assert.equal(esc(shell, width).defaultPrevented, true);
+  assert.equal(width.value, before);
+  assert.notEqual(document.activeElement, width);
+  assert.equal(SigK.pageEdit.getHistoryState().at, at);
+  assert.equal(SigK.viewer.getAnnotations().added.find((entry) => entry.id === id).lineWidth, Number(before));
+  assert.equal(SigK.annotate.getSelection().length, 1);
+  // Enter で当てたあとの Esc は、当てた値に戻す。
+  type(shell, width, '5');
+  enter(shell, width);
+  type(shell, width, '7');
+  esc(shell, width);
+  assert.equal(width.value, '5');
+});
+
+test('ページ番号の欄の Esc は、打ちかけを捨てて今のページの番号に戻し、ページを送らない', async (t) => {
+  const shell = await withShell(t, 'view');
+  const { SigK, document } = shell;
+  const input = document.getElementById('page-current');
+  type(shell, input, '3');
+  assert.equal(esc(shell, input).defaultPrevented, true);
+  assert.equal(input.value, '1');
+  assert.equal(SigK.viewer.getState().current, 0);
+  assert.notEqual(document.activeElement, input);
+});
+
+test('本文の欄の Esc は、打った文を確定して抜け、検索バーは閉じない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('note');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [200, 600]));
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [200, 600]));
+  SigK.findBar.open();
+  const contents = document.getElementById('props-contents');
+  type(shell, contents, '確認しました');
+  assert.equal(esc(shell, contents).defaultPrevented, true);
+  assert.equal(SigK.viewer.getAnnotations().added[0].text, '確認しました');
+  assert.notEqual(document.activeElement, contents);
+  assert.equal(SigK.findBar.isOpen(), true);
+});
+
+test('欄にフォーカスがあっても、紙の上で引いている途中の操作を先に取りやめ、欄は次の Esc で戻す（確定事項E4）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  drawSquare(shell);
+  const width = document.getElementById('props-width');
+  const before = width.value;
+  type(shell, width, '9');
+  pull(shell, [300, 700], [400, 600], { release: false });
+  assert.equal(SigK.annotateDraw.isDrawing(), true);
+  esc(shell, width);
+  assert.equal(SigK.annotateDraw.isDrawing(), false);
+  assert.equal(width.value, '9', '欄はまだ戻さない');
+  assert.equal(document.activeElement, width);
+  esc(shell, width);
+  assert.equal(width.value, before);
+});
+
+test('スライダーを引いている途中の Esc は、下見を捨てて引く前の値に戻し、離すまで動かさず、離しても当てない（確定事項E3）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  const id = drawSquare(shell);
+  const range = document.getElementById('props-opacity-range');
+  const number = document.getElementById('props-opacity');
+  const at = SigK.pageEdit.getHistoryState().at;
+  shell.firePointer(range, 'pointerdown');
+  range.focus();
+  range.value = '45';
+  range.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.equal(SigK.annotatePreview.isActive(), true);
+  assert.equal(SigK.propsRange.isHeld(), true);
+  assert.equal(esc(shell, range).defaultPrevented, true);
+  assert.equal(SigK.annotatePreview.isActive(), false);
+  assert.equal(range.value, '100');
+  assert.equal(number.value, '100');
+  // 引き続けても、離しても動かない。
+  range.value = '30';
+  range.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.equal(range.value, '100');
+  assert.equal(SigK.annotatePreview.isActive(), false);
+  range.value = '30';
+  range.dispatchEvent(new window.Event('change', { bubbles: true }));
+  document.dispatchEvent(new window.MouseEvent('mouseup', { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(SigK.pageEdit.getHistoryState().at, at);
+  assert.equal(SigK.viewer.getAnnotations().added.find((entry) => entry.id === id).opacity ?? 1, 1);
+  assert.equal(SigK.propsRange.isHeld(), false);
+  // 離したあとは、いつもどおり動く。
+  range.value = '60';
+  range.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.equal(SigK.annotatePreview.isActive(), true);
+});
