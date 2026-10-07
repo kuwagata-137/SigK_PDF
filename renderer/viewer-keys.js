@@ -50,8 +50,8 @@
   }
 
   // 検索と印刷（spec-1-4 確定事項25・38）。入力欄の中でも効かせるため、
-  // 下の isTextField による打ち切りより前で捌く。F3 と Esc は検索バー自身の
-  // 入力欄から押されるので、奪わないと届かない。
+  // 下の isTextField による打ち切りより前で捌く。F3 は検索バー自身の
+  // 入力欄から押されるので、奪わないと届かない。Esc は escape-order.js が持つ。
   function handleFindPrintKey(event) {
     const findBar = root.SigK.findBar;
 
@@ -69,11 +69,6 @@
     if (event.key === 'F3') {
       event.preventDefault();
       findBar?.step(event.shiftKey ? -1 : 1);
-      return true;
-    }
-    if (event.key === 'Escape' && findBar?.isOpen() === true) {
-      event.preventDefault();
-      findBar.close();
       return true;
     }
     return false;
@@ -122,17 +117,11 @@
       edit.remove();
       return true;
     }
-    // Esc は選択の解除。検索バーが開いていればそちらが先に閉じており、
-    // ここへは届かない（確定事項19 の優先順位）。
-    if (event.key === 'Escape' && inPagesMode) {
-      grid?.clearSelection();
-      return true;
-    }
     return handleAnnotKey(event, doc);
   }
 
-  // 注釈モードの Delete と Esc（spec-4-1 確定事項7）。Delete は選んだ注釈を消し、
-  // Esc は選択を解除、無ければ道具を離す。Backspace も Delete と同じく選んだ全部を消す（spec-4b-3a 確定事項H1）。
+  // 注釈モードの Delete（spec-4-1 確定事項7）。Delete は選んだ注釈を消す。Backspace も Delete と同じく選んだ全部を消す
+  // （spec-4b-3a 確定事項H1）。Esc は escape-order.js が持つ。
   // 70 行になった handlePageEditKey から分けた（spec-4b-6a の点検 8。中身は変えていない）。
   function handleAnnotKey(event, doc) {
     const annotate = root.SigK.annotate;
@@ -143,8 +132,6 @@
       annotate.remove();
       return true;
     }
-    if (event.key === 'Escape')
-      return annotate.escape();
     // トリミングの枠があれば、Enter で切る（spec-4b-6a 確定事項14・26）。選んでいるテキストを直すより先に見る。
     // ボタン（右パネルの［取消］など）にフォーカスがあるときは、そのボタンを押す Enter なので奪わない（点検 2）。
     const onButton = (event.target?.closest?.('button') ?? null) !== null;
@@ -165,11 +152,16 @@
       return;
     if (viewer().getState().open !== true)
       return;
+    // Esc の順は escape-order.js（spec-4b-7a 確定事項A）。
+    if (event.key === 'Escape') {
+      root.SigK.escapeOrder.handle(event, doc);
+      return;
+    }
     if (handleFindPrintKey(event))
       return;
     // テキストの入力欄と右パネルの欄（「本文」「作成者」・太さと不透明度のスライダーと数値欄）、色のパレットの窓の中のキーは
-    // 欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4、spec-4b-1b 確定事項6・7）。Ctrl+Z は素の取り消し、Delete・Esc・
-    // PageUp 等も奪わない。Esc と Ctrl+Enter は欄自身が確定に使い、パレットの窓は Esc で自分を閉じる。
+    // 欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4、spec-4b-1b 確定事項6・7）。Ctrl+Z は素の取り消し、Delete・
+    // PageUp 等も奪わない。Ctrl+Enter は欄自身が確定に使う。
     if (event.target?.closest?.('.free-text-editor, .props-field, .color-pop'))
       return;
     if (handlePageEditKey(event, doc))
