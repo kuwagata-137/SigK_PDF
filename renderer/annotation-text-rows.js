@@ -148,6 +148,9 @@
       event.preventDefault();
       commitNumber();
     });
+    // Esc は打ちかけを捨てて今の相手の値に戻し、欄から抜ける（spec-4b-7a 確定事項E1）。一覧は抜けるだけ。
+    root.SigK.fieldEscape?.bind(el.size, { shown: () => (current === null || current.mixed ? '' : String(current.value)) });
+    root.SigK.fieldEscape?.bind(el.list);
     return true;
   }
 

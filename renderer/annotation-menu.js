@@ -66,7 +66,7 @@
       state.swallow = true;
   }
 
-  // Esc は annotate.escape() が先頭で閉じる（選択は残す）。ほかのキーはここで閉じる（Delete は閉じてから消す）。
+  // Esc は Esc の振り分け（escape-order.js の 3 番目）が閉じる（選択は残す）。ほかのキーはここで閉じる（Delete は閉じてから消す）。
   function onDocumentKeyDown(event) {
     if (!isOpen() || event.key === 'Escape' || MODIFIERS.includes(event.key))
       return;

@@ -9,8 +9,9 @@ const layout = globalThis.SigK.viewerLayout;
 const A4 = { width: 595.28, height: 841.89 };
 const A5 = { width: 419.53, height: 595.28 };
 
-test('clampZoom は 25〜400% に収める', () => {
-  assert.equal(layout.clampZoom(0.1), 0.25);
+test('clampZoom は 10〜400% に収める（spec-4b-7a 確定事項G1）', () => {
+  assert.equal(layout.clampZoom(0.01), 0.1);
+  assert.equal(layout.clampZoom(0.1), 0.1);
   assert.equal(layout.clampZoom(9), 4);
   assert.equal(layout.clampZoom(1.5), 1.5);
   assert.equal(layout.clampZoom(Number.NaN), 1);
@@ -19,9 +20,38 @@ test('clampZoom は 25〜400% に収める', () => {
 
 test('段送りは上限と下限で止まる', () => {
   assert.equal(layout.nextZoom(4), 4);
-  assert.equal(layout.prevZoom(0.25), 0.25);
+  assert.equal(layout.prevZoom(0.1), 0.1);
   assert.equal(layout.nextZoom(1), 1.25);
   assert.equal(layout.prevZoom(1), 0.75);
+});
+
+test('25% の下は 20・15・10% を 1 段ずつ送る（spec-4b-7a 確定事項G1。段は 16）', () => {
+  assert.equal(layout.ZOOM_STEPS.length, 16);
+  assert.equal(layout.MIN_ZOOM, 0.1);
+  assert.equal(layout.prevZoom(0.25), 0.2);
+  assert.equal(layout.prevZoom(0.2), 0.15);
+  assert.equal(layout.prevZoom(0.15), 0.1);
+  assert.equal(layout.nextZoom(0.1), 0.15);
+  assert.equal(layout.nextZoom(0.2), 0.25);
+  assert.equal(layout.formatZoom(0.1), '10%');
+  assert.equal(layout.formatZoom(0.15), '15%');
+  assert.equal(layout.formatZoom(0.01), '10%');
+});
+
+test('「全体」は A0 の紙でも 25% より下げて窓に収める（spec-4b-7a 確定事項G2）', () => {
+  const A0 = { width: 2383.94, height: 3370.39 };
+  const zoom = layout.fitPageZoom({ pageWidth: A0.width, pageHeight: A0.height, viewportWidth: 951, viewportHeight: 694 });
+  assert.ok(zoom > 0.1 && zoom < 0.25, String(zoom));
+  assert.ok(Math.abs(zoom - 0.146) < 0.001, String(zoom));
+  assert.ok(A0.height * zoom * layout.CSS_UNITS <= 694 - 2 * 18 + 1e-6);
+  // もっと大きな紙は 10% で止まる。
+  assert.equal(layout.fitWidthZoom({ pageWidth: A0.width * 4, viewportWidth: 951 }), 0.1);
+});
+
+test('layoutPages は、ごく小さいページでも 1px 以上にする（spec-4b-7a 確定事項G3）', () => {
+  const { pages } = layout.layoutPages({ sizes: [{ width: 2, height: 2 }, A4], zoom: 0.1 });
+  assert.deepEqual([pages[0].width, pages[0].height], [1, 1]);
+  assert.deepEqual([pages[1].width, pages[1].height], [79, 112]);
 });
 
 // 「幅に合わせる」の結果は段の間の値になる。そこから押しても同じ段に留まると
@@ -118,6 +148,41 @@ test('renderTargets は上限を超えたら現在ページの周りを残す', 
   assert.equal(targets.length, 8);
   assert.ok(targets.includes(25), '現在ページが落ちている');
   assert.deepEqual(targets, [22, 23, 24, 25, 26, 27, 28, 29]);
+});
+
+test('renderLimit は見えている枚数＋前後の先読みにし、8 枚より少なくせず、24 枚で頭打ちにする（spec-4b-7a 確定事項H1）', () => {
+  assert.equal(layout.RENDER_CAP, 24);
+  assert.equal(layout.renderLimit({ first: 3, last: 4, ahead: 1 }), 8);
+  assert.equal(layout.renderLimit({ first: 10, last: 27, ahead: 2 }), 22);
+  assert.equal(layout.renderLimit({ first: 0, last: 40, ahead: 2 }), 24);
+  assert.equal(layout.renderLimit({ first: 0, last: -1 }), 8);
+  // 頭打ちでも、見えている 22 枚は現在ページの周りに残る（2560×1400 の窓の見開き 10% の形）。
+  const max = layout.renderLimit({ first: 10, last: 31, ahead: 2 });
+  const targets = layout.renderTargets({ count: 100, first: 10, last: 31, current: 12, ahead: 2, max });
+  assert.equal(targets.length, 24);
+  for (let index = 10; index <= 31; index += 1)
+    assert.ok(targets.includes(index), `${index} が落ちている`);
+});
+
+test('renderAhead は頭打ちに当たるときだけ先読みを減らし、見えているページを先に描く（spec-4b-7a 点検の直し）', () => {
+  assert.equal(layout.renderAhead({ first: 0, last: 5, ahead: 2 }), 2);
+  assert.equal(layout.renderAhead({ first: 0, last: 21, ahead: 2 }), 1);
+  assert.equal(layout.renderAhead({ first: 0, last: 23, ahead: 2 }), 0);
+  assert.equal(layout.renderAhead({ first: 0, last: 29, ahead: 2 }), 0);
+  // 見えている 24 枚は、現在ページが上の端でも全部描ける（先読みを残すと下の 2 枚が落ちていた）。
+  const ahead = layout.renderAhead({ first: 10, last: 33, ahead: 2 });
+  const max = layout.renderLimit({ first: 10, last: 33, ahead });
+  const targets = layout.renderTargets({ count: 100, first: 10, last: 33, current: 10, ahead, max });
+  for (let index = 10; index <= 33; index += 1)
+    assert.ok(targets.includes(index), `${index} が落ちている`);
+});
+
+test('isFullyVisible はページが視野に全部収まっているときだけ true', () => {
+  const page = { top: 100, height: 50 };
+  assert.equal(layout.isFullyVisible(page, 100, 50), true);
+  assert.equal(layout.isFullyVisible(page, 101, 100), false);
+  assert.equal(layout.isFullyVisible(page, 0, 149), false);
+  assert.equal(layout.isFullyVisible(undefined, 0, 1000), false);
 });
 
 test('scrollTopForPage はページの上端を視野の先頭に置く', () => {

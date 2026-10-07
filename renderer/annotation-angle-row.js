@@ -97,7 +97,9 @@
       number: doc.getElementById('props-angle'),
       presets: [...doc.querySelectorAll('#props-angle-presets button')],
     };
-    root.SigK.propsRange.bind(el.range, el.number, { min: 0, max: 359, onPreview: previewAngle, onCommit: setAngle, clamp: angleOfText, targetOf: targetKey });
+    root.SigK.propsRange.bind(el.range, el.number, {
+      min: 0, max: 359, onPreview: previewAngle, onCommit: setAngle, onCancel: () => root.SigK.annotatePreview.cancel(), clamp: angleOfText, targetOf: targetKey,
+    });
     for (const button of el.presets)
       button.addEventListener('click', () => setAngle(Number(button.dataset.angle)));
     return true;

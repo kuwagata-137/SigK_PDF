@@ -89,6 +89,8 @@
       return null;
     // 開いているテキストの入力欄は、この文書のものとして確定してから引き取る（spec-4-2 確定事項8）。
     root.SigK.annotate?.finishEditing();
+    // 押したまま替えた押下は捨てる（替えた先のタブに置かないため。spec-4b-7a 点検の直し）。
+    root.SigK.annotatePress?.reset();
     const tab = find(previous);
     const session = viewer().detach();
     if (tab !== null)

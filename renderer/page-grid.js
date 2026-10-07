@@ -400,8 +400,9 @@
   }
 
   function onKeyDown(event) {
-    // ドラッグ中の Esc は取り消しに使う。検索バーや選択解除より先に効かせる
-    // （確定事項19・37。掴んだままでは何もできない状態が続く）。
+    // ドラッグ中の Esc は取り消しに使う（確定事項19・37。掴んだままでは何もできない状態が続く）。stopPropagation では同じ
+    // document の振り分け（escape-order.js）は止まらない。こちらが先に登録されているので、preventDefault を見て検索バーや
+    // 選択を残す（spec-4b-7a 確定事項C1）。
     if (event.key === 'Escape' && (drag.active || drag.pending)) {
       event.preventDefault();
       event.stopPropagation();

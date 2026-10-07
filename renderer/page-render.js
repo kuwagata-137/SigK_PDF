@@ -61,8 +61,9 @@
         return null;
 
       const canvas = ctx.el().doc.createElement('canvas');
-      canvas.width = Math.round(viewport.width);
-      canvas.height = Math.round(viewport.height);
+      // 1px 以上（spec-4b-7a 確定事項G3。幅 0 の canvas には描けない）。
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
       entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport, annotationMode: annotationMode() });
       await entry.task.promise;
       // モザイクの下見（spec-4b-6b 確定事項7）。書き込みを描かない絵をもう 1 枚描いて比べ、書き込みは塗らない。
@@ -135,12 +136,17 @@
       }
     }
 
-    function releasePage(index) {
+    // cleanup は、画面から外れて手放すとき（update）だけ true にする。pdf.js のページが展開した画像などを捨てる（spec-4b-7a 点検の直し。
+    // 捨てないと、スクロールで触れたページの分だけメモリが伸び続けた。描画が残っていれば pdf.js が終わるまで待つ）。倍率を変えて
+    // 全部を描き直すとき（releaseAll）は、すぐまた使うので捨てない。
+    function releasePage(index, { cleanup = false } = {}) {
       const entry = state.rendered.get(index);
       if (entry === undefined)
         return;
       state.rendered.delete(index);
       entry.task?.cancel();
+      if (cleanup)
+        entry.page?.cleanup?.();
       // テキストレイヤーは canvas と同じ寿命にする（spec-1-3 確定事項21）。
       // 注釈の層も同じで、枠ごと捨てる。
       entry.text?.cancel();
@@ -160,7 +166,7 @@
         return;
 
       const token = state.token;
-      const entry = { task: null, text: null, annots: null };
+      const entry = { task: null, text: null, annots: null, page: null };
       state.rendered.set(index, entry);
 
       // 捨てられたかどうかは、地図に載っているのが自分の entry かどうかで見る。
@@ -175,6 +181,7 @@
           return;
         }
         const page = await source.doc.getPage(source.number);
+        entry.page = page;
         if (isStale())
           return;
 
@@ -252,24 +259,30 @@
       // 見開きでは同じ組なら現在ページを保つ（spec-2-3 確定事項13）。
       // currentPageIndex は同じ行なら左を採るので、番号入力・サムネイル・検索で
       // 右ページを指定した直後に、左の番号へ戻ってしまうのを防ぐ。
+      // 今のページが視野に全部収まっている間も保つ（pdf.js と同じ。spec-4b-7a 点検の直し）。低い倍率では末尾の近くのページを
+      // 上端へ送れず、いちばん広く見えている若い番号へ戻されて、そのページを現在ページにできなかった。
       const spreadStart = (index) => layout().spreadStart(index, state.facing);
-      if (spreadStart(current) !== spreadStart(state.current)) {
+      const keep = layout().isFullyVisible(pages[state.current], scrollTop, viewportHeight);
+      if (spreadStart(current) !== spreadStart(state.current) && !keep) {
         state.current = current;
         ctx.syncPage();
       }
 
+      // 見開きでは1行に2枚出るので、先読みも2枚にする（確定事項12）。見えているページが多いときは減らす（spec-4b-7a 確定事項H）。
+      const ahead = layout().renderAhead({ first: range.first, last: range.last, ahead: state.facing ? layout().FACING_AHEAD : layout().RENDER_AHEAD });
       const targets = layout().renderTargets({
         count: pages.length,
         first: range.first,
         last: range.last,
         current: state.current,
-        // 見開きでは1行に2枚出るので、先読みも2枚にする（確定事項12）。
-        ahead: state.facing ? layout().FACING_AHEAD : layout().RENDER_AHEAD,
+        ahead,
+        // 低い倍率では見えている枚数に合わせて上限を上げる（spec-4b-7a 確定事項H）。
+        max: layout().renderLimit({ first: range.first, last: range.last, ahead }),
       });
 
       for (const index of [...state.rendered.keys()]) {
         if (!targets.includes(index))
-          releasePage(index);
+          releasePage(index, { cleanup: true });
       }
       for (const index of targets)
         renderPage(index);

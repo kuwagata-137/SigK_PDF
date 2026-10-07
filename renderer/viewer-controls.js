@@ -105,12 +105,20 @@
         if (event.key === 'Enter')
           commitPageInput(doc);
       });
+      // Esc は打ちかけを捨てて今のページの番号に戻し、欄から抜ける（ページは送らない。spec-4b-7a 確定事項E1）。
+      root.SigK.fieldEscape?.bind(input, { shown: () => {
+        const state = viewer().getState();
+        return state.open ? String(state.current + 1) : '';
+      } });
     }
 
     // メニューの「開く」（Ctrl+O）と「最近使ったファイル」はメイン側から届く。
     // 開く経路を1本に保つため、ここでもツールバーと同じ処理を呼ぶ。
     // パスが付いていればそれを開き、無ければダイアログを出す。
+    // 窓が開いている間は、後ろで別の文書を開かない（spec-4b-7a 点検の直し）。
     root.pdfAPI?.onOpenRequest?.((filePath) => {
+      if (doc.querySelector('dialog[open]') !== null)
+        return;
       if (typeof filePath === 'string' && filePath.length > 0)
         root.SigK.tabs.openPath(filePath);
       else

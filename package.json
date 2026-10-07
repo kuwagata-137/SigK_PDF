@@ -65,6 +65,8 @@
       "smoke-annotate-erase.js",
       "smoke-annotate-trim.js",
       "smoke-annotate-mosaic.js",
+      "smoke-keys.js",
+      "smoke-keys-page.js",
       "worker/**",
       "index.html",
       "renderer/**",

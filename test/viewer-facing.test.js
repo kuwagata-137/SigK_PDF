@@ -161,7 +161,67 @@ test('見開きでは前後2ページまで先に描く（確定事項12）', as
 
   const { rendered } = SigK.viewer.getState();
   assert.ok(rendered.includes(4) && rendered.includes(5), `前の組が描かれていない: ${rendered}`);
-  assert.ok(rendered.length <= SigK.viewerLayout.MAX_RENDERED);
+  // 上限は見えている枚数（4〜9 の 6 枚）＋前後 2 枚ずつ（spec-4b-7a 確定事項H1。今までの 8 枚では先読みが落ちていた）。
+  assert.deepEqual([...rendered], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.ok(rendered.length <= SigK.viewerLayout.renderLimit({ first: 4, last: 9, ahead: SigK.viewerLayout.FACING_AHEAD }));
+});
+
+// 低い倍率では見えているページが 8 枚を超える（spec-4b-7a 事前調査 T）。上限を見えている枚数に合わせて上げる（確定事項H）。
+// page は送り先。jsdom はスクロールを下の端で止めないので、見えている枚数を数えるときは文書の先頭（0）で数える。
+async function facingAtTenPercent(t, viewport, page = 20) {
+  const sizes = Array.from({ length: 40 }, () => A4);
+  const shell = await withOpenDocument(t, { sizes, viewport });
+  const { document, SigK, flush } = shell;
+  SigK.shell.setPageLayout(document, 'facing');
+  SigK.viewer.setZoom(0.1);
+  SigK.viewer.goToPage(page);
+  await flush();
+  const { pages } = expectedLayout(SigK, sizes, true);
+  const range = SigK.viewerLayout.visibleRange({ pages, scrollTop: document.getElementById('view').scrollTop, viewportHeight: viewport.height });
+  return { SigK, range, rendered: SigK.viewer.getState().rendered };
+}
+
+test('10% の見開きでは、見えているページをすべて描く（spec-4b-7a 確定事項H）', async (t) => {
+  const { SigK, range, rendered } = await facingAtTenPercent(t, DEFAULT_VIEWPORT);
+  assert.ok(range.last - range.first + 1 > SigK.viewerLayout.MAX_RENDERED, `見えている枚数が 8 枚を超えていない: ${JSON.stringify(range)}`);
+  for (let index = range.first; index <= range.last; index += 1)
+    assert.ok(rendered.includes(index), `${index} が描かれていない: ${rendered}`);
+  assert.ok(rendered.length <= SigK.viewerLayout.RENDER_CAP);
+});
+
+test('見えているページが 24 枚なら、現在ページが上の端でも全部描く（spec-4b-7a 点検の直し）', async (t) => {
+  // 10% の見開きで 12 行（24 枚）がちょうど見える高さ（12 行目の下の端。13 行目の上の端より手前）。
+  require('../renderer/viewer-layout.js');
+  const { pages } = globalThis.SigK.viewerLayout.layoutPages({ sizes: Array.from({ length: 40 }, () => A4), zoom: 0.1, facing: true });
+  const viewport = { width: 900, height: pages[22].top + pages[22].height };
+  const { SigK, range, rendered } = await facingAtTenPercent(t, viewport, 0);
+  assert.equal(range.last - range.first + 1, 24);
+  for (let index = range.first; index <= range.last; index += 1)
+    assert.ok(rendered.includes(index), `${index} が描かれていない: ${rendered}`);
+  assert.ok(rendered.length <= SigK.viewerLayout.RENDER_CAP);
+});
+
+test('末尾の近くのページを指しても、視野に全部収まっていれば現在ページのまま保つ（spec-4b-7a 点検の直し）', async (t) => {
+  const sizes = Array.from({ length: 40 }, () => A4);
+  const { document, SigK, flush } = await withOpenDocument(t, { sizes });
+  SigK.shell.setPageLayout(document, 'facing');
+  SigK.viewer.setZoom(0.1);
+  await flush();
+  SigK.viewer.goToPage(36);
+  // 実機ではスクロールが下の端で止まる（jsdom は止めないので、止まった位置を作る）。
+  const view = document.getElementById('view');
+  view.scrollTop = SigK.viewer.getState().totalHeight - DEFAULT_VIEWPORT.height;
+  view.dispatchEvent(new document.defaultView.Event('scroll'));
+  await flush();
+  assert.equal(SigK.viewer.getState().current, 36);
+  assert.equal(document.getElementById('page-current').value, '37');
+});
+
+test('見えているページが多すぎる窓では、24 枚で頭打ちにする（spec-4b-7a 確定事項H1）', async (t) => {
+  const { SigK, range, rendered } = await facingAtTenPercent(t, { width: 900, height: 2400 }, 0);
+  assert.ok(range.last - range.first + 1 > SigK.viewerLayout.RENDER_CAP);
+  assert.equal(rendered.length, SigK.viewerLayout.RENDER_CAP);
+  assert.ok(rendered.includes(0));
 });
 
 test('ページ編集のあとも見開きのまま並び直る（確定事項22）', async (t) => {

@@ -164,11 +164,11 @@ test('倍率を変えるとページの枠も付いてくる', async (t) => {
   assert.equal(SigK.viewer.getState().zoom, 2);
 });
 
-test('倍率は 25〜400% を超えない', async (t) => {
+test('倍率は 10〜400% を超えない（spec-4b-7a 確定事項G1）', async (t) => {
   const { SigK } = await withOpenDocument(t);
 
   assert.equal(SigK.viewer.setZoom(99), 4);
-  assert.equal(SigK.viewer.setZoom(0.01), 0.25);
+  assert.equal(SigK.viewer.setZoom(0.01), 0.1);
 });
 
 // 1,000ページの文書でも canvas を持ち続けないことが要る（spec-1-1 確定事項9）。
@@ -187,6 +187,23 @@ test('描くのは見えている範囲とその前後だけである', async (t
   assert.ok(rendered.includes(20), `20ページ目が描かれていない: ${rendered}`);
   assert.ok(rendered.length <= SigK.viewerLayout.MAX_RENDERED, `描きすぎ: ${rendered.length}`);
   assert.equal(rendered.includes(0), false, '見えなくなったページを抱えたまま');
+});
+
+test('画面から外れて手放したページは pdf.js の資源も片付け、倍率を変えて描き直すときは片付けない（spec-4b-7a 点検の直し）', async (t) => {
+  const sizes = Array.from({ length: 40 }, () => A4);
+  const shell = await withOpenDocument(t, { pdfjs: createPdfjsStub({ sizes }) });
+  const { SigK } = shell;
+  assert.deepEqual([...shell.pdfjs.cleanups], []);
+
+  SigK.viewer.goToPage(20);
+  await shell.flush();
+  // 1・2 ページ目（index 0・1）を手放した。
+  assert.ok(shell.pdfjs.cleanups.includes(1) && shell.pdfjs.cleanups.includes(2), `片付けていない: ${[...shell.pdfjs.cleanups]}`);
+
+  const before = shell.pdfjs.cleanups.length;
+  SigK.viewer.setZoom(1.5);
+  await shell.flush();
+  assert.equal(shell.pdfjs.cleanups.length, before, '倍率を変えただけで片付けた');
 });
 
 test('幅の違うページが混ざっていても中央に並ぶ', async (t) => {

@@ -10,7 +10,8 @@
   // scale = zoom × CSS_UNITS で変換する（spec-1-1 確定事項6）。
   const CSS_UNITS = 96 / 72;
 
-  const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
+  // 下限は 10%（spec-4b-7a 確定事項G1。決定68 ④）。25% の下に 20・15・10% を刻む（1 段で 4 分の 1 に飛ばないため）。
+  const ZOOM_STEPS = [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
   const MIN_ZOOM = ZOOM_STEPS[0];
   const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1];
 
@@ -21,12 +22,17 @@
   const SIDE_MARGIN = 24;
 
   const RENDER_AHEAD = 1;
+  // ページビューでは「描く枚数の上限の下限」（見えている枚数が少なくても 8 枚までは描く。spec-4b-7a 確定事項H1）。
+  // サムネイルは今までどおり上限として使う。
   const MAX_RENDERED = 8;
   const MAX_CANVAS_SCALE = 3;
+  // 低い倍率で描く枚数の頭打ち（spec-4b-7a 確定事項H）。1 枚あたり約 12MB（事前調査 T）。見えているページが 24 枚までなら全部描ける
+  // （A4 なら 2560×1400 の窓の見開き 10% まで）。
+  const RENDER_CAP = 24;
 
   // 見開き（spec-2-3 確定事項11・12）。組の2枚の間隔は縦の間隔と同じにする。
   // モックで見て、詰めなくても組として読めると判断した。先読みは 1 だと隣の行の
-  // 半分しか用意しないので 2 にする。上限（MAX_RENDERED）は変えない。
+  // 半分しか用意しないので 2 にする。上限は renderAhead・renderLimit が決める（spec-4b-7a 確定事項H）。
   const FACING_GAP = PAGE_GAP;
   const FACING_AHEAD = 2;
 
@@ -124,14 +130,15 @@
   // 高いほうに合わせて上揃え。横は綴じ目を基準にし、左ページは綴じ目へ右寄せ、
   // 右ページは綴じ目から左寄せにする。幅の違うページが混ざっても綴じ目が
   // 一直線に通る。奇数の末尾は左に単独で置く。
+  // 寸法は 1px 以上にする。ごく小さいページを低い倍率で出しても 0px にならず描ける（spec-4b-7a 確定事項G3）。
   function layoutPages({ sizes, zoom, facing = false }) {
     const scale = zoom * CSS_UNITS;
     const pages = sizes.map((size, index) => ({
       index,
       top: 0,
       left: 0,
-      width: Math.round(size.width * scale),
-      height: Math.round(size.height * scale),
+      width: Math.max(1, Math.round(size.width * scale)),
+      height: Math.max(1, Math.round(size.height * scale)),
     }));
     if (pages.length === 0)
       return { pages, contentWidth: 0, totalHeight: 0 };
@@ -329,6 +336,25 @@
     return targets;
   }
 
+  // ページビューの描く枚数の上限。見えている枚数＋前後の先読みにし、MAX_RENDERED より少なくはせず、RENDER_CAP で頭打ちにする
+  // （spec-4b-7a 確定事項H1）。高い倍率で大きな canvas を多く持たないよう、固定では上げない。サムネイルは使わない。
+  function renderLimit({ first, last, ahead = RENDER_AHEAD }) {
+    const wanted = last - first + 1 + ahead * 2;
+    return Math.min(RENDER_CAP, Math.max(MAX_RENDERED, Number.isFinite(wanted) ? wanted : 0));
+  }
+
+  // 頭打ちに当たるときは先読みを減らし、見えているページを先に描く（spec-4b-7a 点検の直し）。renderTargets は現在ページ
+  // （見えている範囲の上のほう）の周りを残すので、先読みを残したままだと、見えている範囲の下の端が白い枠のまま残る。
+  function renderAhead({ first, last, ahead = RENDER_AHEAD }) {
+    const room = Math.floor((RENDER_CAP - (last - first + 1)) / 2);
+    return Math.max(0, Math.min(ahead, Number.isFinite(room) ? room : ahead));
+  }
+
+  // ページが視野に全部収まっているか（spec-4b-7a 点検の直し。page-render.js が現在ページを書き換えるかを決める）。
+  function isFullyVisible(page, scrollTop, viewportHeight) {
+    return page !== undefined && page.top >= scrollTop && page.top + page.height <= scrollTop + viewportHeight;
+  }
+
   function scrollTopForPage({ pages, index }) {
     const page = pages[Math.min(pages.length - 1, Math.max(0, index))];
     if (page === undefined)
@@ -366,6 +392,7 @@
     SIDE_MARGIN,
     RENDER_AHEAD,
     MAX_RENDERED,
+    RENDER_CAP,
     MAX_CANVAS_SCALE,
     FACING_GAP,
     FACING_AHEAD,
@@ -394,6 +421,9 @@
     visibleRange,
     currentPageIndex,
     renderTargets,
+    renderLimit,
+    renderAhead,
+    isFullyVisible,
     scrollTopForPage,
     renderScale,
     formatZoom,

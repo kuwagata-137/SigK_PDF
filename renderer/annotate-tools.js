@@ -104,6 +104,11 @@
     return setTool(toolSwitch().next({ tool: state.tool, base: state.base }, 'chord').tool);
   }
 
+  // Esc で道具を外す（spec-4b-7a 確定事項A4）。戻り先は「道具なし」になる。
+  function escapeTool() {
+    return setTool(toolSwitch().next({ tool: state.tool, base: state.base }, 'escape').tool);
+  }
+
   // 次に置くテキストの文字の大きさ（spec-4-2 確定事項21・34）。
   function getFontSize() {
     return state.fontSize;
@@ -136,6 +141,7 @@
     getTool: () => state.tool,
     getBase: () => state.base,
     chord,
+    escapeTool,
     drawingTool,
     syncTools,
     setTool,

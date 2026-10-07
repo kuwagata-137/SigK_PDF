@@ -131,7 +131,11 @@
     doc.getElementById('doc-info-close')?.addEventListener('click', () => close(doc));
     // ステータスバーのファイル名から開く（確定事項11）。
     doc.getElementById('status-file')?.addEventListener('click', () => open(doc));
-    root.pdfAPI?.onDocInfoRequest?.(() => open(doc));
+    // メニューの Ctrl+I。窓が開いている間は重ねて開かない（spec-4b-7a 点検の直し）。
+    root.pdfAPI?.onDocInfoRequest?.(() => {
+      if (doc.querySelector('dialog[open]') === null)
+        open(doc);
+    });
     return true;
   }
 

@@ -365,8 +365,15 @@
     });
 
     root.taskAPI?.onProgress?.(onProgress);
-    // メニューと Ctrl+S / Ctrl+Shift+S から届く合図（確定事項23・39）。
-    root.pdfAPI?.onSaveRequest?.((mode) => (mode === 'saveAs' ? saveAsActive() : saveActive()));
+    // メニューと Ctrl+S / Ctrl+Shift+S から届く合図（確定事項23・39）。窓が開いている間は後ろの文書を保存しない（spec-4b-7a 点検の直し）。
+    root.pdfAPI?.onSaveRequest?.((mode) => {
+      if (doc.querySelector('dialog[open]') !== null)
+        return;
+      if (mode === 'saveAs')
+        saveAsActive();
+      else
+        saveActive();
+    });
 
     syncButtons(doc);
     return true;

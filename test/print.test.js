@@ -225,3 +225,48 @@ test('ツールバーの印刷ボタンは文書を開くまで押せない', as
   button.dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(shell.document.getElementById('print-dialog').hasAttribute('open'), true);
 });
+
+test('準備の途中で窓が Esc で閉じても、準備は無効になり印刷へ進まない（spec-4b-7a 確定事項D1）', async (t) => {
+  const sizes = Array.from({ length: 12 }, () => A4);
+  const shell = await withDocument(t, { pdfjs: createPdfjsStub({ sizes }) });
+  const { SigK, document, window } = shell;
+  SigK.print.open();
+
+  const pending = SigK.print.run({ mode: 'all' });
+  assert.equal(SigK.print.isBusy(), true);
+  // Esc は窓が自分で閉じる（cancel → close）。jsdom には無いので、閉じた形と close を作る。
+  const dialog = document.getElementById('print-dialog');
+  dialog.removeAttribute('open');
+  dialog.dispatchEvent(new window.Event('close'));
+  const result = await pending;
+
+  assert.equal(result.canceled, true);
+  assert.equal(shell.printCalls.length, 0);
+  assert.equal(SigK.print.isBusy(), false);
+  assert.equal(document.querySelectorAll('#print-area img').length, 0);
+});
+
+test('Esc ですぐ出る cancel だけでも、準備は無効になる（点検の直し）', async (t) => {
+  const sizes = Array.from({ length: 12 }, () => A4);
+  const shell = await withDocument(t, { pdfjs: createPdfjsStub({ sizes }) });
+  const { SigK, document, window } = shell;
+  SigK.print.open();
+  const pending = SigK.print.run({ mode: 'all' });
+  document.getElementById('print-dialog').dispatchEvent(new window.Event('cancel'));
+  const result = await pending;
+  assert.equal(result.canceled, true);
+  assert.equal(shell.printCalls.length, 0);
+});
+
+test('close の知らせが遅れて窓だけ閉じていても、印刷へは進まない（点検の直し）', async (t) => {
+  const shell = await withDocument(t);
+  const { SigK, document } = shell;
+  SigK.print.open();
+  const pending = SigK.print.run({ mode: 'current' });
+  document.getElementById('print-dialog').removeAttribute('open');
+  const result = await pending;
+  assert.equal(result.canceled, true);
+  assert.equal(shell.printCalls.length, 0);
+  assert.equal(SigK.print.isBusy(), false);
+  assert.equal(document.querySelectorAll('#print-area img').length, 0);
+});

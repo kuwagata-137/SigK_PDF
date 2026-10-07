@@ -5,7 +5,8 @@
   // spec-4b-3a 確定事項L3・M、spec-4b-3b 確定事項E2・G）。
   //
   // 200 行を超えた annotate.js から移した（spec-4b-3b・spec-4b-6a）。annotate.js は同じ名前の口でここへ委ねる。
-  //   - escape: Esc 1 回で、開いている・進んでいるものを 1 つだけ閉じる（上から順に見る）
+  //   - escape: Esc 1 回で、開いている・進んでいるものを 1 つだけ閉じる（上から順に見る）。段（cancelHeld・closeOverlays・
+  //     dropDrafts・unselect・dropTool）に分けてあり、escape-order.js が欄・検索バー・文字の選択を間に挟んで呼ぶ（spec-4b-7a 確定事項A5）
   //   - abortGestures: 取り消し・やり直しの前に、押して引いている途中の操作を全部取りやめる
   //   - abortForChord: 左＋右で、押している操作を全部取りやめる（描きかけ・置く前の押下・文字の選択も）
   //   - finishEditing: タブ・モードを替える・保存・印刷の前に、入力欄を確定し、描きかけを確定するかやめる
@@ -43,35 +44,56 @@
     return polygon || anchor || erase || trim || mosaic;
   }
 
-  // Esc。道具の段の「その他」の一覧（spec-4b-5b 確定事項28）→ 右クリックのメニュー → つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→ 表示を引く（そこで終える）→
-  // なぞっている途中の消しゴム → モザイクの引いている途中（spec-4b-6b 確定事項28）→ トリミングの引いている途中（引く前の枠へ）→
-  // トリミングの枠（spec-4b-6a 確定事項15・26）→
-  // パレットの窓 → スライダーの下見 → 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）→ 描いている途中の多角形 →
-  // 入力欄（確定）→ 選択を外す → 道具を外す、の順に、最初に当たった 1 つだけ。何も無ければ false。
+  // 押して引いている途中の操作（spec-4b-7a 確定事項A1 の 2）。つまみ → 範囲選択（押す前の選択に戻す）→ 掴んで動かす（元の位置）→
+  // 表示を引く（そこで終える）→ なぞっている途中の消しゴム（spec-4b-5b 確定事項23）→ モザイクの引いている途中（spec-4b-6b 確定事項28）→
+  // トリミングの引いている途中（引く前の枠へ）→ スライダーを引いている途中（引く前の値へ。spec-4b-7a 確定事項E3）→ スライダーの下見 →
+  // 描きかけ（「描いている」印ごと捨てる。spec-4b-3b 事前調査 I）。
+  const HELD = [
+    () => root.SigK.annotateTransform?.cancel() === true,
+    () => root.SigK.annotateMarquee?.cancel() === true,
+    () => root.SigK.annotateGrab?.cancel() === true,
+    () => root.SigK.annotateHand?.cancel() === true,
+    () => root.SigK.annotateErase?.cancel() === true,
+    () => root.SigK.annotateMosaic?.cancel() === true,
+    () => root.SigK.annotateTrim?.cancelDrag() === true,
+    () => root.SigK.propsRange?.cancelDrag() === true,
+    () => root.SigK.annotatePreview?.cancel() === true,
+    () => root.SigK.annotateDraw?.cancel() === true,
+  ];
+
+  // 最初に当たった 1 つを取りやめる。置く前の押下（spec-4b-7a 確定事項A3）も同じ段で捨てる。取りやめた操作の押下も一緒に捨て、
+  // 全部のボタンを離すまで、動きと離しを捨てて文字を選び直させない（左＋右と同じ。点検の直し）。そのまま離しても置かない・選ばない・
+  // なぞっていたハイライトなどを作らない。
+  function cancelHeld() {
+    const canceled = HELD.some((step) => step());
+    const pending = root.SigK.annotatePress?.isPending() === true;
+    if (!canceled && !pending)
+      return false;
+    root.SigK.annotatePress?.reset();
+    root.SigK.annotateRightButton?.holdUntilUp();
+    return true;
+  }
+
+  // 浮いている小窓（確定事項A1 の 3）。道具の段の「その他」の一覧（spec-4b-5b 確定事項28）→ 右クリックのメニュー → パレットの窓。
+  function closeOverlays() {
+    return root.SigK.editBarMore?.close({ restoreFocus: true }) === true
+      || root.SigK.annotationMenu?.close() === true
+      || root.SigK.colorPopover?.close({ restoreFocus: true }) === true;
+  }
+
+  // 描きかけ・置きかけ（確定事項A1 の 6）。トリミングの枠（spec-4b-6a 確定事項15・26）→ 描いている途中の多角形と、始点合わせの始点
+  // （spec-4b-5a 確定事項16・19）→ 入力欄（確定）。
+  function dropDrafts() {
+    return root.SigK.annotateTrim?.dropFrame() === true
+      || root.SigK.annotatePolygon?.cancel() === true
+      || root.SigK.annotateLineAnchor?.cancel() === true
+      || finishText();
+  }
+
+  // Esc（編集モードの分）。押して引いている途中 → 浮いている小窓 → 描きかけ → 選択を外す → 道具を外す、の順に、最初に当たった 1 つだけ。
+  // 何も無ければ false。
   function escape() {
-    const steps = [
-      () => root.SigK.editBarMore?.close({ restoreFocus: true }) === true,
-      () => root.SigK.annotationMenu?.close() === true,
-      () => root.SigK.annotateTransform?.cancel() === true,
-      () => root.SigK.annotateMarquee?.cancel() === true,
-      () => root.SigK.annotateGrab?.cancel() === true,
-      () => root.SigK.annotateHand?.cancel() === true,
-      // なぞっている途中の消しゴム（spec-4b-5b 確定事項23）。
-      () => root.SigK.annotateErase?.cancel() === true,
-      () => root.SigK.annotateMosaic?.cancel() === true,
-      () => root.SigK.annotateTrim?.cancelDrag() === true,
-      () => root.SigK.annotateTrim?.dropFrame() === true,
-      () => root.SigK.colorPopover?.close({ restoreFocus: true }) === true,
-      () => root.SigK.annotatePreview?.cancel() === true,
-      () => root.SigK.annotateDraw?.cancel() === true,
-      // 描いている途中の多角形と、始点合わせの始点（spec-4b-5a 確定事項16・19）。
-      () => root.SigK.annotatePolygon?.cancel() === true,
-      () => root.SigK.annotateLineAnchor?.cancel() === true,
-      finishText,
-      unselect,
-      dropTool,
-    ];
-    return steps.some((step) => step());
+    return cancelHeld() || closeOverlays() || dropDrafts() || unselect() || dropTool();
   }
 
   function unselect() {
@@ -82,11 +104,12 @@
     return true;
   }
 
+  // 道具の行き来の決まり（tool-switch.js の 'escape'）で外す（spec-4b-7a 確定事項A4）。
   function dropTool() {
     const tools = root.SigK.annotateTools;
     if (tools.getTool() === null)
       return false;
-    tools.setTool(null);
+    tools.escapeTool();
     return true;
   }
 
@@ -117,5 +140,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateCancel = { escape, abortGestures, abortForChord, finishEditing, dropPendingShape };
+  SigK.annotateCancel = { escape, cancelHeld, closeOverlays, dropDrafts, unselect, dropTool, abortGestures, abortForChord, finishEditing, dropPendingShape };
 })(typeof window !== 'undefined' ? window : globalThis);
