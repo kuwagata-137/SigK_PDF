@@ -32,8 +32,16 @@
     return (event.target?.closest?.('.free-text-editor, .props-field, .color-pop') ?? null) !== null || isTextField(event.target);
   }
 
+  // 先に処理された Esc（ページ・行のドラッグの取りやめ、本文の欄の確定）と、IME の変換中の Esc は何もしない
+  // （spec-4b-7a 確定事項C1）。page-grid.js・row-drag.js の受け口は、この振り分けより先に登録されている（app.js の init の順）。
+  function isSpent(event) {
+    return event.defaultPrevented || event.isComposing === true || event.keyCode === 229;
+  }
+
   // 何かを取りやめたら true。
   function handle(event, doc) {
+    if (isSpent(event))
+      return false;
     if (closeFindBar(event))
       return true;
     if (belongsToField(event))

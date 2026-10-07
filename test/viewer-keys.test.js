@@ -99,3 +99,33 @@ test('ページ編集モードの Backspace ではページを消さない（確
   key(shell, document.body, 'Backspace');
   assert.equal(SigK.viewer.getPlan().length, pages);
 });
+
+test('窓が開いている間は、Delete・Esc・Ctrl+Z・Ctrl+W が下の画面に効かない（spec-4b-7a 確定事項B1）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  SigK.annotate.setTool('shape');
+  SigK.annotate.select(a);
+  const at = SigK.pageEdit.getHistoryState().at;
+  await SigK.docInfo.open(document);
+  const dialog = document.getElementById('doc-info');
+  assert.equal(dialog.hasAttribute('open'), true);
+  const press = (init) => {
+    const event = new window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    dialog.dispatchEvent(event);
+    return event;
+  };
+  assert.equal(press({ key: 'Delete' }).defaultPrevented, false);
+  assert.deepEqual(ids(shell), [a]);
+  press({ key: 'Escape' });
+  assert.equal(SigK.annotate.getSelection().length, 1, '下の画面の選択は外れない');
+  assert.equal(SigK.annotate.getTool(), 'shape', '道具も外れない');
+  press({ key: 'z', ctrlKey: true });
+  assert.equal(SigK.pageEdit.getHistoryState().at, at);
+  press({ key: 'w', ctrlKey: true });
+  assert.equal(SigK.tabs.count(), 1);
+  // 窓を閉じれば、いつもどおり効く。
+  SigK.docInfo.close(document);
+  key(shell, document.body, 'Delete');
+  assert.deepEqual(ids(shell), []);
+});

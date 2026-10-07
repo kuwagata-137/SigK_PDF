@@ -314,13 +314,17 @@
     return true;
   }
 
-  function close() {
-    if (el === null)
-      return false;
-    // 作りかけがあれば捨てる。世代を上げれば飛んでいる準備は無効になる。
+  // 作りかけがあれば捨てる。世代を上げれば飛んでいる準備は無効になる（確定事項36）。
+  function abandon() {
     token += 1;
     setBusy(false);
     el.area.replaceChildren();
+  }
+
+  function close() {
+    if (el === null)
+      return false;
+    abandon();
     if (typeof el.dialog.close === 'function')
       el.dialog.close();
     else
@@ -365,6 +369,11 @@
         run();
     });
     el.cancel.addEventListener('click', () => close());
+    // Esc で窓が閉じたときも、準備中なら［中止］と同じく捨てる（spec-4b-7a 確定事項D1）。close() から閉じたときは済んでいる。
+    dialog.addEventListener('close', () => {
+      if (busy)
+        abandon();
+    });
     doc.getElementById('print-close')?.addEventListener('click', () => close());
     doc.getElementById('btn-print')?.addEventListener('click', () => {
       if (doc.getElementById('btn-print').getAttribute('aria-disabled') !== 'true')

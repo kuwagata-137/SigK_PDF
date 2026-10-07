@@ -459,3 +459,21 @@ test('文書を開き直すと履歴は捨てられる', async (t) => {
 
   assert.equal(SigK.pageEdit.canUndo(), false);
 });
+
+test('ドラッグ中の Esc はドラッグだけを取り消し、ページの選択と検索バーは残す（spec-4b-7a 確定事項C1）', async (t) => {
+  const shell = await withPagesMode(t);
+  const { SigK, firePointer, document, window } = shell;
+  SigK.pageGrid.setSelection([0, 1]);
+  SigK.findBar.open();
+  const thumbs = thumbsIn(document);
+  firePointer(thumbs[0], 'pointerdown', centerOf(SigK, 0));
+  firePointer(thumbs[0], 'pointermove', centerOf(SigK, 2));
+  assert.equal(SigK.pageGrid.isDragging(), true);
+  const event = new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  document.dispatchEvent(event);
+
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(SigK.pageGrid.isDragging(), false);
+  assert.equal(SigK.pageGrid.getSelection().length, 2, 'ページの選択が外れた');
+  assert.equal(SigK.findBar.isOpen(), true, '検索バーが閉じた');
+});

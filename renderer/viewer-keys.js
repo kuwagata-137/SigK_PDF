@@ -148,6 +148,10 @@
   }
 
   function handleKey(event, doc) {
+    // 窓（確認・パスワード・文書情報・印刷）が開いている間は、どのキーも下の画面に届けない。Esc は窓が自分で取りやめる
+    // （spec-4b-7a 確定事項B）。
+    if (doc.querySelector('dialog[open]') !== null)
+      return;
     if (handleTabKey(event))
       return;
     if (viewer().getState().open !== true)

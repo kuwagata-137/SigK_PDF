@@ -84,3 +84,27 @@ test('ページ番号の欄の Esc は、選択も道具も外さない', async 
   assert.equal(SigK.annotate.getSelection().length, 1);
   assert.equal(SigK.annotate.getTool(), 'shape');
 });
+
+test('先に処理された Esc・IME の変換中の Esc では何もしない（spec-4b-7a 確定事項C1）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  drawSquare(shell);
+  SigK.findBar.open();
+  const handle = (init) => SigK.escapeOrder.handle({ key: 'Escape', target: document.body, defaultPrevented: false, isComposing: false, keyCode: 27, preventDefault() {}, ...init }, document);
+  assert.equal(handle({ defaultPrevented: true }), false);
+  assert.equal(handle({ isComposing: true }), false);
+  assert.equal(handle({ keyCode: 229 }), false);
+  assert.equal(SigK.findBar.isOpen(), true);
+  assert.equal(SigK.annotate.getSelection().length, 1);
+  assert.equal(handle({}), true);
+  assert.equal(SigK.findBar.isOpen(), false);
+});
+
+test('窓が開いていれば、検索バーが開いていても Esc は検索バーを閉じない（spec-4b-7a 確定事項B2）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.findBar.open();
+  await SigK.docInfo.open(document);
+  esc(shell, document.getElementById('doc-info'));
+  assert.equal(SigK.findBar.isOpen(), true);
+});
