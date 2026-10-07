@@ -345,9 +345,22 @@
 
     // 3択のうち「保存」を選ばれたら、保存まで済ませてから閉じる。
     // 保存に失敗したら閉じない（spec-1-6 確定事項34）。
+    //
+    // 映していないタブなら、聞く前にそのタブを映す。保存（saveActive）は映しているタブが対象で、映さずに聞くと
+    // 映しているタブを保存し、閉じるタブの編集を消していた（2026-10-07 の直し）。何について聞かれているかも画面で
+    // 分かる（終了の askAll と同じ）。閉じ終えたら元のタブへ戻る（未保存でないタブを閉じるときと同じく、閉じる前後で
+    // 映すタブを変えない）。取りやめ・保存の失敗では、聞いたタブを映したままにする（askAll と同じ。失敗の帯もそのタブで読める）。
+    const previous = state.activeId;
+    activate(id);
     return root.SigK.confirmDiscard
       .askAndSave({ name: tab.name })
-      .then((ok) => (ok ? forceCloseTab(id) : false));
+      .then((ok) => {
+        if (!ok)
+          return false;
+        if (previous !== null && previous !== id && find(previous) !== null)
+          activate(previous);
+        return forceCloseTab(id);
+      });
   }
 
   function forceCloseTab(id) {
