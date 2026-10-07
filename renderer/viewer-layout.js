@@ -22,15 +22,17 @@
   const SIDE_MARGIN = 24;
 
   const RENDER_AHEAD = 1;
+  // ページビューでは「描く枚数の上限の下限」（見えている枚数が少なくても 8 枚までは描く。spec-4b-7a 確定事項H1）。
+  // サムネイルは今までどおり上限として使う。
   const MAX_RENDERED = 8;
   const MAX_CANVAS_SCALE = 3;
-  // 低い倍率で描く枚数の頭打ち（spec-4b-7a 確定事項H）。1 枚あたり約 12MB（事前調査 T）。2560×1400 の窓の見開き 10% で、
-  // 見えている 22 枚が全部描ける。
+  // 低い倍率で描く枚数の頭打ち（spec-4b-7a 確定事項H）。1 枚あたり約 12MB（事前調査 T）。見えているページが 24 枚までなら全部描ける
+  // （A4 なら 2560×1400 の窓の見開き 10% まで）。
   const RENDER_CAP = 24;
 
   // 見開き（spec-2-3 確定事項11・12）。組の2枚の間隔は縦の間隔と同じにする。
   // モックで見て、詰めなくても組として読めると判断した。先読みは 1 だと隣の行の
-  // 半分しか用意しないので 2 にする。上限（MAX_RENDERED）は変えない。
+  // 半分しか用意しないので 2 にする。上限は renderAhead・renderLimit が決める（spec-4b-7a 確定事項H）。
   const FACING_GAP = PAGE_GAP;
   const FACING_AHEAD = 2;
 
@@ -341,6 +343,18 @@
     return Math.min(RENDER_CAP, Math.max(MAX_RENDERED, Number.isFinite(wanted) ? wanted : 0));
   }
 
+  // 頭打ちに当たるときは先読みを減らし、見えているページを先に描く（spec-4b-7a 点検の直し）。renderTargets は現在ページ
+  // （見えている範囲の上のほう）の周りを残すので、先読みを残したままだと、見えている範囲の下の端が白い枠のまま残る。
+  function renderAhead({ first, last, ahead = RENDER_AHEAD }) {
+    const room = Math.floor((RENDER_CAP - (last - first + 1)) / 2);
+    return Math.max(0, Math.min(ahead, Number.isFinite(room) ? room : ahead));
+  }
+
+  // ページが視野に全部収まっているか（spec-4b-7a 点検の直し。page-render.js が現在ページを書き換えるかを決める）。
+  function isFullyVisible(page, scrollTop, viewportHeight) {
+    return page !== undefined && page.top >= scrollTop && page.top + page.height <= scrollTop + viewportHeight;
+  }
+
   function scrollTopForPage({ pages, index }) {
     const page = pages[Math.min(pages.length - 1, Math.max(0, index))];
     if (page === undefined)
@@ -408,6 +422,8 @@
     currentPageIndex,
     renderTargets,
     renderLimit,
+    renderAhead,
+    isFullyVisible,
     scrollTopForPage,
     renderScale,
     formatZoom,

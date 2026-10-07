@@ -164,6 +164,27 @@ test('renderLimit は見えている枚数＋前後の先読みにし、8 枚よ
     assert.ok(targets.includes(index), `${index} が落ちている`);
 });
 
+test('renderAhead は頭打ちに当たるときだけ先読みを減らし、見えているページを先に描く（spec-4b-7a 点検の直し）', () => {
+  assert.equal(layout.renderAhead({ first: 0, last: 5, ahead: 2 }), 2);
+  assert.equal(layout.renderAhead({ first: 0, last: 21, ahead: 2 }), 1);
+  assert.equal(layout.renderAhead({ first: 0, last: 23, ahead: 2 }), 0);
+  assert.equal(layout.renderAhead({ first: 0, last: 29, ahead: 2 }), 0);
+  // 見えている 24 枚は、現在ページが上の端でも全部描ける（先読みを残すと下の 2 枚が落ちていた）。
+  const ahead = layout.renderAhead({ first: 10, last: 33, ahead: 2 });
+  const max = layout.renderLimit({ first: 10, last: 33, ahead });
+  const targets = layout.renderTargets({ count: 100, first: 10, last: 33, current: 10, ahead, max });
+  for (let index = 10; index <= 33; index += 1)
+    assert.ok(targets.includes(index), `${index} が落ちている`);
+});
+
+test('isFullyVisible はページが視野に全部収まっているときだけ true', () => {
+  const page = { top: 100, height: 50 };
+  assert.equal(layout.isFullyVisible(page, 100, 50), true);
+  assert.equal(layout.isFullyVisible(page, 101, 100), false);
+  assert.equal(layout.isFullyVisible(page, 0, 149), false);
+  assert.equal(layout.isFullyVisible(undefined, 0, 1000), false);
+});
+
 test('scrollTopForPage はページの上端を視野の先頭に置く', () => {
   const { pages } = layout.layoutPages({ sizes: [A4, A4, A4], zoom: 1 });
 

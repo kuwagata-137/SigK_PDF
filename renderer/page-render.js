@@ -253,14 +253,17 @@
       // 見開きでは同じ組なら現在ページを保つ（spec-2-3 確定事項13）。
       // currentPageIndex は同じ行なら左を採るので、番号入力・サムネイル・検索で
       // 右ページを指定した直後に、左の番号へ戻ってしまうのを防ぐ。
+      // 今のページが視野に全部収まっている間も保つ（pdf.js と同じ。spec-4b-7a 点検の直し）。低い倍率では末尾の近くのページを
+      // 上端へ送れず、いちばん広く見えている若い番号へ戻されて、そのページを現在ページにできなかった。
       const spreadStart = (index) => layout().spreadStart(index, state.facing);
-      if (spreadStart(current) !== spreadStart(state.current)) {
+      const keep = layout().isFullyVisible(pages[state.current], scrollTop, viewportHeight);
+      if (spreadStart(current) !== spreadStart(state.current) && !keep) {
         state.current = current;
         ctx.syncPage();
       }
 
-      // 見開きでは1行に2枚出るので、先読みも2枚にする（確定事項12）。
-      const ahead = state.facing ? layout().FACING_AHEAD : layout().RENDER_AHEAD;
+      // 見開きでは1行に2枚出るので、先読みも2枚にする（確定事項12）。見えているページが多いときは減らす（spec-4b-7a 確定事項H）。
+      const ahead = layout().renderAhead({ first: range.first, last: range.last, ahead: state.facing ? layout().FACING_AHEAD : layout().RENDER_AHEAD });
       const targets = layout().renderTargets({
         count: pages.length,
         first: range.first,
