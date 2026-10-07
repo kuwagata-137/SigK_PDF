@@ -262,6 +262,12 @@
     const prepared = await prepare(options);
     if (prepared.ok !== true)
       return prepared;
+    // 窓が閉じていれば印刷へ進まない。Esc で閉じたときの close は次の描画の時機まで遅れるので、世代だけでは間に合わないことがある
+    // （spec-4b-7a 点検の直し）。
+    if (!isDialogOpen()) {
+      abandon();
+      return { canceled: true };
+    }
 
     const api = root.printAPI;
     if (!api || api.available !== true) {
@@ -296,22 +302,26 @@
     root.SigK.annotate?.finishEditing();
 
     showError(null);
-    setBusy(false);
+    // 前の準備が残っていれば捨てる（世代を進める。spec-4b-7a 点検の直し）。
+    abandon();
     el.doc.getElementById('print-mode-all').checked = true;
     el.pages.value = '';
-    el.area.replaceChildren();
 
     // 開いている <dialog> に showModal() をもう一度呼ぶと InvalidStateError に
     // なる。Ctrl+P を続けて押しても落ちないよう、開いていれば中身を戻すだけに
     // する。jsdom には showModal が無いので open 属性で代用する（doc-info と
     // 同じ作法）。
-    if (el.dialog.open === true || el.dialog.hasAttribute('open'))
+    if (isDialogOpen())
       return true;
     if (typeof el.dialog.showModal === 'function')
       el.dialog.showModal();
     else
       el.dialog.setAttribute('open', '');
     return true;
+  }
+
+  function isDialogOpen() {
+    return el.dialog.open === true || el.dialog.hasAttribute('open');
   }
 
   // 作りかけがあれば捨てる。世代を上げれば飛んでいる準備は無効になる（確定事項36）。
@@ -370,10 +380,13 @@
     });
     el.cancel.addEventListener('click', () => close());
     // Esc で窓が閉じたときも、準備中なら［中止］と同じく捨てる（spec-4b-7a 確定事項D1）。close() から閉じたときは済んでいる。
-    dialog.addEventListener('close', () => {
-      if (busy)
-        abandon();
-    });
+    // close は次の描画の時機まで遅れるので、Esc ですぐ出る cancel でも捨てる（点検の直し）。
+    for (const type of ['cancel', 'close']) {
+      dialog.addEventListener(type, () => {
+        if (busy)
+          abandon();
+      });
+    }
     doc.getElementById('print-close')?.addEventListener('click', () => close());
     doc.getElementById('btn-print')?.addEventListener('click', () => {
       if (doc.getElementById('btn-print').getAttribute('aria-disabled') !== 'true')
