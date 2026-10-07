@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
 
-  // Esc の振り分け（spec-4b-7a 確定事項A。決定68 ①）。viewer-keys.js の handleKey が、文書が開いているときの Esc をここへ渡す。
+  // Esc の振り分け（spec-4b-7a 確定事項A。決定68 ①）。viewer-keys.js の handleKey が Esc をここへ渡す（文書が開いていなくても）。
   // 窓が開いている間は handleKey が先に返すので、ここへは来ない（確定事項B1）。
   //
   // Esc 1 回で取りやめるのは 1 つだけで、手元の操作から先に止める。
@@ -43,8 +43,10 @@
     return true;
   }
 
-  // 紙の上（#view の中）の文字の選択を外す（確定事項F1。決定68 ③）。
+  // 紙の上（#view の中）の文字の選択を外す（確定事項F1。決定68 ③）。ツールの画面ではページビューが隠れているので触れない（点検の直し）。
   function clearTextSelection(doc) {
+    if (inMode(doc, 'tools'))
+      return false;
     const selection = doc.defaultView?.getSelection?.();
     if (selection === null || selection === undefined || selection.isCollapsed)
       return false;
@@ -63,10 +65,11 @@
     return true;
   }
 
-  // 先に処理された Esc（ページ・行のドラッグの取りやめ、本文の欄の確定）と、IME の変換中の Esc は何もしない
-  // （確定事項C1）。page-grid.js・row-drag.js の受け口は、この振り分けより先に登録されている（app.js の init の順）。
+  // 先に処理された Esc（ページ・一覧の行のドラッグの取りやめ）と、IME の変換中の Esc は何もしない（確定事項C1）。page-grid.js・
+  // row-drag.js の受け口は、この振り分けより先に登録されている（app.js の init の順）。押し続けたときの繰り返しも見ない（1 回の押しで
+  // 1 つだけ。窓を閉じたあとの繰り返しが後ろの画面に届かないように。点検の直し）。
   function isSpent(event) {
-    return event.defaultPrevented || event.isComposing === true || event.keyCode === 229;
+    return event.defaultPrevented || event.isComposing === true || event.keyCode === 229 || event.repeat === true;
   }
 
   // A1 の 2〜10 を上から見て、最初に当たった 1 つを取りやめたら true。

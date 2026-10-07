@@ -124,8 +124,32 @@ test('窓が開いている間は、Delete・Esc・Ctrl+Z・Ctrl+W が下の画�
   assert.equal(SigK.pageEdit.getHistoryState().at, at);
   press({ key: 'w', ctrlKey: true });
   assert.equal(SigK.tabs.count(), 1);
+  press({ key: 'f', ctrlKey: true });
+  assert.equal(SigK.findBar.isOpen(), false);
+  const top = document.getElementById('view').scrollTop;
+  assert.equal(press({ key: 'PageDown' }).defaultPrevented, false);
+  assert.equal(document.getElementById('view').scrollTop, top);
   // 窓を閉じれば、いつもどおり効く。
   SigK.docInfo.close(document);
   key(shell, document.body, 'Delete');
   assert.deepEqual(ids(shell), []);
+});
+
+test('窓が開いている間は、メニューの保存・開く・文書情報の要求も後ろの画面に効かない（spec-4b-7a 点検の直し）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.print.open();
+  assert.equal(document.getElementById('print-dialog').hasAttribute('open'), true);
+  shell.fireSaveRequest('saveAs');
+  shell.fireOpenRequest(A);
+  shell.fireDocInfoRequest();
+  await shell.flush();
+  assert.equal(shell.savePathCalls.length, 0);
+  assert.equal(SigK.tabs.count(), 1);
+  assert.equal(document.getElementById('doc-info').hasAttribute('open'), false);
+  // 窓を閉じれば効く。
+  SigK.print.close();
+  shell.fireDocInfoRequest();
+  await shell.flush();
+  assert.equal(document.getElementById('doc-info').hasAttribute('open'), true);
 });

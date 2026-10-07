@@ -152,15 +152,15 @@
     // （spec-4b-7a 確定事項B）。
     if (doc.querySelector('dialog[open]') !== null)
       return;
-    if (handleTabKey(event))
-      return;
-    if (viewer().getState().open !== true)
-      return;
-    // Esc の順は escape-order.js（spec-4b-7a 確定事項A）。
+    // Esc の順は escape-order.js（spec-4b-7a 確定事項A）。文書が開いていなくても、欄の Esc と道具を外すのは効かせる（点検の直し）。
     if (event.key === 'Escape') {
       root.SigK.escapeOrder.handle(event, doc);
       return;
     }
+    if (handleTabKey(event))
+      return;
+    if (viewer().getState().open !== true)
+      return;
     if (handleFindPrintKey(event))
       return;
     // テキストの入力欄と右パネルの欄（「本文」「作成者」・太さと不透明度のスライダーと数値欄）、色のパレットの窓の中のキーは

@@ -7,7 +7,7 @@
   // 行の出し入れと値は、annotation-props.js の refresh から render で受ける。「本文」はノートを選んでいるときだけ
   // 出し、欄の外を押す（blur）か Ctrl+Enter で annotate.setContents へ流す。「作成者」はノートの道具なら書き換えられ、
   // ノートを選んでいれば読み取りで、変えたら annotate.setAuthor へ流す。.props-field の中のキーは欄のもの
-  // （viewer-controls.js が素通しする）。
+  // （viewer-keys.js が素通しする。Esc は escape-order.js が field-escape.js を通して受ける。spec-4b-7a 確定事項E）。
 
   let el = null;
 

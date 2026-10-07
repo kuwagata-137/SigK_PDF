@@ -374,3 +374,78 @@ test('タッチで引いて離した（mouseup が来ない）あとは、控え
   await new Promise((resolve) => setTimeout(resolve, 5));
   assert.equal(SigK.propsRange.isHeld(), false);
 });
+
+// ---- 点検の直し ----
+
+function selectSpan(shell) {
+  const range = shell.document.createRange();
+  range.selectNodeContents(shell.document.querySelector('#view .textLayer span'));
+  shell.window.getSelection().addRange(range);
+}
+
+test('ハイライトでなぞっている途中の Esc のあとは、離してもハイライトを作らない（文字の選択も外す）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, window } = shell;
+  SigK.annotate.setTool('highlight');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [100, 700]), { buttons: 1 });
+  selectSpan(shell);
+  assert.equal(esc(shell).defaultPrevented, true);
+  assert.equal(window.getSelection().rangeCount, 0);
+  assert.equal(SigK.annotateRightButton.isChording(), true, '離すまで捨てる');
+  // 実機では動かすと選択が伸び直す。伸び直しても、離したときに作らない。
+  selectSpan(shell);
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [200, 700]));
+  assert.equal(SigK.viewer.getAnnotations().added.length, 0);
+  assert.equal(SigK.annotateRightButton.isChording(), false);
+  assert.equal(SigK.annotate.getTool(), 'highlight', '道具は切り替えない');
+});
+
+test('押し続けた Esc の繰り返しは見ない（1 回の押しで 1 つだけ）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  drawSquare(shell);
+  assert.equal(esc(shell, shell.document.body, { repeat: true }).defaultPrevented, false);
+  assert.equal(SigK.annotate.getSelection().length, 1);
+});
+
+test('ツールの画面では、隠れたページビューの文字の選択に触れない', async (t) => {
+  const shell = await withShell(t, 'view');
+  const { SigK, document, window } = shell;
+  selectSpan(shell);
+  SigK.shell.setMode(document, 'tools');
+  assert.equal(esc(shell).defaultPrevented, false);
+  assert.equal(window.getSelection().rangeCount, 1);
+});
+
+test('文書が開いていなくても、欄の Esc は効く', async (t) => {
+  const shell = await createShell();
+  t.after(() => shell.cleanup());
+  const { SigK, document } = shell;
+  SigK.shell.setMode(document, 'annot');
+  SigK.annotate.setTool('shape');
+  const width = document.getElementById('props-width');
+  const before = width.value;
+  type(shell, width, '9');
+  assert.equal(esc(shell, width).defaultPrevented, true);
+  assert.equal(width.value, before);
+  assert.notEqual(document.activeElement, width);
+});
+
+test('押したままタブを替えると、押下を捨てる（替えた先のタブに置かない）', async (t) => {
+  const B = 'C:\\work\\b.pdf';
+  const shell = await createShell({ files: { [A]: makeSource({ path: A, name: 'a.pdf' }), [B]: makeSource({ path: B, name: 'b.pdf' }) } });
+  t.after(() => shell.cleanup());
+  const { SigK, document } = shell;
+  await SigK.tabs.openPath(A);
+  await SigK.tabs.openPath(B);
+  await shell.flush();
+  SigK.shell.setMode(document, 'annot');
+  SigK.annotate.setTool('note');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [200, 600]));
+  assert.equal(SigK.annotatePress.isPending(), true);
+  SigK.tabs.cycle(1);
+  await shell.flush();
+  assert.equal(SigK.annotatePress.isPending(), false);
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [200, 600]));
+  assert.equal(SigK.viewer.getAnnotations().added.length, 0);
+});

@@ -61,14 +61,17 @@
     () => root.SigK.annotateDraw?.cancel() === true,
   ];
 
-  // 最初に当たった 1 つを取りやめる。置く前の押下（spec-4b-7a 確定事項A3）も同じ段で捨てる。取りやめた操作の押下も一緒に捨てるので、
-  // そのまま離しても置かない・選ばない。
+  // 最初に当たった 1 つを取りやめる。置く前の押下（spec-4b-7a 確定事項A3）も同じ段で捨てる。取りやめた操作の押下も一緒に捨て、
+  // 全部のボタンを離すまで、動きと離しを捨てて文字を選び直させない（左＋右と同じ。点検の直し）。そのまま離しても置かない・選ばない・
+  // なぞっていたハイライトなどを作らない。
   function cancelHeld() {
     const canceled = HELD.some((step) => step());
     const pending = root.SigK.annotatePress?.isPending() === true;
-    if (canceled || pending)
-      root.SigK.annotatePress.reset();
-    return canceled || pending;
+    if (!canceled && !pending)
+      return false;
+    root.SigK.annotatePress?.reset();
+    root.SigK.annotateRightButton?.holdUntilUp();
+    return true;
   }
 
   // 浮いている小窓（確定事項A1 の 3）。道具の段の「その他」の一覧（spec-4b-5b 確定事項28）→ 右クリックのメニュー → パレットの窓。

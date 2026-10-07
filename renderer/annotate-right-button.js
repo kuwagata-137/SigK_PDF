@@ -192,5 +192,7 @@
     whileChord,
     recentlyChorded,
     isChording: () => state.chordUntilUp,
+    // Esc で押している操作を取りやめたあとも、全部離すまで同じく捨てる。道具は切り替えない（spec-4b-7a 点検の直し）。
+    holdUntilUp: () => { state.chordUntilUp = true; clearTextSelection(); },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

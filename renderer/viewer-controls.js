@@ -115,7 +115,10 @@
     // メニューの「開く」（Ctrl+O）と「最近使ったファイル」はメイン側から届く。
     // 開く経路を1本に保つため、ここでもツールバーと同じ処理を呼ぶ。
     // パスが付いていればそれを開き、無ければダイアログを出す。
+    // 窓が開いている間は、後ろで別の文書を開かない（spec-4b-7a 点検の直し）。
     root.pdfAPI?.onOpenRequest?.((filePath) => {
+      if (doc.querySelector('dialog[open]') !== null)
+        return;
       if (typeof filePath === 'string' && filePath.length > 0)
         root.SigK.tabs.openPath(filePath);
       else

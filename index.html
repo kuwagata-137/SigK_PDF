@@ -605,7 +605,7 @@ body{
         <!-- テキストの枠線（spec-4b-4a 確定事項G4）。色のチップと同じ作りで、パレットに［枠線なし］がある。太さは下の太さの行（枠線の太さ）。 -->
         <div class="prop" id="props-border-row" hidden><span class="k" id="props-border-label">枠線</span>
           <div class="chip-row"><button type="button" class="chip" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-border-name"></span></div></div>
-        <!-- .props-field の中のキーは欄のもの（viewer-controls.js が素通しする）。 -->
+        <!-- .props-field の中のキーは欄のもの（viewer-keys.js が素通しする。Esc だけは escape-order.js が field-escape.js を通して受ける）。 -->
         <div class="prop" id="props-width-row" hidden><span class="k" id="props-width-label">線の太さ</span>
           <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
         <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span>
