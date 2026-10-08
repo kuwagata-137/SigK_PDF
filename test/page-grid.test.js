@@ -349,6 +349,39 @@ test('選択外の紙を掴んだら、その1枚だけを選び直してから�
   assert.deepEqual([...SigK.pageGrid.getSelection()], [0]);
 });
 
+// 引いて離したあとの click は捨てる（spec-4b-7b 点検の直し）。本物のマウスでは、同じサムネイルの上で離すと pointerup のあとに
+// click が来る。捨てないと、運んだあとで選択が押したページ 1 枚に選び直され、Ctrl なら外れて空になっていた。
+test('引いて離したあとの click では選び直さない。次の押下からは、ふつうのクリックに戻る', async (t) => {
+  const shell = await withPagesMode(t, { pdfjs: createPdfjsStub({ sizes: [A4, A4, A4, A4] }) });
+  const { SigK, firePointer, document, window } = shell;
+  SigK.pageGrid.setSelection([0, 1]);
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, 2);
+  firePointer(thumbs[2], 'pointerdown', start);
+  firePointer(thumbs[2], 'pointermove', { x: start.x + 6, y: start.y });
+  firePointer(thumbs[2], 'pointerup', { x: start.x + 6, y: start.y });
+  thumbs[2].dispatchEvent(new window.MouseEvent('click', { bubbles: true, ctrlKey: true }));
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [2], 'Ctrl の click で掴んだページが外れた');
+
+  firePointer(thumbs[0], 'pointerdown', centerOf(SigK, 0));
+  firePointer(thumbs[0], 'pointerup', centerOf(SigK, 0));
+  thumbs[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true, ctrlKey: true }));
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 2]);
+});
+
+// タッチで列をスクロールすると、pointerup の代わりに pointercancel が来る（spec-4b-7b 点検の直し）。
+test('pointercancel で押下の控えを外し、そのあと動かしても掴まない', async (t) => {
+  const shell = await withPagesMode(t, { pdfjs: createPdfjsStub({ sizes: [A4, A4, A4, A4] }) });
+  const { SigK, firePointer, document } = shell;
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, 0);
+  firePointer(thumbs[0], 'pointerdown', start);
+  firePointer(thumbs[0], 'pointercancel', start);
+  firePointer(document.body, 'pointermove', { x: start.x + 40, y: start.y + 40 });
+  assert.equal(SigK.pageGrid.isDragging(), false);
+  assert.equal(document.querySelector('.drag-badge, .thumb-badge'), null);
+});
+
 test('選んだ複数枚はまとめて動く', async (t) => {
   const shell = await withPagesMode(t, { pdfjs: createPdfjsStub({ sizes: [A4, A4, A4, A4] }) });
   const { SigK, firePointer, document } = shell;

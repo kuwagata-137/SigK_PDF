@@ -40,6 +40,8 @@
     at: null,
     timer: 0,
   };
+  // 引いて離した直後か。続く click を 1 回だけ捨てる（handleClick）。次の押下で外す（click が来ないで終わることがある）。
+  let clickAfterDrag = false;
 
   let el = null;
 
@@ -167,6 +169,12 @@
   function handleClick(index, event) {
     if (!isPagesMode())
       return false;
+    // 引いて離したあとの click は捨てる（spec-4b-7b 点検の直し）。同じサムネイルの上で離すと、click が選択を 1 枚に選び直し、
+    // Ctrl＋クリックの手が少し動いて掴んだときは、押したページを外して選択が空になっていた。
+    if (clickAfterDrag) {
+      clickAfterDrag = false;
+      return true;
+    }
 
     // 紙の上の小さなボタンは、その1枚だけに掛ける。選択は動かさない。
     const tool = event?.target?.closest?.('.thumb-tool');
@@ -323,6 +331,7 @@
   }
 
   function onPointerDown(event) {
+    clickAfterDrag = false;
     // 左ボタンだけを受ける。中クリック・右クリックでは掴まない。
     if (!isPagesMode() || event.button !== 0)
       return;
@@ -390,6 +399,7 @@
     }
 
     // パネルの外で離したら取り消す（確定事項37）。
+    clickAfterDrag = true;
     const inside = el.scroll.contains(event.target);
     const at = drag.at;
     const indices = [...drag.indices];
@@ -455,6 +465,9 @@
     list.addEventListener('pointerdown', onPointerDown);
     doc.addEventListener('pointermove', onPointerMove);
     doc.addEventListener('pointerup', onPointerUp);
+    // タッチで列をスクロールすると pointerup の代わりに pointercancel が来る。押下の控えを残すと、そのあとマウスを動かしただけで
+    // 掴んだ状態が始まっていた（spec-4b-7b 点検の直し。前からの不具合）。
+    doc.addEventListener('pointercancel', () => cancelDrag());
     doc.addEventListener('keydown', onKeyDown);
     return true;
   }
