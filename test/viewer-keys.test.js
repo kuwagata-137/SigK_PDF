@@ -244,3 +244,35 @@ test('右パネルの欄にフォーカスがあるときは、紙を押して�
   assert.equal(SigK.viewerKeys.leaveTypingField(document), false);
   assert.equal(document.activeElement, width);
 });
+
+// 右パネルのスライダーと文字の大きさの一覧は文字を打たない欄で、素の取り消しも無い。マウスで動かしたあとフォーカスが残り、
+// Ctrl+Z・Ctrl+Y・Delete が効かなかった（spec-4b-7b 点検の直し）。矢印・PageUp は今までどおり欄のもの。
+test('右パネルのスライダーにフォーカスがあっても、Ctrl+Z・Ctrl+Y・Delete は文書に効く。矢印・PageUp は欄のまま', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const id = drawSquare(shell, [100, 700], [200, 600]);
+  SigK.annotate.select(id);
+  const range = document.getElementById('props-width-range');
+  range.focus();
+  const press = (init) => {
+    const event = new shell.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    range.dispatchEvent(event);
+    return event;
+  };
+  assert.equal(press({ key: 'ArrowRight' }).defaultPrevented, false);
+  assert.equal(press({ key: 'PageUp' }).defaultPrevented, false);
+  assert.equal(press({ key: 'z', ctrlKey: true }).defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  press({ key: 'y', ctrlKey: true });
+  assert.deepEqual(ids(shell), [id]);
+  SigK.annotate.select(id);
+  range.focus();
+  assert.equal(press({ key: 'Delete' }).defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  // 数を打つ欄は、今までどおり欄の素の取り消し（計画外の直し④）。
+  const number = document.getElementById('props-width');
+  number.focus();
+  const typed = new shell.window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+  number.dispatchEvent(typed);
+  assert.equal(typed.defaultPrevented, false);
+});

@@ -25,6 +25,17 @@
     return node?.tagName === 'INPUT' && TYPING_TYPES.has(node.type);
   }
 
+  // 右パネルの文字を打たない欄（線の太さ・不透明度のスライダー、文字の大きさの一覧）。欄に素の取り消しは無いので、元に戻す・
+  // やり直し・削除のキーは文書へ通す（spec-4b-7b 点検の直し。マウスで動かしたあとフォーカスが残り、Ctrl+Z・Delete が効かなかった）。
+  // 矢印・PageUp・Home などは欄の値を動かすキーなので、今までどおり欄のもの。
+  function isPanelChoice(node) {
+    return node?.matches?.('.props-field') === true && !isTypingField(node);
+  }
+
+  function passesPanelChoice(event) {
+    return isPanelChoice(event.target) && (historyStep(event) !== null || event.key === 'Delete' || event.key === 'Backspace');
+  }
+
   // 紙の外の文字を打つ欄（検索の欄・ページ番号の欄）からフォーカスを外す。編集モードで紙を左で押したときに annotate-pointer.js が呼ぶ
   // （spec-4b-7b 点検の直し。紙の上の押下は preventDefault するのでフォーカスが欄に残り、そのあとの Ctrl+Z が、計画外の直し④で欄に
   // 任せた欄の文字の取り消しになっていた）。右パネルの欄と紙の上の入力欄は残す（spec-4b-7a 確定事項E4）。
@@ -141,7 +152,7 @@
       return true;
     }
 
-    if (isTextField(event.target))
+    if (isTextField(event.target) && !isPanelChoice(event.target))
       return false;
 
     // Delete はページモードでだけ効かせる（確定事項55）。
@@ -202,7 +213,7 @@
     // テキストの入力欄と右パネルの欄（「本文」「作成者」・太さと不透明度のスライダーと数値欄）、色のパレットの窓の中のキーは
     // 欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4、spec-4b-1b 確定事項6・7）。Ctrl+Z は素の取り消し、Delete・
     // PageUp 等も奪わない。Ctrl+Enter は欄自身が確定に使う。
-    if (event.target?.closest?.('.free-text-editor, .props-field, .color-pop'))
+    if (event.target?.closest?.('.free-text-editor, .props-field, .color-pop') && !passesPanelChoice(event))
       return;
     if (handlePageEditKey(event, doc))
       return;
