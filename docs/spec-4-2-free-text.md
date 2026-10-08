@@ -398,7 +398,7 @@ B の検体を Browser パネルの pdf.js で開いた。
 | 8 | 印刷に映る、PDF→画像には映らない | ✅ `test/annotation-layer.test.js`（`paint` が `fillText`）・`test/annotate-text.test.js`（`painterFor`）。`print.prepare` は `ensureLoaded` を待つ |
 | 9 | `npm test` 緑（`TZ=UTC` も）、配布物で `SIGK_SMOKE_ANNOTATE`、asar からフォント | ✅ 1,103 → **1,189 件**（76 → 85 ファイル）。`TZ=UTC` も 1,189 件緑。`npm run dist` → `dist/win-unpacked/SigK PDF.exe` で `rotated.pdf` に置いて保存 → `fontLoaded: true`・`fonts: 1`・`importedTexts[0].rotation: 90`・`problems: []` |
 | 10 | 配布物のサイズ増と保存時間の増分 | ✅ 下の「実測」 |
-| 11 | 他のビューアで同じ位置・大きさ・色 | ⏳ **ユーザーの目視** |
+| 11 | 他のビューアで同じ位置・大きさ・色 | ⏳ **ユーザーの目視**。**2026-10-08（Phase 5 塊③）**: 確かめた。IME は未確認（`spec-5-3` No.9。下の「目視の残り」の追記） |
 
 ### 実測（Windows 11 実機・開発ツリー。`SIGK_SMOKE_ANNOTATE`）
 
@@ -417,3 +417,7 @@ B の検体を Browser パネルの pdf.js で開いた。
 保存した PDF を他のビューアで開き、日本語が同じ位置・大きさ・色で見え、豆腐や欠けが無いこと。
 `/Rotate 90` のページに置いたものが上向きに読めること。IME で「にほんご」を変換・確定しても変換中の Enter で
 確定されないこと（起動確認は IME を通していない）。
+
+**2026-10-08 追記（Phase 5 塊③）**: 判定11 は確かめた。Windows 標準の描き方でも日本語のテキストに欠けが無く、90° のページに置いたものも
+上向きに読める（`spec-5-3` No.9。見比べの絵 `screenshots/phase5-3-2a-markup-text.png`）。IME で変換している途中の Enter・Esc は
+「あなたの画面で見る項目」⑦、Adobe Acrobat での見え方は同じく①（`spec-5-3`）で未確認。

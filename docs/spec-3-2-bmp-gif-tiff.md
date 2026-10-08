@@ -352,7 +352,7 @@ utif・omggif はともに MIT。`findCopyleft` の該当なし。utif の内蔵
 | 5 | 非対応の圧縮・色の形式・壊れたファイルは名指しの文言で断られ、行に印が付く | ✅ `test/tiff-directory.test.js`（圧縮 2・6・34712・99999、色の形式 10 通り）・`test/decode-bmp.test.js`・`test/image-format.test.js`（2ページ目が旧 JPEG なら一覧で断る） |
 | 6 | 12MP の3形式が各 2 秒以内、A4 600dpi G4 が 2 秒以内。RSS の増分が 1 枚ぶんに収まる | ✅ 時間は下の「実測」（1.3〜1.8 秒・1.1 秒）。**RSS は 1 枚ぶんに収まるが「1 枚ぶん」が出力の大きさに比例する**（下の注記） |
 | 7 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_CONVERT` が通る。告知が揃う | ✅ 974 件（908 → 974）。配布物で `single`（6 ページ・`problems: []`）と `each`（4 本・3 択の確認あり）。`THIRD-PARTY-NOTICES.md` に utif・omggif・JPEG デコーダーの節、`findCopyleft` の該当なし |
-| 8 | 他のビューアで開いて白黒・色・透過が正しい | ⏳ **ユーザーの目視待ち。**pdf-lib で読み直した検証と、pdf.js（アプリ内）の描画は通っている |
+| 8 | 他のビューアで開いて白黒・色・透過が正しい | ⏳ **ユーザーの目視待ち。**pdf-lib で読み直した検証と、pdf.js（アプリ内）の描画は通っている。**2026-10-08（Phase 5 塊③）**: 検体で確かめた。実物のファイルは未確認（`spec-5-3` No.6。下の「人が目で確かめる手順（残り）」の追記） |
 
 ### 実測（Windows 11 実機・Node 24 単体・`runConvert` の経路・写真に近い中身の 12MP＝4000×3000）
 
@@ -382,3 +382,7 @@ utif・omggif はともに MIT。`findCopyleft` の該当なし。utif の内蔵
 - 実物の FAX／複合機の TIFF（複数ページ・G4）を変換し、他のビューアでページ数と白黒を確かめること（判定8）。
 - 実物の GIF（透過あり）と BMP（Windows の「ペイント」保存）を変換し、白地と色を確かめること。
 - `screenshots/phase3-formats-app.png` で一覧の「640×480 ・ 3 ページ」の見た目を確かめること。
+
+**2026-10-08 追記（Phase 5 塊③）**: 判定8 は検体で確かめた。FAX の TIFF（`image-fax.tif`）は白黒のまま、3 ページの TIFF（`image-pages.tif`）は
+3 ページになり、GIF・BMP の検体も含めて画像 7 個から 9 ページできる（`spec-5-3` No.6。見比べの絵 `screenshots/phase5-3-1b-convert.png`）。
+実物の FAX・複合機の TIFF と、実物の GIF・BMP での変換は「あなたの画面で見る項目」⑧（`spec-5-3`）で未確認。

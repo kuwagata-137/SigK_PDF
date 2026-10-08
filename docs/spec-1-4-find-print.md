@@ -176,6 +176,9 @@ jsdom は CSS を解釈せず `getBoundingClientRect()` が 0 を返す。**位�
 - [x] `SIGK_SMOKE_FIND` で全ページのテキスト取り出しにかかった時間が出る（`text-heavy.pdf` で）
 - [x] `SIGK_SMOKE_PRINT=<範囲>` で、準備した画像の枚数と寸法が出る（**印刷ダイアログ自体は自動化できないので、OS へ送る手前まで**を確かめる）
 - [ ] Ctrl+P で OS の印刷ダイアログが実際に出ることを**人が目で確かめる**（手順は下記）
+  **2026-10-08 追記（Phase 5 塊③）**: 印刷の準備までは確かめた。保存していない四角を残したまま、起動確認（`SIGK_SMOKE_KEYS` の
+  `dialog:print,print-prepare`）で準備が 3/3 まで通った（`spec-5-3` No.1）。Windows の印刷の窓が出ることと取り消せることは
+  「あなたの画面で見る項目」③（`spec-5-3`）で未確認。
 - [x] `SIGK_SMOKE_TEXT` `SIGK_SMOKE_DROP` `SIGK_SMOKE_TABS` が引き続き通る
 - [x] `npm run dist` で NSIS インストーラーが生成される
 - [x] **生成物が起動する**（`SIGK_SMOKE=1 "./dist/win-unpacked/SigK PDF.exe"`）

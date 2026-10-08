@@ -350,7 +350,7 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 | 7 | 回転・CropBox・倍率でも四角が文字に重なる | ✅ `test/markup-quads.test.js`（回転 0／90／180、CropBox、倍率 0.5〜2）。実機 `rotated.pdf` の `/Rotate 90` のページで span と item の横位置が 47.9〜157.65 対 48〜157.75（0.1pt） |
 | 8 | 印刷に未保存の注釈が映る。PDF→画像には映らない | ✅ `test/page-image.test.js`（overlay）・`test/annotate.test.js`（`painterFor`）・`test/print.test.js` 緑。紙の実物はユーザーの目視（Ctrl+P） |
 | 9 | 回転したページで文字の選択が文字に重なる | ✅ 判定 7 の実機の値（`text-layer.css` の 3 本を足す前は span が回転前の位置に残っていた） |
-| 10 | 他のビューアで色・位置・透け方 | ⏳ **ユーザーの目視** |
+| 10 | 他のビューアで色・位置・透け方 | ⏳ **ユーザーの目視**。**2026-10-08（Phase 5 塊③）**: 確かめた（`spec-5-3` No.8。下の「人が目で確かめる手順（残り）」の追記） |
 | 11 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_ANNOTATE` | ✅ `npm test` 1,031 → **1,103 件**（68 → 74 ファイル）。`npm run dist` → `SIGK_SMOKE=1 SIGK_SMOKE_ANNOTATE=… "./dist/win-unpacked/SigK PDF.exe"` が `problems: []`・`url: app://sigk/index.html` で通り、作成・選択・削除・undo・保存（363ms）・開き直し（`importedAfter: 2`）まで同じ結果 |
 
 ### 実測（Windows 11 実機・開発ツリー。`SIGK_SMOKE_ANNOTATE`）
@@ -369,3 +369,9 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 - 保存した PDF を他のビューアで開き、ハイライトの色と位置、文字の透け方（multiply）、下線・取り消し線の太さを見る（判定10）。
 - 他のアプリで付けたハイライトを消して保存し、他のビューアで消えていること。
 - Ctrl+P のプレビューに未保存の注釈が載っていること（判定8 の紙）。
+
+**2026-10-08 追記（Phase 5 塊③）**: 判定10 は確かめた。Windows 標準の描き方でも、ハイライトの下の文字が透けて読め、他のアプリで付けた
+ハイライトを消して保存したものは消えている（`spec-5-3` No.8。見比べの絵 `screenshots/phase5-3-2a-markup-text.png`）。Adobe Acrobat での
+見え方は「あなたの画面で見る項目」①（`spec-5-3`）で未確認。印刷に保存していない書き込みが載ることは、重ねる作り（確定事項28 の `overlay`）を
+`page-image` のテストが見張り、起動確認で印刷の準備が 3/3 まで通った。アプリの中の印刷の窓には下見が無いので、印刷に載ることを目で見るのは
+「あなたの画面で見る項目」③（`spec-5-3`）で、未確認。

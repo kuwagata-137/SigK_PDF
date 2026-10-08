@@ -426,7 +426,7 @@ Phase 4 の最後の塊。**ツールモードに「透かし」と「フラッ�
 | 8 | テキスト注釈を不透明度 50% で保存すると `/CA` と外観の ExtGState が 0.5 | ✅ | `free-text-appearance.test.js`・`op-annotate.test.js`（先に落ちるのを見てから直した）、隠した窓の起動確認 `SIGK_SMOKE_ANNOTATE`（`/CA 0.5`・外観の `ca 0.5`） |
 | 9 | 分割・PDF→画像の画面を共通部品に差し替えても、既存のテストが 1 行も変えずに通る | ✅ | `tools-split.test.js`・`tools-to-image.test.js` は `main`（`2a717ce`）から無変更で通る。起動確認で分割（3 本）と PDF→画像（3 枚）も動いた |
 | 10 | `npm test` が緑（`TZ=UTC` でも）。配布物でも `SIGK_SMOKE=1 SIGK_SMOKE_HIDDEN=1` で起動確認が通り、窓が出ない | ✅ | 1,473 件緑（`TZ=UTC` も）。`dist/win-unpacked/SigK PDF.exe` で `SIGK_SMOKE_WATERMARK`・`SIGK_SMOKE_FLATTEN`（`problems: []`・`window.hidden: true`・61 fps。開発ツリーと同じ結果） |
-| 11 | 他のビューアで透かし・焼き込んだ注釈・テキスト注釈の不透明度が同じに見える | ⏳ | **ユーザーの目視待ち**（塊①判定10〜塊④判定12 と同じ扱い） |
+| 11 | 他のビューアで透かし・焼き込んだ注釈・テキスト注釈の不透明度が同じに見える | ⏳ | **ユーザーの目視待ち**（塊①判定10〜塊④判定12 と同じ扱い）。**2026-10-08（Phase 5 塊③）**: 透かしの位置・向き・濃さとフラット化は確かめた。文字として選べないかは未確認（`spec-5-3` No.12。下の「目視の残り」の追記） |
 
 ### 実測（Windows 11 実機・開発ツリーと配布物。窓を出さない起動確認）
 
@@ -449,3 +449,8 @@ Phase 4 の最後の塊。**ツールモードに「透かし」と「フラッ�
 テキスト注釈を不透明度 50% で保存した PDF が、他のビューアでも同じ濃さに見えること。
 検体は、本アプリで `test/fixtures/page-boxes.pdf` に透かしを、`test/fixtures/sigk-annotated.pdf` にフラット化をかけて作れる
 （どちらも `npm test` の前処理で生成される）。
+
+**2026-10-08 追記（Phase 5 塊③）**: 透かしの位置・向き・濃さとフラット化は確かめた（`spec-5-3` No.12。見比べの絵
+`screenshots/phase5-3-2c-watermark-flatten.png`、PDFium の `screenshots/phase5-3-pdfium-watermark.jpg`）。保存したページの文字に透かしの文字は
+混ざらない（起動確認の `containsMark: false`。回した 4 ページを含む）。フラット化は 8 件を焼き込み、ノートは絵だけ残る。透かしの文字を
+ドラッグや検索で選べないことは「あなたの画面で見る項目」①（`spec-5-3`）で未確認。
