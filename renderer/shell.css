@@ -695,6 +695,19 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #confirm-replace::backdrop{background:rgba(16,24,40,.34)}
 
+/* 上書き・パスワード・抽出・モザイクの確認。ほかの窓と同じ枠にする（枠を当てておらず、ブラウザの素の黒い枠で出ていた）。
+   幅は中身に合わせる。抽出とモザイクは文が長いので広め。 */
+#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+}
+#confirm-overwrite{width:min(440px, 88vw)}
+#password-prompt{width:min(420px, 88vw)}
+#confirm-extract{width:min(460px, 88vw)}
+#confirm-mosaic{width:min(560px, 88vw)}
+#confirm-overwrite::backdrop, #password-prompt::backdrop, #confirm-extract::backdrop, #confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}
+#confirm-mosaic .dlg-text + .dlg-text{margin-top:8px}
+
 /* ── 注釈一覧（spec-4-4 確定事項9・29〜32） ────────────────────── */
 /* サイドパネルの行。ツール一覧と同じトークンで組む。アイコンは注釈の色、表示のみは灰色に「表示のみ」の印。 */
 .annot-list[hidden]{display:none}
