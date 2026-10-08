@@ -368,6 +368,107 @@ test('選んだ複数枚はまとめて動く', async (t) => {
   assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [2, 3, 0, 1]);
 });
 
+// ---- 本物のマウスの順（pointerdown → pointerup → click）での選択（計画外の直し①） ----
+//
+// 本物のマウスでは click の前に pointerdown が来る。押した瞬間に選び直していたため、Ctrl＋クリックで選択が空になり、
+// Shift＋クリックが押した 1 枚だけになっていた。click だけを送る上のテストでは見つからなかった。
+
+function pointer(shell, type, target, { x, y }, { ctrl = false, shift = false } = {}) {
+  const Ctor = shell.window.PointerEvent ?? shell.window.MouseEvent;
+  target.dispatchEvent(new Ctor(type, {
+    bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 1, ctrlKey: ctrl, shiftKey: shift,
+  }));
+}
+
+// 動かさずに押して離す（クリック）。
+function pressThumb(shell, index, modifiers = {}) {
+  const node = thumbsIn(shell.document)[index];
+  const point = centerOf(shell.SigK, index);
+  pointer(shell, 'pointerdown', node, point, modifiers);
+  pointer(shell, 'pointerup', node, point, modifiers);
+  node.dispatchEvent(new shell.window.MouseEvent('click', {
+    bubbles: true, cancelable: true, clientX: point.x, clientY: point.y, detail: 1, ctrlKey: modifiers.ctrl === true, shiftKey: modifiers.shift === true,
+  }));
+}
+
+const FOUR = { pdfjs: createPdfjsStub({ sizes: [A4, A4, A4, A4] }) };
+
+test('押して離すクリックでも、Ctrl＋クリックは選択を足し引きする（確定事項16）', async (t) => {
+  const shell = await withPagesMode(t, FOUR);
+  const { SigK } = shell;
+
+  pressThumb(shell, 0);
+  pressThumb(shell, 2, { ctrl: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 2]);
+  assert.equal(SigK.pageGrid.getAnchor(), 2);
+
+  pressThumb(shell, 2, { ctrl: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0]);
+  assert.deepEqual(selectedIn(shell.document), [0]);
+});
+
+test('押して離すクリックでも、Shift＋クリックは起点からの範囲、Ctrl＋Shift＋クリックは範囲を足す（確定事項17）', async (t) => {
+  const shell = await withPagesMode(t, FOUR);
+  const { SigK } = shell;
+
+  pressThumb(shell, 0);
+  pressThumb(shell, 3, { shift: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 1, 2, 3]);
+  assert.equal(SigK.pageGrid.getAnchor(), 0, 'Shift＋クリックで起点が動いた');
+
+  pressThumb(shell, 3);
+  pressThumb(shell, 0, { ctrl: true });
+  pressThumb(shell, 1, { ctrl: true, shift: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 1, 3]);
+});
+
+test('押して離すだけの素のクリックは、選んでいる紙を押してもその 1 枚だけにする（確定事項15）', async (t) => {
+  const shell = await withPagesMode(t, FOUR);
+  const { SigK } = shell;
+
+  SigK.pageGrid.setSelection([0, 1, 2], { anchor: 0 });
+  pressThumb(shell, 1);
+
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [1]);
+  assert.equal(SigK.pageGrid.getAnchor(), 1);
+  assert.equal(SigK.pageEdit.getHistoryState().depth, 1, '押して離しただけで並びが変わった');
+});
+
+test('押しただけ（まだ動かしていない）では選択を変えない。引いて掴んだときに選び直す（確定事項34）', async (t) => {
+  const shell = await withPagesMode(t, FOUR);
+  const { SigK, document } = shell;
+  SigK.pageGrid.setSelection([0, 1], { anchor: 0 });
+  const thumbs = thumbsIn(document);
+  const start = centerOf(SigK, 3);
+
+  pointer(shell, 'pointerdown', thumbs[3], start, { ctrl: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 1], '押しただけで選び直した');
+
+  pointer(shell, 'pointermove', thumbs[3], { x: start.x - 30, y: start.y }, { ctrl: true });
+  assert.equal(SigK.pageGrid.isDragging(), true);
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [3], '選んでいない紙を掴んだのに、その 1 枚に選び直していない');
+  assert.match(document.querySelector('.drag-badge').textContent, /1 ページ/);
+  SigK.pageGrid.cancelDrag();
+});
+
+test('選んでいる紙を Ctrl なしで押して引くと、選んでいる全部を運ぶ（確定事項34）', async (t) => {
+  const shell = await withPagesMode(t, FOUR);
+  const { SigK, document } = shell;
+  pressThumb(shell, 0);
+  pressThumb(shell, 1, { ctrl: true });
+  assert.deepEqual([...SigK.pageGrid.getSelection()], [0, 1]);
+
+  const thumbs = thumbsIn(document);
+  const last = SigK.thumbnails.getLayout().pages[3];
+  const end = { x: last.left + last.width - 1, y: last.top + 10 };
+  pointer(shell, 'pointerdown', thumbs[1], centerOf(SigK, 1));
+  pointer(shell, 'pointermove', thumbs[1], end);
+  assert.match(document.querySelector('.drag-badge').textContent, /2 ページ/);
+  pointer(shell, 'pointerup', thumbs[3], end);
+
+  assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [2, 3, 0, 1]);
+});
+
 test('同じ位置へ落としても履歴は増えない', async (t) => {
   const shell = await withPagesMode(t);
   const { SigK } = shell;

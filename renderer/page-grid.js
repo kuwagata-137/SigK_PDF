@@ -29,10 +29,11 @@
   };
 
   // ドラッグ1回ぶんの状態。pending は「押されたがまだ動いていない」、
-  // active は「閾値を超えて実際に掴んだ」である。
+  // active は「閾値を超えて実際に掴んだ」である。pressed は押した紙の表示 index。
   const drag = {
     pending: false,
     active: false,
+    pressed: null,
     startX: 0,
     startY: 0,
     indices: [],
@@ -299,6 +300,7 @@
     stopAutoScroll();
     drag.pending = false;
     drag.active = false;
+    drag.pressed = null;
     drag.indices = [];
     drag.at = null;
     el.line?.remove();
@@ -335,16 +337,25 @@
     // 触った時点でフォーカスを移す（確定事項18）。
     el.scroll.focus?.({ preventScroll: true });
 
-    // 掴んだ枚が選択に含まれていなければ、その1枚だけを選び直してから動かす
-    // （確定事項34）。選んでいない紙を掴んだのに、選択中の別の紙が動くのは驚く。
-    if (!state.selection.includes(index))
-      setSelection([index], { anchor: index });
-
+    // 押しただけでは選択を変えない。動かさずに離せばクリックで、選択は click 側（handleClick。確定事項15〜17）が決める。
+    // ここで選び直すと、Ctrl・Shift のクリックが当たる前に選択と起点が替わり、Ctrl＋クリックで選択が空になり、Shift＋クリックが
+    // 押した 1 枚だけになっていた（計画外の直し①。本物のマウスでは pointerdown が click より先に来る）。
     drag.pending = true;
     drag.active = false;
+    drag.pressed = index;
     drag.startX = event.clientX;
     drag.startY = event.clientY;
+    drag.indices = [];
+  }
+
+  // 閾値を超えて掴んだときに、運ぶ紙を決める。掴んだ枚が選択に含まれていなければ、その1枚だけを選び直してから動かす
+  // （確定事項34）。選んでいない紙を掴んだのに、選択中の別の紙が動くのは驚く。選んでいる紙を掴んだなら選んでいる全部を運ぶ。
+  function grab() {
+    if (!state.selection.includes(drag.pressed))
+      setSelection([drag.pressed], { anchor: drag.pressed });
     drag.indices = getSelection();
+    drag.active = true;
+    syncMarks();
   }
 
   function onPointerMove(event) {
@@ -355,8 +366,7 @@
       const moved = Math.abs(event.clientX - drag.startX) + Math.abs(event.clientY - drag.startY);
       if (moved < DRAG_THRESHOLD)
         return;
-      drag.active = true;
-      syncMarks();
+      grab();
     }
 
     const point = pointInList(event);
@@ -375,6 +385,7 @@
     if (!drag.active) {
       // 動かさずに離したのはクリックである。選択は click 側で決まる。
       drag.pending = false;
+      drag.pressed = null;
       return;
     }
 
