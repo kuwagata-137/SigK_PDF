@@ -1,7 +1,7 @@
 'use strict';
 
-// 右クリックメニューを登録・削除する build/installer.nsh の静的検査（spec-5-1 確定事項22〜31・
-// 「テストの範囲」の 10 項目）。
+// 右クリックメニューと「プログラムから開く」・既定のアプリの選択肢を登録・削除する build/installer.nsh の
+// 静的検査（spec-5-1 確定事項22〜31・「テストの範囲」の 10 項目、spec-5-2 確定事項A・D・「テストの範囲」）。
 //
 // NSIS はここでは走らせない（実機での登録・上書き・削除は、別名のインストーラーで確かめる。
 // spec-5-1 事前調査 B・起動確認 S8）。ここは .nsh の文字列を読み、!insertmacro を展開した
@@ -69,19 +69,35 @@ function expand(name, args = [], via = []) {
 const INSTALL = expand('customInstall');
 const UNINSTALL = expand('customUnInstall');
 
+// WriteRegNone は値の中身を持たない（.pdf の OpenWithProgids の候補。spec-5-2 確定事項A2）。
 const writesOf = (lines) => lines
-  .filter(({ line }) => line.startsWith('WriteRegStr '))
+  .filter(({ line }) => /^WriteReg(Str|None) /.test(line))
   .map(({ line }) => {
-    const [, root, key, name, value] = tokens(line);
-    return { root, key, name, value };
+    const [command, root, key, name, value] = tokens(line);
+    return { command, root, key, name, value };
   });
 // 子も値も無いときだけ消す親キー（sigkPruneEmptyKey の中の DeleteRegKey）は分けて扱う。
 const deletesOf = (lines, { guarded }) => lines
   .filter(({ line }) => line.startsWith('DeleteRegKey '))
   .filter(({ via }) => via.includes('sigkPruneEmptyKey') === guarded)
   .map(({ line }) => tokens(line)[2]);
+const valueDeletesOf = (lines) => lines
+  .filter(({ line }) => line.startsWith('DeleteRegValue '))
+  .map(({ line }) => {
+    const [, , key, name] = tokens(line);
+    return { key, name };
+  });
 
 const WRITES = writesOf(INSTALL);
+// 関連付け（spec-5-2 確定事項A）。メニュー（spec-5-1）とは書き方と消し方が違う。
+const ASSOC_WRITES = writesOf(expand('sigkWriteAssoc'));
+const MENU_WRITES = WRITES.filter((write) => !ASSOC_WRITES.some((assoc) => assoc.key === write.key && assoc.name === write.name));
+// customUnInstall のうち、${ifNot} ${isUpdated} の中の行（上書きインストールでは走らない）。
+function updateGuarded(lines) {
+  const open = lines.findIndex(({ line }) => line === '${ifNot} ${isUpdated}');
+  const close = lines.findIndex(({ line }, index) => index > open && line === '${endIf}');
+  return { open, close, inside: (index) => open >= 0 && index > open && index < close };
+}
 const ID = '${SIGK_SHELL_ID}';
 const EXE = '"$INSTDIR\\${APP_EXECUTABLE_FILENAME}"';
 const SFA = 'Software\\Classes\\SystemFileAssociations';
@@ -90,15 +106,37 @@ const imageExtsOf = (lines) => lines
   .map(({ line }) => new RegExp(`^(?:WriteRegStr|DeleteRegKey) HKCU "${SFA.replace(/\\/g, '\\\\')}\\\\(\\.[a-z]+)\\\\shell\\\\\\$\\{SIGK_SHELL_ID\\}\\.ToPdf"`).exec(line)?.[1])
   .filter(Boolean);
 
-test('1. customInstall で書くキーは、すべて customUnInstall で消す', () => {
+test('1. customInstall で書くキーと値は、すべて customUnInstall で消す', () => {
   const deletes = deletesOf(UNINSTALL, { guarded: false });
+  const valueDeletes = valueDeletesOf(UNINSTALL);
   assert.ok(WRITES.length > 0);
-  for (const { key } of WRITES)
-    assert.ok(deletes.some((top) => key === top || key.startsWith(`${top}\\`)), `消し忘れ: ${key}`);
-  // 上書きで二重にならないよう、書く前にも同じものを消す（事前調査 B3）。
+  for (const { key, name } of WRITES) {
+    const byKey = deletes.some((top) => key === top || key.startsWith(`${top}\\`));
+    const byValue = valueDeletes.some((del) => del.key === key && del.name === name);
+    assert.ok(byKey || byValue, `消し忘れ: ${key} [${name}]`);
+  }
+  // メニューは、上書きで二重にならないよう、書く前にも同じものを消す（spec-5-1 事前調査 B3）。
   const firstWrite = INSTALL.findIndex(({ line }) => line.startsWith('WriteRegStr '));
   const cleanedBefore = deletesOf(INSTALL.slice(0, firstWrite), { guarded: false });
-  assert.deepEqual([...cleanedBefore].sort(), [...deletes].sort());
+  assert.deepEqual([...cleanedBefore].sort(), deletesOf(expand('sigkRemoveMenus'), { guarded: false }).sort());
+  for (const { key } of MENU_WRITES)
+    assert.ok(cleanedBefore.some((top) => key === top || key.startsWith(`${top}\\`)), `書く前に消していない: ${key}`);
+});
+
+test('関連付けは書く前に消さず、上書きインストールでは消さない（spec-5-2 確定事項A6）', () => {
+  assert.ok(ASSOC_WRITES.length > 0);
+  // customInstall に関連付けを消す行が無い。
+  assert.equal(INSTALL.some(({ via }) => via.includes('sigkRemoveAssoc')), false);
+  assert.deepEqual(valueDeletesOf(INSTALL), []);
+  // customUnInstall では、${ifNot} ${isUpdated} の中だけで消す。メニューは毎回消す。
+  const guard = updateGuarded(UNINSTALL);
+  assert.ok(guard.open >= 0 && guard.close > guard.open, '${ifNot} ${isUpdated} … ${endIf} がある');
+  UNINSTALL.forEach(({ line, via }, index) => {
+    if (via.includes('sigkRemoveAssoc'))
+      assert.ok(guard.inside(index), `上書きでも消してしまう: ${line}`);
+    if (via.includes('sigkRemoveMenus'))
+      assert.ok(!guard.inside(index), `メニューは毎回消す: ${line}`);
+  });
 });
 
 test('2. 書き先・消し先・調べ先は HKCU だけ', () => {
@@ -122,9 +160,12 @@ test('4. 使うスイッチは INTENTS にあるものだけで、項目との�
   assert.equal(switchOf(`Software\\Classes\\${ID}.Menu\\shell\\03split\\command`), '--split');
   for (const ext of EXTENSIONS.toPdf)
     assert.equal(switchOf(`${SFA}\\${ext}\\shell\\${ID}.ToPdf\\command`), '--to-pdf');
+  assert.equal(switchOf(`Software\\Classes\\${ID}.Document\\shell\\open\\command`), '--open');
+  assert.equal(switchOf('Software\\Classes\\Applications\\${APP_EXECUTABLE_FILENAME}\\shell\\open\\command'), '--open');
   for (const { value } of commands)
     assert.ok(Object.hasOwn(INTENTS, /(--[a-z-]+)/.exec(value)[1]), value);
-  assert.equal(commands.length, 3 + EXTENSIONS.toPdf.length);
+  // メニュー 3・画像 7・関連付け 2（ProgID と Applications の open。spec-5-2 確定事項A1・A3）。
+  assert.equal(commands.length, 3 + EXTENSIONS.toPdf.length + 2);
 });
 
 test('5. コマンドは引用符付きの exe のパスと、引用符付きの "%1" で書く（事前調査 C）', () => {
@@ -138,8 +179,10 @@ test('5. コマンドは引用符付きの exe のパスと、引用符付きの
 });
 
 test('6. キー名は SIGK_SHELL_ID から組み、名前をじかに書かない', () => {
+  // ID を含まないのは、exe の名前で組む Applications と、Windows の共有の場所（.pdf の候補・既定のアプリの一覧）だけ。
+  const shared = ['Software\\Classes\\Applications\\${APP_EXECUTABLE_FILENAME}', 'Software\\Classes\\.pdf\\OpenWithProgids', 'Software\\RegisteredApplications'];
   for (const { key } of WRITES)
-    assert.ok(key.includes(ID), key);
+    assert.ok(key.includes(ID) || shared.some((top) => key === top || key.startsWith(`${top}\\`)), key);
   const literal = CODE_LINES.filter((line) => line.includes('SigKPDF'));
   assert.deepEqual(literal, ['!define SIGK_SHELL_ID "SigKPDF"'], '既定の名前は !define の 1 か所だけ');
   assert.equal(CODE_LINES.some((line) => line.includes('SigK PDF')), false, '製品名は ${PRODUCT_NAME} から');
@@ -167,14 +210,19 @@ test('8. SHChangeNotify を、インストール（書いた後）とアンイ�
   assert.ok(notify(UNINSTALL) >= 0);
 });
 
-test('9. .pdf の既定値と OpenWithProgids に触らない。消す親キーは子も値も無いときだけ', () => {
-  assert.equal(CODE_LINES.some((line) => /OpenWithProgids/i.test(line)), false);
-  for (const { key } of WRITES)
-    assert.ok(!/^Software\\Classes\\\.pdf(\\|$)/i.test(key), key);
+test('9. .pdf の既定値に書かない。.pdf に書くのは OpenWithProgids の自分の値だけ。消す親キーは子も値も無いときだけ', () => {
+  const pdfWrites = WRITES.filter(({ key }) => /^Software\\Classes\\\.pdf(\\|$)/i.test(key));
+  assert.deepEqual(pdfWrites.map(({ command, key, name }) => [command, key, name]), [['WriteRegNone', 'Software\\Classes\\.pdf\\OpenWithProgids', `${ID}.Document`]]);
+  assert.deepEqual(valueDeletesOf(UNINSTALL).filter(({ key }) => key.includes('.pdf')), [{ key: 'Software\\Classes\\.pdf\\OpenWithProgids', name: `${ID}.Document` }]);
+  // 確かめずに消すのは自分のキーだけ（ID を含むか、exe の名前の Applications のキー）。
   for (const key of [...deletesOf(INSTALL, { guarded: false }), ...deletesOf(UNINSTALL, { guarded: false })])
-    assert.ok(key.includes(ID), `確かめずに消すのは自分のキーだけ: ${key}`);
+    assert.ok(key.includes(ID) || key === 'Software\\Classes\\Applications\\${APP_EXECUTABLE_FILENAME}', `確かめずに消すのは自分のキーだけ: ${key}`);
   const guarded = new Set(deletesOf(UNINSTALL, { guarded: true }));
   assert.ok(guarded.has(`${SFA}\\.pdf`) && guarded.has(`${SFA}\\.pdf\\shell`));
+  // 共有の親キーは、空になっても消さない（spec-5-2 確定事項A5。事前調査 E）。自分の Software\<ID> は空なら消す。
+  for (const key of ['Software\\Classes\\.pdf', 'Software\\Classes\\.pdf\\OpenWithProgids', 'Software\\Classes\\Applications', 'Software\\RegisteredApplications'])
+    assert.ok(!guarded.has(key), `消さない: ${key}`);
+  assert.ok(guarded.has(`Software\\${ID}`));
 });
 
 test('10. 他社の製品名・サービス名が入っていない（docs/06 1-4・1-6）', () => {
@@ -200,12 +248,46 @@ test('表示名は docs/03 2-2・2-3 のとおり', () => {
     assert.equal(valueOf(`${SFA}\\${ext}\\shell\\${ID}.ToPdf`, 'MUIVerb'), 'PDF に変換（${PRODUCT_NAME}）');
 });
 
-test('インストールは自分だけに固定し、完了ページで Windows 11 の出る場所を知らせる（論点6・7）', () => {
+test('インストールは自分だけに固定し、完了ページで Windows 11 の出る場所と既定のアプリの入口を知らせる（spec-5-1 論点6・7・spec-5-2 確定事項D）', () => {
   assert.deepEqual(expand('customInstallMode').map(({ line }) => line), ['StrCpy $isForceCurrentInstall "1"']);
-  const define = CODE_LINES.findIndex((line) => line.startsWith('!define MUI_FINISHPAGE_TEXT '));
-  assert.ok(define > 0);
-  assert.equal(CODE_LINES[define - 1], '!ifndef BUILD_UNINSTALLER', 'アンインストーラーには効かせない');
-  assert.match(CODE_LINES[define], /その他のオプションを表示/);
+  const open = CODE_LINES.indexOf('!ifndef BUILD_UNINSTALLER');
+  const close = CODE_LINES.indexOf('!endif', open);
+  const block = CODE_LINES.slice(open + 1, close);
+  const text = block.find((line) => line.startsWith('!define MUI_FINISHPAGE_TEXT '));
+  assert.ok(open >= 0 && text !== undefined, 'アンインストーラーには効かせない');
+  // 日本語版 Windows 11 の項目名は「確認」（docs/07 決定45 ⑤）。
+  assert.match(text, /「その他のオプションを確認」/);
+  assert.doesNotMatch(text, /その他のオプションを表示/);
+  // 入口の名前は main.js のメニューと同じ（spec-5-2 確定事項C1）。
+  const mainJs = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.match(mainJs, /label: '既定のアプリの設定…'/);
+  assert.ok(text.includes('メニュー「ヘルプ」→「既定のアプリの設定…」'));
+  // 「完了後に起動」があると文の欄は 5 行分。7 行の文を入れるため広げる（事前調査 I）。
+  assert.ok(block.includes('!define MUI_FINISHPAGE_TEXT_LARGE'));
+  assert.equal(text.split('$\\r$\\n$\\r$\\n').length, 3, '段落は 3 つ（「ウィザードを閉じるには…」は入りきらないので除いた）');
+});
+
+test('関連付けの値は docs/03 2-1・spec-5-2 確定事項A のとおり', () => {
+  const assoc = (key, name) => ASSOC_WRITES.find((write) => write.key === key && write.name === name)?.value;
+  const progId = `Software\\Classes\\${ID}.Document`;
+  const apps = 'Software\\Classes\\Applications\\${APP_EXECUTABLE_FILENAME}';
+  const caps = `Software\\${ID}\\Capabilities`;
+  const open = '"$INSTDIR\\${APP_EXECUTABLE_FILENAME}" --open "%1"';
+  assert.equal(assoc(progId, ''), 'PDF 文書');
+  assert.equal(assoc(`${progId}\\DefaultIcon`, ''), '${SIGK_PDF_FILE_ICON}');
+  assert.equal(assoc(`${progId}\\shell\\open\\command`, ''), open);
+  assert.equal(assoc(apps, 'FriendlyAppName'), '${PRODUCT_NAME}');
+  assert.equal(assoc(`${apps}\\DefaultIcon`, ''), '${SIGK_PDF_FILE_ICON}');
+  assert.equal(assoc(`${apps}\\shell\\open\\command`, ''), open);
+  assert.equal(assoc(`${apps}\\SupportedTypes`, '.pdf'), '');
+  assert.equal(assoc(caps, 'ApplicationName'), '${PRODUCT_NAME}');
+  assert.equal(assoc(caps, 'ApplicationIcon'), '$INSTDIR\\${APP_EXECUTABLE_FILENAME},0');
+  assert.equal(assoc(`${caps}\\FileAssociations`, '.pdf'), `${ID}.Document`);
+  assert.equal(assoc('Software\\RegisteredApplications', '${PRODUCT_NAME}'), caps);
+  // PDF ファイルの絵は、extraResources で resources へ出した ICO（spec-5-2 確定事項B4）。
+  assert.ok(CODE_LINES.includes('!define SIGK_PDF_FILE_ICON "$INSTDIR\\resources\\pdf-file.ico"'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.ok(pkg.build.extraResources.some((entry) => entry.to === 'pdf-file.ico'));
 });
 
 test('electron-builder の設定が、このファイルを取り込む', () => {
