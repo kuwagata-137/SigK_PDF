@@ -297,6 +297,8 @@
 ## 未確定のまま残すもの
 
 - 他のビューア（Acrobat・Edge）での見え方（Phase 5 塊③）。
+  **2026-10-08 追記（Phase 5 塊③）**: 確かめた。回したテキストと吹き出しが Windows 標準の描き方と PDFium でも同じに見える（`spec-5-3` No.19。
+  下の「追加の直し」の末尾の追記）。
 
 ---
 
@@ -390,3 +392,9 @@
 
 Windows の配布物（exe）での確かめは、この環境ではできない。2026-10-02 の配布物の起動確認と、push 後の CI（build-windows）で代え、
 直した分の exe での確かめは Phase 5 塊③の実機の日に回す。
+
+**2026-10-08 追記（Phase 5 塊③）**: 見え方は確かめた。配布物で作った検体で、回したテキストと吹き出しのしっぽが、Windows 標準の描き方と PDFium でも
+同じに見える（`spec-5-3` No.19。見比べの絵 `screenshots/phase5-3-3b-text-shapes-marker.png`、PDFium の `screenshots/phase5-3-pdfium-rotate.jpg`）。
+
+直しの中身（しっぽの細い先を押したときに選べるか）は、配布物で押しては確かめていない。当たりの計算は単体テスト（`annotation-hit.test.js`・
+`callout-shape.test.js`）が見張っていて、配布物にも同じ JavaScript が入る。本物のマウスで押すのは「あなたの画面で見る項目」②（`spec-5-3`）。

@@ -289,7 +289,7 @@ Phase 3「変換」の前半（塊④・⑤）で画像を PDF にする経路�
 | 6 | 同名の3択が1回。中止で書き終えた分が残り、一時ファイルは残らない | ✅ jsdom（上書き・中止・別名）・起動確認（`dialogOpen: true`、`_CANCEL=1` で 737ms に止まり `6 ファイルは書き出し済みです。`・`tempLeft: false`） |
 | 7 | 300dpi で 40 ページ以上回してもレンダラーと GPU が頭打ち | ✅ 起動確認（`perf-10mb-50p.pdf` 50 ページ 300dpi: Tab 85→209MB・GPU 138→398MB。事前調査 B の頭打ち 432MB と同じ水準。`many-pages.pdf` 40 ページも GPU 346MB） |
 | 8 | タブを閉じたとき・`inspectPdf` のあとに `loadingTask.destroy()` が呼ばれる | ✅ jsdom（`test/tabs.test.js` の `destroyed`、`test/tools-split.test.js`・`test/tools-merge.test.js`・`test/tools-to-image.test.js` の「読んだ文書は手放す」「中止・失敗でも畳む」） |
-| 9 | 書き出した画像を他のビューアで開き、文字・白地・回転が正しい | ⏳ **ユーザーの目視待ち。**回転は起動確認で `rotated.pdf` の 2 ページ目が `842×595`（横）になることを確認済み |
+| 9 | 書き出した画像を他のビューアで開き、文字・白地・回転が正しい | ⏳ **ユーザーの目視待ち。**回転は起動確認で `rotated.pdf` の 2 ページ目が `842×595`（横）になることを確認済み。**2026-10-08（Phase 5 塊③）**: 検体で確かめた。実物の PDF は未確認（`spec-5-3` No.7。下の「人が目で確かめる手順（残り）」の追記） |
 | 10 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_TO_IMAGE` | ✅ 1,031 件（974 → 1,031）。配布物（`npm run dist` → `dist/win-unpacked`）で `problems: []`・アイコン 40 個すべて描画・JPEG 3 本・`tempLeft: false` |
 
 ### 実測（Windows 11 実機・開発ツリー。`SIGK_SMOKE_TO_IMAGE`）
@@ -309,3 +309,9 @@ Phase 3「変換」の前半（塊④・⑤）で画像を PDF にする経路�
 - `screenshots/phase3-pdf-to-image-app.png` が `screenshots/phase3-pdf-to-image.png`（モック）と揃っていること。
 - 実物の PDF（文字と写真を含むもの）を 150dpi の PNG と JPEG にし、他のビューアで文字の読みやすさ・白地・回転を確かめること（判定9）。
 - 「フォルダを開く」でエクスプローラーが先頭の出力を選択した状態で開くこと。
+
+**2026-10-08 追記（Phase 5 塊③）**: 判定9 は検体で確かめた。回したページを含む検体を 150dpi の PNG と JPEG にすると、回した 2 ページ目は
+1754×1240 の横長になり、PNG・JPEG とも地は白い（`spec-5-3` No.7。見比べの絵 `screenshots/phase5-3-1c-to-image.png`）。実物の PDF での
+文字の読みやすさは「あなたの画面で見る項目」⑧（`spec-5-3`）で未確認。「フォルダを開く」が先頭の出力（`targets[0]`）を渡すことは、jsdom の
+テスト（`showInFolderCalls`）が見張っている。モックとの見比べは、`spec-5-3` で「見開き（spec-2-3）だけ見本と並べ、ほかのアプリの画面とモックの見比べは塊③では見ていない」とした（`docs/07` 決定75 ③。
+どちらも `spec-5-3` の「判定の外の残り」）。

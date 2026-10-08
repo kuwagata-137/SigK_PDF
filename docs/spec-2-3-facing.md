@@ -225,7 +225,7 @@ Phase 2 を終える。
 | 5 | `settings.json` に残り、再起動しても同じ | ✅ jsdom（復元は覚え直さない）・起動確認（`saved: 'facing'` → 戻したあと次の起動で `startLayout: 'single'`） |
 | 6 | 検索・サムネイル・印刷が見開きでも動く | ✅ いずれも `goToPage` と `.pdf-page` の枠寸法だけに依存し、コードを変えていない。既存テスト（`find`・`thumbnails`・`print`）が緑のまま |
 | 7 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_FACING=1` | ✅ 832件（804 → 832）。配布物の結果は下記 |
-| 8 | 見た目がモックと揃う | ✅ `screenshots/phase2-facing-app.png` と `screenshots/phase2-facing.png` を並べて確認（ボタンの位置・点灯、2列の並び、間隔）。**ユーザーの目視も待つ** |
+| 8 | 見た目がモックと揃う | ✅ `screenshots/phase2-facing-app.png` と `screenshots/phase2-facing.png` を並べて確認（ボタンの位置・点灯、2列の並び、間隔）。**ユーザーの目視も待つ**。**2026-10-08（Phase 5 塊③）**: ユーザーが「そろっている」と答えた（`spec-5-3` No.4・`docs/07` 決定75 ③。下の「人が目で確かめる手順（残り）」の追記） |
 
 ### 実測（Windows 11 実機・視野 935px）
 
@@ -242,3 +242,7 @@ Phase 2 を終える。
 - `screenshots/phase2-facing-app.png` が `screenshots/phase2-facing.png`（モック）と揃っていること。
 - 実機で「見開き」を押し、スクロールが滑らかで、2枚の間隔が読みにくくないこと。
 - 検索でヒットが右ページにあるとき、そのページ番号が表示され、左へ戻らないこと（jsdom と起動確認では通っている）。
+
+**2026-10-08 追記（Phase 5 塊③）**: 確かめた。隠した窓の画面写真で、2 枚が同じ行に並び、紙の間は 16px、右ページの検索のヒットで左へ
+戻らない。見本と並べた絵 `screenshots/phase5-3-4a-facing.png` を見たユーザーが「そろっている」と答えた（`spec-5-3` No.4・`docs/07` 決定75 ③）。
+スクロールの滑らかさは「あなたの画面で見る項目」②（`spec-5-3`）で未確認。

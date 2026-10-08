@@ -301,7 +301,7 @@ APP0／APP1（JFIF・EXIF）や DQT・DHT の後ろに来るが、EXIF にサム
 | 5 | 「画像ごと」で N 本でき、帯「N ファイルに変換しました」＋「フォルダを開く」。同名の3択は1回 | ✅ 起動確認（3枚 → 3本・570ms・`dialogOpen: true`・`bannerAction: フォルダを開く`）・jsdom |
 | 6 | 一覧内で出力名が衝突すると赤く示され実行できない | ✅ jsdom・起動確認（同じ画像を 60 枚で `出力名が重なります: image-wide.pdf`・`canRun: false`） |
 | 7 | 12MP の PNG 30 枚で RSS の増分が 1 枚ぶん。中止でき、一時ファイルが残らない | ✅ メモリは事前調査 A を再現（下記）。中止は起動確認 `_CANCEL=1`（40枚を 662ms で止め、`4 ファイルは書き出し済みです。`・`tempLeft: false`） |
-| 8 | 他のビューアで開いて余白・向き・白地が正しい | ⏳ **ユーザーの目視待ち。**pdf-lib で読み直した検証（`test/op-convert.test.js`・`test/image-page.test.js`）は通っている |
+| 8 | 他のビューアで開いて余白・向き・白地が正しい | ⏳ **ユーザーの目視待ち。**pdf-lib で読み直した検証（`test/op-convert.test.js`・`test/image-page.test.js`）は通っている。**2026-10-08（Phase 5 塊③）**: 合成の JPEG の検体で確かめた。実物の写真は未確認（`spec-5-3` No.5。下の「人が目で確かめる手順（残り）」の追記） |
 | 9 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_CONVERT` | ✅ 908件（875 → 908）。配布物の結果は下記 |
 
 ### 実測（Windows 11 実機）
@@ -324,3 +324,8 @@ APP0／APP1（JFIF・EXIF）や DQT・DHT の後ろに来るが、EXIF にサム
 - `screenshots/phase3-convert-app.png` が `screenshots/phase3-convert.png`（モック）と揃っていること。
 - 実物の写真（JPEG）を A4・標準余白で変換し、他のビューアで余白・向き・白地を確かめること（判定8）。
 - 「フォルダを開く」でエクスプローラーが先頭の出力を選択した状態で開くこと。
+
+**2026-10-08 追記（Phase 5 塊③）**: 判定8 は合成の検体で確かめた。合成の横長の JPEG を A4・標準の余白で変換すると、A4 横・標準の余白・白地で
+置かれる（`spec-5-3` No.5。見比べの絵 `screenshots/phase5-3-1b-convert.png`）。実物の写真（JPEG）での変換は「あなたの画面で見る項目」⑧
+（`spec-5-3`）で未確認。「フォルダを開く」が先頭の出力（`targets[0]`）を渡すことは、jsdom のテスト（`showInFolderCalls`）が見張っている。
+モックとの見比べは、`spec-5-3` で「見開き（spec-2-3）だけ見本と並べ、ほかのアプリの画面とモックの見比べは塊③では見ていない」とした（`docs/07` 決定75 ③。どちらも `spec-5-3` の「判定の外の残り」）。

@@ -295,7 +295,7 @@ part ごとに新規文書を作って書いた。
 | 5 | 帯「分割しています（n / N ファイル）」→「N ファイルに分割しました」＋「フォルダを開く」 | ✅ 起動確認（`every:10` で 4本・597ms、`at:3,7`＋ページ番号で 3本、`range:2-3` で 1本）。実機のスクリーンショット `screenshots/phase2-split-app.png` |
 | 6 | 同名の3択が1回だけ、上書き・別名・中止が効く | ✅ jsdom・起動確認（`dialogOpen: true`・`focusOnCancel: true`・「上書き」で進む） |
 | 7 | 1,000 ページの分割を中止、一時ファイルが残らない、本数が帯に出る | ✅ 起動確認 `SIGK_SMOKE_SPLIT_CANCEL=1`（`huge-pages` を 10 ページごと 100 本。押してから 55ms で `canceled`、`tempLeft: false`） |
-| 8 | 他のビューアでページ順・回転・ラベル | ⏳ **ユーザーの目視待ち。**pdf-lib で読み直した検証（`test/op-split.test.js`。`rotated.pdf` の `/Rotate` 90 とラベル `L2`・`L3`）は通っている |
+| 8 | 他のビューアでページ順・回転・ラベル | ⏳ **ユーザーの目視待ち。**pdf-lib で読み直した検証（`test/op-split.test.js`。`rotated.pdf` の `/Rotate` 90 とラベル `L2`・`L3`）は通っている。**2026-10-08（Phase 5 塊③）**: 確かめた（`spec-5-3` No.3。下の「人が目で確かめる手順（残り）」の追記） |
 | 9 | `npm test` 緑、配布物で `SIGK_SMOKE=1` と `SIGK_SMOKE_SPLIT` | ✅ 804件（755 → 804）。配布物の結果は下記 |
 
 ### 実測（開発ツリー・Windows 11 実機）
@@ -313,3 +313,8 @@ part ごとに新規文書を作って書いた。
 - `screenshots/phase2-split-app.png` が `screenshots/phase2-split.png`（モック）と揃っていること。
 - 分割した PDF を他のビューアで開き、ページ順・回転・ページラベルが正しく、しおりが無いこと（判定8）。
 - 「フォルダを開く」でエクスプローラーが先頭の出力を選択した状態で開くこと。
+
+**2026-10-08 追記（Phase 5 塊③）**: 判定8 は確かめた。分割した 3 ファイルは、ページラベルが L1／L2／L3、しおり無し、2 つ目だけ 90°
+（`spec-5-3` No.3。見比べの絵 `screenshots/phase5-3-1a-merge-split.png`）。Adobe Acrobat での見え方は「あなたの画面で見る項目」①
+（`spec-5-3`）で未確認。「フォルダを開く」が先頭の出力（`targets[0]`）を渡すことは、jsdom のテスト（`showInFolderCalls`）が見張っている。
+モックとの見比べは、`spec-5-3` で「見開き（spec-2-3）だけ見本と並べ、ほかのアプリの画面とモックの見比べは塊③では見ていない」とした（`docs/07` 決定75 ③。どちらも `spec-5-3` の「判定の外の残り」）。
