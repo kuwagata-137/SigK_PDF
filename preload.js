@@ -54,6 +54,12 @@ contextBridge.exposeInMainWorld('pdfAPI', {
     ipcRenderer.on('pdf:docInfoRequest', () => callback());
   },
 
+  // メニューの「ヘルプ」→「使い方」から届く合図（spec-4b-7b 確定事項A4）。
+  onHelpRequest: (callback) => {
+    ipcRenderer.removeAllListeners('pdf:helpRequest');
+    ipcRenderer.on('pdf:helpRequest', () => callback());
+  },
+
   // 保存先を選ばせる（spec-1-6 確定事項25）。{ path } / { canceled }。
   pickSavePath: (options) => ipcRenderer.invoke('pdf:pickSavePath', options),
   pickInsertSource: (options) => ipcRenderer.invoke('pdf:pickInsertSource', options),

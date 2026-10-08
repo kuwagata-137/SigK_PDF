@@ -258,6 +258,11 @@ function requestDocInfo() {
   mainWindow?.webContents.send('pdf:docInfoRequest');
 }
 
+// メニュー「ヘルプ」→「使い方」（spec-4b-7b 確定事項A4）。開くかどうかは画面が決める（窓が開いていれば開かない）。
+function requestHelp() {
+  mainWindow?.webContents.send('pdf:helpRequest');
+}
+
 // 保存も開くのと同じで、経路はレンダラーに1本だけ持たせる（確定事項23）。
 // mode は 'save'（上書き）か 'saveAs'（名前を付けて保存）。
 function requestSave(mode) {
@@ -299,7 +304,12 @@ function buildAppMenu() {
     },
     {
       label: 'ヘルプ',
-      submenu: [{ label: 'バージョン情報', click: showAboutDialog }],
+      submenu: [
+        // F1 は画面の側（viewer-keys.js）で受ける 1 本にする（spec-4b-7b 確定事項A2）。ここはキーを表示するだけで登録しない。
+        { label: '使い方', accelerator: 'F1', registerAccelerator: false, click: requestHelp },
+        { type: 'separator' },
+        { label: 'バージョン情報', click: showAboutDialog },
+      ],
     },
   ];
 
