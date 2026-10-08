@@ -64,7 +64,8 @@ const ACTIONS = {
   mode: (arg) => `SigK.shell.setMode(document, ${JSON.stringify(arg)})`,
   tool: (arg) => `SigK.annotate.setTool(${arg === 'none' ? 'null' : JSON.stringify(arg)})`,
   find: (arg) => `(SigK.findBar.open(), (() => { const input = document.getElementById('find-input'); input.value = ${JSON.stringify(arg)}; input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); })())`,
-  dialog: (arg) => (arg === 'print' ? 'SigK.print.open()' : 'SigK.docInfo.open(document)'),
+  // help は使い方の窓（spec-4b-7b 確定事項G）。
+  dialog: (arg) => ({ print: 'SigK.print.open()', help: 'SigK.helpDialog.open(document)' })[arg] ?? 'SigK.docInfo.open(document)',
   'print-prepare': () => `(window.__smokeKeysPrint = 'pending', SigK.print.prepare({ mode: 'all' }).then((r) => { window.__smokeKeysPrint = { ok: r.ok === true, canceled: r.canceled === true, pages: r.pages?.length ?? null }; }), true)`,
   focus: (arg) => (arg === 'none' ? 'document.activeElement?.blur()' : `document.getElementById(${JSON.stringify(arg)})?.focus()`),
   'select-pages': (arg) => {
@@ -95,6 +96,7 @@ const stateScript = `(() => {
   const state = SigK.viewer.getState();
   return {
     dialogs: [...document.querySelectorAll('dialog[open]')].map((dialog) => dialog.id),
+    help: SigK.helpDialog.current(document),
     find: SigK.findBar.isOpen(),
     focus: document.activeElement?.id || document.activeElement?.tagName || null,
     mode: document.documentElement.getAttribute('data-mode'),

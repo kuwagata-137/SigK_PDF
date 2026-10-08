@@ -78,6 +78,8 @@ test('キーの名前を Input.dispatchKeyEvent の引数にする（Ctrl・Shif
   assert.deepEqual(keyEvent('Escape'), { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27, modifiers: 0 });
   assert.deepEqual([keyEvent('ctrl+-').key, keyEvent('ctrl+-').code, keyEvent('ctrl+-').modifiers], ['-', 'Minus', 2]);
   assert.equal(keyEvent('-').modifiers, 0);
+  // 使い方の窓を開く F1（spec-4b-7b 確定事項G1）。
+  assert.deepEqual(keyEvent('F1'), { key: 'F1', code: 'F1', windowsVirtualKeyCode: 112, nativeVirtualKeyCode: 112, modifiers: 0 });
   assert.equal(keyEvent('shift+ctrl+z').modifiers, 10);
   assert.equal(keyEvent('alt+Delete').modifiers, 1);
   assert.equal(keyEvent('F13'), null);
@@ -126,4 +128,12 @@ test('画面で評価すると、図形を描き、検索バー・ページの�
   state = await run(page.stateScript);
   assert.equal(state.pageSelected, 2);
   assert.deepEqual(state.dialogs, ['doc-info']);
+  assert.equal(state.help, null);
+
+  // 使い方の窓（spec-4b-7b 確定事項G）。開いている節を控える。
+  await run("SigK.docInfo.close(document)");
+  await run(page.actionScript('dialog', 'help'));
+  state = await run(page.stateScript);
+  assert.deepEqual(state.dialogs, ['help-dialog']);
+  assert.equal(state.help, 'pages');
 });
