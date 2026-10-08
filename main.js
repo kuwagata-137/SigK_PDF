@@ -25,7 +25,7 @@ const { addRecent, removeRecent, normalizeList } = require('./recent-documents.j
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
 const { createLaunchBatcher } = require('./launch-batch.js');
-const { defaultAppsUri } = require('./default-apps-link.js');
+const { openDefaultAppsSettings } = require('./default-apps-link.js');
 const { smokeWindowMode } = require('./smoke-window.js');
 const smokeRewrite = require('./smoke-rewrite.js');
 const smokeLaunch = require('./smoke-launch.js');
@@ -53,7 +53,7 @@ protocol.registerSchemesAsPrivileged([PRIVILEGED_SCHEME]);
 app.setAppUserModelId('com.kuwagata.sigkpdf');
 
 const ROOT_DIR = __dirname;
-// アプリのアイコン（spec-5-2 確定事項B6）。配布物では exe の絵が先に使われ、ここは開発ツリーの窓とバージョン情報のため。
+// アプリのアイコン（spec-5-2 確定事項B6）。窓の左上・開発ツリーのタスクバー・バージョン情報に使う（配布物でも、exe と同じ ICO なので見た目は同じ）。
 const APP_ICON_PATH = path.join(ROOT_DIR, 'assets', 'icon.ico');
 // 注釈の辞書の読み戻しの時間の上限（spec-4b-1a 確定事項21）と、タスクの名前に付ける連番。
 const ANNOTATION_DETAILS_TIMEOUT_MS = 10000;
@@ -270,11 +270,22 @@ function requestHelp() {
 
 // メニュー「ヘルプ」→「既定のアプリの設定…」（spec-5-2 確定事項C2）。Windows の設定の、SigK PDF のページを開く。
 // 押しただけでは既定にならない（アプリは自分で既定のアプリになれない。docs/03 1-3）。開けなかったらログに残す。
-function openDefaultAppsSettings() {
-  const uri = defaultAppsUri(app.getName());
-  shell.openExternal(uri).catch((err) => {
-    logError({ message: '既定のアプリの設定を開けませんでした', stack: err.stack, context: { uri } });
-  });
+function requestDefaultAppsSettings() {
+  openDefaultAppsSettings({ shell, appName: app.getName(), logError });
+}
+
+// メニュー「ヘルプ」の並び（spec-5-2 確定事項C1）と、アプリのアイコンを読めるか。起動確認の報告に載せる（確定事項E1）。
+// 配布物では app.asar の中のアイコンを読む。並びが違う・読めないときは problems に積む。
+const HELP_MENU_ORDER = ['使い方', '既定のアプリの設定…', '-', 'バージョン情報'];
+function readAppShellState(problems) {
+  const helpMenu = Menu.getApplicationMenu()?.items.find((item) => item.label === 'ヘルプ');
+  const labels = helpMenu?.submenu?.items.map((item) => (item.type === 'separator' ? '-' : item.label)) ?? null;
+  const appIcon = nativeImage.createFromPath(APP_ICON_PATH);
+  if (JSON.stringify(labels) !== JSON.stringify(HELP_MENU_ORDER))
+    problems.push(`appShell: メニュー「ヘルプ」の並びが違います（${JSON.stringify(labels)}）`);
+  if (appIcon.isEmpty())
+    problems.push(`appShell: アイコンを読めません（${APP_ICON_PATH}）`);
+  return { helpMenu: labels, icon: { empty: appIcon.isEmpty(), ...appIcon.getSize() } };
 }
 
 // 保存も開くのと同じで、経路はレンダラーに1本だけ持たせる（確定事項23）。
@@ -321,7 +332,7 @@ function buildAppMenu() {
       submenu: [
         // F1 は画面の側（viewer-keys.js）で受ける 1 本にする（spec-4b-7b 確定事項A2）。ここはキーを表示するだけで登録しない。
         { label: '使い方', accelerator: 'F1', registerAccelerator: false, click: requestHelp },
-        { label: '既定のアプリの設定…', click: openDefaultAppsSettings },
+        { label: '既定のアプリの設定…', click: requestDefaultAppsSettings },
         { type: 'separator' },
         { label: 'バージョン情報', click: showAboutDialog },
       ],
@@ -1961,15 +1972,7 @@ function installSmokeCheck(win, mode) {
         }
       }
 
-      // メニュー「ヘルプ」の並びと、アプリのアイコンを読めるか（spec-5-2 確定事項E1。配布物では app.asar の中から読む）。
-      const helpMenu = Menu.getApplicationMenu()?.items.find((item) => item.label === 'ヘルプ');
-      const appIcon = nativeImage.createFromPath(APP_ICON_PATH);
-      const appShell = {
-        helpMenu: helpMenu?.submenu?.items.map((item) => (item.type === 'separator' ? '-' : item.label)) ?? null,
-        icon: { empty: appIcon.isEmpty(), ...appIcon.getSize() },
-      };
-      if (appIcon.isEmpty())
-        problems.push(`appShell: アイコンを読めません（${APP_ICON_PATH}）`);
+      const appShell = readAppShellState(problems);
 
       if (memoryTimer !== null)
         clearInterval(memoryTimer);

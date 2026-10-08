@@ -14,4 +14,16 @@ function defaultAppsUri(appName) {
   return `${DEFAULT_APPS_URI}?registeredAppUser=${encodeURIComponent(appName)}`;
 }
 
-module.exports = { DEFAULT_APPS_URI, defaultAppsUri };
+// メニューを押したときの処理。Electron の shell は外から渡す（テストでは偽物を渡す）。
+// 押しただけでは既定にならない。開けなかったら窓は出さず、ログに残す。
+function openDefaultAppsSettings({ shell, appName, logError }) {
+  const uri = defaultAppsUri(appName);
+  return Promise.resolve()
+    .then(() => shell.openExternal(uri))
+    .then(() => ({ ok: true, uri }), (err) => {
+      logError({ message: '既定のアプリの設定を開けませんでした', stack: err?.stack, context: { uri } });
+      return { ok: false, uri };
+    });
+}
+
+module.exports = { DEFAULT_APPS_URI, defaultAppsUri, openDefaultAppsSettings };
