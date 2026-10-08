@@ -135,6 +135,33 @@ test('窓が開いている間は、Delete・Esc・Ctrl+Z・Ctrl+W が下の画�
   assert.deepEqual(ids(shell), []);
 });
 
+// ---- 元に戻す・やり直しのキー（spec-1-5 確定事項55。計画外の直し⑤） ----
+
+function chord(shell, target, name, { shift = false } = {}) {
+  const event = new shell.window.KeyboardEvent('keydown', { key: name, ctrlKey: true, shiftKey: shift, bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event;
+}
+
+test('Ctrl+Shift+Z はやり直しで、元に戻すにはならない（計画外の直し⑤）', async (t) => {
+  const shell = await withShell(t);
+  const { document } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  const b = drawSquare(shell, [300, 700], [400, 600]);
+  assert.equal(chord(shell, document.body, 'z').defaultPrevented, true);
+  assert.deepEqual(ids(shell), [a]);
+  const redo = chord(shell, document.body, 'Z', { shift: true });
+  assert.equal(redo.defaultPrevented, true);
+  assert.deepEqual(ids(shell), [a, b], 'Ctrl+Shift+Z でやり直していない');
+  // やり直す世代が無いときに押しても、元に戻さない。
+  chord(shell, document.body, 'Z', { shift: true });
+  assert.deepEqual(ids(shell), [a, b], 'Ctrl+Shift+Z で元に戻した');
+  // Ctrl+Y もやり直しのまま。
+  chord(shell, document.body, 'z');
+  chord(shell, document.body, 'y');
+  assert.deepEqual(ids(shell), [a, b]);
+});
+
 test('窓が開いている間は、メニューの保存・開く・文書情報の要求も後ろの画面に効かない（spec-4b-7a 点検の直し）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;

@@ -74,6 +74,19 @@
     return false;
   }
 
+  // 元に戻す・やり直しのキー。Ctrl+Z は元に戻す、Ctrl+Y と Ctrl+Shift+Z はやり直し（CheckListMaker の画像エディタと同じ）。
+  // Shift を見ずに Ctrl+Shift+Z を元に戻すにしていた（計画外の直し⑤）。ほかのキーは null。
+  function historyStep(event) {
+    if (!event.ctrlKey || event.altKey)
+      return null;
+    const key = String(event.key ?? '').toLowerCase();
+    if (key === 'y')
+      return 'redo';
+    if (key === 'z')
+      return event.shiftKey ? 'redo' : 'undo';
+    return null;
+  }
+
   // ページ編集のキー（spec-1-5 確定事項54・55）。handleKey の下のほうは
   // event.ctrlKey で早期 return するため、塊③-b の handleFindPrintKey と同じく
   // その手前で捌く。
@@ -85,14 +98,10 @@
 
     // 元に戻す・やり直しはどのモードでも効かせる（確定事項55）。編集したまま
     // 閲覧モードへ戻っていることがある。
-    if (event.ctrlKey && !event.altKey && (event.key === 'z' || event.key === 'Z')) {
+    const step = historyStep(event);
+    if (step !== null) {
       event.preventDefault();
-      edit.undo();
-      return true;
-    }
-    if (event.ctrlKey && !event.altKey && (event.key === 'y' || event.key === 'Y')) {
-      event.preventDefault();
-      edit.redo();
+      edit[step]();
       return true;
     }
 
