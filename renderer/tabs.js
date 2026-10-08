@@ -19,9 +19,6 @@
   };
 
   let el = null;
-  // 直前の開く処理を取りやめたか（ファイルを選ぶ窓・パスワードの入力）。runOpenCommand が閲覧モードへ移るかを決めるのに
-  // 使う。開く処理の戻り値（開けたか）は呼び出し側が多く使っているので、取りやめと失敗を分けるのはここで控える。
-  let openCanceled = false;
 
   function viewer() {
     return root.SigK.viewer;
@@ -234,7 +231,8 @@
   }
 
   // 読み込み結果（{ ok, path, name, size, bytes } / { error }）を1枚のタブにする。
-  async function openSource(source) {
+  // call は runOpenCommand の呼び出しごとの控え（取りやめたら canceled を立てる）。ほかの呼び出し元は渡さない。
+  async function openSource(source, call = null) {
     if (source?.error !== undefined) {
       messageFor(source.error);
       return false;
@@ -258,7 +256,8 @@
     // パスワードの入力を取りやめたときだけは、タブを作らずに戻す
     // （spec-1-6 確定事項68）。失敗ではないので、出す理由が無い。
     if (!opened && viewer().openCanceled() === true) {
-      openCanceled = true;
+      if (call !== null)
+        call.canceled = true;
       restore(find(previous));
       render();
       return false;
@@ -284,7 +283,7 @@
     return opened;
   }
 
-  async function openPath(filePath) {
+  async function openPath(filePath, call = null) {
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
       messageFor('ファイルを開く機能が使えません。');
@@ -307,10 +306,10 @@
       root.SigK.recentPanel?.refresh();
       return false;
     }
-    return openSource(result);
+    return openSource(result, call);
   }
 
-  async function openViaDialog() {
+  async function openViaDialog(call = null) {
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
       messageFor('ファイルを開く機能が使えません。');
@@ -318,10 +317,11 @@
     }
     const result = await api.open();
     if (result?.canceled === true) {
-      openCanceled = true;
+      if (call !== null)
+        call.canceled = true;
       return false;
     }
-    return openSource(result);
+    return openSource(result, call);
   }
 
   // 「開く」の口（ツールバーの「開く」・タブの「＋」・メニューの「開く」（Ctrl+O）と「最近使ったファイル」）。パスが
@@ -331,13 +331,18 @@
   // ままでは、開いた文書も、開けなかった理由も見えないためである。取りやめ（ファイルを選ぶ窓・パスワードの入力）なら
   // ツールモードのまま。ツールの画面の「ファイルを選ぶ…」・ツールの画面へのドロップ・ツールの書き出しのあとに開く口は
   // ここを通らない（書き出しのあとは各ツールが自分で移る）。エクスプローラーからの起動は launch.js が移す。
+  //
+  // 取りやめの控えは呼び出しごとに持つ。開く処理の戻り値（開けたか）は呼び出し側が多く使っているので、取りやめと失敗は
+  // 控えで分ける。移るのは、始めも終わりもツールモードのときだけ（spec-4b-7b 点検の直し。控えが 1 つだと、開く処理が
+  // 重なったとき別の呼び出しの取りやめで移らず、読み込みの間に自分でツールモードへ替えると閲覧モードへ戻されていた）。
   async function runOpenCommand(filePath = null) {
-    openCanceled = false;
-    const opened = typeof filePath === 'string' && filePath.length > 0
-      ? await openPath(filePath)
-      : await openViaDialog();
     const doc = el?.doc ?? root.document;
-    if (!openCanceled && doc.documentElement.getAttribute('data-mode') === 'tools')
+    const inTools = () => doc.documentElement.getAttribute('data-mode') === 'tools';
+    const call = { canceled: false, fromTools: inTools() };
+    const opened = typeof filePath === 'string' && filePath.length > 0
+      ? await openPath(filePath, call)
+      : await openViaDialog(call);
+    if (!call.canceled && call.fromTools && inTools())
       root.SigK.shell.setMode(doc, 'view');
     return opened;
   }

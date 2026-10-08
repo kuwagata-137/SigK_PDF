@@ -452,6 +452,26 @@ test('ツールモードで既に開いているファイルを選ぶと、そ�
   assert.equal(modeOf(shell), 'view');
 });
 
+// 取りやめの控えは呼び出しごとに持つ（spec-4b-7b 点検の直し）。1 つだけだと、重なった別の「開く」の取りやめで移らなかった。
+test('開く処理が重なり、あとの「開く」を取りやめても、先に開けた方で閲覧モードへ移る', async (t) => {
+  const shell = await inToolsMode(t);
+  const first = shell.SigK.tabs.runOpenCommand(A);
+  const second = shell.SigK.tabs.runOpenCommand();
+  assert.deepEqual(await Promise.all([first, second]), [true, false]);
+  await shell.flush();
+  assert.equal(modeOf(shell), 'view');
+});
+
+test('閲覧モードで開き始め、読み込みの間にツールモードへ替えたら、ツールモードのまま', async (t) => {
+  const shell = await withShell(t);
+  await shell.flush();
+  const opening = shell.SigK.tabs.runOpenCommand(A);
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  assert.equal(await opening, true);
+  await shell.flush();
+  assert.equal(modeOf(shell), 'tools');
+});
+
 test('ファイルを選ぶ窓で取りやめたら、ツールモードのまま', async (t) => {
   // openResults が空なら、ファイルを選ぶ窓は「取りやめた」を返す。
   const shell = await inToolsMode(t);
