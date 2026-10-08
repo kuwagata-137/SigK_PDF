@@ -11,6 +11,10 @@
 !ifndef SIGK_SHELL_ID
   !define SIGK_SHELL_ID "SigKPDF"
 !endif
+; 空だと、メニューを消す DeleteRegKey が .pdf\shell ごと（ほかのアプリの項目まで）消してしまう。ビルドで止める。
+!if "${SIGK_SHELL_ID}" == ""
+  !error "SIGK_SHELL_ID が空です"
+!endif
 
 ; PDF ファイルの絵（spec-5-2 確定事項B2・B4）。シェルは app.asar の中を読めないので、extraResources で resources へ出したものを指す。
 !define SIGK_PDF_FILE_ICON "$INSTDIR\resources\pdf-file.ico"
@@ -73,6 +77,7 @@
 
 ; 「プログラムから開く」と既定のアプリの選択肢（spec-5-2 確定事項A1〜A4・docs/03 2-1）。
 ; 書く前に消さず、上書きだけにする（上書きインストールの途中で ProgID が消える時間を作らない。確定事項A6）。
+; そのため、キーの名前を変えたり値を減らしたりする版では、古いほうを customInstall で消すこと（上書きでは誰も消さない）。
 !macro sigkWriteAssoc
   ; A1 ProgID。SigK PDF を既定に選んだ PDF は、この絵とコマンドで開く。
   WriteRegStr HKCU "Software\Classes\${SIGK_SHELL_ID}.Document" "" "PDF 文書"
@@ -141,14 +146,24 @@
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 !macroend
 
-; メニューは毎回消す。関連付けは、上書きインストール（古いアンインストーラーが --updated 付きで走る）では残す
+; メニューは毎回消す。関連付けは、上書きインストールでは残す
 ; （ProgID が消えると、SigK PDF を既定に選んでいた人の選択が外れるおそれがある。spec-5-2 確定事項A6）。
-; 設定（%APPDATA%）は残し、確認も出さない（論点8）。
+; 上書きでは、新しいインストーラーが古いアンインストーラーを「/S /KEEP_APP_DATA」に --updated か --delete-app-data を付けて
+; 走らせる（installUtil.nsh）。--delete-app-data のときは --updated が付かないので、/KEEP_APP_DATA でも見分ける。
+; 「アプリと機能」からのアンインストールには、どちらも付かない。設定（%APPDATA%）は残し、確認も出さない（論点8）。
 !macro customUnInstall
   !insertmacro sigkRemoveMenus
-  ${ifNot} ${isUpdated}
+  Push $R0
+  Push $R1
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "/KEEP_APP_DATA" $R1
+  ${If} ${Errors}
+  ${AndIfNot} ${isUpdated}
     !insertmacro sigkRemoveAssoc
-  ${endIf}
+  ${EndIf}
+  Pop $R1
+  Pop $R0
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 !macroend
 
