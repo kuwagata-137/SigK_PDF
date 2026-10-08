@@ -19,6 +19,9 @@
   };
 
   let el = null;
+  // 直前の開く処理を取りやめたか（ファイルを選ぶ窓・パスワードの入力）。runOpenCommand が閲覧モードへ移るかを決めるのに
+  // 使う。開く処理の戻り値（開けたか）は呼び出し側が多く使っているので、取りやめと失敗を分けるのはここで控える。
+  let openCanceled = false;
 
   function viewer() {
     return root.SigK.viewer;
@@ -255,6 +258,7 @@
     // パスワードの入力を取りやめたときだけは、タブを作らずに戻す
     // （spec-1-6 確定事項68）。失敗ではないので、出す理由が無い。
     if (!opened && viewer().openCanceled() === true) {
+      openCanceled = true;
       restore(find(previous));
       render();
       return false;
@@ -313,9 +317,29 @@
       return false;
     }
     const result = await api.open();
-    if (result?.canceled === true)
+    if (result?.canceled === true) {
+      openCanceled = true;
       return false;
+    }
     return openSource(result);
+  }
+
+  // 「開く」の口（ツールバーの「開く」・タブの「＋」・メニューの「開く」（Ctrl+O）と「最近使ったファイル」）。パスが
+  // 付いていればそれを開き、無ければファイルを選ぶ窓を出す。
+  //
+  // ツールモードで開いたら閲覧モードへ移る（spec-2-1 確定事項4。2026-10-08 の直し）。ツールの画面が表示域を覆った
+  // ままでは、開いた文書も、開けなかった理由も見えないためである。取りやめ（ファイルを選ぶ窓・パスワードの入力）なら
+  // ツールモードのまま。ツールの画面の「ファイルを選ぶ…」・ツールの画面へのドロップ・ツールの書き出しのあとに開く口は
+  // ここを通らない（書き出しのあとは各ツールが自分で移る）。エクスプローラーからの起動は launch.js が移す。
+  async function runOpenCommand(filePath = null) {
+    openCanceled = false;
+    const opened = typeof filePath === 'string' && filePath.length > 0
+      ? await openPath(filePath)
+      : await openViaDialog();
+    const doc = el?.doc ?? root.document;
+    if (!openCanceled && doc.documentElement.getAttribute('data-mode') === 'tools')
+      root.SigK.shell.setMode(doc, 'view');
+    return opened;
   }
 
   // ---- 切り替えと後始末 ----
@@ -454,7 +478,7 @@
       if (node !== null && node !== undefined)
         closeTab(Number(node.dataset.tabId));
     });
-    el.add?.addEventListener('click', () => openViaDialog());
+    el.add?.addEventListener('click', () => runOpenCommand());
 
     render();
     return true;
@@ -472,6 +496,7 @@
     openSource,
     openPath,
     openViaDialog,
+    runOpenCommand,
     activate,
     closeTab,
     forceCloseTab,

@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
+const { createShell, createPdfjsStub, makeSource, makeDroppedFile, makeDataTransfer } = require('./harness.js');
 
 const A = 'C:\\work\\a.pdf';
 const B = 'C:\\work\\b.pdf';
@@ -376,4 +376,181 @@ test('メニューの最近使ったファイルはパス付きで届き、そ�
 
   assert.equal(shell.SigK.tabs.count(), 1);
   assert.equal(shell.SigK.viewer.getState().file.name, 'c.pdf');
+});
+
+// ---- ツールモードで「開く」から開いたら閲覧モードへ移る（spec-2-1 確定事項4。2026-10-08 の直し） ----
+//
+// 今までは、エクスプローラーの右クリックからの「開く」（launch.js）でしか移らなかった。ツールバーの「開く」・タブの「＋」・
+// Ctrl+O・メニューの「最近使ったファイル」から開いても、ツールの画面が表示域を覆ったままで、開いた文書が見えなかった。
+
+const GONE = 'C:\\work\\消えた.pdf';
+const modeOf = (shell) => shell.document.documentElement.getAttribute('data-mode');
+const press = (shell, node) => node.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
+
+// 前回の見た目の復元は IPC の往復のあとに届く。届くのを待ってからツールモードへ入る（tools-merge.test.js と同じ）。
+async function inToolsMode(t, options = {}) {
+  const shell = await withShell(t, options);
+  await shell.flush();
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  await shell.flush();
+  return shell;
+}
+
+test('ツールモードでツールバーの「開く」から開くと、閲覧モードへ移って文書が見える', async (t) => {
+  const shell = await inToolsMode(t, { openResults: [makeSource({ path: A })] });
+
+  press(shell, shell.document.getElementById('btn-open'));
+  await shell.flush();
+
+  assert.equal(shell.SigK.tabs.count(), 1);
+  assert.equal(modeOf(shell), 'view');
+  assert.equal(shell.document.getElementById('tools-view').hidden, true, 'ツールの画面が表示域を覆ったまま');
+  assert.equal(shell.SigK.viewer.getState().file.name, 'a.pdf');
+});
+
+test('ツールモードでタブの「＋」から開いても、閲覧モードへ移る', async (t) => {
+  const shell = await inToolsMode(t, { openResults: [makeSource({ path: B })] });
+
+  press(shell, shell.document.querySelector('#tabbar .tab-add'));
+  await shell.flush();
+
+  assert.equal(shell.SigK.tabs.count(), 1);
+  assert.equal(modeOf(shell), 'view');
+});
+
+test('ツールモードでメニューの「開く」（Ctrl+O）と「最近使ったファイル」から開いても、閲覧モードへ移る', async (t) => {
+  const shell = await inToolsMode(t, { openResults: [makeSource({ path: A })] });
+
+  shell.fireOpenRequest();
+  await shell.flush();
+  assert.equal(shell.SigK.tabs.count(), 1);
+  assert.equal(modeOf(shell), 'view');
+
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.fireOpenRequest(C);
+  await shell.flush();
+  assert.equal(shell.SigK.tabs.count(), 2);
+  assert.equal(shell.SigK.viewer.getState().file.name, 'c.pdf');
+  assert.equal(modeOf(shell), 'view');
+});
+
+test('ツールモードで既に開いているファイルを選ぶと、そのタブへ移って閲覧モードになる', async (t) => {
+  const shell = await withTabs(t, [A, B]);
+  shell.SigK.shell.setMode(shell.document, 'tools');
+
+  shell.fireOpenRequest(A);
+  await shell.flush();
+
+  assert.equal(shell.SigK.tabs.count(), 2, '同じファイルを2枚にしない');
+  assert.equal(shell.SigK.viewer.getState().file.name, 'a.pdf');
+  assert.equal(modeOf(shell), 'view');
+
+  // いま映しているタブのファイルを選んでも、閲覧モードへ移る。
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.fireOpenRequest(A);
+  await shell.flush();
+  assert.equal(modeOf(shell), 'view');
+});
+
+test('ファイルを選ぶ窓で取りやめたら、ツールモードのまま', async (t) => {
+  // openResults が空なら、ファイルを選ぶ窓は「取りやめた」を返す。
+  const shell = await inToolsMode(t);
+
+  press(shell, shell.document.getElementById('btn-open'));
+  await shell.flush();
+  assert.equal(modeOf(shell), 'tools');
+
+  press(shell, shell.document.querySelector('#tabbar .tab-add'));
+  await shell.flush();
+  assert.equal(modeOf(shell), 'tools');
+
+  shell.fireOpenRequest();
+  await shell.flush();
+  assert.equal(modeOf(shell), 'tools');
+  assert.equal(shell.SigK.tabs.count(), 0);
+});
+
+test('パスワードの入力を取りやめたら、ツールモードのまま', async (t) => {
+  const shell = await inToolsMode(t, { pdfjs: createPdfjsStub({ password: 'user1' }) });
+
+  shell.fireOpenRequest(A);
+  await shell.flush();
+  assert.equal(shell.SigK.passwordPrompt.isOpen(), true);
+  shell.document.getElementById('password-prompt-cancel').click();
+  await shell.flush();
+
+  assert.equal(shell.SigK.tabs.count(), 0);
+  assert.equal(modeOf(shell), 'tools');
+});
+
+// 開けなかった理由は、ページの表示域（タブが無ければ真ん中の文言）に出る。ツールの画面のままでは見えない。
+test('ツールモードで開けなかったときも閲覧モードへ移り、理由が見える', async (t) => {
+  const error = Object.assign(new Error('broken'), { name: 'InvalidPDFException' });
+  const shell = await inToolsMode(t, { pdfjs: createPdfjsStub({ openError: error }) });
+
+  shell.fireOpenRequest(A);
+  await shell.flush();
+  assert.equal(shell.SigK.tabs.count(), 1, '理由を出す場所としてタブは残す');
+  assert.equal(modeOf(shell), 'view');
+  assert.match(shell.document.getElementById('view-message').textContent, /壊れている/);
+
+  // 最近使ったファイルが消えていた（タブは作らない）。
+  shell.SigK.tabs.forceCloseTab(shell.SigK.tabs.activeId());
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.fireOpenRequest(GONE);
+  await shell.flush();
+  assert.equal(shell.SigK.tabs.count(), 0);
+  assert.equal(modeOf(shell), 'view');
+  assert.equal(shell.document.getElementById('view-empty').hidden, false);
+});
+
+test('前のパスワードの取りやめに引きずられず、次に開けなかったときは閲覧モードへ移る', async (t) => {
+  const shell = await inToolsMode(t, { pdfjs: createPdfjsStub({ password: 'user1' }) });
+
+  shell.fireOpenRequest(A);
+  await shell.flush();
+  shell.document.getElementById('password-prompt-cancel').click();
+  await shell.flush();
+  assert.equal(modeOf(shell), 'tools');
+
+  shell.fireOpenRequest(GONE);
+  await shell.flush();
+  assert.equal(modeOf(shell), 'view');
+});
+
+test('ページ編集・編集モードで開いても、モードは変えない', async (t) => {
+  const shell = await withShell(t, { openResults: [makeSource({ path: A }), makeSource({ path: B })] });
+  await shell.flush();
+
+  shell.SigK.shell.setMode(shell.document, 'pages');
+  press(shell, shell.document.getElementById('btn-open'));
+  await shell.flush();
+  assert.equal(modeOf(shell), 'pages');
+
+  shell.SigK.shell.setMode(shell.document, 'annot');
+  shell.fireOpenRequest();
+  await shell.flush();
+  assert.equal(modeOf(shell), 'annot');
+  assert.equal(shell.SigK.tabs.count(), 2);
+});
+
+// ツールの画面の中のファイル選びとドロップは、ツールの画面へ渡す口である（spec-2-1 確定事項12）。タブは作らず、移らない。
+test('ツールの画面の「ファイルを選ぶ…」とドロップでは、ツールモードのまま', async (t) => {
+  const shell = await inToolsMode(t, { mergeSourceResults: [{ paths: [A] }] });
+  shell.SigK.tools.select('merge');
+
+  press(shell, shell.document.getElementById('merge-pick'));
+  for (let i = 0; i < 5 && shell.SigK.toolsMerge.rows().length === 0; i += 1)
+    await shell.flush();
+  assert.equal(shell.SigK.toolsMerge.rows().length, 1);
+  assert.equal(modeOf(shell), 'tools');
+
+  const drop = new shell.window.Event('drop', { bubbles: true, cancelable: true });
+  drop.dataTransfer = makeDataTransfer([makeDroppedFile('b.pdf', B)]);
+  shell.document.dispatchEvent(drop);
+  for (let i = 0; i < 5 && shell.SigK.toolsMerge.rows().length === 1; i += 1)
+    await shell.flush();
+  assert.equal(shell.SigK.toolsMerge.rows().length, 2);
+  assert.equal(modeOf(shell), 'tools');
+  assert.equal(shell.SigK.tabs.count(), 0);
 });
