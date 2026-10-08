@@ -317,6 +317,26 @@ test('道具の段のトリミングをマウスで押して持ったあと、�
   assert.deepEqual([...SigK.viewer.getPlan()[0].crop], BOX);
 });
 
+// 右パネルの［このページ］［すべてのページ］も同じ（spec-4b-7b 点検の直し）。キーボードで押したとき（detail 0）はフォーカスを残す。
+test('右パネルの当てるページのボタンをマウスで押したあとも、枠を引いて Enter を押すと切れる', async (t) => {
+  const shell = await withTrim(t);
+  const { SigK, document } = shell;
+  const all = document.querySelector('#props-trim-scope button[data-scope="all"]');
+  const page = document.querySelector('#props-trim-scope button[data-scope="page"]');
+  all.focus();
+  all.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+  assert.equal(document.activeElement, all, 'キーボードで押したときはフォーカスを残す');
+  page.focus();
+  page.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  assert.notEqual(document.activeElement, page, 'ボタンにフォーカスが残っている');
+
+  drawFrame(shell);
+  const enter = new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+  document.activeElement.dispatchEvent(enter);
+  assert.equal(enter.defaultPrevented, true);
+  assert.deepEqual([...SigK.viewer.getPlan()[0].crop], BOX);
+});
+
 test('タブを替える・印刷を開くと、枠を捨てる', async (t) => {
   const B = 'C:\\work\\b.pdf';
   const shell = await withTrim(t);
