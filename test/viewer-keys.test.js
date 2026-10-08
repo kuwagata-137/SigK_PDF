@@ -135,6 +135,67 @@ test('窓が開いている間は、Delete・Esc・Ctrl+Z・Ctrl+W が下の画�
   assert.deepEqual(ids(shell), []);
 });
 
+// ---- 元に戻す・やり直しのキー（spec-1-5 確定事項55。計画外の直し⑤） ----
+
+function chord(shell, target, name, { shift = false } = {}) {
+  const event = new shell.window.KeyboardEvent('keydown', { key: name, ctrlKey: true, shiftKey: shift, bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event;
+}
+
+test('Ctrl+Shift+Z はやり直しで、元に戻すにはならない（計画外の直し⑤）', async (t) => {
+  const shell = await withShell(t);
+  const { document } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  const b = drawSquare(shell, [300, 700], [400, 600]);
+  assert.equal(chord(shell, document.body, 'z').defaultPrevented, true);
+  assert.deepEqual(ids(shell), [a]);
+  const redo = chord(shell, document.body, 'Z', { shift: true });
+  assert.equal(redo.defaultPrevented, true);
+  assert.deepEqual(ids(shell), [a, b], 'Ctrl+Shift+Z でやり直していない');
+  // やり直す世代が無いときに押しても、元に戻さない。
+  chord(shell, document.body, 'Z', { shift: true });
+  assert.deepEqual(ids(shell), [a, b], 'Ctrl+Shift+Z で元に戻した');
+  // Ctrl+Y もやり直しのまま。
+  chord(shell, document.body, 'z');
+  chord(shell, document.body, 'y');
+  assert.deepEqual(ids(shell), [a, b]);
+});
+
+test('文字を打つ欄（検索の欄・ページ番号の欄）の中の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z は奪わず、欄の素の取り消しに任せる（計画外の直し④）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  SigK.findBar.open();
+  const find = document.getElementById('find-input');
+  for (const field of [find, document.getElementById('page-current')]) {
+    assert.equal(chord(shell, field, 'z').defaultPrevented, false, `${field.id} の Ctrl+Z を奪った`);
+    assert.deepEqual(ids(shell), [a], `${field.id} の Ctrl+Z で文書の編集が戻った`);
+    assert.equal(chord(shell, field, 'y').defaultPrevented, false, `${field.id} の Ctrl+Y を奪った`);
+    assert.equal(chord(shell, field, 'Z', { shift: true }).defaultPrevented, false, `${field.id} の Ctrl+Shift+Z を奪った`);
+  }
+  // 欄の外（body）では、今までどおり文書の編集を戻す。
+  assert.equal(chord(shell, document.body, 'z').defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  // 欄の中の Ctrl+Y ではやり直さず、欄の外ならやり直す。
+  chord(shell, find, 'y');
+  assert.deepEqual(ids(shell), []);
+  chord(shell, document.body, 'y');
+  assert.deepEqual(ids(shell), [a]);
+});
+
+test('ラジオなど文字を打たない入力にフォーカスがあるときの Ctrl+Z は、今までどおり文書の編集を戻す（計画外の直し④）', async (t) => {
+  const shell = await withShell(t);
+  const { document } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  const radio = [...document.querySelectorAll('input[type="radio"]')].find((node) => node.closest('dialog') === null);
+  assert.ok(radio !== undefined);
+  assert.equal(chord(shell, radio, 'z').defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  assert.equal(chord(shell, radio, 'y').defaultPrevented, true);
+  assert.deepEqual(ids(shell), [a]);
+});
+
 test('窓が開いている間は、メニューの保存・開く・文書情報の要求も後ろの画面に効かない（spec-4b-7a 点検の直し）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
@@ -152,4 +213,66 @@ test('窓が開いている間は、メニューの保存・開く・文書情�
   shell.fireDocInfoRequest();
   await shell.flush();
   assert.equal(document.getElementById('doc-info').hasAttribute('open'), true);
+});
+
+// 計画外の直し④で、文字を打つ欄の中の Ctrl+Z は欄に任せた。紙の上の押下は preventDefault するのでフォーカスが欄に残り、
+// 描いたあとの Ctrl+Z が欄の文字の取り消しになっていた（spec-4b-7b 点検の直し）。
+test('検索の欄に打ってから紙に描くと、欄からフォーカスが外れ、Ctrl+Z で描いたものが戻る', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.findBar.open();
+  const input = document.getElementById('find-input');
+  input.focus();
+  input.value = 'abc';
+  const id = drawSquare(shell, [100, 700], [200, 600]);
+  assert.notEqual(document.activeElement, input);
+  assert.equal(input.value, 'abc');
+  assert.deepEqual(ids(shell), [id]);
+  const event = new shell.window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+  (document.activeElement ?? document.body).dispatchEvent(event);
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  assert.equal(SigK.findBar.isOpen(), true, '検索バーは開いたまま');
+});
+
+test('右パネルの欄にフォーカスがあるときは、紙を押してもフォーカスを残す（spec-4b-7a 確定事項E4）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('shape');
+  const width = document.getElementById('props-width');
+  width.focus();
+  assert.equal(SigK.viewerKeys.leaveTypingField(document), false);
+  assert.equal(document.activeElement, width);
+});
+
+// 右パネルのスライダーと文字の大きさの一覧は文字を打たない欄で、素の取り消しも無い。マウスで動かしたあとフォーカスが残り、
+// Ctrl+Z・Ctrl+Y・Delete が効かなかった（spec-4b-7b 点検の直し）。矢印・PageUp は今までどおり欄のもの。
+test('右パネルのスライダーにフォーカスがあっても、Ctrl+Z・Ctrl+Y・Delete は文書に効く。矢印・PageUp は欄のまま', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const id = drawSquare(shell, [100, 700], [200, 600]);
+  SigK.annotate.select(id);
+  const range = document.getElementById('props-width-range');
+  range.focus();
+  const press = (init) => {
+    const event = new shell.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    range.dispatchEvent(event);
+    return event;
+  };
+  assert.equal(press({ key: 'ArrowRight' }).defaultPrevented, false);
+  assert.equal(press({ key: 'PageUp' }).defaultPrevented, false);
+  assert.equal(press({ key: 'z', ctrlKey: true }).defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  press({ key: 'y', ctrlKey: true });
+  assert.deepEqual(ids(shell), [id]);
+  SigK.annotate.select(id);
+  range.focus();
+  assert.equal(press({ key: 'Delete' }).defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  // 数を打つ欄は、今までどおり欄の素の取り消し（計画外の直し④）。
+  const number = document.getElementById('props-width');
+  number.focus();
+  const typed = new shell.window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+  number.dispatchEvent(typed);
+  assert.equal(typed.defaultPrevented, false);
 });

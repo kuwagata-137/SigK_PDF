@@ -116,8 +116,12 @@
     root.SigK.thumbnails?.refresh();
   }
 
+  // 閉じている間だけ、開き直す「＞」の細い帯を出す（2026-10-08 の直し）。閉じる「＜」はパネルと一緒に消えるため。
   function setSidePanelOpen(doc, open) {
     doc.documentElement.setAttribute('data-panel', open ? 'open' : 'collapsed');
+    const strip = doc.getElementById('side-strip');
+    if (strip !== null)
+      strip.hidden = open;
     notifyViewportChanged();
     persist({ sidePanel: { open } });
     return open;
@@ -213,6 +217,13 @@
         setSidePanelOpen(doc, !open);
       });
     }
+    // キーボードで「＞」を押した（click の detail が 0）ときは、パネルの中へフォーカスを移す。「＞」は帯と一緒に隠れ、閉じる「＜」は
+    // フォーカスを受けないので、行き場が無くなるため（spec-4b-7b 点検の直し）。
+    doc.getElementById('side-expand')?.addEventListener('click', (event) => {
+      setSidePanelOpen(doc, true);
+      if (event.detail === 0)
+        doc.getElementById('side-scroll')?.focus({ preventScroll: true });
+    });
 
     installResizer(doc);
     return true;

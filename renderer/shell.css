@@ -207,6 +207,21 @@ html[data-mode="annot"] #side-title{display:none}
 #side-resizer:hover{background:var(--select)}
 html[data-panel="collapsed"] #side-resizer{display:none}
 
+/* サイドパネルを閉じている間だけ出す細い帯（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。
+   「＞」は閉じる「＜」（.side-head .collapse）と同じ高さに置く。見出しは高さ 34px（下の線 1px を含む）で、
+   その中の 24px を上下の真ん中に置いているので、上の余白は (34 − 1 − 24) ÷ 2 = 4.5px になる。
+   帯の中は 17px しかないので、幅だけ 16px に詰める。押せることが見えるよう、地を薄く塗っておく。 */
+#side-strip{
+  flex:0 0 18px; display:flex; flex-direction:column; align-items:center;
+  background:var(--surface); border-right:1px solid var(--border);
+}
+#side-strip[hidden]{display:none}
+#side-expand{
+  width:16px; height:24px; margin-top:4.5px; border-radius:5px; display:grid; place-items:center;
+  background:var(--surface-2); color:var(--text);
+}
+#side-expand:hover{background:var(--border)}
+
 /* ページビュー。ページは絶対配置で置く。位置と寸法は renderer/viewer-layout.js が
    計算し、下の余白・間隔の値（18px・16px）と対で決まっている。片方だけ変えると
    スクロール位置の計算が実際の描画とずれる。 */
@@ -321,6 +336,38 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #doc-info-body dt{color:var(--muted); font-size:12px; white-space:nowrap}
 #doc-info-body dd{margin:0; font-size:12.5px; overflow-wrap:anywhere; user-select:text}
+
+/* 使い方の窓（spec-4b-7b 確定事項B。見本 screenshots/phase4b-7b-help-nav.png）。左に目次、右に 1 つの節。 */
+#help-dialog{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(860px, 92vw); height:min(640px, 86vh); overflow:hidden;
+}
+#help-dialog[open]{display:flex; flex-direction:column}
+#help-dialog::backdrop{background:rgba(16,24,40,.34)}
+#help-dialog .dlg-head{position:static}
+#help-dialog .dlg-foot{border-top:1px solid var(--border)}
+.help-main{flex:1; min-height:0; display:grid; grid-template-columns:200px 1fr}
+.help-nav{border-right:1px solid var(--border); background:var(--surface-2); overflow:auto; padding:8px 6px}
+.help-grp{font-size:11px; color:var(--muted); padding:10px 10px 4px}
+.help-grp:first-child{padding-top:4px}
+.help-item{display:block; width:100%; text-align:left; border:0; background:transparent; color:var(--text); font:inherit;
+  padding:6px 10px; border-radius:7px; cursor:pointer}
+.help-item:hover{background:var(--surface)}
+.help-item[aria-current="true"]{background:var(--select); color:var(--accent); font-weight:600}
+.help-body{overflow:auto; padding:14px 22px 20px; user-select:text}
+.help-body:focus-visible{outline:2px solid var(--primary); outline-offset:-2px}
+.help-section[hidden]{display:none}
+.help-body h3{margin:2px 0 4px; font-size:15px}
+.help-lead{margin:0 0 10px; color:var(--muted); line-height:1.7}
+.help-body h4{margin:16px 0 6px; font-size:13px}
+.help-body ul{margin:0; padding-left:1.25em}
+.help-body li{margin:3px 0; line-height:1.7}
+.help-body kbd{font:inherit; font-size:.85em; padding:1px 5px; border:1px solid var(--border-strong); border-bottom-width:2px;
+  border-radius:5px; background:var(--surface-2); white-space:nowrap}
+.help-body table{border-collapse:collapse; width:100%; margin:4px 0 8px}
+.help-body th, .help-body td{border-bottom:1px solid var(--border); padding:5px 8px; text-align:left; vertical-align:top; line-height:1.6}
+.help-body th{color:var(--muted); font-weight:600; font-size:12px; background:var(--surface-2)}
 
 /* 検索バー（spec-1-4 確定事項22・23）。ページビューの右上に浮かべる。
    #view の中ではなく #view-wrap の直下に置くので、読み進めても流れない。 */
@@ -694,6 +741,19 @@ html[data-panel="collapsed"] #side-resizer{display:none}
   width:min(440px, 88vw);
 }
 #confirm-replace::backdrop{background:rgba(16,24,40,.34)}
+
+/* 上書き・パスワード・抽出・モザイクの確認。ほかの窓と同じ枠にする（枠を当てておらず、ブラウザの素の黒い枠で出ていた）。
+   幅は中身に合わせる。抽出とモザイクは文が長いので広め。 */
+#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+}
+#confirm-overwrite{width:min(440px, 88vw)}
+#password-prompt{width:min(420px, 88vw)}
+#confirm-extract{width:min(460px, 88vw)}
+#confirm-mosaic{width:min(560px, 88vw)}
+#confirm-overwrite::backdrop, #password-prompt::backdrop, #confirm-extract::backdrop, #confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}
+#confirm-mosaic .dlg-text + .dlg-text{margin-top:8px}
 
 /* ── 注釈一覧（spec-4-4 確定事項9・29〜32） ────────────────────── */
 /* サイドパネルの行。ツール一覧と同じトークンで組む。アイコンは注釈の色、表示のみは灰色に「表示のみ」の印。 */

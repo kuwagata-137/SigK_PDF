@@ -131,8 +131,14 @@
       actions: doc.getElementById('props-trim-actions'),
       remove: doc.getElementById('props-trim-remove'),
     };
-    for (const button of el.scopes)
-      button.addEventListener('click', () => tool().setScope(button.dataset.scope));
+    // マウスで押したらボタンのフォーカスを外す。残ると、枠を引いたあとの Enter がこのボタンを押し直し、切れない
+    // （spec-4b-7b 点検の直し。道具の段の計画外の直し③と同じ。キーボードで押したときは残す）。
+    for (const button of el.scopes) {
+      button.addEventListener('click', (event) => {
+        tool().setScope(button.dataset.scope);
+        root.SigK.editBar?.leaveIfMouse(event, button);
+      });
+    }
     doc.getElementById('props-trim-cancel').addEventListener('click', () => frames().dropFrame());
     doc.getElementById('props-trim-apply').addEventListener('click', () => tool().apply());
     el.remove.addEventListener('click', () => {

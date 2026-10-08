@@ -129,3 +129,28 @@ test('隠した道具が無ければ一覧は開かない', async (t) => {
   assert.equal(SigK.editBarMore.open(), false);
   assert.equal(SigK.editBarMore.close(), false);
 });
+
+// マウスで選んだ・閉じたときは「その他」にフォーカスを残さない（計画外の直し③）。残ると、そのあとの Enter が「その他」を押し直し、
+// トリミングの枠を Enter で切れない。jsdom はマウスの押下でフォーカスを移さないので、focus() してから detail が 1 の click を送る。
+function mouseClick(shell, node) {
+  node.focus();
+  node.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+}
+
+test('一覧の道具をマウスで選んだときと、マウスで「その他」を押して閉じたときは、「その他」にフォーカスを残さない（計画外の直し③）', async (t) => {
+  const shell = await withHidden(t);
+  const { document, SigK } = shell;
+  const button = document.getElementById('edit-more');
+  mouseClick(shell, button);
+  assert.equal(SigK.editBarMore.isOpen(), true);
+  assert.equal(document.activeElement.textContent, '消しゴム', 'マウスで開いたときも一覧の行へ移る');
+  const row = [...document.querySelectorAll('#edit-more-menu .edit-more-row')].find((node) => node.textContent === 'トリミング');
+  mouseClick(shell, row);
+  assert.equal(SigK.annotate.getTool(), 'trim');
+  assert.equal(SigK.editBarMore.isOpen(), false);
+  assert.equal(document.activeElement, document.body, 'マウスで選んだのに「その他」へフォーカスを戻した');
+  mouseClick(shell, button);
+  mouseClick(shell, button);
+  assert.equal(SigK.editBarMore.isOpen(), false);
+  assert.notEqual(document.activeElement, button, 'マウスで閉じた「その他」にフォーカスが残っている');
+});

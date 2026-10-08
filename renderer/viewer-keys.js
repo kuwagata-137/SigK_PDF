@@ -15,6 +15,38 @@
     return name === 'INPUT' || name === 'TEXTAREA';
   }
 
+  // 文字を打つ欄（検索の欄・ページ番号の欄・ツールの画面の欄など）。ラジオ・チェック・スライダーは文字を打たず、
+  // 欄の素の取り消しも無いので含めない。input の type は小文字に揃った値（無ければ 'text'）が返る。
+  const TYPING_TYPES = new Set(['text', 'search', 'password', 'number', 'email', 'url', 'tel']);
+
+  function isTypingField(node) {
+    if (node?.tagName === 'TEXTAREA' || node?.isContentEditable === true)
+      return true;
+    return node?.tagName === 'INPUT' && TYPING_TYPES.has(node.type);
+  }
+
+  // 右パネルの文字を打たない欄（線の太さ・不透明度のスライダー、文字の大きさの一覧）。欄に素の取り消しは無いので、元に戻す・
+  // やり直し・削除のキーは文書へ通す（spec-4b-7b 点検の直し。マウスで動かしたあとフォーカスが残り、Ctrl+Z・Delete が効かなかった）。
+  // 矢印・PageUp・Home などは欄の値を動かすキーなので、今までどおり欄のもの。
+  function isPanelChoice(node) {
+    return node?.matches?.('.props-field') === true && !isTypingField(node);
+  }
+
+  function passesPanelChoice(event) {
+    return isPanelChoice(event.target) && (historyStep(event) !== null || event.key === 'Delete' || event.key === 'Backspace');
+  }
+
+  // 紙の外の文字を打つ欄（検索の欄・ページ番号の欄）からフォーカスを外す。編集モードで紙を左で押したときに annotate-pointer.js が呼ぶ
+  // （spec-4b-7b 点検の直し。紙の上の押下は preventDefault するのでフォーカスが欄に残り、そのあとの Ctrl+Z が、計画外の直し④で欄に
+  // 任せた欄の文字の取り消しになっていた）。右パネルの欄と紙の上の入力欄は残す（spec-4b-7a 確定事項E4）。
+  function leaveTypingField(doc) {
+    const active = doc.activeElement;
+    if (!isTypingField(active) || (active.closest?.('#props, .free-text-editor') ?? null) !== null)
+      return false;
+    active.blur();
+    return true;
+  }
+
   const ZOOM_KEYS = {
     '+': () => viewer().zoomIn(),
     '=': () => viewer().zoomIn(),
@@ -74,6 +106,19 @@
     return false;
   }
 
+  // 元に戻す・やり直しのキー。Ctrl+Z は元に戻す、Ctrl+Y と Ctrl+Shift+Z はやり直し（CheckListMaker の画像エディタと同じ）。
+  // Shift を見ずに Ctrl+Shift+Z を元に戻すにしていた（計画外の直し⑤）。ほかのキーは null。
+  function historyStep(event) {
+    if (!event.ctrlKey || event.altKey)
+      return null;
+    const key = String(event.key ?? '').toLowerCase();
+    if (key === 'y')
+      return 'redo';
+    if (key === 'z')
+      return event.shiftKey ? 'redo' : 'undo';
+    return null;
+  }
+
   // ページ編集のキー（spec-1-5 確定事項54・55）。handleKey の下のほうは
   // event.ctrlKey で早期 return するため、塊③-b の handleFindPrintKey と同じく
   // その手前で捌く。
@@ -84,15 +129,14 @@
       return false;
 
     // 元に戻す・やり直しはどのモードでも効かせる（確定事項55）。編集したまま
-    // 閲覧モードへ戻っていることがある。
-    if (event.ctrlKey && !event.altKey && (event.key === 'z' || event.key === 'Z')) {
+    // 閲覧モードへ戻っていることがある。ただし文字を打つ欄の中では奪わず、欄の素の取り消し・やり直しに任せる
+    // （計画外の直し④。検索の欄で Ctrl+Z を押すと、欄の文字ではなく文書の編集が戻っていた）。
+    const step = historyStep(event);
+    if (step !== null) {
+      if (isTypingField(event.target))
+        return true;
       event.preventDefault();
-      edit.undo();
-      return true;
-    }
-    if (event.ctrlKey && !event.altKey && (event.key === 'y' || event.key === 'Y')) {
-      event.preventDefault();
-      edit.redo();
+      edit[step]();
       return true;
     }
 
@@ -108,7 +152,7 @@
       return true;
     }
 
-    if (isTextField(event.target))
+    if (isTextField(event.target) && !isPanelChoice(event.target))
       return false;
 
     // Delete はページモードでだけ効かせる（確定事項55）。
@@ -152,6 +196,9 @@
     // （spec-4b-7a 確定事項B）。
     if (doc.querySelector('dialog[open]') !== null)
       return;
+    // F1 は使い方の窓（spec-4b-7b 確定事項A2）。文書が無くても、文字を打つ欄の中でも開くので、ほかのキーより先に渡す。
+    if (root.SigK.helpDialog?.handleKey(event, doc) === true)
+      return;
     // Esc の順は escape-order.js（spec-4b-7a 確定事項A）。文書が開いていなくても、欄の Esc と道具を外すのは効かせる（点検の直し）。
     if (event.key === 'Escape') {
       root.SigK.escapeOrder.handle(event, doc);
@@ -166,7 +213,7 @@
     // テキストの入力欄と右パネルの欄（「本文」「作成者」・太さと不透明度のスライダーと数値欄）、色のパレットの窓の中のキーは
     // 欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4、spec-4b-1b 確定事項6・7）。Ctrl+Z は素の取り消し、Delete・
     // PageUp 等も奪わない。Ctrl+Enter は欄自身が確定に使う。
-    if (event.target?.closest?.('.free-text-editor, .props-field, .color-pop'))
+    if (event.target?.closest?.('.free-text-editor, .props-field, .color-pop') && !passesPanelChoice(event))
       return;
     if (handlePageEditKey(event, doc))
       return;
@@ -186,5 +233,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.viewerKeys = { handleKey };
+  SigK.viewerKeys = { handleKey, leaveTypingField };
 })(typeof window !== 'undefined' ? window : globalThis);

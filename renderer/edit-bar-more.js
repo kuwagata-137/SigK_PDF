@@ -45,7 +45,7 @@
     name.textContent = button.title;
     row.append(name);
     row.classList.toggle('active', button.classList.contains('active'));
-    row.addEventListener('click', () => pick(button));
+    row.addEventListener('click', (event) => pick(button, { byMouse: event.detail > 0 }));
     return row;
   }
 
@@ -80,10 +80,14 @@
     return true;
   }
 
-  function pick(button) {
+  // 一覧の道具を選ぶ。キーボード（Enter・Space）で選んだときは「その他」へフォーカスを戻し、続けてキーで操作できるようにする。
+  // マウスで選んだときは戻さない（計画外の直し③。段のボタンをマウスで押したときと同じ。edit-bar.js の leaveIfMouse）。行は
+  // 閉じると消えるので、フォーカスは文書へ移る。
+  function pick(button, { byMouse = false } = {}) {
     close();
     button.click();
-    el.button.focus();
+    if (!byMouse)
+      el.button.focus();
   }
 
   // 一覧の中のキー。扱ったキーは文書のキー（Delete・Enter で書き込みを消す・直す）へ流さない。
@@ -122,7 +126,15 @@
       return false;
     win.__sigkEditBarMoreReady = true;
     el = { doc, bar, button, menu, item: button.closest('.edit-item') };
-    button.addEventListener('click', () => (isOpen() ? close() : open()));
+    // 開いたときは一覧の行へ移る。マウスで押して閉じたときは「その他」にフォーカスを残さない（計画外の直し③）。
+    button.addEventListener('click', (event) => {
+      if (!isOpen()) {
+        open();
+        return;
+      }
+      close();
+      root.SigK.editBar?.leaveIfMouse(event, button);
+    });
     button.addEventListener('keydown', (event) => {
       if (event.key === 'ArrowDown' && open())
         event.preventDefault();

@@ -152,6 +152,7 @@
     root.SigK.annotationList.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
+    root.SigK.helpDialog.init(doc, win);
     root.SigK.tabs.init(doc, win);
     root.SigK.recentPanel.init(doc, win);
     root.SigK.fileDrop.init(doc, win);

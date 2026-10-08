@@ -460,6 +460,7 @@ async function createShell({
   const logs = [];
   const openRequestHandlers = [];
   const docInfoRequestHandlers = [];
+  const helpRequestHandlers = [];
   const recentCalls = [];
   const uiCalls = [];
   const printCalls = [];
@@ -525,6 +526,8 @@ async function createShell({
       pathForFile: (file) => file?.__path ?? null,
       onOpenRequest: (callback) => openRequestHandlers.push(callback),
       onDocInfoRequest: (callback) => docInfoRequestHandlers.push(callback),
+      // メニュー「ヘルプ」→「使い方」の合図（spec-4b-7b 確定事項A4）。
+      onHelpRequest: (callback) => helpRequestHandlers.push(callback),
       // 保存先の選択と、メニューからの合図（spec-1-6 確定事項23・25）。
       pickSavePath: async (options) => {
         savePathCalls.push(structuredClone(options ?? {}));
@@ -803,6 +806,7 @@ async function createShell({
     // 「最近使ったファイル」から選んだのと同じ経路になる。
     fireOpenRequest: (filePath) => openRequestHandlers.forEach((handler) => handler(filePath)),
     fireDocInfoRequest: () => docInfoRequestHandlers.forEach((handler) => handler()),
+    fireHelpRequest: () => helpRequestHandlers.forEach((handler) => handler()),
     // サイドパネルの幅を変えたことにする。jsdom はレイアウトしないので、
     // clientWidth を差し替えてから shell 経由で知らせる。
     resizeSide: (width) => {

@@ -392,6 +392,107 @@ test('サイドパネルの開閉を覚える', async (t) => {
   assert.equal(savedUi().sidePanel.open, false);
 });
 
+// 閉じる「＜」はパネルの見出しの中にあり、閉じるとパネルごと消える。開き直す口が無く、閉じた状態を覚えるので次の起動でも
+// 閉じたままだった（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じている間だけ、レールと表示域の
+// 間に細い帯を出し、帯の「＞」で開く。
+test('サイドパネルを閉じると細い帯が出て、帯の「＞」で開き、開いたことを覚える', async (t) => {
+  const { document, flush, uiCalls, savedUi } = await withShell(t);
+  await flush();
+  const html = document.documentElement;
+  const strip = document.getElementById('side-strip');
+  const expand = document.getElementById('side-expand');
+  const click = (node) => node.dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true }));
+
+  assert.notEqual(strip, null, '帯が無い');
+  assert.equal(strip.hidden, true, '開いている間は帯を出さない');
+  // 帯はレールとページの表示域の間に置く。
+  assert.equal(strip.previousElementSibling.id, 'side-resizer');
+  assert.equal(strip.nextElementSibling.id, 'view-wrap');
+  assert.equal(expand.closest('#side-strip'), strip);
+  assert.equal(expand.tagName, 'BUTTON');
+  assert.equal(expand.getAttribute('type'), 'button');
+  assert.equal(expand.getAttribute('title'), 'サイドパネルを開く');
+  assert.equal(expand.getAttribute('aria-label'), 'サイドパネルを開く');
+  // 「＞」は閉じる「＜」と同じ大きさ・太さで描く。
+  const svg = expand.querySelector('svg');
+  assert.notEqual(svg, null, '「＞」が描かれていない');
+  assert.equal(svg.querySelector('path').getAttribute('d'), 'M10 6l6 6-6 6');
+  const closer = document.getElementById('side-collapse');
+  assert.equal(expand.dataset.iconSize, closer.dataset.iconSize);
+  assert.equal(expand.dataset.iconStroke, closer.dataset.iconStroke);
+
+  click(document.getElementById('side-collapse'));
+  assert.equal(html.getAttribute('data-panel'), 'collapsed');
+  assert.equal(strip.hidden, false, '閉じたら帯を出す');
+
+  click(expand);
+  await flush();
+  assert.equal(html.getAttribute('data-panel'), 'open');
+  assert.equal(strip.hidden, true, '開いたら帯を消す');
+  assert.deepEqual(uiCalls, [{ sidePanel: { open: false } }, { sidePanel: { open: true } }]);
+  assert.equal(savedUi().sidePanel.open, true, '開いたことを覚える');
+});
+
+test('前回閉じていたら、どのモードでも帯が出た状態で立ち上がる', async (t) => {
+  for (const mode of ['view', 'pages', 'annot', 'tools']) {
+    const { document, flush } = await withShell(t, { ui: { mode, sidePanel: { open: false, width: 240 } } });
+    await flush();
+    assert.equal(document.documentElement.getAttribute('data-panel'), 'collapsed', mode);
+    assert.equal(document.getElementById('side-strip').hidden, false, `${mode} で帯が出ない`);
+    document.getElementById('side-expand').dispatchEvent(new (document.defaultView.MouseEvent)('click'));
+    assert.equal(document.documentElement.getAttribute('data-panel'), 'open', `${mode} で開かない`);
+  }
+});
+
+// 帯を出し入れすると表示域の幅が変わる。「幅」「全体」で追従していれば倍率を計算し直す（閉じるときと同じ合図）。
+test('帯の「＞」で開くと、ビューアへ表示域の追従を頼む', async (t) => {
+  const { document, SigK, flush } = await withShell(t, { ui: { mode: 'view', sidePanel: { open: false, width: 240 } } });
+  await flush();
+  const original = SigK.viewer.refit;
+  let calls = 0;
+  SigK.viewer.refit = () => { calls += 1; return original(); };
+  t.after(() => { SigK.viewer.refit = original; });
+  document.getElementById('side-expand').dispatchEvent(new (document.defaultView.MouseEvent)('click'));
+  assert.equal(calls, 1);
+});
+
+// キーボードで「＞」を押すと、帯と一緒に「＞」が隠れ、フォーカスの行き場が無くなっていた（spec-4b-7b 点検の直し）。
+test('キーボードで「＞」を押したらパネルの中へフォーカスを移す。マウスなら移さない', async (t) => {
+  const { document, flush } = await withShell(t, { ui: { mode: 'view', sidePanel: { open: false, width: 240 } } });
+  await flush();
+  const expand = document.getElementById('side-expand');
+  expand.focus();
+  expand.dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true, detail: 0 }));
+  assert.equal(document.activeElement.id, 'side-scroll');
+  document.getElementById('side-collapse').dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true }));
+  document.activeElement.blur();
+  expand.dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true, detail: 1 }));
+  assert.notEqual(document.activeElement.id, 'side-scroll');
+});
+
+// 確認の窓 4 つに枠が無く、ブラウザの素の黒い枠で出ていた（計画外の直し・窓の枠。spec-4b-7b 点検 7 で見張りを足した）。
+test('上書き・パスワード・抽出・モザイクの確認の窓に、ほかの窓と同じ枠と幅の上限がある（shell.css）', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
+  const rule = css.match(/#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic\{([^}]*)\}/);
+  assert.notEqual(rule, null, '4 つの窓の枠の規則が無い');
+  for (const part of ['padding:0', 'border:1px solid var(--border)', 'border-radius:var(--radius)', 'box-shadow:var(--shadow)'])
+    assert.ok(rule[1].includes(part), part);
+  for (const [id, width] of [['confirm-overwrite', 440], ['password-prompt', 420], ['confirm-extract', 460], ['confirm-mosaic', 560]])
+    assert.ok(css.includes(`#${id}{width:min(${width}px, 88vw)}`), id);
+  assert.ok(css.includes('#confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}'));
+});
+
+// jsdom は shell.css を読まないので、帯の寸法と出し入れの規則は文字で見張る。
+test('帯は幅 18px で、hidden の間は場所を取らない（shell.css）', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
+  const rule = css.match(/#side-strip\{([^}]*)\}/);
+  assert.notEqual(rule, null, 'shell.css に #side-strip の規則が無い');
+  assert.match(rule[1], /flex:0 0 18px/);
+  assert.match(rule[1], /background:var\(--surface\)/);
+  assert.match(rule[1], /border-right:1px solid var\(--border\)/);
+  assert.match(css, /#side-strip\[hidden\]\{display:none\}/);
+});
+
 // settings.js は一時ファイル＋rename のアトミック書き込みである。ドラッグ中に
 // 毎回呼ぶとディスクを叩き続ける（確定事項34）。
 test('サイドパネルの幅はドラッグ中に書かず、離した時点で1回だけ覚える', async (t) => {

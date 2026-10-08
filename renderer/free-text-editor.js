@@ -152,6 +152,10 @@
       return;
     if (state.node !== null && state.node.contains(event.target))
       return;
+    // 開いている窓（使い方の窓など）の中の押しは、枠の外の押しとみなさない。入力欄で F1 を押して開いた窓を閉じたら、
+    // 入力欄へ戻って打ち続けられる（spec-4b-7b 確定事項A5。点検の直し）。
+    if ((event.target?.closest?.('dialog[open]') ?? null) !== null)
+      return;
     finish();
     state.swallow = true;
   }

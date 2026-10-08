@@ -9,7 +9,7 @@
 //   press:<page>:<x>x<y> / drag:<page>:<x>x<y> / release（紙の座標 pt で本物のマウス。drag は押したまま動かす）
 //   slide:<id>:<割合>:<割合>（スライダーを押して動かす。離さない）/ thumb-drag:<from>-<to>（サムネイルを押して動かす。離さない）
 //   shape:<kind>:<page>:<x1>x<y1>-<x2>x<y2>（合成のマウスで描く）
-//   mode・tool:<名前|none>・find・dialog:<info|print>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
+//   mode・tool:<名前|none>・find・dialog:<info|print|help>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
 //   fit・scroll:<割合>（画面の口を呼ぶ。smoke-keys-page.js）
 //   wait:<ms> / state（様子を控える）/ memory（アプリ全体の実メモリを控える）
 // 例: SIGK_SMOKE_KEYS=mode:annot,shape:square:0:100x700-300x600,find:text,dialog:info,esc,state,esc,state
@@ -23,7 +23,7 @@ const page = require('./smoke-keys-page.js');
 // キーの名前 → [windowsVirtualKeyCode, code]。
 const KEYS = {
   Escape: [27, 'Escape'], Delete: [46, 'Delete'], Backspace: [8, 'Backspace'], Enter: [13, 'Enter'],
-  PageDown: [34, 'PageDown'], PageUp: [33, 'PageUp'], Home: [36, 'Home'], End: [35, 'End'], Tab: [9, 'Tab'], F3: [114, 'F3'],
+  PageDown: [34, 'PageDown'], PageUp: [33, 'PageUp'], Home: [36, 'Home'], End: [35, 'End'], Tab: [9, 'Tab'], F1: [112, 'F1'], F3: [114, 'F3'],
   ArrowUp: [38, 'ArrowUp'], ArrowDown: [40, 'ArrowDown'], '-': [189, 'Minus'], '=': [187, 'Equal'],
   f: [70, 'KeyF'], p: [80, 'KeyP'], w: [87, 'KeyW'], y: [89, 'KeyY'], z: [90, 'KeyZ'],
 };

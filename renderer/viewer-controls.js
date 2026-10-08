@@ -86,7 +86,7 @@
       return false;
     win.__sigkControlsReady = true;
 
-    bindClick(doc, 'btn-open', () => root.SigK.tabs.openViaDialog());
+    bindClick(doc, 'btn-open', () => root.SigK.tabs.runOpenCommand());
     bindClick(doc, 'page-prev', () => viewer().prevPage());
     bindClick(doc, 'page-next', () => viewer().nextPage());
     bindClick(doc, 'zoom-in', () => viewer().zoomIn());
@@ -114,15 +114,12 @@
 
     // メニューの「開く」（Ctrl+O）と「最近使ったファイル」はメイン側から届く。
     // 開く経路を1本に保つため、ここでもツールバーと同じ処理を呼ぶ。
-    // パスが付いていればそれを開き、無ければダイアログを出す。
+    // パスが付いていればそれを開き、無ければダイアログを出す（tabs.runOpenCommand）。
     // 窓が開いている間は、後ろで別の文書を開かない（spec-4b-7a 点検の直し）。
     root.pdfAPI?.onOpenRequest?.((filePath) => {
       if (doc.querySelector('dialog[open]') !== null)
         return;
-      if (typeof filePath === 'string' && filePath.length > 0)
-        root.SigK.tabs.openPath(filePath);
-      else
-        root.SigK.tabs.openViaDialog();
+      root.SigK.tabs.runOpenCommand(filePath);
     });
 
     // キーの振り分けは viewer-keys.js（spec-4b-3a で分けた）。

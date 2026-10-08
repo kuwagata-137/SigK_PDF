@@ -74,3 +74,30 @@ test('押すたびに道具を持ち、同じボタンで離す。マークア�
   document.querySelector('#edit-bar .edit-tool[data-tool="text"]').click();
   assert.equal(SigK.annotate.getTool(), null);
 });
+
+// マウスで押したときは押したボタンにフォーカスを残さない。キーボードで押したときは残す（計画外の直し③）。
+// Windows の Chromium はマウスの押下でボタンへフォーカスを移すが、jsdom は移さないので、テストの中で focus() してから
+// detail が 1 の click（マウス）を送る。キーボードの Enter・Space で押した click は detail が 0。
+function clickBy(shell, button, { mouse }) {
+  button.focus();
+  button.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: mouse ? 1 : 0 }));
+}
+
+test('道具の段のボタンをマウスで押すと道具を持ち、フォーカスはボタンに残らない。キーボードで押せばボタンに残る（計画外の直し③）', async (t) => {
+  const shell = await withShell(t);
+  const { document, SigK } = shell;
+  const trim = document.querySelector('#edit-bar .edit-tool[data-tool="trim"]');
+  clickBy(shell, trim, { mouse: true });
+  assert.equal(SigK.annotate.getTool(), 'trim');
+  assert.notEqual(document.activeElement, trim, 'マウスで押したボタンにフォーカスが残っている');
+  // 図形のボタン（種類を替える）も同じ。
+  const circle = document.querySelector('#edit-bar .edit-tool[data-shape="circle"]');
+  clickBy(shell, circle, { mouse: true });
+  assert.deepEqual(pressed(document), ['circle']);
+  assert.notEqual(document.activeElement, circle);
+  // キーボードで押したときは、続けてキーで操作できるようにボタンに残す。
+  const pen = document.querySelector('#edit-bar .edit-tool[data-tool="pen"]');
+  clickBy(shell, pen, { mouse: false });
+  assert.equal(SigK.annotate.getTool(), 'pen');
+  assert.equal(document.activeElement, pen);
+});
