@@ -88,6 +88,24 @@
     return nodes;
   }
 
+  // 窓の中を組む（spec-4b-7b 確定事項B1・B8）。題・目次・13 節の本文。本文の節は隠しておき、help-dialog.js が出し分ける。
+  function fill(doc, dialog, content) {
+    const title = dialog.querySelector('#help-title');
+    if (title !== null)
+      title.textContent = content.TITLE;
+    dialog.querySelector('.help-nav')?.replaceChildren(...nav(doc, content));
+    const sections = content.SECTIONS.map((data) => {
+      const node = doc.createElement('section');
+      node.className = 'help-section';
+      node.dataset.section = data.id;
+      node.hidden = true;
+      node.append(...section(doc, data));
+      return node;
+    });
+    dialog.querySelector('.help-body')?.replaceChildren(...sections);
+    return dialog;
+  }
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.helpRender = { appendInline, section, nav };
+  SigK.helpRender = { appendInline, section, nav, fill };
 })(typeof window !== 'undefined' ? window : globalThis);

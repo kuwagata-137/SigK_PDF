@@ -77,3 +77,21 @@ test('目次は、グループの見出しと節のボタンを、グループ�
   assert.equal(nodes[0].textContent, 'はじめに');
   assert.equal(nodes[1].textContent, '画面とモード');
 });
+
+test('fill は、窓の題・目次・13 節の本文（隠しておく）を組む', () => {
+  const world = makeWorld();
+  const dialog = world.doc.createElement('dialog');
+  for (const [tag, attrs] of [['span', { id: 'help-title' }], ['nav', { class: 'help-nav' }], ['div', { class: 'help-body' }]]) {
+    const node = world.doc.createElement(tag);
+    for (const [name, value] of Object.entries(attrs))
+      node.setAttribute(name, value);
+    dialog.append(node);
+  }
+  world.render.fill(world.doc, dialog, world.content);
+  assert.equal(dialog.querySelector('#help-title').textContent, 'SigK PDF の使い方');
+  assert.equal(dialog.querySelectorAll('.help-nav .help-item').length, 13);
+  const sections = [...dialog.querySelectorAll('.help-body .help-section')];
+  assert.equal(sections.length, 13);
+  assert.ok(sections.every((node) => node.hidden));
+  assert.equal(sections[12].dataset.section, 'escape');
+});

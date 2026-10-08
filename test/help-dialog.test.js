@@ -268,3 +268,74 @@ test('目次で ↓↑ は次・前、Home・End は最初・最後の節へ移�
   assert.deepEqual(shown(shell), ['basics']);
   assert.deepEqual(marked(shell), ['basics']);
 });
+
+// ---- 点検の直し ----
+
+test('目次で Tab が止まるのは今の節のボタンだけ（ロービング）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.helpDialog.open(document);
+  const stops = () => [...dialog(shell).querySelectorAll('.help-item')].filter((node) => node.tabIndex === 0).map((node) => node.dataset.section);
+  assert.deepEqual(stops(), ['view']);
+  SigK.helpDialog.show(document, 'keys');
+  assert.deepEqual(stops(), ['keys']);
+  assert.equal(dialog(shell).querySelector('.help-body').tabIndex, 0);
+});
+
+test('↓↑ は、フォーカスのある目次のボタンから数える。修飾キー付きでは動かない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.helpDialog.open(document);
+  const select = dialog(shell).querySelector('.help-item[data-section="select"]');
+  select.focus();
+  key(shell, select, 'ArrowDown');
+  assert.deepEqual(shown(shell), ['markup']);
+  assert.equal(key(shell, document.activeElement, 'ArrowDown', { shiftKey: true }).defaultPrevented, false);
+  key(shell, document.activeElement, 'ArrowDown', { ctrlKey: true });
+  assert.deepEqual(shown(shell), ['markup']);
+});
+
+test('開き直すと、本文は先頭から出る', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.helpDialog.open(document);
+  const body = dialog(shell).querySelector('.help-body');
+  body.scrollTop = 300;
+  SigK.helpDialog.close(document);
+  SigK.helpDialog.open(document);
+  assert.equal(body.scrollTop, 0);
+});
+
+test('F1 の押し続けの繰り返しと IME の変換中は開かない', async (t) => {
+  const shell = await withShell(t);
+  const repeat = key(shell, shell.document.body, 'F1', { repeat: true });
+  assert.equal(repeat.defaultPrevented, true);
+  key(shell, shell.document.body, 'F1', { isComposing: true });
+  key(shell, shell.document.body, 'F1', { keyCode: 229 });
+  assert.equal(isOpen(shell), false);
+  key(shell, shell.document.body, 'F1');
+  assert.equal(isOpen(shell), true);
+});
+
+test('マウスのボタンを押している間は、メニューの合図でも開かない', async (t) => {
+  const shell = await withShell(t);
+  pointer(shell, 'pointerdown', 1);
+  shell.fireHelpRequest();
+  assert.equal(isOpen(shell), false);
+  pointer(shell, 'pointerup', 0);
+  shell.fireHelpRequest();
+  assert.equal(isOpen(shell), true);
+});
+
+test('押しているボタンの控えは、pointercancel と窓の blur でも外れる', async (t) => {
+  const shell = await withShell(t);
+  pointer(shell, 'pointerdown', 1);
+  pointer(shell, 'pointercancel', 0);
+  key(shell, shell.document.body, 'F1');
+  assert.equal(isOpen(shell), true);
+  shell.SigK.helpDialog.close(shell.document);
+  pointer(shell, 'pointerdown', 1);
+  shell.window.dispatchEvent(new shell.window.Event('blur'));
+  key(shell, shell.document.body, 'F1');
+  assert.equal(isOpen(shell), true);
+});
