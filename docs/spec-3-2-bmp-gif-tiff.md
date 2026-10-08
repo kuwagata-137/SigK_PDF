@@ -385,4 +385,4 @@ utif・omggif はともに MIT。`findCopyleft` の該当なし。utif の内蔵
 
 **2026-10-08 追記（Phase 5 塊③）**: 判定8 は検体で確かめた。FAX の TIFF（`image-fax.tif`）は白黒のまま、3 ページの TIFF（`image-pages.tif`）は
 3 ページになり、GIF・BMP の検体も含めて画像 7 個から 9 ページできる（`spec-5-3` No.6。見比べの絵 `screenshots/phase5-3-1b-convert.png`）。
-実物の FAX・複合機の TIFF と、実物の GIF・BMP での変換は「あなたの画面で見る項目」⑧（`spec-5-3`）で未確認。
+実物の FAX・複合機の TIFF と、実物の GIF・BMP での変換は「あなたの画面で見る項目」⑧（`spec-5-3`）で未確認。一覧の見た目（`phase3-formats-app.png` との見比べ）は、塊③では見ていない。

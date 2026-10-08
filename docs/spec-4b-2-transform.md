@@ -502,4 +502,4 @@
   **2026-10-08 追記（Phase 5 塊③）**: 確かめた。回した図形が Windows 標準の描き方と PDFium でも同じに見える（`spec-5-3` No.15。見比べの絵
   `screenshots/phase5-3-3a-style-rotate.png`、PDFium の `screenshots/phase5-3-pdfium-rotate.jpg`）。回転のカーソルの絵は白い紙でも暗い地でも
   見え、ユーザーが「そろっている」と答えた（`screenshots/phase5-3-4b-about-cursor.png`・`docs/07` 決定75 ③）。上の画面写真と見本の見比べは、
-  `spec-5-3` の「判定の外の残り」で「見比べの絵と見開きの見本で済んだ」とした（決定75 ①③）。
+  `spec-5-3` の「判定の外の残り」で「見開き（spec-2-3）だけ見本と並べ、ほかのアプリの画面とモックの見比べは塊③では見ていない」とした（決定75 ③）。
