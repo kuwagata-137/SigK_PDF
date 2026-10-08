@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- PDF ファイルの絵の 16〜24px 用（docs/spec-5-2-open-with-icon.md 確定事項B3）。紙の縁を太くして 1px 以上にし、
+       文字の行を省き、アプリの印を大きくする -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a86f2"/>
+      <stop offset="1" stop-color="#1f55d0"/>
+    </linearGradient>
+  </defs>
+  <path d="M52 12 H164 L220 68 V228 a16 16 0 0 1 -16 16 H52 a16 16 0 0 1 -16 -16 V28 a16 16 0 0 1 16 -16 Z" fill="#fff" stroke="#8a95a3" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M164 12 V52 a16 16 0 0 0 16 16 H220" fill="#e6ebf1" stroke="#8a95a3" stroke-width="16" stroke-linejoin="round"/>
+  <rect x="68" y="108" width="120" height="120" rx="28" fill="url(#tile)"/>
+  <path d="M100 132 H140 L160 152 V204 H100 Z" fill="#fff"/>
+</svg>

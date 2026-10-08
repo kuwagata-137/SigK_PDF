@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- SigK PDF のアプリのアイコン（案B 青い札に紙とペン。docs/spec-5-2-open-with-icon.md 確定事項B1）。32px 以上で使う。
+       青は画面の主な色（#2f6feb）を上下の濃淡にしたもの。ICO は npm run icons で作る。
+       （XML のコメントの中には、ハイフン 2 つの並びを書けない。書くと SVG ごと読めなくなる） -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a86f2"/>
+      <stop offset="1" stop-color="#1f55d0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#102040" flood-opacity=".22"/>
+    </filter>
+  </defs>
+  <rect x="14" y="14" width="228" height="228" rx="52" fill="url(#tile)"/>
+  <path filter="url(#shadow)" d="M80 40 H150 L190 80 V204 a12 12 0 0 1 -12 12 H80 a12 12 0 0 1 -12 -12 V52 a12 12 0 0 1 12 -12 Z" fill="#fff"/>
+  <path d="M150 40 V68 a12 12 0 0 0 12 12 H190" fill="#c9d8fb"/>
+  <rect x="86" y="98" width="70" height="10" rx="5" fill="#c4cbd3"/>
+  <rect x="86" y="122" width="86" height="10" rx="5" fill="#c4cbd3"/>
+  <path d="M84 182 c 10 -30 24 -32 28 -10 s 12 20 24 -6 s 18 -12 26 2 l 20 0" fill="none" stroke="#2f6feb" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

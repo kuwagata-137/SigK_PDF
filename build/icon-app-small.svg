@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- アプリのアイコンの 16〜24px 用（docs/spec-5-2-open-with-icon.md 確定事項B3）。小さいと線が潰れて汚れに見えるので、
+       札を広げ、紙を大きくし、文字の行とペンの線を 1 本の太い青い線にまとめる。影も付けない -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a86f2"/>
+      <stop offset="1" stop-color="#1f55d0"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="244" height="244" rx="52" fill="url(#tile)"/>
+  <path d="M68 32 H156 L200 76 V212 a12 12 0 0 1 -12 12 H68 a12 12 0 0 1 -12 -12 V44 a12 12 0 0 1 12 -12 Z" fill="#fff"/>
+  <path d="M156 32 V64 a12 12 0 0 0 12 12 H200" fill="#c9d8fb"/>
+  <rect x="80" y="150" width="96" height="28" rx="14" fill="#2f6feb"/>
+</svg>

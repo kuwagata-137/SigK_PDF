@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- SigK PDF を既定のアプリにしたとき、エクスプローラーで PDF ファイルに出る絵（紙の形の専用の絵。
+       docs/spec-5-2-open-with-icon.md 確定事項B2）。32px 以上で使う。下にアプリの印（案B）を小さく入れる -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a86f2"/>
+      <stop offset="1" stop-color="#1f55d0"/>
+    </linearGradient>
+  </defs>
+  <path d="M56 10 H168 L218 60 V230 a16 16 0 0 1 -16 16 H56 a16 16 0 0 1 -16 -16 V26 a16 16 0 0 1 16 -16 Z" fill="#fff" stroke="#9aa4b1" stroke-width="8"/>
+  <path d="M168 10 V44 a16 16 0 0 0 16 16 H218" fill="#e6ebf1" stroke="#9aa4b1" stroke-width="8" stroke-linejoin="round"/>
+  <rect x="64" y="70" width="80" height="12" rx="6" fill="#c4cbd3"/>
+  <rect x="64" y="96" width="120" height="12" rx="6" fill="#c4cbd3"/>
+  <rect x="64" y="122" width="100" height="12" rx="6" fill="#c4cbd3"/>
+  <g transform="translate(78 140) scale(0.39)">
+    <rect x="14" y="14" width="228" height="228" rx="52" fill="url(#tile)"/>
+    <path d="M80 40 H150 L190 80 V204 a12 12 0 0 1 -12 12 H80 a12 12 0 0 1 -12 -12 V52 a12 12 0 0 1 12 -12 Z" fill="#fff"/>
+    <path d="M150 40 V68 a12 12 0 0 0 12 12 H190" fill="#c9d8fb"/>
+    <path d="M84 182 c 10 -30 24 -32 28 -10 s 12 20 24 -6 s 18 -12 26 2 l 20 0" fill="none" stroke="#2f6feb" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
