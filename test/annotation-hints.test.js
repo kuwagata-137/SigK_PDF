@@ -40,3 +40,13 @@ test('道具のヒントは道具で選び、四角・丸の道具には同じ�
   assert.equal(hints.forTool('shape', 'circle', '#ffd966'), `${HINTS.shape}${HINTS.box}${HINTS.fill}`);
   assert.ok(Object.isFrozen(HINTS));
 });
+
+// 今の動きと合わない文を直した（spec-4b-7b 確定事項F。決定70 ⑦）。
+test('ヒントの文は今の動きに合わせ、Esc で道具を外す言い方をそろえる', () => {
+  assert.match(HINTS.hand, /書き込みの上で右クリックすると出るメニューから削除できます。/);
+  assert.match(HINTS.eraser, /テキスト・吹き出し・ノート・ハイライト・下線・取り消し線と、他のアプリで付けた書き込みは消えません。/);
+  assert.match(HINTS.calloutSelected, /（Shift で本体の向きに水平か垂直）/);
+  for (const name of ['shape', 'polygon', 'pen', 'marker', 'note', 'select', 'eraser', 'hand'])
+    assert.match(HINTS[name], /Esc で道具を外します。/, name);
+  assert.ok(Object.values(HINTS).every((text) => !text.includes('道具を離します')));
+});
