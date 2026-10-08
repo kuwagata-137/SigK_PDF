@@ -456,6 +456,32 @@ test('帯の「＞」で開くと、ビューアへ表示域の追従を頼む',
   assert.equal(calls, 1);
 });
 
+// キーボードで「＞」を押すと、帯と一緒に「＞」が隠れ、フォーカスの行き場が無くなっていた（spec-4b-7b 点検の直し）。
+test('キーボードで「＞」を押したらパネルの中へフォーカスを移す。マウスなら移さない', async (t) => {
+  const { document, flush } = await withShell(t, { ui: { mode: 'view', sidePanel: { open: false, width: 240 } } });
+  await flush();
+  const expand = document.getElementById('side-expand');
+  expand.focus();
+  expand.dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true, detail: 0 }));
+  assert.equal(document.activeElement.id, 'side-scroll');
+  document.getElementById('side-collapse').dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true }));
+  document.activeElement.blur();
+  expand.dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true, detail: 1 }));
+  assert.notEqual(document.activeElement.id, 'side-scroll');
+});
+
+// 確認の窓 4 つに枠が無く、ブラウザの素の黒い枠で出ていた（計画外の直し・窓の枠。spec-4b-7b 点検 7 で見張りを足した）。
+test('上書き・パスワード・抽出・モザイクの確認の窓に、ほかの窓と同じ枠と幅の上限がある（shell.css）', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
+  const rule = css.match(/#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic\{([^}]*)\}/);
+  assert.notEqual(rule, null, '4 つの窓の枠の規則が無い');
+  for (const part of ['padding:0', 'border:1px solid var(--border)', 'border-radius:var(--radius)', 'box-shadow:var(--shadow)'])
+    assert.ok(rule[1].includes(part), part);
+  for (const [id, width] of [['confirm-overwrite', 440], ['password-prompt', 420], ['confirm-extract', 460], ['confirm-mosaic', 560]])
+    assert.ok(css.includes(`#${id}{width:min(${width}px, 88vw)}`), id);
+  assert.ok(css.includes('#confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}'));
+});
+
 // jsdom は shell.css を読まないので、帯の寸法と出し入れの規則は文字で見張る。
 test('帯は幅 18px で、hidden の間は場所を取らない（shell.css）', () => {
   const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
