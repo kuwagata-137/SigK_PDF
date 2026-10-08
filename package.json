@@ -50,6 +50,7 @@
       "pdf-write.js",
       "launch-args.js",
       "launch-batch.js",
+      "default-apps-link.js",
       "task-runner.js",
       "smoke-window.js",
       "smoke-rewrite.js",
