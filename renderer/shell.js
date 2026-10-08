@@ -116,8 +116,12 @@
     root.SigK.thumbnails?.refresh();
   }
 
+  // 閉じている間だけ、開き直す「＞」の細い帯を出す（2026-10-08 の直し）。閉じる「＜」はパネルと一緒に消えるため。
   function setSidePanelOpen(doc, open) {
     doc.documentElement.setAttribute('data-panel', open ? 'open' : 'collapsed');
+    const strip = doc.getElementById('side-strip');
+    if (strip !== null)
+      strip.hidden = open;
     notifyViewportChanged();
     persist({ sidePanel: { open } });
     return open;
@@ -213,6 +217,7 @@
         setSidePanelOpen(doc, !open);
       });
     }
+    doc.getElementById('side-expand')?.addEventListener('click', () => setSidePanelOpen(doc, true));
 
     installResizer(doc);
     return true;

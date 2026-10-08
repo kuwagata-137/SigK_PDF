@@ -162,6 +162,12 @@ body{
 
     <div id="side-resizer"></div>
 
+    <!-- サイドパネルを閉じている間だけ出す細い帯（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じる「＜」は
+         パネルと一緒に消えるので、開き直す「＞」をここに置く。出し入れは shell.js の setSidePanelOpen。 -->
+    <div id="side-strip" hidden>
+      <button type="button" id="side-expand" data-icon="chevronRight" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを開く" aria-label="サイドパネルを開く"></button>
+    </div>
+
     <!-- 重ねるものは #view の「外」に置く。#view はスクロールする器であり、
          その中で position:absolute にすると中身と一緒に流れて画面外へ出る
          （spec-1-2 確定事項20）。 -->

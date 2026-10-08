@@ -207,6 +207,21 @@ html[data-mode="annot"] #side-title{display:none}
 #side-resizer:hover{background:var(--select)}
 html[data-panel="collapsed"] #side-resizer{display:none}
 
+/* サイドパネルを閉じている間だけ出す細い帯（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。
+   「＞」は閉じる「＜」（.side-head .collapse）と同じ高さに置く。見出しは高さ 34px（下の線 1px を含む）で、
+   その中の 24px を上下の真ん中に置いているので、上の余白は (34 − 1 − 24) ÷ 2 = 4.5px になる。
+   帯の中は 17px しかないので、幅だけ 16px に詰める。押せることが見えるよう、地を薄く塗っておく。 */
+#side-strip{
+  flex:0 0 18px; display:flex; flex-direction:column; align-items:center;
+  background:var(--surface); border-right:1px solid var(--border);
+}
+#side-strip[hidden]{display:none}
+#side-expand{
+  width:16px; height:24px; margin-top:4.5px; border-radius:5px; display:grid; place-items:center;
+  background:var(--surface-2); color:var(--text);
+}
+#side-expand:hover{background:var(--border)}
+
 /* ページビュー。ページは絶対配置で置く。位置と寸法は renderer/viewer-layout.js が
    計算し、下の余白・間隔の値（18px・16px）と対で決まっている。片方だけ変えると
    スクロール位置の計算が実際の描画とずれる。 */
