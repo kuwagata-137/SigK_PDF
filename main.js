@@ -1536,10 +1536,32 @@ function installSmokeCheck(win, mode) {
     };
   })()`;
 
+  // 配布物には test/ を同梱しないので、makeSmokeJpeg が image-wide.png の代わりに描く横長の絵。
+  // nativeImage.createFromBitmap に渡す BGRA の並びを返す。白地に濃い色の枠（紙の余白との境目）、
+  // 上に青の帯（上下の向き）、左下に赤の四角（左右の向き）を置き、変換の結果を目で見て分かるようにする。
+  function smokeSampleBitmap(width, height) {
+    const bitmap = Buffer.alloc(width * height * 4, 0xff);
+    const paint = (left, top, right, bottom, [blue, green, red]) => {
+      for (let y = top; y < bottom; y += 1)
+        for (let x = left; x < right; x += 1)
+          bitmap.set([blue, green, red, 0xff], (y * width + x) * 4);
+    };
+    paint(0, 0, width, height, [0x30, 0x24, 0x1c]);
+    paint(4, 4, width - 4, height - 4, [0xff, 0xff, 0xff]);
+    paint(4, 4, width - 4, Math.round(height / 5), [0xeb, 0x6f, 0x2f]);
+    paint(Math.round(width / 10), Math.round(height / 2), Math.round(width * 0.35), height - Math.round(height / 10), [0x45, 0x45, 0xd6]);
+    return bitmap;
+  }
+
   // SIGK_SMOKE_CONVERT_JPEG=1 のときの検体。fixtures の PNG はヘッダーだけの
   // JPEG を置けない（pdf.js が描けない）ので、ここで本物を作る（spec-3-1「fixture」）。
+  // image-wide.png が無い（配布物）ときは smokeSampleBitmap の横長の絵（400×240）から作る。
   function makeSmokeJpeg(dir) {
-    const image = nativeImage.createFromBuffer(fs.readFileSync(path.join(__dirname, 'test', 'fixtures', 'image-wide.png')));
+    const fixture = path.join(__dirname, 'test', 'fixtures', 'image-wide.png');
+    const size = { width: 400, height: 240 };
+    const image = fs.existsSync(fixture)
+      ? nativeImage.createFromBuffer(fs.readFileSync(fixture))
+      : nativeImage.createFromBitmap(smokeSampleBitmap(size.width, size.height), size);
     const target = path.join(dir, 'smoke-wide.jpg');
     fs.writeFileSync(target, image.toJPEG(90));
     return target;
