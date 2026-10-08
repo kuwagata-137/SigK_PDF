@@ -9,7 +9,7 @@ const path = require('node:path');
 
 // 保存先の FreeText の欄（spec-4b-4a の起動確認。/Rect・/DA・/DS・/C・/BS・/CA と、外観の透明グループ・外側の先頭の文字の命令・行の数）。
 async function inspectTexts(file) {
-  const { PDFDocument, PDFName, PDFArray, PDFDict } = require(path.join(__dirname, 'vendor', 'pdf-lib.min.js'));
+  const { PDFDocument, PDFName, PDFArray, PDFDict, PDFRawStream } = require(path.join(__dirname, 'vendor', 'pdf-lib.min.js'));
   const zlib = require('node:zlib');
   const doc = await PDFDocument.load(new Uint8Array(fs.readFileSync(file)), { updateMetadata: false });
   const context = doc.context;
@@ -28,9 +28,11 @@ async function inspectTexts(file) {
       if (field(dict, 'Subtype')?.encodedName !== '/FreeText')
         continue;
       const normal = field(field(dict, 'AP'), 'N');
+      // 他のアプリが作った FreeText には外観（/AP /N の流れ）が無いことがある（fixtures の annotated.pdf）。外観の欄は「無い」の値にする。
+      const appearance = normal instanceof PDFRawStream;
       const name = (key) => field(dict, key)?.encodedName?.slice(1) ?? null;
-      const group = field(field(field(normal?.dict, 'Resources'), 'XObject'), 'G0');
-      const drawn = content(group ?? normal);
+      const group = appearance ? field(field(field(normal.dict, 'Resources'), 'XObject'), 'G0') : undefined;
+      const drawn = appearance ? content(group ?? normal) : '';
       texts.push({
         page: index + 1,
         rect: numbers(field(dict, 'Rect')),
@@ -39,6 +41,7 @@ async function inspectTexts(file) {
         C: numbers(field(dict, 'C')),
         BSW: field(field(dict, 'BS'), 'W')?.asNumber?.() ?? null,
         CA: field(dict, 'CA')?.asNumber?.() ?? null,
+        appearance,
         group: group !== undefined,
         prefix: group === undefined ? null : content(normal).split('\n')[0],
         lines: drawn.split('\n').filter((line) => line.endsWith(' Tm')).length,

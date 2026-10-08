@@ -40,4 +40,18 @@ test('inspectTexts は回したテキストの /Matrix・/BBox と、吹き出�
   assert.deepEqual(callout.CL.slice(0, 2), [90, 460]);
   assert.equal(callout.RD.length, 4);
   assert.deepEqual(callout.rect, callout.bbox);
+  assert.deepEqual([turned.appearance, callout.appearance], [true, true], '本アプリが書いた FreeText には外観がある');
+});
+
+test('inspectTexts は外観（/AP）の無い FreeText でも止まらず、外観から読む欄を「無い」の値で返す', async () => {
+  // annotated.pdf の 1 ページ目に、他のアプリが付けた /AP の無い FreeText が 1 つある（test/fixtures/annotations.js）。
+  // この文書を開いて保存すると、保存先にもそのまま残る。
+  const texts = await inspectTexts(path.join(__dirname, 'fixtures', 'annotated.pdf'));
+  assert.equal(texts.length, 1);
+  const [other] = texts;
+  assert.deepEqual([other.page, other.rect, other.DA, other.C], [1, [300, 640, 500, 670], '/Helv 12 Tf 0 0 1 rg', [1, 1, 0.8]]);
+  assert.deepEqual(
+    [other.appearance, other.group, other.prefix, other.lines, other.italic, other.matrix, other.bbox, other.clipped],
+    [false, false, null, 0, false, null, null, false],
+  );
 });
