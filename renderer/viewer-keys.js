@@ -15,6 +15,16 @@
     return name === 'INPUT' || name === 'TEXTAREA';
   }
 
+  // 文字を打つ欄（検索の欄・ページ番号の欄・ツールの画面の欄など）。ラジオ・チェック・スライダーは文字を打たず、
+  // 欄の素の取り消しも無いので含めない。input の type は小文字に揃った値（無ければ 'text'）が返る。
+  const TYPING_TYPES = new Set(['text', 'search', 'password', 'number', 'email', 'url', 'tel']);
+
+  function isTypingField(node) {
+    if (node?.tagName === 'TEXTAREA' || node?.isContentEditable === true)
+      return true;
+    return node?.tagName === 'INPUT' && TYPING_TYPES.has(node.type);
+  }
+
   const ZOOM_KEYS = {
     '+': () => viewer().zoomIn(),
     '=': () => viewer().zoomIn(),
@@ -97,9 +107,12 @@
       return false;
 
     // 元に戻す・やり直しはどのモードでも効かせる（確定事項55）。編集したまま
-    // 閲覧モードへ戻っていることがある。
+    // 閲覧モードへ戻っていることがある。ただし文字を打つ欄の中では奪わず、欄の素の取り消し・やり直しに任せる
+    // （計画外の直し④。検索の欄で Ctrl+Z を押すと、欄の文字ではなく文書の編集が戻っていた）。
     const step = historyStep(event);
     if (step !== null) {
+      if (isTypingField(event.target))
+        return true;
       event.preventDefault();
       edit[step]();
       return true;

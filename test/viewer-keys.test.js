@@ -162,6 +162,40 @@ test('Ctrl+Shift+Z はやり直しで、元に戻すにはならない（計画�
   assert.deepEqual(ids(shell), [a, b]);
 });
 
+test('文字を打つ欄（検索の欄・ページ番号の欄）の中の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z は奪わず、欄の素の取り消しに任せる（計画外の直し④）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  SigK.findBar.open();
+  const find = document.getElementById('find-input');
+  for (const field of [find, document.getElementById('page-current')]) {
+    assert.equal(chord(shell, field, 'z').defaultPrevented, false, `${field.id} の Ctrl+Z を奪った`);
+    assert.deepEqual(ids(shell), [a], `${field.id} の Ctrl+Z で文書の編集が戻った`);
+    assert.equal(chord(shell, field, 'y').defaultPrevented, false, `${field.id} の Ctrl+Y を奪った`);
+    assert.equal(chord(shell, field, 'Z', { shift: true }).defaultPrevented, false, `${field.id} の Ctrl+Shift+Z を奪った`);
+  }
+  // 欄の外（body）では、今までどおり文書の編集を戻す。
+  assert.equal(chord(shell, document.body, 'z').defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  // 欄の中の Ctrl+Y ではやり直さず、欄の外ならやり直す。
+  chord(shell, find, 'y');
+  assert.deepEqual(ids(shell), []);
+  chord(shell, document.body, 'y');
+  assert.deepEqual(ids(shell), [a]);
+});
+
+test('ラジオなど文字を打たない入力にフォーカスがあるときの Ctrl+Z は、今までどおり文書の編集を戻す（計画外の直し④）', async (t) => {
+  const shell = await withShell(t);
+  const { document } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  const radio = [...document.querySelectorAll('input[type="radio"]')].find((node) => node.closest('dialog') === null);
+  assert.ok(radio !== undefined);
+  assert.equal(chord(shell, radio, 'z').defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  assert.equal(chord(shell, radio, 'y').defaultPrevented, true);
+  assert.deepEqual(ids(shell), [a]);
+});
+
 test('窓が開いている間は、メニューの保存・開く・文書情報の要求も後ろの画面に効かない（spec-4b-7a 点検の直し）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
