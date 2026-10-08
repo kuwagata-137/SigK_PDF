@@ -84,6 +84,9 @@ test('6. キー名は SIGK_SHELL_ID から組み、名前をじかに書かな�
   const shared = ['Software\\Classes\\Applications\\${APP_EXECUTABLE_FILENAME}', 'Software\\Classes\\.pdf\\OpenWithProgids', 'Software\\RegisteredApplications'];
   for (const { key } of WRITES)
     assert.ok(key.includes(ID) || shared.some((top) => key === top || key.startsWith(`${top}\\`)), key);
+  // 空の ID ではビルドを止める（.pdf\shell ごと消してしまうため）。
+  const guard = CODE_LINES.indexOf('!if "${SIGK_SHELL_ID}" == ""');
+  assert.ok(guard > 0 && CODE_LINES[guard + 1].startsWith('!error '), '空の SIGK_SHELL_ID で !error');
   const literal = CODE_LINES.filter((line) => line.includes('SigKPDF'));
   assert.deepEqual(literal, ['!define SIGK_SHELL_ID "SigKPDF"'], '既定の名前は !define の 1 か所だけ');
   assert.equal(CODE_LINES.some((line) => line.includes('SigK PDF')), false, '製品名は ${PRODUCT_NAME} から');
