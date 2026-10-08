@@ -1,11 +1,12 @@
 # SigK PDF Windows シェル統合設計
 
-作成日: 2026-08-29（2026-09-28 改訂。Phase 5 塊①の実装と実測（`docs/spec-5-1-context-menu.md`）に合わせて、第1〜5章と第7章を書き直した）
-関連: `docs/01_製品要件定義.md` F-07 / `docs/02_アーキテクチャ設計.md` 第2章・第7章 / `docs/spec-5-1-context-menu.md` / `build/installer.nsh`
+作成日: 2026-08-29（2026-09-28 改訂。Phase 5 塊①の実装と実測（`docs/spec-5-1-context-menu.md`）に合わせて、第1〜5章と第7章を書き直した。
+2026-10-08 改訂。Phase 5 塊②（`docs/spec-5-2-open-with-icon.md`）に合わせて、1-1・1-3・2-1・第4章・第5章・第7章を書き直した）
+関連: `docs/01_製品要件定義.md` F-07 / `docs/02_アーキテクチャ設計.md` 第2章・第7章 / `docs/spec-5-1-context-menu.md` / `docs/spec-5-2-open-with-icon.md` / `build/installer.nsh`
 
 エクスプローラーの右クリックメニューからアプリの各機能へ直行させるための設計である。要件 F-07-1〜F-07-5 を実現する経路と、Windows 側の制約を先に整理する。
 
-右クリックメニュー（F-07-1〜F-07-4）は Phase 5 塊①で実装した（2026-09-25。PR #25）。「プログラムから開く」と既定のアプリ（F-07-5。1-3・2-1）は塊②で実装する。採らなかった当初の案は、3-2 と第4章の末尾に経緯として短く残した。
+右クリックメニュー（F-07-1〜F-07-4）は Phase 5 塊①で実装した（2026-09-25。PR #25）。「プログラムから開く」と既定のアプリ（F-07-5。1-3・2-1）は塊②で実装した（2026-10-08）。採らなかった当初の案は、3-2 と第4章の末尾に経緯として短く残した。
 
 ---
 
@@ -15,7 +16,7 @@
 
 Windows 11 はコンテキストメニューを刷新した。**レジストリに登録した従来型の項目（verb）は、Windows 11 では最初に出るメニューには現れず、「その他のオプションを確認」（Shift+F10 でも開く従来型メニュー）の下に入る。**
 
-日本語版の項目名は「その他のオプションを確認」である（2026-09-28 に公開の解説記事で確かめた。実物は塊③で見る）。この文書とインストーラーの完了ページは 2026-09-28 まで「その他のオプションを表示」と書いていた。完了ページの文言は塊②で直す（`docs/07` 決定45）。
+日本語版の項目名は「その他のオプションを確認」である（2026-09-28 に公開の解説記事で確かめた。実物は塊③で見る）。この文書とインストーラーの完了ページは 2026-09-28 まで「その他のオプションを表示」と書いていた。完了ページの文言は塊②で直した（2026-10-08。`docs/07` 決定45 ⑤）。
 
 Windows 11 の最初のメニューに項目を出すには、アプリを MSIX またはスパースパッケージとして登録し、`IExplorerCommand` を実装した COM サーバーを持たせる必要がある。これは C++ による COM DLL の実装とパッケージ署名を伴い、Electron アプリの通常の配布形態（NSIS インストーラー）から大きく外れる。
 
@@ -46,11 +47,15 @@ Windows 11 の最初のメニューに項目を出すには、アプリを MSIX 
 
 Windows 10 以降、拡張子の既定の関連付けをアプリ側から書き換えることはできない。インストーラーでレジストリを書いても、既定のアプリにはならない。
 
-F-07-5 は次の形で満たす。3 つとも塊②で実装する（2026-09-28 時点では未実装）。
+F-07-5 は次の形で満たす。塊②で実装した（2026-10-08。`docs/spec-5-2-open-with-icon.md`）。
 
 - `HKCU\Software\Classes\Applications\SigK PDF.exe` を登録し、「プログラムから開く」の一覧に SigK PDF を出す。
-- `.pdf` の `OpenWithProgids` に自前の ProgID を足し、選択肢として提示されるようにする。
-- アプリ内の設定画面から `ms-settings:defaultapps` を開き、ユーザー自身に選んでもらう。
+- `.pdf` の `OpenWithProgids` に自前の ProgID を足し、選択肢として提示されるようにする。事前調査 E で、エクスプローラーと同じ
+  `SHAssocEnumHandlers('.pdf')` の候補に「おすすめ」として出ることを確かめた。
+- `Capabilities` と `RegisteredApplications` を書き、Windows の「設定」→「アプリ」→「既定のアプリ」の一覧に名前を出す（決定72 ④）。
+- アプリのメニュー「ヘルプ」→「既定のアプリの設定…」から `ms-settings:defaultapps?registeredAppUser=<製品名>` を開き、ユーザー自身に
+  選んでもらう（設定の画面は Phase 6 でまだ無いので、メニューに置いた。決定72 ③）。Windows 11 ビルド 26200 で、設定の「既定のアプリ」の
+  そのアプリのページへ直に飛ぶことを確かめた。
 
 ---
 
@@ -62,12 +67,13 @@ F-07-5 は次の形で満たす。3 つとも塊②で実装する（2026-09-28 
 
 ### 2-1. ProgID と「プログラムから開く」
 
-**塊②で実装する（2026-09-28 時点では書いていない）。**塊①の `build/installer.nsh` はメニューのキーだけを書き、ProgID・`OpenWithProgids`・`Applications` には触らない（`docs/spec-5-1-context-menu.md` 確定事項22）。
+**塊②で実装した（2026-10-08。`docs/spec-5-2-open-with-icon.md` 確定事項A）。**`<doc>` は PDF ファイルの絵 `$INSTDIR\resources\pdf-file.ico`
+（シェルは app.asar の中を読めないので、`extraResources` で出したもの。決定72 ②）。
 
 ```
 HKCU\Software\Classes\SigKPDF.Document
     (既定)                     = "PDF 文書"
-    \DefaultIcon\(既定)        = "<exe>,0"
+    \DefaultIcon\(既定)        = "<doc>"
     \shell\open\command\(既定) = "\"<exe>\" --open \"%1\""
 
 HKCU\Software\Classes\.pdf\OpenWithProgids
@@ -75,12 +81,27 @@ HKCU\Software\Classes\.pdf\OpenWithProgids
 
 HKCU\Software\Classes\Applications\SigK PDF.exe
     FriendlyAppName            = "SigK PDF"
+    \DefaultIcon\(既定)        = "<doc>"
     \shell\open\command\(既定) = "\"<exe>\" --open \"%1\""
     \SupportedTypes
         .pdf                   = ""
+
+HKCU\Software\SigKPDF\Capabilities
+    ApplicationName            = "SigK PDF"
+    ApplicationDescription     = "PDF の閲覧・ページの編集・書き込み・結合・分割・変換"
+    ApplicationIcon            = "<exe>,0"
+    \FileAssociations
+        .pdf                   = "SigKPDF.Document"
+
+HKCU\Software\RegisteredApplications
+    SigK PDF                   = "Software\SigKPDF\Capabilities"
 ```
 
-`.pdf` キーの既定値は**書き換えない**。他のアプリが握っている既定の関連付けを、インストーラーが黙って奪わないためである。
+`.pdf` キーの既定値は**書き換えない**。他のアプリが握っている既定の関連付けを、インストーラーが黙って奪わないためである。electron-builder の
+`fileAssociations`（`FileAssociation.nsh`）はこの既定値を書き換えるので使わない。
+
+当初の設計（2026-08-29〜09-28）は ProgID の `DefaultIcon` を `<exe>,0` とし、`Applications` に `DefaultIcon` を置かず、`Capabilities` と
+`RegisteredApplications` を書かない形だった。論点（決定72 ②④）で改めた。
 
 ### 2-2. PDF に対するカスケードメニュー
 
@@ -278,23 +299,38 @@ electron-builder が `build/installer.nsh` を取り込む（`package.json` の 
 | `SigKPDF.Menu\shell\03split\command` | （既定）＝`"<exe>" --split "%1"` |
 | `SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf` | `MUIVerb`＝`PDF に変換（SigK PDF）`・`Icon`＝`<exe>,0`・`MultiSelectModel`＝`Player` |
 | `SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf\command` | （既定）＝`"<exe>" --to-pdf "%1"` |
+| `SigKPDF.Document` | （既定）＝`PDF 文書` |
+| `SigKPDF.Document\DefaultIcon` | （既定）＝`<doc>` |
+| `SigKPDF.Document\shell\open\command` | （既定）＝`"<exe>" --open "%1"` |
+| `.pdf\OpenWithProgids` | `SigKPDF.Document`＝（空の **REG_NONE**） |
+| `Applications\SigK PDF.exe` | `FriendlyAppName`＝`SigK PDF` |
+| `Applications\SigK PDF.exe\DefaultIcon` | （既定）＝`<doc>` |
+| `Applications\SigK PDF.exe\shell\open\command` | （既定）＝`"<exe>" --open "%1"` |
+| `Applications\SigK PDF.exe\SupportedTypes` | `.pdf`＝（空の文字列） |
+| （`HKCU\Software\` の下）`SigKPDF\Capabilities` | `ApplicationName`＝`SigK PDF`・`ApplicationDescription`＝`PDF の閲覧・ページの編集・書き込み・結合・分割・変換`・`ApplicationIcon`＝`<exe>,0` |
+| （`HKCU\Software\` の下）`SigKPDF\Capabilities\FileAssociations` | `.pdf`＝`SigKPDF.Document` |
+| （`HKCU\Software\` の下）`RegisteredApplications` | `SigK PDF`＝`Software\SigKPDF\Capabilities` |
 
-値はすべて REG_SZ で、PDF が 11 個、画像が 4 個×7 拡張子＝28 個、合わせて 39 個になる。`<exe>` と `<ext>` は第2章のとおり。`.pdf` の既定値と `OpenWithProgids` には触らない。
+右クリックメニューの値はすべて REG_SZ で、PDF が 11 個、画像が 4 個×7 拡張子＝28 個、合わせて 39 個になる。塊②の関連付けの値は 13 個
+（`OpenWithProgids` の 1 個だけ REG_NONE）で、全部で 52 個。`<exe>`・`<ext>`・`<doc>` は第2章のとおり。`.pdf` の既定値には書かない。
 
 ### 4-2. 書き方の決まり
 
-- **書く前に消す。**`customInstall` は、書く前に自分のキーを全部消す（`sigkRemoveMenus`）。上書きインストールでは古いアンインストーラーが `customUnInstall` で先に消しているが、古い版の残りがあっても二重にならないようにするためである。
-- **空になった親キーは、子も値も無いときだけ消す。**`.pdf`・各拡張子と、それぞれの `shell` は、ほかのアプリも書く場所である。同梱の NSIS 3.0.4.1 には `DeleteRegKey` の `/ifnosubkeys`・`/ifnovalues` が無いので、`EnumRegKey`・`EnumRegValue` で確かめてから消す（`sigkPruneEmptyKey`）。
+- **メニューは書く前に消す。**`customInstall` は、書く前に右クリックメニューのキーを全部消す（`sigkRemoveMenus`）。上書きインストールでは古いアンインストーラーが `customUnInstall` で先に消しているが、古い版の残りがあっても二重にならないようにするためである。
+- **関連付けは書く前に消さず、上書きインストールでは消さない（塊②）。**ProgID・`Applications`・`Capabilities` などは上書きだけで書き（`sigkWriteAssoc`）、`customUnInstall` では `${ifNot} ${isUpdated}` のときだけ消す（`sigkRemoveAssoc`）。上書きインストールでは古いアンインストーラーが `--updated` 付きで走るので、そのときは残す。ProgID が途中で消える時間を作らず、SigK PDF を既定に選んでいた人の選択を守るためである（`spec-5-2` 確定事項A6。事前調査 E で、目印を付けた関連付けのキーが上書きのあとも残ることを確かめた）。消すときは、自分のキーはキーごと、`.pdf\OpenWithProgids` と `RegisteredApplications` は自分の値だけを消す。
+- **空になった親キーは、子も値も無いときだけ消す。**`SystemFileAssociations` の `.pdf`・各拡張子と、それぞれの `shell` は、ほかのアプリも書く場所である。同梱の NSIS 3.0.4.1 には `DeleteRegKey` の `/ifnosubkeys`・`/ifnovalues` が無いので、`EnumRegKey`・`EnumRegValue` で確かめてから消す（`sigkPruneEmptyKey`）。**ただし `Classes\.pdf`・`.pdf\OpenWithProgids`・`Classes\Applications`・`RegisteredApplications` は、空になっても消さない**（塊②。Windows やほかのアプリが前から作っていることが多い。事前調査 E で、前から有った空の `Classes\.pdf` を消してしまうことが分かった。空のキーは関連付けに何も効かない）。自分の `Software\SigKPDF` は空なら消す。
 - **シェルへ知らせる。**書いた後と消した後に `System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'` を呼ぶ。`0x08000000` は `SHCNE_ASSOCCHANGED`（関連付けが変わった）で、エクスプローラーを再起動しなくてもメニューに出る。後ろ 2 つの引数はポインター（`LPCVOID`）なので `p` 型で渡す。
 - **マクロと define だけで書く。**`.nsh` はインストーラーとアンインストーラーの両方のスクリプトの頭（`MUI2.nsh` より前）に取り込まれ、makensis は `-WX`（警告はエラー）で走る。`Var`・`Function` を置くと、使わない側で警告になる（事前調査 B）。
 - **自分だけに固定する。**`customInstallMode` で `$isForceCurrentInstall` を 1 にし、インストールの種類を選ぶページを出さない（論点6）。インストール先は選べる。テンプレートは小文字の `customInstallmode` で確かめるが、NSIS のマクロ名は大文字と小文字を区別しないので差し込まれる（事前調査 B5）。
-- **完了ページで知らせる。**`MUI_FINISHPAGE_TEXT` を先に define して文言だけ替える（論点7）。`customFinishPage` はページごと差し替えて「完了後に起動」まで消すので使わない。文言は「`<製品名>` のインストールが完了しました。／PDF と画像の右クリックメニューから使えます。Windows 11 では「その他のオプションを表示」の中にあります。／ウィザードを閉じるには [完了] を押してください。」（／は空行。`docs/07` 決定44）。**「表示」は日本語版の項目名「確認」と食い違っており、塊②で直す**（1-1）。インストーラーは Windows の言語で出るが、完了ページの文言だけは日本語のまま出る。
+- **完了ページで知らせる。**`MUI_FINISHPAGE_TEXT` を先に define して文言だけ替える（論点7）。`customFinishPage` はページごと差し替えて「完了後に起動」まで消すので使わない。文言は「`<製品名>` のインストールが完了しました。／PDF と画像の右クリックメニューから使えます。Windows 11 では「その他のオプションを確認」の中にあります。／PDF をダブルクリックで開くアプリにするには、メニュー「ヘルプ」→「既定のアプリの設定…」から選んでください。」（／は空行。塊②で「表示」を「確認」に直し〔決定45 ⑤〕、既定のアプリの入口を足した〔決定72 ③〕）。「完了後に起動」のチェックボックスがあると文の欄は 5 行分しかなく、塊①の文（6 行）は最後の「ウィザードを閉じるには [完了] を押してください。」が切れていた見込みなので、`MUI_FINISHPAGE_TEXT_LARGE` で欄を 7.5 行分に広げ、その 1 文を除いて 7 行にした（`spec-5-2` 事前調査 I。字体から換算して測った。実物の画面は塊③）。インストーラーは Windows の言語で出るが、完了ページの文言だけは日本語のまま出る。
 - **アンインストールでは設定を残す。**消すのはメニューのキーとインストール先だけで、設定（`%APPDATA%\SigK PDF` の最近使ったファイル・窓の位置・ログ）は残し、確認も出さない（論点8）。`--delete-app-data` を渡したときだけ設定も消える（electron-builder の既定のまま）。**ユーザーが編集した PDF は消さない。**
 - **自動更新の足場を外す。**`package.json` に `publish: null`・`nsis.packElevateHelper: false` を書き、配布物から `app-update.yml`・`elevate.exe` を外した（`docs/07` 決定9。事前調査 B2）。
 
-`test/installer-nsh.test.js`（14 本）が `.nsh` の中身を静的に見張る。書いたキーをすべて消すこと、HKCU だけに書くこと、拡張子の一覧が `launch-args.js`・`image-io.js` と一致すること、スイッチと項目の対応、引用符付きの `"%1"`、キー名を `SIGK_SHELL_ID` から組むこと、`Var`・`Function` が無いこと、`SHChangeNotify` を両方で呼ぶこと、`.pdf` の既定値と `OpenWithProgids` に触らないこと、他社の製品名が無いこと、などである。
+`test/installer-nsh.test.js`（16 本）が `.nsh` の中身を静的に見張る。書いたキーと値をすべて消すこと、HKCU だけに書くこと、拡張子の一覧が `launch-args.js`・`image-io.js` と一致すること、スイッチと項目の対応、引用符付きの `"%1"`、キー名を `SIGK_SHELL_ID` から組むこと、`Var`・`Function` が無いこと、`SHChangeNotify` を両方で呼ぶこと、`.pdf` の既定値に書かず `.pdf` に書くのは `OpenWithProgids` の自分の値だけであること、関連付けを上書きインストールで消さないこと、共有のキーを空でも消さないこと、関連付けの値の表、完了ページの文と欄、などである。
 
 別名のインストーラー（`SIGK_SHELL_ID` を `SigKProbe`、製品名を「SigK PDF Probe」にして同じファイルを読んだもの）で実測した（2026-09-25）。ビルドは `-WX` のまま 67 秒で通り、無人インストールは 13 秒で値 39 個が文字単位で一致した。目印の値と古い子キー `99stale` を足してから入れ直すと、どちらも消えて 1 回目の直後と完全に一致した（上書きは 17 秒）。アンインストールは 6 秒で、`SystemFileAssociations`・Uninstall・HKCU 直下のキー名の 3 つがインストール前の控えと完全に一致し、空になった親キーも消えた。2026-09-28 に `--delete-app-data` 付きで外したとき（8 秒）も、控えと一致した。
+
+塊②の登録を足したあとも、同じ別名で実測した（2026-10-08。`spec-5-2` 事前調査 E と完了判定1〜3・6）。ビルドは `-WX` のまま 55 秒、無人インストールは 15 秒で値 52 個と PDF ファイルの絵の実在が一致し、`.pdf` の既定値は書かれなかった。`SHAssocEnumHandlers('.pdf')` に「SigK PDF Probe」がおすすめとして出た。目印を付けて入れ直すと（20 秒）、メニューのキーの目印は消え、関連付けのキーの目印は残った。`--delete-app-data` 付きのアンインストール（7 秒）で、`SystemFileAssociations`・Uninstall・`Classes\.pdf`・`RegisteredApplications`・`Classes` と `Applications` の直下のキー名がインストール前の控えと完全に一致した。
 
 **経緯（2026-09-28 に書き直す前の第4章）。**当初は `.nsh` の全文を例として載せていた。その例は ProgID・`OpenWithProgids`・`Applications` の登録（塊②）まで含み、`MultiSelectModel` は子の `02merge` にだけ付け、`SHChangeNotify` の後ろ 2 つの引数を `i` 型で渡し、アンインストーラーの確認画面で設定を消すかを選ばせる形だった。事前調査と論点5〜8 で改めた。写しは実物とずれていくので、載せるのをやめた。
 
@@ -316,7 +352,7 @@ electron-builder が `build/installer.nsh` を取り込む（`package.json` の 
 | 6 | PDF を16個選んで右クリック | 「SigK PDF」の入口と子 3 つが出る（親に `Player` を付けた。1-2）。「開く」「印刷」などは消える |
 | 7 | 画像を5個選んで「PDF に変換」 | 変換画面に5件が並ぶ |
 | 8 | PDF と画像を混ぜて選択して右クリック | 右クリックしたファイルの種類の項目だけが出る（PDF なら入口、画像なら「PDF に変換」）。呼ぶと、種類の合わないファイルは起動引数の拡張子の絞りで落ちる |
-| 9 | 「プログラムから開く」 | 一覧に SigK PDF が出る（塊②） |
+| 9 | 「プログラムから開く」と既定のアプリ | 一覧に SigK PDF が出る。メニュー「ヘルプ」→「既定のアプリの設定…」で設定の SigK PDF のページが開き、「.pdf」を SigK PDF に切り替えると、PDF のダブルクリックで開き、エクスプローラーの PDF に紙の形の絵が出る（塊②。このPCでは、別名で候補と設定のページまでを先に確かめた。`spec-5-2` 完了判定2・10） |
 | 10 | アンインストール | 右クリックメニューから項目が消える。`regedit` で 4-1 の各キーが残っていないこと。空になった親キーも残らない |
 | 11 | インストール → アンインストール → 再インストール | 項目が二重に出ない |
 
@@ -349,3 +385,7 @@ electron-builder が `build/installer.nsh` を取り込む（`package.json` の 
 | `"%1"` で扱いにくい名前も 1 文字も違わず届くこと | 実測した（事前調査 C） |
 | 日本語版 Windows 11 の項目名が「その他のオプションを確認」であること | 公開の解説記事で確かめた（2026-09-28）。実物は塊③で見る |
 | Windows 10 と既定の Windows 11 での見え方 | **未確認。**塊③の実機確認で見る |
+| `OpenWithProgids`・`Applications` の登録で「プログラムから開く」の候補（おすすめ）に出ること | 実測した（`spec-5-2` 事前調査 E。`SHAssocEnumHandlers` で列挙） |
+| 上書きインストールで関連付けが消えず、アンインストールで控えに戻ること | 実測した（`spec-5-2` 事前調査 E・完了判定3） |
+| `ms-settings:defaultapps?registeredAppUser=<名前>` で、設定の既定のアプリの、そのアプリのページへ飛ぶこと | Windows 11 ビルド 26200 で実測した（`spec-5-2` 完了判定10）。Windows 10 と古い Windows 11 は塊③ |
+| 完了ページの文の欄の行数（5 行・広げて 7.5 行） | 字体（ＭＳ Ｐゴシック 9pt）から換算して測った（`spec-5-2` 事前調査 I）。実物の画面は塊③ |
