@@ -174,6 +174,9 @@
     // （spec-4b-7a 確定事項B）。
     if (doc.querySelector('dialog[open]') !== null)
       return;
+    // F1 は使い方の窓（spec-4b-7b 確定事項A2）。文書が無くても、文字を打つ欄の中でも開くので、ほかのキーより先に渡す。
+    if (root.SigK.helpDialog?.handleKey(event, doc) === true)
+      return;
     // Esc の順は escape-order.js（spec-4b-7a 確定事項A）。文書が開いていなくても、欄の Esc と道具を外すのは効かせる（点検の直し）。
     if (event.key === 'Escape') {
       root.SigK.escapeOrder.handle(event, doc);
