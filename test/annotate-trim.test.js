@@ -296,6 +296,27 @@ test('右パネルのボタンの上で Enter を押しても切らず、ボタ�
   assert.equal(SigK.viewer.getPlan()[0].crop, undefined);
 });
 
+// 道具の段のボタンをマウスで押すと、Windows の Chromium はボタンへフォーカスを移す。紙の上の押下は preventDefault するので
+// フォーカスはそのまま残り、Enter がボタンのもの（点検 2）になって切れなかった（計画外の直し③）。jsdom はマウスの押下で
+// フォーカスを移さないので、focus() してから detail が 1（マウス）の click を送る。
+test('道具の段のトリミングをマウスで押して持ったあと、枠を引いて Enter を押すと切れる（計画外の直し③）', async (t) => {
+  const shell = await withTrim(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool(null);
+  const button = document.querySelector('#edit-bar .edit-tool[data-tool="trim"]');
+  button.focus();
+  button.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  await shell.flush();
+  assert.equal(SigK.annotate.getTool(), 'trim');
+  assert.notEqual(document.activeElement, button, 'ボタンにフォーカスが残っている');
+
+  drawFrame(shell);
+  const enter = new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+  document.activeElement.dispatchEvent(enter);
+  assert.equal(enter.defaultPrevented, true);
+  assert.deepEqual([...SigK.viewer.getPlan()[0].crop], BOX);
+});
+
 test('タブを替える・印刷を開くと、枠を捨てる', async (t) => {
   const B = 'C:\\work\\b.pdf';
   const shell = await withTrim(t);

@@ -45,6 +45,16 @@
     return true;
   }
 
+  // マウスで押したときは、押したボタンにフォーカスを残さない（計画外の直し③）。Windows の Chromium はマウスの押下でボタンに
+  // フォーカスを移し、紙の上の押下（トリミングの枠を引くなど）は preventDefault するのでフォーカスは動かない。残ったままだと、
+  // そのあとの Enter はボタンのもの（spec-4b-6a 点検 2）になり、トリミングの枠を Enter で切れない（本物のキーではボタンが押し
+  // 直されて道具が外れる）。キーボード（Tab で移って Enter・Space）で押したときは detail が 0 なので、フォーカスはボタンに置いた
+  // まま（続けてキーで操作できるように）。
+  function leaveIfMouse(event, button) {
+    if (event.detail > 0)
+      button.blur();
+  }
+
   function init(doc, win) {
     if (win.__sigkEditBarReady === true)
       return false;
@@ -53,12 +63,16 @@
       return false;
     win.__sigkEditBarReady = true;
     el = { buttons: [...bar.querySelectorAll('.edit-tool[data-tool]')] };
-    for (const button of el.buttons)
-      button.addEventListener('click', () => press(button));
+    for (const button of el.buttons) {
+      button.addEventListener('click', (event) => {
+        press(button);
+        leaveIfMouse(event, button);
+      });
+    }
     sync(annotate()?.getTool() ?? null, annotate()?.getShapeKind() ?? null);
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.editBar = { init, sync };
+  SigK.editBar = { init, sync, leaveIfMouse };
 })(typeof window !== 'undefined' ? window : globalThis);
