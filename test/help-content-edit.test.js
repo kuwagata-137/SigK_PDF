@@ -23,7 +23,7 @@ test('編集モードの 7 節は、どれも「編集（書き込み）」の�
 
 test('図形の節は、描くときと、あとで端を動かすときの Shift を書き分ける（決定50 ④・確定事項D4）', () => {
   const text = joined('shapes');
-  assert.match(text, /四角・丸・×印は、正方形・正円になります/);
+  assert.match(text, /四角・丸は正方形・正円に/);
   assert.match(text, /直線・矢印と、多角形の次の辺は、45° 刻みの向きになります/);
   assert.match(text, /端が押した所から横か縦にだけ動きます（描くときの 45° 刻みとは違います）/);
   // 線そのものが水平・垂直にそろう、とは書かない。
@@ -47,4 +47,12 @@ test('トリミングは段から持っても Enter で切れる（計画外の�
   const text = joined('mosaic-trim');
   assert.match(text, /\[Enter\] か右パネルの［適用］で切ります/);
   assert.match(text, /引いている途中なら引く前の枠に戻り、次の \[Esc\] で枠を消します/);
+});
+
+test('多角形の向きのつまみと、線の始点合わせの使い方を書く（点検の直し）', () => {
+  const text = joined('shapes');
+  assert.match(text, /多角形は、頂点のつまみで形を、上の丸いつまみで向きを変えます/);
+  assert.match(text, /（線の始点合わせ）。マウスを動かし、終わりにしたい所でクリックすると線が引けます/);
+  assert.match(text, /×印は縦と横が同じ長さになります/);
+  assert.match(joined('mosaic-trim'), /次にかけるモザイクの粗さ/);
 });

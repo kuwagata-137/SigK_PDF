@@ -71,7 +71,9 @@ test('計画外の直しのあとの動きで書いてある', () => {
   assert.match(joined('pages'), /\[Ctrl\] を押しながらクリックすると 1 枚ずつ足す・外す/);
   // ② 閉じた左のパネルは「＞」で開く。⑥ ツールモードで開くと閲覧モードへ移る。
   assert.match(joined('basics'), /「＞」で開きます/);
-  assert.match(joined('basics'), /ツールモードで開くと、閲覧モードへ移ります/);
+  assert.match(joined('basics'), /ツールモードでこれらを使うと、閲覧モードへ移ります/);
+  // ツールモードで落としたファイルは、選んでいるツールの画面に入る（点検の直し）。
+  assert.match(joined('basics'), /ツールモードのときは、選んでいるツールの画面に入ります/);
   // ④⑤ Ctrl+Shift+Z はやり直し。文字を打つ欄の中では欄の文字を戻す。
   const keys = content.SECTIONS.find((section) => section.id === 'keys').blocks[0].table;
   const redo = keys.find((row) => row[0].includes('[Ctrl]+[Shift]+[Z]'));
@@ -92,4 +94,23 @@ test('倍率の段は、表示の倍率の段（viewer-layout.js の ZOOM_STEPS�
   require('../renderer/viewer-layout.js');
   const steps = globalThis.SigK.viewerLayout.ZOOM_STEPS.map((zoom) => Math.round(zoom * 100)).join('・');
   assert.ok(joined('view').includes(`段は ${steps}% です`), steps);
+});
+
+// 点検（文面とコードの突き合わせ）で直した所。コードの値と比べられるものは比べる。
+test('元に戻せる回数は、履歴の世代の数（今の状態を含む）から 1 を引いた数', () => {
+  require('../renderer/edit-history.js');
+  const times = globalThis.SigK.editHistory.MAX_HISTORY - 1;
+  assert.ok(joined('basics').includes(`合わせて ${times} 回まで戻せます`), String(times));
+});
+
+test('分割の「範囲」は 1 つのファイルに取り出す。ツールのボタン名は画面と同じ', () => {
+  const tools = joined('tools');
+  assert.match(tools, /そのページだけを 1 つのファイルに取り出す/);
+  assert.doesNotMatch(tools, /範囲ごとに分けて/);
+  assert.match(tools, /［実行…］を押すと始まります/);
+  assert.match(tools, /［開いているファイルを追加］/);
+});
+
+test('Esc の例は、持っている道具と選んでいる書き込みを書き分ける', () => {
+  assert.match(joined('escape'), /［四角］の道具を持ち、描いた四角が選ばれていて/);
 });
