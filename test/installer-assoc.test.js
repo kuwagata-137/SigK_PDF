@@ -72,6 +72,9 @@ test('インストールは自分だけに固定し、完了ページで Windows
   // 「完了後に起動」があると文の欄は 5 行分。7 行の文を入れるため広げる（事前調査 I）。
   assert.ok(block.includes('!define MUI_FINISHPAGE_TEXT_LARGE'));
   assert.equal(text.split('$\\r$\\n$\\r$\\n').length, 3, '段落は 3 つ（「ウィザードを閉じるには…」は入りきらないので除いた）');
+  // 句点と読点のあとで改行し、行末に「「」をぶら下げない（spec-5-3 確かめ No.24・docs/07 決定75 ④。本物の画面で 7 行に収まることを見た）。
+  assert.ok(text.includes('使えます。$\\r$\\nWindows 11 では「その他のオプションを確認」の中にあります。'));
+  assert.ok(text.includes('アプリにするには、$\\r$\\nメニュー「ヘルプ」'));
 });
 
 test('関連付けの値は docs/03 2-1・spec-5-2 確定事項A のとおり', () => {
