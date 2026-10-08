@@ -1,9 +1,10 @@
 # 仕様書: Phase 5 塊② 「プログラムから開く」・既定のアプリ・アイコン
 
 起草日: 2026-10-08
-ステータス: **確定**（2026-10-08。着手の答えは `docs/07` 決定71〔計画の承認〕、事前調査後の論点 4 件は `docs/07` 決定72 で同日ユーザーが
-決定。4 件とも起草者の推し。末尾「ユーザーの確定」を参照。残る細部は起草者の推しで書き、その一覧を「起草者の判断で決めたもの」に置いた）
-ブランチ: `claude/phase-5-open-with`（`25493ec` から）
+ステータス: **実装済み**（2026-10-08。確定も同日。着手の答えは `docs/07` 決定71〔計画の承認〕、事前調査後の論点 4 件は `docs/07` 決定72 で
+同日ユーザーが決定。4 件とも起草者の推し。末尾「ユーザーの確定」を参照。残る細部は起草者の推しで書き、その一覧を「起草者の判断で決めたもの」に
+置いた。末尾に実装の記録）
+ブランチ: `claude/phase-5-open-with`（`25493ec` から。push した。PR はユーザーの指示待ち）
 関連: `docs/05_開発ロードマップ.md` Phase 5（5-4・5-7）／`docs/01_製品要件定義.md` F-07-5／`docs/03_Windowsシェル統合設計.md` 1-1・1-3・2-1・
 第4章・第5章 #9・第7章／`docs/spec-5-1-context-menu.md`（右クリックメニューと `build/installer.nsh` の作り。事前調査 B の別名のインストーラー）／
 `docs/spec-4b-7b-help.md`（使い方の窓・メニュー「ヘルプ」）／`docs/04_UI設計.md` 第9章（アイコン）
@@ -54,30 +55,32 @@ Windows 10 以降、アプリが自分で既定のアプリになることはで
 塊①の事前調査 B と同じ別名（`SIGK_SHELL_ID`＝`SigKProbe`・製品名「SigK PDF Probe」・入れ先は scratchpad）に、確定事項A の登録を足した試作の
 `.nsh` で作った（`-WX` のまま 52 秒で通った。`${isUpdated}` と `WriteRegNone` が使える）。
 
-- **入れる**: 16 秒。値 53 個がすべて期待どおり（`OpenWithProgids` は REG_NONE、`.pdf` の既定値は書かれない）。
-- **「プログラムから開く」の候補**: エクスプローラーと同じ `SHAssocEnumHandlers('.pdf')` を窓を出さずに呼ぶと、「SigK PDF Probe」が名前・exe・
-  アイコン（`<exe>,0`）とともに出て、**おすすめ（recommended）**に入った。`.png` では「すべて」の側にだけ出て、おすすめには入らない
-  （`SupportedTypes` が `.pdf` だけのため。メモ帳などと同じ扱い）。
-- **上書き**: 5 つのキーに目印の値を付けてから入れ直した（19 秒）。メニューのキー 2 つは目印が消え（消してから書く）、関連付けのキー 3 つ
-  （ProgID・`Applications\<exe>`・`Capabilities`）は目印が残った。**古いアンインストーラーが `--updated` 付きで走っても、関連付けを消さない**
-  ことを確かめた（確定事項A6）。
-- **削除**: `--delete-app-data` 付きで 7 秒。`SystemFileAssociations`・Uninstall・`RegisteredApplications`・`Classes` の直下・`Applications` の直下は
-  入れる前の控えと一致した。**違ったのは 1 つだけで、入れる前から有った空の `HKCU\Software\Classes\.pdf`（と空の `OpenWithProgids`）を、
-  「空になったキーを消す」処理が消した。** → 本番ではこの 2 つを消さない（確定事項A5）。調査のあとで空のキーを作り直し、控えと完全一致を確かめた。
-  常用の `%APPDATA%\SigK PDF` には触れていない。
+- **入れる**: 16 秒。値 52 個（右クリックメニュー 39＋関連付け 13）がすべて期待どおりで、`OpenWithProgids` の値は REG_NONE だった。
+  あわせて、`.pdf` の既定値が書かれないことも確かめた（台本の「合格」の数 53 は、値 52 個とこの確かめ 1 つを足した数）。
+- **「プログラムから開く」の候補**: Windows の API（プログラムから Windows の機能を呼ぶ口）の `SHAssocEnumHandlers('.pdf')` を窓を出さずに呼んで、
+  候補を並べた。Microsoft の資料では、エクスプローラーの「プログラムから開く」もこの API と同じ情報を使う（本物の窓は見ていない。塊③で見る）。
+  「SigK PDF Probe」が名前・exe・アイコン（`<exe>,0`）とともに出て、**おすすめ（recommended）**に入った。`.png` では、API の「すべて」の区分に
+  だけ出て、おすすめには入らない（`SupportedTypes` が `.pdf` だけのため。メモ帳などと同じ扱い）。
+- **上書き**: 5 つのキーに目印の値を付けてから入れ直した（19 秒）。メニューのキー 2 つ（PDF の入口 `SigKProbe` と、子の `02merge`）は目印が消え
+  （消してから書く）、関連付けのキー 3 つ（ProgID・`Applications\<exe>`・`Capabilities`）は目印が残った。**古いアンインストーラーが `--updated`
+  付きで走っても、関連付けを消さない**ことを確かめた（確定事項A6）。
+- **削除**: `--delete-app-data` 付きで 7 秒。入れる前の控え 5 つ（`SystemFileAssociations`・Uninstall・`Classes\.pdf`・`RegisteredApplications` の
+  書き出しと、`Software`・`Classes`・`Applications` の直下のキー名の一覧）と比べた。**違ったのは `Classes\.pdf` だけで、入れる前から有った空の
+  `HKCU\Software\Classes\.pdf`（と空の `OpenWithProgids`）を、「空になったキーを消す」処理が消した。** → 本番ではこの 2 つを消さない
+  （確定事項A5）。調査のあとで空のキーを作り直し、控えと完全一致を確かめた。常用の `%APPDATA%\SigK PDF` には触れていない。
 
 ### F. 既定のアプリの設定を開く URI
 
 `ms-settings:defaultapps?registeredAppUser=<RegisteredApplications の値の名前>` で、設定の「既定のアプリ」の、そのアプリのページへ直に飛ぶ。
-飛び先のページを出すには確定事項A3 の `RegisteredApplications` が要る。名前が見つからない版・登録が無いとき（開発ツリー）は、既定のアプリの
-画面の頭が開く見込み（**未確認**）。設定の窓が出るので、実装のあとに本物の入口から 1 回だけ開き、ユーザーに見てもらう（完了判定10）。
+飛び先のページを出すには確定事項A4 の `RegisteredApplications` が要る。名前が見つからない版・登録が無いとき（開発ツリー）は、既定のアプリの
+画面の頭が開く見込み（**未確認**）。設定の窓が出るので、実装のあとに 1 回だけ開き、ユーザーに見てもらう（完了判定10）。
 
 ### G. アイコンの作り方 — **SVG を Electron の offscreen 描画で PNG にし、PNG 入りの ICO に詰める**
 
 アイコンの絵は自作の SVG にし（`.claude/CLAUDE.md` 付則A）、Electron の offscreen の窓に大きさごとに並べて描き、透明な地のまま切り出して
 PNG にする（`docs/` の見本と同じ描き方）。ICO は「6 バイトの頭＋1 枚 16 バイトの目録＋PNG の中身」だけの形なので、依存を足さずに書く。
 electron-builder は `win.icon` の ICO を exe・インストーラー・アンインストーラーに入れる（`NsisTarget.js:191`。`installerIcon` を書かなければアプリの
-アイコンが使われる）。今は `default Electron icon is used reason=application icon is not set` と出ている。
+アイコンが使われる）。調べた時点では、`npm run dist` のたびに `default Electron icon is used reason=application icon is not set` と出ていた。
 
 ### H. アイコンを使う場所
 
@@ -85,7 +88,7 @@ electron-builder は `win.icon` の ICO を exe・インストーラー・アン
 |---|---|---|
 | exe・タスクバー・スタートメニュー・デスクトップのショートカット・「アプリと機能」 | アプリ（案B） | electron-builder が exe に入れる（`win.icon`） |
 | インストーラー・アンインストーラーの exe と窓 | アプリ | 同上（既定でアプリのアイコン） |
-| 窓の左上・開発ツリーの `electron .` のタスクバー | アプリ | `BrowserWindow` の `icon`（配布物では exe の絵が先に使われる） |
+| 窓の左上・開発ツリーの `electron .` のタスクバー | アプリ | `BrowserWindow` の `icon`（配布物でも同じ ICO なので、exe の絵と見た目は変わらない） |
 | 右クリックメニューの「SigK PDF」「SigK PDF で開く」「PDF に変換（SigK PDF）」 | アプリ | `Icon`＝`<exe>,0`（塊①のまま） |
 | 「プログラムから開く」・設定の既定のアプリの一覧 | アプリ | `<exe>,0`（`ApplicationIcon`） |
 | SigK PDF を既定にしたときの、エクスプローラーの PDF ファイル | **紙の形の専用の絵** | ProgID と `Applications\<exe>` の `DefaultIcon`＝`$INSTDIR\resources\pdf-file.ico` |
@@ -131,13 +134,16 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
 | | `…\FileAssociations` | `.pdf`＝`SigKPDF.Document` |
 | | `Software\RegisteredApplications` | `SigK PDF`＝`Software\SigKPDF\Capabilities` |
 
-- **A5 消すとき**: A1・A3・`Software\SigKPDF` はキーごと消す。A2 は自分の値だけを消し、A4 の `RegisteredApplications` も自分の値だけを消す。
-  **`.pdf`・`.pdf\OpenWithProgids`・`Applications`・`RegisteredApplications` は、空になっても消さない**（Windows やほかのアプリが前から作っている
-  ことが多く、このPCにも空の `.pdf` が有った〔事前調査 E〕。空のキーは関連付けに何も効かない）。`Software\SigKPDF` は自分のキーなので、
-  空なら消す（`sigkPruneEmptyKey`）。
-- **A6 上書きインストール**: 関連付け（A1〜A4）は、書く前に消さず上書きだけにする。アンインストールでは `${ifNot} ${isUpdated}` のときだけ消す
-  （上書きインストールでは古いアンインストーラーが `--updated` 付きで走る）。上書きの途中で ProgID が消える時間を作らず、SigK PDF を既定に
-  選んでいた人の選択を守るため。メニューのキー（塊①）は今までどおり消してから書く。
+- **A5 消すとき**: A1・A3・`Software\SigKPDF\Capabilities` はキーごと消す。A2 は自分の値だけを消し、A4 の `RegisteredApplications` も自分の値だけを
+  消す。**`.pdf`・`.pdf\OpenWithProgids`・`Applications`・`RegisteredApplications` は、空になっても消さない**（Windows やほかのアプリが前から
+  作っていることが多く、このPCにも空の `.pdf` が有った〔事前調査 E〕。空のキーは関連付けに何も効かない）。`Software\SigKPDF` は自分のキーなので、
+  空になったら消す（`sigkPruneEmptyKey`）。
+- **A6 上書きインストール**: 関連付け（A1〜A4）は、書く前に消さず上書きだけにする。アンインストールでは、引数に `/KEEP_APP_DATA` も `--updated` も
+  無いときだけ消す。上書きインストールでは、新しいインストーラーが古いアンインストーラーを `/S /KEEP_APP_DATA` に `--updated`（または、
+  インストーラーを `--delete-app-data` 付きで起こしたときは `--delete-app-data`）を付けて走らせる（electron-builder の `installUtil.nsh`）。
+  `--updated` だけを見ると、`--delete-app-data` の上書きで関連付けがいったん消える（点検で見つけた）ので、`/KEEP_APP_DATA` でも見分ける。
+  「アプリと機能」からのアンインストールにはどちらも付かない。上書きの途中で ProgID が消える時間を作らず、SigK PDF を既定に選んでいた人の選択を
+  守るため。メニューのキー（塊①）は今までどおり消してから書く。キーの名前を変えたり値を減らしたりする版では、古いほうを `customInstall` で消す。
 - **A7 `.pdf` の既定値には書かない。**electron-builder の `fileAssociations`（`FileAssociation.nsh:66`）は `Software\Classes\.pdf` の既定値を
   書き換えるので使わない。
 - **A8** 書いた後と消した後の `SHChangeNotify(SHCNE_ASSOCCHANGED)` は塊①のまま（1 回ずつ）。
@@ -149,8 +155,10 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
   濃淡にしたもの。見本は `screenshots/phase5-2-icon-candidates.png`。
 - **B2 PDF ファイルの絵は紙の形の専用の絵**（白い紙・右上の折れ・文字の行 3 本、下にアプリの印を小さく）。
 - **B3 大きさ**: ICO に 16・20・24・32・40・48・64・256px を入れる（100〜250% の表示倍率で Windows が選ぶ大きさ）。どれも 32 ビット（透明の地）の PNG。
-  16〜24px は、ペンの線と文字の行を省いた形を別に描く（小さいと線が潰れて汚れに見えるため。見本で確かめる）。
-- **B4 ファイルの置き場所**: 元の絵は `build/icon-app.svg`・`build/icon-app-small.svg`・`build/icon-pdf-file.svg`（配布物に入れない）。出来上がりは
+  16〜24px は、小さくても潰れないよう細かい線を減らした形を別に描く（小さいと細い線が潰れて汚れに見えるため）。アプリの絵は、文字の行と
+  ペンの線を 1 本の太い青い線にまとめ、紙を大きくする。PDF ファイルの絵は、文字の行を省き、紙の縁を太くし、アプリの印を大きくする。
+- **B4 ファイルの置き場所**: 元の絵は `build/icon-app.svg`・`build/icon-app-small.svg`・`build/icon-pdf-file.svg`・`build/icon-pdf-file-small.svg`
+  （配布物に入れない）。出来上がりは
   `assets/icon.ico`（アプリ。`build.files` の `assets/**` で app.asar にも入り、`BrowserWindow` が読む）と `build/pdf-file.ico`（PDF ファイル。
   `build.extraResources` で `resources\pdf-file.ico` へ写す。シェルは app.asar の中を読めないため）。
 - **B5 作る道具**: `scripts/build-icons.js`（Electron で動かす。`npm run icons`）。SVG を offscreen の窓に大きさごとに並べて 1 回描き、切り出して
@@ -181,8 +189,8 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
 
 - **E1** 起動確認の報告に `appShell` を足す: メニュー「ヘルプ」の項目の名前の並び・`assets/icon.ico` を `nativeImage` で読めたか（大きさ）。
   配布物では app.asar の中から読めることを確かめる。
-- **E2** 配布物の `resources\pdf-file.ico` があり、exe からアイコンを取り出すと案B の絵であることを、窓を出さずに確かめる（PowerShell の
-  `ExtractAssociatedIcon` で PNG にして見る）。
+- **E2** 配布物の `resources\pdf-file.ico` があり、exe からアイコンを取り出すと案B の絵であることを、窓を出さずに確かめる（PowerShell から
+  Windows の `PrivateExtractIcons` を呼び、16・32・48・256px を PNG にして見る）。
 - **E3** 実装後のコードで別名のインストーラーを作り直し、事前調査 E と同じ確かめ（値・候補・上書き・削除と控えの突き合わせ）を通す。DefaultIcon が
   `resources\pdf-file.ico` を指し、そのファイルが実在することも見る。
 
@@ -192,7 +200,7 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
 
 | モジュール | 役目 | テスト |
 |---|---|---|
-| `default-apps-link.js` | 既定のアプリの設定を開く URI を組む（C2） | `test/default-apps-link.test.js` |
+| `default-apps-link.js` | 既定のアプリの設定を開く URI を組み、メニューを押したときに開く（C2。Electron の `shell` は外から渡す） | `test/default-apps-link.test.js` |
 | `scripts/ico-file.js` | ICO の読み書き（B5） | `test/ico-file.test.js`（詰めて読み戻す・壊れた頭を断る）、`test/app-icon.test.js`（出来上がりの 2 つの ICO の大きさと PNG の中身） |
 | `scripts/build-icons.js` | SVG → PNG → ICO（B5。Electron で動かす手回しの道具） | 出来上がりを `test/app-icon.test.js` が見る |
 
@@ -202,38 +210,40 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
 - `package.json`: `build.win.icon`・`build.extraResources`・`build.files` に `default-apps-link.js`・`scripts` に `icons`。
 - `main.js`: メニュー（C1・C2）・`BrowserWindow` の `icon`・バージョン情報の `icon`・起動確認の `appShell`（E1）。
 - `renderer/help-content.js`: C3。
-- テスト: `test/installer-nsh.test.js`（下の「テストの範囲」）、`test/dist-files.test.js`（`win.icon` と `extraResources` の元が在る）。
+- テスト: `test/installer-nsh.test.js`・`test/installer-assoc.test.js`（下の「テストの範囲」）、`test/app-icon.test.js`（`win.icon` と
+  `extraResources` の元が在る）、`test/main-app-shell.test.js`（`main.js` の配線）。
 - 文書: `docs/03`（1-1・1-3・2-1・4-1・4-2・第5章 #9・第7章）、`docs/01` F-07-5 の注記、`docs/02` のモジュール一覧、`docs/04`（メニュー・第9章に
   アプリのアイコン）、`docs/05` Phase 5、`docs/07`（決定・次の手順・積み残しの「完了ページ」の行）、README、`docs/spec-4b-7b-help.md` の付録。
 
 ## テストの範囲
 
-- `test/installer-nsh.test.js`（塊①の 14 本を直して足す）:
-  - 完了ページに「その他のオプションを確認」があり「表示」が無い。`MUI_FINISHPAGE_TEXT_LARGE` が定義されている。「既定のアプリの設定…」の名前が
-    `main.js` のメニューと一致する。
-  - 関連付けの書きと消しが対応する（A1・A3・Capabilities はキーごと、A2・RegisteredApplications は値ごと）。
-  - `Software\Classes\.pdf` の既定値に書かない。`.pdf`・`.pdf\OpenWithProgids`・`Applications`・`RegisteredApplications` を消さない（Prune の対象にしない）。
-  - 関連付けの消しは `customUnInstall` の `${ifNot} ${isUpdated}` の中だけで、`customInstall` では関連付けを消さない。
-  - `DefaultIcon` は `$INSTDIR\resources\pdf-file.ico`、`ApplicationIcon` は `<exe>,0`。`RegisteredApplications` の値が `Capabilities` のキーを指す。
-  - HKCU だけ・`Var`・`Function` が無い・キー名を `SIGK_SHELL_ID` から組む（塊①のまま）。
-- `test/default-apps-link.test.js`: 名前の符号化（空白・日本語・`&`）、名前が無いときは `ms-settings:defaultapps` だけ。
-- `test/ico-file.test.js`・`test/app-icon.test.js`: B3 の大きさがそろう、PNG の頭と幅・高さが目録と一致、色の型が透明あり（6）。
-- `test/dist-files.test.js`: `build.win.icon` と `build.extraResources` の元のファイルが在る。
+- インストーラー（`.nsh` を読む部品は `test/installer-nsh-parse.js`）:
+  - `test/installer-nsh.test.js`（塊①の 14 本を直して足す。13 本）: 書いたキーと値を全部消す、書く命令は `WriteRegStr`・`WriteRegNone` だけ、
+    HKCU だけ・`Var`・`Function` が無い・キー名を `SIGK_SHELL_ID` から組む・空ならビルドを止める、など。
+  - `test/installer-assoc.test.js`（5 本）: 関連付けを消す行は、`customInstall` に無く、`customUnInstall` では `/KEEP_APP_DATA` も `--updated` も
+    無いときの枠の中だけ（消している先で見分ける）。`DeleteRegValue` は自分が書いた組だけ。`.pdf` の既定値に書かず、共有のキーを消さない。
+    完了ページの「確認」・入口の名前・`MUI_FINISHPAGE_TEXT_LARGE`。関連付けの値の表（`DefaultIcon`＝`resources\pdf-file.ico` など）。
+- `test/default-apps-link.test.js`: 名前の符号化（空白・日本語・`&`）、名前が無いときは `ms-settings:defaultapps` だけ、押すと偽物の `shell` の
+  `openExternal` を 1 回呼ぶ、断られた・投げたときはログに 1 件。
+- `test/main-app-shell.test.js`: メニュー「ヘルプ」の並び、押したときの呼び出し、窓とバージョン情報の `icon`、起動確認の `appShell`（文字で見る）。
+- `test/ico-file.test.js`: 詰めて読み戻す、目録の 16 バイト、断る場合（RGBA でない・枚数 0・位置や大きさがおかしい）。
+- `test/app-icon.test.js`: B3 の大きさ、8 ビットの RGBA、角が透明、絵の画素の割合、2 つの ICO を取り違えていない、SVG が XML として正しい、
+  ICO が今の SVG から作ってある（`build/icon-sources.json`）、`win.icon` と `extraResources`。
 
 ## 完了の判定
 
 | # | 判定 | 確かめ方 |
 |---|---|---|
-| 1 | インストーラーが A の値を書き、`.pdf` の既定値に書かない | `installer-nsh` のテスト。別名のインストーラーで値を照合（E3） |
+| 1 | インストーラーが A の値を書き、`.pdf` の既定値に書かない | `installer-nsh`・`installer-assoc` のテスト。別名のインストーラーで値を照合（E3） |
 | 2 | 「プログラムから開く」の候補に出る（おすすめ） | 別名のインストーラーで `SHAssocEnumHandlers('.pdf')`（E3） |
 | 3 | 上書きインストールで関連付けが消えない。アンインストールで消え、控えと一致する | 別名のインストーラーの目印と控え（E3） |
-| 4 | 完了ページが「確認」で、7 行の文が広げた欄に入る | `installer-nsh` のテスト。事前調査 I の測り方 |
+| 4 | 完了ページが「確認」で、7 行の文が広げた欄に入る | `installer-assoc` のテスト。事前調査 I の測り方 |
 | 5 | アプリのアイコンが案B で、ICO に B3 の大きさがそろう | `app-icon` のテスト。`npm run dist` のログに「default Electron icon」が出ない。exe から取り出した絵（E2） |
 | 6 | PDF ファイルの絵が `resources\pdf-file.ico` にあり、DefaultIcon が指す | 配布物のファイル。別名のインストーラーで実在を確かめる（E3） |
-| 7 | メニュー「ヘルプ」に「既定のアプリの設定…」があり、押すと C2 の URI を開く | `default-apps-link` のテスト。起動確認の `appShell`（E1） |
+| 7 | メニュー「ヘルプ」に「既定のアプリの設定…」があり、押すと C2 の URI を開く | `default-apps-link`・`main-app-shell` のテスト。起動確認の `appShell`（E1） |
 | 8 | 使い方の窓に C3 の項目がある | `help-content` のテスト。付録の書き出し |
 | 9 | `npm test` の fail 0（`TZ=UTC` も）、開発ツリーと配布物の起動確認が通る | 実行の記録 |
-| 10 | 既定のアプリの設定の、SigK PDF のページが開く（**ユーザーの目視**） | 別名のインストーラーを入れた状態で、別名のアプリのメニューから開く |
+| 10 | 既定のアプリの設定の、SigK PDF のページが開く（**ユーザーの目視**） | 別名のインストーラーを入れた状態で、メニューが組むのと同じ URI を開き、出た画面をユーザーに見てもらう |
 
 ---
 
@@ -254,7 +264,8 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
 
 ### 起草者の判断で決めたもの
 
-- 関連付けは上書きインストールで消さない（A6）。`.pdf`・`.pdf\OpenWithProgids`・`Applications`・`RegisteredApplications` は空でも消さない（A5）。
+- 関連付けは上書きインストールで消さない（A6。`/KEEP_APP_DATA` と `--updated` で見分ける）。`.pdf`・`.pdf\OpenWithProgids`・`Applications`・
+  `RegisteredApplications` は空でも消さない（A5）。`SIGK_SHELL_ID` が空ならビルドを止める（点検で見つけた。塊①から）。
 - ProgID の表示名は `PDF 文書`、`ApplicationDescription` は A4 の文。
 - 完了ページの文から「ウィザードを閉じるには…」を除き、欄を広げた（D2・D3）。
 - メニューの名前は「既定のアプリの設定…」（押すと Windows の設定が開くだけで、押しただけでは既定にならないため「〜に設定」とは書かない）。
@@ -263,12 +274,28 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
 
 ## 既知の限界
 
-- **アンインストールすると、SigK PDF を既定に選んでいた人の `.pdf` は既定のアプリが無い状態になる**（ProgID が消えるため。次に PDF を開くと
-  Windows が選び直しを聞く）。Windows の決まりで、アプリが前の既定のアプリへ戻すことはできない。
-- 設定の画面の飛び先（事前調査 F）は Windows 11 ビルド 26200 で確かめる（完了判定10）。Windows 10 と古い Windows 11 での飛び先は塊③。
+- **アンインストールすると、SigK PDF を既定に選んでいた人の `.pdf` は既定のアプリが無い状態になる見込み**（ProgID が消えるため。次に PDF を
+  開くと Windows が選び直しを聞く見込み。確かめていない）。Windows の決まりで、アプリが前の既定のアプリへ戻すことはできない。
+- **既定のアプリを SigK PDF に切り替えたあとの動きは確かめていない**（PDF のダブルクリックで開くこと・エクスプローラーの PDF ファイルに紙の形の
+  絵が出ること）。ユーザーの指示（2026-10-08）で、このPCの `.pdf` の既定のアプリは今のまま（別のアプリ）にしてあり、切り替えて試していない。塊③で見る。
+- **SigK PDF を入れたあと、次に PDF を開いたときに、Windows が「新しいアプリがある」として開くアプリを選び直させることがある**（Windows 10 以降の
+  ふつうの動きとして知られている。推測で、確かめていない）。そのときは今の既定のアプリを選べば、既定は変わらない。
+- 設定の画面の飛び先（事前調査 F）は、Windows 11 ビルド 26200 で確かめた（完了判定10）。Windows 10 と古い Windows 11 での飛び先と、
+  登録の無い名前で開いたときの飛び先は確かめていない（塊③）。
 - 完了ページの行数は字体の換算で測ったもので、実物の画面は塊③の判定12 で見る。
-- `.png` などの「プログラムから開く」の「すべて」の一覧にも SigK PDF が出る（事前調査 E。`Applications` に登録したアプリはそうなる）。
-  選ぶと SigK PDF が起動するが、画像は開かない（`--open` は PDF だけを受ける）。
+- 「プログラムから開く」の候補は API（`SHAssocEnumHandlers`）で並べて確かめた。エクスプローラーの本物の窓は塊③で見る。API の「すべて」の区分では、
+  `.png` などにも SigK PDF が出る（おすすめには入らない。本物の窓での出方は確かめていない）。選ぶと SigK PDF が起動するが、画像は開かない
+  （`--open` は PDF だけを受ける）。
+- **版を戻すと関連付けが残る**（この版から、関連付けを書かない前の版を上書きで入れると、この版のアンインストーラーは上書きとして関連付けを
+  残し、前の版はそれを消さない。DefaultIcon は前の版に無い `resources\pdf-file.ico` を指したままになる）。開発中に版を行き来するときだけの話。
+- 上書きを見分ける `/KEEP_APP_DATA` は、electron-builder（26.15.3）が古いアンインストーラーに付ける引数で、文書には書かれていない。
+  electron-builder の版を上げたら、別名のインストーラーで上書きの確かめ（事前調査 E の目印）をやり直す。
+- SigK PDF を既定にした状態で PDF を 16 個以上選ぶと、右クリックの「開く」が出ない見込み（ProgID の `shell\open` に `MultiSelectModel` が無い。
+  `docs/03` 1-2 と同じ Windows の決まり。推測）。困ったら `Player` を付ける。
+- バージョン情報の窓には、ICO から作った絵（Electron は 256px を 1 倍の絵として持つ見込み）を渡しているので、窓が小さく縮めて描くときに
+  線が粗く見えるかもしれない（点検役の推測。窓を出す確かめはしていない）。塊③で見て、粗ければ 32・48・64px を倍率ごとに渡す。
+- 「プログラムから開く」→「別のプログラムを選択」で SigK PDF の exe をじかに選んだときに、PDF ファイルと一覧に出る絵
+  （`Applications\<exe>\DefaultIcon` を紙の形の絵にしてある）は確かめていない。塊③で見る。
 
 ---
 
@@ -276,30 +303,58 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
 
 `25493ec`（PR #43 のマージ）から切った。手順0 `f5d31c8` → 仕様書 `5a0fcb1` → c1 `a4b8fa8`（アイコンの SVG・ICO・作る道具）→ c2 `bc2470c`
 （既定のアプリの入口・窓とバージョン情報のアイコン・起動確認の `appShell`）→ c3 `b761d87`（インストーラー）→ c4 `ecc7482`（使い方の窓）→
-文書 → 点検の直し → 仕上げの文書。テストは 2,770 → 2,784 件（`TZ=UTC` でも緑）。インストーラーは 118,640,442 バイト（⑦-b の 118,577,525 から
-+62,917）。調べるための台本は `~/.claude/plans/phase-5-2-probe/`。
+文書 `38de11c` → 点検の直し `43f88d2`（インストーラー）・`83ec4ec`（入口と `main.js` の配線）・`e2487f7`（アイコンの道具と ICO の部品）→
+仕上げの文書。テストは 2,770 → 2,794 件（`TZ=UTC` でも緑）。インストーラーは 118,641,243 バイト（⑦-b の 118,577,525 から +63,718）。
+調べるための台本は `~/.claude/plans/phase-5-2-probe/`。
 
 ### 仕様書から足したこと・変えたこと（起草者の判断）
 
 - **見本からの絵の直し**: 見本の案B は、ペンの線の右端が紙の外へ少しはみ出していた。線を短くして紙の中に収めた。PDF ファイルの絵は、32px で
-  紙の縁が薄かったので、縁の線を 6 から 8 に太くした。見本は `screenshots/phase5-2-icon-app.png`・`phase5-2-icon-pdf-file.png`。
+  紙の縁が薄かったので、縁の線を（SVG の 256 目盛りで）6 から 8 に太くした。見本は `screenshots/phase5-2-icon-app.png`・`phase5-2-icon-pdf-file.png`。
 - **アイコンを作る道具の守り**: SVG のコメントに `--`（ハイフン 2 つ）を書いて SVG ごと読めなくなり、壊れた画像の印が ICO に入りかけた。
-  道具は、全部の絵を読めたかと、切り出しに色の付いた画素があるかを確かめてから詰め、だめなら止まる。テスト（`app-icon`）もコメントの `--` を見張る。
-- **offscreen の描き方**: 絵を読み終えた直後・描き直しの直後には、空や透明の 1 枚が届くことがあった（どちらも試して見た）。読み終えて 800ms 待ってから
-  描き直させ、頁の大きさの 1 枚を受け取る。画面の倍率と色の管理は 1 と sRGB に固定した。
+  道具は、全部の絵を読めたかを確かめてから描き、だめなら止まる。
+- **offscreen の描き方**: 絵を読み終えた直後・描き直しの直後には、offscreen の描画から空や透明のままの画像が 1 枚返ってくることがあった
+  （どちらも試してみた）。読み終えて 800ms 待ってから描き直させ、頁の大きさの画像を受け取る。画面の倍率と色の管理は 1 と sRGB に固定した。
 - **インストーラーのテストのコマンドの数**: 関連付けの open のコマンド 2 つ（ProgID・`Applications`）が増えたので、数え方を直した。
+- **`win.icon`・`extraResources` の確かめ**は、ICO の中身を読むテストと一緒に `test/app-icon.test.js` に置いた（`test/dist-files.test.js` は変えていない）。
+
+### 点検で直したこと（別のエージェント 3 体に頼んだ点検。インストーラー・アイコンとアプリのコード・文書）
+
+| # | 見つかったこと | 直したこと |
+|---|---|---|
+| 1 | インストーラーを `--delete-app-data` 付きで起こした上書きでは、古いアンインストーラーに `--updated` が付かず、関連付けがいったん消えていた | `/KEEP_APP_DATA` も `--updated` も無いときだけ消す（A6）。別名のインストーラーで、この上書きでも目印が残ることを確かめた |
+| 2 | `SIGK_SHELL_ID` が空だと、メニューを消す処理が `.pdf\shell` ごと（ほかのアプリの項目まで）消す（塊①から） | 空ならビルドを止める（`!error`） |
+| 3 | インストーラーのテストの抜け: `WriteRegStr`・`WriteRegNone` 以外の書き込み命令、マクロを使わずにじかに書いた削除・枠の外の削除・`${Else}`、`DeleteRegValue` の消し先 | 書く命令を全部拾う、関連付けを消す行は消している先で見分ける、`DeleteRegValue` は自分が書いた組だけ。わざと 5 通り壊して落ちることを確かめた。296 行になったので 3 つのファイルに分けた |
+| 4 | `main.js` の配線（押したら URI を開く・窓とバージョン情報の `icon`・メニューの並び）を見張るテストが無い | 押したときの処理を `default-apps-link.js` に移して偽物の `shell` で見る。起動確認でメニューの並びが違えば problems。`test/main-app-shell.test.js` で配線を文字で見る |
+| 5 | アイコンの道具: 地が白くなっても止まらない、2 つ目で止まると 1 つ目だけ書き換わる、受け取った画像の写しを取っていない、色の画素が 1 つでもあれば通る、`%APPDATA%\Electron` に作る、待ち時間の上限が無い、例外で窓が出る | 隙間の画素で地が透明かを見る、2 つとも確かめてから書く、写しを取る、絵の画素の割合の下限 30%、設定は一時フォルダー、全体 60 秒、例外は文字だけ出して終わる |
+| 6 | ICO の部品: RGBA でない PNG も 32 ビットと名乗る、枚数 0・中身の位置が目録の中・大きさ 0 を通す | 断る。何枚目かを言う |
+| 7 | 出来上がりのテストの抜け: 目録の 2〜5 バイト、SVG を直して ICO を作り忘れたとき、2 つの ICO の取り違え、角が透明か、SVG の XML の誤り全般 | 目録の 16 バイトを丸ごと比べる、`build/icon-sources.json`（SVG の SHA-256）と比べる、PNG をほどいて色と角を見る、jsdom の XML の読み取りで SVG を確かめる |
+| 8 | 文書: 判定10 の書き方（メニューを押していないのに押したように読める）、`docs/03` 3-3・4-2・#10 の古い記述、値の数 53 と 52、テストの置き場所、元の絵の一覧、確かめていないことを確かめたように書いた所、まだの push を済みと書いた所、言葉 | 直した（下の判定10、`docs/03`、事前調査 E、既知の限界、`docs/02`・`04`・`05`・`07`・README・`spec-5-1`） |
+
+直さずに既知の限界に書いたもの: バージョン情報の窓のアイコンが粗く見えるかもしれない、版を戻すと関連付けが残る、16 個以上選んだときの「開く」、
+`/KEEP_APP_DATA` に頼ること、「別のプログラムを選択」で選んだときの絵。
+
+### 実測（Windows 11 Pro ビルド 26200・別名のインストーラー「SigK PDF Probe」・入れ先は scratchpad）
+
+| 回 | 中身 | 結果 |
+|---|---|---|
+| 事前調査 E（試作の `.nsh`） | ビルド 52 秒、入れる 16 秒、上書き 19 秒、`--delete-app-data` で外す 7 秒 | 値 52 個。候補におすすめ。違いは前から有った空の `.pdf` を消したことだけ（→ A5） |
+| 実装後（c3 の `installer.nsh`） | ビルド 55 秒、入れる 15 秒、上書き 20 秒、`--delete-app-data` で外す 7 秒 | 値 52 個と PDF ファイルの絵の実在。控え 5 つと完全一致。この状態で設定のページを開いた（判定10） |
+| 点検の直しのあと（`43f88d2`） | ビルド 47 秒、入れる 16 秒、普通の上書き 18 秒、`--delete-app-data` 付きの上書き 18 秒、普通に外す（`/S` だけ）7 秒 | 値 52 個。どちらの上書きでも関連付けの目印が残った。控え 5 つと完全一致 |
+
+3 回とも、このPCの `.pdf` の既定のアプリ（`UserChoice` の `ProgId` と `Hash`）は調べる前と同じで、常用の `%APPDATA%\SigK PDF` にも触れていない。
 
 ### 完了の判定の結果
 
 | # | 判定 | 結果 | 証拠 |
 |---|---|---|---|
-| 1 | インストーラーが A の値を書き、`.pdf` の既定値に書かない | ✅ | `installer-nsh` のテスト 16 本。別名のインストーラー（本物の `installer.nsh`）で値 52 個が一致、`.pdf` の既定値は書かれない |
-| 2 | 「プログラムから開く」の候補に出る（おすすめ） | ✅ | 別名で `SHAssocEnumHandlers('.pdf')` に「SigK PDF Probe」がおすすめとして出た |
-| 3 | 上書きインストールで関連付けが消えない。アンインストールで消え、控えと一致する | ✅ | 目印を付けて入れ直すと、関連付けのキー 3 つの目印は残り、メニューのキーの目印は消えた。`--delete-app-data` 付きで外すと 5 つの控えが完全一致（前から有った空の `.pdf` も残った） |
-| 4 | 完了ページが「確認」で、7 行の文が広げた欄に入る | ✅ | `installer-nsh` のテスト。事前調査 I の測り方で 84px（欄は 90px） |
-| 5 | アプリのアイコンが案B で、ICO に B3 の大きさがそろう | ✅ | `app-icon` のテスト。`npm run dist` に「default Electron icon」が出ない。配布物の exe とインストーラーから 16・32・48・256px を取り出して案B を確かめた |
+| 1 | インストーラーが A の値を書き、`.pdf` の既定値に書かない | ✅ | `installer-nsh`（13 本）・`installer-assoc`（5 本）のテスト。別名のインストーラー（本物の `installer.nsh`）で値 52 個が一致、`.pdf` の既定値は書かれない |
+| 2 | 「プログラムから開く」の候補に出る（おすすめ） | ✅ | 別名で、API（`SHAssocEnumHandlers('.pdf')`）で並べると「SigK PDF Probe」がおすすめに入った。エクスプローラーの本物の窓は塊③ |
+| 3 | 上書きインストールで関連付けが消えない。アンインストールで消え、控えと一致する | ✅ | 目印を付けて入れ直すと、普通の上書きでも `--delete-app-data` 付きの上書きでも、関連付けのキー 3 つの目印は残り、メニューのキーの目印は消えた。普通のアンインストール（`/S`）でも `--delete-app-data` 付きでも、控え 5 つが完全一致（前から有った空の `.pdf` も残った） |
+| 4 | 完了ページが「確認」で、7 行の文が広げた欄に入る | ✅ | `installer-assoc` のテスト。事前調査 I の測り方で 84px（欄は 90px）。実物の画面は塊③の判定12 |
+| 5 | アプリのアイコンが案B で、ICO に B3 の大きさがそろう | ✅ | `app-icon`・`ico-file` のテスト。`npm run dist` に「default Electron icon」が出ない。配布物の exe とインストーラーから 16・32・48・256px を取り出して案B を確かめた |
 | 6 | PDF ファイルの絵が `resources\pdf-file.ico` にあり、DefaultIcon が指す | ✅ | 配布物の `resources` に 13,753 バイト。別名で DefaultIcon の指すファイルの実在を確かめた |
-| 7 | メニュー「ヘルプ」に「既定のアプリの設定…」があり、押すと C2 の URI を開く | ✅ | `default-apps-link` のテスト。起動確認の `appShell`（開発ツリーと配布物）で「使い方／既定のアプリの設定…／-／バージョン情報」、アイコン 256px を読めた |
+| 7 | メニュー「ヘルプ」に「既定のアプリの設定…」があり、押すと C2 の URI を開く | ✅ | `default-apps-link`（偽物の `shell` で、この URI で 1 回開く・開けなければログ）と `main-app-shell`（配線）のテスト。起動確認の `appShell`（開発ツリーと配布物）で「使い方／既定のアプリの設定…／-／バージョン情報」、アイコン 256px を読めた。本物のメニューを押してはいない |
 | 8 | 使い方の窓に C3 の項目がある | ✅ | `help-content` のテスト。spec-4b-7b の付録を書き出し直した |
-| 9 | `npm test` の fail 0（`TZ=UTC` も）、開発ツリーと配布物の起動確認が通る | ✅ | 2,784 件 fail 0（`TZ=UTC` も）。起動確認は problems なし |
-| 10 | 既定のアプリの設定の、SigK PDF のページが開く（ユーザーの目視） | ✅ | 別名を入れた状態で `ms-settings:defaultapps?registeredAppUser=SigK%20PDF%20Probe` を開くと、「アプリ › 既定のアプリ › SigK PDF Probe」のページで「.pdf」の行が出た（ユーザーの了承を得て、開いていた設定の窓で開いた。`screenshots/phase5-2-default-apps-page.png`。名前とメールは切り落とした）。このPCの `.pdf` の既定のアプリは、調べる前とあとで変わっていない |
+| 9 | `npm test` の fail 0（`TZ=UTC` も）、開発ツリーと配布物の起動確認が通る | ✅ | 2,794 件 fail 0（`TZ=UTC` も）。起動確認は problems なし（点検の直しのあとの配布物でも） |
+| 10 | 既定のアプリの設定の、SigK PDF のページが開く（ユーザーの目視） | ✅ | 別名を入れた状態で、メニューが組むのと同じ URI（`ms-settings:defaultapps?registeredAppUser=SigK%20PDF%20Probe`）を PowerShell から開いた（メニューは押していない）。ユーザーの了承を得て、開いていた設定の窓で開くと、「アプリ › 既定のアプリ › SigK PDF Probe」のページで「.pdf」の行が出た。その窓を撮った画像 `screenshots/phase5-2-default-apps-page.png`（名前とメールは切り落とした）をユーザーに見せた。このPCの `.pdf` の既定のアプリは、調べる前とあとで変わっていない |
