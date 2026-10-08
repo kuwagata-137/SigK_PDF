@@ -339,3 +339,31 @@ test('押しているボタンの控えは、pointercancel と窓の blur でも
   key(shell, shell.document.body, 'F1');
   assert.equal(isOpen(shell), true);
 });
+
+test('紙の上の文字の入力欄で F1 を押し、窓の中をマウスで押しても、入力欄は確定しない（確定事項A5）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document, window } = shell;
+  SigK.shell.setMode(document, 'annot');
+  SigK.annotate.setTool('text');
+  const page = document.querySelector('.pdf-page[data-page="1"]');
+  const [x, y] = SigK.viewer.getTextLayer(0).viewport.convertToViewportPoint(100, 700);
+  for (const type of ['mousedown', 'mouseup'])
+    page.dispatchEvent(new window.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }));
+  const editor = document.querySelector('textarea.free-text-editor');
+  editor.value = '打ちかけ';
+  editor.dispatchEvent(new window.Event('input', { bubbles: true }));
+  key(shell, editor, 'F1');
+  assert.equal(isOpen(shell), true);
+
+  // 本物のマウスと同じ順（pointerdown → mousedown → pointerup → mouseup → click）で、目次・本文・［閉じる］を押す。
+  const press = (node) => {
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
+      node.dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, buttons: type.endsWith('down') ? 1 : 0 }));
+  };
+  press(dialog(shell).querySelector('.help-item[data-section="keys"]'));
+  press(dialog(shell).querySelector('.help-body'));
+  press(document.getElementById('help-done'));
+  assert.equal(isOpen(shell), false);
+  assert.notEqual(document.querySelector('textarea.free-text-editor'), null, '入力欄が閉じた');
+  assert.equal(SigK.viewer.getAnnotations().added.length, 0, '打ちかけが書き込みになった');
+});
