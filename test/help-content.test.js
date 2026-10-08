@@ -114,3 +114,10 @@ test('分割の「範囲」は 1 つのファイルに取り出す。ツール�
 test('Esc の例は、持っている道具と選んでいる書き込みを書き分ける', () => {
   assert.match(joined('escape'), /［四角］の道具を持ち、描いた四角が選ばれていて/);
 });
+
+test('既定のアプリの入口を、メニューと同じ名前で案内する（spec-5-2 確定事項C3）', () => {
+  const mainJs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
+  assert.match(mainJs, /label: '既定のアプリの設定…'/);
+  assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」で Windows の設定を開き、SigK PDF を選びます/);
+  assert.match(joined('basics'), /「プログラムから開く」から選ぶこともできます/);
+});
