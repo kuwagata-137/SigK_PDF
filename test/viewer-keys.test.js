@@ -214,3 +214,33 @@ test('窓が開いている間は、メニューの保存・開く・文書情�
   await shell.flush();
   assert.equal(document.getElementById('doc-info').hasAttribute('open'), true);
 });
+
+// 計画外の直し④で、文字を打つ欄の中の Ctrl+Z は欄に任せた。紙の上の押下は preventDefault するのでフォーカスが欄に残り、
+// 描いたあとの Ctrl+Z が欄の文字の取り消しになっていた（spec-4b-7b 点検の直し）。
+test('検索の欄に打ってから紙に描くと、欄からフォーカスが外れ、Ctrl+Z で描いたものが戻る', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.findBar.open();
+  const input = document.getElementById('find-input');
+  input.focus();
+  input.value = 'abc';
+  const id = drawSquare(shell, [100, 700], [200, 600]);
+  assert.notEqual(document.activeElement, input);
+  assert.equal(input.value, 'abc');
+  assert.deepEqual(ids(shell), [id]);
+  const event = new shell.window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+  (document.activeElement ?? document.body).dispatchEvent(event);
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(ids(shell), []);
+  assert.equal(SigK.findBar.isOpen(), true, '検索バーは開いたまま');
+});
+
+test('右パネルの欄にフォーカスがあるときは、紙を押してもフォーカスを残す（spec-4b-7a 確定事項E4）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('shape');
+  const width = document.getElementById('props-width');
+  width.focus();
+  assert.equal(SigK.viewerKeys.leaveTypingField(document), false);
+  assert.equal(document.activeElement, width);
+});

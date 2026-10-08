@@ -25,6 +25,17 @@
     return node?.tagName === 'INPUT' && TYPING_TYPES.has(node.type);
   }
 
+  // 紙の外の文字を打つ欄（検索の欄・ページ番号の欄）からフォーカスを外す。編集モードで紙を左で押したときに annotate-pointer.js が呼ぶ
+  // （spec-4b-7b 点検の直し。紙の上の押下は preventDefault するのでフォーカスが欄に残り、そのあとの Ctrl+Z が、計画外の直し④で欄に
+  // 任せた欄の文字の取り消しになっていた）。右パネルの欄と紙の上の入力欄は残す（spec-4b-7a 確定事項E4）。
+  function leaveTypingField(doc) {
+    const active = doc.activeElement;
+    if (!isTypingField(active) || (active.closest?.('#props, .free-text-editor') ?? null) !== null)
+      return false;
+    active.blur();
+    return true;
+  }
+
   const ZOOM_KEYS = {
     '+': () => viewer().zoomIn(),
     '=': () => viewer().zoomIn(),
@@ -211,5 +222,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.viewerKeys = { handleKey };
+  SigK.viewerKeys = { handleKey, leaveTypingField };
 })(typeof window !== 'undefined' ? window : globalThis);

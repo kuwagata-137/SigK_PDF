@@ -100,6 +100,8 @@
       press().reset();
       return;
     }
+    // 紙の外の検索の欄・ページ番号の欄からフォーカスを外す（Ctrl+Z を文書へ。spec-4b-7b 点検の直し）。
+    root.SigK.viewerKeys?.leaveTypingField(event.target.ownerDocument);
     // 描いている途中の多角形と始点合わせは、つまみも書き込みも見ずに、離したときに頂点・終点を置く（spec-4b-5a 確定事項17・19）。
     if (placing()?.isActive() === true) {
       event.preventDefault();
