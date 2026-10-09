@@ -680,6 +680,21 @@ body{
 
   <!-- 使い方の窓（spec-4b-7b 確定事項B。見本 screenshots/phase4b-7b-help-nav.png）。題・目次・本文は help-dialog.js が
        help-content.js の中身から組む。 -->
+  <!-- 分割の盤のページを大きく見る窓（spec-2-2b 第 E 章。見本 screenshots/phase2-2b-06-zoom.png）。中身は split-zoom.js。 -->
+  <dialog id="split-zoom" aria-labelledby="split-zoom-title">
+    <div class="sz-top">
+      <span class="sz-title" id="split-zoom-title"></span>
+      <span class="sz-file" id="split-zoom-file"></span>
+      <span class="spacer"></span>
+      <button type="button" class="sz-x" id="split-zoom-close" data-icon="close" data-icon-size="18" data-icon-stroke="2" title="閉じる (Esc)" aria-label="閉じる"></button>
+    </div>
+    <div class="sz-mid">
+      <button type="button" class="sz-nav" id="split-zoom-prev" data-icon="chevronLeft" data-icon-size="22" data-icon-stroke="2" title="前のページ (←)" aria-label="前のページ"></button>
+      <div class="sz-page" id="split-zoom-page"></div>
+      <button type="button" class="sz-nav" id="split-zoom-next" data-icon="chevronRight" data-icon-size="22" data-icon-stroke="2" title="次のページ (→)" aria-label="次のページ"></button>
+    </div>
+    <p class="sz-hint">← → で前後のページへ移り、Esc で閉じます。</p>
+  </dialog>
   <dialog id="help-dialog" aria-labelledby="help-title">
     <div class="dlg-head">
       <span id="help-title"></span>
@@ -932,6 +947,7 @@ body{
 <script src="renderer/split-board-band.js"></script>
 <script src="renderer/split-board-input.js"></script>
 <script src="renderer/split-board-keys.js"></script>
+<script src="renderer/split-zoom.js"></script>
 <script src="renderer/paper-size.js"></script>
 <script src="renderer/convert-plan.js"></script>
 <script src="renderer/tools-convert.js"></script>

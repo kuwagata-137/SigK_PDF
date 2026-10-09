@@ -119,6 +119,24 @@
 .sb-out input[type="radio"]{margin:0; width:16px; height:16px; accent-color:var(--primary)}
 #split-summary.wait{color:var(--muted)}
 
+/* ── 大きく見る窓（第 E 章。split-zoom.js） ── */
+#split-zoom{padding:0; margin:0; border:none; background:transparent; color:#fff; width:100vw; height:100vh; max-width:none; max-height:none}
+#split-zoom[open]{display:flex; flex-direction:column; align-items:center}
+#split-zoom::backdrop{background:rgba(16,24,40,.78)}
+.sz-top{width:100%; display:flex; align-items:center; gap:12px; padding:12px 16px}
+.sz-top .spacer{flex:1}
+.sz-title{font-size:13.5px; font-weight:600}
+.sz-file{font-size:12px; opacity:.85}
+.sz-x{width:34px; height:34px; border-radius:8px; display:grid; place-items:center; color:#fff; background:rgba(255,255,255,.12)}
+.sz-x:hover{background:rgba(255,255,255,.22)}
+.sz-mid{flex:1; min-height:0; width:100%; display:flex; align-items:center; justify-content:center; gap:22px}
+.sz-page{display:grid; place-items:center; background:var(--page); box-shadow:var(--page-shadow); min-width:40px; min-height:40px}
+.sz-page canvas{display:block}
+.sz-nav{width:44px; height:44px; border-radius:50%; display:grid; place-items:center; background:rgba(255,255,255,.14); color:#fff}
+.sz-nav:hover{background:rgba(255,255,255,.26)}
+.sz-nav[aria-disabled="true"]{opacity:.3}
+.sz-hint{margin:0; padding:10px 0 14px; font-size:12px; opacity:.8}
+
 /* ── 狭い窓（確定事項A3。決定77 ④） ── */
 @media (max-width:1100px){
   .sb-body{grid-template-columns:minmax(0,1fr) 232px}
