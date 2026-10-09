@@ -1782,9 +1782,9 @@ function installSmokeCheck(win, mode) {
           const setup = await win.webContents.executeJavaScript(smokeSplit.setupScript({
             source, outDir, ops: process.env.SIGK_SMOKE_SPLIT_OPS ?? 'every:10', rule: process.env.SIGK_SMOKE_SPLIT_RULE ?? 'seq',
           }));
-          // 留まるなら実行しない（SIGK_SMOKE_SHOT で盤の画面を撮るため）。
+          // 留まるなら実行しない（SIGK_SMOKE_SHOT で盤の画面を撮るため）。アプリ全体の実メモリも控える（spec-2-2b 確定事項K2）。
           if (process.env.SIGK_SMOKE_SPLIT_STAY === '1') {
-            split = { setup, stayed: true };
+            split = { setup, stayed: true, memory: memorySnapshot() };
           } else {
             // 同名確認の3択を通すため、先頭の出力先を先に空で作っておく。
             if (setup.targets.length > 0)

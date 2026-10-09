@@ -320,3 +320,11 @@ test('実行中は盤の操作と段と帯を受けない', async (t) => {
   await running;
   assert.equal($(shell, '#split-every').disabled, false);
 });
+
+test('ページ数とファイルの数は、4 桁から桁区切りを付ける', async (t) => {
+  const shell = await withSource(t, { pages: 1200 });
+  $(shell, '#split-every').value = '100';
+  $(shell, '#split-every').dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+  $(shell, '#split-every-go').click();
+  assert.equal(summary(shell), '1,200 ページを 12 のファイルに分けます。');
+});

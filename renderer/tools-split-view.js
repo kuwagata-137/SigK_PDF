@@ -26,6 +26,7 @@
 
   // 数の言い方。9 までは「3 つ」、10 からは「12」（「12 つ」とは言わない）。
   const countOf = (n) => (n < 10 ? `${n} つ` : `${n.toLocaleString('ja-JP')}`);
+  const digits = (n) => n.toLocaleString('ja-JP');
   const filesPhrase = (n) => (n < 10 ? `${n} つのファイル` : `${n.toLocaleString('ja-JP')} のファイル`);
 
   function span(className, text) {
@@ -79,7 +80,7 @@
   function skippedText(board) {
     const count = board.skipped.length;
     if (count >= 4)
-      return `${count} ページ`;
+      return `${digits(count)} ページ`;
     return `${board.skipped.map((page) => page + 1).join('・')} ページ目`;
   }
 
@@ -95,8 +96,8 @@
     const board = edit().board();
     const files = filesPhrase(plan.files);
     if (board.skipped.length === 0)
-      return `${board.pageCount} ページを ${files}に分けます。`;
-    return `${skippedText(board)}を書き出さずに、残りの ${board.pageCount - board.skipped.length} ページを ${files}に分けます。`;
+      return `${digits(board.pageCount)} ページを ${files}に分けます。`;
+    return `${skippedText(board)}を書き出さずに、残りの ${digits(board.pageCount - board.skipped.length)} ページを ${files}に分けます。`;
   }
 
   function render() {

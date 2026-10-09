@@ -6,7 +6,8 @@
 //   SIGK_SMOKE_SPLIT=<PDF>  SIGK_SMOKE_SPLIT_OPS=<操作列>  SIGK_SMOKE_SPLIT_OUT=<出力フォルダ>  SIGK_SMOKE_SPLIT_RULE=seq|pages
 //     操作はカンマ区切りで、ページと箱の番号は 1 始まり: each / every:<N> / at:<3+7 のように + でつなぐ> / clear /
 //     cut:<そのページの前で切る> / join:<箱> / select:<a>-<b> / one / skip / unskip / undo / redo / size:small|mid|large /
-//     scroll:<0〜1> / fold（別のツールへ移って戻る） / zoom:<ページ> / zoom-step:<±1> / zoom-close / state（その時点を控える）
+//     scroll:<0〜1> / fold（別のツールへ移って戻る） / leave（別のツールへ移ったまま。畳んだあとのメモリを見るため） /
+//     zoom:<ページ> / zoom-step:<±1> / zoom-close / state（その時点を控える）
 //     省略時は every:10。
 //   SIGK_SMOKE_SPLIT_STAY=1 なら実行せずに盤の画面に留まる（画面写真を撮るため）。SIGK_SMOKE_SPLIT_CANCEL=1 なら帯の「中止」を押す。
 //
@@ -69,6 +70,7 @@ function setupScript({ source, ops = 'every:10', outDir = null, rule = 'seq' }) 
       else if (name === 'redo') edit.redo();
       else if (name === 'size') edit.setSize(arg);
       else if (name === 'scroll') { scroll.scrollTop = Number(arg) * (scroll.scrollHeight - scroll.clientHeight); scroll.dispatchEvent(new Event('scroll')); }
+      else if (name === 'leave') SigK.tools.select('merge');
       else if (name === 'fold') { SigK.tools.select('merge'); await wait(400); states.push({ at: 'folded', ...snapshot() }); SigK.tools.select('split'); }
       else if (name === 'zoom') await SigK.splitZoom.open(Number(arg) - 1);
       else if (name === 'zoom-step') await SigK.splitZoom.step(Number(arg));
@@ -76,7 +78,7 @@ function setupScript({ source, ops = 'every:10', outDir = null, rule = 'seq' }) 
       else if (name === 'state') { states.push({ at: applied.length, ...snapshot() }); continue; }
       else { applied.push('unknown:' + step); continue; }
       applied.push(step);
-      await wait(name === 'fold' || name === 'scroll' || name.startsWith('zoom') ? 800 : 250);
+      await wait(name === 'fold' || name === 'leave' || name === 'scroll' || name.startsWith('zoom') ? 800 : 250);
     }
     await wait(600);
     const src = SigK.toolsSplit.source();
