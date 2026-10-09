@@ -77,6 +77,9 @@ const ACTIONS = {
   facing: (arg) => `SigK.shell.setPageLayout(document, ${JSON.stringify(arg === 'on' ? 'facing' : 'single')})`,
   fit: (arg) => `SigK.viewer.applyFit(${JSON.stringify(arg)})`,
   scroll: (arg) => `(() => { const view = document.getElementById('view'); view.scrollTop = Math.round((view.scrollHeight - view.clientHeight) * ${Number(arg)}); return view.scrollTop; })()`,
+  // 分割の盤（spec-2-2b 確定事項K3）。分割の画面に切り替えて、映しているタブの PDF（SIGK_SMOKE_PDF はタブを作らないので、表示している文書）を対象にする。
+  split: () => `(SigK.shell.setMode(document, 'tools'), SigK.tools.select('split'), SigK.toolsSplit.setSource(SigK.tabs.list().find((tab) => tab.active)?.path ?? SigK.viewer.getState().file.path))`,
+  'split-cut': (arg) => `SigK.toolsSplitEdit.cut(${Number(arg)})`,
 };
 
 function actionScript(name, arg) {
@@ -120,6 +123,14 @@ const stateScript = `(() => {
     visibleDrawn: visible.filter((page) => page.querySelector('canvas') !== null).length,
     print: { busy: SigK.print.isBusy(), result: window.__smokeKeysPrint ?? null },
     history: SigK.pageEdit.getHistoryState().at,
+    dirty: SigK.viewer.isDirty(),
+    split: SigK.toolsSplitEdit.board() === null ? null : {
+      selection: SigK.splitSelection.range(SigK.toolsSplitEdit.selection()),
+      current: SigK.splitBoardInput.current(),
+      parts: SigK.toolsSplit.currentPlan().parts?.map((pages) => pages.length) ?? [],
+      canUndo: SigK.toolsSplitEdit.canUndo(),
+      zoom: SigK.splitZoom.isOpen() ? SigK.splitZoom.current() : null,
+    },
   };
 })()`;
 
