@@ -21,6 +21,7 @@
     state.history = history().create(model().create(pageCount));
     state.selection = null;
     state.bulkError = null;
+    root.SigK.splitBoardInput?.resetCurrent();
   }
 
   const board = () => (state.history === null ? null : history().current(state.history));
@@ -124,6 +125,9 @@
     return true;
   }
 
+  // Esc の順の最後の段（確定事項G2④。escape-order.js）。分割の画面を出しているときだけ、選択を外す。
+  const escape = () => root.SigK.tools?.selected() === 'split' && clearSelection();
+
   // ---- 元に戻す・やり直す（確定事項C8） ----
 
   function step(direction) {
@@ -148,7 +152,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsSplitEdit = {
-    reset, board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, setSize,
+    reset, board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
     skip: () => setSkipped(true),
     unskip: () => setSkipped(false),
     undo: () => step('undo'),

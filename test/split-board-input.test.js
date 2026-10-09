@@ -1,0 +1,159 @@
+'use strict';
+
+// 分割の盤を押す・なぞる・キーで動かす（spec-2-2b 確定事項C3・G2・G3）。
+// 本物のマウスでは click の前に pointerdown が来るので、押して離して click まで送る（page-grid.test.js と同じ作法）。
+// jsdom は大きさを計算しない（getBoundingClientRect は 0）ので、盤の器の幅と高さを与え、位置は配置の計算から取る。
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const { createShell, makeSource, createPdfjsStub, A4 } = require('./harness.js');
+
+const A = 'C:\\work\\a.pdf';
+
+async function createInputShell(t, { pages = 12 } = {}) {
+  const shell = await createShell({
+    pdfjs: createPdfjsStub({ sizes: Array.from({ length: pages }, () => A4) }),
+    files: { [A]: makeSource({ path: A }) },
+  });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  const scroll = shell.document.getElementById('split-board-scroll');
+  Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => 640 });
+  Object.defineProperty(scroll, 'clientHeight', { configurable: true, get: () => 500 });
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.SigK.tools.select('split');
+  await shell.SigK.toolsSplit.setSource(A);
+  for (let i = 0; i < 4; i += 1)
+    await shell.flush();
+  return shell;
+}
+
+const plain = (value) => structuredClone(value);
+const range = (shell) => plain(shell.SigK.splitSelection.range(shell.SigK.toolsSplitEdit.selection()));
+const pageNode = (shell, page) => shell.document.querySelector(`.sb-page[data-page="${page}"]`);
+
+function centerOf(shell, page) {
+  const rect = shell.SigK.splitLayout.pageRect(shell.SigK.splitBoardView.layout(), page);
+  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+}
+
+function pointer(shell, type, target, { x, y }, { shift = false } = {}) {
+  const Ctor = shell.window.PointerEvent ?? shell.window.MouseEvent;
+  target.dispatchEvent(new Ctor(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, pointerId: 1, shiftKey: shift }));
+}
+
+// 動かさずに押して離す（クリック）。
+function press(shell, page, { shift = false } = {}) {
+  const node = pageNode(shell, page);
+  const point = centerOf(shell, page);
+  pointer(shell, 'pointerdown', node, point, { shift });
+  pointer(shell, 'pointerup', node, point, { shift });
+  node.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, clientX: point.x, clientY: point.y, detail: 1, shiftKey: shift }));
+}
+
+function key(shell, target, name, extra = {}) {
+  const event = new shell.window.KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true, ...extra });
+  target.dispatchEvent(event);
+  return event;
+}
+
+test('クリックはその 1 枚を選び、Shift＋クリックはその間を選ぶ', async (t) => {
+  const shell = await createInputShell(t);
+  press(shell, 2);
+  assert.deepEqual(range(shell), { from: 2, to: 2 });
+  press(shell, 5, { shift: true });
+  assert.deepEqual(range(shell), { from: 2, to: 5 });
+  assert.equal(shell.document.getElementById('split-band-text').textContent, '3〜6 ページを選んでいます');
+});
+
+test('押したままなぞると、押したページからなぞった所までを選ぶ。なぞったあとの click は捨てる', async (t) => {
+  const shell = await createInputShell(t);
+  press(shell, 7);
+  const start = centerOf(shell, 1);
+  pointer(shell, 'pointerdown', pageNode(shell, 1), start);
+  pointer(shell, 'pointermove', shell.document, { x: start.x + 2, y: start.y });
+  assert.deepEqual(range(shell), { from: 7, to: 7 }, '5px までは動かしても、なぞりは始まらない');
+  const end = centerOf(shell, 6);
+  pointer(shell, 'pointermove', shell.document, end);
+  assert.deepEqual(range(shell), { from: 1, to: 6 });
+  pointer(shell, 'pointerup', shell.document, end);
+  pageNode(shell, 6).dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  assert.deepEqual(range(shell), { from: 1, to: 6 }, 'なぞり終えたときの click では選び直さない');
+});
+
+test('なぞる途中の Esc は、なぞる前の選択に戻して止める（ほかの Esc の段には流さない）', async (t) => {
+  const shell = await createInputShell(t);
+  press(shell, 0);
+  pointer(shell, 'pointerdown', pageNode(shell, 3), centerOf(shell, 3));
+  pointer(shell, 'pointermove', shell.document, centerOf(shell, 5));
+  assert.deepEqual(range(shell), { from: 3, to: 5 });
+  const event = key(shell, shell.document.body, 'Escape');
+  assert.equal(event.defaultPrevented, true);
+  assert.deepEqual(range(shell), { from: 0, to: 0 });
+  pointer(shell, 'pointermove', shell.document, centerOf(shell, 8));
+  assert.deepEqual(range(shell), { from: 0, to: 0 }, 'Esc のあとは動かしても選ばない');
+});
+
+test('なぞっていないときの Esc は、選択を外す（確定事項G2④）', async (t) => {
+  const shell = await createInputShell(t);
+  press(shell, 4);
+  assert.deepEqual(range(shell), { from: 4, to: 4 });
+  key(shell, shell.document.body, 'Escape');
+  assert.equal(range(shell), null);
+});
+
+test('✂ と［つなげる］の上では、なぞり始めない', async (t) => {
+  const shell = await createInputShell(t);
+  const cut = shell.document.querySelector('.sb-cut[data-cut="3"]');
+  const at = centerOf(shell, 3);
+  pointer(shell, 'pointerdown', cut, at);
+  pointer(shell, 'pointermove', shell.document, centerOf(shell, 6));
+  assert.equal(range(shell), null);
+  // ページの上からなら、同じ動かし方でなぞれる（上の確かめが空振りでないこと）。
+  pointer(shell, 'pointerup', shell.document, centerOf(shell, 6));
+  pointer(shell, 'pointerdown', pageNode(shell, 3), at);
+  pointer(shell, 'pointermove', shell.document, centerOf(shell, 6));
+  assert.deepEqual(range(shell), { from: 3, to: 6 });
+});
+
+test('盤の上のキー: ←→ で今のページを動かし、Shift で選択を広げ、Space で選ぶ。Home・End で端へ', async (t) => {
+  const shell = await createInputShell(t);
+  const scroll = shell.document.getElementById('split-board-scroll');
+  scroll.focus();
+  const right = key(shell, scroll, 'ArrowRight');
+  assert.equal(right.defaultPrevented, true);
+  assert.equal(shell.SigK.splitBoardInput.current(), 1, '今のページが無ければ先頭から');
+  assert.equal(pageNode(shell, 1).classList.contains('current'), true);
+  key(shell, scroll, ' ');
+  assert.deepEqual(range(shell), { from: 1, to: 1 });
+  key(shell, scroll, 'ArrowRight', { shiftKey: true });
+  key(shell, scroll, 'ArrowRight', { shiftKey: true });
+  assert.deepEqual(range(shell), { from: 1, to: 3 });
+  key(shell, scroll, 'End');
+  assert.equal(shell.SigK.splitBoardInput.current(), 11);
+  key(shell, scroll, 'Home');
+  assert.equal(shell.SigK.splitBoardInput.current(), 0);
+  key(shell, scroll, 'ArrowLeft');
+  assert.equal(shell.SigK.splitBoardInput.current(), 0, '先頭より前へは行かない');
+});
+
+test('↑↓ は上下の段へ動く（1 段に 4 枚の箱）', async (t) => {
+  const shell = await createInputShell(t);
+  const scroll = shell.document.getElementById('split-board-scroll');
+  press(shell, 1);
+  key(shell, scroll, 'ArrowDown');
+  assert.equal(shell.SigK.splitBoardInput.current(), 5);
+  key(shell, scroll, 'ArrowUp');
+  assert.equal(shell.SigK.splitBoardInput.current(), 1);
+});
+
+test('盤のキーは裏の画面へ流さない', async (t) => {
+  const shell = await createInputShell(t);
+  const scroll = shell.document.getElementById('split-board-scroll');
+  let reached = false;
+  shell.document.addEventListener('keydown', () => { reached = true; });
+  key(shell, scroll, 'PageDown');
+  key(shell, scroll, 'ArrowDown');
+  assert.equal(reached, false);
+});

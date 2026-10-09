@@ -91,7 +91,8 @@
       return true;
     if (annot)
       return cancel().unselect() || cancel().dropTool();
-    return inMode(doc, 'pages') && clearPageSelection();
+    // 分割の盤の選択（spec-2-2b 確定事項G2④）。
+    return (inMode(doc, 'pages') && clearPageSelection()) || (inMode(doc, 'tools') && root.SigK.toolsSplitEdit?.escape() === true);
   }
 
   // 何かを取りやめたら preventDefault して true（確定事項C2）。

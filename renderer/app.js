@@ -108,6 +108,8 @@
     // 分割の盤（spec-2-2b）。右の欄の render から描き直されるので、右の欄の後に用意する。
     root.SigK.splitBoardView.init(doc, win);
     root.SigK.splitBoardBand.init(doc, win);
+    // なぞる途中の Esc を受ける document の keydown は、Esc の振り分け（viewerControls の handleKey）より先に登録する。
+    root.SigK.splitBoardInput.init(doc, win);
     root.SigK.toolsConvert.init(doc, win);
     root.SigK.toolsConvertList.init(doc, win);
     root.SigK.toolsConvertView.init(doc, win);
