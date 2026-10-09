@@ -164,7 +164,7 @@
     for (const rule of ['seq', 'pages'])
       el.ruleRadios[rule].addEventListener('change', () => { if (el.ruleRadios[rule].checked) split().setRule(rule); });
 
-    onClick(el.useOpen, () => split().useOpenTab());
+    root.SigK.sourcePicker.bindTabMenu(el.useOpen, (id) => split().useTab(id));
     onClick(el.pick, () => split().pickFile());
     onClick(el.folderPick, () => split().pickFolder());
     onClick(el.run, () => split().run());

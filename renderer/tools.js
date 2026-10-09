@@ -40,6 +40,8 @@
     if (el === null || !TOOLS.some((tool) => tool.id === id))
       return false;
     state.selected = id;
+    // ［開いているタブから選ぶ ▾］の一覧は、ツールを切り替えたら閉じる（spec-2-2b 確定事項F6）。
+    root.SigK.tabMenu?.close();
     for (const item of el.list.querySelectorAll('.tool-item'))
       item.classList.toggle('active', item.dataset.tool === id);
     for (const panel of el.view.querySelectorAll('[data-tool]'))
@@ -91,6 +93,8 @@
       placeholder.hidden = active || listShown || el.doc.getElementById('thumbs')?.hidden === false;
     if (active)
       select(state.selected);
+    else
+      root.SigK.tabMenu?.close();
     root.SigK.save?.syncButtons();
     return active;
   }

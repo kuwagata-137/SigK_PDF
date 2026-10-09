@@ -44,7 +44,7 @@
   });
 
   const source = () => field.source();
-  const { setSource, useOpenTab, pickFile, addPaths } = field;
+  const { setSource, useTab, pickFile, addPaths } = field;
   const census = () => (state.census === null ? null : { ...state.census });
 
   // 対象が読めたら数える。同じファイルはもう一度数えない。
@@ -143,7 +143,7 @@
   SigK.toolsFlatten = {
     PICK_TITLE, SAVE_TITLE, COUNT_LABEL, RUN_LABEL,
     init, source, census, status, canRun, defaultTarget,
-    setSource, useOpenTab, pickFile, addPaths, run,
+    setSource, useTab, pickFile, addPaths, run,
     isRunning: () => state.running,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

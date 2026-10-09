@@ -69,7 +69,7 @@
   const source = () => field.source();
   const settings = () => ({ mode: state.mode, range: state.range, format: state.format, dpi: state.dpi, folder: state.folder });
   // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う。確定事項1）。
-  const { setSource, useOpenTab, pickFile, addPaths } = field;
+  const { setSource, useTab, pickFile, addPaths } = field;
 
   // ---- ページ・形式・出力（確定事項6〜11・15） ----
 
@@ -301,7 +301,7 @@
   SigK.toolsToImage = {
     NOTE_UNSAVED, NOTE_FIRST_ONLY, PICK_TITLE, LABEL,
     init, source, settings, currentPlan, joinPath,
-    setSource, useOpenTab, pickFile, addPaths,
+    setSource, useTab, pickFile, addPaths,
     setPageMode, setRange, setFormat, setDpi, setFolder, pickFolder,
     canRun, resolveTargets, run,
     isRunning: () => state.running,

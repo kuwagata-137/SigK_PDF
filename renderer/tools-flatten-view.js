@@ -117,7 +117,7 @@
       status: byId('fl-status'), list: byId('fl-list'), keep: byId('fl-keep'), keepText: byId('fl-keep-text'), warn: byId('fl-warn'),
       summary: byId('fl-summary'),
     };
-    onClick(el.useOpen, () => tool().useOpenTab());
+    root.SigK.sourcePicker.bindTabMenu(el.useOpen, (id) => tool().useTab(id));
     onClick(el.pick, () => tool().pickFile());
     onClick(el.run, () => tool().run());
     render();

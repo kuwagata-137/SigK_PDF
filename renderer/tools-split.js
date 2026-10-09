@@ -66,7 +66,7 @@
   const source = () => field.source();
   const settings = () => ({ mode: state.mode, every: state.every, at: state.at, range: state.range, folder: state.folder, rule: state.rule });
   // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う。確定事項2）。`--split` は useFromLaunch。
-  const { setSource, useOpenTab, pickFile, addPaths } = field;
+  const { setSource, useTab, pickFile, addPaths } = field;
 
   // `--split` の受け口（確定事項6・spec-5-1 確定事項9・20・21）。右クリックで N 個選ぶと、分割にも
   // 1 本ずつ届く（子の MultiSelectModel=Single は効かない。事前調査 A2）。束の中でファイル名の順に
@@ -274,7 +274,7 @@
   SigK.toolsSplit = {
     NOTE_UNSAVED, NOTE_FIRST_ONLY,
     init, source, settings, currentPlan, joinPath,
-    setSource, useOpenTab, pickFile, addPaths, useFromLaunch,
+    setSource, useTab, pickFile, addPaths, useFromLaunch,
     setMode, setInput, setRule, setFolder, pickFolder,
     canRun, resolveTargets, run,
     isRunning: () => state.running,

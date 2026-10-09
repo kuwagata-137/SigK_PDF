@@ -108,7 +108,7 @@ test('分割の「範囲」は 1 つのファイルに取り出す。ツール�
   assert.match(tools, /そのページだけを 1 つのファイルに取り出す/);
   assert.doesNotMatch(tools, /範囲ごとに分けて/);
   assert.match(tools, /［実行…］を押すと始まります/);
-  assert.match(tools, /［開いているファイルを追加］/);
+  assert.match(tools, /［開いているタブから選ぶ］（結合では［開いているタブをまとめて追加］）/);
 });
 
 test('Esc の例は、持っている道具と選んでいる書き込みを書き分ける', () => {

@@ -190,14 +190,14 @@ body{
             <span class="hint">上から順に1つの PDF にまとめます。しおりは引き継がれません。</span>
           </div>
           <div class="merge-bar">
-            <button type="button" class="act" id="merge-add-open"><span data-icon="plus" data-icon-size="14" data-icon-stroke="2"></span>開いているファイルを追加</button>
+            <button type="button" class="act" id="merge-add-open"><span data-icon="plus" data-icon-size="14" data-icon-stroke="2"></span>開いているタブをまとめて追加</button>
             <button type="button" class="act" id="merge-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
             <span class="spacer"></span>
             <button type="button" class="act quiet" id="merge-clear">すべて外す</button>
           </div>
           <div class="merge-list" id="merge-list">
             <div class="merge-cols"><span></span><span>ファイル</span><span>ページ数</span><span>ページ範囲（空欄＝すべて）</span><span></span><span></span><span></span></div>
-            <p class="empty" id="merge-empty">「開いているファイルを追加」か「ファイルを選ぶ…」で、結合する PDF を足してください。<br>PDF をここへドロップしても足せます。</p>
+            <p class="empty" id="merge-empty">［開いているタブをまとめて追加］か［ファイルを選ぶ…］で、結合する PDF を足してください。<br>PDF をここへドロップしても足せます。</p>
           </div>
           <div class="merge-foot">
             <span class="sum" id="merge-summary"></span>
@@ -221,9 +221,9 @@ body{
                   <span class="pages" id="split-pages"></span>
                   <span class="note" id="split-note" hidden></span>
                 </div>
-                <p class="empty" id="split-empty">「開いているファイル」か「ファイルを選ぶ…」で、分割する PDF を決めてください。PDF をここへドロップしてもかまいません。</p>
+                <p class="empty" id="split-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、分割する PDF を決めてください。</p>
                 <div class="btns">
-                  <button type="button" class="act" id="split-use-open"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているファイル</button>
+                  <button type="button" class="act" id="split-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
                   <button type="button" class="act" id="split-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
                 </div>
               </div>
@@ -373,9 +373,9 @@ body{
                   <span class="pages" id="toimage-pages"></span>
                   <span class="note" id="toimage-note" hidden></span>
                 </div>
-                <p class="empty" id="toimage-empty">「開いているファイル」か「ファイルを選ぶ…」で、画像にする PDF を決めてください。PDF をここへドロップしてもかまいません。</p>
+                <p class="empty" id="toimage-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、画像にする PDF を決めてください。</p>
                 <div class="btns">
-                  <button type="button" class="act" id="toimage-use-open"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているファイル</button>
+                  <button type="button" class="act" id="toimage-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
                   <button type="button" class="act" id="toimage-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
                 </div>
               </div>
@@ -442,9 +442,9 @@ body{
                     <span class="pages" id="wm-pages"></span>
                     <span class="note" id="wm-note" hidden></span>
                   </div>
-                  <p class="empty" id="wm-empty">「開いているファイル」か「ファイルを選ぶ…」で、透かしを入れる PDF を決めてください。PDF をここへドロップしてもかまいません。</p>
+                  <p class="empty" id="wm-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、透かしを入れる PDF を決めてください。</p>
                   <div class="btns">
-                    <button type="button" class="act" id="wm-use-open"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているファイル</button>
+                    <button type="button" class="act" id="wm-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
                     <button type="button" class="act" id="wm-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
                   </div>
                 </div>
@@ -538,9 +538,9 @@ body{
                   <span class="pages" id="fl-pages"></span>
                   <span class="note" id="fl-note" hidden></span>
                 </div>
-                <p class="empty" id="fl-empty">「開いているファイル」か「ファイルを選ぶ…」で、書き込みを焼き込む PDF を決めてください。PDF をここへドロップしてもかまいません。</p>
+                <p class="empty" id="fl-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、書き込みを焼き込む PDF を決めてください。</p>
                 <div class="btns">
-                  <button type="button" class="act" id="fl-use-open"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているファイル</button>
+                  <button type="button" class="act" id="fl-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
                   <button type="button" class="act" id="fl-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
                 </div>
               </div>
@@ -907,6 +907,7 @@ body{
 <script src="renderer/tools-merge-list.js"></script>
 <script src="renderer/split-plan.js"></script>
 <script src="renderer/tool-source.js"></script>
+<script src="renderer/tab-menu.js"></script>
 <script src="renderer/source-picker.js"></script>
 <script src="renderer/tools-split.js"></script>
 <script src="renderer/tools-split-view.js"></script>

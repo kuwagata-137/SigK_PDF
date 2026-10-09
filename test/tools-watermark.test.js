@@ -271,14 +271,20 @@ test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、�
   assert.equal(byId(shell, 'view-banner').getAttribute('data-tone'), 'warn');
 });
 
-test('「開いているファイル」が未保存なら注意書きと帯を出す', async (t) => {
+// ［開いているタブから選ぶ ▾］を押し、一覧からそのファイルの行を選ぶ（spec-2-2b 確定事項F2）。
+function chooseTab(shell, buttonId, filePath) {
+  shell.document.getElementById(buttonId).click();
+  [...shell.document.querySelectorAll('.tab-menu .tab-menu-row')].find((row) => row.title === filePath).click();
+}
+
+test('［開いているタブから選ぶ］で選んだタブが未保存なら注意書きと帯を出す', async (t) => {
   const shell = await createWatermarkShell(t);
   const { document: doc, SigK } = shell;
   await SigK.tabs.openPath(A);
   await shell.flush();
   SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
   SigK.shell.setMode(doc, 'tools');
-  byId(shell, 'wm-use-open').click();
+  chooseTab(shell, 'wm-use-open', A);
   await shell.flush();
   await shell.flush();
   assert.equal(SigK.toolsWatermark.source().note, '未保存の編集は反映されません');

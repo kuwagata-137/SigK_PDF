@@ -111,12 +111,12 @@
     const present = new Set(state.rows.map((row) => pathKey(row.path)));
     const fresh = open.filter((tab) => typeof tab.path === 'string' && !present.has(pathKey(tab.path)));
     if (open.length === 0) {
-      banner().show('開いているファイルがありません。');
+      banner().show('タブで開いている PDF がありません。');
       return [];
     }
     // 注意・お知らせは黄色の帯で出す（決定49）。
     if (fresh.length === 0) {
-      banner().show('開いているファイルはすべて一覧に入っています。', { tone: 'warn' });
+      banner().show('開いているタブの PDF は、すべて一覧に入っています。', { tone: 'warn' });
       return [];
     }
     const dirtyIds = new Set(fresh.filter((tab) => tabs().isDirty(tab.id)).map((tab) => pathKey(tab.path)));

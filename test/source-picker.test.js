@@ -139,3 +139,28 @@ test('render は対象の有無・読んでいる間・読めないときを欄�
   assert.equal(elements.pages.textContent, '3 ページ');
   assert.equal(elements.note.hidden, true);
 });
+
+// ---- タブから選ぶ（spec-2-2b 確定事項F2・F4） ----
+
+test('tabChoices はタブの並びで、選んでいるタブと未保存を印にする。useTab は無いタブなら何もしない', async (t) => {
+  const { createShell: create, makeSource } = require('./harness.js');
+  const shell = await create({ files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) } });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  const { SigK } = shell;
+  await SigK.tabs.openPath(A);
+  await SigK.tabs.openPath(B);
+  await shell.flush();
+  SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
+  const [first, second] = SigK.tabs.list();
+  assert.deepEqual(plain(SigK.sourcePicker.tabChoices()), [
+    { id: first.id, name: 'a.pdf', path: A, active: false, dirty: false },
+    { id: second.id, name: 'b.pdf', path: B, active: true, dirty: true },
+  ]);
+  const field = SigK.sourcePicker.create({ inspect: async () => ({ pageCount: 3, name: 'b.pdf' }), pick: () => null, dirtyMessage: '未保存です' });
+  assert.equal(await field.useTab(999), false);
+  assert.equal(field.source(), null);
+  assert.equal(await field.useTab(second.id), true);
+  assert.equal(field.source().note, SigK.sourcePicker.NOTE_UNSAVED);
+  assert.equal(SigK.viewBanner.text(), '未保存です');
+});

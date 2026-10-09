@@ -183,7 +183,7 @@
     el.range.addEventListener('input', () => tool().setRange(el.range.value));
     // 範囲の欄に触れたら「範囲」を選ぶ。ラジオまで戻らせない（PDF→画像と同じ）。
     el.range.addEventListener('focus', () => tool().setPageMode('range'));
-    onClick(el.useOpen, () => tool().useOpenTab());
+    root.SigK.sourcePicker.bindTabMenu(el.useOpen, (id) => tool().useTab(id));
     onClick(el.pick, () => tool().pickFile());
     onClick(el.imagePick, () => tool().pickImage());
     onClick(el.run, () => tool().run());

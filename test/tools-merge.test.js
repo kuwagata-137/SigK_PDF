@@ -71,7 +71,7 @@ test('取り消したら何も足さない', async (t) => {
   assert.deepEqual(names(shell), []);
 });
 
-test('「開いているファイルを追加」はタブの並びで未追加のものだけ足し、未保存には注意を出す', async (t) => {
+test('［開いているタブをまとめて追加］はタブの並びで未追加のものだけ足し、未保存には注意を出す', async (t) => {
   const shell = await createMergeShell(t);
   const { SigK } = shell;
   await SigK.tabs.openPath(A);
@@ -99,10 +99,10 @@ test('「開いているファイルを追加」はタブの並びで未追加�
   assert.equal(bannerTone(shell), 'warn');
 });
 
-test('開いているファイルが無ければ帯で伝える', async (t) => {
+test('タブが無ければ帯で伝える', async (t) => {
   const shell = await createMergeShell(t);
   assert.deepEqual(plain(await shell.SigK.toolsMerge.addOpenTabs()), []);
-  assert.match(bannerText(shell), /開いているファイルがありません/);
+  assert.match(bannerText(shell), /タブで開いている PDF がありません/);
 });
 
 test('同じファイルを2回足せる', async (t) => {

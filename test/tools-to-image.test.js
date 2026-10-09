@@ -94,7 +94,13 @@ test('「ファイルを選ぶ」で対象が決まり、ページ数・寸法�
   assert.equal(shell.toolSourceCalls[0].title, '画像にする PDF を選ぶ');
 });
 
-test('「開いているファイル」はアクティブなタブを対象にし、未保存なら注意を出す', async (t) => {
+// ［開いているタブから選ぶ ▾］を押し、一覧からそのファイルの行を選ぶ（spec-2-2b 確定事項F2）。
+function chooseTab(shell, buttonId, filePath) {
+  shell.document.getElementById(buttonId).click();
+  [...shell.document.querySelectorAll('.tab-menu .tab-menu-row')].find((row) => row.title === filePath).click();
+}
+
+test('［開いているタブから選ぶ］で選んだタブを対象にし、未保存なら注意を出す', async (t) => {
   const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
   await SigK.tabs.openPath(A);
@@ -103,7 +109,7 @@ test('「開いているファイル」はアクティブなタブを対象に�
   SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
   SigK.shell.setMode(doc, 'tools');
 
-  doc.getElementById('toimage-use-open').click();
+  chooseTab(shell, 'toimage-use-open', B);
   await shell.flush();
   await shell.flush();
   assert.equal(SigK.toolsToImage.source().path, B);
@@ -112,10 +118,12 @@ test('「開いているファイル」はアクティブなタブを対象に�
   assert.match(bannerText(shell), /未保存の編集は画像に反映されません/);
 });
 
-test('開いているファイルが無ければ帯で伝える', async (t) => {
+test('タブが無ければ、一覧に案内の 1 行を出す（帯は出さない）', async (t) => {
   const shell = await createToImageShell(t);
-  assert.equal(await shell.SigK.toolsToImage.useOpenTab(), false);
-  assert.match(bannerText(shell), /開いているファイルがありません/);
+  shell.document.getElementById('toimage-use-open').click();
+  assert.equal(shell.document.querySelector('.tab-menu .tab-menu-empty').textContent, 'タブで開いている PDF はありません');
+  assert.equal(await shell.SigK.toolsToImage.useTab(999), false);
+  assert.equal(bannerText(shell), '');
 });
 
 test('PDF→画像を選んでいるときの PDF のドロップは対象になり、2本以上なら先頭だけ', async (t) => {
