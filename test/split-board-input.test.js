@@ -157,3 +157,48 @@ test('盤のキーは裏の画面へ流さない', async (t) => {
   key(shell, scroll, 'ArrowDown');
   assert.equal(reached, false);
 });
+
+// ---- 元に戻す・やり直すのキー（spec-2-2b 確定事項G1） ----
+
+test('分割の画面の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z は、文書が開いていなくても盤の操作を戻す・やり直す', async (t) => {
+  const shell = await createInputShell(t);
+  const edit = shell.SigK.toolsSplitEdit;
+  edit.cut(3);
+  edit.cut(6);
+  const parts = () => plain(shell.SigK.toolsSplit.currentPlan().parts).map((pages) => pages.length);
+  const z = key(shell, shell.document.body, 'z', { ctrlKey: true });
+  assert.equal(z.defaultPrevented, true);
+  assert.deepEqual(parts(), [3, 9]);
+  key(shell, shell.document.body, 'y', { ctrlKey: true });
+  assert.deepEqual(parts(), [3, 3, 6]);
+  key(shell, shell.document.body, 'z', { ctrlKey: true });
+  key(shell, shell.document.body, 'Z', { ctrlKey: true, shiftKey: true });
+  assert.deepEqual(parts(), [3, 3, 6]);
+});
+
+test('まとめて分けるの欄の中の Ctrl+Z は、欄の文字の取り消しに任せて盤を戻さない', async (t) => {
+  const shell = await createInputShell(t);
+  shell.SigK.toolsSplitEdit.cut(3);
+  const input = shell.document.getElementById('split-at');
+  input.focus();
+  const event = key(shell, input, 'z', { ctrlKey: true });
+  assert.equal(event.defaultPrevented, false);
+  assert.equal(shell.SigK.toolsSplitEdit.canUndo(), true, '盤は戻していない');
+});
+
+test('文書を開いていても、分割の画面の Ctrl+Z は文書の編集ではなく盤を戻す', async (t) => {
+  const shell = await createInputShell(t);
+  const { SigK, document: doc } = shell;
+  await SigK.tabs.openPath(A);
+  await shell.flush();
+  SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
+  SigK.shell.setMode(doc, 'tools');
+  SigK.tools.select('split');
+  SigK.toolsSplitEdit.cut(3);
+  key(shell, doc.body, 'z', { ctrlKey: true });
+  assert.equal(SigK.toolsSplitEdit.canUndo(), false, '盤を戻した');
+  assert.equal(SigK.viewer.isDirty(), true, '文書の編集は残っている');
+  SigK.tools.select('merge');
+  key(shell, doc.body, 'z', { ctrlKey: true });
+  assert.equal(SigK.viewer.isDirty(), false, 'ほかのツールの画面では、今までどおり文書の編集を戻す');
+});

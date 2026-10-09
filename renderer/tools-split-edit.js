@@ -125,6 +125,20 @@
     return true;
   }
 
+  // 分割の画面の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z（確定事項G1。viewer-keys.js の handleKey から）。分割の画面を出しているときだけ取る。
+  // 文字を打つ欄（N・ページ番号）の中では取らず、欄の素の取り消しに任せる。実行中は取るが何もしない。
+  function handleKey(event, doc) {
+    const keys = root.SigK.viewerKeys;
+    const direction = keys.historyStep(event);
+    if (direction === null || doc.documentElement.getAttribute('data-mode') !== 'tools' || root.SigK.tools?.selected() !== 'split')
+      return false;
+    if (keys.isTypingField(event.target))
+      return false;
+    event.preventDefault();
+    step(direction);
+    return true;
+  }
+
   // Esc の順の最後の段（確定事項G2④。escape-order.js）。分割の画面を出しているときだけ、選択を外す。
   const escape = () => root.SigK.tools?.selected() === 'split' && clearSelection();
 
@@ -152,7 +166,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsSplitEdit = {
-    reset, board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
+    reset, board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, handleKey, setSize,
     skip: () => setSkipped(true),
     unskip: () => setSkipped(false),
     undo: () => step('undo'),
