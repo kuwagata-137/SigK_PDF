@@ -26,10 +26,10 @@
     return doc.getElementById('help-dialog');
   }
 
-  // 開いたときに出す節（確定事項C）。ツールモードは文書が無くても使えるので、ツールの節を出す。
-  function sectionFor({ mode, open, tool }) {
+  // 開いたときに出す節（確定事項C）。ツールモードは文書が無くても使えるので、ツールの節を出す。分割の画面なら分割の節（spec-2-2b 確定事項G4）。
+  function sectionFor({ mode, open, tool, toolPanel = null }) {
     if (mode === 'tools')
-      return 'tools';
+      return toolPanel === 'split' ? 'split' : 'tools';
     if (open !== true)
       return 'basics';
     if (mode === 'annot')
@@ -42,6 +42,7 @@
       mode: doc.documentElement.getAttribute('data-mode'),
       open: root.SigK.viewer?.getState().open === true,
       tool: root.SigK.annotate?.getTool() ?? null,
+      toolPanel: root.SigK.tools?.selected() ?? null,
     };
   }
 

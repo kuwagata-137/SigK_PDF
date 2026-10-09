@@ -53,14 +53,14 @@ test('ツールバーの右端（印刷の右）に「？」のボタンがあ�
   assert.notEqual(button.querySelector('svg'), null, 'アイコンが出ていない');
 });
 
-test('窓の中は、題・目次の 13 節・本文の 13 節を起動のときに組んである', async (t) => {
+test('窓の中は、題・目次の 14 節・本文の 14 節を起動のときに組んである', async (t) => {
   const shell = await withShell(t, { open: false });
   const { SigK } = shell;
   assert.equal(shell.document.getElementById('help-title').textContent, SigK.helpContent.TITLE);
   const items = [...dialog(shell).querySelectorAll('.help-nav .help-item')].map((node) => node.dataset.section);
   assert.deepEqual(items, Array.from(SigK.helpContent.SECTIONS, (section) => section.id));
   assert.equal(dialog(shell).querySelectorAll('.help-nav .help-grp').length, 5);
-  assert.equal(dialog(shell).querySelectorAll('.help-body .help-section').length, 13);
+  assert.equal(dialog(shell).querySelectorAll('.help-body .help-section').length, 14);
   assert.deepEqual(shown(shell), []);
   assert.notEqual(shell.document.querySelector('#help-close svg'), null);
   assert.equal(shell.document.getElementById('help-done').textContent, '閉じる');
@@ -196,6 +196,7 @@ test('sectionFor は、モード・文書の有無・道具で節を選ぶ', asy
   const pick = (mode, tool = null, open = true) => SigK.helpDialog.sectionFor({ mode, open, tool });
   assert.equal(pick('tools', null, false), 'tools');
   assert.equal(pick('tools'), 'tools');
+  assert.equal(SigK.helpDialog.sectionFor({ mode: 'tools', open: false, tool: null, toolPanel: 'split' }), 'split');
   assert.equal(pick('view', null, false), 'basics');
   assert.equal(pick('annot', 'pen', false), 'basics');
   assert.equal(pick('view'), 'view');
@@ -232,6 +233,8 @@ test('開いたときは、今のモードと持っている道具の節を出�
   assert.equal(openedAt(), 'mosaic-trim');
   SigK.shell.setMode(document, 'tools');
   assert.equal(openedAt(), 'tools');
+  SigK.tools.select('split');
+  assert.equal(openedAt(), 'split', '分割の画面では分割の節（spec-2-2b 確定事項G4）');
 });
 
 // ---- 目次（確定事項B3・B4） ----
