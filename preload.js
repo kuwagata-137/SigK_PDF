@@ -67,6 +67,8 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   pickMergeSources: (options) => ipcRenderer.invoke('pdf:pickMergeSources', options),
   // 出力先に同名があるか（spec-2-1 確定事項28）。{ ok, exists }。
   exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
+  // 大きさと更新日時だけを読む（spec-2-2b 確定事項D7）。{ ok, size, mtimeMs } / { error }。
+  stat: (filePath) => ipcRenderer.invoke('pdf:stat', filePath),
   // 分割する PDF を1本選ばせる（spec-2-2 確定事項2）。{ path } / { canceled }。
   pickSplitSource: (options) => ipcRenderer.invoke('pdf:pickSplitSource', options),
   // ツールの対象を1本選ばせる。題名を渡せる（spec-3-3 確定事項2）。{ path } / { canceled }。

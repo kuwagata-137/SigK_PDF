@@ -388,6 +388,8 @@ function registerIpc() {
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
+  // 大きさと更新日時だけ（spec-2-2b 確定事項D7。分割の画面の書き換わりの照らし）。
+  ipcMain.handle('pdf:stat', (_event, filePath) => fileIo.stat(filePath));
   ipcMain.handle('pdf:pickSavePath', (_event, options = {}) => fileIo.pickSavePath(mainWindow, options));
   ipcMain.handle('pdf:pickInsertSource', (_event, options = {}) => fileIo.pickInsertSource(mainWindow, options));
   // 結合の入力の複数選択と、出力先の同名判定（spec-2-1 確定事項9・28）。

@@ -86,6 +86,21 @@ async function readPdf(filePath, { fsLike = fs, maxBytes = MAX_PDF_BYTES, onErro
   }
 }
 
+// 大きさと更新日時だけを読む（spec-2-2b 確定事項D7）。分割の画面が、読んだあとで書き換わっていないかを、
+// 中身を読み直さずに照らすのに使う。{ ok, size, mtimeMs } / { error }。
+async function statPdf(filePath, { fsLike = fs } = {}) {
+  if (!isPdfPath(filePath))
+    return { error: 'PDF ファイルではありません。' };
+  try {
+    const stat = await fsLike.promises.stat(filePath);
+    if (!stat.isFile())
+      return { error: 'ファイルではありません。' };
+    return { ok: true, size: stat.size, mtimeMs: Math.round(stat.mtimeMs) };
+  } catch (error) {
+    return { error: describeReadFailure(error) };
+  }
+}
+
 async function pickPdf({ dialogLike, parentWindow = null, defaultPath = undefined }) {
   const options = {
     title: 'PDF を開く',
@@ -214,6 +229,7 @@ function createFileIo({ dialog, onError = () => {} }) {
   return {
     MAX_PDF_BYTES,
     read: (filePath) => readPdf(filePath, { onError }),
+    stat: (filePath) => statPdf(filePath),
     async open(parentWindow = null) {
       const picked = await pickPdf({ dialogLike: dialog, parentWindow });
       if (picked.canceled === true)
@@ -245,6 +261,7 @@ module.exports = {
   describeReadFailure,
   toBytes,
   readPdf,
+  statPdf,
   pickPdf,
   pickInsertSource,
   pickPdfPaths,

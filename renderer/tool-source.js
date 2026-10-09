@@ -27,7 +27,9 @@
     return sizes;
   }
 
-  async function inspect(filePath, { withSizes, encryptedError }) {
+  // 開いて、文書を開いたまま返す（spec-2-2b 確定事項D1。分割の盤が読むのを 1 回で済ませるため）。閉じるのは呼ぶ側で、
+  // task.destroy() を呼ぶ。戻り値は { info, task, doc } か { reason, error }。info は { pageCount, name, size, mtimeMs }。
+  async function openPdf(filePath, { encryptedError }) {
     const api = root.pdfAPI;
     if (api?.available !== true || root.SigK.pdfjs?.available !== true)
       return { reason: 'unavailable', error: 'PDF を読む機能を使えません' };
@@ -43,18 +45,28 @@
     };
     try {
       const doc = await task.promise;
-      const info = { pageCount: doc.numPages, name: read.name ?? baseName(filePath) };
-      if (withSizes)
-        info.sizes = await collectSizes(doc);
-      return info;
+      return { task, doc, info: { pageCount: doc.numPages, name: read.name ?? baseName(filePath), size: read.size, mtimeMs: read.mtimeMs } };
     } catch {
+      // 開けなかったときも畳んでおく（pdf.js は失敗したタスクの destroy を許す）。
+      await task.destroy?.();
       return encrypted
         ? { reason: 'encrypted', error: encryptedError }
         : { reason: 'broken', error: 'この PDF を開けません' };
+    }
+  }
+
+  async function inspect(filePath, { withSizes, encryptedError }) {
+    const opened = await openPdf(filePath, { encryptedError });
+    if (opened.reason !== undefined)
+      return opened;
+    try {
+      const info = { pageCount: opened.info.pageCount, name: opened.info.name };
+      if (withSizes)
+        info.sizes = await collectSizes(opened.doc);
+      return info;
     } finally {
       // 畳むのは loadingTask（spec-3-3 確定事項25）。doc.destroy は pdf.js 6 に無い。
-      // 開けなかったときも呼んでおく（pdf.js は失敗したタスクの destroy を許す）。
-      await task.destroy?.();
+      await opened.task.destroy?.();
     }
   }
 
@@ -83,5 +95,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.toolSource = { inspectPdf, inspectPdfPages, inspectImage, baseName };
+  SigK.toolSource = { openPdf, inspectPdf, inspectPdfPages, inspectImage, baseName };
 })(typeof window !== 'undefined' ? window : globalThis);
