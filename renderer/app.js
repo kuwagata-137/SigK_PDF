@@ -105,6 +105,9 @@
     root.SigK.toolsMergeList.init(doc, win);
     root.SigK.toolsSplit.init(doc, win);
     root.SigK.toolsSplitView.init(doc, win);
+    // 分割の盤（spec-2-2b）。右の欄の render から描き直されるので、右の欄の後に用意する。
+    root.SigK.splitBoardView.init(doc, win);
+    root.SigK.splitBoardBand.init(doc, win);
     root.SigK.toolsConvert.init(doc, win);
     root.SigK.toolsConvertList.init(doc, win);
     root.SigK.toolsConvertView.init(doc, win);

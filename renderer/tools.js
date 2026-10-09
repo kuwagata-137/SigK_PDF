@@ -42,6 +42,8 @@
     state.selected = id;
     // ［開いているタブから選ぶ ▾］の一覧は、ツールを切り替えたら閉じる（spec-2-2b 確定事項F6）。
     root.SigK.tabMenu?.close();
+    // 分割の盤は、見えている間だけ PDF を開いておく（spec-2-2b 確定事項D5）。
+    root.SigK.splitReload?.setShown(isToolsMode() && id === 'split');
     for (const item of el.list.querySelectorAll('.tool-item'))
       item.classList.toggle('active', item.dataset.tool === id);
     for (const panel of el.view.querySelectorAll('[data-tool]'))
@@ -93,8 +95,10 @@
       placeholder.hidden = active || listShown || el.doc.getElementById('thumbs')?.hidden === false;
     if (active)
       select(state.selected);
-    else
+    else {
       root.SigK.tabMenu?.close();
+      root.SigK.splitReload?.setShown(false);
+    }
     root.SigK.save?.syncButtons();
     return active;
   }

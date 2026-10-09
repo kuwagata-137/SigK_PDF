@@ -1,9 +1,10 @@
 'use strict';
 
-// 分割画面（spec-2-2 確定事項1〜32）。
+// 分割画面（spec-2-2 確定事項1〜32・spec-2-2b）。
 //
-// 実際に書くのはワーカーで、その中身は test/op-split.test.js が見ている。
-// ここは「対象をどう決め、どう分け、どこへ出し、何をワーカーへ渡し、終わったら何をするか」を見る。
+// 実際に書くのはワーカーで、その中身は test/op-split.test.js が見ている。盤の上の操作（✂・選ぶ・まとめて分ける・元に戻す）は
+// test/split-board.test.js が見ている。ここは「対象をどう決め、どこへ出し、何をワーカーへ渡し、終わったら何をするか」を見る。
+// 入れた直後は分け目が無く実行できない（spec-2-2b 決定76 ④）ので、実行のテストは先に 1 ページずつに分けてから走らせる。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -32,12 +33,11 @@ const plain = (value) => structuredClone(value);
 const runButton = (shell) => shell.document.getElementById('split-run');
 const bannerText = (shell) => shell.SigK.viewBanner.text();
 const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
-const exampleText = (shell) => shell.document.getElementById('split-example').textContent;
-const fire = (shell, id, value) => {
-  const input = shell.document.getElementById(id);
-  input.value = value;
-  input.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
-};
+// 対象を決めて、1 ページずつに分ける（3 ページの A なら A_TARGETS の 3 本になる）。
+async function useEach(shell, filePath = A) {
+  await shell.SigK.toolsSplit.setSource(filePath);
+  shell.SigK.toolsSplitEdit.bulk('each');
+}
 
 // ［開いているタブから選ぶ ▾］を押し、一覧からそのファイルの行を選ぶ（spec-2-2b 確定事項F2）。
 function chooseTab(shell, buttonId, filePath) {
@@ -55,10 +55,10 @@ test('初期状態は対象が無く、実行は押せない', async (t) => {
   assert.equal(doc.getElementById('split-file').hidden, true);
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
   assert.equal(SigK.toolsSplit.canRun(), false);
-  assert.equal(exampleText(shell), '');
+  assert.equal(doc.getElementById('split-summary').textContent, '分割する PDF を決めてください。');
 });
 
-test('「ファイルを選ぶ」で対象が決まり、ページ数・フォルダー・出力の例が埋まる', async (t) => {
+test('「ファイルを選ぶ」で対象が決まり、ページ数・フォルダーが埋まる。分け目を入れると実行できる', async (t) => {
   const shell = await createSplitShell(t, { splitSourceResults: [{ path: A }] });
   const { document: doc, SigK } = shell;
   assert.equal(await SigK.toolsSplit.pickFile(), true);
@@ -69,15 +69,18 @@ test('「ファイルを選ぶ」で対象が決まり、ページ数・フォ�
   assert.equal(doc.getElementById('split-pages').textContent, '3 ページ');
   assert.equal(doc.getElementById('split-empty').hidden, true);
   assert.equal(doc.getElementById('split-folder').textContent, 'C:\\work');
-  // 既定は「1 ページごと」「連番」（確定事項7・8・15）。
-  assert.deepEqual(plain(SigK.toolsSplit.currentPlan().targets), A_TARGETS);
-  assert.equal(exampleText(shell), 'a_001.pdf … a_003.pdf（3 ファイル）');
-  assert.equal(doc.getElementById('split-summary').textContent, '3 ページを 1 ページごとに 3 ファイルへ');
+  // 入れた直後は分け目が無く、実行できない（spec-2-2b 決定76 ④）。名前の規則の既定は連番（確定事項15）。
+  assert.equal(SigK.toolsSplit.canRun(), false);
   assert.equal(doc.getElementById('split-rule-seq').textContent, 'a_001.pdf');
+  assert.equal(doc.getElementById('split-rule-pages').textContent, 'a_p1-3.pdf');
+  SigK.toolsSplitEdit.bulk('each');
+  assert.deepEqual(plain(SigK.toolsSplit.currentPlan().targets), A_TARGETS);
+  assert.equal(doc.getElementById('split-summary').textContent, '3 ページを 3 つのファイルに分けます。');
   assert.equal(doc.getElementById('split-rule-pages').textContent, 'a_p1.pdf');
   assert.equal(SigK.toolsSplit.canRun(), true);
   assert.equal(runButton(shell).hasAttribute('aria-disabled'), false);
-  assert.ok(shell.pdfjs.documents.every((document) => document.destroyed), '読んだ文書は手放す');
+  assert.equal(shell.pdfjs.documents.length, 1, '読むのは 1 回（spec-2-2b 確定事項D1）');
+  assert.equal(shell.pdfjs.documents[0].destroyed, false, '盤のために開いたまま持つ');
   assert.equal(shell.splitSourceCalls.length, 1);
 });
 
@@ -123,21 +126,29 @@ test('分割を選んでいるときの PDF のドロップは対象になり、
   assert.equal(bannerTone(shell), 'warn');
 });
 
-test('対象を差し替えても分け方と出力の設定は残る', async (t) => {
+test('対象を差し替えると盤は作り直し、出力の設定は残る（spec-2-2b 確定事項B6）', async (t) => {
   const shell = await createSplitShell(t, { folderResults: [{ path: OUT_DIR }] });
   const { SigK } = shell;
   await SigK.toolsSplit.setSource(A);
-  SigK.toolsSplit.setMode('at');
-  SigK.toolsSplit.setInput('at', '2');
+  SigK.toolsSplitEdit.cut(1);
   SigK.toolsSplit.setRule('pages');
   assert.equal(await SigK.toolsSplit.pickFolder(), true);
   await SigK.toolsSplit.setSource(B);
   const settings = SigK.toolsSplit.settings();
-  assert.equal(settings.mode, 'at');
-  assert.equal(settings.at, '2');
   assert.equal(settings.rule, 'pages');
   assert.equal(settings.folder, OUT_DIR, 'ユーザーが変えたフォルダーは対象に追従しない');
+  assert.equal(SigK.toolsSplit.currentPlan().reason, 'untouched', '盤は作り直す');
+  SigK.toolsSplitEdit.cut(1);
   assert.deepEqual(plain(SigK.toolsSplit.currentPlan().targets), targetsFor(OUT_DIR, ['b_p1.pdf', 'b_p2-3.pdf']));
+});
+
+test('同じファイルを選び直したときは、盤を残す', async (t) => {
+  const shell = await createSplitShell(t);
+  const { SigK } = shell;
+  await SigK.toolsSplit.setSource(A);
+  SigK.toolsSplitEdit.cut(2);
+  await SigK.toolsSplit.setSource(A);
+  assert.deepEqual(plain(SigK.toolsSplit.currentPlan().parts), [[0, 1], [2]]);
 });
 
 // ---- 読めない対象（確定事項4） ----
@@ -150,7 +161,7 @@ test('壊れた PDF は印が付いて実行できない', async (t) => {
   assert.equal(doc.getElementById('split-file').classList.contains('blocked'), true);
   assert.equal(doc.getElementById('split-note').classList.contains('error'), true);
   assert.equal(SigK.toolsSplit.canRun(), false);
-  assert.equal(exampleText(shell), '');
+  assert.equal(doc.getElementById('split-board-empty').hidden, false, '盤には何も並べない（spec-2-2b 確定事項D8）');
 });
 
 test('暗号化 PDF はパスワードを聞かずに断る', async (t) => {
@@ -161,49 +172,6 @@ test('暗号化 PDF はパスワードを聞かずに断る', async (t) => {
   assert.equal(shell.SigK.toolsSplit.canRun(), false);
 });
 
-// ---- 分け方（確定事項7〜13） ----
-
-test('方式ごとに出力の例が変わり、誤りは赤くして実行を止める', async (t) => {
-  const shell = await createSplitShell(t);
-  const { document: doc, SigK } = shell;
-  await SigK.toolsSplit.setSource(A);
-
-  fire(shell, 'split-every', '2');
-  assert.equal(exampleText(shell), 'a_001.pdf … a_002.pdf（2 ファイル）');
-  assert.equal(doc.getElementById('split-summary').textContent, '3 ページを 2 ページごとに 2 ファイルへ');
-
-  fire(shell, 'split-every', '0');
-  assert.equal(SigK.toolsSplit.canRun(), false);
-  assert.equal(doc.getElementById('split-every').classList.contains('invalid'), true);
-  assert.equal(doc.getElementById('split-every-err').hidden, false);
-  assert.equal(doc.getElementById('split-every-err').textContent, '1 以上の整数を書いてください');
-  assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
-  // 入力欄は描き直されない。
-  assert.equal(doc.getElementById('split-every').value, '0');
-
-  // 位置指定へ切り替えると、N の誤りは表示から消える。
-  doc.querySelector('input[name="split-mode"][value="at"]').click();
-  assert.equal(SigK.toolsSplit.settings().mode, 'at');
-  assert.equal(doc.getElementById('split-every').classList.contains('invalid'), false);
-  fire(shell, 'split-at', '3');
-  assert.equal(exampleText(shell), 'a_001.pdf … a_002.pdf（2 ファイル）');
-  assert.equal(doc.getElementById('split-summary').textContent, '3 ページを 2 ファイルへ');
-  assert.deepEqual(plain(SigK.toolsSplit.currentPlan().parts), [[0, 1], [2]]);
-  fire(shell, 'split-at', '1');
-  assert.match(doc.getElementById('split-at-err').textContent, /2 から/);
-  assert.equal(SigK.toolsSplit.canRun(), false);
-
-  // 範囲は1本になる。
-  doc.getElementById('split-range').dispatchEvent(new shell.window.Event('focus'));
-  assert.equal(SigK.toolsSplit.settings().mode, 'range');
-  fire(shell, 'split-range', '3, 1');
-  assert.deepEqual(plain(SigK.toolsSplit.currentPlan().parts), [[2, 0]]);
-  assert.equal(exampleText(shell), 'a_001.pdf（1 ファイル）');
-  assert.equal(doc.getElementById('split-summary').textContent, '2 ページを取り出して 1 ファイルへ');
-  SigK.toolsSplit.setRule('pages');
-  assert.equal(exampleText(shell), 'a_p3+1.pdf（1 ファイル）');
-});
-
 // ---- 実行（確定事項20〜32） ----
 
 test('実行はワーカーへ source・parts・targets を渡し、終わると帯に「フォルダを開く」が出てタブは開かない', async (t) => {
@@ -211,7 +179,7 @@ test('実行はワーカーへ source・parts・targets を渡し、終わると
     taskResults: [{ ok: true, written: 3, targets: A_TARGETS, pages: [1, 1, 1] }],
   });
   const { document: doc, SigK } = shell;
-  await SigK.toolsSplit.setSource(A);
+  await useEach(shell);
 
   const result = await SigK.toolsSplit.run();
   assert.equal(result.ok, true);
@@ -222,6 +190,7 @@ test('実行はワーカーへ source・parts・targets を渡し、終わると
     name: 'a.pdf',
     parts: [{ pages: [0], target: A_TARGETS[0] }, { pages: [1], target: A_TARGETS[1] }, { pages: [2], target: A_TARGETS[2] }],
     targets: A_TARGETS,
+    expectSource: { size: 2048, mtimeMs: 1 },
   });
   assert.equal(SigK.tabs.count(), 0);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
@@ -242,7 +211,7 @@ test('同名があれば3択を1回だけ出す。上書きは全件、中止は
     folderResults: [{ path: OUT_DIR }],
   });
   const { document: doc, SigK } = shell;
-  await SigK.toolsSplit.setSource(A);
+  await useEach(shell);
 
   // 上書き。
   let pending = SigK.toolsSplit.run();
@@ -281,7 +250,7 @@ test('出力先のどれかがタブで開いていれば、同名の3択を出�
   const { document: doc, SigK } = shell;
   await SigK.tabs.openPath(A_TARGETS[1]);
   SigK.shell.setMode(doc, 'tools');
-  await SigK.toolsSplit.setSource(A);
+  await useEach(shell);
 
   const result = await SigK.toolsSplit.run();
   assert.equal(result.error, '出力先の「a_002.pdf」はタブで開いています。タブを閉じるか、フォルダを変えてください。');
@@ -300,7 +269,7 @@ test('「別名で保存」で選び直したフォルダーの出力先がタ�
   const { document: doc, SigK } = shell;
   await SigK.tabs.openPath(outTargets[0]);
   SigK.shell.setMode(doc, 'tools');
-  await SigK.toolsSplit.setSource(A);
+  await useEach(shell);
 
   const pending = SigK.toolsSplit.run();
   await shell.flush();
@@ -317,7 +286,7 @@ test('中止と失敗は帯で伝え、中止では書き出し済みの本数�
     taskResults: [{ canceled: true }, gate, { error: '2 / 3 本目を書けませんでした。' }],
   });
   const { SigK } = shell;
-  await SigK.toolsSplit.setSource(A);
+  await useEach(shell);
 
   assert.deepEqual(plain(await SigK.toolsSplit.run()), { canceled: true });
   assert.equal(bannerText(shell), '分割を中止しました。');
@@ -341,7 +310,7 @@ test('中止と失敗は帯で伝え、中止では書き出し済みの本数�
 test('同名の 3 択を出している間も実行中と数え、中止すれば下ろす（spec-5-1 確定事項12）', async (t) => {
   const shell = await createSplitShell(t, { existingPaths: [A_TARGETS[0]] });
   const { document: doc, SigK } = shell;
-  await SigK.toolsSplit.setSource(A);
+  await useEach(shell);
 
   const running = SigK.toolsSplit.run();
   await shell.flush();
@@ -360,7 +329,7 @@ test('実行中は入力と実行ボタンが押せず、進捗は本数で出�
   const gate = new Promise((resolve) => { release = resolve; });
   const shell = await createSplitShell(t, { taskResults: [gate] });
   const { document: doc, SigK } = shell;
-  await SigK.toolsSplit.setSource(A);
+  await useEach(shell);
 
   const running = SigK.toolsSplit.run();
   await shell.flush();

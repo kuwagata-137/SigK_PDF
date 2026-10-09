@@ -172,6 +172,7 @@
     canvasOf: (index) => drawn.get(index)?.canvas ?? null,
     getPage: (index) => (state.doc === null ? null : state.doc.getPage(index + 1)),
     size: () => state.size,
+    signature: () => state.signature,
     getState: () => ({
       path: state.path, open: state.doc !== null, folded: state.folded, pageCount: state.pageCount, size: state.size,
       drawn: [...drawn.keys()].sort((a, b) => a - b), pending: pending.size,
