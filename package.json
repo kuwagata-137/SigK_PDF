@@ -54,6 +54,7 @@
       "task-runner.js",
       "smoke-window.js",
       "smoke-rewrite.js",
+      "smoke-split.js",
       "smoke-launch.js",
       "smoke-annotate.js",
       "smoke-annotate-steps.js",
