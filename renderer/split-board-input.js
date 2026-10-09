@@ -9,12 +9,10 @@
   // 盤の端に寄せている間は自動でスクロールする。✂ と［つなげる］の上ではなぞり始めない。
   //
   // なぞる途中の Esc は、なぞる前の選択に戻して止める。document の keydown を Esc の振り分け（viewer-keys.js）より先に登録する
-  // （app.js の init の順）ので、preventDefault を見て escape-order.js は何もしない。盤の上のキーは盤の器で止め、裏のページビューへ流さない。
+  // （app.js の init の順）ので、preventDefault を見て escape-order.js は何もしない。盤の上のキーは split-board-keys.js。
 
   const DRAG_THRESHOLD = 5;
   const AUTO_SCROLL = Object.freeze({ edge: 36, step: 18, interval: 30 });
-  const ROW_GAP = 12;
-  const BOARD_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' ', 'Enter', 'PageUp', 'PageDown']);
 
   const drag = { pressed: null, startX: 0, startY: 0, active: false, before: null, timer: 0, last: null, swallowClick: false };
   const state = { current: null };
@@ -133,58 +131,6 @@
       root.SigK.splitZoom?.open(page);
   }
 
-  // ---- 盤の上のキー（確定事項G3） ----
-
-  // 上下の段へ。いまのページの真上・真下に近いページ（箱をまたぐ）。
-  function vertical(placed, base, direction) {
-    const rect = layout().pageRect(placed, base);
-    const y = direction > 0 ? rect.y + rect.height * 1.5 + ROW_GAP : rect.y - rect.height / 2 - ROW_GAP;
-    return layout().pageAt(placed, rect.x + rect.width / 2, y) ?? base;
-  }
-
-  function targetOf(key, base, placed, last) {
-    if (key === 'Home')
-      return 0;
-    if (key === 'End')
-      return last;
-    if (key === 'ArrowLeft')
-      return Math.max(0, base - 1);
-    if (key === 'ArrowRight')
-      return Math.min(last, base + 1);
-    return vertical(placed, base, key === 'ArrowDown' ? 1 : -1);
-  }
-
-  function onBoardKey(event) {
-    if (event.target !== el.scroll || !BOARD_KEYS.has(event.key) || event.ctrlKey || event.altKey || event.metaKey)
-      return;
-    event.preventDefault();
-    event.stopPropagation();
-    const placed = view().layout();
-    if (placed === null)
-      return;
-    if (event.key === 'PageUp' || event.key === 'PageDown') {
-      el.scroll.scrollTop += (event.key === 'PageDown' ? 1 : -1) * el.scroll.clientHeight * 0.9;
-      view().schedule();
-      return;
-    }
-    const last = edit().board().pageCount - 1;
-    const base = Math.min(state.current ?? selection().range(edit().selection())?.from ?? 0, last);
-    if (event.key === ' ') {
-      state.current = base;
-      edit().select(base);
-      return;
-    }
-    if (event.key === 'Enter') {
-      root.SigK.splitZoom?.open(base);
-      return;
-    }
-    const next = targetOf(event.key, base, placed, last);
-    state.current = next;
-    if (event.shiftKey)
-      edit().select(next, { shift: true });
-    view().revealPage(next);
-  }
-
   // なぞる途中の Esc（確定事項G2①）。
   function onDocumentKey(event) {
     if (event.key !== 'Escape' || drag.pressed === null)
@@ -209,7 +155,6 @@
     doc.addEventListener('pointercancel', () => cancelHeld());
     scroll.addEventListener('click', onClick);
     scroll.addEventListener('dblclick', onDoubleClick);
-    scroll.addEventListener('keydown', onBoardKey);
     doc.addEventListener('keydown', onDocumentKey);
     return true;
   }
@@ -218,6 +163,7 @@
   SigK.splitBoardInput = {
     DRAG_THRESHOLD, init, cancelHeld,
     current: () => state.current,
+    setCurrent: (page) => { state.current = page; },
     isDragging: () => drag.active,
     resetCurrent: () => { state.current = null; },
   };

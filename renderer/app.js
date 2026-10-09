@@ -110,6 +110,7 @@
     root.SigK.splitBoardBand.init(doc, win);
     // なぞる途中の Esc を受ける document の keydown は、Esc の振り分け（viewerControls の handleKey）より先に登録する。
     root.SigK.splitBoardInput.init(doc, win);
+    root.SigK.splitBoardKeys.init(doc, win);
     root.SigK.toolsConvert.init(doc, win);
     root.SigK.toolsConvertList.init(doc, win);
     root.SigK.toolsConvertView.init(doc, win);
