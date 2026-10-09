@@ -33,11 +33,13 @@ test('入りきる箱は中身の幅（見出しが入る 240px 以上）で、�
   const placed = layout.layout({ boxes: boxesOf(5, [1, 2, 3, 4]), contentWidth: 600, size: 'mid' });
   assert.deepEqual(placed.boxes.map(({ x, y, width }) => ({ x, y, width })), [
     { x: 0, y: 0, width: 240 }, { x: 252, y: 0, width: 240 },
-    { x: 0, y: 242, width: 240 }, { x: 252, y: 242, width: 240 },
-    { x: 0, y: 484, width: 240 },
+    { x: 0, y: 270, width: 240 }, { x: 252, y: 270, width: 240 },
+    { x: 0, y: 540, width: 240 },
   ]);
-  // 箱の高さ＝上の枠 1＋余白 9＋見出し 34＋紙の段 173＋余白 12＋下の枠 1＝230。段の間は 12。
-  assert.equal(placed.totalHeight, 484 + 230);
+  // 狭い箱（420px 未満）は見出しが 2 行。箱の高さ＝上の枠 1＋余白 9＋見出し 62＋紙の段 173＋余白 12＋下の枠 1＝258。段の間は 12。
+  assert.equal(placed.totalHeight, 540 + 258);
+  assert.equal(placed.boxes[0].narrow, true);
+  assert.deepEqual(layout.pageRect(placed, 0), { x: 13, y: 72, width: 110, height: 173 });
 });
 
 test('2 ページの箱は ✂ を挟んだ幅になる', () => {

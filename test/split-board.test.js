@@ -121,7 +121,7 @@ test('まとめて分ける 4 つ。番号の欄の誤りは赤くして段の�
 
 test('選ぶと帯が出て、書き出さない・書き出す・1 つのファイルにする・選ぶのをやめるが効く', async (t) => {
   const shell = await withSource(t, { pages: 6 });
-  edit(shell).cut(3);
+  edit(shell).cut(4);
   edit(shell).select(1);
   edit(shell).select(2, { shift: true });
   assert.equal($(shell, '#split-band').hidden, false);
@@ -146,6 +146,17 @@ test('選ぶと帯が出て、書き出さない・書き出す・1 つのファ
   $(shell, '#split-band-clear').click();
   assert.equal($(shell, '#split-band').hidden, true);
   assert.equal($(shell, '#split-band-text').textContent, '');
+});
+
+test('狭い箱（幅 420px 未満）は見出しを 2 行にし、書き出さない札は出さない（ページの札で分かる）', async (t) => {
+  const shell = await withSource(t, { pages: 6 });
+  edit(shell).cut(3);
+  edit(shell).select(1);
+  edit(shell).skip();
+  const box = $(shell, '#split-board-canvas .sb-box[data-box="0"]');
+  assert.equal(box.classList.contains('narrow'), true);
+  assert.equal(box.querySelector('.chip'), null);
+  assert.equal($(shell, '.sb-page[data-page="1"] .tag').textContent, '書き出さない');
 });
 
 test('1 ページだけ選んだときの帯の文', async (t) => {

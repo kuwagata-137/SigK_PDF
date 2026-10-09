@@ -39,6 +39,7 @@
   function box(doc, rect, info, names, skipped) {
     const dead = info.file === null;
     const element = place(node(doc, 'div', dead ? 'sb-box dead' : 'sb-box'), rect);
+    element.classList.toggle('narrow', rect.narrow === true);
     element.dataset.box = String(info.index);
     const head = node(doc, 'div', 'sb-head');
     const no = node(doc, 'span', 'sb-no', dead ? '－' : String(info.file));
@@ -46,7 +47,8 @@
     head.append(no, node(doc, 'span', 'fname', dead ? '書き出さない' : names[info.file - 1]));
     if (!dead)
       head.append(node(doc, 'span', 'range', rangeText(info.first, info.last)));
-    if (!dead && info.skippedCount > 0)
+    // 狭い箱は見出しの 2 行目に入りきらないので札を出さない（ページの上の「書き出さない」と右の一覧で分かる）。
+    if (!dead && info.skippedCount > 0 && rect.narrow !== true)
       head.append(node(doc, 'span', 'chip', skipChip(info, skipped)));
     head.append(node(doc, 'span', 'spacer'));
     if (info.index > 0) {

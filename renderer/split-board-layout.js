@@ -13,14 +13,14 @@
   const CAPTION = 20;    // 紙と番号の間 4 と、番号の行 16
   const CUT = 26;        // ✂ の幅
   const ROW_GAP = 12;    // 紙の段の間
-  const BOX = Object.freeze({ border: 1, padX: 12, padTop: 9, head: 34, padBottom: 12, minWidth: 240, gap: 12 });
+  // 幅が narrowBelow より狭い箱は、見出しを 2 行にする（1 行目に番号とファイル名、2 行目にページと［前のファイルとつなげる］）。
+  const BOX = Object.freeze({ border: 1, padX: 12, padTop: 9, head: 34, headNarrow: 62, narrowBelow: 420, padBottom: 12, minWidth: 240, gap: 12 });
   const REVEAL_MARGIN = 12;
   const MAX_DPR = 2;
 
   const CONTENT_LEFT = BOX.border + BOX.padX;
-  const CONTENT_TOP = BOX.border + BOX.padTop + BOX.head;
   const CHROME_X = CONTENT_LEFT * 2;
-  const CHROME_Y = CONTENT_TOP + BOX.padBottom + BOX.border;
+  const contentTop = (box) => box.y + BOX.border + BOX.padTop + box.head;
 
   function cellOf(size) {
     const sheetWidth = SIZES[size] ?? SIZES.mid;
@@ -53,8 +53,10 @@
         x = 0;
         lineHeight = 0;
       }
-      const height = CHROME_Y + measured.rows * cell.height + (measured.rows - 1) * ROW_GAP;
-      placed.push({ index: box.index, start: box.start, end: box.end, x, y, width: measured.width, height, columns: measured.columns, rows: measured.rows });
+      const narrow = measured.width < BOX.narrowBelow;
+      const head = narrow ? BOX.headNarrow : BOX.head;
+      const height = BOX.border + BOX.padTop + head + measured.rows * cell.height + (measured.rows - 1) * ROW_GAP + BOX.padBottom + BOX.border;
+      placed.push({ index: box.index, start: box.start, end: box.end, x, y, width: measured.width, height, columns: measured.columns, rows: measured.rows, narrow, head });
       x += measured.width + BOX.gap;
       lineHeight = Math.max(lineHeight, height);
     }
@@ -85,7 +87,7 @@
     const column = offset % box.columns;
     return {
       x: box.x + CONTENT_LEFT + column * (cell.width + CUT),
-      y: box.y + CONTENT_TOP + row * (cell.height + ROW_GAP),
+      y: contentTop(box) + row * (cell.height + ROW_GAP),
       width: cell.width,
       height: cell.height,
     };
@@ -120,9 +122,8 @@
       if (box.y + box.height < top)
         continue;
       boxes.push(box.index);
-      const contentTop = box.y + CONTENT_TOP;
-      const rowFrom = Math.max(0, Math.ceil((top - contentTop - cell.height) / step));
-      const rowTo = Math.min(box.rows - 1, Math.floor((bottom - contentTop) / step));
+      const rowFrom = Math.max(0, Math.ceil((top - contentTop(box) - cell.height) / step));
+      const rowTo = Math.min(box.rows - 1, Math.floor((bottom - contentTop(box)) / step));
       for (let row = rowFrom; row <= rowTo; row += 1) {
         const last = Math.min(box.end, box.start + (row + 1) * box.columns - 1);
         for (let page = box.start + row * box.columns; page <= last; page += 1)
@@ -168,7 +169,7 @@
     if (nearest === null)
       return null;
     const { cell } = placed;
-    const row = clamp(Math.floor((y - nearest.y - CONTENT_TOP + ROW_GAP / 2) / (cell.height + ROW_GAP)), 0, nearest.rows - 1);
+    const row = clamp(Math.floor((y - contentTop(nearest) + ROW_GAP / 2) / (cell.height + ROW_GAP)), 0, nearest.rows - 1);
     const column = clamp(Math.floor((x - nearest.x - CONTENT_LEFT + CUT / 2) / (cell.width + CUT)), 0, nearest.columns - 1);
     return Math.min(nearest.end, nearest.start + row * nearest.columns + column);
   }
