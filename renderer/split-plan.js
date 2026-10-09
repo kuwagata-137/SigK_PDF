@@ -92,6 +92,37 @@
     return planned;
   }
 
+  // ---- まとめて分けるの欄（spec-2-2b 確定事項C7。文は第 I 章） ----
+
+  // 「N ページごと」の N。
+  function parseEvery(text) {
+    const normalized = normalize(text);
+    if (!/^\d+$/.test(normalized) || Number(normalized) < 1)
+      return { error: '1 以上の整数を書いてください' };
+    return { n: Number(normalized) };
+  }
+
+  // 「そのページの前で切る」番号（1 始まり）。受けるのは 2〜ページ数で、順不同は昇順に並べ直す。重なりは黙って畳まない。
+  function parseCuts(text, pageCount) {
+    const normalized = normalize(text);
+    if (normalized === '')
+      return { error: '3, 7 のように書いてください' };
+    const numbers = [];
+    for (const token of normalized.split(',')) {
+      if (!/^\d+$/.test(token))
+        return { error: '3, 7 のように書いてください' };
+      const page = Number(token);
+      if (page < 2)
+        return { error: '1 の前では切れないので、2 から書いてください' };
+      if (page > pageCount)
+        return { error: `${pageCount} ページまでです` };
+      if (numbers.includes(page))
+        return { error: `${page} が 2 回あります` };
+      numbers.push(page);
+    }
+    return { numbers: numbers.sort((a, b) => a - b) };
+  }
+
   // ---- ファイル名（確定事項15〜17） ----
 
   function stem(baseName) {
@@ -121,5 +152,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.splitPlan = { MAX_OUTPUTS, planSplit, outputNames, pageLabel, stem };
+  SigK.splitPlan = { MAX_OUTPUTS, planSplit, parseEvery, parseCuts, outputNames, pageLabel, stem };
 })(typeof window !== 'undefined' ? window : globalThis);
