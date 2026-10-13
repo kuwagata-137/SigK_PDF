@@ -72,7 +72,7 @@ test('PDF が1つも無ければ理由を出す', async (t) => {
   await shell.flush();
 
   assert.equal(shell.SigK.tabs.count(), 0);
-  assert.match(shell.document.getElementById('view-message').textContent, /PDF ファイルではありません/);
+  assert.match(shell.document.getElementById('view-message').textContent, /PDF ファイルではないので/);
 });
 
 // File.path は Electron 32 で消えている。webUtils が空を返す状況（ドロップ
@@ -84,7 +84,7 @@ test('パスが取れなければ、その旨を出す', async (t) => {
   await shell.flush();
 
   assert.equal(shell.SigK.tabs.count(), 0);
-  assert.match(shell.document.getElementById('view-message').textContent, /場所を取得できませんでした/);
+  assert.match(shell.document.getElementById('view-message').textContent, /場所を取得できなかったので/);
 });
 
 test('ドラッグ中は受け入れの表示が出て、落とすと消える', async (t) => {
