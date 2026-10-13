@@ -14,7 +14,10 @@
   // 分けても 8秒）、間違って1ページごとを指定したときに数百本を黙って作らせないため。
   const MAX_OUTPUTS = 500;
 
-  const normalize = (text) => root.SigK.pageRange.normalize(text);
+  // 「1,000」の千の位のカンマは数の区切りとして読む（決定79 ②）。カンマのすぐ後に空白が無く、ちょうど 3 けたが続くときだけ。
+  // 整える処理（page-range.js の normalize）は空白を消すので、その前に読み分ける。
+  const joinThousands = (text) => String(text ?? '').normalize('NFKC').replace(/(\d),(?=\d{3}(?!\d))/g, '$1');
+  const normalize = (text) => root.SigK.pageRange.normalize(joinThousands(text));
 
   // 画面に出す数。1,000 以上ならカンマを付ける（決定78 ③）。ファイル名には使わない。
   const withCommas = (n) => n.toLocaleString('ja-JP');

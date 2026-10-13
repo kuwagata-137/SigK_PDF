@@ -48,7 +48,14 @@
       return Math.abs(rect.y + rect.height / 2 - center);
     };
     const ordered = [...pages].sort((a, b) => distance(a) - distance(b));
-    thumbs().want(ordered, { cap: layout().renderCap(thumbs().size()) });
+    // 上限は決めた枚数か、見えている枚数の多いほう（大きな画面でも見えているページは全部描く。決定79 ①）。
+    const top = el.scroll.scrollTop;
+    const bottom = top + el.scroll.clientHeight;
+    const visible = pages.filter((page) => {
+      const rect = layout().pageRect(at, page);
+      return rect.y + rect.height > top && rect.y < bottom;
+    }).length;
+    thumbs().want(ordered, { cap: Math.max(layout().renderCap(thumbs().size()), visible) });
   }
 
   function build(at, windowed) {

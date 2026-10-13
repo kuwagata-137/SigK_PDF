@@ -432,6 +432,26 @@ test('✂・［つなげる］・帯のボタンを押したあとも、フォ�
   assert.equal(shell.document.activeElement, scroll, '1 つのファイルにする');
 });
 
+test('大きな画面で見えているページが上限を超えるときは、見えている分を全部描く（決定79 ①）', async (t) => {
+  const shell = await withSource(t, { pages: 1000 });
+  const scroll = $(shell, '#split-board-scroll');
+  Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => 2000 });
+  Object.defineProperty(scroll, 'clientHeight', { configurable: true, get: () => 1120 });
+  $(shell, '#split-size [data-size="small"]').click();
+  await settle(shell);
+  const view = shell.SigK.splitBoardView;
+  const layout = shell.SigK.splitLayout;
+  const visible = [];
+  for (let page = 0; page < 1000; page += 1) {
+    const rect = layout.pageRect(view.layout(), page);
+    if (rect.y + rect.height > 0 && rect.y < 1120)
+      visible.push(page);
+  }
+  assert.ok(visible.length > layout.renderCap('small'), `見えているのは ${visible.length} 枚`);
+  const drawn = new Set(shell.SigK.splitThumbs.getState().drawn);
+  assert.deepEqual(visible.filter((page) => !drawn.has(page)), [], '見えているのに描いていないページは無い');
+});
+
 test('左の一覧を開け閉めして盤の幅が変わったら、盤を組み直す', async (t) => {
   const shell = await withSource(t, { pages: 30 });
   const scroll = $(shell, '#split-board-scroll');
