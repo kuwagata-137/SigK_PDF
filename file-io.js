@@ -67,7 +67,7 @@ async function readPdf(filePath, { fsLike = fs, maxBytes = MAX_PDF_BYTES, onErro
     if (!stat.isFile())
       return { error: 'ファイルではありません。' };
     if (stat.size > maxBytes)
-      return { error: `ファイルが大きすぎます。${Math.floor(maxBytes / 1024 / 1024)}MB までに対応しています。` };
+      return { error: `${Math.floor(maxBytes / 1024 / 1024)}MB までに対応していますが、ファイルが大きすぎます。` };
 
     const buffer = await fsLike.promises.readFile(filePath);
     // mtimeMs は、保存の直前に「開いたあとで外から書き換えられていないか」を

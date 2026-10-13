@@ -21,8 +21,8 @@ const DEFAULT_MASKS = {
   32: { r: 0x00ff0000, g: 0x0000ff00, b: 0x000000ff, a: 0 },
 };
 
-const UNSUPPORTED = 'この BMP には対応していません（圧縮か色深度）。';
-const OLD_HEADER = 'この BMP には対応していません（古い形式）。';
+const UNSUPPORTED = 'この BMP の圧縮か色深度には対応していません。';
+const OLD_HEADER = 'この BMP は古い形式なので、対応していません。';
 const SIZE_UNREADABLE = '画像の大きさを読み取れませんでした。';
 const BROKEN = '画像を読み込めませんでした。ファイルが壊れている可能性があります。';
 

@@ -231,7 +231,7 @@
 
     if (result?.canceled === true) {
       // 自分で止めたので赤く塗らない（決定49）。
-      banner().show('保存を中止しました。元のファイルは変更していません。', { tone: 'info' });
+      banner().show('保存を中止しましたが、元のファイルは変更していません。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

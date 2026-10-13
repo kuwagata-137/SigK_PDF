@@ -100,7 +100,7 @@ test('画像にしている途中で［中止］を押すと、何も書かず�
   byId(shell, 'confirm-mosaic-ok').click();
   assert.equal((await saving).canceled, true);
   assert.equal(shell.taskCalls.length, 0);
-  assert.equal(shell.SigK.viewBanner.text(), '保存を中止しました。元のファイルは変更していません。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存を中止しましたが、元のファイルは変更していません。');
 });
 
 test('描けない環境（canvas が無い）では断って書かない', async (t) => {

@@ -124,16 +124,16 @@ test('checkTiffSupport は対応する圧縮と色の形式を通す', () => {
 
 test('checkTiffSupport は非対応の圧縮を名指しで断る', () => {
   const page = (compression) => ({ t256: [4], t257: [4], t258: [8], t259: [compression], t262: [1], t277: [1], t273: [8] });
-  assert.equal(checkTiffSupport(page(6)), 'この TIFF には対応していません（圧縮方式: 旧 JPEG）。');
-  assert.equal(checkTiffSupport(page(2)), 'この TIFF には対応していません（圧縮方式: CCITT RLE）。');
-  assert.equal(checkTiffSupport(page(34712)), 'この TIFF には対応していません（圧縮方式: JPEG 2000）。');
-  assert.equal(checkTiffSupport(page(99999)), 'この TIFF には対応していません（圧縮方式 99999）。');
+  assert.equal(checkTiffSupport(page(6)), 'この TIFF の圧縮方式 旧 JPEG には対応していません。');
+  assert.equal(checkTiffSupport(page(2)), 'この TIFF の圧縮方式 CCITT RLE には対応していません。');
+  assert.equal(checkTiffSupport(page(34712)), 'この TIFF の圧縮方式 JPEG 2000 には対応していません。');
+  assert.equal(checkTiffSupport(page(99999)), 'この TIFF の圧縮方式 99999 には対応していません。');
   assert.equal(describeCompression(34661), 'JBIG');
 });
 
 test('checkTiffSupport は色の形式で断る', () => {
   const base = { t256: [4], t257: [4], t273: [8] };
-  const bad = (page) => assert.equal(checkTiffSupport({ ...base, ...page }), 'この TIFF には対応していません（色の形式）。');
+  const bad = (page) => assert.equal(checkTiffSupport({ ...base, ...page }), 'この TIFF の色の形式には対応していません。');
   bad({ t258: [8, 8, 8], t259: [1], t262: [2], t277: [3], t284: [2] });     // PlanarConfiguration 2
   bad({ t258: [8, 8, 8], t259: [1], t262: [6], t277: [3] });                 // YCbCr の非圧縮
   bad({ t258: [8], t259: [1], t262: [8], t277: [1] });                       // CIELab

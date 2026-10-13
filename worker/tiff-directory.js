@@ -33,7 +33,7 @@ const COMPRESSION_NAMES = {
 const BROKEN = 'TIFF の構造を読み取れませんでした。ファイルが壊れている可能性があります。';
 const NOT_TIFF = 'TIFF として読めませんでした。';
 const NO_PAGES = 'この TIFF にはページがありません。';
-const UNSUPPORTED_COLOR = 'この TIFF には対応していません（色の形式）。';
+const UNSUPPORTED_COLOR = 'この TIFF の色の形式には対応していません。';
 
 function describeCompression(compression) {
   return COMPRESSION_NAMES[compression] ?? null;
@@ -157,8 +157,8 @@ function checkTiffSupport(ifd) {
   if (!SUPPORTED_COMPRESSION.has(compression)) {
     const name = describeCompression(compression);
     return name === null
-      ? `この TIFF には対応していません（圧縮方式 ${compression}）。`
-      : `この TIFF には対応していません（圧縮方式: ${name}）。`;
+      ? `この TIFF の圧縮方式 ${compression} には対応していません。`
+      : `この TIFF の圧縮方式 ${name} には対応していません。`;
   }
   if (!colorSupported(ifd))
     return UNSUPPORTED_COLOR;

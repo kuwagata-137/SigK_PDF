@@ -244,7 +244,7 @@ test('上限を超えて開こうとすると断る', async (t) => {
 
   // 文書は開いたままなので、理由は上端の帯に出す（確定事項20）。
   // 全面のオーバーレイで出すと、読んでいる文書が隠れてしまう。
-  assert.match(document.getElementById('view-banner').textContent, /タブが多すぎます/);
+  assert.match(document.getElementById('view-banner').textContent, /タブが多すぎるので/);
   assert.equal(document.getElementById('view-banner').hidden, false);
   assert.equal(document.getElementById('view-empty').hidden, true, '文書が隠れてはいけない');
   assert.equal(SigK.viewer.getState().open, true);

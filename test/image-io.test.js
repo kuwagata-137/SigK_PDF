@@ -120,7 +120,7 @@ test('TIFF は IFD が末尾にあるので全体を読み直し、ページ数�
 test('上限・無い・フォルダー・権限は読む前に断る', async () => {
   const big = { bytes: Buffer.alloc(8) };
   const { fsLike } = fsFor({ [IN_A]: big, 'C:/in/dir': { dir: true } });
-  assert.match((await inspectImage(IN_A, { fsLike, maxBytes: 4 })).error, /大きすぎます。0MB まで/);
+  assert.match((await inspectImage(IN_A, { fsLike, maxBytes: 4 })).error, /0MB までに対応していますが、ファイルが大きすぎます/);
   assert.match((await inspectImage('C:/in/dir', { fsLike })).error, /ファイルではありません/);
   assert.match((await inspectImage('C:/in/none.png', { fsLike })).error, /見つかりません/);
   assert.match((await inspectImage('', { fsLike })).error, /指定されていません/);

@@ -130,7 +130,7 @@ test('タブが上限なら開かず、帯を束につき 1 回出す（spec-5-1
     await SigK.tabs.openPath(filePath);
 
   assert.equal(await SigK.launch.handle(request('open', [paths[20]], 5)), 0);
-  assert.equal(SigK.viewBanner.text(), 'タブが多すぎます。20 個まで開けます。使わないタブを閉じてください。');
+  assert.equal(SigK.viewBanner.text(), '20 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。');
   SigK.viewBanner.show('ほかの知らせ');
   assert.equal(await SigK.launch.handle(request('open', [paths[21]], 5, false)), 0);
   assert.equal(SigK.viewBanner.text(), 'ほかの知らせ', '帯は束につき 1 回');

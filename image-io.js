@@ -52,7 +52,7 @@ async function inspectImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_BYTES,
     if (!stat.isFile())
       return { error: 'ファイルではありません。' };
     if (stat.size > maxBytes)
-      return { error: `ファイルが大きすぎます。${Math.floor(maxBytes / 1024 / 1024)}MB までに対応しています。` };
+      return { error: `${Math.floor(maxBytes / 1024 / 1024)}MB までに対応していますが、ファイルが大きすぎます。` };
 
     let inspected = inspectImageBytes(await readHead(filePath, stat.size, fsLike));
     // 先頭だけでは寸法に届かなかった（SOF が 64KB より後ろ）。全体を読み直す。
@@ -129,7 +129,7 @@ async function readWatermarkImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_
     if (!stat.isFile())
       return { error: 'ファイルではありません。' };
     if (stat.size > maxBytes)
-      return { error: `ファイルが大きすぎます。${Math.floor(maxBytes / 1024 / 1024)}MB までに対応しています。` };
+      return { error: `${Math.floor(maxBytes / 1024 / 1024)}MB までに対応していますが、ファイルが大きすぎます。` };
     const bytes = toBytes(await fsLike.promises.readFile(filePath));
     const kind = detectFormat(bytes);
     if (kind !== 'png' && kind !== 'jpeg')

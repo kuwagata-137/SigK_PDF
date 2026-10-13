@@ -164,7 +164,7 @@ test('TIFF は IFD が先頭の外なら incomplete を立て、1ページでも
   assert.equal(head.kind, 'tiff');
   const oldJpeg = makeTiff([rgbTiffPage(4, 4), rgbTiffPage(4, 4)]);
   patchSecondPageCompression(oldJpeg, 6);
-  assert.equal(inspectImageBytes(oldJpeg).error, 'この TIFF には対応していません（圧縮方式: 旧 JPEG）。');
+  assert.equal(inspectImageBytes(oldJpeg).error, 'この TIFF の圧縮方式 旧 JPEG には対応していません。');
   const huge = makeTiff([rgbTiffPage(4, 4), { ...rgbTiffPage(4, 4), width: 9000, height: 5000 }]);
   assert.match(inspectImageBytes(huge).error, /大きすぎます/);
   assert.match(inspectImageBytes(Buffer.from('II*\0\x08\0\0\0\0\0')).error, /壊れている|ページ/);
