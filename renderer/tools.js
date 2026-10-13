@@ -25,6 +25,13 @@
     { id: 'flatten', label: 'フラット化', hint: '書き込みを焼き込む', icon: 'flatten' },
   ];
 
+  // ツールごとの画面の描き直しの入口（render）。画像→PDF の［実行…］は欄の側（tools-convert-view.js）も合わせるので、
+  // 一覧（tools-convert-list.js）までは描き直さない。
+  const VIEWS = {
+    merge: 'toolsMergeList', split: 'toolsSplitView', convert: 'toolsConvertView',
+    toImage: 'toolsToImageView', watermark: 'toolsWatermarkView', flatten: 'toolsFlattenView',
+  };
+
   const state = { selected: 'merge' };
   let el = null;
 
@@ -34,6 +41,16 @@
 
   function panelFor(id) {
     return el?.view.querySelector(`[data-tool="${id}"]`) ?? null;
+  }
+
+  // 見えているツールの画面を描き直す（計画外の直し）。［実行…］が押せるかは、各ツールの canRun() が
+  // ほかの処理が走っているか（save.isBusy）も見て決める。ほかの処理の走り始めと終わりに save.js の syncButtons から
+  // 呼ばれる。描き直さないと、走っている間に描いた「押せない」が、終わっても残る。
+  function renderShown() {
+    if (!isToolsMode())
+      return false;
+    root.SigK[VIEWS[state.selected]]?.render();
+    return true;
   }
 
   function select(id) {
@@ -48,6 +65,10 @@
       item.classList.toggle('active', item.dataset.tool === id);
     for (const panel of el.view.querySelectorAll('[data-tool]'))
       panel.hidden = panel.dataset.tool !== id;
+    // 隠れている間に、ほかの処理が走り始めたり終わったりしていることがある。見せるときに描き直す。
+    // 分割は、盤の PDF を開き直してから splitReload が描き直すので、ここでは描かない。
+    if (id !== 'split')
+      renderShown();
     return true;
   }
 
@@ -119,5 +140,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.tools = { TOOLS, init, refresh, select, isToolsMode, selected: () => state.selected, panelFor };
+  SigK.tools = { TOOLS, init, refresh, select, isToolsMode, selected: () => state.selected, panelFor, renderShown };
 })(typeof window !== 'undefined' ? window : globalThis);
