@@ -27,7 +27,7 @@ test('refusalFor は入力と同じ出力先（大文字小文字・区切りを
   assert.equal(refusalFor('c:/work/A.PDF', A), '出力先に入力ファイルと同じファイルは選べません。');
   assert.equal(refusalFor(B, A), null);
   await shell.SigK.tabs.openPath(B);
-  assert.equal(refusalFor('C:/WORK/b.pdf', A), '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(refusalFor('C:/WORK/b.pdf', A), '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
 });
 
 test('chooseTarget は保存ダイアログの答えを { target } / { canceled } / { error } にする', async (t) => {
@@ -66,7 +66,7 @@ test('タブが上限なら開かず、「最近使ったファイル」に足�
   const shell = await openShell(t);
   shell.SigK.tabs.count = () => shell.SigK.tabs.MAX_TABS;
   await shell.SigK.rewriteOutput.finish({ ok: true }, OUT, MESSAGES);
-  assert.equal(shell.SigK.viewBanner.text(), '書きました。タブが多すぎるため開いていません。');
+  assert.equal(shell.SigK.viewBanner.text(), '書きましたが、タブが多すぎるため開いていません。');
   // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
   assert.equal(shell.recentCalls.some((call) => JSON.stringify(call).includes('a_x.pdf')), true);

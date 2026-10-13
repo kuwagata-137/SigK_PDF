@@ -98,7 +98,7 @@ test('ドロップでも足せる。変換画面では画像を受け、PDF は�
   // PDF は変換画面では受けない。
   await drop([makeDroppedFile('x.pdf', 'C:\\work\\x.pdf')]);
   assert.deepEqual(names(shell), ['a.png', 'b.jpg']);
-  assert.equal(bannerText(shell), '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。');
+  assert.equal(bannerText(shell), '画像ファイルではないので、PNG・JPEG・BMP・GIF・TIFF を落としてください。');
 });
 
 test('結合の画面では従来どおり PDF だけを受け、画像は断る', async (t) => {
@@ -112,7 +112,7 @@ test('結合の画面では従来どおり PDF だけを受け、画像は断る
   });
   assert.deepEqual(rows(shell), []);
   assert.deepEqual(plain(SigK.toolsMerge.rows()), []);
-  assert.equal(bannerText(shell), 'PDF ファイルではありません。PDF を落としてください。');
+  assert.equal(bannerText(shell), 'PDF ファイルではないので、PDF を落としてください。');
 });
 
 test('addFromLaunch はツールモードへ切り替えて変換を選び、末尾へ足す', async (t) => {
@@ -129,7 +129,7 @@ test('addFromLaunch はツールモードへ切り替えて変換を選び、末
 });
 
 test('右クリックの束はファイル名の順に並び、注記は束につき 1 回。実行済みの一覧は次の束で置き換える（spec-5-1 確定事項16〜18）', async (t) => {
-  const note = 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+  const note = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
   const shell = await createShell({
     imageInfos: INFOS,
     files: { [OUT]: makeSource({ path: OUT }) },
@@ -159,7 +159,7 @@ test('右クリックの束はファイル名の順に並び、注記は束に�
 
 // ---- 右クリックの束の続き（spec-5-1 確定事項16〜19。test/tools-merge.test.js の同じ名前のテストに揃える） ----
 
-const NOTE_NAME_ORDER = 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
 const first = (id) => ({ batch: { id, first: true } });
 const next = (id) => ({ batch: { id, first: false } });
 
@@ -523,7 +523,7 @@ test('「まとめる」の出力先がタブで開いていれば、何も書�
   await SigK.toolsConvert.addPaths([A]);
 
   const result = await SigK.toolsConvert.run();
-  assert.equal(result.error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(bannerText(shell), result.error);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
@@ -542,7 +542,7 @@ test('「画像ごと」の出力先がタブで開いていれば、同名の3�
   pick(shell, 'output', 'each');
 
   const result = await SigK.toolsConvert.run();
-  assert.equal(result.error, '出力先の「b.pdf」はタブで開いています。タブを閉じるか、フォルダを変えてください。');
+  assert.equal(result.error, '出力先の「b.pdf」はタブで開いているので、タブを閉じるか、フォルダを変えてください。');
   assert.equal(doc.getElementById('confirm-replace').open, false, '置き換えてよいかは聞かない');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(bannerText(shell), result.error);

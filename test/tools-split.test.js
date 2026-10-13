@@ -290,7 +290,7 @@ test('出力先のどれかがタブで開いていれば、同名の3択を出�
   await useEach(shell);
 
   const result = await SigK.toolsSplit.run();
-  assert.equal(result.error, '出力先の「a_002.pdf」はタブで開いています。タブを閉じるか、フォルダを変えてください。');
+  assert.equal(result.error, '出力先の「a_002.pdf」はタブで開いているので、タブを閉じるか、フォルダを変えてください。');
   assert.equal(SigK.confirmReplace.isOpen(), false, '置き換えてよいかは聞かない');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(bannerText(shell), result.error);
@@ -312,7 +312,7 @@ test('「別名で保存」で選び直したフォルダーの出力先がタ�
   await shell.flush();
   doc.getElementById('confirm-replace-rename').click();
   const result = await pending;
-  assert.equal(result.error, '出力先の「a_001.pdf」はタブで開いています。タブを閉じるか、フォルダを変えてください。');
+  assert.equal(result.error, '出力先の「a_001.pdf」はタブで開いているので、タブを閉じるか、フォルダを変えてください。');
   assert.equal(shell.taskCalls.length, 0);
 });
 

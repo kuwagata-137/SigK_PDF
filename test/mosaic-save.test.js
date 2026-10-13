@@ -88,7 +88,7 @@ test('前の控えを消せなかったら、保存は成功のまま黄色の�
   await shell.flush();
   byId(shell, 'confirm-mosaic-ok').click();
   assert.equal((await saving).ok, true);
-  assert.equal(shell.SigK.viewBanner.text(), '保存しました。控えのファイル（.bak）を消せませんでした。元の内容が残っているので、手で消してください。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存しましたが、控えのファイル（.bak）を消せませんでした。元の内容が残っているので、手で消してください。');
   assert.equal(byId(shell, 'view-banner').getAttribute('data-tone'), 'warn');
 });
 

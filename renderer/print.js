@@ -67,7 +67,7 @@
   // 一度に印刷できるページ数の上限（確定事項33）。実測に基づかない初期値である。
   function withLimit(pages) {
     if (pages.length > MAX_PAGES)
-      return { error: `一度に印刷できるのは ${MAX_PAGES} ページまでです（${pages.length} ページが指定されています）。` };
+      return { error: `${pages.length} ページが指定されていますが、一度に印刷できるのは ${MAX_PAGES} ページまでです。` };
     return { pages };
   }
 

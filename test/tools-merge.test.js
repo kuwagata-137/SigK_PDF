@@ -123,7 +123,7 @@ test('ツールモードでは PDF のドロップが一覧へ足される', asy
   const bad = new window.Event('drop', { bubbles: true, cancelable: true });
   bad.dataTransfer = makeDataTransfer([makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
   await SigK.fileDrop.handleDrop(bad);
-  assert.match(bannerText(shell), /PDF ファイルではありません/);
+  assert.match(bannerText(shell), /PDF ファイルではないので/);
 });
 
 test('上限は 100 ファイルで、超えたぶんは帯で断る', async (t) => {
@@ -324,7 +324,7 @@ test('出力先がタブで開いていれば、何も書かずに帯で断る�
   await SigK.toolsMerge.addPaths([A, B]);
 
   const result = await SigK.toolsMerge.run();
-  assert.equal(result.error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0, 'ワーカーへ渡さない');
   assert.equal(bannerText(shell), result.error);
   // 結合画面に留まり、タブも一覧もそのまま。
@@ -481,7 +481,7 @@ test('addFromLaunch はツールモードへ切り替えて結合を選び、末
 
 // ---- 右クリックの束（spec-5-1 確定事項9・16〜19） ----
 
-const NOTE_NAME_ORDER = 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
 const first = (id) => ({ batch: { id, first: true } });
 const next = (id) => ({ batch: { id, first: false } });
 

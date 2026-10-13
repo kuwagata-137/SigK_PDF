@@ -44,8 +44,8 @@
       return pending.promise;
 
     el.text.textContent = name === null || name === undefined
-      ? 'このファイルは、開いたあとで変更されています。上書きすると、その変更は失われます。'
-      : `${name} は、開いたあとで変更されています。上書きすると、その変更は失われます。`;
+      ? 'このファイルは、開いたあとで変更されているので、上書きすると、その変更は失われます。'
+      : `${name} は、開いたあとで変更されているので、上書きすると、その変更は失われます。`;
 
     pending = Promise.withResolvers();
     if (typeof el.dialog.showModal === 'function')

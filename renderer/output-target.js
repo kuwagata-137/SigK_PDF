@@ -11,9 +11,9 @@
   //
   // どの関数も、断るなら帯に出す文言を、通すなら null を返す。帯に出すのは呼ぶ側である。
 
-  const OPEN_IN_TAB = '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。';
+  const OPEN_IN_TAB = '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。';
   const SAME_AS_SOURCE = '出力先に元のファイルと同じファイルは選べません。';
-  const SAVE_AS_OPEN_IN_TAB = '保存先のファイルは別のタブで開いています。そのタブを閉じるか、別の名前を選んでください。';
+  const SAVE_AS_OPEN_IN_TAB = '保存先のファイルは別のタブで開いているので、そのタブを閉じるか、別の名前を選んでください。';
 
   function pathKey(filePath) {
     return typeof filePath === 'string' ? filePath.replace(/\//g, '\\').toLowerCase() : null;
@@ -41,7 +41,7 @@
     const open = (targets ?? []).find((target) => openTab(target) !== null);
     if (open === undefined)
       return null;
-    return `出力先の「${baseName(open)}」はタブで開いています。タブを閉じるか、フォルダを変えてください。`;
+    return `出力先の「${baseName(open)}」はタブで開いているので、タブを閉じるか、フォルダを変えてください。`;
   }
 
   // 名前を付けて保存。保存すると映しているタブがその保存先へ移る（spec-1-6 確定事項26）ので、

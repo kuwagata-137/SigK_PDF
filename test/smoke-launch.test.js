@@ -48,7 +48,7 @@ test('画面で評価すると、束を当てた後の様子を報告する', as
     [['a.pdf', 3, 3, null], ['b.pdf', 3, 3, null]]);
   assert.deepEqual(report.convert.map((row) => [row.name, row.batch, row.kind]), [['a.png', 1, 'png']]);
   assert.deepEqual(report.split, { name: 'b.pdf', pageCount: 3, blocked: null });
-  assert.equal(report.banner, 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。');
+  assert.equal(report.banner, 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。');
   assert.equal(report.pending, 0);
 });
 

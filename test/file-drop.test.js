@@ -182,7 +182,7 @@ test('変換画面は BMP・GIF・TIFF の拡張子も受ける（spec-3-2 確�
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('x.webp', 'C:\\photo\\x.webp')]));
   await shell.flush();
   assert.equal(shell.SigK.toolsConvert.rows().length, 4);
-  assert.equal(shell.document.getElementById('view-banner').textContent, '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。');
+  assert.equal(shell.document.getElementById('view-banner').textContent, '画像ファイルではないので、PNG・JPEG・BMP・GIF・TIFF を落としてください。');
 });
 
 test('変換画面のほかでは画像を断り、PDF だけを受ける', async (t) => {
@@ -193,7 +193,7 @@ test('変換画面のほかでは画像を断り、PDF だけを受ける', asyn
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('a.png', IMG)]));
   await shell.flush();
   assert.equal(shell.SigK.tabs.count(), 0);
-  assert.equal(message(), 'PDF ファイルではありません。PDF を落としてください。');
+  assert.equal(message(), 'PDF ファイルではないので、PDF を落としてください。');
 
   // 結合の画面でも画像は受けない。
   shell.SigK.shell.setMode(shell.document, 'tools');

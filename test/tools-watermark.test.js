@@ -196,7 +196,7 @@ test('入力と同じ出力先と、タブで開いている出力先は断っ�
   assert.equal(bannerText(shell), '出力先に入力ファイルと同じファイルは選べません。');
   await shell.SigK.tabs.openPath(B);
   shell.SigK.shell.setMode(shell.document, 'tools');
-  assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0);
 });
 
