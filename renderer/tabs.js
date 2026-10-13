@@ -246,7 +246,7 @@
     }
 
     if (state.list.length >= MAX_TABS) {
-      messageFor(`タブが多すぎます。${MAX_TABS} 個まで開けます。使わないタブを閉じてください。`);
+      messageFor(`${MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
       return false;
     }
 

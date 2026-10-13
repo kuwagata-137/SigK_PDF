@@ -96,7 +96,7 @@ test('文書を開いたまま PDF 以外を落とすと、帯で断る', async 
   shell.document.dispatchEvent(event);
   await shell.flush();
 
-  assert.match(shell.document.getElementById('view-banner').textContent, /PDF ファイルではありません/);
+  assert.match(shell.document.getElementById('view-banner').textContent, /PDF ファイルではないので/);
   assert.equal(shell.document.getElementById('view-empty').hidden, true);
   assert.equal(shell.SigK.viewer.getState().open, true, '読んでいた文書はそのまま残る');
 });

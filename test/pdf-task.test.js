@@ -168,7 +168,7 @@ test('元の文書に無いページを指した plan は断る', async () => {
   try {
     const source = ws.copyIn('three-pages.pdf');
     const result = await runSave({ source, target: source, pages: [{ src: 9 }] });
-    assert.match(result.error, /元の文書と合いません/);
+    assert.match(result.error, /元の文書と合わないので/);
   } finally { ws.cleanup(); }
 });
 

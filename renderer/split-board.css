@@ -1,0 +1,156 @@
+/* 分割の盤（spec-2-2b 確定事項A・C。見本 screenshots/phase2-2b-*.png）。
+   箱・ページ・✂ の位置は split-board-layout.js が計算して style に書く。寸法（紙の余白 3px・番号の行 20px・✂ の幅 26px・
+   箱の余白と見出し 34px・段の間 12px）はあちらの定数と同じ値にしてある。変えるときは両方を直す。 */
+
+.sb-body{flex:1; min-height:0; margin:0 24px; display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:14px}
+.sb-main{display:flex; flex-direction:column; min-height:0; min-width:0}
+.sb-side{display:flex; flex-direction:column; gap:12px; min-height:0; overflow:auto}
+
+/* ── 上の段（まとめて分ける・元に戻す・大きさ） ── */
+.sb-tools{display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface)}
+.sb-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.sb-row .k{color:var(--muted); font-size:12px; font-weight:600; margin-right:2px}
+.sb-row .spacer{flex:1}
+.sb-btn{display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px; border:1px solid var(--border-strong); border-radius:8px;
+  background:var(--surface); color:var(--text); font-size:12px; white-space:nowrap}
+.sb-btn:hover{background:var(--surface-2)}
+.sb-btn[aria-disabled="true"]:hover{background:var(--surface)}
+.sb-btn.ghost{border-color:transparent; background:transparent}
+.sb-btn.ghost:hover{background:var(--surface-2); border-color:var(--border)}
+.sb-btn.ghost[aria-disabled="true"]:hover{background:transparent; border-color:transparent}
+.sb-pair{display:inline-flex}
+.sb-inp{height:28px; border:1px solid var(--border-strong); border-radius:7px 0 0 7px; padding:0 8px; font:inherit; font-size:12px; color:var(--text); background:var(--surface)}
+.sb-inp + .sb-btn{border-radius:0 8px 8px 0; margin-left:-1px}
+.sb-inp.num{width:44px; text-align:right; font-variant-numeric:tabular-nums}
+.sb-inp.wide{width:96px}
+.sb-inp::placeholder{color:var(--muted)}
+.sb-inp:focus{outline:2px solid var(--primary); outline-offset:-1px; border-color:transparent}
+.sb-inp:disabled{background:var(--surface-2); color:var(--muted)}
+.sb-inp.invalid{border-color:var(--danger); background:rgba(214,69,69,.06)}
+.sb-err{margin:0; color:var(--danger); font-size:11.5px}
+.sb-err[hidden]{display:none}
+.sb-seg{display:inline-flex; border:1px solid var(--border-strong); border-radius:8px; overflow:hidden}
+.sb-seg button{height:26px; padding:0 11px; font-size:12px; border-left:1px solid var(--border)}
+.sb-seg button:first-child{border-left:none}
+.sb-seg button[aria-checked="true"]{background:var(--primary); color:#fff}
+
+/* ── 使い方の案内と、選んだときの帯 ── */
+.sb-guide{margin:8px 2px; color:var(--muted); font-size:12px; line-height:1.75}
+.sb-guide div,.sb-guide-short{display:flex; align-items:center; gap:6px}
+.sb-guide-short{display:none; margin:6px 2px; color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.sb-band{display:flex; align-items:center; gap:8px; padding:7px 10px 7px 14px; margin-bottom:10px; border:1px solid #b9cdf7; border-radius:var(--radius); background:#e8effd}
+.sb-band[hidden]{display:none}
+.sb-band b{font-size:12.5px; font-weight:600}
+.sb-band .spacer{flex:1}
+.sb-band .sb-btn{border-color:#9db8f0}
+.sb-band .sb-btn[hidden]{display:none}
+
+/* ── 盤（箱とページ。位置は split-board-layout.js） ── */
+/* 縦のスクロールバーの幅をはじめから取っておく（出た瞬間に箱がはみ出して横のスクロールバーが出ないように。shell.css のページビューと同じ） */
+.sb-scroll{flex:1; min-height:0; overflow:auto; position:relative; padding:0 0 16px; outline:none; scrollbar-gutter:stable}
+.sb-scroll:focus-visible{outline:2px solid var(--primary); outline-offset:-2px; border-radius:var(--radius)}
+.sb-canvas{position:relative}
+.sb-empty{position:absolute; inset:0 0 16px; margin:0; display:grid; place-items:center; padding:0 24px; text-align:center;
+  color:var(--muted); font-size:12.5px; line-height:1.8; border:2px dashed var(--border-strong); border-radius:var(--radius)}
+.sb-empty[hidden]{display:none}
+.sb-box{position:absolute; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:9px 12px 0}
+.sb-box.dead{background:var(--surface-2)}
+.sb-head{display:flex; align-items:center; gap:8px; height:24px; min-width:0}
+.sb-no{display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 5px; border-radius:6px; background:#e3ecfd; color:#1d4fb8; font-size:12px; font-weight:700; flex:0 0 auto}
+.sb-no.even{background:#e2f3ec; color:#0f6e56}
+.sb-box.dead .sb-no{background:var(--border); color:var(--muted)}
+.sb-head .fname{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sb-head .range{color:var(--muted); font-size:12px; white-space:nowrap}
+.sb-head .chip{font-size:11px; color:var(--muted); background:var(--surface-2); border-radius:5px; padding:1px 6px; white-space:nowrap}
+.sb-head .spacer{flex:1}
+/* 狭い箱は見出しを 2 行にする（split-board-layout.js の headNarrow と同じ高さ）。1 行目に番号とファイル名、2 行目にページと［つなげる］。 */
+.sb-box.narrow .sb-head{flex-wrap:wrap; height:52px; row-gap:4px; align-content:flex-start}
+.sb-box.narrow .sb-head .fname{flex:1 1 calc(100% - 30px)}
+.sb-join{height:24px; padding:0 8px; border:1px solid var(--border-strong); border-radius:7px; background:var(--surface); font-size:11.5px; white-space:nowrap}
+.sb-join:hover{background:var(--surface-2)}
+.sb-page{position:absolute; display:flex; flex-direction:column; align-items:center; gap:4px; padding:3px; border-radius:6px; z-index:1; user-select:none}
+.sb-page.sel{background:var(--select)}
+.sb-page.sel .sb-sheet{outline:3px solid var(--primary); outline-offset:1px}
+.sb-page.current .sb-sheet{box-shadow:0 0 0 2px var(--primary), 0 1px 3px rgba(16,24,40,.16)}
+.sb-sheet{position:relative; display:grid; place-items:center; overflow:hidden; background:var(--page); box-shadow:0 0 0 1px rgba(16,24,40,.14), 0 1px 3px rgba(16,24,40,.16)}
+.sb-sheet canvas{display:block; box-shadow:0 0 0 1px rgba(16,24,40,.08)}
+.sb-page .cap{height:16px; font-size:11.5px; line-height:16px; color:var(--muted); font-variant-numeric:tabular-nums}
+.sb-page.sel .cap{color:var(--accent); font-weight:600}
+.sb-page.skip .sb-sheet{opacity:.32}
+.sb-page .tag{position:absolute; left:50%; top:42%; transform:translateX(-50%); background:#4a5462; color:#fff; font-size:11px; padding:3px 7px; border-radius:5px; white-space:nowrap}
+.sb-cut{position:absolute; z-index:2; display:flex; justify-content:center; padding:0; color:#8a94a3}
+.sb-cut .s{width:22px; height:22px; border-radius:50%; display:grid; place-items:center}
+.sb-cut::before{content:''; position:absolute; top:3px; bottom:23px; left:50%; border-left:2px dashed transparent}
+.sb-cut:hover::before,.sb-cut:focus-visible::before{border-left-color:var(--primary)}
+.sb-cut:hover .s,.sb-cut:focus-visible .s{background:var(--primary); color:#fff; position:relative; z-index:1}
+.sb-cut .tip{display:none; position:absolute; left:50%; transform:translateX(-50%); background:#1c2430; color:#fff; font-size:11px; padding:3px 7px; border-radius:5px; white-space:nowrap; z-index:3}
+.sb-cut:hover .tip{display:block}
+/* 実行中（確定事項C12）。✂ と［つなげる］を押せない色にし、指を当てても光らせない。 */
+.sb-join[aria-disabled="true"]{opacity:.45; cursor:default}
+.sb-join[aria-disabled="true"]:hover{background:var(--surface)}
+.sb-cut[aria-disabled="true"]{opacity:.45; cursor:default}
+.sb-cut[aria-disabled="true"]:hover::before{border-left-color:transparent}
+.sb-cut[aria-disabled="true"]:hover .s{background:none; color:inherit}
+.sb-cut[aria-disabled="true"]:hover .tip{display:none}
+
+/* ── 右の欄 ── */
+.sb-card{position:relative; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:12px 14px 14px; flex:0 0 auto}
+.sb-card[hidden]{display:none}
+.sb-card h3{margin:0 0 10px; font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.04em; display:flex; align-items:baseline; gap:8px}
+.sb-card h3 .n{font-weight:400}
+.sb-target .file{display:flex; align-items:baseline; gap:8px; min-width:0; flex-wrap:wrap}
+.sb-target .file[hidden]{display:none}
+.sb-target .file .name{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%}
+.sb-target .file.blocked .name{color:var(--danger)}
+.sb-target .file .pages{color:var(--muted); font-variant-numeric:tabular-nums}
+.sb-target .file .note{flex-basis:100%; font-size:11.5px; color:var(--muted)}
+.sb-target .file .note.error{color:var(--danger)}
+.sb-target .file .note[hidden]{display:none}
+.sb-target .empty{margin:0; color:var(--muted); font-size:12px; line-height:1.7}
+.sb-target .empty[hidden]{display:none}
+.sb-target .btns{position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:6px; margin-top:10px}
+.sb-target .btns .act{padding:0 12px; height:30px}
+.sb-files{display:flex; flex-direction:column; max-height:260px; overflow:auto}
+.sb-file{display:flex; align-items:center; gap:8px; padding:6px 2px; border:none; border-bottom:1px solid var(--surface-2); background:none; font-size:12px; text-align:left; color:var(--text); min-width:0}
+.sb-file:last-child{border-bottom:none}
+.sb-file:hover{background:var(--surface-2)}
+.sb-file .fname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sb-file .p{margin-left:auto; padding-left:8px; color:var(--muted); white-space:nowrap}
+.sb-files-more{padding:8px 2px 2px; font-size:11.5px; line-height:1.6; color:var(--muted)}
+.sb-out{display:grid; grid-template-columns:64px minmax(0,1fr); gap:9px 8px; align-items:center; font-size:12px}
+.sb-out .k{color:var(--muted)}
+.sb-out .k.top{align-self:start; margin-top:2px}
+.sb-out .folder{display:flex; gap:6px; min-width:0; align-items:center}
+.sb-out .path{flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:4px 7px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sb-out .folder .act{padding:0 10px; height:28px}
+.sb-out .rule{display:grid; grid-template-columns:auto 1fr; align-items:center; column-gap:6px; margin-bottom:6px; white-space:nowrap}
+.sb-out .rule code{grid-column:2; font-family:Consolas,'Yu Gothic UI',monospace; color:var(--muted); font-size:11.5px; overflow:hidden; text-overflow:ellipsis}
+.sb-out input[type="radio"]{margin:0; width:16px; height:16px; accent-color:var(--primary)}
+#split-summary.wait{color:var(--muted)}
+
+/* ── 大きく見る窓（第 E 章。split-zoom.js） ── */
+#split-zoom{padding:0; margin:0; border:none; background:transparent; color:#fff; width:100vw; height:100vh; max-width:none; max-height:none}
+#split-zoom[open]{display:flex; flex-direction:column; align-items:center}
+#split-zoom::backdrop{background:rgba(16,24,40,.78)}
+.sz-top{width:100%; display:flex; align-items:center; gap:12px; padding:12px 16px}
+.sz-top .spacer{flex:1}
+.sz-title{font-size:13.5px; font-weight:600}
+.sz-file{font-size:12px; opacity:.85}
+.sz-x{width:34px; height:34px; border-radius:8px; display:grid; place-items:center; color:#fff; background:rgba(255,255,255,.12)}
+.sz-x:hover{background:rgba(255,255,255,.22)}
+.sz-mid{flex:1; min-height:0; width:100%; display:flex; align-items:center; justify-content:center; gap:22px}
+.sz-page{display:grid; place-items:center; background:var(--page); box-shadow:var(--page-shadow); min-width:40px; min-height:40px}
+.sz-page canvas{display:block}
+.sz-nav{width:44px; height:44px; border-radius:50%; display:grid; place-items:center; background:rgba(255,255,255,.14); color:#fff}
+.sz-nav:hover{background:rgba(255,255,255,.26)}
+.sz-nav[aria-disabled="true"]{opacity:.3}
+.sz-hint{margin:0; padding:10px 0 14px; font-size:12px; opacity:.8}
+
+/* ── 狭い窓（確定事項A3。決定77 ④） ── */
+@media (max-width:1100px){
+  .sb-body{grid-template-columns:minmax(0,1fr) 232px}
+  .sb-guide{display:none}
+  .sb-guide-short{display:flex}
+  .tool-panel[data-tool="split"] .tools-head .hint{display:none}
+  .sb-tools .sb-row:first-child .k{display:none}
+}

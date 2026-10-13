@@ -82,3 +82,16 @@ test('createFileIo は分割の1本選択とフォルダー選択も出せる', 
   assert.deepEqual(await io.pickSplitSource(null, {}), { path: IN_A });
   assert.deepEqual(await io.pickFolder(null, { defaultPath: 'C:/in' }), { path: DIR });
 });
+
+// 分割の画面が、読んだあとで書き換わっていないかを照らす口（spec-2-2b 確定事項D7）。
+test('statPdf は読まずに大きさと更新日時だけを返す。PDF でないパスと無いファイルは error', async () => {
+  const fs = require('node:fs');
+  const { fixturePath } = require('./fixtures/build.js');
+  const { statPdf } = require('../file-io.js');
+  const fixture = fixturePath('three-pages.pdf');
+  const real = fs.statSync(fixture);
+  assert.deepEqual(await statPdf(fixture), { ok: true, size: real.size, mtimeMs: Math.round(real.mtimeMs) });
+  assert.equal(typeof (await statPdf('C:/in/a.txt')).error, 'string');
+  assert.equal(typeof (await statPdf(`${fixture}.nothing.pdf`)).error, 'string');
+  assert.deepEqual(await createFileIo({ dialog: {} }).stat(fixture), { ok: true, size: real.size, mtimeMs: Math.round(real.mtimeMs) });
+});

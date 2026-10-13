@@ -40,7 +40,7 @@
         return null;
       return api.pickToolSource({ defaultPath, title: PICK_TITLE });
     },
-    dirtyMessage: '未保存の編集は透かしに反映されません。保存してから透かしを入れ直してください。',
+    dirtyMessage: '未保存の編集は透かしに反映されないので、保存してから透かしを入れ直してください。',
     onChange: () => {
       view()?.render();
       preview()?.setSource(field.source());
@@ -48,7 +48,7 @@
   });
 
   const source = () => field.source();
-  const { setSource, useOpenTab, pickFile } = field;
+  const { setSource, useTab, pickFile } = field;
 
   // ---- 透かしの画像（確定事項35〜37。論点7） ----
 
@@ -176,7 +176,7 @@
   SigK.toolsWatermark = {
     PICK_TITLE, SAVE_TITLE, NOTE_FIRST_IMAGE,
     init, source, image, settings, currentPlan, canRun,
-    setSource, useOpenTab, pickFile, addPaths, setImage, pickImage,
+    setSource, useTab, pickFile, addPaths, setImage, pickImage,
     setType, setText, setSize, setColor, setOpacity, setAngle, setPosition, setPageMode, setRange,
     run,
     isRunning: () => state.running,

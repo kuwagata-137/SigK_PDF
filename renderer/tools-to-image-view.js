@@ -148,7 +148,7 @@
     for (const [dpi, radio] of Object.entries(el.dpis))
       radio.addEventListener('change', () => { if (radio.checked) tool().setDpi(Number(dpi)); });
 
-    onClick(el.useOpen, () => tool().useOpenTab());
+    root.SigK.sourcePicker.bindTabMenu(el.useOpen, (id) => tool().useTab(id));
     onClick(el.pick, () => tool().pickFile());
     onClick(el.folderPick, () => tool().pickFolder());
     onClick(el.run, () => tool().run());

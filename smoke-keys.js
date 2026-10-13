@@ -12,6 +12,7 @@
 //   mode・tool:<名前|none>・find・dialog:<info|print|help>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
 //   fit・scroll:<割合>（画面の口を呼ぶ。smoke-keys-page.js）
 //   wait:<ms> / state（様子を控える）/ memory（アプリ全体の実メモリを控える）
+//   split（分割の盤を出す）・split-cut:<ページ>・split-press:<ページ>[:shift]・split-drag:<a>-<b>・split-dblclick:<ページ>（smoke-keys-split.js）
 // 例: SIGK_SMOKE_KEYS=mode:annot,shape:square:0:100x700-300x600,find:text,dialog:info,esc,state,esc,state
 //
 // 数・範囲が読めない操作は、黙って 0 回にせず、止めて problems に書く。mode・facing は設定に残るので、起動確認の決まりどおり
@@ -24,7 +25,8 @@ const page = require('./smoke-keys-page.js');
 const KEYS = {
   Escape: [27, 'Escape'], Delete: [46, 'Delete'], Backspace: [8, 'Backspace'], Enter: [13, 'Enter'],
   PageDown: [34, 'PageDown'], PageUp: [33, 'PageUp'], Home: [36, 'Home'], End: [35, 'End'], Tab: [9, 'Tab'], F1: [112, 'F1'], F3: [114, 'F3'],
-  ArrowUp: [38, 'ArrowUp'], ArrowDown: [40, 'ArrowDown'], '-': [189, 'Minus'], '=': [187, 'Equal'],
+  ArrowUp: [38, 'ArrowUp'], ArrowDown: [40, 'ArrowDown'], ArrowLeft: [37, 'ArrowLeft'], ArrowRight: [39, 'ArrowRight'], Space: [32, 'Space'],
+  '-': [189, 'Minus'], '=': [187, 'Equal'],
   f: [70, 'KeyF'], p: [80, 'KeyP'], w: [87, 'KeyW'], y: [89, 'KeyY'], z: [90, 'KeyZ'],
 };
 
@@ -38,7 +40,7 @@ function keyEvent(name) {
   if (entry === undefined)
     return null;
   const modifiers = (mods.includes('alt') ? 1 : 0) | (mods.includes('ctrl') ? 2 : 0) | (mods.includes('shift') ? 8 : 0);
-  return { key, code: entry[1], windowsVirtualKeyCode: entry[0], nativeVirtualKeyCode: entry[0], modifiers };
+  return { key: key === 'Space' ? ' ' : key, code: entry[1], windowsVirtualKeyCode: entry[0], nativeVirtualKeyCode: entry[0], modifiers };
 }
 
 // 'esc,key:Delete,press:0:100x700' → [{ raw, name, args }]。空の項目は飛ばす。
@@ -149,6 +151,9 @@ const OPS = {
     ctx.states.push({ at: step.index, memoryMb: Math.round(kb / 1024 * 10) / 10 });
   },
 };
+
+// 分割の盤を本物のマウスで押す操作（spec-2-2b 確定事項K3）。
+Object.assign(OPS, require('./smoke-keys-split.js').create({ numberOf, spanOf }));
 
 // 1 つの操作を流す。
 async function runStep(ctx, step, index) {

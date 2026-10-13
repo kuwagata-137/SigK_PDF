@@ -4,6 +4,8 @@
   // 1 つのファイルを対象にするツールの「対象」の欄（spec-4-5 確定事項34。論点11）。
   // 分割・PDF→画像・透かし・フラット化が同じ部品を使う。分割（spec-2-2 確定事項1〜6）と
   // PDF→画像（spec-3-3 確定事項1〜5）に同じ写しがあったものを、振る舞いを変えずに寄せた。
+  // タブから選ぶ口は、［開いているファイル］（選んでいるタブを入れるだけ）を［開いているタブから選ぶ ▾］の一覧
+  // （tab-menu.js）に作り直した（spec-2-2b 確定事項F1〜F7。決定76 ⑦）。
   //
   // 対象は { path, name, pageCount, blocked, note, pending, ...画面ごとの欄 }。画面ごとの欄は
   // inspect の結果から fieldsOf で取り出して載せる（PDF→画像の sizes など）。読んでいる間に
@@ -15,6 +17,28 @@
   const banner = () => root.SigK.viewBanner;
   const tabs = () => root.SigK.tabs;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
+
+  // タブで開いている PDF の一覧（確定事項F2）。開けなかったタブも並べる（選ぶと、inspect が読めない印を付ける）。
+  function tabChoices() {
+    const open = tabs()?.list() ?? [];
+    return open.filter((tab) => typeof tab.path === 'string').map((tab) => ({
+      id: tab.id,
+      name: tab.name ?? baseName(tab.path),
+      path: tab.path,
+      active: tab.active === true,
+      dirty: tabs().isDirty(tab.id) === true,
+    }));
+  }
+
+  // ［開いているタブから選ぶ ▾］をつなぐ。useTab(id) は各ツールの欄の口。押せない（実行中）間は開かない。
+  function bindTabMenu(button, useTab) {
+    return root.SigK.tabMenu?.attach({
+      button,
+      choices: tabChoices,
+      onChoose: (id) => useTab(id),
+      isLocked: () => button?.getAttribute('aria-disabled') === 'true',
+    }) === true;
+  }
 
   // 配列の欄は 1 段だけ写す（呼んだ側が書き換えても中身が変わらないように）。
   function copyOf(source) {
@@ -55,16 +79,13 @@
       return true;
     }
 
-    async function useOpenTab() {
-      const open = tabs()?.list() ?? [];
-      const active = open.find((tab) => tab.active) ?? open[0];
-      if (active === undefined || typeof active.path !== 'string') {
-        banner().show('開いているファイルがありません。');
+    // 一覧で選んだタブの PDF を対象にする（確定事項F4）。保存していない編集があれば注意だけ出す。
+    async function useTab(id) {
+      const tab = tabChoices().find((choice) => choice.id === id);
+      if (tab === undefined)
         return false;
-      }
-      const dirty = tabs().isDirty(active.id) === true;
-      const ok = await setSource(active.path, { dirty });
-      if (dirty)
+      const ok = await setSource(tab.path, { dirty: tab.dirty });
+      if (tab.dirty)
         banner().show(dirtyMessage, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
       return ok;
     }
@@ -87,7 +108,7 @@
       return ok;
     }
 
-    return { source, setSource, useOpenTab, pickFile, addPaths };
+    return { source, setSource, useTab, pickFile, addPaths };
   }
 
   // 「対象」の欄を描く。elements は { file, name, pages, note, empty }。
@@ -98,7 +119,7 @@
       return;
     elements.name.textContent = src.name;
     elements.file.title = src.path;
-    elements.pages.textContent = src.pending ? '…' : (src.pageCount === null ? '' : `${src.pageCount} ページ`);
+    elements.pages.textContent = src.pending ? '…' : (src.pageCount === null ? '' : `${src.pageCount.toLocaleString('ja-JP')} ページ`);
     elements.file.classList.toggle('blocked', src.blocked !== null);
     const note = src.blocked ?? src.note;
     elements.note.textContent = note ?? '';
@@ -107,5 +128,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.sourcePicker = { NOTE_UNSAVED, NOTE_FIRST_ONLY, create, render };
+  SigK.sourcePicker = { NOTE_UNSAVED, NOTE_FIRST_ONLY, create, render, tabChoices, bindTabMenu };
 })(typeof window !== 'undefined' ? window : globalThis);

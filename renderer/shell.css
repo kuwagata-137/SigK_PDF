@@ -567,17 +567,21 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .split-target .file .note[hidden]{display:none}
 #split-empty{margin:0; color:var(--muted); font-size:12.5px; line-height:1.6}
 #split-empty[hidden]{display:none}
+/* ［開いているタブから選ぶ ▾］の一覧（spec-2-2b 確定事項F2。tab-menu.js。見本 screenshots/phase2-2b-07-tab-menu.png）。
+   押したボタンのすぐ後ろに組み、ボタンの下に重ねる。分割・PDF→画像・透かし・フラット化で同じ見た目。 */
+.tab-menu{position:absolute; z-index:20; min-width:252px; max-width:360px; max-height:320px; overflow:auto; padding:4px;
+  background:var(--surface); border:1px solid var(--border-strong); border-radius:9px; box-shadow:var(--shadow)}
+.tab-menu:focus{outline:none}
+.tab-menu-row{display:flex; align-items:center; gap:8px; width:100%; padding:7px 9px; border-radius:6px; font-size:12.5px; text-align:left; color:var(--text)}
+.tab-menu-row:hover,.tab-menu-row:focus-visible{background:var(--surface-2)}
+.tab-menu-row.on{background:var(--select)}
+.tab-menu-row svg{flex:0 0 auto; color:var(--muted)}
+.tab-menu-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tab-menu-row .dot{width:6px; height:6px; border-radius:50%; background:var(--accent); flex:0 0 6px}
+.tab-menu-row .mark{margin-left:auto; padding-left:10px; color:var(--muted); font-size:11px; white-space:nowrap}
+.tab-menu-empty{display:block; padding:8px 10px; color:var(--muted); font-size:12px}
 .split-target .btns{display:flex; gap:8px}
 .split-target .btns .act{padding:0 12px; height:30px}
-.split-modes{display:flex; flex-direction:column; gap:10px}
-.split-mode{display:grid; grid-template-columns:20px 170px 1fr; align-items:center; gap:8px; min-height:30px; cursor:default}
-.split-mode input[type="radio"]{margin:0; width:16px; height:16px; accent-color:var(--primary)}
-.split-mode .lbl{font-weight:500}
-.split-mode:not(.on) .lbl,.split-mode:not(.on) .ctl{color:var(--muted)}
-.split-mode .ctl{display:flex; align-items:center; gap:8px; font-size:12px; flex-wrap:wrap}
-.split-mode .ctl .unit{color:var(--muted)}
-.split-mode .ctl .err{color:var(--danger); font-size:11.5px}
-.split-mode .ctl .err[hidden]{display:none}
 .split-inp{
   height:28px; padding:0 8px; border:1px solid var(--border-strong); border-radius:6px;
   background:var(--surface); color:var(--text); font:inherit;
@@ -586,7 +590,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .split-inp.wide{width:260px}
 .split-inp::placeholder{color:var(--muted)}
 .split-inp:focus{outline:2px solid var(--primary); outline-offset:-1px; border-color:transparent}
-.split-inp:disabled,.split-mode:not(.on) .split-inp{background:var(--surface-2); color:var(--muted)}
+.split-inp:disabled{background:var(--surface-2); color:var(--muted)}
 .split-inp.invalid{border-color:var(--danger); background:rgba(214,69,69,.06)}
 .split-out{display:grid; grid-template-columns:120px 1fr; row-gap:12px; column-gap:12px; align-items:center}
 .split-out .k{color:var(--muted); font-size:12px}

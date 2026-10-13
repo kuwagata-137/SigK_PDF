@@ -181,14 +181,20 @@ test('フラット化を選んでいるときの PDF のドロップは対象に
   assert.deepEqual(plain(shell.taskCalls[0].spec), { kind: 'flatten-preview', source: B });
 });
 
-test('「開いているファイル」が未保存なら注意書きと帯を出す', async (t) => {
+// ［開いているタブから選ぶ ▾］を押し、一覧からそのファイルの行を選ぶ（spec-2-2b 確定事項F2）。
+function chooseTab(shell, buttonId, filePath) {
+  shell.document.getElementById(buttonId).click();
+  [...shell.document.querySelectorAll('.tab-menu .tab-menu-row')].find((row) => row.title === filePath).click();
+}
+
+test('［開いているタブから選ぶ］で選んだタブが未保存なら注意書きと帯を出す', async (t) => {
   const shell = await createFlattenShell(t, { taskResults: [CENSUS] });
   const { document: doc, SigK } = shell;
   await SigK.tabs.openPath(A);
   await shell.flush();
   SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
   SigK.shell.setMode(doc, 'tools');
-  byId(shell, 'fl-use-open').click();
+  chooseTab(shell, 'fl-use-open', A);
   await settle(shell);
   assert.equal(byId(shell, 'fl-note').textContent, '未保存の編集は反映されません');
   // 数え終えて帯が下がる前に、未保存の帯が出ていたこと（数える帯は数え終えたら下げる）。

@@ -546,6 +546,11 @@ async function createShell({
         return mergeSourceResults.shift() ?? { canceled: true };
       },
       exists: async (filePath) => ({ ok: true, exists: existingPaths.includes(filePath) }),
+      // 大きさと更新日時だけ（spec-2-2b 確定事項D7）。files を差し替えると「書き換わった」ことにできる。
+      stat: async (filePath) => {
+        const file = files[filePath];
+        return file?.ok === true ? { ok: true, size: file.size, mtimeMs: file.mtimeMs } : { error: 'ファイルが見つかりません。' };
+      },
       // 分割の入力の1本選択と出力フォルダーの選択（spec-2-2 確定事項2・14）。
       pickSplitSource: async (options) => {
         splitSourceCalls.push(structuredClone(options ?? {}));

@@ -25,7 +25,7 @@
     if (pathKey(target) === pathKey(sourcePath))
       return '出力先に入力ファイルと同じファイルは選べません。';
     if ((tabs()?.list() ?? []).some((tab) => pathKey(tab.path) === pathKey(target)))
-      return '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。';
+      return '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。';
     return null;
   }
 
@@ -61,7 +61,7 @@
     // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show(`${done}。タブが多すぎるため開いていません。`, { tone: 'info' });
+      banner().show(`${done}が、タブが多すぎるため開いていません。`, { tone: 'info' });
       return result;
     }
     const opened = await tabs().openPath(target);

@@ -71,7 +71,7 @@ async function imageForm(doc, mark, TOOLS, readFile) {
   if (!IMAGE_KINDS.has(kind))
     return { error: 'PNG か JPEG の画像を選んでください。' };
   if (kind === 'jpeg' && isProgressiveJpeg(bytes))
-    return { error: 'この JPEG は透かしに使えません（プログレッシブ形式）。' };
+    return { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。' };
   const embedded = await embedImage(doc, { kind, bytes }, TOOLS);
   if (embedded.ok !== true)
     return embedded;

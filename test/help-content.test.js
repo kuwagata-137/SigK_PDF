@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/help-content-edit.js');
+require('../renderer/help-content-tools.js');
 require('../renderer/help-content.js');
 const content = globalThis.SigK.helpContent;
 
@@ -26,13 +27,13 @@ function joined(id) {
 }
 
 const KEY_NAMES = new Set(['Ctrl', 'Shift', 'Esc', 'Enter', 'Delete', 'Backspace', 'Tab', 'PageUp', 'PageDown', 'Home', 'End',
-  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'W', 'Y', 'Z', '0', '+', '-']);
+  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'W', 'Y', 'Z', '0', '+', '-', 'Space', '←', '→', '↑', '↓']);
 
-test('目次は 5 つのグループと 13 の節で、グループの順に並ぶ', () => {
+test('目次は 5 つのグループと 14 の節で、グループの順に並ぶ', () => {
   assert.equal(content.TITLE, 'SigK PDF の使い方');
   assert.deepEqual(content.GROUPS.map((group) => group.label), ['はじめに', '閲覧・ページ編集', '編集（書き込み）', 'ツール', '一覧']);
   assert.deepEqual(content.SECTIONS.map((section) => section.id), [
-    'basics', 'view', 'pages', 'select', 'markup', 'text', 'shapes', 'pen', 'note', 'mosaic-trim', 'tools', 'keys', 'escape',
+    'basics', 'view', 'pages', 'select', 'markup', 'text', 'shapes', 'pen', 'note', 'mosaic-trim', 'tools', 'split', 'keys', 'escape',
   ]);
   const groupIds = content.GROUPS.map((group) => group.id);
   const order = content.SECTIONS.map((section) => groupIds.indexOf(section.group));
@@ -103,12 +104,16 @@ test('元に戻せる回数は、履歴の世代の数（今の状態を含む�
   assert.ok(joined('basics').includes(`合わせて ${times} 回まで戻せます`), String(times));
 });
 
-test('分割の「範囲」は 1 つのファイルに取り出す。ツールのボタン名は画面と同じ', () => {
+test('分割は「分割」の節で説明し、ツールのボタン名は画面と同じ（spec-2-2b 確定事項G4）', () => {
   const tools = joined('tools');
-  assert.match(tools, /そのページだけを 1 つのファイルに取り出す/);
-  assert.doesNotMatch(tools, /範囲ごとに分けて/);
+  assert.match(tools, /使い方は次の「分割」の節にあります/);
+  assert.doesNotMatch(tools, /N ページごと|範囲（例 1-3, 8）/, '無くなった分け方を書かない');
   assert.match(tools, /［実行…］を押すと始まります/);
-  assert.match(tools, /［開いているファイルを追加］/);
+  const split = joined('split');
+  for (const button of ['［開いているタブから選ぶ］', '［前のファイルとつなげる］', '［1 ページずつに分ける］', '［ページごとに分ける］', '［ページの前で切る］',
+    '［分け目をすべて消す］', '［この範囲を 1 つのファイルにする］', '［書き出さない］', '［書き出す］', '［元に戻す］', '［やり直す］', '［実行…］'])
+    assert.ok(split.includes(button), button);
+  assert.match(tools, /［開いているタブから選ぶ］（結合では［開いているタブをまとめて追加］）/);
 });
 
 test('Esc の例は、持っている道具と選んでいる書き込みを書き分ける', () => {

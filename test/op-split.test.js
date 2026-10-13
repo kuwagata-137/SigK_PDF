@@ -233,3 +233,19 @@ test('元が無い・parts が無い・出力先が無いときは何もしな�
     assert.equal(fs.readdirSync(ws.dir).length, 1);
   } finally { ws.cleanup(); }
 });
+
+// 読んだあとで書き換わっていないかを、読む前に照らす（spec-2-2b 確定事項H4）。
+test('expectSource の大きさと更新日時が違えば、書かずに止める。同じなら分ける', async () => {
+  const ws = workspace();
+  try {
+    const source = ws.copyIn('three-pages.pdf');
+    const stat = fs.statSync(source);
+    const target = ws.file('three-pages_001.pdf');
+    const spec = { kind: 'split', source, parts: [{ pages: [0], target }], targets: [target] };
+    const stale = await runSplit({ ...spec, expectSource: { size: stat.size + 1, mtimeMs: Math.round(stat.mtimeMs) } });
+    assert.equal(stale.error, '分割する PDF が書き換えられていたので、分割を止めました。');
+    assert.equal(fs.existsSync(target), false);
+    const fresh = await runSplit({ ...spec, expectSource: { size: stat.size, mtimeMs: Math.round(stat.mtimeMs) } });
+    assert.equal(fresh.ok, true);
+  } finally { ws.cleanup(); }
+});

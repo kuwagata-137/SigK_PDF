@@ -60,9 +60,9 @@ function describeWriteFailure(error, phase) {
   // 読み取り専用の属性と「他のプログラムが開いている」は、どちらも EPERM である。
   // rename の失敗だけでは区別できないので、書き込めるかを先に見て段を分けてある。
   if (phase === 'permission')
-    return 'ファイルに書き込めません。読み取り専用になっていないか確認してください。';
+    return 'ファイルに書き込めないので、読み取り専用になっていないか確認してください。';
   if (phase === 'replace' && (code === 'EPERM' || code === 'EACCES' || code === 'EBUSY'))
-    return 'ファイルが他のプログラムで使われています。閉じてからもう一度お試しください。';
+    return 'ファイルが他のプログラムで使われているので、閉じてからもう一度お試しください。';
   if (phase === 'backup')
     return 'バックアップ（.bak）を作れなかったため、保存を中止しました。';
   switch (code) {

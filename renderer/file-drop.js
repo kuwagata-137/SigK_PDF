@@ -48,10 +48,10 @@
   // 受けられるものが 1 つも無かったときの文言。
   function rejectionFor(tool) {
     if (tool === 'convert')
-      return '画像ファイルではありません。PNG・JPEG・BMP・GIF・TIFF を落としてください。';
+      return '画像ファイルではないので、PNG・JPEG・BMP・GIF・TIFF を落としてください。';
     if (tool === 'watermark')
       return 'PDF か画像（PNG・JPEG）を落としてください。';
-    return 'PDF ファイルではありません。PDF を落としてください。';
+    return 'PDF ファイルではないので、PDF を落としてください。';
   }
 
   // ファイルを運んでいるドラッグかどうか。文字の選択をドラッグしただけで
@@ -106,7 +106,7 @@
 
     const paths = pathsFrom(event.dataTransfer.files);
     if (paths.length === 0) {
-      complain('ファイルの場所を取得できませんでした。「開く」から選んでください。');
+      complain('ファイルの場所を取得できなかったので、「開く」から選んでください。');
       return false;
     }
 

@@ -176,7 +176,7 @@ test('対応外・壊れたものは文言で断り、投げない', () => {
   const count = view.getUint16(ifd, true);
   for (let i = 0; i < count; i += 1)
     if (view.getUint16(ifd + 2 + i * 12, true) === 259) view.setUint16(ifd + 2 + i * 12 + 8, 6, true);
-  assert.equal(decodeTiff(bytes).error, 'この TIFF には対応していません（圧縮方式: 旧 JPEG）。');
+  assert.equal(decodeTiff(bytes).error, 'この TIFF の圧縮方式 旧 JPEG には対応していません。');
   assert.match(decodeTiff(bytes.subarray(0, 30)).error, /壊れている/);
   assert.match(decodeTiff(Buffer.from('not a tiff at all')).error, /TIFF/);
   // 画素が足りない（ストリップの長さを切り詰める）

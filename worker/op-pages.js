@@ -59,13 +59,13 @@ function validatePlan(plan, pageCount, insertCount = 0) {
       // 差し込みも同じ理由で重複を弾く。実体は1つしか組み立てないので、
       // 2か所へ置くと回転を共有してしまう。
       if (entry.insert < 0 || entry.insert >= insertCount || seenInserts.has(entry.insert))
-        return { error: '差し込むページが見つかりません。もう一度やり直してください。' };
+        return { error: '差し込むページが見つからないので、もう一度やり直してください。' };
       seenInserts.add(entry.insert);
       continue;
     }
     const src = entry?.src;
     if (!Number.isInteger(src) || src < 0 || src >= pageCount)
-      return { error: 'ページの指定が元の文書と合いません。もう一度開き直してください。' };
+      return { error: 'ページの指定が元の文書と合わないので、もう一度開き直してください。' };
     if (seen.has(src))
       return { error: '同じページを2回保存することはできません。' };
     seen.add(src);

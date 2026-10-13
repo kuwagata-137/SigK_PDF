@@ -134,7 +134,7 @@
     if (result?.changed === true)
       return showChanged(mode);
     if (result?.canceled === true) {
-      banner()?.show(mode === 'extract' ? '抽出を中止しました。' : '保存を中止しました。元のファイルは変更していません。', { tone: 'info' });
+      banner()?.show(mode === 'extract' ? '抽出を中止しました。' : '保存を中止しましたが、元のファイルは変更していません。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

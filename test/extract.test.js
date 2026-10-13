@@ -197,7 +197,7 @@ test('出力先が別のタブで開いていれば、何も書かずに帯で�
   shell.SigK.pageGrid.setSelection([0]);
 
   const result = await runAndAccept(shell);
-  assert.equal(result.error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(shell.SigK.viewBanner.text(), result.error);
 });

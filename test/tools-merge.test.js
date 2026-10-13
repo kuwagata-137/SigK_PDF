@@ -71,7 +71,7 @@ test('取り消したら何も足さない', async (t) => {
   assert.deepEqual(names(shell), []);
 });
 
-test('「開いているファイルを追加」はタブの並びで未追加のものだけ足し、未保存には注意を出す', async (t) => {
+test('［開いているタブをまとめて追加］はタブの並びで未追加のものだけ足し、未保存には注意を出す', async (t) => {
   const shell = await createMergeShell(t);
   const { SigK } = shell;
   await SigK.tabs.openPath(A);
@@ -88,7 +88,7 @@ test('「開いているファイルを追加」はタブの並びで未追加�
   assert.equal(rows[0].note, null);
   assert.equal(rows[1].note, '未保存の編集は反映されません');
   assert.equal(rowNodes(shell)[1].querySelector('.note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は結合に反映されません/);
+  assert.match(bannerText(shell), /未保存の編集は結合に反映されないので/);
   // 注意・お知らせは黄色の帯で出す（決定49）。
   assert.equal(bannerTone(shell), 'warn');
 
@@ -99,10 +99,10 @@ test('「開いているファイルを追加」はタブの並びで未追加�
   assert.equal(bannerTone(shell), 'warn');
 });
 
-test('開いているファイルが無ければ帯で伝える', async (t) => {
+test('タブが無ければ帯で伝える', async (t) => {
   const shell = await createMergeShell(t);
   assert.deepEqual(plain(await shell.SigK.toolsMerge.addOpenTabs()), []);
-  assert.match(bannerText(shell), /開いているファイルがありません/);
+  assert.match(bannerText(shell), /タブで開いている PDF がありません/);
 });
 
 test('同じファイルを2回足せる', async (t) => {
@@ -123,7 +123,7 @@ test('ツールモードでは PDF のドロップが一覧へ足される', asy
   const bad = new window.Event('drop', { bubbles: true, cancelable: true });
   bad.dataTransfer = makeDataTransfer([makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
   await SigK.fileDrop.handleDrop(bad);
-  assert.match(bannerText(shell), /PDF ファイルではありません/);
+  assert.match(bannerText(shell), /PDF ファイルではないので/);
 });
 
 test('上限は 100 ファイルで、超えたぶんは帯で断る', async (t) => {
@@ -324,7 +324,7 @@ test('出力先がタブで開いていれば、何も書かずに帯で断る�
   await SigK.toolsMerge.addPaths([A, B]);
 
   const result = await SigK.toolsMerge.run();
-  assert.equal(result.error, '出力先のファイルはタブで開いています。タブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0, 'ワーカーへ渡さない');
   assert.equal(bannerText(shell), result.error);
   // 結合画面に留まり、タブも一覧もそのまま。
@@ -425,7 +425,7 @@ test('タブが上限なら開かずに帯で伝え、最近使ったファイ�
   await SigK.toolsMerge.addPaths([A]);
   await SigK.toolsMerge.run();
   assert.equal(SigK.tabs.count(), 20);
-  assert.equal(bannerText(shell), '結合しました。タブが多すぎるため開いていません。');
+  assert.equal(bannerText(shell), '結合しましたが、タブが多すぎるため開いていません。');
   // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
   assert.equal(bannerTone(shell), 'info');
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
@@ -481,7 +481,7 @@ test('addFromLaunch はツールモードへ切り替えて結合を選び、末
 
 // ---- 右クリックの束（spec-5-1 確定事項9・16〜19） ----
 
-const NOTE_NAME_ORDER = 'ファイル名の順に並べました。エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
 const first = (id) => ({ batch: { id, first: true } });
 const next = (id) => ({ batch: { id, first: false } });
 

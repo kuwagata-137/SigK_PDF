@@ -420,7 +420,7 @@
     const count = state.rows.length;
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show('変換しました。タブが多すぎるため開いていません。', { tone: 'info' });
+      banner().show('変換しましたが、タブが多すぎるため開いていません。', { tone: 'info' });
       return result;
     }
     const opened = await tabs().openPath(target);
@@ -441,7 +441,7 @@
     if (result?.canceled === true) {
       const written = writtenBeforeCancel();
       // 自分で止めたので赤く塗らない（決定49）。
-      banner().show(written > 0 ? `変換を中止しました。${written} ファイルは書き出し済みです。` : '変換を中止しました。', { tone: 'info' });
+      banner().show(written > 0 ? `変換を中止しましたが、${written} ファイルは書き出し済みです。` : '変換を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

@@ -73,7 +73,8 @@ test('インストールは自分だけに固定し、完了ページで Windows
   assert.ok(block.includes('!define MUI_FINISHPAGE_TEXT_LARGE'));
   assert.equal(text.split('$\\r$\\n$\\r$\\n').length, 3, '段落は 3 つ（「ウィザードを閉じるには…」は入りきらないので除いた）');
   // 句点と読点のあとで改行し、行末に「「」をぶら下げない（spec-5-3 確かめ No.24・docs/07 決定75 ④。本物の画面で 7 行に収まることを見た）。
-  assert.ok(text.includes('使えます。$\\r$\\nWindows 11 では「その他のオプションを確認」の中にあります。'));
+  // 文の順番の直し（対照表 A10。docs/07 決定78 ①）で「使えます。」を「使えますが、」につないだ。改行は読点のあとのまま。
+  assert.ok(text.includes('使えますが、$\\r$\\nWindows 11 では「その他のオプションを確認」の中にあります。'));
   assert.ok(text.includes('アプリにするには、$\\r$\\nメニュー「ヘルプ」'));
   // 改行を自分で入れたので、行が増えると欄（7.5 行分）の下が切れる。空行を含めて 7 行に保つ。
   assert.equal(text.split('$\\r$\\n').length, 7, '行は空行を含めて 7（MUI_FINISHPAGE_TEXT_LARGE の欄は 7.5 行分）');

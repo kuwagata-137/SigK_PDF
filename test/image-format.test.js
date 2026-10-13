@@ -54,7 +54,7 @@ test('受け付けるのは PDF と5つの画像形式である（spec-3-2 確�
 });
 
 test('断る文言は、何を選べばよいかを伝える（spec-3-2 確定事項2）', () => {
-  assert.equal(describeFormat(null), '対応していない形式です。PNG・JPEG・BMP・GIF・TIFF・PDF を選んでください。');
+  assert.equal(describeFormat(null), '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF・PDF を選んでください。');
   assert.equal(describeFormat('webp'), describeFormat(null));
 });
 
@@ -111,8 +111,8 @@ test('画像として載せられるかを1本で判定する', () => {
 });
 
 test('形式・プログレッシブ・寸法・画素上限の順で断る', () => {
-  assert.equal(inspectImageBytes(Buffer.from('%PDF-1.7\n')).error, 'PDF は画像ではありません。PNG・JPEG・BMP・GIF・TIFF を選んでください。');
-  assert.equal(inspectImageBytes(WEBP).error, '対応していない形式です。PNG・JPEG・BMP・GIF・TIFF を選んでください。');
+  assert.equal(inspectImageBytes(Buffer.from('%PDF-1.7\n')).error, 'PDF は画像ではないので、PNG・JPEG・BMP・GIF・TIFF を選んでください。');
+  assert.equal(inspectImageBytes(WEBP).error, '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください。');
   assert.match(inspectImageBytes(makeJpeg({ marker: 0xc2 })).error, /プログレッシブ形式/);
   assert.match(inspectImageBytes(makePng({ width: 0, height: 0 })).error, /大きさを読み取れません/);
   assert.ok(9000 * 5000 > MAX_PIXELS);
@@ -164,7 +164,7 @@ test('TIFF は IFD が先頭の外なら incomplete を立て、1ページでも
   assert.equal(head.kind, 'tiff');
   const oldJpeg = makeTiff([rgbTiffPage(4, 4), rgbTiffPage(4, 4)]);
   patchSecondPageCompression(oldJpeg, 6);
-  assert.equal(inspectImageBytes(oldJpeg).error, 'この TIFF には対応していません（圧縮方式: 旧 JPEG）。');
+  assert.equal(inspectImageBytes(oldJpeg).error, 'この TIFF の圧縮方式 旧 JPEG には対応していません。');
   const huge = makeTiff([rgbTiffPage(4, 4), { ...rgbTiffPage(4, 4), width: 9000, height: 5000 }]);
   assert.match(inspectImageBytes(huge).error, /大きすぎます/);
   assert.match(inspectImageBytes(Buffer.from('II*\0\x08\0\0\0\0\0')).error, /壊れている|ページ/);
@@ -179,7 +179,7 @@ test('先頭だけでは寸法が見つからないときは incomplete を立�
 });
 
 test('断る文言は形式ごとに1か所で決める', () => {
-  assert.match(describeImageFormat('pdf'), /PDF は画像ではありません/);
+  assert.match(describeImageFormat('pdf'), /PDF は画像ではないので/);
   assert.match(describeImageFormat(null), /対応していない形式/);
   assert.doesNotMatch(describeImageFormat(null), /まだ/);
 });

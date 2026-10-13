@@ -205,6 +205,12 @@
       ['circle', { cx: 18, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }],
     ],
     // 道具の段の「選択」（spec-4b-3a 確定事項C1）。マウスの矢印の形。
+    // 分割の ✂（spec-2-2b 確定事項C1）。2 つの輪と、交わる 2 本の刃。
+    cut: [
+      ['circle', { cx: 6, cy: 6, r: 3 }],
+      ['circle', { cx: 6, cy: 18, r: 3 }],
+      ['path', { d: 'M8.6 7.6L20 18M8.6 16.4L20 6' }],
+    ],
     pointerSelect: [['path', { d: 'M6.5 3.8v14.6l3.9-3.7 2.6 5.5 2.3-1.1-2.6-5.4h5.6z' }]],
     // 道具の段の「ハンド」（spec-4b-3b 確定事項A1。モック screenshots/phase4b-3-bar.png と同じ形）。開いた手の甲。
     hand: [

@@ -16,7 +16,7 @@ const { runConvert } = require('./convert-task.js');
 const { runWatermark, runFlatten, runFlattenPreview } = require('./rewrite-task.js');
 const { runAnnotationDetails } = require('./annotation-dict-reader.js');
 const { runPageBoxes } = require('./page-boxes-task.js');
-const { writeDocument } = require('../pdf-write.js');
+const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
 const { PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure } = require('./pdf-io.js');
 
 // 複数の入力を1つへ結合する（spec-2-1 確定事項22・29〜34）。
@@ -102,13 +102,16 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
 // 書き終えた分は残す（確定事項26）。書きかけの一時ファイルの後始末は
 // task-runner.js が spec.targets で行う。
 async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
-  const { source, parts } = spec ?? {};
+  const { source, parts, expectSource = null } = spec ?? {};
   if (typeof source !== 'string')
     return { error: '分割するファイルが決まっていません。' };
   if (!Array.isArray(parts) || parts.length === 0)
     return { error: '分割するページがありません。' };
   if (parts.some((part) => typeof part?.target !== 'string'))
     return { error: '出力先が決まっていません。' };
+  // 画面が読んだあとで書き換わっていたら、見ているサムネイルと違う中身を分けないよう止める（spec-2-2b 確定事項H4）。
+  if (expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
+    return { error: '分割する PDF が書き換えられていたので、分割を止めました。' };
 
   advance('read');
   let bytes;

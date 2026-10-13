@@ -32,7 +32,7 @@ test('最後のページを描いている間に［中止］を押しても、�
   const result = await confirmAndWait(shell, shell.SigK.save.saveActive());
   assert.equal(result.canceled, true);
   assert.equal(shell.taskCalls.length, 0);
-  assert.equal(shell.SigK.viewBanner.text(), '保存を中止しました。元のファイルは変更していません。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存を中止しましたが、元のファイルは変更していません。');
 });
 
 test('画像にしている間に別のページへモザイクを置くと、取りやめて何も書かない（置いたモザイクは残る）', async (t) => {

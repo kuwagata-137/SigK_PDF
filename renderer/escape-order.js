@@ -74,6 +74,10 @@
 
   // A1 の 2〜10 を上から見て、最初に当たった 1 つを取りやめたら true。
   function run(event, doc) {
+    // ツールの［開いているタブから選ぶ ▾］の一覧（spec-2-2b 確定事項G2②）。フォーカスが一覧の中なら一覧が自分で閉じるので、
+    // ここに来るのはフォーカスが外にあるとき。
+    if (inMode(doc, 'tools') && root.SigK.tabMenu?.close({ restoreFocus: true }) === true)
+      return true;
     const annot = inMode(doc, 'annot') && cancel() !== undefined;
     if (annot && (cancel().cancelHeld() || cancel().closeOverlays()))
       return true;
@@ -87,7 +91,8 @@
       return true;
     if (annot)
       return cancel().unselect() || cancel().dropTool();
-    return inMode(doc, 'pages') && clearPageSelection();
+    // 分割の盤の選択（spec-2-2b 確定事項G2④）。
+    return (inMode(doc, 'pages') && clearPageSelection()) || (inMode(doc, 'tools') && root.SigK.toolsSplitEdit?.escape() === true);
   }
 
   // 何かを取りやめたら preventDefault して true（確定事項C2）。

@@ -56,7 +56,7 @@
         return null;
       return api.pickToolSource({ defaultPath, title: PICK_TITLE });
     },
-    dirtyMessage: '未保存の編集は画像に反映されません。保存してから画像にし直してください。',
+    dirtyMessage: '未保存の編集は画像に反映されないので、保存してから画像にし直してください。',
     emptyFields: { sizes: null },
     fieldsOf: (info) => ({ sizes: info.sizes }),
     onSelect: (filePath) => {
@@ -69,7 +69,7 @@
   const source = () => field.source();
   const settings = () => ({ mode: state.mode, range: state.range, format: state.format, dpi: state.dpi, folder: state.folder });
   // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う。確定事項1）。
-  const { setSource, useOpenTab, pickFile, addPaths } = field;
+  const { setSource, useTab, pickFile, addPaths } = field;
 
   // ---- ページ・形式・出力（確定事項6〜11・15） ----
 
@@ -272,7 +272,7 @@
     if (result?.canceled === true) {
       const written = result.written ?? 0;
       // 自分で止めたので赤く塗らない（決定49）。
-      banner().show(written > 0 ? `画像にするのを中止しました。${written} ファイルは書き出し済みです。` : '画像にするのを中止しました。', { tone: 'info' });
+      banner().show(written > 0 ? `画像にするのを中止しましたが、${written} ファイルは書き出し済みです。` : '画像にするのを中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
@@ -301,7 +301,7 @@
   SigK.toolsToImage = {
     NOTE_UNSAVED, NOTE_FIRST_ONLY, PICK_TITLE, LABEL,
     init, source, settings, currentPlan, joinPath,
-    setSource, useOpenTab, pickFile, addPaths,
+    setSource, useTab, pickFile, addPaths,
     setPageMode, setRange, setFormat, setDpi, setFolder, pickFolder,
     canRun, resolveTargets, run,
     isRunning: () => state.running,

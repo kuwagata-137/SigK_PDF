@@ -187,7 +187,7 @@ test('名前を付けて保存の保存先が別のタブで開いていれば�
   await shell.flush();
 
   const result = await shell.SigK.save.saveAsActive();
-  assert.equal(result.error, '保存先のファイルは別のタブで開いています。そのタブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '保存先のファイルは別のタブで開いているので、そのタブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(shell.SigK.viewBanner.text(), result.error);
   assert.deepEqual(plain(shell.SigK.tabs.list().map((tab) => tab.path)), [A, B]);

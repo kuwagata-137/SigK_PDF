@@ -28,6 +28,7 @@ const { createLaunchBatcher } = require('./launch-batch.js');
 const { openDefaultAppsSettings } = require('./default-apps-link.js');
 const { smokeWindowMode } = require('./smoke-window.js');
 const smokeRewrite = require('./smoke-rewrite.js');
+const smokeSplit = require('./smoke-split.js');
 const smokeLaunch = require('./smoke-launch.js');
 const smokeAnnotate = require('./smoke-annotate.js');
 const smokeKeys = require('./smoke-keys.js');
@@ -388,6 +389,8 @@ function registerIpc() {
 
   ipcMain.handle('pdf:open', () => fileIo.open(mainWindow));
   ipcMain.handle('pdf:read', (_event, filePath) => fileIo.read(filePath));
+  // 大きさと更新日時だけ（spec-2-2b 確定事項D7。分割の画面の書き換わりの照らし）。
+  ipcMain.handle('pdf:stat', (_event, filePath) => fileIo.stat(filePath));
   ipcMain.handle('pdf:pickSavePath', (_event, options = {}) => fileIo.pickSavePath(mainWindow, options));
   ipcMain.handle('pdf:pickInsertSource', (_event, options = {}) => fileIo.pickInsertSource(mainWindow, options));
   // 結合の入力の複数選択と、出力先の同名判定（spec-2-1 確定事項9・28）。
@@ -1362,75 +1365,6 @@ function installSmokeCheck(win, mode) {
     };
   })()`;
 
-  // SIGK_SMOKE_SPLIT=<pdf> を付けると、分割の経路を丸ごと1回通す（spec-2-2 の
-  // 完了判定9）。分け方は SIGK_SMOKE_SPLIT_MODE（every:10 / at:3,7 / range:1-3。
-  // 省略時 every:10）、出力先は SIGK_SMOKE_SPLIT_OUT（省略時は一時フォルダー）、
-  // 名前の規則は SIGK_SMOKE_SPLIT_RULE（seq / pages）。
-  //
-  // 2段に分ける。先に画面を組んで出力先の一覧をメインへ返し、メインが先頭の
-  // 出力先を空で作ってから、画面の「実行」と同じ run() を回す。3択（同名確認）は
-  // run() の中で開くので、開いたのを見て「上書き」を押す（完了判定6）。
-  const splitSetupScript = (source, mode, outDir, rule) => `(async () => {
-    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    const SigK = window.SigK;
-    await SigK.toolsSplit.useFromLaunch([${JSON.stringify(source)}]);
-    await wait(500);
-    const [kind, value = ''] = ${JSON.stringify(mode)}.split(':');
-    SigK.toolsSplit.setMode(kind);
-    SigK.toolsSplit.setInput(kind, value);
-    if (${JSON.stringify(outDir)} !== null)
-      SigK.toolsSplit.setFolder(${JSON.stringify(outDir)});
-    SigK.toolsSplit.setRule(${JSON.stringify(rule)});
-    const src = SigK.toolsSplit.source();
-    const plan = SigK.toolsSplit.currentPlan();
-    return {
-      source: src ? { name: src.name, pageCount: src.pageCount, blocked: src.blocked } : null,
-      mode: document.documentElement.getAttribute('data-mode'),
-      selected: SigK.tools.selected(),
-      canRun: SigK.toolsSplit.canRun(),
-      runDisabled: document.getElementById('split-run').getAttribute('aria-disabled'),
-      example: document.getElementById('split-example').textContent,
-      summary: document.getElementById('split-summary').textContent,
-      planError: plan.error,
-      targets: plan.ready ? plan.targets : [],
-    };
-  })()`;
-
-  const splitRunScript = () => `(async () => {
-    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    const SigK = window.SigK;
-    const started = Date.now();
-    const pending = SigK.toolsSplit.run();
-    await wait(250);
-    const dialogOpen = SigK.confirmReplace.isOpen();
-    const focusOnCancel = document.activeElement === document.getElementById('confirm-replace-cancel');
-    if (dialogOpen)
-      document.getElementById('confirm-replace-ok').click();
-    // SIGK_SMOKE_SPLIT_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
-    let canceledAt = null;
-    if (${process.env.SIGK_SMOKE_SPLIT_CANCEL === '1'}) {
-      await wait(400);
-      const action = document.querySelector('#view-banner .banner-action');
-      if (action && action.textContent === '中止') { action.click(); canceledAt = Date.now() - started; }
-    }
-    const result = await pending;
-    const ms = Date.now() - started;
-    await wait(300);
-    return {
-      dialogOpen, focusOnCancel,
-      ok: result ? result.ok === true : false,
-      canceled: result ? result.canceled === true : false,
-      canceledAt,
-      banner: SigK.viewBanner.text(),
-      bannerAction: SigK.viewBanner.action() ? SigK.viewBanner.action().textContent : null,
-      error: result ? (result.error ?? null) : 'result が無い',
-      written: result ? (result.written ?? null) : null,
-      tabs: SigK.tabs.count(),
-      mode: document.documentElement.getAttribute('data-mode'),
-      ms,
-    };
-  })()`;
-
   // SIGK_SMOKE_CONVERT=<a.png>;<b.png> を付けると、画像→PDF の経路を通す
   // （spec-3-1 の完了判定4・5・7・9）。分割と同じ2段構えで、まず画面を組んで
   // 計画（出力先）をメインへ返し、メインが同名確認の下ごしらえをしてから走らせる。
@@ -1838,24 +1772,31 @@ function installSmokeCheck(win, mode) {
           merge.tempLeft = fs.existsSync(require('./pdf-write.js').tempPathFor(target));
         }
         if (process.env.SIGK_SMOKE_SPLIT) {
+          // 分割の台本は smoke-split.js（spec-2-2b 確定事項K1）。操作の列は SIGK_SMOKE_SPLIT_OPS。
           const source = path.resolve(process.env.SIGK_SMOKE_SPLIT);
-          const mode = process.env.SIGK_SMOKE_SPLIT_MODE ?? 'every:10';
           // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
           const outDir = process.env.SIGK_SMOKE_SPLIT_OUT
             ? path.resolve(process.env.SIGK_SMOKE_SPLIT_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-split');
           fs.mkdirSync(outDir, { recursive: true });
-          const setup = await win.webContents.executeJavaScript(splitSetupScript(source, mode, outDir, process.env.SIGK_SMOKE_SPLIT_RULE ?? 'seq'));
-          // 同名確認の3択を通すため、先頭の出力先を先に空で作っておく。
-          if (setup.targets.length > 0)
-            fs.writeFileSync(setup.targets[0], '');
-          split = await win.webContents.executeJavaScript(splitRunScript());
-          split.setup = setup;
-          split.outDir = outDir;
-          split.onDisk = setup.targets.filter((target) => fs.existsSync(target) && fs.statSync(target).size > 0).length;
-          split.bytesOnDisk = setup.targets.reduce((sum, target) => sum + (fs.existsSync(target) ? fs.statSync(target).size : 0), 0);
-          // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項25）。
-          split.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
+          const setup = await win.webContents.executeJavaScript(smokeSplit.setupScript({
+            source, outDir, ops: process.env.SIGK_SMOKE_SPLIT_OPS ?? 'every:10', rule: process.env.SIGK_SMOKE_SPLIT_RULE ?? 'seq',
+          }));
+          // 留まるなら実行しない（SIGK_SMOKE_SHOT で盤の画面を撮るため）。アプリ全体の実メモリも控える（spec-2-2b 確定事項K2）。
+          if (process.env.SIGK_SMOKE_SPLIT_STAY === '1') {
+            split = { setup, stayed: true, memory: memorySnapshot() };
+          } else {
+            // 同名確認の3択を通すため、先頭の出力先を先に空で作っておく。
+            if (setup.targets.length > 0)
+              fs.writeFileSync(setup.targets[0], '');
+            split = await win.webContents.executeJavaScript(smokeSplit.runScript({ cancel: process.env.SIGK_SMOKE_SPLIT_CANCEL === '1' }));
+            split.setup = setup;
+            split.outDir = outDir;
+            split.onDisk = setup.targets.filter((target) => fs.existsSync(target) && fs.statSync(target).size > 0).length;
+            split.bytesOnDisk = setup.targets.reduce((sum, target) => sum + (fs.existsSync(target) ? fs.statSync(target).size : 0), 0);
+            // 中止でも失敗でも、書きかけの一時ファイルは残らないこと（確定事項25）。
+            split.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
+          }
         }
         if (process.env.SIGK_SMOKE_CONVERT) {
           // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
