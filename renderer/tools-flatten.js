@@ -19,7 +19,8 @@
   const view = () => root.SigK.toolsFlattenView;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
 
-  // census は { path, pending, error, result }。result は flatten-preview の { baked, kept, notes, bake, keep }。
+  // census は { path, pending, waiting, error, result }。result は flatten-preview の { baked, kept, notes, bake, keep }。
+  // waiting は、ほかの処理が走っていたので数えるのを後回しにしている印（その間も pending のまま「数えています…」と見せる）。
   const state = { census: null, running: false };
 
   function defaultTarget(sourcePath) {
@@ -45,10 +46,15 @@
 
   const source = () => field.source();
   const { setSource, useTab, pickFile, addPaths } = field;
-  const census = () => (state.census === null ? null : { ...state.census });
+  // 画面が件数を読みに来たら、後回しにした数えを始める（resumeCount）。描いている最中には走らせず、今の処理を終えてから始める。
+  function census() {
+    if (state.census?.waiting === true)
+      Promise.resolve().then(resumeCount);
+    return state.census === null ? null : { ...state.census };
+  }
 
   // 対象が読めたら数える。同じファイルはもう一度数えない。
-  async function countIfReady() {
+  function countIfReady() {
     const src = source();
     if (src === null || src.pending || src.blocked !== null) {
       state.census = null;
@@ -57,12 +63,29 @@
     }
     if (state.census?.path === src.path)
       return;
-    const next = { path: src.path, pending: true, error: null, result: null };
-    state.census = next;
+    state.census = { path: src.path, pending: true, waiting: true, error: null, result: null };
     view()?.render();
-    const result = await root.SigK.save.runTask({ kind: 'flatten-preview', label: COUNT_LABEL, source: src.path });
-    if (state.census !== next)
-      return;   // 数えている間に差し替えられた
+    resumeCount();
+  }
+
+  // 後回しにした数えを始める。ほかの処理（結合など）が走っている間は始めない（計画外の直し）。走らせる枠（save.js の
+  // runTask）は 1 つで、同時に走らせると走っている処理の記録を上書きし、まだ走っているのに「走っていない」ことになるため。
+  // ほかの処理が終わると、save.js が見えているツールの画面を描き直し、画面が census() で件数を読みに来るので、そこで始まる。
+  // フラット化が隠れていれば、選んで画面を描いたときに始まる。
+  function resumeCount() {
+    const next = state.census;
+    if (next?.waiting !== true || root.SigK.save?.isBusy() === true)
+      return;
+    next.waiting = false;
+    count(next);
+  }
+
+  async function count(next) {
+    const result = await root.SigK.save.runTask({ kind: 'flatten-preview', label: COUNT_LABEL, source: next.path });
+    if (state.census !== next) {
+      resumeCount();   // 数えている間に差し替えられた。差し替えた先が待っていれば、ここで数え始める
+      return;
+    }
     next.pending = false;
     if (result?.ok === true)
       next.result = result;
