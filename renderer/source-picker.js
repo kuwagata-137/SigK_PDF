@@ -119,7 +119,7 @@
       return;
     elements.name.textContent = src.name;
     elements.file.title = src.path;
-    elements.pages.textContent = src.pending ? '…' : (src.pageCount === null ? '' : `${src.pageCount} ページ`);
+    elements.pages.textContent = src.pending ? '…' : (src.pageCount === null ? '' : `${src.pageCount.toLocaleString('ja-JP')} ページ`);
     elements.file.classList.toggle('blocked', src.blocked !== null);
     const note = src.blocked ?? src.note;
     elements.note.textContent = note ?? '';

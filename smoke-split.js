@@ -29,6 +29,7 @@ const SNAPSHOT = `() => {
     band: document.getElementById('split-band').hidden ? null : document.getElementById('split-band-text').textContent,
     canRun: SigK.toolsSplit.canRun(),
     dom: SigK.splitBoardView.getState(),
+    fileRows: document.querySelectorAll('#split-files .sb-file').length,
     canvases: document.querySelectorAll('#split-board-canvas canvas').length,
     thumbs: SigK.splitThumbs.getState(),
     scrollTop: Math.round(scroll.scrollTop),

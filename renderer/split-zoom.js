@@ -18,6 +18,7 @@
 
   const edit = () => root.SigK.toolsSplitEdit;
   const pageImage = () => root.SigK.pageImage;
+  const digits = (n) => root.SigK.splitPlan.withCommas(n);   // 1,000 以上ならカンマ（決定78 ③）
 
   function setDisabled(node, disabled) {
     if (disabled)
@@ -47,7 +48,7 @@
     const ticket = (state.ticket += 1);
     const board = edit().board();
     state.page = index;
-    el.title.textContent = `${index + 1} / ${board.pageCount} ページ`;
+    el.title.textContent = `${digits(index + 1)} / ${digits(board.pageCount)} ページ`;
     el.file.textContent = fileText(board, index);
     setDisabled(el.prev, index <= 0);
     setDisabled(el.next, index >= board.pageCount - 1);

@@ -113,6 +113,45 @@ test('畳んでいる間に書き換わっていれば changed、ページ数が
   assert.deepEqual(structuredClone(await thumbs.unfold()), { ok: true, changed: true, pageCount: 8, previousPageCount: 6 });
 });
 
+test('読んでいる途中で畳むと、読み終えたところで文書を閉じ、ページ数と控えは覚えておく（広げると読み直す）', async (t) => {
+  const { pdfjs, thumbs } = await createThumbShell(t);
+  const opening = thumbs.open(A);
+  const folding = thumbs.fold();
+  assert.deepEqual(structuredClone(await opening), { pageCount: 6, name: 'a.pdf' });
+  await folding;
+  assert.equal(pdfjs.documents.length, 1);
+  assert.equal(pdfjs.documents[0].destroyed, true);
+  assert.equal(thumbs.getState().open, false);
+  assert.equal(thumbs.getState().folded, true);
+  assert.deepEqual(structuredClone(await thumbs.unfold()), { ok: true, changed: false, pageCount: 6, previousPageCount: 6 });
+  assert.equal(pdfjs.documents[1].destroyed, false);
+  assert.equal(thumbs.getState().open, true);
+});
+
+test('畳んでいる間に開いた対象は、読んだらすぐ閉じ、広げたときに読み直す', async (t) => {
+  const { pdfjs, thumbs } = await createThumbShell(t);
+  await thumbs.fold();
+  assert.deepEqual(structuredClone(await thumbs.open(A)), { pageCount: 6, name: 'a.pdf' });
+  assert.equal(pdfjs.documents[0].destroyed, true);
+  assert.equal(thumbs.getState().open, false);
+  assert.deepEqual(structuredClone(await thumbs.unfold()), { ok: true, changed: false, pageCount: 6, previousPageCount: 6 });
+  assert.equal(thumbs.getState().open, true);
+  assert.equal(pdfjs.documents.filter((document) => !document.destroyed).length, 1);
+});
+
+test('広げて読み直している途中で畳むと、読み終えたところで文書を閉じる', async (t) => {
+  const { pdfjs, thumbs } = await createThumbShell(t);
+  await thumbs.open(A);
+  await thumbs.fold();
+  const unfolding = thumbs.unfold();
+  const folding = thumbs.fold();
+  await Promise.all([unfolding, folding]);
+  assert.equal(pdfjs.documents.length, 2);
+  assert.equal(pdfjs.documents.every((document) => document.destroyed), true);
+  assert.equal(thumbs.getState().open, false);
+  assert.equal(thumbs.getState().folded, true);
+});
+
 test('isChanged は読まずに大きさと更新日時だけを照らす', async (t) => {
   const { shell, pdfjs, thumbs } = await createThumbShell(t);
   await thumbs.open(A);

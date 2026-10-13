@@ -68,23 +68,32 @@
     return false;
   }
 
+  // 押したまとめて分けるの次の盤。欄が読めなければ { error }。
+  function bulkBoard(kind, now) {
+    const plan = root.SigK.splitPlan;
+    if (kind === 'each')
+      return { next: model().splitEach(now) };
+    if (kind === 'clear')
+      return { next: model().clearCuts(now) };
+    const parsed = kind === 'every' ? plan.parseEvery(state.bulkText.every) : plan.parseCuts(state.bulkText.at, now.pageCount);
+    if (parsed.error !== undefined)
+      return { error: parsed.error };
+    return { next: kind === 'every' ? model().splitEvery(now, parsed.n) : model().splitBefore(now, parsed.numbers) };
+  }
+
+  // どれを押しても、前の誤りの表示は消す（盤が同じでも）。
   function bulk(kind) {
     if (locked())
       return false;
-    const now = board();
-    const plan = root.SigK.splitPlan;
-    if (kind === 'each')
-      return apply(model().splitEach(now));
-    if (kind === 'clear')
-      return apply(model().clearCuts(now));
-    const parsed = kind === 'every' ? plan.parseEvery(state.bulkText.every) : plan.parseCuts(state.bulkText.at, now.pageCount);
-    if (parsed.error !== undefined)
-      return fail(kind, parsed.error);
+    const { next, error } = bulkBoard(kind, board());
+    if (error !== undefined)
+      return fail(kind, error);
+    const hadError = state.bulkError !== null;
     state.bulkError = null;
-    const next = kind === 'every' ? model().splitEvery(now, parsed.n) : model().splitBefore(now, parsed.numbers);
     if (apply(next))
       return true;
-    changed();   // 盤が同じでも、前の誤りの表示は消す
+    if (hadError)
+      changed();
     return false;
   }
 

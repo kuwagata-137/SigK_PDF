@@ -62,4 +62,7 @@ test('parseCuts の誤り: 書き方・1・ページ数を超える・重なり'
   assert.deepEqual(parseCuts('1, 4', 10), { error: '1 の前では切れないので、2 から書いてください' });
   assert.deepEqual(parseCuts('4, 12', 10), { error: '10 ページまでです' });
   assert.deepEqual(parseCuts('7, 3, 7', 10), { error: '7 が 2 回あります' });
+  // 1,000 以上の数にはカンマを付ける（決定78 ③）。
+  assert.deepEqual(parseCuts('4, 1300', 1200), { error: '1,200 ページまでです' });
+  assert.deepEqual(parseCuts('1500, 1500', 2000), { error: '1,500 が 2 回あります' });
 });

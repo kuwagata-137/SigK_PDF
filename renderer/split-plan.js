@@ -16,6 +16,9 @@
 
   const normalize = (text) => root.SigK.pageRange.normalize(text);
 
+  // 画面に出す数。1,000 以上ならカンマを付ける（決定78 ③）。ファイル名には使わない。
+  const withCommas = (n) => n.toLocaleString('ja-JP');
+
   // ---- まとめて分けるの欄（spec-2-2b 確定事項C7。文は第 I 章） ----
 
   // 「N ページごと」の N。
@@ -39,9 +42,9 @@
       if (page < 2)
         return { error: '1 の前では切れないので、2 から書いてください' };
       if (page > pageCount)
-        return { error: `${pageCount} ページまでです` };
+        return { error: `${withCommas(pageCount)} ページまでです` };
       if (numbers.includes(page))
-        return { error: `${page} が 2 回あります` };
+        return { error: `${withCommas(page)} が 2 回あります` };
       numbers.push(page);
     }
     return { numbers: numbers.sort((a, b) => a - b) };
@@ -76,5 +79,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.splitPlan = { MAX_OUTPUTS, parseEvery, parseCuts, outputNames, pageLabel, stem };
+  SigK.splitPlan = { MAX_OUTPUTS, withCommas, parseEvery, parseCuts, outputNames, pageLabel, stem };
 })(typeof window !== 'undefined' ? window : globalThis);

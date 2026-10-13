@@ -10,6 +10,7 @@
   const MAX_DPR = 2;
 
   const rangeText = (first, last) => root.SigK.toolsSplitView.rangeText(first, last);
+  const digits = (n) => root.SigK.splitPlan.withCommas(n);   // 1,000 以上ならカンマ（決定78 ③）
 
   function node(doc, tag, className, text) {
     const created = doc.createElement(tag);
@@ -30,9 +31,9 @@
     const pages = [];
     for (let page = box.start; page <= box.end; page += 1) {
       if (skipped.has(page))
-        pages.push(page + 1);
+        pages.push(digits(page + 1));
     }
-    return pages.length <= 3 ? `${pages.join('・')} ページは書き出さない` : `書き出さないページ ${pages.length} 枚`;
+    return pages.length <= 3 ? `${pages.join('・')} ページは書き出さない` : `書き出さないページ ${digits(pages.length)} 枚`;
   }
 
   // names は番号順のファイル名、skipped は書き出さないページの Set。
@@ -42,7 +43,7 @@
     element.classList.toggle('narrow', rect.narrow === true);
     element.dataset.box = String(info.index);
     const head = node(doc, 'div', 'sb-head');
-    const no = node(doc, 'span', 'sb-no', dead ? '－' : String(info.file));
+    const no = node(doc, 'span', 'sb-no', dead ? '－' : digits(info.file));
     no.classList.toggle('even', !dead && info.file % 2 === 0);
     head.append(no, node(doc, 'span', 'fname', dead ? '書き出さない' : names[info.file - 1]));
     if (!dead)
@@ -81,7 +82,7 @@
     const sheet = node(doc, 'div', 'sb-sheet');
     Object.assign(sheet.style, { width: `${cell.sheetWidth}px`, height: `${cell.sheetHeight}px` });
     fitCanvas(sheet, canvas);
-    element.append(sheet, node(doc, 'span', 'cap', String(index + 1)));
+    element.append(sheet, node(doc, 'span', 'cap', digits(index + 1)));
     if (flags.skipped)
       element.append(node(doc, 'span', 'tag', '書き出さない'));
     return element;

@@ -66,6 +66,11 @@
         built.push(nodes().cut(el.doc, cut, at.cell, page));
     }
     el.canvas.replaceChildren(...built);
+    // 実行中は ✂ と［前のファイルとつなげる］を押せない色にする（確定事項C12。押しても tools-split-edit.js が受けない）。
+    if (split().isRunning()) {
+      for (const button of el.canvas.querySelectorAll('.sb-cut, .sb-join'))
+        button.setAttribute('aria-disabled', 'true');
+    }
   }
 
   function render() {

@@ -7,6 +7,7 @@
   // render() が画面全体の描き直しの入口で、盤（split-board-view.js）と上の段・帯（split-board-band.js）もここから描き直す。
 
   let el = null;
+  let filesKey = null;   // 一覧に並べた中身。同じなら組み直さない
 
   const split = () => root.SigK.toolsSplit;
   const edit = () => root.SigK.toolsSplitEdit;
@@ -19,15 +20,16 @@
       node.removeAttribute('aria-disabled');
   }
 
+  // 数は 1,000 以上ならカンマを付ける（決定78 ③）。
+  const digits = (n) => root.SigK.splitPlan.withCommas(n);
+
   // ページの範囲の書き方（第 I 章）。1 ページなら「3 ページ目」。first・last は 0 始まり。
   function rangeText(first, last) {
-    return first === last ? `${first + 1} ページ目` : `${first + 1}〜${last + 1} ページ`;
+    return first === last ? `${digits(first + 1)} ページ目` : `${digits(first + 1)}〜${digits(last + 1)} ページ`;
   }
 
-  // 数の言い方。9 までは「3 つ」、10 からは「12」（「12 つ」とは言わない）。
-  const countOf = (n) => (n < 10 ? `${n} つ` : `${n.toLocaleString('ja-JP')}`);
-  const digits = (n) => n.toLocaleString('ja-JP');
-  const filesPhrase = (n) => (n < 10 ? `${n} つのファイル` : `${n.toLocaleString('ja-JP')} のファイル`);
+  // ファイルの数の言い方。9 までは「3 つ」、10 からは「12 個」（決定78 ②）。
+  const countOf = (n) => (n < 10 ? `${n} つ` : `${digits(n)} 個`);
 
   function span(className, text) {
     const node = el.doc.createElement('span');
@@ -43,23 +45,38 @@
     row.type = 'button';
     row.className = 'sb-file';
     row.dataset.box = String(box.index);
-    const no = span('sb-no', String(box.file));
+    const no = span('sb-no', digits(box.file));
     no.classList.toggle('even', box.file % 2 === 0);
     row.append(no, span('fname', name), span('p', rangeText(box.first, box.last)));
     row.title = name;
     return row;
   }
 
+  // 上限（split-plan.js の MAX_OUTPUTS）を超えた分は並べず、数だけを 1 行で知らせる。超えると実行できないので、並べても使わない。
+  function moreRow(rest) {
+    return span('sb-files-more', `上限の ${digits(root.SigK.splitPlan.MAX_OUTPUTS)} を超えるので、残りの ${digits(rest)} 個はここに並べません。`);
+  }
+
   function renderFiles(plan) {
     const shown = plan.reason !== 'no-source';
     el.filesCard.hidden = !shown;
     if (!shown) {
+      filesKey = null;
       el.files.replaceChildren();
       return;
     }
     const boxes = model().boxes(edit().board()).filter((box) => box.file !== null);
+    const listed = boxes.slice(0, root.SigK.splitPlan.MAX_OUTPUTS);
+    const names = listed.map((box) => plan.names[box.file - 1]);
+    const key = `${boxes.length}|${listed.map((box, i) => `${box.index}:${box.first}-${box.last}:${names[i]}`).join('/')}`;
     el.filesCount.textContent = countOf(boxes.length);
-    el.files.replaceChildren(...boxes.map((box) => fileRow(box, plan.names[box.file - 1])));
+    if (key === filesKey)
+      return;
+    filesKey = key;
+    const rows = listed.map((box, i) => fileRow(box, names[i]));
+    if (boxes.length > listed.length)
+      rows.push(moreRow(boxes.length - listed.length));
+    el.files.replaceChildren(...rows);
   }
 
   // ---- 出力（確定事項H1） ----
@@ -81,7 +98,7 @@
     const count = board.skipped.length;
     if (count >= 4)
       return `${digits(count)} ページ`;
-    return `${board.skipped.map((page) => page + 1).join('・')} ページ目`;
+    return `${board.skipped.map((page) => digits(page + 1)).join('・')} ページ目`;
   }
 
   function summaryOf(plan) {
@@ -92,9 +109,9 @@
     if (plan.reason === 'empty')
       return '書き出すページが 1 枚も無いので、書き出さない印をどれか外してください。';
     if (plan.reason === 'too-many')
-      return `いまの分け方では ${plan.files.toLocaleString('ja-JP')} ファイルになり、上限の ${root.SigK.splitPlan.MAX_OUTPUTS} を超えるので、実行できません。`;
+      return `いまの分け方では ${digits(plan.files)} ファイルになり、上限の ${root.SigK.splitPlan.MAX_OUTPUTS} を超えるので、実行できません。`;
     const board = edit().board();
-    const files = filesPhrase(plan.files);
+    const files = `${countOf(plan.files)}のファイル`;
     if (board.skipped.length === 0)
       return `${digits(board.pageCount)} ページを ${files}に分けます。`;
     return `${skippedText(board)}を書き出さずに、残りの ${digits(board.pageCount - board.skipped.length)} ページを ${files}に分けます。`;
@@ -166,5 +183,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.toolsSplitView = { init, render, rangeText, countOf };
+  SigK.toolsSplitView = { init, render, rangeText, countOf, digits };
 })(typeof window !== 'undefined' ? window : globalThis);

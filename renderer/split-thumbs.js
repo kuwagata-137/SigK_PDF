@@ -12,7 +12,7 @@
   const ENCRYPTED = '保存できない PDF です（パスワード付き）';
   const PARALLEL = 2;
 
-  const state = { path: null, task: null, doc: null, pageCount: 0, signature: null, folded: false, size: 'mid', ticket: 0 };
+  const state = { path: null, task: null, doc: null, pageCount: 0, signature: null, folded: false, size: 'mid', ticket: 0, loading: null };
   const drawn = new Map();     // ページ → { canvas, page }
   const pending = new Set();   // 描いている途中のページ
   const listeners = [];
@@ -45,8 +45,7 @@
   }
 
   // 描きかけを捨て、全部手放し、文書を閉じる。
-  async function shut() {
-    state.ticket += 1;
+  async function closeDoc() {
     releaseAll();
     const task = state.task;
     state.task = null;
@@ -54,7 +53,14 @@
     await task?.destroy?.();
   }
 
-  // 読んで開く。読んでいる間に替わったら、遅れて開いた文書も閉じて stale を返す。
+  // 対象が替わるとき。読んでいる途中のものも stale にする。
+  function shut() {
+    state.ticket += 1;
+    return closeDoc();
+  }
+
+  // 読んで開く。読んでいる間に対象が替わったら、遅れて開いた文書も閉じて stale を返す。読んでいる間に畳まれたら、
+  // ページ数と控えだけ覚えて閉じる（広げるときに読み直す）。
   async function adopt(filePath) {
     const ticket = (state.ticket += 1);
     const opened = await root.SigK.toolSource.openPdf(filePath, { encryptedError: ENCRYPTED });
@@ -62,46 +68,56 @@
       await opened.task?.destroy?.();
       return { reason: 'stale', error: '' };
     }
-    if (opened.reason === undefined)
-      Object.assign(state, { task: opened.task, doc: opened.doc, pageCount: opened.info.pageCount });
+    if (opened.reason !== undefined)
+      return opened;
+    Object.assign(state, { pageCount: opened.info.pageCount, signature: signatureOf(opened.info) });
+    if (state.folded)
+      await opened.task?.destroy?.();
+    else
+      Object.assign(state, { task: opened.task, doc: opened.doc });
     return opened;
+  }
+
+  // 読んでいる途中かを、畳む・広げる側から見えるように持つ。
+  function load(filePath) {
+    const loading = (state.loading = adopt(filePath));
+    loading.finally(() => { if (state.loading === loading) state.loading = null; }).catch(() => {});
+    return loading;
   }
 
   // 対象の欄の inspect として呼ばれる。戻り値は { pageCount, name } か { reason, error }。
   async function open(filePath) {
     await shut();
-    Object.assign(state, { path: filePath, pageCount: 0, signature: null, folded: false });
-    const opened = await adopt(filePath);
+    Object.assign(state, { path: filePath, pageCount: 0, signature: null });
+    const opened = await load(filePath);
     if (opened.reason !== undefined)
       return { reason: opened.reason, error: opened.error };
-    state.signature = signatureOf(opened.info);
     return { pageCount: opened.info.pageCount, name: opened.info.name };
   }
 
   function close() {
-    Object.assign(state, { path: null, pageCount: 0, signature: null, folded: false });
+    Object.assign(state, { path: null, pageCount: 0, signature: null });
     return shut();
   }
 
-  // 分割の画面を離れるとき。読んだファイルと控えは覚えておく。
+  // 分割の画面を離れるとき。読んだファイルと控えは覚えておく。読んでいる途中なら、読み終えたところで閉じる（adopt）。
   async function fold() {
-    if (state.doc === null)
-      return;
     state.folded = true;
-    await shut();
+    await closeDoc();
   }
 
-  // 分割の画面に戻ったとき。読み直して、書き換わったか（changed）と、前のページ数を返す。
+  // 分割の画面に戻ったとき。読み直して、書き換わったか（changed）と、前のページ数を返す。読んでいる途中なら、その結果を使う。
   async function unfold() {
-    const previousPageCount = state.pageCount;
-    if (!state.folded || state.path === null)
-      return { ok: true, changed: false, pageCount: previousPageCount, previousPageCount };
     state.folded = false;
+    if (state.loading !== null)
+      await state.loading;
+    const previousPageCount = state.pageCount;
+    if (state.folded || state.path === null || state.signature === null || state.doc !== null)
+      return { ok: true, changed: false, pageCount: previousPageCount, previousPageCount };
     const previous = state.signature;
-    const opened = await adopt(state.path);
+    const opened = await load(state.path);
     if (opened.reason !== undefined)
       return { reason: opened.reason, error: opened.error };
-    state.signature = signatureOf(opened.info);
     return { ok: true, changed: !sameSignature(previous, state.signature), pageCount: opened.info.pageCount, previousPageCount };
   }
 
@@ -137,14 +153,14 @@
   }
 
   async function draw(index) {
-    const { ticket, doc, size } = state;
+    const { doc, size } = state;
     let page = null;
     try {
       page = await doc.getPage(index + 1);
       const base = page.getViewport({ scale: 1 });
       const scale = layout().thumbScale({ cell: layout().cellOf(size), pageWidth: base.width, pageHeight: base.height, devicePixelRatio: root.devicePixelRatio ?? 1 });
       const result = await pageImage().renderToCanvas(root.document, page, { scale });
-      if (ticket !== state.ticket || size !== state.size || !wanted.has(index)) {
+      if (doc !== state.doc || size !== state.size || !wanted.has(index)) {
         releaseEntry({ canvas: result.canvas, page });
         return;
       }

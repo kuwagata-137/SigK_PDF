@@ -263,6 +263,24 @@ test('実行の前にファイルが書き換わっていたら、読み直し�
   assert.equal(await shell.SigK.splitThumbs.isChanged(), false, '読み直した');
 });
 
+test('PDF を読んでいる途中で別のツールへ移っても、文書を開いたまま残さない。戻ると読み直して盤を出す', async (t) => {
+  const shell = await createBoardShell(t);
+  const setting = shell.SigK.toolsSplit.setSource(A);
+  shell.SigK.tools.select('merge');
+  assert.equal(await setting, true);
+  await settle(shell);
+  assert.ok(shell.pdfjs.documents.length >= 1, '読んだ');
+  assert.equal(shell.pdfjs.documents.every((document) => document.destroyed), true);
+  assert.equal(shell.SigK.toolsSplit.source().pageCount, 3);
+  assert.equal(shell.SigK.toolsSplit.source().blocked, null);
+
+  shell.SigK.tools.select('split');
+  await settle(shell);
+  assert.equal(shell.SigK.splitThumbs.getState().open, true);
+  assert.equal(boxHeads(shell).length, 1);
+  assert.notEqual(shell.SigK.viewBanner.text(), '「a.pdf」が書き換えられていたので、読み直しました。');
+});
+
 test('別のツールへ移ると畳み、戻ると読み直す。書き換わっていれば知らせる', async (t) => {
   const shell = await withSource(t);
   edit(shell).cut(1);
@@ -316,15 +334,79 @@ test('実行中は盤の操作と段と帯を受けない', async (t) => {
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]]);
   assert.equal($(shell, '#split-each').getAttribute('aria-disabled'), 'true');
   assert.equal($(shell, '#split-every').disabled, true);
+  // ✂ と［前のファイルとつなげる］も押せない色にする（確定事項C12）。大きさは見え方だけなので変えられる。
+  assert.ok($$(shell, '.sb-cut').length > 0 && $$(shell, '.sb-join').length > 0);
+  assert.ok($$(shell, '.sb-cut, .sb-join').every((node) => node.getAttribute('aria-disabled') === 'true'));
+  $(shell, '.sb-join').click();
+  assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]]);
+  $(shell, '#split-size [data-size="small"]').click();
+  assert.equal(shell.SigK.splitThumbs.size(), 'small');
   release({ ok: true, written: 2, targets: [] });
   await running;
   assert.equal($(shell, '#split-every').disabled, false);
+  assert.ok($$(shell, '.sb-cut, .sb-join').every((node) => !node.hasAttribute('aria-disabled')));
 });
 
-test('ページ数とファイルの数は、4 桁から桁区切りを付ける', async (t) => {
+test('まとめて分けるの欄の誤りは、［1 ページずつに分ける］と［分け目をすべて消す］でも消える', async (t) => {
+  const shell = await withSource(t, { pages: 6 });
+  const typeAt = (text) => {
+    $(shell, '#split-at').value = text;
+    $(shell, '#split-at').dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+    $(shell, '#split-at-go').click();
+  };
+  const errorShown = () => $(shell, '#split-bulk-err').hidden === false || $(shell, '#split-at').classList.contains('invalid');
+  typeAt('1');
+  assert.equal(errorShown(), true);
+  $(shell, '#split-each').click();
+  assert.equal(errorShown(), false);
+  typeAt('9');
+  assert.equal($(shell, '#split-bulk-err').textContent, '6 ページまでです');
+  $(shell, '#split-clear').click();
+  assert.equal(errorShown(), false);
+  typeAt('9');
+  $(shell, '#split-clear').click();   // 盤は変わらないが、誤りの表示は消す
+  assert.equal(errorShown(), false);
+});
+
+test('1,000 以上の数には、分割の画面のどこでもカンマを付ける。10 個からは「12 個」（決定78 ②③）', async (t) => {
   const shell = await withSource(t, { pages: 1200 });
   $(shell, '#split-every').value = '100';
   $(shell, '#split-every').dispatchEvent(new shell.window.Event('input', { bubbles: true }));
   $(shell, '#split-every-go').click();
-  assert.equal(summary(shell), '1,200 ページを 12 のファイルに分けます。');
+  assert.equal(summary(shell), '1,200 ページを 12 個のファイルに分けます。');
+  assert.equal($(shell, '#split-files-count').textContent, '12 個');
+  assert.match(fileRows(shell)[10], /1,001〜1,100 ページ$/);
+  assert.equal($(shell, '#split-pages').textContent, '1,200 ページ');
+
+  shell.SigK.splitBoardView.revealBox(10);
+  assert.ok(boxHeads(shell).some((head) => head.includes('1,001〜1,100 ページ')));
+  assert.ok($$(shell, '.sb-page .cap').some((cap) => cap.textContent === '1,001'));
+
+  edit(shell).select(1000);
+  assert.equal($(shell, '#split-band-text').textContent, '1,001 ページ目を選んでいます');
+  edit(shell).skip();
+  assert.equal(summary(shell), '1,001 ページ目を書き出さずに、残りの 1,199 ページを 12 個のファイルに分けます。');
+  assert.ok(boxHeads(shell).some((head) => head.includes('1,001 ページは書き出さない')));
+
+  shell.SigK.splitZoom.open(1099);
+  assert.equal($(shell, '#split-zoom-title').textContent, '1,100 / 1,200 ページ');
+  shell.SigK.splitZoom.close();
+
+  $(shell, '#split-at').value = '1300';
+  $(shell, '#split-at').dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+  $(shell, '#split-at-go').click();
+  assert.equal($(shell, '#split-bulk-err').textContent, '1,200 ページまでです');
+});
+
+test('できるファイルの一覧は上限の 500 行までにし、残りの数を 1 行で知らせる。盤が変わらなければ組み直さない', async (t) => {
+  const shell = await withSource(t, { pages: 1000 });
+  $(shell, '#split-each').click();
+  assert.equal($$(shell, '#split-files .sb-file').length, 500);
+  assert.equal($(shell, '#split-files .sb-files-more').textContent, '上限の 500 を超えるので、残りの 500 個はここに並べません。');
+  const first = $(shell, '#split-files .sb-file');
+  edit(shell).select(3);
+  assert.equal($(shell, '#split-files .sb-file'), first, '選んだだけでは一覧を組み直さない');
+  $(shell, '#split-clear').click();
+  assert.equal($$(shell, '#split-files .sb-file').length, 1);
+  assert.equal($(shell, '#split-files .sb-files-more'), null);
 });
