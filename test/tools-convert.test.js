@@ -488,7 +488,7 @@ test('「まとめる」でタブが上限なら開かずに帯で伝え、最�
   await SigK.toolsConvert.addPaths([A, B]);
   await SigK.toolsConvert.run();
   assert.equal(SigK.tabs.count(), 20);
-  assert.equal(bannerText(shell), '変換しました。タブが多すぎるため開いていません。');
+  assert.equal(bannerText(shell), '変換しましたが、タブが多すぎるため開いていません。');
   // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
   assert.equal(bannerTone(shell), 'info');
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
@@ -630,7 +630,7 @@ test('中止と失敗は帯で伝え、画像ごとの中止では書き出し�
   shell.fireProgress({ taskId: shell.taskCalls[1].taskId, phase: 'write', label: 'x', step: 5, total: 5, done: 1, of: 2 });
   release({ canceled: true });
   assert.deepEqual(plain(await running), { canceled: true });
-  assert.equal(bannerText(shell), '変換を中止しました。1 ファイルは書き出し済みです。');
+  assert.equal(bannerText(shell), '変換を中止しましたが、1 ファイルは書き出し済みです。');
   assert.equal(bannerTone(shell), 'info');
 
   const failed = await SigK.toolsConvert.run();

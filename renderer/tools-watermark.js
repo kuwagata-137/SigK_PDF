@@ -40,7 +40,7 @@
         return null;
       return api.pickToolSource({ defaultPath, title: PICK_TITLE });
     },
-    dirtyMessage: '未保存の編集は透かしに反映されません。保存してから透かしを入れ直してください。',
+    dirtyMessage: '未保存の編集は透かしに反映されないので、保存してから透かしを入れ直してください。',
     onChange: () => {
       view()?.render();
       preview()?.setSource(field.source());

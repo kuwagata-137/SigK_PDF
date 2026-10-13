@@ -9,7 +9,7 @@
   // 畳む（別のツールへ移る・ツールモードを抜ける）ときは全部手放して loadingTask.destroy()。広げるときは読み直し、大きさと更新日時で
   // 書き換わりを照らす（確定事項D7）。同時に走らせる描画は 2 本まで。描き終えたら onDrawn で知らせ、画面が canvas を紙の枠へ差し込む。
 
-  const ENCRYPTED = '保存できない PDF です（パスワード付き）';
+  const ENCRYPTED = 'パスワード付きで、保存できない PDF です';
   const PARALLEL = 2;
 
   const state = { path: null, task: null, doc: null, pageCount: 0, signature: null, folded: false, size: 'mid', ticket: 0, loading: null };

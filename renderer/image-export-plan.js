@@ -60,7 +60,7 @@
       return { error: parsed.error, errorKind: 'range' };
     const pages = [...new Set(parsed.pages)].sort((a, b) => a - b);
     if (pages.length > MAX_PAGES)
-      return { error: `一度に画像にできるのは ${MAX_PAGES} ページまでです（${pages.length} ページが指定されています）。`, errorKind: 'limit' };
+      return { error: `${pages.length} ページが指定されていますが、一度に画像にできるのは ${MAX_PAGES} ページまでです。`, errorKind: 'limit' };
     return { pages };
   }
 

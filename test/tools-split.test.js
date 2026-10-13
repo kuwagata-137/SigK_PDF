@@ -136,7 +136,7 @@ test('［開いているタブから選ぶ］で選んだタブを対象にし�
   assert.equal(SigK.toolsSplit.source().path, B);
   assert.equal(SigK.toolsSplit.source().note, '未保存の編集は反映されません');
   assert.equal(doc.getElementById('split-note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は分割に反映されません/);
+  assert.match(bannerText(shell), /未保存の編集は分割に反映されないので/);
   // 注意・お知らせは黄色の帯で出す（決定49）。
   assert.equal(bannerTone(shell), 'warn');
 });
@@ -337,7 +337,7 @@ test('中止と失敗は帯で伝え、中止では書き出し済みの本数�
   shell.fireProgress({ taskId: shell.taskCalls[1].taskId, phase: 'write', label: 'x', step: 5, total: 5, done: 1, of: 3 });
   release({ canceled: true });
   assert.deepEqual(plain(await running), { canceled: true });
-  assert.equal(bannerText(shell), '分割を中止しました。1 ファイルは書き出し済みです。');
+  assert.equal(bannerText(shell), '分割を中止しましたが、1 ファイルは書き出し済みです。');
 
   const failed = await SigK.toolsSplit.run();
   assert.match(failed.error, /2 \/ 3/);

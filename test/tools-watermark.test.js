@@ -289,5 +289,5 @@ test('［開いているタブから選ぶ］で選んだタブが未保存な�
   await shell.flush();
   assert.equal(SigK.toolsWatermark.source().note, '未保存の編集は反映されません');
   assert.equal(byId(shell, 'wm-note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は透かしに反映されません/);
+  assert.match(bannerText(shell), /未保存の編集は透かしに反映されないので/);
 });

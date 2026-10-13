@@ -36,7 +36,7 @@
         return null;
       return api.pickToolSource({ defaultPath, title: PICK_TITLE });
     },
-    dirtyMessage: '未保存の編集はフラット化に反映されません。保存してからフラット化し直してください。',
+    dirtyMessage: '未保存の編集はフラット化に反映されないので、保存してからフラット化し直してください。',
     onChange: () => {
       view()?.render();
       countIfReady();

@@ -51,7 +51,7 @@
         return null;
       return api.pickSplitSource({ defaultPath });
     },
-    dirtyMessage: '未保存の編集は分割に反映されません。保存してから分割し直してください。',
+    dirtyMessage: '未保存の編集は分割に反映されないので、保存してから分割し直してください。',
     onSelect: (filePath) => {
       if (!state.folderTouched)
         state.folder = dirOf(filePath);

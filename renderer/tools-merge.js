@@ -122,7 +122,7 @@
     const dirtyIds = new Set(fresh.filter((tab) => tabs().isDirty(tab.id)).map((tab) => pathKey(tab.path)));
     const ids = await addPaths(fresh.map((tab) => tab.path), { dirty: (filePath) => dirtyIds.has(pathKey(filePath)) });
     if (dirtyIds.size > 0)
-      banner().show('未保存の編集は結合に反映されません。保存してから結合し直してください。', { tone: 'warn' });
+      banner().show('未保存の編集は結合に反映されないので、保存してから結合し直してください。', { tone: 'warn' });
     return ids;
   }
 
@@ -327,7 +327,7 @@
     const count = state.rows.length;
     if (tabs().count() >= tabs().MAX_TABS) {
       await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show('結合しました。タブが多すぎるため開いていません。', { tone: 'info' });
+      banner().show('結合しましたが、タブが多すぎるため開いていません。', { tone: 'info' });
       return result;
     }
     const opened = await tabs().openPath(target);

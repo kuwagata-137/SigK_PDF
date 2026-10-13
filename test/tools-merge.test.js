@@ -88,7 +88,7 @@ test('［開いているタブをまとめて追加］はタブの並びで未�
   assert.equal(rows[0].note, null);
   assert.equal(rows[1].note, '未保存の編集は反映されません');
   assert.equal(rowNodes(shell)[1].querySelector('.note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は結合に反映されません/);
+  assert.match(bannerText(shell), /未保存の編集は結合に反映されないので/);
   // 注意・お知らせは黄色の帯で出す（決定49）。
   assert.equal(bannerTone(shell), 'warn');
 
@@ -425,7 +425,7 @@ test('タブが上限なら開かずに帯で伝え、最近使ったファイ�
   await SigK.toolsMerge.addPaths([A]);
   await SigK.toolsMerge.run();
   assert.equal(SigK.tabs.count(), 20);
-  assert.equal(bannerText(shell), '結合しました。タブが多すぎるため開いていません。');
+  assert.equal(bannerText(shell), '結合しましたが、タブが多すぎるため開いていません。');
   // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
   assert.equal(bannerTone(shell), 'info');
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');

@@ -96,7 +96,7 @@
     if (result?.canceled === true) {
       const written = writtenBeforeCancel();
       // 自分で止めたので赤く塗らない（決定49）。
-      banner().show(written > 0 ? `分割を中止しました。${written} ファイルは書き出し済みです。` : '分割を中止しました。', { tone: 'info' });
+      banner().show(written > 0 ? `分割を中止しましたが、${written} ファイルは書き出し済みです。` : '分割を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

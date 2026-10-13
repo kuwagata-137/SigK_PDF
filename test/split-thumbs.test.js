@@ -177,7 +177,7 @@ test('別のファイルを開くと前の文書を閉じる。読んでいる�
 
 test('パスワード付きの PDF は聞かずに断り、文書を閉じる', async (t) => {
   const { pdfjs, thumbs } = await createThumbShell(t, { password: 'secret' });
-  assert.deepEqual(structuredClone(await thumbs.open(A)), { reason: 'encrypted', error: '保存できない PDF です（パスワード付き）' });
+  assert.deepEqual(structuredClone(await thumbs.open(A)), { reason: 'encrypted', error: 'パスワード付きで、保存できない PDF です' });
   assert.equal(thumbs.getState().open, false);
   assert.equal(pdfjs.passwordAttempts.length, 0);
 });

@@ -56,7 +56,7 @@
         return null;
       return api.pickToolSource({ defaultPath, title: PICK_TITLE });
     },
-    dirtyMessage: '未保存の編集は画像に反映されません。保存してから画像にし直してください。',
+    dirtyMessage: '未保存の編集は画像に反映されないので、保存してから画像にし直してください。',
     emptyFields: { sizes: null },
     fieldsOf: (info) => ({ sizes: info.sizes }),
     onSelect: (filePath) => {
@@ -272,7 +272,7 @@
     if (result?.canceled === true) {
       const written = result.written ?? 0;
       // 自分で止めたので赤く塗らない（決定49）。
-      banner().show(written > 0 ? `画像にするのを中止しました。${written} ファイルは書き出し済みです。` : '画像にするのを中止しました。', { tone: 'info' });
+      banner().show(written > 0 ? `画像にするのを中止しましたが、${written} ファイルは書き出し済みです。` : '画像にするのを中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {

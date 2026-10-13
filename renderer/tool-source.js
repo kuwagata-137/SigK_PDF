@@ -72,7 +72,7 @@
 
   // 結合・分割の対象。書けないので暗号化は「保存できない」と断る。
   function inspectPdf(filePath) {
-    return inspect(filePath, { withSizes: false, encryptedError: '保存できない PDF です（パスワード付き）' });
+    return inspect(filePath, { withSizes: false, encryptedError: 'パスワード付きで、保存できない PDF です' });
   }
 
   // PDF→画像の対象（spec-3-3 確定事項3・4）。寸法まで読む。書かないので文言は「画像にできません」。

@@ -82,7 +82,7 @@ test('選ぶとそのタブの PDF が対象になり、未保存なら注意と
   await shell.flush();
   assert.equal(shell.SigK.toolsSplit.source().path, B);
   assert.equal(shell.SigK.toolsSplit.source().note, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は分割に反映されません/);
+  assert.match(bannerText(shell), /未保存の編集は分割に反映されないので/);
   assert.equal(menuOf(shell), null);
   assert.equal(shell.document.activeElement, button);
 });

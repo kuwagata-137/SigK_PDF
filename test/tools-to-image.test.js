@@ -115,7 +115,7 @@ test('［開いているタブから選ぶ］で選んだタブを対象にし�
   assert.equal(SigK.toolsToImage.source().path, B);
   assert.equal(SigK.toolsToImage.source().note, '未保存の編集は反映されません');
   assert.equal(doc.getElementById('toimage-note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は画像に反映されません/);
+  assert.match(bannerText(shell), /未保存の編集は画像に反映されないので/);
 });
 
 test('タブが無ければ、一覧に案内の 1 行を出す（帯は出さない）', async (t) => {
@@ -239,7 +239,7 @@ test('501 ページ以上は理由を出して実行できない（ユーザー�
   const { SigK } = shell;
   await SigK.toolsToImage.setSource(A);
   assert.equal(SigK.toolsToImage.canRun(), false);
-  assert.match(exampleText(shell), /500 ページまでです（501 ページが指定されています）/);
+  assert.match(exampleText(shell), /501 ページが指定されていますが、一度に画像にできるのは 500 ページまでです/);
   SigK.toolsToImage.setPageMode('range');
   SigK.toolsToImage.setRange('1-500');
   assert.equal(SigK.toolsToImage.canRun(), true);
@@ -358,7 +358,7 @@ test('中止は次のページの前で止まり、書き出し済みの枚数�
 
   assert.deepEqual(plain(result), { canceled: true, written: 1 });
   assert.equal(gates.length, 1, '2 ページ目は描かない');
-  assert.equal(bannerText(shell), '画像にするのを中止しました。1 ファイルは書き出し済みです。');
+  assert.equal(bannerText(shell), '画像にするのを中止しましたが、1 ファイルは書き出し済みです。');
   // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
   assert.equal(shell.pdfjs.documents.at(-1).destroyed, true, '中止でも文書を畳む');
