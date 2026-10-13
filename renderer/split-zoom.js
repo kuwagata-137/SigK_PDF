@@ -53,15 +53,22 @@
     setDisabled(el.prev, index <= 0);
     setDisabled(el.next, index >= board.pageCount - 1);
     el.page.replaceChildren();
-    const page = await root.SigK.splitThumbs.getPage(index);
-    if (page === null || page === undefined || ticket !== state.ticket) {
-      page?.cleanup?.();
+    let page = null;
+    let drawn = null;
+    const ratio = Math.min(el.win.devicePixelRatio || 1, MAX_DPR);
+    try {
+      page = await root.SigK.splitThumbs.getPage(index);
+      if (page === null || page === undefined || ticket !== state.ticket) {
+        page?.cleanup?.();
+        return;
+      }
+      const base = page.getViewport({ scale: 1 });
+      const fit = Math.min((el.win.innerWidth - MARGIN.x) / base.width, (el.win.innerHeight - MARGIN.y) / base.height);
+      drawn = await pageImage().renderToCanvas(el.doc, page, { scale: Math.max(0.1, fit) * ratio });
+    } catch {
+      page?.cleanup?.();   // 描けなかったページは空の紙のまま。窓は閉じられる（点検 R1）
       return;
     }
-    const base = page.getViewport({ scale: 1 });
-    const fit = Math.min((el.win.innerWidth - MARGIN.x) / base.width, (el.win.innerHeight - MARGIN.y) / base.height);
-    const ratio = Math.min(el.win.devicePixelRatio || 1, MAX_DPR);
-    const drawn = await pageImage().renderToCanvas(el.doc, page, { scale: Math.max(0.1, fit) * ratio });
     if (ticket !== state.ticket) {
       pageImage().release(drawn.canvas);
       page.cleanup?.();

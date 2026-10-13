@@ -114,6 +114,7 @@
   function notifyViewportChanged() {
     root.SigK.viewer?.refit();
     root.SigK.thumbnails?.refresh();
+    root.SigK.splitBoardView?.schedule();   // 分割の盤も幅から組む（spec-2-2b 確定事項C10。点検 R1）
   }
 
   // 閉じている間だけ、開き直す「＞」の細い帯を出す（2026-10-08 の直し）。閉じる「＜」はパネルと一緒に消えるため。

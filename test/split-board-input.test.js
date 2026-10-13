@@ -106,6 +106,54 @@ test('文字を打つ欄（N・ページ番号）の中の Esc は、選択を�
   }
 });
 
+test('ダブルクリックは、2 回目の click で盤が描き直されても大きく見る窓を開く（ページ番号の上でも）', async (t) => {
+  // Chromium は click と同じ要素へ dblclick を配る。2 回目の click で盤が作り直されると、その要素は文書から外れ、
+  // dblclick が盤の器まで届かない（点検 R1）。2 回目の click（detail が 2）で開く。
+  const shell = await createInputShell(t);
+  const clickAt = (node, detail) => node.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true, detail }));
+  clickAt(pageNode(shell, 4).querySelector('.cap'), 1);
+  const second = pageNode(shell, 4).querySelector('.cap');
+  clickAt(second, 2);
+  second.dispatchEvent(new shell.window.MouseEvent('dblclick', { bubbles: true, cancelable: true, detail: 2 }));
+  for (let i = 0; i < 3; i += 1)
+    await shell.flush();
+  assert.equal(shell.SigK.splitZoom.isOpen(), true);
+  assert.equal(shell.SigK.splitZoom.current(), 4);
+});
+
+test('選んでいないときの Shift＋→ は、今のページから選択を広げる', async (t) => {
+  const shell = await createInputShell(t);
+  const scroll = shell.document.getElementById('split-board-scroll');
+  scroll.focus();
+  key(shell, scroll, 'ArrowRight');
+  assert.equal(range(shell), null, 'Shift なしでは今のページが動くだけ');
+  key(shell, scroll, 'ArrowRight', { shiftKey: true });
+  assert.deepEqual(range(shell), { from: 1, to: 2 });
+});
+
+test('0 ページの PDF でも、盤の上のキーで止まらない', async (t) => {
+  const shell = await createInputShell(t, { pages: 0 });
+  const errors = [];
+  shell.window.addEventListener('error', (event) => errors.push(event.error ?? event.message));
+  const scroll = shell.document.getElementById('split-board-scroll');
+  scroll.focus();
+  for (const name of ['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End', ' ', 'Enter'])
+    key(shell, scroll, name);
+  assert.deepEqual(errors, []);
+});
+
+test('なぞっている途中で窓が非活性になったら、なぞるのを取りやめて前の選択に戻す', async (t) => {
+  const shell = await createInputShell(t);
+  press(shell, 0);
+  pointer(shell, 'pointerdown', pageNode(shell, 3), centerOf(shell, 3));
+  pointer(shell, 'pointermove', shell.document, centerOf(shell, 5));
+  assert.deepEqual(range(shell), { from: 3, to: 5 });
+  shell.window.dispatchEvent(new shell.window.Event('blur'));
+  assert.deepEqual(range(shell), { from: 0, to: 0 });
+  pointer(shell, 'pointermove', shell.document, centerOf(shell, 8));
+  assert.deepEqual(range(shell), { from: 0, to: 0 }, '取りやめたあとは動かしても選ばない');
+});
+
 test('なぞっていないときの Esc は、選択を外す（確定事項G2④）', async (t) => {
   const shell = await createInputShell(t);
   press(shell, 4);

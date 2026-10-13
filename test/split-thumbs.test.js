@@ -11,10 +11,11 @@ const { createShell, makeSource, createPdfjsStub, A4 } = require('./harness.js')
 
 const A = 'C:\\work\\a.pdf';
 const B = 'C:\\work\\b.pdf';
+const C = 'C:\\work\\c.pdf';
 
 async function createThumbShell(t, { sizes = [A4, A4, A4, A4, A4, A4], password = null } = {}) {
   const pdfjs = createPdfjsStub({ sizes, password });
-  const shell = await createShell({ pdfjs, files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) } });
+  const shell = await createShell({ pdfjs, files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }) } });
   t.after(() => shell.cleanup());
   await shell.flush();
   return { shell, pdfjs, sizes, thumbs: shell.SigK.splitThumbs };
@@ -76,6 +77,34 @@ test('大きさを変えると全部手放し、次に頼まれたときに新�
   const layout = shell.SigK.splitLayout;
   const scale = layout.thumbScale({ cell: layout.cellOf('large'), pageWidth: A4.width, pageHeight: A4.height, devicePixelRatio: 1 });
   assert.ok(pdfjs.viewportCalls.some((call) => call.page === 1 && call.scale === scale));
+});
+
+test('描いている途中に大きさを変えても、そのページは新しい大きさで描き直す（空の枠のまま残さない）', async (t) => {
+  const { shell, pdfjs, thumbs } = await createThumbShell(t);
+  await thumbs.open(A);
+  thumbs.want([0, 1], { cap: 72 });
+  assert.equal(thumbs.getState().pending, 2, '2 枚とも描いている途中');
+  thumbs.setSize('large');
+  thumbs.want([0, 1], { cap: 36 });   // 画面が描き直しで同じページを頼み直す
+  await settle(shell);
+  assert.deepEqual(structuredClone(thumbs.getState().drawn), [0, 1]);
+  const layout = shell.SigK.splitLayout;
+  const scale = layout.thumbScale({ cell: layout.cellOf('large'), pageWidth: A4.width, pageHeight: A4.height, devicePixelRatio: 1 });
+  assert.ok(pdfjs.viewportCalls.some((call) => call.page === 1 && call.scale === scale));
+  assert.ok(pdfjs.viewportCalls.some((call) => call.page === 2 && call.scale === scale));
+});
+
+test('対象を続けて 2 回替えると、後で選んだ方を開く（前の方は stale）', async (t) => {
+  const { pdfjs, thumbs } = await createThumbShell(t);
+  await thumbs.open(A);
+  const first = thumbs.open(B);
+  const second = thumbs.open(C);
+  const results = await Promise.all([first, second]);
+  assert.equal(results[0].reason, 'stale');
+  assert.equal(results[1].pageCount, 6);
+  assert.equal(thumbs.getState().path, C);
+  assert.equal(thumbs.getState().open, true);
+  assert.equal(pdfjs.documents.filter((document) => !document.destroyed).length, 1);
 });
 
 test('描けたページは onDrawn で知らせる', async (t) => {

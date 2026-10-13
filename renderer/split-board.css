@@ -46,7 +46,8 @@
 .sb-band .sb-btn[hidden]{display:none}
 
 /* ── 盤（箱とページ。位置は split-board-layout.js） ── */
-.sb-scroll{flex:1; min-height:0; overflow:auto; position:relative; padding:0 0 16px; outline:none}
+/* 縦のスクロールバーの幅をはじめから取っておく（出た瞬間に箱がはみ出して横のスクロールバーが出ないように。shell.css のページビューと同じ） */
+.sb-scroll{flex:1; min-height:0; overflow:auto; position:relative; padding:0 0 16px; outline:none; scrollbar-gutter:stable}
 .sb-scroll:focus-visible{outline:2px solid var(--primary); outline-offset:-2px; border-radius:var(--radius)}
 .sb-canvas{position:relative}
 .sb-empty{position:absolute; inset:0 0 16px; margin:0; display:grid; place-items:center; padding:0 24px; text-align:center;

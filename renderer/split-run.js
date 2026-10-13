@@ -53,6 +53,7 @@
 
   async function execute() {
     const src = split().source();
+    const expectSource = thumbs().signature();   // ワーカーで照らす控えは、照らす前に取っておく（確定事項H4。点検 R1）
     // 読んだあとで書き換わっていたら、読み直して止める（確定事項D7）。見ているサムネイルと違う中身を黙って分けないため。
     if (await thumbs().isChanged()) {
       await root.SigK.splitReload.reloadAfterChange();
@@ -80,7 +81,7 @@
       parts: current.parts.map((pages, index) => ({ pages, target: targets[index] })),
       targets,
       // ワーカーも読む前に照らす（確定事項H4）。
-      expectSource: thumbs().signature(),
+      expectSource,
     });
     return finish(result, targets);
   }

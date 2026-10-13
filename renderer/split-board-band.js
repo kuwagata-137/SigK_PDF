@@ -102,10 +102,15 @@
     bindInput('at');
     for (const button of el.sizes)
       button.addEventListener('click', () => edit().setSize(button.dataset.size));
-    el.one.addEventListener('click', () => edit().makeOne());
-    el.skip.addEventListener('click', () => edit().skip());
-    el.unskip.addEventListener('click', () => edit().unskip());
-    el.clearSelection.addEventListener('click', () => edit().clearSelection());
+    // 帯のボタンは押すと隠れることがあるので、押したらフォーカスを盤の器へ戻す（点検 R1）。
+    const toBoard = (action) => () => {
+      action();
+      doc.getElementById('split-board-scroll')?.focus?.({ preventScroll: true });
+    };
+    el.one.addEventListener('click', toBoard(() => edit().makeOne()));
+    el.skip.addEventListener('click', toBoard(() => edit().skip()));
+    el.unskip.addEventListener('click', toBoard(() => edit().unskip()));
+    el.clearSelection.addEventListener('click', toBoard(() => edit().clearSelection()));
     sync();
     return true;
   }

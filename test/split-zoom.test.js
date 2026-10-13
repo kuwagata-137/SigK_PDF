@@ -105,3 +105,13 @@ test('盤にフォーカスがあるときの Enter でも開く。開いてい�
   await settle(shell);
   assert.equal(shell.SigK.splitBoardInput.current(), 1, '盤の今のページは動かない');
 });
+
+test('ページを描けなくても例外を残さず、窓は開いたまま閉じられる。読んだページは手放す', async (t) => {
+  const shell = await createZoomShell(t);
+  shell.SigK.pageImage.renderToCanvas = async () => { throw new Error('broken'); };
+  shell.pdfjs.cleanups.length = 0;
+  assert.equal(await shell.SigK.splitZoom.open(2), true);
+  assert.equal(shell.SigK.splitZoom.isOpen(), true);
+  assert.ok(shell.pdfjs.cleanups.includes(3), '描けなかったページも cleanup する');
+  assert.equal(shell.SigK.splitZoom.close(), true);
+});

@@ -51,6 +51,8 @@
       return;
     }
     const last = edit().board().pageCount - 1;
+    if (last < 0)
+      return;   // 0 ページの PDF（点検 R1）
     const base = Math.min(input().current() ?? selection().range(edit().selection())?.from ?? 0, last);
     if (event.key === ' ') {
       input().setCurrent(base);
@@ -63,8 +65,11 @@
     }
     const next = targetOf(event.key, base, placed, last);
     input().setCurrent(next);
-    if (event.shiftKey)
+    if (event.shiftKey) {
+      if (edit().selection() === null)
+        edit().select(base);   // 選んでいなければ、今のページから広げる（点検 R1）
       edit().select(next, { shift: true });
+    }
     view().revealPage(next);
   }
 

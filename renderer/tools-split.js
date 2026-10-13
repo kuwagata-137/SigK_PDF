@@ -65,7 +65,16 @@
   const source = () => field.source();
   const isReady = (src) => src !== null && !src.pending && src.blocked === null && src.pageCount !== null;
   // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う）。`--split` は useFromLaunch。
-  const { setSource, useTab, pickFile, addPaths } = field;
+  const { setSource, useTab, pickFile } = field;
+
+  // 実行中のドロップでは対象を替えない。替えると盤と元に戻す履歴が作り直される（点検 R1）。ボタンは実行中は押せない。
+  async function addPaths(paths) {
+    if (state.running) {
+      banner().show('いま分割しているので、終わってからもう一度ドロップしてください。', { tone: 'warn' });
+      return false;
+    }
+    return field.addPaths(paths);
+  }
 
   // 対象が読めたら盤を作る。同じファイルを選び直したとき（ページ数も同じ）は今の盤を残す（確定事項B6）。
   function syncBoard() {

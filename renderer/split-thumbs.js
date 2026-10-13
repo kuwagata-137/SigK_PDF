@@ -53,16 +53,9 @@
     await task?.destroy?.();
   }
 
-  // 対象が替わるとき。読んでいる途中のものも stale にする。
-  function shut() {
-    state.ticket += 1;
-    return closeDoc();
-  }
-
-  // 読んで開く。読んでいる間に対象が替わったら、遅れて開いた文書も閉じて stale を返す。読んでいる間に畳まれたら、
-  // ページ数と控えだけ覚えて閉じる（広げるときに読み直す）。
-  async function adopt(filePath) {
-    const ticket = (state.ticket += 1);
+  // 読んで開く。ticket は対象を決めたときの番号で、読んでいる間に対象が替わったら（open・close が番号を進める）、遅れて開いた
+  // 文書も閉じて stale を返す。読んでいる間に畳まれたら、ページ数と控えだけ覚えて閉じる（広げるときに読み直す）。
+  async function adopt(filePath, ticket) {
     const opened = await root.SigK.toolSource.openPdf(filePath, { encryptedError: ENCRYPTED });
     if (ticket !== state.ticket) {
       await opened.task?.destroy?.();
@@ -79,25 +72,30 @@
   }
 
   // 読んでいる途中かを、畳む・広げる側から見えるように持つ。
-  function load(filePath) {
-    const loading = (state.loading = adopt(filePath));
+  function load(filePath, ticket) {
+    const loading = (state.loading = adopt(filePath, ticket));
     loading.finally(() => { if (state.loading === loading) state.loading = null; }).catch(() => {});
     return loading;
   }
 
   // 対象の欄の inspect として呼ばれる。戻り値は { pageCount, name } か { reason, error }。
+  // 番号は閉じるのを待つ前に取る。待っている間に次の対象が決まったら、こちらが stale になる（点検 R1）。
   async function open(filePath) {
-    await shut();
+    const ticket = (state.ticket += 1);
+    await closeDoc();
+    if (ticket !== state.ticket)
+      return { reason: 'stale', error: '' };
     Object.assign(state, { path: filePath, pageCount: 0, signature: null });
-    const opened = await load(filePath);
+    const opened = await load(filePath, ticket);
     if (opened.reason !== undefined)
       return { reason: opened.reason, error: opened.error };
     return { pageCount: opened.info.pageCount, name: opened.info.name };
   }
 
   function close() {
+    state.ticket += 1;
     Object.assign(state, { path: null, pageCount: 0, signature: null });
-    return shut();
+    return closeDoc();
   }
 
   // 分割の画面を離れるとき。読んだファイルと控えは覚えておく。読んでいる途中なら、読み終えたところで閉じる（adopt）。
@@ -115,7 +113,7 @@
     if (state.folded || state.path === null || state.signature === null || state.doc !== null)
       return { ok: true, changed: false, pageCount: previousPageCount, previousPageCount };
     const previous = state.signature;
-    const opened = await load(state.path);
+    const opened = await load(state.path, state.ticket);   // 同じ対象を読み直すので番号は進めない
     if (opened.reason !== undefined)
       return { reason: opened.reason, error: opened.error };
     return { ok: true, changed: !sameSignature(previous, state.signature), pageCount: opened.info.pageCount, previousPageCount };
@@ -145,13 +143,16 @@
     while (pending.size < PARALLEL && queue.length > 0 && state.doc !== null) {
       const index = queue.shift();
       pending.add(index);
-      draw(index).finally(() => {
+      draw(index).then((again) => {
         pending.delete(index);
+        if (again && wanted.has(index) && !drawn.has(index) && !queue.includes(index))
+          queue.unshift(index);   // 描いている間に大きさが変わった。新しい大きさで描き直す（点検 R1）
         pump();
       });
     }
   }
 
+  // 描き終えたときに大きさだけが変わっていたら true（描き直す）。
   async function draw(index) {
     const { doc, size } = state;
     let page = null;
@@ -162,13 +163,14 @@
       const result = await pageImage().renderToCanvas(root.document, page, { scale });
       if (doc !== state.doc || size !== state.size || !wanted.has(index)) {
         releaseEntry({ canvas: result.canvas, page });
-        return;
+        return doc === state.doc && size !== state.size;
       }
       drawn.set(index, { canvas: result.canvas, page });
       listeners.forEach((listener) => listener(index, result.canvas));
     } catch {
       page?.cleanup?.();   // 描けなかったページは枠のまま残す（描画の取りやめも含む）
     }
+    return false;
   }
 
   function setSize(size) {

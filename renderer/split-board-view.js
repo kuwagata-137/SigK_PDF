@@ -120,15 +120,18 @@
     return true;
   }
 
+  // ✂ と［つなげる］は押すと盤ごと作り直されて消えるので、フォーカスを盤の器へ戻す（body に落ちると、PageUp などが
+  // 裏のページビューを動かす。点検 R1）。
   function onClick(event) {
     const cut = event.target.closest('.sb-cut');
-    if (cut !== null) {
-      edit().cut(Number(cut.dataset.cut));
-      return;
-    }
     const join = event.target.closest('.sb-join');
-    if (join !== null)
+    if (cut === null && join === null)
+      return;
+    if (cut !== null)
+      edit().cut(Number(cut.dataset.cut));
+    else
       edit().join(Number(join.dataset.join));
+    el.scroll.focus?.({ preventScroll: true });
   }
 
   function init(doc, win) {

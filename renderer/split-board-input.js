@@ -123,11 +123,15 @@
       return;
     state.current = page;
     edit().select(page, { shift: event.shiftKey });
+    // 2 回目の click で大きく見る（確定事項E1）。dblclick は click と同じ要素へ届くが、選び直しで盤を作り直すとその要素は文書から
+    // 外れ、器まで届かない（点検 R1）。dblclick は click を挟まずに届いたとき（描けた canvas の上など）の受け口として残す。
+    if (event.detail === 2)
+      root.SigK.splitZoom?.open(page);
   }
 
   function onDoubleClick(event) {
     const page = pageOf(event.target);
-    if (page !== null && !isOnControl(event.target))
+    if (page !== null && !isOnControl(event.target) && root.SigK.splitZoom?.isOpen() !== true)
       root.SigK.splitZoom?.open(page);
   }
 
@@ -153,6 +157,8 @@
     doc.addEventListener('pointerup', onPointerUp);
     // タッチでスクロールすると pointerup の代わりに pointercancel が来る。押した控えを残さない。
     doc.addEventListener('pointercancel', () => cancelHeld());
+    // 窓が非活性になると pointerup が届かないことがある。なぞる状態を残さない（点検 R1）。
+    win.addEventListener('blur', () => cancelHeld());
     scroll.addEventListener('click', onClick);
     scroll.addEventListener('dblclick', onDoubleClick);
     doc.addEventListener('keydown', onDocumentKey);

@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
 const { createShell, makeSource, createPdfjsStub, A4 } = require('./harness.js');
 
 const A = 'C:\\work\\a.pdf';
+const B = 'C:\\work\\b.pdf';
 
 async function createBoardShell(t, { pages = 3, ...options } = {}) {
   const shell = await createShell({
@@ -409,4 +410,51 @@ test('できるファイルの一覧は上限の 500 行までにし、残りの
   $(shell, '#split-clear').click();
   assert.equal($$(shell, '#split-files .sb-file').length, 1);
   assert.equal($(shell, '#split-files .sb-files-more'), null);
+});
+
+test('✂・［つなげる］・帯のボタンを押したあとも、フォーカスは盤の器に残る（裏のページビューへキーを流さない）', async (t) => {
+  const shell = await withSource(t, { pages: 6 });
+  const scroll = $(shell, '#split-board-scroll');
+  const pressButton = (selector) => {
+    const button = $(shell, selector);
+    button.focus();
+    button.click();
+  };
+  pressButton('.sb-cut[data-cut="3"]');
+  assert.equal(shell.document.activeElement, scroll, '✂');
+  pressButton('.sb-join');
+  assert.equal(shell.document.activeElement, scroll, 'つなげる');
+  edit(shell).select(1);
+  pressButton('#split-band-skip');
+  assert.equal(shell.document.activeElement, scroll, '書き出さない');
+  pressButton('#split-band-unskip');
+  pressButton('#split-band-one');
+  assert.equal(shell.document.activeElement, scroll, '1 つのファイルにする');
+});
+
+test('左の一覧を開け閉めして盤の幅が変わったら、盤を組み直す', async (t) => {
+  const shell = await withSource(t, { pages: 30 });
+  const scroll = $(shell, '#split-board-scroll');
+  assert.equal($(shell, '.sb-box').style.width, '638px');
+  Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => 420 });
+  shell.SigK.shell.setSidePanelOpen(shell.document, true);
+  await settle(shell);
+  assert.equal($(shell, '.sb-box').style.width, '418px', '画面の箱も組み直す（配置の計算だけでなく）');
+});
+
+test('実行中のドロップでは、分割する PDF を替えない（盤と元に戻す履歴を守る）', async (t) => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const shell = await withSource(t, { taskResults: [gate] });
+  edit(shell).cut(1);
+  const running = shell.SigK.toolsSplit.run();
+  await shell.flush();
+  await shell.flush();
+  assert.equal(shell.SigK.toolsSplit.isRunning(), true);
+  assert.equal(await shell.SigK.toolsSplit.addPaths([B]), false);
+  assert.equal(shell.SigK.toolsSplit.source().path, A);
+  assert.equal(shell.SigK.viewBanner.text(), 'いま分割しているので、終わってからもう一度ドロップしてください。');
+  assert.equal(shell.SigK.toolsSplitEdit.canUndo(), true);
+  release({ ok: true, written: 2, targets: [] });
+  await running;
 });
