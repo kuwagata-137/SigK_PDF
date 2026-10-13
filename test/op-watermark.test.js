@@ -173,7 +173,7 @@ test('JPEG の透かしも埋められ、BMP は PNG か JPEG を選ぶよう、
     { error: 'PNG か JPEG の画像を選んでください。' });
   const progressive = makeJpeg({ width: 32, height: 16, marker: 0xc2 });
   assert.deepEqual(await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile: async () => new Uint8Array(progressive) }),
-    { error: 'この JPEG は透かしに使えません（プログレッシブ形式）。' });
+    { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。' });
 });
 
 test('画像を読めなければ断る', async () => {

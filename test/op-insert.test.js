@@ -174,7 +174,7 @@ test('受け付けない形式は、断る理由まで返す', async () => {
   const doc = await makeDoc(1);
   const at = (file, bytes) => insertInto(doc, [{ src: 0 }, { insert: 0 }], [{ path: file }], { [file]: bytes });
 
-  assert.match((await at('a.webp', WEBP)).error, /対応していない形式です。PNG・JPEG・BMP・GIF・TIFF・PDF/);
+  assert.match((await at('a.webp', WEBP)).error, /対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF・PDF/);
   assert.match((await at('a.jpg', makeJpeg({ marker: 0xc2 }))).error, /プログレッシブ形式/);
   assert.match((await at('a.gif', Buffer.from('GIF89a      '))).error, /大きさを読み取れませんでした/);
   assert.match((await at('a.gif', Buffer.from('GIF89a     ;'))).error, /壊れている/);
@@ -235,7 +235,7 @@ test('差し込む番号が無ければ断る', async () => {
   const doc = await makeDoc(1);
   const result = await insertInto(doc, [{ src: 0 }, { insert: 3 }], [{ path: 'a.png' }],
     { 'a.png': makePng() });
-  assert.match(result.error, /見つかりません/);
+  assert.match(result.error, /見つからないので/);
 });
 
 test('同じファイルを2ページぶん差し込んでも、読むのは1回だけである', async () => {

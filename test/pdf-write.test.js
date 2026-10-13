@@ -153,7 +153,7 @@ test('置き換えに失敗しても元ファイルは無傷で、一時ファ�
       makeBackup: false,
       fsLike: failingFs('rename', 'EPERM'),
     });
-    assert.equal(result.error, 'ファイルが他のプログラムで使われています。閉じてからもう一度お試しください。');
+    assert.equal(result.error, 'ファイルが他のプログラムで使われているので、閉じてからもう一度お試しください。');
     assert.equal(result.phase, 'replace');
     assert.equal(fs.readFileSync(target, 'utf8'), 'OLD');
     assert.equal(fs.existsSync(tempPathFor(target)), false);
@@ -187,7 +187,7 @@ test('空き容量が足りないときは、そう言う', async () => {
 
 test('段によって文言を変える', () => {
   const busy = { code: 'EPERM' };
-  assert.match(describeWriteFailure(busy, 'replace'), /他のプログラムで使われています/);
+  assert.match(describeWriteFailure(busy, 'replace'), /他のプログラムで使われているので/);
   assert.match(describeWriteFailure(busy, 'temp'), /書き込む権限がありません/);
   assert.match(describeWriteFailure({ code: 'EROFS' }, 'temp'), /書き込みできない場所/);
   assert.match(describeWriteFailure({}, 'temp'), /保存できませんでした/);

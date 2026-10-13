@@ -75,9 +75,9 @@ test('選択が空なら断る', async () => {
 
 test('元の文書に無いページは断る', async () => {
   const source = await makeDoc(2);
-  assert.match((await extractPages(source, [{ src: 5 }], { PDFDocument })).error, /合いません/);
-  assert.match((await extractPages(source, [{ src: -1 }], { PDFDocument })).error, /合いません/);
-  assert.match((await extractPages(source, [{ rotate: 90 }], { PDFDocument })).error, /合いません/);
+  assert.match((await extractPages(source, [{ src: 5 }], { PDFDocument })).error, /合わないので/);
+  assert.match((await extractPages(source, [{ src: -1 }], { PDFDocument })).error, /合わないので/);
+  assert.match((await extractPages(source, [{ rotate: 90 }], { PDFDocument })).error, /合わないので/);
 });
 
 test('同じページを2回選んでも、回転は互いに影響しない', async () => {

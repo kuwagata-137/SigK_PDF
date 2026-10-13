@@ -87,7 +87,7 @@ async function addFile(doc, entry, tools, onPage) {
   if (loaded.ok !== true)
     return { error: withName(entry.name, loaded.error) };
   if (Number.isInteger(loaded.pages) && loaded.pages < entry.layouts.length)
-    return { error: withName(entry.name, '画像のページ数が一覧に入れたときと違います。もう一度足してください。') };
+    return { error: withName(entry.name, '画像のページ数が一覧に入れたときと違うので、もう一度足してください。') };
   for (let frame = 0; frame < entry.layouts.length; frame += 1) {
     const added = await addPage(doc, entry, loaded, frame, tools);
     if (added.ok !== true) {

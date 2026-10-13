@@ -27,7 +27,7 @@ function validateSelection(plan, pageCount) {
   for (const entry of plan) {
     const src = entry?.src;
     if (!Number.isInteger(src) || src < 0 || src >= pageCount)
-      return { error: 'ページの指定が元の文書と合いません。もう一度開き直してください。' };
+      return { error: 'ページの指定が元の文書と合わないので、もう一度開き直してください。' };
   }
   return { ok: true };
 }

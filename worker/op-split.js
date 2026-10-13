@@ -24,7 +24,7 @@ function validateParts(parts, pageCount) {
       return { error: '分割するページがありません。' };
     for (const page of part) {
       if (!Number.isInteger(page) || page < 0 || page >= pageCount)
-        return { error: 'ページの指定がファイルと合いません。もう一度選び直してください。' };
+        return { error: 'ページの指定がファイルと合わないので、もう一度選び直してください。' };
     }
   }
   return { ok: true };

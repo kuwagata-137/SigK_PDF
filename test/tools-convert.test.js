@@ -25,7 +25,7 @@ const INFOS = {
   [A]: { kind: 'png', width: 1200, height: 800 },
   [B]: { kind: 'jpeg', width: 600, height: 900 },
   [C]: { kind: 'png', width: 64, height: 64 },
-  [WEBP]: { error: '対応していない形式です。PNG・JPEG・BMP・GIF・TIFF を選んでください。' },
+  [WEBP]: { error: '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください。' },
   [SCAN]: { kind: 'tiff', width: 1200, height: 800, frames: [{ width: 1200, height: 800 }, { width: 600, height: 900 }, { width: 64, height: 64 }] },
 };
 
@@ -265,16 +265,16 @@ test('上限を超えた分は入れず、上限の帯は束につき 1 回', as
 test('読めない画像は行に印と文言が付き、実行できない', async (t) => {
   const shell = await createConvertShell(t, {
     imageInfos: {
-      'C:\\photo\\x.pdf': { error: 'PDF は画像ではありません。PNG・JPEG・BMP・GIF・TIFF を選んでください。' },
-      'C:\\photo\\p.jpg': { error: 'この JPEG は変換できません（プログレッシブ形式）。' },
+      'C:\\photo\\x.pdf': { error: 'PDF は画像ではないので、PNG・JPEG・BMP・GIF・TIFF を選んでください。' },
+      'C:\\photo\\p.jpg': { error: 'この JPEG はプログレッシブ形式なので、変換できません。' },
     },
   });
   const { SigK } = shell;
   await SigK.toolsConvert.addPaths([A, WEBP, 'C:\\photo\\x.pdf', 'C:\\photo\\p.jpg']);
 
-  assert.equal(rows(shell)[1].blocked, '対応していない形式です。PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
-  assert.equal(rows(shell)[2].blocked, 'PDF は画像ではありません。PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
-  assert.equal(rows(shell)[3].blocked, 'この JPEG は変換できません（プログレッシブ形式）。外してください');
+  assert.equal(rows(shell)[1].blocked, '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
+  assert.equal(rows(shell)[2].blocked, 'PDF は画像ではないので、PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
+  assert.equal(rows(shell)[3].blocked, 'この JPEG はプログレッシブ形式なので、変換できません。外してください');
   assert.equal(rowNodes(shell)[1].classList.contains('blocked'), true);
   assert.equal(cell(shell, 1, '.px'), '–');
   assert.equal(SigK.toolsConvert.canRun(), false);

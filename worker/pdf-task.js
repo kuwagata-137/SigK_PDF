@@ -163,7 +163,7 @@ if (process.parentPort !== undefined && process.parentPort !== null) {
     try {
       result = await runTask(message.spec, { send });
     } catch (error) {
-      result = { error: '保存中に予期しない問題が起きました。元のファイルは変更していません。' };
+      result = { error: '保存中に予期しない問題が起きましたが、元のファイルは変更していません。' };
     }
     send({ type: 'done', taskId: message.taskId, result });
   });

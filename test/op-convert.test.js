@@ -60,8 +60,8 @@ test('読めるもの・断るものを名前無しの文言で返す', async ()
   assert.equal((await loadImage('a.png', reader)).kind, 'png');
   assert.equal((await loadImage('b.jpg', reader)).kind, 'jpeg');
   assert.deepEqual(await loadImage('e.tif', reader).then(({ kind, pages }) => ({ kind, pages })), { kind: 'tiff', pages: 2 });
-  assert.match((await loadImage('c.webp', reader)).error, /対応していない形式です/);
-  assert.match((await loadImage('d.pdf', reader)).error, /PDF は画像ではありません/);
+  assert.match((await loadImage('c.webp', reader)).error, /対応していない形式なので/);
+  assert.match((await loadImage('d.pdf', reader)).error, /PDF は画像ではないので/);
   assert.match((await loadImage('p.jpg', reader)).error, /プログレッシブ/);
   assert.match((await loadImage('missing.png', reader)).error, /読めませんでした/);
 });
@@ -88,7 +88,7 @@ test('N 枚が順に N ページになり、紙は layout のとおり', async (
 test('断る画像はファイル名を添えて全体を止める', async () => {
   const entries = entriesFor({ 'a.png': makePng(), 'b.webp': WEBP, 'c.png': makePng() });
   const result = await convertToSingle(entries, TOOLS);
-  assert.match(result.error, /^「b\.webp」対応していない形式です/);
+  assert.match(result.error, /^「b\.webp」対応していない形式なので/);
   assert.equal(result.doc, undefined);
 });
 

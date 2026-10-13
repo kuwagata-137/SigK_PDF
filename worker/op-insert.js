@@ -91,7 +91,7 @@ async function loadSource(path, cache, { readFile, PDFDocument }) {
     return cache.get(path);
   }
   if (kind === 'jpeg' && isProgressiveJpeg(bytes)) {
-    cache.set(path, { error: 'この JPEG は挿入できません（プログレッシブ形式）。' });
+    cache.set(path, { error: 'この JPEG はプログレッシブ形式なので、挿入できません。' });
     return cache.get(path);
   }
 
@@ -100,7 +100,7 @@ async function loadSource(path, cache, { readFile, PDFDocument }) {
     try {
       loaded = { ok: true, kind, doc: await PDFDocument.load(bytes, { updateMetadata: false }) };
     } catch (error) {
-      loaded = { error: '差し込む PDF を読めませんでした。内容が壊れているか、パスワードで保護されています。' };
+      loaded = { error: '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。' };
     }
   } else {
     const frames = imageFrames(kind, bytes);
@@ -135,7 +135,7 @@ async function prepareInserts(doc, original, plan, inserts, tools, { readFile })
 
     const spec = inserts?.[entry.insert];
     if (spec === undefined || typeof spec.path !== 'string')
-      return { error: '差し込むページが見つかりません。もう一度やり直してください。' };
+      return { error: '差し込むページが見つからないので、もう一度やり直してください。' };
 
     const loaded = await loadSource(spec.path, cache, { readFile, PDFDocument: tools.PDFDocument });
     if (loaded.ok !== true)

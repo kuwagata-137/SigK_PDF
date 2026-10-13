@@ -139,7 +139,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
           return;
         }
         onError({ message: 'ワーカーが異常終了しました', context: { taskId, source: spec?.source } });
-        settle({ error: '保存中に問題が起きたため、中止しました。元のファイルは変更していません。' });
+        settle({ error: '保存中に問題が起きたため中止しましたが、元のファイルは変更していません。' });
       });
     });
   }

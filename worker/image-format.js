@@ -63,14 +63,14 @@ function isSupported(kind) {
 
 // 差し込みで断る理由（確定事項54・spec-3-2 確定事項2）。何を選び直せばよいかを伝える。
 function describeFormat() {
-  return `対応していない形式です。${IMAGE_CHOICES}・PDF を選んでください。`;
+  return `対応していない形式なので、${IMAGE_CHOICES}・PDF を選んでください。`;
 }
 
 // 変換で断る理由（spec-3-1 確定事項1）。差し込みの describeFormat と違い PDF を受けない。
 function describeImageFormat(kind) {
   if (kind === 'pdf')
-    return `PDF は画像ではありません。${IMAGE_CHOICES} を選んでください。`;
-  return `対応していない形式です。${IMAGE_CHOICES} を選んでください。`;
+    return `PDF は画像ではないので、${IMAGE_CHOICES} を選んでください。`;
+  return `対応していない形式なので、${IMAGE_CHOICES} を選んでください。`;
 }
 
 function readUint32BE(bytes, at) {
@@ -134,7 +134,7 @@ function inspectImageBytes(bytes) {
   if (!IMAGE_KINDS.has(kind))
     return { error: describeImageFormat(kind), kind };
   if (kind === 'jpeg' && isProgressiveJpeg(bytes))
-    return { error: 'この JPEG は変換できません（プログレッシブ形式）。', kind };
+    return { error: 'この JPEG はプログレッシブ形式なので、変換できません。', kind };
 
   let frames;
   if (kind === 'tiff') {

@@ -28,7 +28,7 @@ function resolvePages(pages, pageCount) {
     return { error: 'ページの指定を読み取れません。' };
   for (const page of pages) {
     if (!Number.isInteger(page) || page < 0 || page >= pageCount)
-      return { error: 'ページの指定がファイルと合いません。もう一度足し直してください。' };
+      return { error: 'ページの指定がファイルと合わないので、もう一度足し直してください。' };
   }
   return { pages };
 }

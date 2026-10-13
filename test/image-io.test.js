@@ -85,9 +85,9 @@ test('先頭 64KB に寸法が無ければ全体を読み直す', async () => {
 test('断る理由は形式ごとに返し、kind を添える', async () => {
   const { fsLike } = fsFor({ 'C:/in/c.webp': { bytes: WEBP }, 'C:/in/d.pdf': { bytes: Buffer.from('%PDF-1.7\n') }, 'C:/in/p.jpg': { bytes: makeJpeg({ marker: 0xc2 }) }, 'C:/in/g.gif': { bytes: GIF89A.subarray(0, 8) } });
   const webp = await inspectImage('C:/in/c.webp', { fsLike });
-  assert.match(webp.error, /対応していない形式です。PNG・JPEG・BMP・GIF・TIFF を選んでください/);
+  assert.match(webp.error, /対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください/);
   assert.equal(webp.kind, null);
-  assert.match((await inspectImage('C:/in/d.pdf', { fsLike })).error, /PDF は画像ではありません/);
+  assert.match((await inspectImage('C:/in/d.pdf', { fsLike })).error, /PDF は画像ではないので/);
   assert.match((await inspectImage('C:/in/p.jpg', { fsLike })).error, /プログレッシブ/);
   const gif = await inspectImage('C:/in/g.gif', { fsLike });
   assert.match(gif.error, /大きさを読み取れませんでした/, '先頭だけの GIF は寸法が無い');
@@ -196,7 +196,7 @@ test('readWatermarkImage は PNG・JPEG 以外とプログレッシブの JPEG �
   });
   assert.deepEqual(await readWatermarkImage('C:/in/c.bmp', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'bmp' });
   assert.deepEqual(await readWatermarkImage('C:/in/d.gif', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'gif' });
-  assert.deepEqual(await readWatermarkImage('C:/in/e.jpg', { fsLike }), { error: 'この JPEG は透かしに使えません（プログレッシブ形式）。', kind: 'jpeg' });
+  assert.deepEqual(await readWatermarkImage('C:/in/e.jpg', { fsLike }), { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。', kind: 'jpeg' });
   assert.deepEqual(await readWatermarkImage('C:/in/f.png', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: null });
   assert.equal(WATERMARK_KIND_ERROR, 'PNG か JPEG の画像を選んでください。');
 });
