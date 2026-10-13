@@ -13,7 +13,7 @@
   const MARK_ACTIVE = '選んでいるタブ';
   const MARK_DIRTY = '未保存の編集あり';
 
-  let current = null;   // 開いている一覧 { button, menu, onChoose }
+  let current = null;   // 開いている一覧 { button, menu, onChoose, isLocked }
   const watched = new WeakSet();
 
   const isOpen = () => current !== null;
@@ -59,13 +59,15 @@
     return row;
   }
 
+  // 開いたあとで押せなくなっていたら（実行中になった。確定事項F6）、選ばずに閉じる。
   function pick(id) {
     const chosen = current;
     close({ restoreFocus: true });
-    chosen?.onChoose(id);
+    if (chosen !== null && !chosen.isLocked())
+      chosen.onChoose(id);
   }
 
-  function openFor({ button, choices, onChoose }) {
+  function openFor({ button, choices, onChoose, isLocked }) {
     const doc = button.ownerDocument;
     const menu = doc.createElement('div');
     menu.className = 'tab-menu';
@@ -78,7 +80,7 @@
     menu.style.left = `${button.offsetLeft}px`;
     menu.addEventListener('keydown', onMenuKey);
     button.after(menu);
-    current = { button, menu, onChoose };
+    current = { button, menu, onChoose, isLocked };
     button.setAttribute('aria-expanded', 'true');
     (menu.querySelector('.tab-menu-row.on') ?? menu.querySelector('.tab-menu-row') ?? menu).focus();
   }
@@ -132,7 +134,7 @@
     button.setAttribute('aria-expanded', 'false');
     const openHere = () => {
       close();
-      openFor({ button, choices, onChoose });
+      openFor({ button, choices, onChoose, isLocked });
     };
     button.addEventListener('click', () => {
       if (current?.button === button) {

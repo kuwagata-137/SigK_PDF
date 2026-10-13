@@ -39,6 +39,43 @@ async function useEach(shell, filePath = A) {
   shell.SigK.toolsSplitEdit.bulk('each');
 }
 
+test('出力先に元のファイルと同じパスが入っていれば、書かずに断る（spec-2-2 確定事項20）', async (t) => {
+  // 規則では必ず接尾辞が付くので起きないが、念のため実行の前に照らす。ファイル名の規則を差し替えて起こす。
+  const shell = await createSplitShell(t);
+  await useEach(shell);
+  const original = shell.SigK.splitPlan.outputNames;
+  shell.SigK.splitPlan.outputNames = (...args) => original(...args).map((name, index) => (index === 1 ? 'a.pdf' : name));
+  const result = await shell.SigK.toolsSplit.run();
+  assert.equal(result.error, '出力先に元のファイルと同じファイルは選べません。');
+  assert.equal(bannerText(shell), '出力先に元のファイルと同じファイルは選べません。');
+  assert.equal(shell.taskCalls.length, 0);
+});
+
+test('結合が走っている間は分割を実行できず、結合が終われば実行できる（spec-2-2 確定事項28）', async (t) => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const merged = 'C:\\work\\merged.pdf';
+  const shell = await createSplitShell(t, { savePathResults: [{ path: merged }], taskResults: [gate] });
+  await useEach(shell);
+  await shell.SigK.toolsMerge.addPaths([B]);
+  shell.SigK.tools.select('merge');
+  const merging = shell.SigK.toolsMerge.run();
+  await shell.flush();
+  assert.equal(shell.SigK.save.isBusy(), true);
+
+  shell.SigK.tools.select('split');
+  await shell.flush();
+  assert.equal(shell.SigK.toolsSplit.canRun(), false);
+  assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
+  assert.deepEqual(plain(await shell.SigK.toolsSplit.run()), { error: '分割できる状態ではありません。' });
+  assert.equal(shell.taskCalls.length, 1, '走っているのは結合の 1 本だけ');
+
+  release({ ok: true, path: merged, pages: 3 });
+  await merging;
+  await shell.flush();
+  assert.equal(shell.SigK.toolsSplit.canRun(), true);
+});
+
 // ［開いているタブから選ぶ ▾］を押し、一覧からそのファイルの行を選ぶ（spec-2-2b 確定事項F2）。
 function chooseTab(shell, buttonId, filePath) {
   shell.document.getElementById(buttonId).click();

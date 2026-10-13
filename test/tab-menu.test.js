@@ -157,6 +157,68 @@ test('一覧の外にフォーカスがあるときの Esc も、一覧を閉じ
   assert.equal(menuOf(shell), null);
 });
 
+test('4 画面の何も選んでいないときの案内と、結合のボタンの名前・空のときの案内（F8・F9・第 I 章）', async (t) => {
+  const shell = await createToolShell(t);
+  const text = (id) => shell.document.getElementById(id).textContent.trim();
+  const lead = '［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、';
+  assert.equal(text('split-empty'), `${lead}分割する PDF を決めてください。`);
+  assert.equal(text('toimage-empty'), `${lead}画像にする PDF を決めてください。`);
+  assert.equal(text('wm-empty'), `${lead}透かしを入れる PDF を決めてください。`);
+  assert.equal(text('fl-empty'), `${lead}書き込みを焼き込む PDF を決めてください。`);
+  assert.equal(text('merge-add-open'), '開いているタブをまとめて追加');
+  assert.equal(text('merge-empty'), '［開いているタブをまとめて追加］か［ファイルを選ぶ…］で、結合する PDF を足してください。PDF をここへドロップしても足せます。');
+});
+
+test('窓が非活性になる・窓の大きさが変わると、一覧を閉じる（F6）', async (t) => {
+  const shell = await createToolShell(t);
+  await openThreeTabs(shell);
+  const button = shell.document.getElementById('split-use-open');
+  button.click();
+  assert.notEqual(menuOf(shell), null);
+  shell.window.dispatchEvent(new shell.window.Event('blur'));
+  assert.equal(menuOf(shell), null);
+  button.click();
+  assert.notEqual(menuOf(shell), null);
+  shell.window.dispatchEvent(new shell.window.Event('resize'));
+  assert.equal(menuOf(shell), null);
+});
+
+test('開けなかったタブも一覧に並べ、選ぶと対象の行に読めない印が付く（F2）', async (t) => {
+  const shell = await createToolShell(t);
+  const { SigK } = shell;
+  await SigK.tabs.openPath(A);
+  await shell.flush();
+  const original = SigK.pdfjs.getDocument;
+  SigK.pdfjs.getDocument = () => ({ promise: Promise.reject(Object.assign(new Error('broken'), { name: 'InvalidPDFException' })), destroy: async () => {} });
+  t.after(() => { SigK.pdfjs.getDocument = original; });
+  await SigK.tabs.openPath(B);
+  await shell.flush();
+  assert.equal(SigK.tabs.list().length, 2, '開けなくてもタブは作る');
+  SigK.shell.setMode(shell.document, 'tools');
+  SigK.tools.select('split');
+
+  shell.document.getElementById('split-use-open').click();
+  assert.deepEqual(rowsOf(shell).map((row) => row.title), [A, B]);
+  rowsOf(shell)[1].click();
+  for (let i = 0; i < 4; i += 1)
+    await shell.flush();
+  const src = SigK.toolsSplit.source();
+  assert.equal(src.path, B);
+  assert.match(src.blocked ?? '', /選び直してください$/);
+});
+
+test('一覧を開いたあとで押せなくなったら（実行中）、行を押しても選ばずに閉じる（F6）', async (t) => {
+  const shell = await createToolShell(t);
+  await openThreeTabs(shell);
+  const button = shell.document.getElementById('split-use-open');
+  button.click();
+  button.setAttribute('aria-disabled', 'true');
+  rowsOf(shell)[2].click();
+  await shell.flush();
+  assert.equal(menuOf(shell), null);
+  assert.equal(shell.SigK.toolsSplit.source(), null);
+});
+
 test('押せない（実行中）ときは開かない', async (t) => {
   const shell = await createToolShell(t);
   await openThreeTabs(shell);

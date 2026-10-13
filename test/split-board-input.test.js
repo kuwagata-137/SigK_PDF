@@ -95,6 +95,17 @@ test('なぞる途中の Esc は、なぞる前の選択に戻して止める（
   assert.deepEqual(range(shell), { from: 0, to: 0 }, 'Esc のあとは動かしても選ばない');
 });
 
+test('文字を打つ欄（N・ページ番号）の中の Esc は、選択を外さない（確定事項G2③）', async (t) => {
+  const shell = await createInputShell(t);
+  press(shell, 4);
+  for (const id of ['split-every', 'split-at']) {
+    const input = shell.document.getElementById(id);
+    input.focus();
+    key(shell, input, 'Escape');
+    assert.deepEqual(range(shell), { from: 4, to: 4 }, id);
+  }
+});
+
 test('なぞっていないときの Esc は、選択を外す（確定事項G2④）', async (t) => {
   const shell = await createInputShell(t);
   press(shell, 4);
