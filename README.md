@@ -142,6 +142,7 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/spec-2-1-merge.md`](docs/spec-2-1-merge.md) | Phase 2 塊① 結合（ツールモードの枠組みを含む） |
 | [`docs/spec-2-2-split.md`](docs/spec-2-2-split.md) | Phase 2 塊② 分割（ファイル名の規則を含む） |
 | [`docs/spec-2-2b-split-board.md`](docs/spec-2-2b-split-board.md) | 分割の作り直し（全ページのサムネイルで分ける画面）と、アプリの文の順番の直し |
+| [`docs/文の順番の対照表.md`](docs/文の順番の対照表.md) | アプリの文の言葉の順番を直した対照表（いまの文と直した文。決定78） |
 | [`docs/spec-2-3-facing.md`](docs/spec-2-3-facing.md) | Phase 2 塊③ 見開き表示 |
 | [`docs/spec-3-1-image-to-pdf.md`](docs/spec-3-1-image-to-pdf.md) | Phase 3 塊④ 画像→PDF（JPEG・PNG） |
 | [`docs/spec-3-2-bmp-gif-tiff.md`](docs/spec-3-2-bmp-gif-tiff.md) | Phase 3 塊⑤ BMP・GIF・TIFF の取り込み |
