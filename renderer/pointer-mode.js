@@ -49,6 +49,18 @@
     return true;
   }
 
+  // 左＋右（K4・K7。annotate-right-button.js が押している操作を取りやめてから呼ぶ）。編集モードは編集の道具の切り替え
+  // （spec-4b-3b 確定事項B）、閲覧・ページ編集は選択とハンドを入れ替えて覚える。切り替えた先を返す。
+  function chord() {
+    const mode = modeOf();
+    if (mode === 'annot')
+      return root.SigK.annotateTools.chord();
+    if (!rules().followsPointer(mode))
+      return null;
+    change(rules().toggled(state.pointer));
+    return state.pointer;
+  }
+
   // Esc の最後の段（K12。escape-order.js が呼ぶ）。閲覧・ページ編集でハンドなら選択へ戻して覚える。戻したら true。
   function escape() {
     if (!rules().followsPointer(modeOf()))
@@ -100,5 +112,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pointerMode = { init, get: () => state.pointer, apply, press, escape, cancelPan, onModeChanged, onToolChanged };
+  SigK.pointerMode = { init, get: () => state.pointer, apply, press, chord, escape, cancelPan, onModeChanged, onToolChanged };
 })(typeof window !== 'undefined' ? window : globalThis);

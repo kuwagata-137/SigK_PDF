@@ -270,7 +270,8 @@ test('ボタンを押していない動き（窓の外で離したとき）が�
   assert.equal(SigK.annotateRightButton.isChording(), false, '窓のフォーカスが外れても解く');
 });
 
-test('閲覧モードと、テキストの入力欄の中では、左＋右は効かない（確定事項E1）', async (t) => {
+// 2026-10-14: 閲覧・ページ編集でも効くようにした（spec-2-5 確定事項K4。［選択］［ハンド］を入れ替える）。効かないのは入力欄の中とツールモード。
+test('テキストの入力欄の中とツールモードでは左＋右は効かず、閲覧では［選択］［ハンド］を入れ替える（確定事項E1。spec-2-5 確定事項K4）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
   SigK.annotate.setTool('pen');
@@ -289,8 +290,17 @@ test('閲覧モードと、テキストの入力欄の中では、左＋右は�
   SigK.shell.setMode(document, 'view');
   fire(shell, 'mousedown', pageNode(shell), [300, 300], { button: 0, buttons: 1 });
   const inView = fire(shell, 'mousedown', pageNode(shell), [300, 300], { button: 2, buttons: 3 });
-  assert.equal(inView.defaultPrevented, false);
-  assert.equal(SigK.annotate.getTool(), 'text');
+  assert.equal(inView.defaultPrevented, true);
+  assert.equal(SigK.pointerMode.get(), 'hand');
+  assert.equal(SigK.annotate.getTool(), 'text', '閲覧では編集の道具を替えない');
+  fire(shell, 'mouseup', pageNode(shell), [300, 300], { button: 0, buttons: 0 });
+
+  SigK.shell.setMode(document, 'tools');
+  fire(shell, 'mousedown', pageNode(shell), [300, 300], { button: 0, buttons: 1 });
+  const inTools = fire(shell, 'mousedown', pageNode(shell), [300, 300], { button: 2, buttons: 3 });
+  assert.equal(inTools.defaultPrevented, false);
+  assert.equal(SigK.pointerMode.get(), 'hand', 'ツールモードでは切り替えない');
+  fire(shell, 'mouseup', pageNode(shell), [300, 300], { button: 0, buttons: 0 });
 });
 
 test('左＋右を 1 秒より長く押したまま右を最後に離しても、続く contextmenu ではメニューを出さない（確定事項E4。1000ms は全部離した時点から数える）', async (t) => {

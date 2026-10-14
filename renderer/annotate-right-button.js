@@ -9,7 +9,8 @@
   // 押した点に出す。紙の空白では何もしない（道具も替えない。決定53 ⑥）。ハンドのときも同じ。押しの振り分けは annotate-pointer.js。
   //
   // 左＋右（確定事項E）もここで持つ。#view の中で左と右の両方が押された時点で、押している操作を全部取りやめ（annotate-cancel.js）、
-  // 道具を切り替える（annotate-tools.js の chord）。全部のボタンを離すまで、動きと離しを捨て、selectstart を止め、左で動かすたびに
+  // 道具を切り替える（pointer-mode.js の chord。編集モードは annotate-tools.js の chord、閲覧・ページ編集は［選択］［ハンド］を入れ替える。
+  // spec-2-5 確定事項K4）。当たり（押した点の書き込み）は annotate-right-hit.js。全部のボタンを離すまで、動きと離しを捨て、selectstart を止め、左で動かすたびに
   // 文字の選択を外す（事前調査 B）。押す順は問わず、切り替えは 1 回だけ。全部離した後も CHORD_IGNORE_MS の間は contextmenu と
   // ダブルクリック（左＋右の左の押しと続けた押しで出る）を捨てる。
 
@@ -56,9 +57,11 @@
     state.win?.getSelection?.()?.removeAllRanges();
   }
 
-  // 左＋右として扱う押しか（確定事項E1）。編集モードで文書が開いていて、入力欄の中でなく、左と右の両方が押されている。
+  // 左＋右として扱う押しか（確定事項E1）。閲覧・ページ編集・編集モード（spec-2-5 確定事項K4）で文書が開いていて、入力欄の中でなく、
+  // 左と右の両方が押されている。
   function isChord(event) {
-    return ((event.buttons ?? 0) & 3) === 3 && inAnnotMode() && isOpen() && !inEditor(event);
+    const mode = state.doc?.documentElement.getAttribute('data-mode');
+    return ((event.buttons ?? 0) & 3) === 3 && root.SigK.pointerModeRules.isUsable(mode) && isOpen() && !inEditor(event);
   }
 
   // 左＋右を効かせる。全部のボタンを離すまでの 2 回目以降は何もしない（確定事項E3）。切り替えたら true。
@@ -67,7 +70,7 @@
     if (state.chordUntilUp)
       return false;
     root.SigK.annotateCancel.abortForChord(state.win);
-    root.SigK.annotateTools.chord();
+    root.SigK.pointerMode.chord();
     state.chordUntilUp = true;
     return true;
   }
@@ -114,33 +117,6 @@
     event.preventDefault();
   }
 
-  // 選んでいる書き込みの枠（余白を含む）の中か。一覧で選んだ表示のみの書き込みも、枠が見えていれば当たりにする（確定事項D3）。
-  function frameHit(page) {
-    const shown = root.SigK.annotationFrame?.shown() ?? null;
-    if (shown === null || shown.index !== page.index)
-      return null;
-    const pad = root.SigK.annotationFrame.FRAME_PADDING;
-    const [x, y] = page.point;
-    const entries = annotate().selectedEntries().filter((entry) => entry !== null);
-    for (const entry of entries.reverse()) {
-      const key = root.SigK.annotationLayer.keyOf(entry);
-      if (!shown.keys.includes(key))
-        continue;
-      const box = root.SigK.annotationFrame.boundsOf(entry, shown.viewport);
-      if (x >= box.x - pad && x <= box.x + box.width + pad && y >= box.y - pad && y <= box.y + box.height + pad)
-        return key;
-    }
-    return null;
-  }
-
-  // 押した点の書き込みの鍵。紙の外・空白なら null。
-  function hitAt(event) {
-    const page = root.SigK.annotatePress.pageAt(event);
-    if (page === null)
-      return null;
-    return annotate().hitTest(page.index, page.point) ?? frameHit(page);
-  }
-
   function onContextMenu(event) {
     if (!inAnnotMode() || !isOpen() || inEditor(event))
       return;
@@ -150,7 +126,7 @@
     // 左＋右の後、全部離すまでと、離してから CHORD_IGNORE_MS の間に届いたものは捨てる（確定事項E4）。
     if (swallowed || recentlyChorded())
       return;
-    const key = hitAt(event);
+    const key = root.SigK.annotateRightHit.hitAt(event);
     if (key === null) {
       menu()?.close();
       return;
