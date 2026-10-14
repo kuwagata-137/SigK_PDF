@@ -49,6 +49,8 @@
     else
       state.doc.documentElement.setAttribute('data-tool', state.tool);
     props()?.refresh();
+    // ツールバーの［選択］［ハンド］は、編集モードでは道具を映す（spec-2-5 確定事項K8）。
+    root.SigK.pointerMode?.onToolChanged(state.tool);
   }
 
   function isMarkupTool(tool) {

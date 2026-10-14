@@ -49,6 +49,13 @@ body{
     <div class="tb-btn icon" id="btn-undo" data-icon="undo" title="元に戻す (Ctrl+Z)" aria-disabled="true"></div>
     <div class="tb-btn icon" id="btn-redo" data-icon="redo" title="やり直し (Ctrl+Y)" aria-disabled="true"></div>
     <div class="tb-sep"></div>
+    <!-- 閲覧の［選択］［ハンド］（spec-2-5 確定事項K2・K3。見本 screenshots/strips1-view-hand.png）。閲覧・ページ編集・編集で使い、ツールモードでは灰色。
+         編集モードでは編集の道具を映す。結線は pointer-mode-bar.js、状態は pointer-mode.js。 -->
+    <div class="tb-seg" id="pointer-mode" role="group" aria-label="紙の上のマウスの働き">
+      <div class="tb-btn" id="btn-pointer-select" role="button" aria-pressed="true" aria-label="選択" title="選択（紙の文字を選ぶ。左と右の同時押しで切り替え）"><span data-icon="pointerSelect"></span>選択</div>
+      <div class="tb-btn" id="btn-pointer-hand" role="button" aria-pressed="false" aria-label="ハンド" title="ハンド（紙を引いて表示を動かす。左と右の同時押しで切り替え）"><span data-icon="hand"></span>ハンド</div>
+    </div>
+    <div class="tb-sep"></div>
     <div class="pager" id="pager" aria-disabled="true">
       <div class="step" id="page-prev" data-icon="chevronLeft" data-icon-size="15" data-icon-stroke="2" title="前のページ"></div>
       <div class="num"><input id="page-current" type="text" inputmode="numeric" size="3" aria-label="ページ番号"><span id="page-total">/ –</span></div>
@@ -990,6 +997,8 @@ body{
 <script src="renderer/print.js"></script>
 <script src="renderer/tool-switch.js"></script>
 <script src="renderer/pointer-mode-rules.js"></script>
+<script src="renderer/pointer-mode-bar.js"></script>
+<script src="renderer/pointer-mode.js"></script>
 <script src="renderer/annotate-tools.js"></script>
 <script src="renderer/annotate-select.js"></script>
 <script src="renderer/annotation-moves.js"></script>
