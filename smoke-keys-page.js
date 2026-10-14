@@ -163,6 +163,8 @@ const stateScript = `(() => {
         canvases: document.querySelectorAll('#strips .strip-page canvas').length,
         drawn: thumbs?.drawn ?? null,
         drawing: thumbs?.pending ?? null,
+        queued: thumbs?.queued ?? null,
+        draws: thumbs?.draws ?? null,
         overlays: document.querySelectorAll('#strips .strip-wm').length,
         bigDrop: document.getElementById('strip-drop')?.classList.contains('big') ?? null,
         tabbarHidden: getComputedStyle(document.getElementById('tabbar')).display === 'none',

@@ -62,10 +62,15 @@
     }
 
     // 画面が件数を読みに来たら、後回しにした数えを始める。描いている最中には走らせず、今の処理を終えてから始める。
+    // 返す写しには文書（doc）と待ちの Promise（done）を入れない（起動確認が executeJavaScript の戻り値として写すと、pdf.js の文書の
+    // 巨大なつながりを写し続けて終わらなかった）。
     function census() {
       if (current?.waiting === true)
         Promise.resolve().then(resume);
-      return current === null ? null : { ...current };
+      if (current === null)
+        return null;
+      const { path, tabId, pending, waiting, error, result } = current;
+      return { path, tabId, pending, waiting, error, result };
     }
 
     return { setTarget, census, resume, current: () => current, done: () => current?.done ?? null };

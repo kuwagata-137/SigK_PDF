@@ -137,7 +137,9 @@ const PIXEL_DIFF = `async (before, after) => {
   return pages;
 }`;
 
-function flattenScript({ source, target, stay }) {
+// kinds は焼き込む種類（flatten-choice.js の key の並び。null なら全部）、range は焼き込むページの範囲（null なら［すべて］）。
+// 右の欄の選び方（spec-2-5 確定事項E5。決定80 ㉞）を通して、選んだ種類・ページだけをワーカーへ渡す。
+function flattenScript({ source, target, stay, kinds = null, range = null }) {
   return `(async () => {
     ${WAIT}
     const SigK = window.SigK;
@@ -154,6 +156,13 @@ function flattenScript({ source, target, stay }) {
       await wait(100);
     }
     await wait(200);
+    const kinds = ${JSON.stringify(kinds)};
+    if (kinds !== null)
+      tool.choices().kinds.filter((key) => !kinds.includes(key)).forEach((key) => tool.setKind(key, false));
+    if (${JSON.stringify(range)} !== null) {
+      tool.setPageMode('range');
+      tool.setRange(${JSON.stringify(range)});
+    }
     const census = tool.census();
     const screen = {
       rows: [...document.querySelectorAll('#fl-list .fl-row')].map((row) => row.textContent),
@@ -165,7 +174,8 @@ function flattenScript({ source, target, stay }) {
     };
     if (!tool.status().ready || ${JSON.stringify(stay)} === 'screen')
       return { census, screen };
-    const asked = SigK.confirmFlatten.ask({ count: census.result.baked, name: ${JSON.stringify(path.basename(target))}, notes: census.result.notes });
+    const chosen = tool.selection();
+    const asked = SigK.confirmFlatten.ask({ count: chosen.tally.baked, name: ${JSON.stringify(path.basename(target))}, notes: chosen.tally.notes });
     await wait(300);
     const dialog = {
       open: SigK.confirmFlatten.isOpen(),
@@ -179,7 +189,10 @@ function flattenScript({ source, target, stay }) {
     document.getElementById('confirm-flatten-ok').click();
     const agreed = await asked;
     const started = Date.now();
-    const result = await SigK.save.runTask({ kind: 'flatten', label: 'フラット化', source: ${JSON.stringify(source)}, target: ${JSON.stringify(target)} });
+    const spec = { kind: 'flatten', label: 'フラット化', source: ${JSON.stringify(source)}, target: ${JSON.stringify(target)}, kinds: tool.choices().kinds };
+    if (chosen.pages !== null)
+      spec.pages = chosen.pages;
+    const result = await SigK.save.runTask(spec);
     const ms = Date.now() - started;
     const out = { census, screen, dialog, agreed, ok: result?.ok === true, error: result?.error ?? null, baked: result?.baked ?? null, kept: result?.kept ?? null, ms };
     if (out.ok) {

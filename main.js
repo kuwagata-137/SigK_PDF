@@ -1867,8 +1867,11 @@ function installSmokeCheck(win, mode) {
             ? path.resolve(process.env.SIGK_SMOKE_FLATTEN_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-flatten.pdf');
           fs.rmSync(target, { force: true });
+          // SIGK_SMOKE_FLATTEN_KINDS（焼き込む種類を , で区切る）・SIGK_SMOKE_FLATTEN_PAGES（範囲）で、右の欄の選び方を通す（spec-2-5 確定事項E5）。
           flatten = await win.webContents.executeJavaScript(smokeRewrite.flattenScript({
             source, target, stay: process.env.SIGK_SMOKE_FLATTEN_STAY ?? null,
+            kinds: process.env.SIGK_SMOKE_FLATTEN_KINDS ? process.env.SIGK_SMOKE_FLATTEN_KINDS.split(',') : null,
+            range: process.env.SIGK_SMOKE_FLATTEN_PAGES ?? null,
           }));
           flatten.target = target;
           if (flatten.ok === true)

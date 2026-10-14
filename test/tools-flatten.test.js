@@ -87,6 +87,8 @@ test('選んでいる帯をワーカーで数え、ファイルにある種類�
   const shell = await createFlattenShell(t, { taskResults: [CENSUS] });
   await openTab(shell);
   assert.deepEqual(plain(shell.taskCalls.map((call) => call.spec)), [{ kind: 'flatten-preview', source: A }]);
+  // census() の写しには文書と待ちの Promise を入れない（起動確認の executeJavaScript が写せずに止まった）。
+  assert.deepEqual(Object.keys(shell.SigK.toolsFlatten.census()).sort(), ['error', 'path', 'pending', 'result', 'tabId', 'waiting']);
   assert.equal(byId(shell, 'fl-state').hidden, true);
   assert.deepEqual(rows(shell).map((row) => row.textContent), [
     'ハイライト・下線・取り消し線4 件', 'テキスト・吹き出し2 件', '図形・ペン3 件', 'ノート2 件', 'スタンプなど1 件',

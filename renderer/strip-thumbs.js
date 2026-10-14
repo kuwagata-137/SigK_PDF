@@ -14,6 +14,8 @@
   const listeners = [];
   const docIds = new WeakMap();
   let nextDocId = 1;
+  // 描き始めた回数（起動確認で、描き直しが止まっていることを見る）。
+  let draws = 0;
 
   const layout = () => root.SigK.stripLayout;
   const keyOf = (tabId, index) => `${tabId}:${index}`;
@@ -92,6 +94,7 @@
     if (sig === null)
       return;
     pending.set(key, sig);
+    draws += 1;
     let result = null;
     try {
       const view = root.SigK.tabs.peek(tabId);
@@ -143,7 +146,7 @@
   }
 
   function getState() {
-    return { drawn: drawn.size, pending: pending.size, queued: queue.length, keys: [...drawn.keys()] };
+    return { drawn: drawn.size, pending: pending.size, queued: queue.length, draws, keys: [...drawn.keys()] };
   }
 
   const SigK = (root.SigK = root.SigK || {});
