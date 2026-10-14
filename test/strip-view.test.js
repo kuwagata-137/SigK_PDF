@@ -101,6 +101,7 @@ test('開けなかったタブの帯は名前を赤くし、理由を出し、�
 test('帯が 1 本も無いときは大きな受け口に最近使ったファイルを 5 件まで出し、押すとタブで開く', async (t) => {
   const recent = Array.from({ length: 7 }, (_unused, index) => ({ path: `C:\\work\\r${index}.pdf`, name: `r${index}.pdf` }));
   recent[0] = { path: A, name: '会議資料.pdf' };
+  recent[1] = { path: 'C:\\Users\\taro\\Documents\\会議\\書類\\r1.pdf', name: 'r1.pdf' };
   const { SigK, document, flush } = await withShell(t, { paths: [], recent });
   SigK.strips.setShown(true);
   const zone = document.getElementById('strip-drop');
@@ -109,6 +110,8 @@ test('帯が 1 本も無いときは大きな受け口に最近使ったファ�
   const rows = [...document.querySelectorAll('#strip-drop-recent .row')];
   assert.equal(rows.length, 5);
   assert.equal(rows[0].querySelector('.p').textContent, 'C:\\work');
+  assert.equal(rows[1].querySelector('.p').textContent, 'C:\\Users\\…\\書類', '深いフォルダーは途中を縮める（見本どおり）');
+  assert.equal(rows[1].title, 'C:\\Users\\taro\\Documents\\会議\\書類\\r1.pdf');
 
   rows[0].click();
   await flush();

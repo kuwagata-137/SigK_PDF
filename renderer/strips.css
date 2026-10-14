@@ -39,7 +39,7 @@
 .drop-zone .line{display:flex; align-items:center; gap:8px}
 .drop-zone .act{padding:0 12px; height:30px}
 .drop-zone.big{flex:1 0 auto}
-.drop-zone .recent{margin-top:6px; display:flex; flex-direction:column; gap:4px; min-width:300px; max-width:100%; text-align:left}
+.drop-zone .recent{margin-top:6px; display:flex; flex-direction:column; gap:4px; width:min(320px, 100%); text-align:left}
 .drop-zone .recent[hidden]{display:none}
 .drop-zone .recent .ttl{font-size:11.5px; color:var(--muted); letter-spacing:.04em}
 .drop-zone .recent .row{display:flex; gap:8px; padding:5px 10px; border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--text); font:inherit; font-size:12px; text-align:left; cursor:pointer; min-width:0}

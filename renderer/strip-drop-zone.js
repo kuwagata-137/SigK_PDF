@@ -13,6 +13,12 @@
   // 選ぶ窓を開いている間は、もう一度押しても開かない。
   let picking = false;
 
+  // フォルダーを短く見せる（見本 screenshots/strips2-empty.png の「C:\Users\…\書類」）。元のパスは行の説明（title）に残す。
+  function shortFolder(filePath) {
+    const parts = String(filePath).split(/[\\/]/).slice(0, -1);
+    return parts.length <= 3 ? parts.join('\\') : [parts[0], parts[1], '…', parts.at(-1)].join('\\');
+  }
+
   function recentRow(entry) {
     const row = el.doc.createElement('button');
     row.type = 'button';
@@ -24,7 +30,7 @@
     name.textContent = entry.name;
     const where = el.doc.createElement('span');
     where.className = 'p';
-    where.textContent = entry.path.replace(/[\\/][^\\/]*$/, '');
+    where.textContent = shortFolder(entry.path);
     row.append(name, where);
     return row;
   }
