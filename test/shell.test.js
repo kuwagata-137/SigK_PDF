@@ -649,10 +649,11 @@ test('PDF→画像のレンダラーが index.html から読み込まれ、画�
     assert.ok(sources.includes(src), `${src} が index.html から読まれていない`);
   assert.ok(sources.indexOf('renderer/page-image.js') < sources.indexOf('renderer/print.js'), 'page-image.js は print.js より先に読む');
 
-  const panel = document.querySelector('.tool-panel[data-tool="toImage"]');
-  assert.notEqual(panel, null, 'PDF→画像のパネルが無い');
+  // 右の欄の節（spec-2-5 確定事項E4）。対象は選んでいる帯なので、対象の欄の代わりに状態の文を持つ。
+  const panel = document.querySelector('#tool-pane .pane-tool[data-tool="toImage"]');
+  assert.notEqual(panel, null, 'PDF→画像の節が無い');
   for (const id of [
-    'toimage-file', 'toimage-name', 'toimage-pages', 'toimage-note', 'toimage-empty', 'toimage-use-open', 'toimage-pick',
+    'toimage-state',
     'toimage-page-modes', 'toimage-range', 'toimage-range-err', 'toimage-formats', 'toimage-dpis',
     'toimage-folder', 'toimage-folder-pick', 'toimage-example', 'toimage-summary', 'toimage-run',
   ])

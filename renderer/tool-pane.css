@@ -15,6 +15,23 @@
 .pane-foot .sum{font-size:12px; color:var(--muted); min-width:0}
 .pane-foot .spacer{flex:1}
 
+/* 対象が無い・使えないときの状態の文（確定事項E1。「PDF を開くと、選んでいる帯が対象になります。」など）。 */
+.pane-state{margin:0; padding:8px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface); font-size:12px; line-height:1.6}
+.pane-state[hidden]{display:none}
+
+/* 今までの画面の欄（.convert-opts・.split-out・.picks）を右の欄の幅に収める。見出しの列を細くし、選択肢は縦に並べる。 */
+#tool-pane .convert-opts, #tool-pane .split-out{grid-template-columns:52px minmax(0,1fr); column-gap:8px; row-gap:10px; font-size:12px}
+#tool-pane .convert-opts .k, #tool-pane .split-out .k{align-self:start; padding-top:3px}
+#tool-pane .picks{flex-direction:column; align-items:flex-start; gap:5px}
+#tool-pane .pick{align-items:baseline; flex-wrap:wrap; column-gap:6px; row-gap:1px}
+#tool-pane .pick .sub{flex-basis:100%; padding-left:23px; font-size:11px}
+#tool-pane .toimage-range-row{flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px 14px}
+#tool-pane .toimage-range-row .split-inp{margin-left:0; width:100%}
+#tool-pane .toimage-range-row .err{flex-basis:100%}
+#tool-pane .split-out .folder{flex-wrap:wrap}
+#tool-pane .split-out .folder .path{max-width:100%}
+#tool-pane .split-out .example{min-width:0; overflow-wrap:anywhere}
+
 /* ツールモードで帯の画面を使うツールを選んでいる間は、タブの列を出さない（確定事項B3。帯がタブの代わり）。 */
 html[data-tool-screen="strips"] #tabbar{display:none}
 

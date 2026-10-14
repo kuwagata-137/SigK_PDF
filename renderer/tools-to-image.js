@@ -9,12 +9,9 @@
   // ほかのツールと向きが逆になる理由は worker/op-convert.js の頭にある。
   // 描画は tools-to-image-view.js。
   //
-  // ファイルを読み直して描くので、画面上の並べ替え・回転・削除は結果に映らない
-  // （確定事項1・13）。未保存のタブを対象にすることは止めず、注意だけ出す。
+  // 対象は選んでいる帯（spec-2-5 確定事項E4。strip-target.js）。ファイルを読み直して描くので、保存していない並べ替え・回転・削除は
+  // 結果に映らない（確定事項1・13）。実行の前に確かめる（spec-2-5 確定事項F。run-guard.js）。
 
-  // 対象の欄は source-picker.js（spec-4-5 確定事項34）。
-  const { NOTE_UNSAVED, NOTE_FIRST_ONLY } = root.SigK.sourcePicker;
-  const PICK_TITLE = '画像にする PDF を選ぶ';
   // 帯の文言「画像にしています」「画像にするのを中止しました」の頭（確定事項17・20）。
   const LABEL = '画像に';
 
@@ -46,30 +43,21 @@
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
   }
 
-  // ---- 対象（確定事項1〜5。source-picker.js） ----
+  // ---- 対象（選んでいる帯。spec-2-5 確定事項E4） ----
 
-  const field = root.SigK.sourcePicker.create({
-    inspect: (filePath) => root.SigK.toolSource.inspectPdfPages(filePath),
-    pick: ({ defaultPath }) => {
-      const api = root.pdfAPI;
-      if (api?.available !== true || typeof api.pickToolSource !== 'function')
-        return null;
-      return api.pickToolSource({ defaultPath, title: PICK_TITLE });
-    },
-    dirtyMessage: '未保存の編集は画像に反映されないので、保存してから画像にし直してください。',
-    emptyFields: { sizes: null },
-    fieldsOf: (info) => ({ sizes: info.sizes }),
-    onSelect: (filePath) => {
-      if (!state.folderTouched)
-        state.folder = dirOf(filePath);
-    },
-    onChange: () => view()?.render(),
+  // 寸法は全ページ（pt・ページ自身の回転込み）。画素の上限と出力の例に使う（確定事項3）。
+  const target = root.SigK.stripTarget.create({
+    encryptedError: '画像にできません',
+    fieldsOf: (peeked) => ({ sizes: peeked.basePages.map(({ width, height }) => ({ width, height })) }),
   });
 
-  const source = () => field.source();
-  const settings = () => ({ mode: state.mode, range: state.range, format: state.format, dpi: state.dpi, folder: state.folder });
-  // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う。確定事項1）。
-  const { setSource, useTab, pickFile, addPaths } = field;
+  const source = () => target.source();
+  // 出力フォルダーは、ユーザーが変えるまでは対象のフォルダー（確定事項15）。
+  function settings() {
+    const src = source();
+    const folder = state.folderTouched || typeof src?.path !== 'string' ? state.folder : dirOf(src.path);
+    return { mode: state.mode, range: state.range, format: state.format, dpi: state.dpi, folder };
+  }
 
   // ---- ページ・形式・出力（確定事項6〜11・15） ----
 
@@ -118,7 +106,7 @@
     const api = root.pdfAPI;
     if (typeof api?.pickFolder !== 'function')
       return false;
-    const picked = await api.pickFolder({ defaultPath: state.folder ?? undefined });
+    const picked = await api.pickFolder({ defaultPath: settings().folder ?? undefined });
     if (picked?.canceled === true || typeof picked?.path !== 'string')
       return false;
     return setFolder(picked.path);
@@ -131,7 +119,7 @@
     const planned = planner().planExport(settings(), src);
     if (!planned.ready)
       return planned;
-    const folder = state.folder ?? dirOf(src.path);
+    const folder = settings().folder ?? dirOf(src.path);
     return { ...planned, folder, targets: planned.names.map((name) => joinPath(folder, name)) };
   }
 
@@ -229,13 +217,23 @@
     }
   }
 
-  // 同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
+  // 保存していない帯の確かめ・同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '画像にできる状態ではありません。' };
     state.running = true;
     view()?.render();
     try {
+      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId]);
+      if (!guard.go)
+        return { canceled: true };
+      // 上書き保存したら、ファイルの中身（ページ数・寸法）が変わっている。計画を組み直して確かめる。
+      const replanned = currentPlan();
+      if (replanned.ready !== true) {
+        const error = replanned.error ?? '画像にできる状態ではありません。';
+        banner().show(error);
+        return { error };
+      }
       return await runPlanned();
     } finally {
       state.running = false;
@@ -299,9 +297,9 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsToImage = {
-    NOTE_UNSAVED, NOTE_FIRST_ONLY, PICK_TITLE, LABEL,
+    LABEL,
     init, source, settings, currentPlan, joinPath,
-    setSource, useTab, pickFile, addPaths,
+    sync: () => target.sync(), stateText: () => target.stateText(),
     setPageMode, setRange, setFormat, setDpi, setFolder, pickFolder,
     canRun, resolveTargets, run,
     isRunning: () => state.running,

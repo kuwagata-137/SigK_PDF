@@ -36,7 +36,8 @@ const TOOLS = [
     },
   },
   { id: 'convert', label: '画像→PDF', api: 'toolsConvert', button: 'convert-run', ready: (SigK) => SigK.toolsConvert.addPaths([PNG]) },
-  { id: 'toImage', label: 'PDF→画像', api: 'toolsToImage', button: 'toimage-run', ready: (SigK) => SigK.toolsToImage.setSource(A) },
+  // PDF→画像の対象は選んでいる帯（spec-2-5 確定事項E4）。開いたタブが選んでいる帯になる。
+  { id: 'toImage', label: 'PDF→画像', api: 'toolsToImage', button: 'toimage-run', ready: (SigK) => SigK.tabs.openPath(A) },
   { id: 'watermark', label: '透かし', api: 'toolsWatermark', button: 'wm-run', ready: (SigK) => SigK.toolsWatermark.setSource(A) },
   { id: 'flatten', label: 'フラット化', api: 'toolsFlatten', button: 'fl-run', ready: (SigK) => SigK.toolsFlatten.setSource(A), taskResults: [CENSUS] },
 ];
@@ -116,7 +117,7 @@ test('分割: PDF→画像（レンダラーの中で回す処理）が終わっ
   shell.window.imageAPI.write = (target) => new Promise((resolve) => {
     gates.push(() => resolve({ ok: true, path: target, bytes: 0 }));
   });
-  await SigK.toolsToImage.setSource(B);
+  await SigK.tabs.openPath(B);
   SigK.toolsToImage.setPageMode('range');
   SigK.toolsToImage.setRange('1');
   SigK.tools.select('toImage');

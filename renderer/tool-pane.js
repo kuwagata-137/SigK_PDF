@@ -8,9 +8,9 @@
   // 分割と画像→PDF は PR-3 まで今の画面のまま（決定80 ㉚。確定事項D11）なので、ここには入れず、タブの列も出す。
 
   // PR-2 では各ツールを移すコミットで 1 つずつ足す。
-  const STRIP_TOOLS = Object.freeze(['merge']);
+  const STRIP_TOOLS = Object.freeze(['merge', 'toImage']);
   // 節を描き直す入口（tools.js の VIEWS と同じもの）。
-  const VIEWS = { merge: 'toolsMergeList' };
+  const VIEWS = { merge: 'toolsMergeList', toImage: 'toolsToImageView' };
 
   const state = { shown: null };
   let el = null;

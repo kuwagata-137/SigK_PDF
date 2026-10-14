@@ -1523,7 +1523,8 @@ function installSmokeCheck(win, mode) {
     const SigK = window.SigK;
     SigK.shell.setMode(document, 'tools');
     SigK.tools.select('toImage');
-    await SigK.toolsToImage.addPaths([${JSON.stringify(source)}]);
+    // 対象は選んでいる帯（spec-2-5 確定事項E4）。タブで開くと、それが選んでいる帯になる。
+    await SigK.toolHandoff.openOne(${JSON.stringify(source)});
     await wait(500);
     const pages = ${JSON.stringify(settings.pages)};
     SigK.toolsToImage.setPageMode(pages === '' ? 'all' : 'range');

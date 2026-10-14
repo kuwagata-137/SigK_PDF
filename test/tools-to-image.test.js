@@ -1,6 +1,6 @@
 'use strict';
 
-// PDF→画像の画面（spec-3-3 確定事項1〜30）。
+// PDF→画像（spec-3-3 確定事項1〜30、spec-2-5 確定事項E4。見本 screenshots/strips2-toimage.png）。対象は選んでいる帯。
 //
 // 描くのは pdf.js（page-image.js）で、jsdom には 2D コンテキストが無いので bytes は null で
 // 通る。ここは「対象をどう決め、何ページをどの形式で、どこへ、どんな名前で書き、終わったら
@@ -54,14 +54,22 @@ function gateWrites(shell) {
   return gates;
 }
 
-// ---- 対象（確定事項1〜5） ----
+// ---- 対象（spec-2-5 確定事項E4。選んでいる帯） ----
 
-test('初期状態は対象が無く、実行は押せない。既定はすべて・PNG・150dpi', async (t) => {
+// 帯（＝タブ）を開いて選ぶ。開いたタブが選んでいる帯になり、それが対象になる。
+async function openTab(shell, filePath) {
+  await shell.SigK.tabs.openPath(filePath);
+  await shell.flush();
+}
+
+const stateNode = (shell) => shell.document.getElementById('toimage-state');
+
+test('帯が無ければ対象は無く、状態の文を出して実行は押せない。既定はすべて・PNG・150dpi', async (t) => {
   const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
   assert.equal(SigK.toolsToImage.source(), null);
-  assert.equal(doc.getElementById('toimage-empty').hidden, false);
-  assert.equal(doc.getElementById('toimage-file').hidden, true);
+  assert.equal(stateNode(shell).hidden, false);
+  assert.equal(stateNode(shell).textContent, 'PDF を開くと、選んでいる帯が対象になります。');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
   assert.equal(SigK.toolsToImage.canRun(), false);
   assert.equal(exampleText(shell), '');
@@ -69,109 +77,85 @@ test('初期状態は対象が無く、実行は押せない。既定はすべ�
   assert.equal(doc.querySelector('input[name="toimage-page-mode"][value="all"]').checked, true);
   assert.equal(doc.querySelector('input[name="toimage-format"][value="png"]').checked, true);
   assert.equal(doc.querySelector('input[name="toimage-dpi"][value="150"]').checked, true);
+  assert.equal(doc.getElementById('toimage-use-open'), null, '［開いているタブから選ぶ］は無い（確定事項E6）');
 });
 
-test('「ファイルを選ぶ」で対象が決まり、ページ数・寸法・フォルダー・出力の例が埋まる', async (t) => {
-  const shell = await createToImageShell(t, { toolSourceResults: [{ path: A }] });
+test('選んでいる帯が対象になり、ページ数・寸法・フォルダー・出力の例が埋まる。文書は読み直さない', async (t) => {
+  const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
-  assert.equal(await SigK.toolsToImage.pickFile(), true);
+  await openTab(shell, A);
   const src = SigK.toolsToImage.source();
   assert.equal(src.path, A);
   assert.equal(src.pageCount, 3);
   assert.deepEqual(plain(src.sizes), [A4, A4, A4]);
-  assert.equal(doc.getElementById('toimage-name').textContent, 'a.pdf');
-  assert.equal(doc.getElementById('toimage-pages').textContent, '3 ページ');
-  assert.equal(doc.getElementById('toimage-empty').hidden, true);
+  assert.equal(stateNode(shell).hidden, true);
   assert.equal(doc.getElementById('toimage-folder').textContent, 'C:\\work');
   assert.deepEqual(plain(SigK.toolsToImage.currentPlan().targets), A_TARGETS);
   assert.equal(exampleText(shell), 'a_001.png … a_003.png（3 ファイル・1240×1754 px）');
-  assert.equal(summaryText(shell), '3 ページを PNG（150 dpi）で 3 ファイルへ');
+  assert.equal(summaryText(shell), 'a.pdf の 3 ページ → 画像 3 つ');
   assert.equal(SigK.toolsToImage.canRun(), true);
   assert.equal(runButton(shell).hasAttribute('aria-disabled'), false);
-  assert.ok(shell.pdfjs.documents.every((document) => document.destroyed), '寸法を読んだ文書は手放す（確定事項3）');
-  // ダイアログの題名はこのツールのもの（確定事項2）。
-  assert.equal(shell.toolSourceCalls.length, 1);
-  assert.equal(shell.toolSourceCalls[0].title, '画像にする PDF を選ぶ');
+  assert.equal(shell.pdfjs.documents.length, 1, 'タブの文書の寸法を使い、ファイルを開き直さない');
 });
 
-// ［開いているタブから選ぶ ▾］を押し、一覧からそのファイルの行を選ぶ（spec-2-2b 確定事項F2）。
-function chooseTab(shell, buttonId, filePath) {
-  shell.document.getElementById(buttonId).click();
-  [...shell.document.querySelectorAll('.tab-menu .tab-menu-row')].find((row) => row.title === filePath).click();
-}
-
-test('［開いているタブから選ぶ］で選んだタブを対象にし、未保存なら注意を出す', async (t) => {
+test('帯を押して選び直すと対象が替わる', async (t) => {
   const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
-  await SigK.tabs.openPath(A);
-  await SigK.tabs.openPath(B);
-  await shell.flush();
-  SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
-  SigK.shell.setMode(doc, 'tools');
-
-  chooseTab(shell, 'toimage-use-open', B);
-  await shell.flush();
-  await shell.flush();
+  await openTab(shell, A);
+  await openTab(shell, B);
   assert.equal(SigK.toolsToImage.source().path, B);
-  assert.equal(SigK.toolsToImage.source().note, '未保存の編集は反映されません');
-  assert.equal(doc.getElementById('toimage-note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は画像に反映されないので/);
+  doc.querySelector('#strips .strip .fname').click();
+  assert.equal(SigK.toolsToImage.source().path, A);
+  assert.equal(summaryText(shell), 'a.pdf の 3 ページ → 画像 3 つ');
 });
 
-test('タブが無ければ、一覧に案内の 1 行を出す（帯は出さない）', async (t) => {
-  const shell = await createToImageShell(t);
-  shell.document.getElementById('toimage-use-open').click();
-  assert.equal(shell.document.querySelector('.tab-menu .tab-menu-empty').textContent, 'タブで開いている PDF はありません');
-  assert.equal(await shell.SigK.toolsToImage.useTab(999), false);
-  assert.equal(bannerText(shell), '');
-});
-
-test('PDF→画像を選んでいるときの PDF のドロップは対象になり、2本以上なら先頭だけ', async (t) => {
+test('PDF→画像を選んでいるときに PDF を 2 つ落とすと、帯が 2 本でき、あとに開いた帯が対象になる', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK, window } = shell;
   const event = new window.Event('drop', { bubbles: true, cancelable: true });
   event.dataTransfer = makeDataTransfer([makeDroppedFile('b.pdf', B), makeDroppedFile('a.pdf', A)]);
   await SigK.fileDrop.handleDrop(event);
-  assert.equal(SigK.toolsToImage.source().path, B);
   assert.equal(SigK.tabs.count(), 2, 'タブでも開く（決定80）');
+  assert.equal(SigK.toolsToImage.source().path, A);
   assert.equal(SigK.toolsSplit.source(), null, '分割の対象にはしない');
-  assert.equal(SigK.toolsMerge.rows().length, 2, '結合は開いたタブ（帯）がそのまま行になる（spec-2-5 確定事項E2）');
-  assert.equal(bannerText(shell), '1つ目のファイルだけを対象にしました。');
+  assert.equal(bannerText(shell), '');
 });
 
-test('対象を差し替えてもページ・形式・解像度・フォルダーの設定は残る', async (t) => {
+test('対象を替えてもページ・形式・解像度・フォルダーの設定は残る', async (t) => {
   const shell = await createToImageShell(t, { folderResults: [{ path: OUT_DIR }] });
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   SigK.toolsToImage.setPageMode('range');
   SigK.toolsToImage.setRange('1,3');
   SigK.toolsToImage.setFormat('jpeg');
   SigK.toolsToImage.setDpi(300);
   assert.equal(await SigK.toolsToImage.pickFolder(), true);
-  await SigK.toolsToImage.setSource(B);
+  await openTab(shell, B);
   const settings = SigK.toolsToImage.settings();
   assert.deepEqual(plain(settings), { mode: 'range', range: '1,3', format: 'jpeg', dpi: 300, folder: OUT_DIR });
   assert.deepEqual(plain(SigK.toolsToImage.currentPlan().targets), targetsFor(OUT_DIR, ['b_001.jpg', 'b_003.jpg']));
 });
 
-// ---- 読めない対象（確定事項4・5） ----
+// ---- 使えない帯（確定事項4・5、spec-2-5 確定事項E1） ----
 
-test('壊れた PDF は印が付いて実行できない', async (t) => {
+test('開けなかった帯は状態の文を出し、実行できない', async (t) => {
   const shell = await createToImageShell(t, { pdfjs: createPdfjsStub({ openError: new Error('broken') }) });
-  const { document: doc, SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
-  assert.match(SigK.toolsToImage.source().blocked, /開けません。選び直してください/);
-  assert.equal(doc.getElementById('toimage-file').classList.contains('blocked'), true);
-  assert.equal(doc.getElementById('toimage-note').classList.contains('error'), true);
+  const { SigK } = shell;
+  await openTab(shell, A);
+  assert.equal(SigK.toolsToImage.source().blocked, '「a.pdf」は開けなかったので、ほかの帯を選んでください。');
+  assert.equal(stateNode(shell).hidden, false);
+  assert.equal(stateNode(shell).textContent, '「a.pdf」は開けなかったので、ほかの帯を選んでください。');
   assert.equal(SigK.toolsToImage.canRun(), false);
   assert.equal(exampleText(shell), '');
 });
 
-test('暗号化 PDF はパスワードを聞かずに「画像にできません」と断る（ユーザー確定②）', async (t) => {
-  const shell = await createToImageShell(t, { pdfjs: createPdfjsStub({ password: 'secret' }) });
-  await shell.SigK.toolsToImage.setSource(A);
-  assert.equal(shell.SigK.toolsToImage.source().blocked, 'パスワード付きの PDF は画像にできません。選び直してください');
-  assert.equal(shell.SigK.passwordPrompt.isOpen?.() ?? false, false);
+test('パスワード付きの帯は「画像にできません」と断る（ユーザー確定②）', async (t) => {
+  const shell = await createToImageShell(t);
+  await openTab(shell, A);
+  const peek = shell.SigK.tabs.peek;
+  shell.window.SigK.tabs.peek = (id) => ({ ...peek(id), file: { ...peek(id).file, encrypted: true } });
+  shell.SigK.toolsToImageView.render();
+  assert.equal(shell.SigK.toolsToImage.source().blocked, '「a.pdf」はパスワード付きなので画像にできません。ほかの帯を選んでください。');
   assert.equal(shell.SigK.toolsToImage.canRun(), false);
 });
 
@@ -180,7 +164,7 @@ test('暗号化 PDF はパスワードを聞かずに「画像にできません
 test('範囲・形式・解像度を変えると出力の例と要約が追従し、範囲の誤りは欄の下に出る', async (t) => {
   const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
 
   // 欄に打つと「範囲」が選ばれる。
   fire(shell, 'toimage-range', '1, 3');
@@ -188,12 +172,12 @@ test('範囲・形式・解像度を変えると出力の例と要約が追従�
   assert.equal(SigK.toolsToImage.settings().mode, 'range');
   assert.equal(doc.querySelector('input[name="toimage-page-mode"][value="range"]').checked, true);
   assert.equal(exampleText(shell), 'a_001.png … a_003.png（2 ファイル・1240×1754 px）');
-  assert.equal(summaryText(shell), '2 ページを PNG（150 dpi）で 2 ファイルへ');
+  assert.equal(summaryText(shell), 'a.pdf の 2 ページ → 画像 2 つ');
 
   check(shell, 'toimage-format', 'jpeg');
   check(shell, 'toimage-dpi', '300');
   assert.equal(exampleText(shell), 'a_001.jpg … a_003.jpg（2 ファイル・2480×3508 px）');
-  assert.equal(summaryText(shell), '2 ページを JPEG（300 dpi）で 2 ファイルへ');
+  assert.equal(summaryText(shell), 'a.pdf の 2 ページ → 画像 2 つ', '形式と解像度はカードの欄が見せる');
   assert.deepEqual(plain(SigK.toolsToImage.currentPlan().targets), targetsFor('C:\\work', ['a_001.jpg', 'a_003.jpg']));
 
   // 1 ページだけなら「…」は出ない。
@@ -220,7 +204,7 @@ test('選んだ解像度で 40M 画素を超えるページがあれば理由を
   const A1 = { width: 1683.78, height: 2383.94 };
   const shell = await createToImageShell(t, { pdfjs: createPdfjsStub({ sizes: [A4, A1] }) });
   const { document: doc, SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   assert.equal(SigK.toolsToImage.canRun(), true);
 
   SigK.toolsToImage.setDpi(300);
@@ -237,7 +221,7 @@ test('選んだ解像度で 40M 画素を超えるページがあれば理由を
 test('501 ページ以上は理由を出して実行できない（ユーザー確定①）', async (t) => {
   const shell = await createToImageShell(t, { pdfjs: createPdfjsStub({ sizes: Array.from({ length: 501 }, () => A4) }) });
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   assert.equal(SigK.toolsToImage.canRun(), false);
   assert.match(exampleText(shell), /501 ページが指定されていますが、一度に画像にできるのは 500 ページまでです/);
   SigK.toolsToImage.setPageMode('range');
@@ -250,7 +234,7 @@ test('501 ページ以上は理由を出して実行できない（ユーザー�
 test('実行は 1 ページずつ描いて imageAPI.write へ渡し、終わると帯に「フォルダを開く」が出る', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   const documentsBefore = shell.pdfjs.documents.length;
 
   const result = await SigK.toolsToImage.run();
@@ -270,13 +254,13 @@ test('実行は 1 ページずつ描いて imageAPI.write へ渡し、終わる�
   assert.equal(action.textContent, 'フォルダを開く');
   action.click();
   assert.deepEqual(shell.showInFolderCalls, [A_TARGETS[0]]);
-  assert.equal(SigK.tabs.count(), 0, 'タブでは開かない');
+  assert.equal(SigK.tabs.count(), 1, 'できた画像はタブでは開かない（タブは対象の帯の 1 本のまま）');
 });
 
 test('JPEG と 300dpi は形式・品質・scale がそのまま描画に渡る', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   SigK.toolsToImage.setFormat('jpeg');
   SigK.toolsToImage.setDpi(300);
   SigK.toolsToImage.setPageMode('range');
@@ -293,7 +277,7 @@ test('JPEG と 300dpi は形式・品質・scale がそのまま描画に渡る'
 test('同名の 3 択を出している間も実行中と数え、中止すれば下ろす（spec-5-1 確定事項12）', async (t) => {
   const shell = await createToImageShell(t, { existingPaths: [A_TARGETS[0]] });
   const { document: doc, SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
 
   const running = SigK.toolsToImage.run();
   await shell.flush();
@@ -313,7 +297,7 @@ test('同名があれば3択を1回だけ出す。上書きは全件、中止は
     folderResults: [{ path: OUT_DIR }],
   });
   const { document: doc, SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
 
   // 上書き。
   let pending = SigK.toolsToImage.run();
@@ -344,7 +328,7 @@ test('同名があれば3択を1回だけ出す。上書きは全件、中止は
 test('中止は次のページの前で止まり、書き出し済みの枚数を帯に添える', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   const gates = gateWrites(shell);
 
   const running = SigK.toolsToImage.run();
@@ -368,7 +352,7 @@ test('中止は次のページの前で止まり、書き出し済みの枚数�
 test('書き込みの失敗はファイル名と理由を添えて止め、書き終えた分は残す', async (t) => {
   const shell = await createToImageShell(t, { imageWriteResults: [{ ok: true }, { error: 'ディスクに空きがありません。' }] });
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
 
   const result = await SigK.toolsToImage.run();
 
@@ -382,7 +366,7 @@ test('書き込みの失敗はファイル名と理由を添えて止め、書�
 test('描けなかったページは番号を添えて止め、ログにも残す', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   // 2 ページ目の getPage で pdf.js が投げたことにする。
   const original = shell.pdfjs.getDocument;
   shell.pdfjs.getDocument = (...args) => {
@@ -411,7 +395,7 @@ test('描けなかったページは番号を添えて止め、ログにも残�
 test('実行中は入力と実行ボタンが押せず、進捗はページ数で出る。他の保存とは同時に走らない', async (t) => {
   const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   const gates = gateWrites(shell);
 
   const running = SigK.toolsToImage.run();
@@ -419,8 +403,6 @@ test('実行中は入力と実行ボタンが押せず、進捗はページ数�
   assert.equal(SigK.toolsToImage.isRunning(), true);
   assert.equal(SigK.save.isBusy(), true, 'runLocal の枠に載っている（確定事項17）');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
-  assert.equal(doc.getElementById('toimage-use-open').getAttribute('aria-disabled'), 'true');
-  assert.equal(doc.getElementById('toimage-pick').getAttribute('aria-disabled'), 'true');
   assert.equal(doc.getElementById('toimage-folder-pick').getAttribute('aria-disabled'), 'true');
   assert.equal(doc.getElementById('toimage-range').disabled, true);
   assert.equal(doc.querySelector('input[name="toimage-dpi"][value="300"]').disabled, true);
@@ -445,11 +427,26 @@ test('実行中は入力と実行ボタンが押せず、進捗はページ数�
 test('imageAPI が無ければ帯で伝えて何も書かない', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
-  await SigK.toolsToImage.setSource(A);
+  await openTab(shell, A);
   shell.window.imageAPI = undefined;
 
   const result = await SigK.toolsToImage.run();
 
   assert.match(result.error, /画像を書き出す機能を使えません/);
   assert.equal(bannerText(shell), result.error);
+});
+
+// 保存していない帯は、実行の前に確かめる（spec-2-5 確定事項F。run-guard.js。窓そのものは run-guard.test.js が見る）。
+test('保存していない帯を対象にすると、実行の前に確認の窓を出し、［保存せずに実行］なら保存してある中身で書き出す', async (t) => {
+  const shell = await createToImageShell(t);
+  const { SigK, document: doc } = shell;
+  await openTab(shell, A);
+  SigK.pageEdit.rotate(90, [0]);
+  const running = SigK.toolsToImage.run();
+  await shell.flush();
+  assert.equal(SigK.confirmUnsavedRun.isOpen(), true);
+  assert.match(doc.getElementById('confirm-unsaved-run-text').textContent, /「a\.pdf」には、保存していない変更（ページの回転 1 件）があります。/);
+  doc.getElementById('confirm-unsaved-run-run').click();
+  assert.equal((await running).written, 3);
+  assert.equal(SigK.tabs.isDirty(SigK.tabs.activeId()), true);
 });
