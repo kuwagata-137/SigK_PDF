@@ -138,3 +138,16 @@ test('開いている途中と、保存・ツールの実行の途中は、帯�
   assert.deepEqual(names(SigK), ['a.pdf', 'b.pdf', 'c.pdf']);
   assert.equal(SigK.stripInput.isLocked(), true);
 });
+
+// ツールは確認の窓・保存先の窓・出力先の確かめの間も実行中と数える。その間に帯を替えると、確かめた帯と違う帯を書く（点検の直し）。
+for (const name of ['toolsMerge', 'toolsToImage', 'toolsWatermark', 'toolsFlatten']) {
+  test(`帯の画面を使うツール（${name}）の実行の途中は、帯を押しても効かない`, async (t) => {
+    const shell = await withStrips(t);
+    const { SigK, document, window } = shell;
+    const active = SigK.tabs.activeId();
+    window.SigK[name].isRunning = () => true;
+    click(shell, strip(document, 0).querySelector('.fname'));
+    assert.equal(SigK.tabs.activeId(), active);
+    assert.equal(SigK.stripInput.isLocked(), true);
+  });
+}
