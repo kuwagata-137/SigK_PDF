@@ -55,10 +55,12 @@
   const setRange = changing(picks.setRange);
 
   // 選んだページ（{ pages } か { error }）と、チェックした種類・選んだページの件数（tally）。数え終えていなければ tally は null。
+  // 範囲の欄が誤りの間は、ファイル全体の件数にする（打っている途中で種類の行が消えないように。確定事項E5-1。点検の直し）。
   function selection() {
     const pages = choice().pagesOf(picks.state, source()?.pageCount ?? 0);
     const result = counts.current()?.result ?? null;
-    return { ...pages, tally: result === null || pages.error !== undefined ? null : choice().tally(result, { kinds: picks.state.kinds, pages: pages.pages }) };
+    const chosen = pages.error !== undefined ? null : pages.pages;
+    return { ...pages, tally: result === null ? null : choice().tally(result, { kinds: picks.state.kinds, pages: chosen }) };
   }
 
   // 実行できるか。戻り値は { ready, error, summary }。error は要約の欄に出す文（対象が無い・使えないときは状態の文が出るので空。

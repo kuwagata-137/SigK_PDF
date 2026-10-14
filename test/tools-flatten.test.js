@@ -137,6 +137,24 @@ test('ページを範囲にすると、種類の件数・残すもの・要約�
   assert.equal(shell.SigK.toolsFlatten.canRun(), false);
 });
 
+test('範囲の欄が誤りの間も種類の行は消さず、件数はファイル全体の数で出す。残すもの・ノートの注意は出さない（点検の直し）', async (t) => {
+  const shell = await createFlattenShell(t, { taskResults: [CENSUS] });
+  await openTab(shell);
+  range(shell, '9');
+  assert.equal(byId(shell, 'fl-list').hidden, false, '範囲を打っている途中で行が消えない（確定事項E5-1）');
+  assert.deepEqual(rows(shell).map((row) => row.textContent), [
+    'ハイライト・下線・取り消し線4 件', 'テキスト・吹き出し2 件', '図形・ペン3 件', 'ノート2 件', 'スタンプなど1 件',
+  ]);
+  assert.equal(byId(shell, 'fl-keep').hidden, true);
+  assert.equal(byId(shell, 'fl-warn').hidden, true);
+  assert.equal(summary(shell), '');
+  assert.equal(shell.SigK.toolsFlatten.canRun(), false);
+
+  range(shell, '2');
+  assert.equal(rows(shell).at(-1).textContent, 'スタンプなど0 件', '正しい範囲に直したら、そのページの件数に戻る');
+  assert.equal(summary(shell), '書き込み 6 件を焼き込みます');
+});
+
 test('焼くものが無いファイル・数えられないファイルは理由を出して実行できない', async (t) => {
   const none = await createFlattenShell(t, { taskResults: [NONE] });
   await openTab(none);

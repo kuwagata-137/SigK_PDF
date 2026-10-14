@@ -74,10 +74,12 @@
     el.list.hidden = tally === null || !(total?.baked > 0);
     if (!el.list.hidden)
       renderList(tally, tool().choices().kinds, running);
-    const keep = tally === null ? '' : keepText(tally);
+    // 範囲の欄が誤りの間は、残すもの・ノートの注意を出さない（件数はファイル全体の数で、選んだページの分ではないため）。
+    const counted = tally !== null && selection.error === undefined;
+    const keep = counted ? keepText(tally) : '';
     el.keepText.textContent = keep;
     el.keep.hidden = keep === '';
-    el.warn.textContent = tally?.notes > 0 ? `ノート ${tally.notes} 件は付箋の絵だけが残り、本文と作成者は書き出したファイルに残りません。` : '';
+    el.warn.textContent = counted && tally.notes > 0 ? `ノート ${tally.notes} 件は付箋の絵だけが残り、本文と作成者は書き出したファイルに残りません。` : '';
     el.warn.hidden = el.warn.textContent === '';
   }
 
