@@ -96,6 +96,8 @@
 
     // 注釈モードを離れたら注釈の選択を解除する。入ったら同じ帯を出す（spec-4-1 確定事項8・9）。
     root.SigK.annotate?.onModeChanged(mode);
+    // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K）。引いている途中を終え、ツールバーの 1 組の印を描き直す。
+    root.SigK.pointerMode?.onModeChanged(mode);
 
     // 編集モードの道具の段と右パネルの出し入れで表示域が変わる。「幅」「全体」で追従していれば倍率を計算し直す
     // （spec-4b-1a 確定事項19。今までは右パネルの 260px ぶん紙がはみ出たままになっていた）。
@@ -115,6 +117,7 @@
     root.SigK.viewer?.refit();
     root.SigK.thumbnails?.refresh();
     root.SigK.splitBoardView?.schedule();   // 分割の盤も幅から組む（spec-2-2b 確定事項C10。点検 R1）
+    root.SigK.strips?.schedule();   // 帯の見えている紙も幅で決まる（spec-2-5 確定事項D8）
   }
 
   // 閉じている間だけ、開き直す「＞」の細い帯を出す（2026-10-08 の直し）。閉じる「＜」はパネルと一緒に消えるため。

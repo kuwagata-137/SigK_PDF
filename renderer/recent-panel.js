@@ -78,6 +78,8 @@
     }
     state.loaded = true;
     sync();
+    // ツールモードの大きな受け口にも出す（spec-2-5 確定事項D7）。
+    root.SigK.strips?.sync();
     return state.entries;
   }
 

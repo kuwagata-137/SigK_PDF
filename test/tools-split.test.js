@@ -57,7 +57,7 @@ test('結合が走っている間は分割を実行できず、結合が終わ�
   const merged = 'C:\\work\\merged.pdf';
   const shell = await createSplitShell(t, { savePathResults: [{ path: merged }], taskResults: [gate] });
   await useEach(shell);
-  await shell.SigK.toolsMerge.addPaths([B]);
+  await shell.SigK.tabs.openPath(B);   // 結合する PDF は帯（＝タブ）。開くと既定でチェックが入る（spec-2-5 確定事項E2）
   shell.SigK.tools.select('merge');
   const merging = shell.SigK.toolsMerge.run();
   await shell.flush();
@@ -101,6 +101,9 @@ test('「ファイルを選ぶ」で対象が決まり、ページ数・フォ�
   assert.equal(await SigK.toolsSplit.pickFile(), true);
   const src = SigK.toolsSplit.source();
   assert.equal(src.path, A);
+  // 選んだ PDF もタブで開き、ツールモードのまま（spec-2-5 確定事項A1。A1 の残り）。
+  assert.deepEqual([...SigK.tabs.list().map((tab) => tab.path)], [A]);
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(src.pageCount, 3);
   assert.equal(doc.getElementById('split-name').textContent, 'a.pdf');
   assert.equal(doc.getElementById('split-pages').textContent, '3 ページ');
@@ -116,8 +119,9 @@ test('「ファイルを選ぶ」で対象が決まり、ページ数・フォ�
   assert.equal(doc.getElementById('split-rule-pages').textContent, 'a_p1.pdf');
   assert.equal(SigK.toolsSplit.canRun(), true);
   assert.equal(runButton(shell).hasAttribute('aria-disabled'), false);
-  assert.equal(shell.pdfjs.documents.length, 1, '読むのは 1 回（spec-2-2b 確定事項D1）');
-  assert.equal(shell.pdfjs.documents[0].destroyed, false, '盤のために開いたまま持つ');
+  // タブでも開くので文書は 2 つ。分割が読むのは今どおり 1 回（spec-2-2b 確定事項D1。PR-3 で盤はタブの文書から描く。spec-2-5 確定事項G3）。
+  assert.equal(shell.pdfjs.documents.length, 2);
+  assert.equal(shell.pdfjs.documents[1].destroyed, false, '盤のために開いたまま持つ');
   assert.equal(shell.splitSourceCalls.length, 1);
 });
 
@@ -157,7 +161,7 @@ test('分割を選んでいるときの PDF のドロップは対象になり、
   await SigK.fileDrop.handleDrop(event);
   assert.equal(SigK.toolsSplit.source().path, B);
   assert.equal(SigK.tabs.count(), 2, 'タブでも開く（決定80）');
-  assert.equal(SigK.toolsMerge.rows().length, 0, '結合の一覧には足さない');
+  assert.equal(SigK.toolsMerge.rows().length, 2, '結合は開いたタブ（帯）がそのまま行になる（spec-2-5 確定事項E2）');
   assert.equal(bannerText(shell), '1つ目のファイルだけを対象にしました。');
   // 注意・お知らせは黄色の帯で出す（決定49）。
   assert.equal(bannerTone(shell), 'warn');

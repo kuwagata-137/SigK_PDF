@@ -6,7 +6,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { PDF_FILTERS, pickMergeSources, exists, createFileIo } = require('../file-io.js');
+const { PDF_FILTERS, pickMergeSources, pickOpenSources, exists, createFileIo } = require('../file-io.js');
 const { fixturePath } = require('./fixtures/build.js');
 
 const THREE_PAGES = fixturePath('three-pages.pdf');
@@ -27,6 +27,22 @@ test('pickMergeSources は複数選択で、選んだ順にパスを返す', asy
   assert.ok(calls[0].properties.includes('openFile'));
   assert.deepEqual(calls[0].filters, PDF_FILTERS);
   assert.equal(calls[0].defaultPath, 'C:/in');
+});
+
+// ツールモードの帯の受け口の［ファイルを選ぶ…］（spec-2-5 確定事項D7）。選んだものはタブで開く。
+test('pickOpenSources は「開く PDF を選ぶ」の窓で複数を選び、取り消せる', async () => {
+  const calls = [];
+  const dialogLike = {
+    showOpenDialog: async (options) => {
+      calls.push(options);
+      return { canceled: false, filePaths: [IN_B, IN_A] };
+    },
+  };
+  assert.deepEqual(await pickOpenSources({ dialogLike }), { paths: [IN_B, IN_A] });
+  assert.equal(calls[0].title, '開く PDF を選ぶ');
+  assert.ok(calls[0].properties.includes('multiSelections'));
+  assert.deepEqual(calls[0].filters, PDF_FILTERS);
+  assert.deepEqual(await pickOpenSources({ dialogLike: { showOpenDialog: async () => ({ canceled: true }) } }), { canceled: true });
 });
 
 test('pickMergeSources を取り消せる（空の選択も取り消し扱い）', async () => {

@@ -45,8 +45,8 @@ test('index.html が読み込むスタイルシートはすべて実在する', 
   const { document } = await withShell(t);
   const hrefs = [...document.querySelectorAll('link[rel="stylesheet"]')].map((el) => el.getAttribute('href'));
 
-  // split-board.css は分割の盤（spec-2-2b）。
-  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css']);
+  // split-board.css は分割の盤（spec-2-2b）、strips.css・tool-pane.css はツールモードの帯の画面と右の欄（spec-2-5 第 D・E 章）。
+  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css', 'renderer/tool-pane.css']);
   for (const href of hrefs)
     assert.ok(fs.existsSync(path.join(ROOT, ...href.split('/'))), `${href} が無い`);
 });
@@ -67,6 +67,40 @@ test('画面の骨組みが組み上がる', async (t) => {
 
   for (const id of ['app', 'tabbar', 'toolbar', 'body', 'rail', 'side', 'view', 'status'])
     assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
+});
+
+// タブの列はツールバーの下・左の欄の右・ページの表示のすぐ上（spec-2-5 確定事項B1・B2。見本 screenshots/strips1-view.png）。
+// 編集モードの右パネル（#props）とツールモードの右の欄（#tool-pane。spec-2-5 確定事項B2・E1）は #main の外に置き、上から下まで伸ばす。
+test('タブの列は #main の中で表示の器のすぐ上にあり、右パネルと右の欄は #main の外にある', async (t) => {
+  const { document } = await withShell(t);
+  const main = document.getElementById('main');
+
+  assert.notEqual(main, null, '#main が無い');
+  assert.equal(main.parentElement.id, 'body');
+  assert.deepEqual([...main.children].map((el) => el.id), ['tabbar', 'view-wrap']);
+  assert.equal(document.getElementById('props').parentElement.id, 'body');
+  assert.equal(main.nextElementSibling.id, 'tool-pane');
+  assert.equal(document.getElementById('tool-pane').nextElementSibling.id, 'props');
+  // ツールバーは今どおり #app の直下で、タブの列より上にある。
+  assert.equal(document.getElementById('toolbar').parentElement.id, 'app');
+});
+
+test('#main は残りの幅を取り、中を縦に並べ、表示の器が残りの高さを取る（shell.css）', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
+  const rule = (selector) => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\#>]/g, '\\$&');
+    return css.match(new RegExp(`(?:^|\\n)${escaped}\\{([^}]*)\\}`))?.[1] ?? '';
+  };
+
+  assert.match(rule('#main'), /flex:1/);
+  assert.match(rule('#main'), /min-width:0/);
+  assert.match(rule('#main'), /flex-direction:column/);
+  assert.match(rule('#main > #view-wrap'), /flex:1/);
+  assert.match(rule('#main > #view-wrap'), /min-height:0/);
+  // タブの列を隠すのは、帯の画面を使うツールを選んでいるときだけ（spec-2-5 確定事項B3・D11。決定80 ㉖㉚）。ツールモードというだけでは隠さない。
+  assert.doesNotMatch(css, /data-mode="tools"\][^{]*#tabbar/);
+  const pane = fs.readFileSync(path.join(ROOT, 'renderer', 'tool-pane.css'), 'utf8');
+  assert.match(pane, /html\[data-tool-screen="strips"\] #tabbar\{display:none\}/);
 });
 
 test('ツールレールは 4 つのモードだけを持ち、編集の道具は道具の段に並ぶ', async (t) => {
@@ -259,6 +293,27 @@ test('ツールバーに元に戻す・やり直しが並ぶ（確定事項53）
   }
 });
 
+// 保存の 2 つは文字で明示する（spec-2-5 確定事項B4。決定80 ⑰㉑。見本 screenshots/strips1-view.png）。どちらも全部のモードに出す。
+// 押せる・押せない・押したときの処理は save.js の SAVE_BUTTONS が受け持つ（ツールモードでも使える。B6）。
+test('ツールバーの先頭に［開く］［上書き保存］［名前を付けて保存］が並び、文書が無ければ保存の 2 つは押せない', async (t) => {
+  const { document } = await withShell(t);
+  const save = document.getElementById('btn-save');
+  const saveAs = document.getElementById('btn-save-as');
+  const label = (node) => node.textContent.trim();
+
+  assert.notEqual(saveAs, null, '［名前を付けて保存］が無い');
+  assert.equal(label(save), '上書き保存');
+  assert.equal(save.getAttribute('title'), '上書き保存 (Ctrl+S)');
+  assert.equal(save.nextElementSibling, saveAs, '［名前を付けて保存］は［上書き保存］のすぐ右');
+  assert.equal(label(saveAs), '名前を付けて保存');
+  assert.equal(saveAs.getAttribute('title'), '名前を付けて保存 (Ctrl+Shift+S)');
+  assert.equal(saveAs.className, 'tb-btn');
+  assert.equal(saveAs.querySelector('[data-icon="saveAs"] svg') !== null, true, '［名前を付けて保存］の絵が描かれていない');
+  assert.equal(saveAs.nextElementSibling.className, 'tb-sep');
+  for (const node of [save, saveAs])
+    assert.equal(node.getAttribute('aria-disabled'), 'true', `${node.id} は文書が無いと押せない`);
+});
+
 test('ページ編集で足したアイコンが描ける', async (t) => {
   const { document, SigK } = await withShell(t);
 
@@ -406,9 +461,9 @@ test('サイドパネルを閉じると細い帯が出て、帯の「＞」で�
 
   assert.notEqual(strip, null, '帯が無い');
   assert.equal(strip.hidden, true, '開いている間は帯を出さない');
-  // 帯はレールとページの表示域の間に置く。
+  // 帯はレールとページの表示域（タブの列とページの表示を縦に並べた #main。spec-2-5 確定事項B1）の間に置く。
   assert.equal(strip.previousElementSibling.id, 'side-resizer');
-  assert.equal(strip.nextElementSibling.id, 'view-wrap');
+  assert.equal(strip.nextElementSibling.id, 'main');
   assert.equal(expand.closest('#side-strip'), strip);
   assert.equal(expand.tagName, 'BUTTON');
   assert.equal(expand.getAttribute('type'), 'button');
@@ -481,6 +536,29 @@ test('上書き・パスワード・抽出・モザイクの確認の窓に、�
   for (const [id, width] of [['confirm-overwrite', 440], ['password-prompt', 420], ['confirm-extract', 460], ['confirm-mosaic', 560]])
     assert.ok(css.includes(`#${id}{width:min(${width}px, 88vw)}`), id);
   assert.ok(css.includes('#confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}'));
+});
+
+// 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにして、幅 960 の窓でもツールバーを 1 列に収める
+// （spec-2-5 確定事項B5・K2。見本 screenshots/strips1-view-hand-960.png）。jsdom は CSS を読まないので文字で見張り、1 列に収まるかは起動確認で見る。
+test('窓が 1100px より狭いときは、幅・全体・見開き・選択・ハンドを絵だけにし、ツールバーを詰める（shell.css）', async (t) => {
+  const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
+  const narrow = [...css.matchAll(/@media \(max-width:1100px\)\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
+  const ICON_ONLY = ['#btn-fit-width', '#btn-fit-page', '#btn-facing', '#btn-pointer-select', '#btn-pointer-hand'];
+
+  assert.notEqual(narrow, '', '狭い窓の規則が無い');
+  const iconOnly = narrow.match(/([^{}]+)\{([^}]*font-size:0[^}]*)\}/);
+  assert.notEqual(iconOnly, null, '文字を消す規則が無い');
+  assert.deepEqual(iconOnly[1].split(',').map((s) => s.trim()), ICON_ONLY);
+  for (const part of ['gap:0', 'width:30px', 'padding:0', 'justify-content:center'])
+    assert.ok(iconOnly[2].includes(part), part);
+  assert.match(narrow, /#toolbar\{gap:4px; padding:0 8px\}/);
+  assert.match(narrow, /\.tb-sep\{margin:0 2px\}/);
+  assert.match(narrow, /\.pager \.num\{padding:0 4px; white-space:nowrap\}/);
+
+  // 絵だけになっても、読み上げでは見えている文字を含む名前で読める。
+  const { document } = await withShell(t);
+  for (const [id, name] of [['btn-fit-width', '幅に合わせる'], ['btn-fit-page', '全体を表示'], ['btn-facing', '見開き表示']])
+    assert.equal(document.getElementById(id).getAttribute('aria-label'), name, id);
 });
 
 // jsdom は shell.css を読まないので、帯の寸法と出し入れの規則は文字で見張る。
@@ -571,10 +649,11 @@ test('PDF→画像のレンダラーが index.html から読み込まれ、画�
     assert.ok(sources.includes(src), `${src} が index.html から読まれていない`);
   assert.ok(sources.indexOf('renderer/page-image.js') < sources.indexOf('renderer/print.js'), 'page-image.js は print.js より先に読む');
 
-  const panel = document.querySelector('.tool-panel[data-tool="toImage"]');
-  assert.notEqual(panel, null, 'PDF→画像のパネルが無い');
+  // 右の欄の節（spec-2-5 確定事項E4）。対象は選んでいる帯なので、対象の欄の代わりに状態の文を持つ。
+  const panel = document.querySelector('#tool-pane .pane-tool[data-tool="toImage"]');
+  assert.notEqual(panel, null, 'PDF→画像の節が無い');
   for (const id of [
-    'toimage-file', 'toimage-name', 'toimage-pages', 'toimage-note', 'toimage-empty', 'toimage-use-open', 'toimage-pick',
+    'toimage-state',
     'toimage-page-modes', 'toimage-range', 'toimage-range-err', 'toimage-formats', 'toimage-dpis',
     'toimage-folder', 'toimage-folder-pick', 'toimage-example', 'toimage-summary', 'toimage-run',
   ])

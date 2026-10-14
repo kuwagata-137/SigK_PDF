@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="renderer/shell.css">
 <link rel="stylesheet" href="renderer/text-layer.css">
 <link rel="stylesheet" href="renderer/split-board.css">
+<link rel="stylesheet" href="renderer/strips.css">
+<link rel="stylesheet" href="renderer/tool-pane.css">
 <style>
 :root{
   --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
@@ -39,16 +41,22 @@ body{
 <body>
 <div id="app">
 
-  <div id="tabbar">
-    <div class="tab-add" data-icon="plus" data-icon-size="14" data-icon-stroke="2" title="タブを追加" aria-disabled="true"></div>
-  </div>
-
   <div id="toolbar">
     <div class="tb-btn" id="btn-open" title="PDF を開く (Ctrl+O)"><span data-icon="open"></span>開く</div>
-    <div class="tb-btn" id="btn-save" title="上書き保存 (Ctrl+S)" aria-disabled="true"><span data-icon="save"></span>保存</div>
+    <!-- 保存の 2 つは文字で明示する（spec-2-5 確定事項B4。決定80 ⑰㉑）。どちらも全部のモードに出し、ツールモードでも使える（B6）。
+         押せる・押せない・押したときの処理は save.js の SAVE_BUTTONS。 -->
+    <div class="tb-btn" id="btn-save" title="上書き保存 (Ctrl+S)" aria-disabled="true"><span data-icon="save"></span>上書き保存</div>
+    <div class="tb-btn" id="btn-save-as" title="名前を付けて保存 (Ctrl+Shift+S)" aria-disabled="true"><span data-icon="saveAs"></span>名前を付けて保存</div>
     <div class="tb-sep"></div>
     <div class="tb-btn icon" id="btn-undo" data-icon="undo" title="元に戻す (Ctrl+Z)" aria-disabled="true"></div>
     <div class="tb-btn icon" id="btn-redo" data-icon="redo" title="やり直し (Ctrl+Y)" aria-disabled="true"></div>
+    <div class="tb-sep"></div>
+    <!-- 閲覧の［選択］［ハンド］（spec-2-5 確定事項K2・K3。見本 screenshots/strips1-view-hand.png）。閲覧・ページ編集・編集で使い、ツールモードでは灰色。
+         編集モードでは編集の道具を映す。結線は pointer-mode-bar.js、状態は pointer-mode.js。 -->
+    <div class="tb-seg" id="pointer-mode" role="group" aria-label="紙の上のマウスの働き">
+      <div class="tb-btn" id="btn-pointer-select" role="button" aria-pressed="true" aria-label="選択" title="選択（紙の文字を選ぶ。左と右の同時押しで切り替え）"><span data-icon="pointerSelect"></span>選択</div>
+      <div class="tb-btn" id="btn-pointer-hand" role="button" aria-pressed="false" aria-label="ハンド" title="ハンド（紙を引いて表示を動かす。左と右の同時押しで切り替え）"><span data-icon="hand"></span>ハンド</div>
+    </div>
     <div class="tb-sep"></div>
     <div class="pager" id="pager" aria-disabled="true">
       <div class="step" id="page-prev" data-icon="chevronLeft" data-icon-size="15" data-icon-stroke="2" title="前のページ"></div>
@@ -61,10 +69,10 @@ body{
       <div class="val" id="zoom-value">100%</div>
       <div class="step" id="zoom-in" title="拡大 (Ctrl+＋)">＋</div>
     </div>
-    <div class="tb-btn" id="btn-fit-width" aria-disabled="true" title="幅に合わせる"><span data-icon="fitWidth"></span>幅</div>
-    <div class="tb-btn" id="btn-fit-page" aria-disabled="true" title="全体を表示"><span data-icon="fitPage"></span>全体</div>
+    <div class="tb-btn" id="btn-fit-width" aria-disabled="true" title="幅に合わせる" aria-label="幅に合わせる"><span data-icon="fitWidth"></span>幅</div>
+    <div class="tb-btn" id="btn-fit-page" aria-disabled="true" title="全体を表示" aria-label="全体を表示"><span data-icon="fitPage"></span>全体</div>
     <!-- 見開き（spec-2-3 確定事項1・27）。押している間は「幅」「全体」と同じ .active で見せる。 -->
-    <div class="tb-btn" id="btn-facing" aria-disabled="true" title="見開き表示（2ページを並べる）"><span data-icon="facing"></span>見開き</div>
+    <div class="tb-btn" id="btn-facing" aria-disabled="true" title="見開き表示（2ページを並べる）" aria-label="見開き表示"><span data-icon="facing"></span>見開き</div>
     <div class="spacer"></div>
     <div class="tb-btn icon" id="btn-find" data-icon="search" title="文書内を検索 (Ctrl+F)" aria-disabled="true"></div>
     <div class="tb-btn icon" id="btn-print" data-icon="print" title="印刷 (Ctrl+P)" aria-disabled="true"></div>
@@ -171,6 +179,14 @@ body{
       <button type="button" id="side-expand" data-icon="chevronRight" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを開く" aria-label="サイドパネルを開く"></button>
     </div>
 
+    <!-- タブの列とページの表示を縦に並べる器（spec-2-5 確定事項B1・B2。見本 screenshots/strips1-view.png）。タブの列は
+         ツールバーの下・左の欄の右・表示のすぐ上に置き、編集モードの右パネル（#props）は #main の外で上から下まで伸ばす。
+         ツールモードでもタブの列は出す（決定80 ㉖。隠すのは帯ができる PR-2）。 -->
+    <div id="main">
+    <div id="tabbar">
+      <div class="tab-add" data-icon="plus" data-icon-size="14" data-icon-stroke="2" title="タブを追加" aria-disabled="true"></div>
+    </div>
+
     <!-- 重ねるものは #view の「外」に置く。#view はスクロールする器であり、
          その中で position:absolute にすると中身と一緒に流れて画面外へ出る
          （spec-1-2 確定事項20）。 -->
@@ -185,25 +201,16 @@ body{
       <!-- ツールモードの作業画面（spec-2-1 確定事項2）。#view の上に重ね、
            ページビューは隠すだけで捨てない。帯（#view-banner）はこの上に出る。 -->
       <div id="tools-view" hidden>
-        <div class="tool-panel" data-tool="merge">
-          <div class="tools-head">
-            <h2>結合</h2>
-            <span class="hint">上から順に1つの PDF にまとめます。しおりは引き継がれません。</span>
-          </div>
-          <div class="merge-bar">
-            <button type="button" class="act" id="merge-add-open"><span data-icon="plus" data-icon-size="14" data-icon-stroke="2"></span>開いているタブをまとめて追加</button>
-            <button type="button" class="act" id="merge-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-            <span class="spacer"></span>
-            <button type="button" class="act quiet" id="merge-clear">すべて外す</button>
-          </div>
-          <div class="merge-list" id="merge-list">
-            <div class="merge-cols"><span></span><span>ファイル</span><span>ページ数</span><span>ページ範囲（空欄＝すべて）</span><span></span><span></span><span></span></div>
-            <p class="empty" id="merge-empty">［開いているタブをまとめて追加］か［ファイルを選ぶ…］で、結合する PDF を足してください。<br>PDF をここへドロップしても足せます。</p>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="merge-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="merge-run" aria-disabled="true">実行…</button>
+        <!-- 帯の画面（spec-2-5 第 D 章。見本 screenshots/strips2-merge.png・strips2-empty.png）。開いているタブを 1 本ずつ横長の帯にして
+             上から並べる。結合・PDF→画像・透かし・フラット化を選んでいるときに出す（確定事項D11）。帯は strip-view.js（並びと描く所）・
+             strip-row.js（帯 1 本）が組み、いちばん下の受け口は strip-drop-zone.js。 -->
+        <div class="strips-screen" id="strips-screen" hidden>
+          <div class="strips" id="strips" role="list" aria-label="開いている PDF">
+            <div class="drop-zone" id="strip-drop">
+              <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">PDF をここへ落とすと、開いて帯に足します</span></div>
+              <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
+              <div class="recent" id="strip-drop-recent" hidden></div>
+            </div>
           </div>
         </div>
         <!-- 分割（spec-2-2b。見本 screenshots/phase2-2b-*.png）。全ページのサムネイルを「できるファイルの箱」に並べ、その上で分ける。
@@ -365,209 +372,6 @@ body{
             <button type="button" class="dlg-btn primary" id="convert-run" aria-disabled="true">実行…</button>
           </div>
         </div>
-        <!-- PDF→画像（spec-3-3 確定事項27）。対象・ページと形式・出力の3節。中身は
-             tools-to-image.js（状態）と tools-to-image-view.js（描画）が持つ。 -->
-        <div class="tool-panel" data-tool="toImage" hidden>
-          <div class="tools-head">
-            <h2>PDF → 画像</h2>
-            <span class="hint">PDF のページを PNG か JPEG の画像にします。1 ページが 1 ファイルになります。</span>
-          </div>
-          <div class="split-body">
-            <section class="split-sec">
-              <h3>対象</h3>
-              <div class="split-target">
-                <div class="file" id="toimage-file" hidden>
-                  <span class="name" id="toimage-name"></span>
-                  <span class="pages" id="toimage-pages"></span>
-                  <span class="note" id="toimage-note" hidden></span>
-                </div>
-                <p class="empty" id="toimage-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、画像にする PDF を決めてください。</p>
-                <div class="btns">
-                  <button type="button" class="act" id="toimage-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
-                  <button type="button" class="act" id="toimage-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-                </div>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>ページと形式</h3>
-              <div class="convert-opts">
-                <span class="k">ページ</span>
-                <div class="picks toimage-range-row" id="toimage-page-modes">
-                  <label class="pick"><input type="radio" name="toimage-page-mode" value="all" checked><span class="lbl">すべて</span></label>
-                  <label class="pick"><input type="radio" name="toimage-page-mode" value="range"><span class="lbl">範囲</span></label>
-                  <input type="text" class="split-inp wide" id="toimage-range" placeholder="例: 1-3, 5, 8-" aria-label="画像にするページ範囲" autocomplete="off" spellcheck="false">
-                  <span class="err" id="toimage-range-err" hidden></span>
-                </div>
-                <span class="k">形式</span>
-                <div class="picks" id="toimage-formats">
-                  <label class="pick"><input type="radio" name="toimage-format" value="png" checked><span class="lbl">PNG</span><span class="sub">文字や図に向く。白地で書き出します</span></label>
-                  <label class="pick"><input type="radio" name="toimage-format" value="jpeg"><span class="lbl">JPEG</span><span class="sub">写真の多いページに向く。品質は 90</span></label>
-                </div>
-                <span class="k">解像度</span>
-                <div class="picks" id="toimage-dpis">
-                  <label class="pick"><input type="radio" name="toimage-dpi" value="72"><span class="lbl">72 dpi</span><span class="sub">画面で見る</span></label>
-                  <label class="pick"><input type="radio" name="toimage-dpi" value="150" checked><span class="lbl">150 dpi</span><span class="sub">印刷と同じ</span></label>
-                  <label class="pick"><input type="radio" name="toimage-dpi" value="300"><span class="lbl">300 dpi</span><span class="sub">細かい文字・拡大</span></label>
-                </div>
-                <span class="k"></span>
-                <p class="fit-note">ファイルを読み直して描くので、未保存の並べ替え・回転・削除は反映されません。</p>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>出力</h3>
-              <div class="split-out">
-                <span class="k">フォルダ</span>
-                <div class="folder">
-                  <span class="path" id="toimage-folder"></span>
-                  <button type="button" class="act" id="toimage-folder-pick">変更…</button>
-                </div>
-                <span class="k">出力の例</span>
-                <div class="example" id="toimage-example"></div>
-              </div>
-            </section>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="toimage-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="toimage-run" aria-disabled="true">実行…</button>
-          </div>
-        </div>
-        <!-- 透かし（spec-4-5 確定事項2〜6）。対象・透かし・ページの 3 節と右のプレビュー。中身は
-             tools-watermark.js（状態）、tools-watermark-view.js（欄）、watermark-preview.js（プレビュー）が持つ。
-             出力先は実行時の保存ダイアログで決める（論点8）ので、出力の節は置かない。 -->
-        <div class="tool-panel" data-tool="watermark" hidden>
-          <div class="tools-head">
-            <h2>透かし</h2>
-            <span class="hint">文字か画像をページに重ねて、新しいファイルに書き出します。元のファイルは変えません。</span>
-          </div>
-          <div class="wm-body">
-            <div class="wm-col">
-              <section class="split-sec">
-                <h3>対象</h3>
-                <div class="split-target">
-                  <div class="file" id="wm-file" hidden>
-                    <span class="name" id="wm-name"></span>
-                    <span class="pages" id="wm-pages"></span>
-                    <span class="note" id="wm-note" hidden></span>
-                  </div>
-                  <p class="empty" id="wm-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、透かしを入れる PDF を決めてください。</p>
-                  <div class="btns">
-                    <button type="button" class="act" id="wm-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
-                    <button type="button" class="act" id="wm-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-                  </div>
-                </div>
-              </section>
-              <section class="split-sec">
-                <h3>透かし</h3>
-                <div class="wm-opts">
-                  <span class="k">種類</span>
-                  <div class="picks">
-                    <label class="pick"><input type="radio" name="wm-type" value="text" checked><span class="lbl">文字</span></label>
-                    <label class="pick"><input type="radio" name="wm-type" value="image"><span class="lbl">画像</span></label>
-                  </div>
-                  <span class="k" id="wm-text-key">文字</span>
-                  <div class="row" id="wm-text-row"><input type="text" class="split-inp wide" id="wm-text" maxlength="50" value="社外秘" aria-label="透かしの文字" autocomplete="off" spellcheck="false"></div>
-                  <span class="k" id="wm-image-key" hidden>画像</span>
-                  <div class="wm-img" id="wm-image-row" hidden>
-                    <span class="name" id="wm-image-name"></span>
-                    <span class="meta" id="wm-image-meta"></span>
-                    <button type="button" class="act" id="wm-image-pick">画像を選ぶ…</button>
-                    <span class="note" id="wm-image-note"></span>
-                  </div>
-                  <span class="k">大きさ</span>
-                  <div class="picks">
-                    <label class="pick"><input type="radio" name="wm-size" value="small"><span class="lbl">小</span></label>
-                    <label class="pick"><input type="radio" name="wm-size" value="medium" checked><span class="lbl">中</span></label>
-                    <label class="pick"><input type="radio" name="wm-size" value="large"><span class="lbl">大</span></label>
-                    <span class="sub">紙の大きさに合わせて決めます</span>
-                  </div>
-                  <span class="k" id="wm-color-key">色</span>
-                  <div class="swatches" id="wm-colors"></div>
-                  <span class="k">不透明度</span>
-                  <div class="picks" id="wm-opacities"></div>
-                  <span class="k">向き</span>
-                  <div class="picks">
-                    <label class="pick"><input type="radio" name="wm-angle" value="45" checked><span class="lbl">斜め</span><span class="sub">左下から右上へ</span></label>
-                    <label class="pick"><input type="radio" name="wm-angle" value="0"><span class="lbl">水平</span></label>
-                  </div>
-                  <span class="k">位置</span>
-                  <div class="row">
-                    <div class="wm-grid" id="wm-grid" role="group" aria-label="位置"></div>
-                    <span class="sub" id="wm-position-label"></span>
-                  </div>
-                </div>
-              </section>
-              <section class="split-sec">
-                <h3>ページ</h3>
-                <div class="picks toimage-range-row" id="wm-page-modes">
-                  <label class="pick"><input type="radio" name="wm-page-mode" value="all" checked><span class="lbl">すべて</span></label>
-                  <label class="pick"><input type="radio" name="wm-page-mode" value="range"><span class="lbl">範囲</span></label>
-                  <input type="text" class="split-inp wide" id="wm-range" placeholder="例: 1-3, 5, 8-" aria-label="透かしを入れるページ範囲" autocomplete="off" spellcheck="false">
-                  <span class="err" id="wm-range-err" hidden></span>
-                </div>
-                <p class="fit-note">ファイルを読み直して書き出すので、未保存の編集は反映されません。「実行…」を押すと保存先を尋ねます。</p>
-              </section>
-            </div>
-            <section class="split-sec wm-preview">
-              <h3>プレビュー</h3>
-              <div class="page-box">
-                <div class="wm-page" id="wm-preview-page">
-                  <div class="wm-canvas" id="wm-preview-canvas"></div>
-                  <svg class="wm-overlay" id="wm-preview-overlay" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
-                  <p class="wm-preview-empty" id="wm-preview-empty">対象を決めるとここに出ます</p>
-                </div>
-              </div>
-              <p class="cap" id="wm-preview-cap"></p>
-              <div class="nav">
-                <button type="button" class="act" id="wm-preview-prev" aria-label="前のページ" aria-disabled="true"><span data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="2"></span></button>
-                <button type="button" class="act" id="wm-preview-next" aria-label="次のページ" aria-disabled="true"><span data-icon="chevronRight" data-icon-size="14" data-icon-stroke="2"></span></button>
-              </div>
-            </section>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="wm-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="wm-run" aria-disabled="true">実行…</button>
-          </div>
-        </div>
-        <!-- フラット化（spec-4-5 確定事項7〜11）。対象と焼き込む注釈の 2 節。中身は tools-flatten.js（状態）と
-             tools-flatten-view.js（描画）、確認は confirm-flatten.js。出力先は実行時の保存ダイアログで決める（論点8）。 -->
-        <div class="tool-panel" data-tool="flatten" hidden>
-          <div class="tools-head">
-            <h2>フラット化</h2>
-            <span class="hint">書き込みをページの内容として焼き込み、新しいファイルに書き出します。元のファイルは変えません。</span>
-          </div>
-          <div class="split-body">
-            <section class="split-sec">
-              <h3>対象</h3>
-              <div class="split-target">
-                <div class="file" id="fl-file" hidden>
-                  <span class="name" id="fl-name"></span>
-                  <span class="pages" id="fl-pages"></span>
-                  <span class="note" id="fl-note" hidden></span>
-                </div>
-                <p class="empty" id="fl-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、書き込みを焼き込む PDF を決めてください。</p>
-                <div class="btns">
-                  <button type="button" class="act" id="fl-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
-                  <button type="button" class="act" id="fl-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-                </div>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>焼き込むもの</h3>
-              <p class="fl-status" id="fl-status" hidden></p>
-              <div class="fl-list" id="fl-list" hidden></div>
-              <p class="fl-keep" id="fl-keep" hidden><b>焼き込まずに残すもの</b><span id="fl-keep-text"></span></p>
-              <p class="fl-warn" id="fl-warn" hidden></p>
-              <p class="fit-note">ファイルを読み直して焼き込むので、未保存の書き込みは反映されません。「実行…」を押すと保存先を尋ねます。</p>
-            </section>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="fl-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="fl-run" aria-disabled="true">実行…</button>
-          </div>
-        </div>
       </div>
       <div id="view-banner" hidden></div>
       <div id="view-drop" hidden aria-hidden="true">
@@ -587,6 +391,189 @@ body{
         <span class="find-sep"></span>
         <button type="button" class="find-btn" id="find-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" title="閉じる (Esc)"></button>
       </div>
+    </div>
+    </div><!-- #main -->
+
+    <!-- ツールモードの右の欄（spec-2-5 第 E 章。見本 screenshots/strips2-*.png）。帯の画面を使うツール（結合・PDF→画像・透かし・フラット化）を
+         選んでいる間だけ出す（tool-pane.js）。編集モードの右パネル（#props）とは別のもの。節の中身は各ツールの描画が持つ。 -->
+    <div id="tool-pane" hidden>
+      <!-- 結合（spec-2-5 確定事項E2）。行はチェックボックス・帯の番号・名前・ページ数・範囲の欄。状態は tools-merge.js、描画は tools-merge-list.js。 -->
+      <section class="pane-tool" data-tool="merge" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">結合</h2>
+          <p class="pane-desc">チェックを入れたファイルを、左の帯の上から順に 1 つの PDF にまとめます（しおりは引き継がれません）。順番は帯の ↑↓ で変えます。</p>
+          <section class="sb-card">
+            <h3><span>まとめるファイル（<span id="merge-count">0 / 0</span>）</span></h3>
+            <div class="pane-rows" id="merge-list"></div>
+            <p class="pane-desc" id="merge-empty">PDF を開くと、ここにまとめるファイルが並びます。</p>
+            <p class="pane-note" id="merge-note" hidden></p>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="merge-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="merge-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+      <!-- PDF→画像（spec-3-3、spec-2-5 確定事項E4。見本 screenshots/strips2-toimage.png）。対象は選んでいる帯。状態は tools-to-image.js、
+           描画は tools-to-image-view.js。 -->
+      <section class="pane-tool" data-tool="toImage" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">PDF → 画像</h2>
+          <p class="pane-desc">選んでいる帯の PDF のページを、1 ページずつ画像のファイルにします。</p>
+          <p class="pane-state" id="toimage-state" hidden></p>
+          <section class="sb-card">
+            <h3>ページと形式</h3>
+            <div class="convert-opts">
+                <span class="k">ページ</span>
+                <div class="picks toimage-range-row" id="toimage-page-modes">
+                  <label class="pick"><input type="radio" name="toimage-page-mode" value="all" checked><span class="lbl">すべて</span></label>
+                  <label class="pick"><input type="radio" name="toimage-page-mode" value="range"><span class="lbl">範囲</span></label>
+                  <input type="text" class="split-inp wide" id="toimage-range" placeholder="例: 1-3, 5, 8-" aria-label="画像にするページ範囲" autocomplete="off" spellcheck="false">
+                  <span class="err" id="toimage-range-err" hidden></span>
+                </div>
+                <span class="k">形式</span>
+                <div class="picks" id="toimage-formats">
+                  <label class="pick"><input type="radio" name="toimage-format" value="png" checked><span class="lbl">PNG</span><span class="sub">文字や図に向く。白地で書き出します</span></label>
+                  <label class="pick"><input type="radio" name="toimage-format" value="jpeg"><span class="lbl">JPEG</span><span class="sub">写真の多いページに向く。品質は 90</span></label>
+                </div>
+                <span class="k">解像度</span>
+                <div class="picks" id="toimage-dpis">
+                  <label class="pick"><input type="radio" name="toimage-dpi" value="72"><span class="lbl">72 dpi</span><span class="sub">画面で見る</span></label>
+                  <label class="pick"><input type="radio" name="toimage-dpi" value="150" checked><span class="lbl">150 dpi</span><span class="sub">印刷と同じ</span></label>
+                  <label class="pick"><input type="radio" name="toimage-dpi" value="300"><span class="lbl">300 dpi</span><span class="sub">細かい文字・拡大</span></label>
+                </div>
+            </div>
+          </section>
+          <section class="sb-card">
+            <h3>出力</h3>
+            <div class="split-out">
+                <span class="k">フォルダ</span>
+                <div class="folder">
+                  <span class="path" id="toimage-folder"></span>
+                  <button type="button" class="act" id="toimage-folder-pick">変更…</button>
+                </div>
+                <span class="k">出力の例</span>
+                <div class="example" id="toimage-example"></div>
+            </div>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="toimage-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="toimage-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+      <!-- 透かし（spec-4-5 確定事項2〜6、spec-2-5 確定事項E3。見本 screenshots/strips2-watermark.png）。対象は選んでいる帯。透かし・ページ・
+           プレビューのカード。中身は tools-watermark.js（状態）、tools-watermark-view.js（欄）、watermark-preview.js（プレビュー）、
+           strip-watermark.js（帯のページへの重ね）が持つ。出力先は実行時の保存ダイアログで決める（論点8）。 -->
+      <section class="pane-tool" data-tool="watermark" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">透かし</h2>
+          <p class="pane-desc">選んでいる帯（枠の色が付いた帯）の PDF に、文字か画像を重ねて新しいファイルにします。元のファイルは変えません。</p>
+          <p class="pane-state" id="wm-state" hidden></p>
+          <section class="sb-card">
+            <h3>透かし</h3>
+            <div class="wm-opts">
+              <span class="k">種類</span>
+              <div class="picks seg">
+                <label class="pick"><input type="radio" name="wm-type" value="text" checked><span class="lbl">文字</span></label>
+                <label class="pick"><input type="radio" name="wm-type" value="image"><span class="lbl">画像</span></label>
+              </div>
+              <span class="k" id="wm-text-key">文字</span>
+              <div class="row" id="wm-text-row"><input type="text" class="split-inp wide" id="wm-text" maxlength="50" value="社外秘" aria-label="透かしの文字" autocomplete="off" spellcheck="false"></div>
+              <span class="k" id="wm-image-key" hidden>画像</span>
+              <div class="wm-img" id="wm-image-row" hidden>
+                <span class="name" id="wm-image-name"></span>
+                <span class="meta" id="wm-image-meta"></span>
+                <button type="button" class="act" id="wm-image-pick">画像を選ぶ…</button>
+                <span class="note" id="wm-image-note"></span>
+              </div>
+              <span class="k">大きさ</span>
+              <div class="picks seg">
+                <label class="pick"><input type="radio" name="wm-size" value="small"><span class="lbl">小</span></label>
+                <label class="pick"><input type="radio" name="wm-size" value="medium" checked><span class="lbl">中</span></label>
+                <label class="pick"><input type="radio" name="wm-size" value="large"><span class="lbl">大</span></label>
+                <span class="sub">紙の大きさに合わせて決めます</span>
+              </div>
+              <span class="k" id="wm-color-key">色</span>
+              <div class="swatches" id="wm-colors"></div>
+              <span class="k">不透明度</span>
+              <div class="picks seg" id="wm-opacities"></div>
+              <span class="k">向き</span>
+              <div class="picks seg">
+                <label class="pick"><input type="radio" name="wm-angle" value="45" checked><span class="lbl">斜め</span><span class="sub">左下から右上へ</span></label>
+                <label class="pick"><input type="radio" name="wm-angle" value="0"><span class="lbl">水平</span></label>
+              </div>
+              <span class="k">位置</span>
+              <div class="row">
+                <div class="wm-grid" id="wm-grid" role="group" aria-label="位置"></div>
+                <span class="sub" id="wm-position-label"></span>
+              </div>
+            </div>
+          </section>
+          <section class="sb-card">
+            <h3>ページ</h3>
+            <div class="picks toimage-range-row" id="wm-page-modes">
+              <label class="pick"><input type="radio" name="wm-page-mode" value="all" checked><span class="lbl">すべて</span></label>
+              <label class="pick"><input type="radio" name="wm-page-mode" value="range"><span class="lbl">範囲</span></label>
+              <input type="text" class="split-inp wide" id="wm-range" placeholder="例: 1-3, 5, 8-" aria-label="透かしを入れるページ範囲" autocomplete="off" spellcheck="false">
+              <span class="err" id="wm-range-err" hidden></span>
+            </div>
+          </section>
+          <section class="sb-card wm-preview">
+            <h3>プレビュー</h3>
+            <div class="page-box">
+              <div class="wm-page" id="wm-preview-page">
+                <div class="wm-canvas" id="wm-preview-canvas"></div>
+                <svg class="wm-overlay" id="wm-preview-overlay" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+                <p class="wm-preview-empty" id="wm-preview-empty">PDF を開くとここに出ます</p>
+              </div>
+            </div>
+            <p class="cap" id="wm-preview-cap"></p>
+            <div class="nav">
+              <button type="button" class="act" id="wm-preview-prev" aria-label="前のページ" aria-disabled="true"><span data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="2"></span></button>
+              <button type="button" class="act" id="wm-preview-next" aria-label="次のページ" aria-disabled="true"><span data-icon="chevronRight" data-icon-size="14" data-icon-stroke="2"></span></button>
+            </div>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="wm-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="wm-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+      <!-- フラット化（spec-4-5 確定事項7〜11、spec-2-5 確定事項E5。決定80 ㉞。見本 screenshots/strips2-flatten.png）。対象は選んでいる帯。
+           焼き込む書き込みの種類をチェックボックスで、ページを［すべて］［範囲］で選ぶ。状態は tools-flatten.js、選び方の計算は flatten-choice.js、
+           描画は tools-flatten-view.js、確認は confirm-flatten.js。出力先は実行時の保存ダイアログで決める（論点8）。 -->
+      <section class="pane-tool" data-tool="flatten" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">フラット化</h2>
+          <p class="pane-desc">選んでいる帯の PDF の書き込みを、ページの内容として焼き込み、新しいファイルにします（元のファイルは変えません）。焼き込んだ書き込みは、あとから動かせません。</p>
+          <p class="pane-state" id="fl-state" hidden></p>
+          <section class="sb-card">
+            <h3>焼き込む書き込み</h3>
+            <p class="fl-status" id="fl-status" hidden></p>
+            <div class="fl-list" id="fl-list" hidden></div>
+            <p class="fl-keep" id="fl-keep" hidden><b>焼き込まずに残すもの</b><span id="fl-keep-text"></span></p>
+            <p class="fl-warn" id="fl-warn" hidden></p>
+          </section>
+          <section class="sb-card">
+            <h3>ページ</h3>
+            <div class="picks toimage-range-row" id="fl-page-modes">
+              <label class="pick"><input type="radio" name="fl-page-mode" value="all" checked><span class="lbl">すべて</span></label>
+              <label class="pick"><input type="radio" name="fl-page-mode" value="range"><span class="lbl">範囲</span></label>
+              <input type="text" class="split-inp wide" id="fl-range" placeholder="例: 1-3, 5, 8-" aria-label="焼き込むページ範囲" autocomplete="off" spellcheck="false">
+              <span class="err" id="fl-range-err" hidden></span>
+            </div>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="fl-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="fl-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
     </div>
 
     <!-- 注釈のプロパティ（spec-4-1 確定事項4）。注釈モードの間は常に出す。
@@ -836,6 +823,22 @@ body{
       <button type="button" class="dlg-btn" id="confirm-discard-cancel">キャンセル</button>
     </div>
   </dialog>
+
+  <!-- 保存していない帯をツールで使う前の確認（spec-2-5 第 F 章。決定80 ㉜。見本 screenshots/strips2-confirm-run.png）。肯定を左に並べ、
+       最初のフォーカスは［キャンセル］。文は unsaved-changes.js、出し入れは confirm-unsaved-run.js、保存してから実行する流れは run-guard.js。 -->
+  <dialog id="confirm-unsaved-run">
+    <div class="dlg-head"><span>保存していない変更があります</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-unsaved-run-text"></p>
+      <ul class="dlg-list" id="confirm-unsaved-run-list" hidden></ul>
+      <p class="dlg-text dlg-note" id="confirm-unsaved-run-note" hidden></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn primary" id="confirm-unsaved-run-save">上書き保存してから実行</button>
+      <button type="button" class="dlg-btn" id="confirm-unsaved-run-run">保存せずに実行</button>
+      <button type="button" class="dlg-btn" id="confirm-unsaved-run-cancel">キャンセル</button>
+    </div>
+  </dialog>
 </div>
 
 <!-- 印刷用のコンテナ（確定事項28）。画面では隠れており、@media print の
@@ -932,6 +935,21 @@ body{
 <script src="renderer/launch-intake.js"></script>
 <script src="renderer/tool-output.js"></script>
 <script src="renderer/tool-handoff.js"></script>
+<script src="renderer/unsaved-changes.js"></script>
+<script src="renderer/strip-layout.js"></script>
+<script src="renderer/strip-selection.js"></script>
+<script src="renderer/plan-page-image.js"></script>
+<script src="renderer/strip-thumbs.js"></script>
+<script src="renderer/strip-row.js"></script>
+<script src="renderer/strip-view.js"></script>
+<script src="renderer/strip-drop-zone.js"></script>
+<script src="renderer/strip-input.js"></script>
+<script src="renderer/merge-picks.js"></script>
+<script src="renderer/tool-pane.js"></script>
+<script src="renderer/confirm-unsaved-run.js"></script>
+<script src="renderer/run-guard.js"></script>
+<script src="renderer/strip-target.js"></script>
+<script src="renderer/strip-watermark.js"></script>
 <script src="renderer/tools-merge.js"></script>
 <script src="renderer/tools-merge-list.js"></script>
 <script src="renderer/split-plan.js"></script>
@@ -970,6 +988,8 @@ body{
 <script src="renderer/watermark-preview.js"></script>
 <script src="renderer/confirm-flatten.js"></script>
 <script src="renderer/confirm-mosaic.js"></script>
+<script src="renderer/flatten-choice.js"></script>
+<script src="renderer/flatten-census.js"></script>
 <script src="renderer/tools-flatten.js"></script>
 <script src="renderer/tools-flatten-view.js"></script>
 <script src="renderer/save.js"></script>
@@ -981,6 +1001,9 @@ body{
 <script src="renderer/find-bar.js"></script>
 <script src="renderer/print.js"></script>
 <script src="renderer/tool-switch.js"></script>
+<script src="renderer/pointer-mode-rules.js"></script>
+<script src="renderer/pointer-mode-bar.js"></script>
+<script src="renderer/pointer-mode.js"></script>
 <script src="renderer/annotate-tools.js"></script>
 <script src="renderer/annotate-select.js"></script>
 <script src="renderer/annotation-moves.js"></script>
@@ -1024,6 +1047,7 @@ body{
 <script src="renderer/annotate-hand.js"></script>
 <script src="renderer/annotate-press.js"></script>
 <script src="renderer/annotation-menu.js"></script>
+<script src="renderer/annotate-right-hit.js"></script>
 <script src="renderer/annotate-right-button.js"></script>
 <script src="renderer/eraser-draft.js"></script>
 <script src="renderer/annotate-erase.js"></script>
@@ -1034,6 +1058,7 @@ body{
 <script src="renderer/annotate-mosaic.js"></script>
 <script src="renderer/annotate-drag-route.js"></script>
 <script src="renderer/annotate-pointer.js"></script>
+<script src="renderer/view-pan.js"></script>
 <script src="renderer/annotation-note-rows.js"></script>
 <script src="renderer/color-popover.js"></script>
 <script src="renderer/field-escape.js"></script>

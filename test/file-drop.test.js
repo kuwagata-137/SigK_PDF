@@ -200,7 +200,7 @@ test('閲覧モードでは画像を断り、PDF だけを受ける', async (t) 
 //
 // 今までは選んでいるツールにだけ渡し、タブでは開かなかった。起動時にツールモードで PDF を 2 つ落としても
 // サムネイルが出ず、閲覧モードへ移ってもページが出なかった（ユーザーの報告）。どのモードで落としてもタブで開き、
-// モードは変えない。移り期間として、選んでいるツールにも今までどおり渡す（tool-handoff.js）。
+// モードは変えない。結合は開いたタブ（帯）がそのまま行になる（spec-2-5 確定事項E2）。ほかのツールには、移り期間として今までどおり渡す（tool-handoff.js）。
 
 const modeOf = (shell) => shell.document.documentElement.getAttribute('data-mode');
 const tabPaths = (shell) => structuredClone(shell.SigK.tabs.list().map((tab) => tab.path));
@@ -309,5 +309,6 @@ test('ツールモードで落とした PDF のうち読めなかったものの
   assert.deepEqual(tabPaths(shell), [A]);
   assert.equal(shell.SigK.viewBanner.isVisible(), true);
   assert.equal(shell.SigK.viewBanner.text(), '読み込み結果が用意されていません。');
-  assert.deepEqual(mergePaths(shell), [GONE, A], '結合の一覧には入れる（読めない印は一覧が付ける）');
+  // 結合は帯（＝タブ）を対象にする（spec-2-5 確定事項E2）ので、読めずにタブにならなかったファイルは結合の行にも入らない。
+  assert.deepEqual(mergePaths(shell), [A]);
 });

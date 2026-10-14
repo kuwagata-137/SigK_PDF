@@ -22,6 +22,8 @@ const ORDER = {
   'confirm-mosaic': [['confirm-mosaic-ok', '置き換えて保存'], ['confirm-mosaic-cancel', 'キャンセル']],
   'confirm-replace': [['confirm-replace-ok', '上書き'], ['confirm-replace-rename', '別名で保存…'], ['confirm-replace-cancel', '中止']],
   'confirm-discard': [['confirm-discard-save', '保存'], ['confirm-discard-discard', '保存しない'], ['confirm-discard-cancel', 'キャンセル']],
+  // 保存していない帯をツールで使う前の確認（spec-2-5 確定事項F2。決定80 ㉜。［やめる］を［キャンセル］に改めた）。
+  'confirm-unsaved-run': [['confirm-unsaved-run-save', '上書き保存してから実行'], ['confirm-unsaved-run-run', '保存せずに実行'], ['confirm-unsaved-run-cancel', 'キャンセル']],
 };
 
 async function withShell(t) {
@@ -38,7 +40,7 @@ function firstFocusable(dialog) {
   return dialog.querySelector('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
 }
 
-test('8 つの確認の窓は、肯定のボタンを左に、取りやめのボタンを右に並べる', async (t) => {
+test('9 つの確認の窓は、肯定のボタンを左に、取りやめのボタンを右に並べる', async (t) => {
   const shell = await withShell(t);
   for (const [id, buttons] of Object.entries(ORDER))
     assert.deepEqual(footOf(shell, id), buttons, id);
@@ -57,6 +59,7 @@ test('並べ替えても、確認の窓が最初にフォーカスを当てる�
     [() => SigK.confirmMosaic.ask({ mode: 'overwrite', count: 1, pages: '1 ページ目', name: 'a.pdf' }), 'confirm-mosaic-cancel'],
     [() => SigK.confirmReplace.ask({ name: 'b.pdf' }), 'confirm-replace-cancel'],
     [() => SigK.confirmDiscard.ask({ name: 'a.pdf' }), 'confirm-discard-cancel'],
+    [() => SigK.confirmUnsavedRun.ask({ entries: [{ name: 'a.pdf', counts: null }] }), 'confirm-unsaved-run-cancel'],
   ];
   for (const [open, focused] of cases) {
     const answer = open();

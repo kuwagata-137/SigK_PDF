@@ -6,7 +6,7 @@
   //
   // Esc 1 回で取りやめるのは 1 つだけで、手元の操作から先に止める。
   //   押して引いている途中の操作 → 浮いている小窓 → 欄（戻して抜ける）→ 検索バーの中で押したなら検索バー → 描きかけ → 検索バー →
-  //   紙の上の文字の選択 → 書き込み・ページの選択 → 道具
+  //   紙の上の文字の選択 → 書き込み・ページの選択 → 道具（閲覧・ページ編集ではハンドを選択へ。spec-2-5 確定事項K12）
   // 編集モードの分は annotate-cancel.js の段（cancelHeld・closeOverlays・dropDrafts・unselect・dropTool）が持つ。
   // ページ・ツールの一覧の行のドラッグは、page-grid.js・row-drag.js が先に受けて取りやめる（確定事項C1）。
 
@@ -81,6 +81,9 @@
     const annot = inMode(doc, 'annot') && cancel() !== undefined;
     if (annot && (cancel().cancelHeld() || cancel().closeOverlays()))
       return true;
+    // 閲覧・ページ編集のハンドで引いている途中（spec-2-5 確定事項K12）。
+    if (!annot && root.SigK.pointerMode?.cancelPan() === true)
+      return true;
     if (inField(event))
       return root.SigK.fieldEscape?.leave(event.target) === true;
     if (inFindBar(event) && closeFindBar())
@@ -91,8 +94,11 @@
       return true;
     if (annot)
       return cancel().unselect() || cancel().dropTool();
-    // 分割の盤の選択（spec-2-2b 確定事項G2④）。
-    return (inMode(doc, 'pages') && clearPageSelection()) || (inMode(doc, 'tools') && root.SigK.toolsSplitEdit?.escape() === true);
+    // 分割の盤の選択（spec-2-2b 確定事項G2④）。閲覧・ページ編集の最後の段はハンドを選択へ戻す（spec-2-5 確定事項K12）。
+    // 帯のページの選択は、帯の画面が出ているときだけ外す（spec-2-5 確定事項D10）。
+    return (inMode(doc, 'pages') && clearPageSelection()) || root.SigK.pointerMode?.escape() === true
+      || (inMode(doc, 'tools') && root.SigK.toolsSplitEdit?.escape() === true)
+      || (inMode(doc, 'tools') && root.SigK.strips?.isShown() === true && root.SigK.stripSelection?.escape() === true);
   }
 
   // 何かを取りやめたら preventDefault して true（確定事項C2）。

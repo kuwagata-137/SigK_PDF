@@ -116,16 +116,23 @@ test('分割は「分割」の節で説明し、ツールのボタン名は画�
   for (const button of ['［開いているタブから選ぶ］', '［前のファイルとつなげる］', '［1 ページずつに分ける］', '［ページごとに分ける］', '［ページの前で切る］',
     '［分け目をすべて消す］', '［この範囲を 1 つのファイルにする］', '［書き出さない］', '［書き出す］', '［元に戻す］', '［やり直す］', '［実行…］'])
     assert.ok(split.includes(button), button);
-  assert.match(tools, /［開いているタブから選ぶ］（結合では［開いているタブをまとめて追加］）/);
+  // 結合・PDF→画像・透かし・フラット化は帯の画面へ移った（spec-2-5 第 D・E 章）。［開いているタブから選ぶ］は分割だけ。
+  assert.match(tools, /分割は、［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか/);
+  assert.doesNotMatch(tools, /まとめて追加/);
 });
 
 test('ツールモードで開く・保存するときの動きで書いてある（決定80）', () => {
   // 落とした PDF はタブでも開き、画像はほかのツールからでも画像→PDF へ切り替わる（tool-handoff.js）。
-  assert.match(joined('tools'), /落とした PDF は、タブでも開きます/);
+  assert.match(joined('tools'), /選んだ PDF と落とした PDF は、タブでも開きます/);
   assert.match(joined('tools'), /画像を落とすと、画像→PDF に切り替わります/);
-  assert.match(joined('tools'), /できたファイルを新しいタブで開きます（ツールモードのままです）/);
+  assert.match(joined('tools'), /できたファイルを新しいタブ（帯）で開きます（ツールモードのままです）/);
+  // 帯の画面と、保存していない帯の確認の窓（spec-2-5 第 D・F 章。決定80 ㉜）。用語は「帯」「書き込み」「焼き込み」にそろえる。
+  assert.match(joined('tools'), /［上書き保存してから実行］［保存せずに実行］［キャンセル］/);
+  assert.match(joined('tools'), /このときタブの列は出ません/);
+  assert.match(joined('tools'), /ページの内容として焼き込み/);
+  assert.doesNotMatch(joined('tools'), /紙に焼き込/);
   // 保存はツールモードでも効く（save.js。spec-2-1 確定事項4・5 を改めた）。
-  assert.match(joined('basics'), /どのモードでも、保存するのはタブの列で選んでいるタブです/);
+  assert.match(joined('basics'), /どのモードでも、保存するのはタブの列で選んでいるタブ（ツールモードで帯が並んでいるときは、選んでいる帯）です/);
   const keys = sectionOf('keys').blocks[0].table;
   assert.equal(keys.find((row) => row[0] === '[Ctrl]+[S] / [Ctrl]+[Shift]+[S]')[2], '文書を開いているとき');
 });
@@ -139,4 +146,17 @@ test('既定のアプリの入口を、メニューと同じ名前で案内す�
   assert.match(mainJs, /label: '既定のアプリの設定…'/);
   assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」で Windows の設定を開き、SigK PDF を選びます/);
   assert.match(joined('basics'), /「プログラムから開く」から選ぶこともできます/);
+});
+
+// 閲覧の［選択］［ハンド］（spec-2-5 確定事項K。2026-10-14）。閲覧の節に節を立て、マウスの表と Esc の順にも閲覧・ページ編集を書く。
+test('閲覧の節に［選択］［ハンド］の節があり、マウスの表と Esc の順が閲覧・ページ編集のハンドを含む', () => {
+  const block = sectionOf('view').blocks.find((b) => b.h === '選択とハンド');
+  assert.notEqual(block, undefined, '閲覧の節に「選択とハンド」が無い');
+  const text = block.items.join('\n');
+  for (const part of ['［選択］', '［ハンド］', '左ボタンを押したまま右クリック', 'ツールモードでは使えません', '次に起動したときも続きます'])
+    assert.ok(text.includes(part), part);
+  const mouse = sectionOf('keys').blocks.find((b) => b.h === 'マウス').table;
+  assert.deepEqual(mouse.find((row) => row[0] === 'ホイール（ハンドのとき）'), ['ホイール（ハンドのとき）', '拡大・縮小', '閲覧・ページ編集・編集']);
+  assert.equal(mouse.find((row) => row[0] === '左ボタンを押したまま右クリック')[2], '閲覧・ページ編集・編集');
+  assert.match(sectionOf('escape').blocks[0].table.at(-1)[1], /閲覧・ページ編集では、ハンドを選択に戻す/);
 });

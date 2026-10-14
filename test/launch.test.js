@@ -36,7 +36,8 @@ async function withShell(t, { files = {}, ...options } = {}) {
 }
 
 const mode = (shell) => shell.document.documentElement.getAttribute('data-mode');
-const mergeNames = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.name));
+// 結合に入れる帯（チェックを入れた帯）の名前（spec-2-5 確定事項E2・E7）。
+const mergeNames = (shell) => plain(shell.SigK.toolsMerge.inputs().map((row) => row.name));
 const tabPaths = (shell) => plain(shell.SigK.tabs.list().map((tab) => tab.path));
 const request = (intent, paths, id = 1, first = true) => ({ intent, paths, batch: { id, first } });
 
@@ -87,7 +88,8 @@ test('結合・画像→PDF・分割の要求は、それぞれの画面へ渡�
   assert.equal(mode(shell), 'tools');
 });
 
-test('【要】結合の束を 3 本受けても、名前の順の注記はタブを開くときに消えない', async (t) => {
+// 結合する PDF は帯（＝タブ）なので、束の帯をファイル名の順に並べ替え、注記は右の欄に出す（spec-2-5 確定事項E7。決定80 ㉛）。
+test('【要】結合の束を 3 本受けると、束の帯をファイル名の順に並べ、注記を右の欄に出す', async (t) => {
   const C = 'C:\\work\\c.pdf';
   const shell = await withShell(t, { files: { [C]: makeSource({ path: C, name: 'c.pdf' }) } });
   const { SigK } = shell;
@@ -97,8 +99,10 @@ test('【要】結合の束を 3 本受けても、名前の順の注記はタ�
   await SigK.launch.handle(request('merge', [B], 7, false));
 
   assert.deepEqual(mergeNames(shell), ['a.pdf', 'b.pdf', 'c.pdf']);
-  assert.deepEqual(tabPaths(shell), [C, A, B], 'タブは届いた順');
-  assert.equal(SigK.viewBanner.text(), 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。');
+  assert.deepEqual(tabPaths(shell), [A, B, C], '帯（タブ）も名前の順');
+  const note = shell.document.getElementById('merge-note');
+  assert.equal(note.hidden, false);
+  assert.equal(note.textContent, 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。');
 });
 
 test('知らない操作・パスの無い要求は何もしない', async (t) => {
@@ -164,7 +168,8 @@ test('閲覧モードで open の要求が来ても、ツールには渡さな�
   await shell.SigK.launch.handle(request('open', [A], 1));
 
   assert.deepEqual(tabPaths(shell), [A]);
-  assert.deepEqual(mergeNames(shell), []);
+  // 結合は開いたタブ（帯）がそのまま行になるので、渡さないことは対象を持つツール（分割）で見る。
+  assert.equal(shell.SigK.toolsSplit.source(), null);
 });
 
 test('タブが上限なら開かず、帯を束につき 1 回出す（spec-5-1 確定事項13）', async (t) => {
@@ -217,7 +222,7 @@ test('【要】結合の保存ダイアログの間に届いた束は預かり�
   await shell.flush();
   const held = SigK.launch.handle(request('merge', [B], 2));
   await shell.flush();
-  assert.deepEqual(mergeNames(shell), ['a.pdf'], '保存ダイアログの間は一覧に入れない');
+  assert.deepEqual(mergeNames(shell), ['a.pdf'], '保存ダイアログの間はタブで開かず、チェックも替えない');
   assert.equal(SigK.launch.pending(), 1);
 
   answer({ path: OUT });
@@ -226,7 +231,7 @@ test('【要】結合の保存ダイアログの間に届いた束は預かり�
 
   await held;
   assert.equal(SigK.launch.pending(), 0);
-  assert.deepEqual(mergeNames(shell), ['b.pdf'], '実行し終えた一覧は、預かっていた束で置き換える');
+  assert.deepEqual(mergeNames(shell), ['b.pdf'], '預かっていた束の帯だけにチェックを入れる（できた PDF の帯も外す）');
   assert.equal(mode(shell), 'tools');
 });
 

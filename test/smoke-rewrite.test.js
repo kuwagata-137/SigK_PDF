@@ -26,6 +26,8 @@ test('スクリプトはどの指定でも式として読める', () => {
     parses(watermarkScript({ source: 'C:\\a.pdf', target: 'C:\\b.pdf', ops: 'text:社外秘,pos:top-right,pages:1-2', stay }));
   for (const stay of [null, 'screen', 'confirm'])
     parses(flattenScript({ source: 'C:\\a.pdf', target: 'C:\\b.pdf', stay }));
+  // 焼き込む種類とページの選び方（spec-2-5 確定事項E5）。
+  parses(flattenScript({ source: 'C:\\a.pdf', target: 'C:\\b.pdf', stay: null, kinds: ['note', 'other'], range: '1' }));
 });
 
 test('inspectWatermarked は、ページごとの透かしの名前・透かしの XObject の数・フォントの数を返す', async (t) => {

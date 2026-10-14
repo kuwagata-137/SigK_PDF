@@ -80,6 +80,13 @@ const ACTIONS = {
   // 分割の盤（spec-2-2b 確定事項K3）。分割の画面に切り替えて、映しているタブの PDF（SIGK_SMOKE_PDF はタブを作らないので、表示している文書）を対象にする。
   split: () => `(SigK.shell.setMode(document, 'tools'), SigK.tools.select('split'), SigK.toolsSplit.setSource(SigK.tabs.list().find((tab) => tab.active)?.path ?? SigK.viewer.getState().file.path))`,
   'split-cut': (arg) => `SigK.toolsSplitEdit.cut(${Number(arg)})`,
+  // 帯の画面（spec-2-5 第 D・E 章）。ツールモードでツールを選ぶ・帯の縦のスクロール（割合）・n 番目の帯の横のスクロール（n:割合）。
+  'pick-tool': (arg) => `(SigK.shell.setMode(document, 'tools'), SigK.tools.select(${JSON.stringify(arg)}))`,
+  'scroll-strips': (arg) => `(() => { const strips = document.getElementById('strips'); strips.scrollTop = Math.round((strips.scrollHeight - strips.clientHeight) * ${Number(arg)}); return strips.scrollTop; })()`,
+  'scroll-strip': (arg) => {
+    const [n, ratio] = arg.split(':').map(Number);
+    return `(() => { const pages = document.querySelectorAll('#strips .strip .strip-pages')[${n}]; if (!pages) return null; pages.scrollLeft = Math.round((pages.scrollWidth - pages.clientWidth) * ${ratio}); return pages.scrollLeft; })()`;
+  },
 };
 
 function actionScript(name, arg) {
@@ -124,6 +131,50 @@ const stateScript = `(() => {
     print: { busy: SigK.print.isBusy(), result: window.__smokeKeysPrint ?? null },
     history: SigK.pageEdit.getHistoryState().at,
     dirty: SigK.viewer.isDirty(),
+    // 開いたファイルの見せ方の作り直し（spec-2-5）の PR-1 で足した欄。
+    tabs: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
+    thumbsDrawn: document.querySelectorAll('#thumbs .thumb canvas').length,
+    viewPointer: SigK.pointerMode?.get() ?? null,
+    panning: document.documentElement.hasAttribute('data-panning'),
+    scrollLeft: Math.round(view.scrollLeft),
+    lastAnnotColor: SigK.viewer.getAnnotations().added.at(-1)?.color ?? null,
+    dialogButtons: [...document.querySelectorAll('dialog[open] button')].map((button) => button.id || button.textContent.trim()),
+    layout: (() => {
+      const box = (id) => document.getElementById(id)?.getBoundingClientRect() ?? null;
+      const [bar, tabbar, wrap, help] = ['toolbar', 'tabbar', 'view-wrap', 'btn-help'].map(box);
+      return {
+        toolbarHeight: Math.round(bar.height), toolbarOverflow: document.getElementById('toolbar').scrollWidth > document.getElementById('toolbar').clientWidth,
+        helpRight: Math.round(help.right), innerWidth: window.innerWidth,
+        tabbar: { left: Math.round(tabbar.left), top: Math.round(tabbar.top), bottom: Math.round(tabbar.bottom) },
+        viewWrap: { left: Math.round(wrap.left), top: Math.round(wrap.top) },
+      };
+    })(),
+    // 帯の画面（spec-2-5 第 D〜F 章）。帯の名前・選んでいる帯・保存していない印・選んだ紙・描いた紙・透かしの重ね・タブの列・右の欄の幅・結合の行。
+    strips: (() => {
+      const nodes = [...document.querySelectorAll('#strips .strip')];
+      const thumbs = SigK.stripThumbs?.getState() ?? null;
+      const pane = document.getElementById('tool-pane');
+      return {
+        shown: SigK.strips?.isShown() ?? false,
+        names: nodes.map((node) => node.querySelector('.fname').textContent),
+        selected: nodes.findIndex((node) => node.classList.contains('sel')),
+        unsaved: nodes.map((node) => !node.querySelector('.unsaved').hidden),
+        picked: nodes.map((node) => [...node.querySelectorAll('.strip-page')].flatMap((cell, index) => (cell.classList.contains('picked') ? [index] : []))),
+        canvases: document.querySelectorAll('#strips .strip-page canvas').length,
+        drawn: thumbs?.drawn ?? null,
+        drawing: thumbs?.pending ?? null,
+        queued: thumbs?.queued ?? null,
+        draws: thumbs?.draws ?? null,
+        overlays: document.querySelectorAll('#strips .strip-wm').length,
+        bigDrop: document.getElementById('strip-drop')?.classList.contains('big') ?? null,
+        tabbarHidden: getComputedStyle(document.getElementById('tabbar')).display === 'none',
+        paneWidth: pane === null || pane.hidden ? 0 : Math.round(pane.getBoundingClientRect().width),
+        tool: SigK.tools.selected(),
+        merge: SigK.toolsMerge.rows().map((row) => ({ name: row.name, checked: row.checked, blocked: row.blocked })),
+        summary: { merge: document.getElementById('merge-summary')?.textContent ?? null, toImage: document.getElementById('toimage-summary')?.textContent ?? null,
+          watermark: document.getElementById('wm-summary')?.textContent ?? null, flatten: document.getElementById('fl-summary')?.textContent ?? null },
+      };
+    })(),
     split: SigK.toolsSplitEdit.board() === null ? null : {
       selection: SigK.splitSelection.range(SigK.toolsSplitEdit.selection()),
       current: SigK.splitBoardInput.current(),

@@ -1,0 +1,93 @@
+/* ツールモードの右の欄（#tool-pane。spec-2-5 第 E 章。見本 screenshots/strips2-*.png）。編集モードの右パネル（#props）と同じ位置。
+   幅は 280px、窓が 1100px より狭いときは 244px（確定事項E1）。カードは分割の画面の .sb-card（split-board.css）を使う。 */
+
+#tool-pane{width:280px; flex:0 0 280px; border-left:1px solid var(--border); background:var(--surface-2); display:flex; flex-direction:column; min-height:0}
+#tool-pane[hidden]{display:none}
+@media (max-width:1100px){#tool-pane{width:244px; flex-basis:244px}}
+.pane-tool{flex:1; min-height:0; display:flex; flex-direction:column}
+.pane-tool[hidden]{display:none}
+.pane-body{flex:1; min-height:0; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px}
+.pane-title{font-size:15px; font-weight:700; margin:0}
+.pane-desc{margin:0; color:var(--muted); font-size:12px; line-height:1.7}
+.pane-desc[hidden], .pane-note[hidden]{display:none}
+.pane-note{margin:8px 0 0; padding:7px 9px; border-radius:6px; background:rgba(240,180,41,.14); color:var(--text); font-size:12px; line-height:1.6}
+.pane-foot{padding:10px 12px; border-top:1px solid var(--border); display:flex; align-items:center; gap:8px; background:var(--surface)}
+.pane-foot .sum{font-size:12px; color:var(--muted); min-width:0}
+.pane-foot .spacer{flex:1}
+
+/* 対象が無い・使えないときの状態の文（確定事項E1。「PDF を開くと、選んでいる帯が対象になります。」など）。 */
+.pane-state{margin:0; padding:8px 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface); font-size:12px; line-height:1.6}
+.pane-state[hidden]{display:none}
+
+/* 今までの画面の欄（.convert-opts・.split-out・.picks）を右の欄の幅に収める。見出しの列を細くし、選択肢は縦に並べる。 */
+#tool-pane .convert-opts, #tool-pane .split-out{grid-template-columns:52px minmax(0,1fr); column-gap:8px; row-gap:10px; font-size:12px}
+#tool-pane .convert-opts .k, #tool-pane .split-out .k{align-self:start; padding-top:3px}
+#tool-pane .picks{flex-direction:column; align-items:flex-start; gap:5px}
+#tool-pane .pick{align-items:baseline; flex-wrap:wrap; column-gap:6px; row-gap:1px}
+#tool-pane .pick .sub{flex-basis:100%; padding-left:23px; font-size:11px}
+#tool-pane .toimage-range-row{flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px 0}
+#tool-pane .toimage-range-row .split-inp{margin-left:0; width:100%}
+#tool-pane .toimage-range-row .err{flex-basis:100%}
+
+/* 選択肢の少ないラジオボタンは、見本どおり区切りボタン（横並びのボタン）にする（.picks.seg と、ページの［すべて］［範囲］）。
+   ラジオボタンそのものは見えなくして残す（キーボードと読み上げはラジオボタンのまま）。説明の小さな文字は区切りボタンでは出さない。 */
+#tool-pane .picks.seg{flex-direction:row; flex-wrap:nowrap; gap:0; width:max-content; max-width:100%}
+#tool-pane .picks.seg .pick, #tool-pane .toimage-range-row .pick{position:relative; height:24px; padding:0 7px; display:flex; align-items:center; gap:0;
+  border:1px solid var(--border-strong); border-left-width:0; background:var(--surface); font-size:12px; cursor:pointer}
+#tool-pane .picks.seg .pick:first-child, #tool-pane .toimage-range-row .pick:first-child{border-left-width:1px; border-radius:7px 0 0 7px}
+#tool-pane .picks.seg .pick:last-of-type, #tool-pane .toimage-range-row .pick:nth-child(2){border-radius:0 7px 7px 0}
+#tool-pane .picks.seg .pick input, #tool-pane .toimage-range-row .pick input{position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer}
+#tool-pane .picks.seg .pick:has(input:checked), #tool-pane .toimage-range-row .pick:has(input:checked){background:var(--primary); border-color:var(--primary); color:#fff}
+#tool-pane .picks.seg .pick:has(input:focus-visible), #tool-pane .toimage-range-row .pick:has(input:focus-visible){outline:2px solid var(--primary); outline-offset:1px}
+#tool-pane .picks.seg .pick:has(input:disabled), #tool-pane .toimage-range-row .pick:has(input:disabled){opacity:.5; cursor:default}
+#tool-pane .picks.seg .sub{display:none}
+#tool-pane .split-out .folder{flex-wrap:wrap}
+#tool-pane .split-out .folder .path{max-width:100%}
+#tool-pane .split-out .example{min-width:0; overflow-wrap:anywhere}
+
+/* ツールモードで帯の画面を使うツールを選んでいる間は、タブの列を出さない（確定事項B3。帯がタブの代わり）。 */
+html[data-tool-screen="strips"] #tabbar{display:none}
+
+/* 結合の行（確定事項E2）: チェックボックス・帯の番号・名前・ページ数、2 段目に範囲の欄。 */
+.pane-rows{display:flex; flex-direction:column}
+.pane-row{display:grid; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid var(--surface-2); font-size:12px}
+.pane-row:last-child{border-bottom:none}
+.pane-row .fname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pane-row .p{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
+.merge-pick{grid-template-columns:18px 20px minmax(0,1fr) 34px}
+.merge-pick .cbox{width:15px; height:15px; margin:0; accent-color:var(--primary); cursor:pointer}
+.merge-pick .cbox:disabled{cursor:default}
+.merge-pick .rng{grid-column:3 / 5; height:26px; box-sizing:border-box; border:1px solid var(--border-strong); border-radius:6px; padding:0 7px; font:inherit; font-size:12px; color:var(--text); background:var(--surface)}
+.merge-pick .rng::placeholder{color:var(--muted)}
+.merge-pick .rng:disabled{background:var(--surface-2); border-color:var(--border); color:#a7afba}
+.merge-pick .rng.invalid{border-color:var(--danger); background:rgba(214,69,69,.06)}
+.merge-pick .rng.note{display:flex; align-items:center; border:none; background:none; padding:0; color:var(--danger)}
+.merge-pick .rng[hidden]{display:none}
+.merge-pick .err{grid-column:3 / 5; margin:0; color:var(--danger); font-size:11.5px}
+.merge-pick .err[hidden]{display:none}
+.merge-pick.off .fname, .merge-pick.off .p{color:var(--muted)}
+.merge-pick.off .strip-no{background:var(--surface-2); color:var(--muted)}
+.merge-pick.blocked .fname{color:var(--danger)}
+
+/* 保存していない帯をツールで使う前の確認（確定事項F1〜F4。見本 screenshots/strips2-confirm-run.png）。ほかの確認の窓と同じ枠。 */
+#confirm-unsaved-run{padding:0; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); color:var(--text); box-shadow:var(--shadow); width:min(470px, 88vw)}
+#confirm-unsaved-run::backdrop{background:rgba(16,24,40,.34)}
+#confirm-unsaved-run .dlg-list{margin:6px 0 0; padding-left:1.4em; line-height:1.7}
+#confirm-unsaved-run .dlg-list[hidden], #confirm-unsaved-run .dlg-note[hidden]{display:none}
+#confirm-unsaved-run .dlg-note{margin-top:8px; color:var(--muted); font-size:12px}
+#confirm-unsaved-run .dlg-btn[aria-disabled="true"]{opacity:.45; cursor:default}
+
+/* フラット化の種類の行（確定事項E5-1。見本 screenshots/strips2-flatten.png）: チェックボックス・名前・件数。 */
+#tool-pane .fl-list{max-width:none; font-size:12px; row-gap:7px}
+.fl-row{cursor:pointer}
+.fl-row .cbox{width:15px; height:15px; margin:0; accent-color:var(--primary); cursor:pointer}
+.fl-row .cbox:disabled{cursor:default}
+#tool-pane .fl-keep, #tool-pane .fl-warn{max-width:none; margin-top:10px}
+
+/* 透かしのカード（確定事項E3。見本 screenshots/strips2-watermark.png）。今までの欄（.wm-opts・.wm-preview）を右の欄の幅に収める。 */
+#tool-pane .wm-opts{grid-template-columns:52px minmax(0,1fr); column-gap:8px; row-gap:10px; font-size:12px}
+#tool-pane .wm-opts .k{align-self:start; padding-top:3px}
+#tool-pane .wm-opts .split-inp.wide{width:100%}
+#tool-pane .wm-opts .picks:not(.seg){flex-direction:row; flex-wrap:wrap; gap:6px 12px}
+#tool-pane .wm-preview{position:static}
+#tool-pane .wm-preview .page-box{min-height:0; padding:12px 0}

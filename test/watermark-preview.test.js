@@ -50,7 +50,7 @@ test('対象が無いうちは案内だけを出し、ページ送りは押せ�
 
 test('対象を決めると 1 ページ目に文字の透かしを、保存と同じ幾何で重ねる', async (t) => {
   const shell = await createPreviewShell(t);
-  await shell.SigK.toolsWatermark.setSource(A);
+  await shell.SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E3）
   await settle(shell);
   assert.equal(byId(shell, 'wm-preview-empty').hidden, true);
   assert.equal(byId(shell, 'wm-preview-cap').textContent, '1 ページ目（全 3 ページ）');
@@ -70,7 +70,7 @@ test('対象を決めると 1 ページ目に文字の透かしを、保存と�
 
 test('設定を変えると透かしだけを組み直し、ページの絵は描き直さない', async (t) => {
   const shell = await createPreviewShell(t);
-  await shell.SigK.toolsWatermark.setSource(A);
+  await shell.SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E3）
   await settle(shell);
   const drawn = shell.pdfjs.viewportCalls.length;
   shell.SigK.toolsWatermark.setAngle(0);
@@ -85,7 +85,7 @@ test('設定を変えると透かしだけを組み直し、ページの絵は�
 
 test('ページを送れて、透かしを入れないページは透かし無しで見せる', async (t) => {
   const shell = await createPreviewShell(t);
-  await shell.SigK.toolsWatermark.setSource(A);
+  await shell.SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E3）
   await settle(shell);
   shell.SigK.toolsWatermark.setPageMode('range');
   shell.SigK.toolsWatermark.setRange('1');
@@ -105,7 +105,7 @@ test('範囲を先に決めていれば、透かしを入れる最初のペー�
   const shell = await createPreviewShell(t);
   shell.SigK.toolsWatermark.setPageMode('range');
   shell.SigK.toolsWatermark.setRange('3');
-  await shell.SigK.toolsWatermark.setSource(A);
+  await shell.SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E3）
   await settle(shell);
   assert.equal(shell.SigK.watermarkPreview.pageIndex(), 2);
   assert.equal(byId(shell, 'wm-preview-cap').textContent, '3 ページ目（全 3 ページ）');
@@ -113,7 +113,7 @@ test('範囲を先に決めていれば、透かしを入れる最初のペー�
 
 test('/Rotate 90 のページでは表示の縦横で置く（保存と同じ）', async (t) => {
   const shell = await createPreviewShell(t, { rotations: [90, 0, 0] });
-  await shell.SigK.toolsWatermark.setSource(A);
+  await shell.SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E3）
   await settle(shell);
   const overlay = byId(shell, 'wm-preview-overlay');
   assert.equal(overlay.getAttribute('viewBox'), '0 0 841.89 595.28');
@@ -122,11 +122,28 @@ test('/Rotate 90 のページでは表示の縦横で置く（保存と同じ）
 
 test('画像の透かしは、幅 100 の箱に縦横比で置いた画像を重ねる', async (t) => {
   const shell = await createPreviewShell(t);
-  await shell.SigK.toolsWatermark.setSource(A);
+  await shell.SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E3）
   await shell.SigK.toolsWatermark.setImage(LOGO);
   await settle(shell);
   const group = byId(shell, 'wm-preview-overlay').querySelector('g');
   assert.equal(group.getAttribute('transform'), expectedTransform(shell, { width: 100, height: 50 }));
   const image = group.querySelector('image');
   assert.deepEqual(['x', 'y', 'width', 'height', 'opacity'].map((key) => image.getAttribute(key)), ['-50', '-25', '100', '50', '0.3']);
+});
+
+test('対象を続けて替えても、前に読んだ文書は手放し、最後の対象だけを開いておく（点検の直し）', async (t) => {
+  const B = 'C:\\work\\b.pdf';
+  const pdfjs = createPdfjsStub({ sizes: [A4, A4, A4] });
+  const shell = await createShell({ files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) }, pdfjs });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  const before = pdfjs.documents.length;
+  const src = (path) => ({ path, pending: false, blocked: null });
+  const preview = shell.SigK.watermarkPreview;
+
+  await Promise.all([preview.setSource(src(A), { reload: true }), preview.setSource(src(B), { reload: true })]);
+  await settle(shell);
+
+  const opened = pdfjs.documents.slice(before);
+  assert.equal(opened.filter((document) => !document.destroyed).length, 1, '手放さずに残る文書は最後の対象の 1 つだけ');
 });

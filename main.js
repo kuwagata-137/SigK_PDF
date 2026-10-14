@@ -32,6 +32,7 @@ const smokeSplit = require('./smoke-split.js');
 const smokeLaunch = require('./smoke-launch.js');
 const smokeAnnotate = require('./smoke-annotate.js');
 const smokeKeys = require('./smoke-keys.js');
+const smokeDrop = require('./smoke-drop.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -395,6 +396,7 @@ function registerIpc() {
   ipcMain.handle('pdf:pickInsertSource', (_event, options = {}) => fileIo.pickInsertSource(mainWindow, options));
   // 結合の入力の複数選択と、出力先の同名判定（spec-2-1 確定事項9・28）。
   ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
+  ipcMain.handle('pdf:pickOpenSources', (_event, options = {}) => fileIo.pickOpenSources(mainWindow, options));
   ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
   // 分割の入力の1本選択と、出力フォルダーの選択（spec-2-2 確定事項2・14）。
   ipcMain.handle('pdf:pickSplitSource', (_event, options = {}) => fileIo.pickSplitSource(mainWindow, options));
@@ -1226,7 +1228,7 @@ function installSmokeCheck(win, mode) {
   //
   // 保存ダイアログは OS のもので自動では押せない（saveScript と同じ事情）ので、
   // 画面の「実行」は押さず、同じ spec を SigK.save.runTask へ直接渡す。
-  // 画面側は addFromLaunch で一覧を組み、ページ数が読めて実行できる状態に
+  // 画面側は addFromLaunch で入力をタブ（帯）で開いてチェックを入れ（spec-2-5 確定事項E7）、ページ数が読めて実行できる状態に
   // なるところまでを見る。あわせて同名確認の3択（confirm-replace）も、
   // 出力先を先に作っておいて resolveTarget を通し、「上書き」を押して確かめる
   // （完了判定9。画面から到達する経路は塊②）。
@@ -1236,7 +1238,13 @@ function installSmokeCheck(win, mode) {
     const inputs = ${JSON.stringify(inputs)};
     const target = ${JSON.stringify(target)};
 
-    await SigK.toolsMerge.addFromLaunch(inputs);
+    await SigK.toolsMerge.addFromLaunch(inputs, {
+      batch: null,
+      open: async (paths) => {
+        for (const filePath of paths)
+          await SigK.toolHandoff.openOne(filePath);
+      },
+    });
     await wait(500);
     const rows = SigK.toolsMerge.rows().map((row) => ({ name: row.name, pageCount: row.pageCount, blocked: row.blocked }));
     const mode = document.documentElement.getAttribute('data-mode');
@@ -1255,7 +1263,7 @@ function installSmokeCheck(win, mode) {
     const pending = SigK.save.runTask({
       kind: 'merge',
       label: '結合',
-      inputs: SigK.toolsMerge.rows().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
+      inputs: SigK.toolsMerge.inputs().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
       target,
     });
     // SIGK_SMOKE_MERGE_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
@@ -1276,6 +1284,8 @@ function installSmokeCheck(win, mode) {
       const tabsBefore = SigK.tabs.count();
       await SigK.tabs.openPath(target);
       await wait(700);
+      // 閲覧へ移してページ数を読むのは起動確認だけの手順。アプリの画面は、2026-10-14 から書いた PDF をツールモードのまま
+      // タブで開く（tool-output.js。spec-2-5 確定事項A4）。
       SigK.shell.setMode(document, 'view');
       opened = { tabsBefore, tabsAfter: SigK.tabs.count(), pageCount: SigK.viewer.getState().pageCount };
     }
@@ -1441,7 +1451,8 @@ function installSmokeCheck(win, mode) {
     const ms = Date.now() - started;
     await wait(300);
 
-    // 「まとめる」はここでタブに開く（画面の finish と同じ動き）。
+    // 「まとめる」はここでタブに開き、閲覧へ移してページ数を読む。閲覧へ移るのは起動確認だけの手順で、アプリの画面の finish は
+    // 2026-10-14 からツールモードのまま tool-output.js で開く（spec-2-5 確定事項A4）。
     // SIGK_SMOKE_CONVERT_STAY=1 なら変換画面に留まる（スクリーンショットを撮るため）。
     let opened = null;
     if (!each && result && result.ok === true && !${process.env.SIGK_SMOKE_CONVERT_STAY === '1'}) {
@@ -1512,7 +1523,8 @@ function installSmokeCheck(win, mode) {
     const SigK = window.SigK;
     SigK.shell.setMode(document, 'tools');
     SigK.tools.select('toImage');
-    await SigK.toolsToImage.addPaths([${JSON.stringify(source)}]);
+    // 対象は選んでいる帯（spec-2-5 確定事項E4）。タブで開くと、それが選んでいる帯になる。
+    await SigK.toolHandoff.openOne(${JSON.stringify(source)});
     await wait(500);
     const pages = ${JSON.stringify(settings.pages)};
     SigK.toolsToImage.setPageMode(pages === '' ? 'all' : 'range');
@@ -1625,36 +1637,6 @@ function installSmokeCheck(win, mode) {
       historyDepth: window.SigK.pageEdit.getHistoryState().depth,
       dragging: window.SigK.pageGrid.isDragging(),
       lineLeft: document.querySelector('.drop-line') === null,
-    };
-  })()`;
-
-  // SIGK_SMOKE_DROP=<path> を付けると、本物のドラッグ＆ドロップを再現する。
-  // Chromium の Input.dispatchDragEvent に実ファイルのパスを渡すと、ページには
-  // OS から落としたときと同じ File が届く。webUtils.getPathForFile がそこから
-  // パスを取り出せるか（spec-1-2 確定事項6）を、人の手を借りずに確かめられる。
-  async function dispatchDrop(filePath) {
-    const { debugger: dbg } = win.webContents;
-    dbg.attach('1.3');
-    try {
-      const data = { items: [], files: [filePath], dragOperationsMask: 1 };
-      for (const type of ['dragEnter', 'dragOver', 'drop'])
-        await dbg.sendCommand('Input.dispatchDragEvent', { type, x: 640, y: 400, data });
-    } finally {
-      dbg.detach();
-    }
-  }
-
-  const dropResultScript = `(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const state = window.SigK.viewer.getState();
-    return {
-      tabCount: window.SigK.tabs.count(),
-      names: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
-      openedName: state.file && state.file.name,
-      openedPath: state.file && state.file.path,
-      pageCount: state.pageCount,
-      message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
-      overlayHidden: document.getElementById('view-drop').hidden,
     };
   })()`;
 
@@ -1885,8 +1867,11 @@ function installSmokeCheck(win, mode) {
             ? path.resolve(process.env.SIGK_SMOKE_FLATTEN_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-flatten.pdf');
           fs.rmSync(target, { force: true });
+          // SIGK_SMOKE_FLATTEN_KINDS（焼き込む種類を , で区切る）・SIGK_SMOKE_FLATTEN_PAGES（範囲）で、右の欄の選び方を通す（spec-2-5 確定事項E5）。
           flatten = await win.webContents.executeJavaScript(smokeRewrite.flattenScript({
             source, target, stay: process.env.SIGK_SMOKE_FLATTEN_STAY ?? null,
+            kinds: process.env.SIGK_SMOKE_FLATTEN_KINDS ? process.env.SIGK_SMOKE_FLATTEN_KINDS.split(',') : null,
+            range: process.env.SIGK_SMOKE_FLATTEN_PAGES ?? null,
           }));
           flatten.target = target;
           if (flatten.ok === true)
@@ -1898,9 +1883,10 @@ function installSmokeCheck(win, mode) {
           const boxes = await dispatchPageDrag(from, to);
           drag = { boxes, ...(await win.webContents.executeJavaScript(dragResultScript)) };
         }
+        // 本物のドラッグ＆ドロップ（; で区切れば 1 回でまとめて落とす。smoke-drop.js）。
         if (process.env.SIGK_SMOKE_DROP) {
-          await dispatchDrop(path.resolve(process.env.SIGK_SMOKE_DROP));
-          drop = await win.webContents.executeJavaScript(dropResultScript);
+          await smokeDrop.dispatchDrop(win, smokeDrop.dropPaths(process.env.SIGK_SMOKE_DROP));
+          drop = await win.webContents.executeJavaScript(smokeDrop.resultScript());
         }
         // 本物のキーとマウスで Esc の順と倍率を確かめる（spec-4b-7a 確定事項J。操作列は smoke-keys.js の頭に）。
         if (process.env.SIGK_SMOKE_KEYS) {

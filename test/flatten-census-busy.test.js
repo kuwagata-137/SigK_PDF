@@ -48,7 +48,8 @@ async function createToolsShell(t, options) {
 // 結合を走らせ、ワーカーの返事を待たせておく。走っている Promise は包んで返す（そのまま返すと終わるまで待ってしまう）。
 async function startMerge(shell) {
   const { SigK } = shell;
-  await SigK.toolsMerge.addPaths([B]);
+  // 結合する PDF は帯（＝タブ）。開くと結合の行に既定でチェックが入る（spec-2-5 確定事項E2）。
+  await SigK.tabs.openPath(B);
   SigK.tools.select('merge');
   const running = SigK.toolsMerge.run();
   await settle(shell);
@@ -63,7 +64,7 @@ test('結合が走っている間に対象を決めても、書き込みは結�
   const { running } = await startMerge(shell);
 
   SigK.tools.select('flatten');
-  await SigK.toolsFlatten.setSource(A);
+  await SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E5）
   await settle(shell);
   assert.deepEqual(kinds(shell), ['merge'], '結合が走っている間は、数える処理をワーカーへ渡さない');
   assert.equal(SigK.save.isBusy(), true, '結合がまだ走っている');
@@ -92,7 +93,7 @@ test('結合の間に対象を決め、フラット化を見ないうちに結�
   const { running } = await startMerge(shell);
 
   SigK.tools.select('flatten');
-  await SigK.toolsFlatten.setSource(A);
+  await SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E5）
   await settle(shell);
   SigK.tools.select('merge');
   await settle(shell);
@@ -116,11 +117,11 @@ test('数えている間に対象を選び直すと、前の数えが終わっ�
   const shell = await createToolsShell(t, { taskResults: [first.gate, census(5)] });
   const { SigK } = shell;
   SigK.tools.select('flatten');
-  await SigK.toolsFlatten.setSource(A);
+  await SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E5）
   await settle(shell);
   assert.equal(SigK.save.isBusy(), true, 'a.pdf を数えている');
 
-  await SigK.toolsFlatten.setSource(B);
+  await SigK.tabs.openPath(B);
   await settle(shell);
   assert.equal(shell.taskCalls.length, 1, 'a.pdf を数えている間は、b.pdf を数える処理をワーカーへ渡さない');
   assert.equal(SigK.save.isBusy(), true, 'a.pdf をまだ数えている');
@@ -133,4 +134,31 @@ test('数えている間に対象を選び直すと、前の数えが終わっ�
   assert.equal(SigK.save.isBusy(), false);
   assert.equal(SigK.toolsFlatten.census().path, B);
   assert.equal(byId(shell, 'fl-summary').textContent, '書き込み 5 件を焼き込みます', 'a.pdf の数えた結果は捨てる');
+});
+
+// 帯のフロッピーは、その帯を選んでから上書き保存する。選んだ瞬間に数えが動き出すので、保存が入口で枠を押さえないと、
+// 数えと保存が同時に走り、走っている処理の記録を上書きする（点検の直し）。
+test('帯のフロッピーで上書き保存するときは、書き込みは保存（開き直しまで）が終わってから数える', async (t) => {
+  const save = gated();
+  const shell = await createToolsShell(t, { taskResults: [census(2), save.gate, census(3)] });
+  const { SigK, document } = shell;
+  await SigK.tabs.openPath(B);
+  SigK.viewer.applyPlan(SigK.pagePlan.movePages(SigK.viewer.getPlan(), [0], 2).plan);   // b.pdf を未保存にする
+  await SigK.tabs.openPath(A);
+  SigK.tools.select('flatten');
+  await settle(shell);
+  assert.deepEqual(kinds(shell), ['flatten-preview'], 'a.pdf を数えた');
+
+  const floppy = document.querySelectorAll('#strips .strip')[0].querySelector('[data-act="save"]');
+  floppy.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  await settle(shell);
+  assert.deepEqual(kinds(shell), ['flatten-preview', 'save'], '保存している間は b.pdf を数えない');
+
+  save.release({ ok: true, path: B, signature: { size: 2048, mtimeMs: 2000 } });
+  for (let index = 0; index < 4; index += 1)
+    await settle(shell);
+  assert.deepEqual(kinds(shell), ['flatten-preview', 'save', 'flatten-preview']);
+  assert.equal(shell.taskCalls[2].spec.source, B, '保存し終えてから、開き直した b.pdf を数える');
+  assert.equal(SigK.save.isBusy(), false);
+  assert.equal(SigK.toolsFlatten.census().result.baked, 3);
 });

@@ -2,7 +2,8 @@
   'use strict';
 
   // 1 つのファイルを対象にするツールの「対象」の欄（spec-4-5 確定事項34。論点11）。
-  // 分割・PDF→画像・透かし・フラット化が同じ部品を使う。分割（spec-2-2 確定事項1〜6）と
+  // 今は分割だけが使う（PDF→画像・透かし・フラット化は 2026-10-14 に帯の画面へ移り、選んでいる帯が対象になった。spec-2-5 確定事項E3〜E6）。
+  // 分割も PR-3 で帯から広げる盤になるので、そのときにこの部品は無くなる。分割（spec-2-2 確定事項1〜6）と
   // PDF→画像（spec-3-3 確定事項1〜5）に同じ写しがあったものを、振る舞いを変えずに寄せた。
   // タブから選ぶ口は、［開いているファイル］（選んでいるタブを入れるだけ）を［開いているタブから選ぶ ▾］の一覧
   // （tab-menu.js）に作り直した（spec-2-2b 確定事項F1〜F7。決定76 ⑦）。
@@ -90,9 +91,13 @@
       return ok;
     }
 
+    // 選んだ PDF もタブで開く（spec-2-5 確定事項A1。どこで開いてもタブで開く）。パスワードの入力を取りやめたら対象にもしない。
     async function pickFile() {
       const picked = await pick({ defaultPath: current?.path });
       if (picked === null || picked?.canceled === true || typeof picked?.path !== 'string')
+        return false;
+      const opened = await root.SigK.toolHandoff?.openOne(picked.path);
+      if (opened?.canceled === true)
         return false;
       return setSource(picked.path);
     }

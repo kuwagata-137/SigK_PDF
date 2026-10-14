@@ -50,6 +50,8 @@
         // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。
         editSide: result.ui.editSide,
       });
+      // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K5）。古い settings.json には無いことがある（選択になる）。
+      root.SigK.pointerMode?.apply(result.ui.viewPointer);
       // 注釈の色と文字の大きさ（spec-4-1 確定事項34、spec-4-2 確定事項21）。古い settings.json には無いことがある。
       root.SigK.annotate?.applyColors(result.ui.annotColors);
       // 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。
@@ -100,6 +102,12 @@
     root.SigK.confirmReplace.init(doc, win);
     // ツールモードの枠組みと結合画面（spec-2-1）。shell.setMode から refresh が
     // 呼ばれるので、モードの復元（restoreUi）より先に用意しておく。
+    // 帯の画面は tools.init（ツールモードなら選んでいるツールを出す）より前に用意する（spec-2-5 第 D 章）。
+    root.SigK.strips.init(doc, win);
+    root.SigK.stripDropZone.init(doc, win);
+    root.SigK.stripInput.init(doc, win);
+    root.SigK.toolPane.init(doc, win);
+    root.SigK.confirmUnsavedRun.init(doc, win);
     root.SigK.tools.init(doc, win);
     root.SigK.toolsMerge.init(doc, win);
     root.SigK.toolsMergeList.init(doc, win);
@@ -157,6 +165,10 @@
     root.SigK.annotateRightButton.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
     root.SigK.annotationList.init(doc, win);
+    // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K）。編集の道具を映すので annotate の後。
+    root.SigK.pointerMode.init(doc, win);
+    // 閲覧・ページ編集のハンドで紙を引く（spec-2-5 確定事項K1）。#view の押しは annotatePointer（左＋右を先に受ける）の後に登録する。
+    root.SigK.viewPan.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
     root.SigK.helpDialog.init(doc, win);

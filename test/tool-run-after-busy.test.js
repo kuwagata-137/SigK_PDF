@@ -26,7 +26,8 @@ const CENSUS = {
 // 6 つのツール。ready は、そのツールだけなら［実行…］が押せるところまで整える。
 // taskResults は、整える間にワーカーへ頼む分の返事（フラット化の数え）。
 const TOOLS = [
-  { id: 'merge', label: '結合', api: 'toolsMerge', button: 'merge-run', ready: (SigK) => SigK.toolsMerge.addPaths([B]) },
+  // 結合する PDF は帯（＝タブ）。開くと結合の行に既定でチェックが入る（spec-2-5 確定事項E2）。
+  { id: 'merge', label: '結合', api: 'toolsMerge', button: 'merge-run', ready: (SigK) => SigK.tabs.openPath(B) },
   {
     id: 'split', label: '分割', api: 'toolsSplit', button: 'split-run',
     ready: async (SigK) => {
@@ -35,9 +36,10 @@ const TOOLS = [
     },
   },
   { id: 'convert', label: '画像→PDF', api: 'toolsConvert', button: 'convert-run', ready: (SigK) => SigK.toolsConvert.addPaths([PNG]) },
-  { id: 'toImage', label: 'PDF→画像', api: 'toolsToImage', button: 'toimage-run', ready: (SigK) => SigK.toolsToImage.setSource(A) },
-  { id: 'watermark', label: '透かし', api: 'toolsWatermark', button: 'wm-run', ready: (SigK) => SigK.toolsWatermark.setSource(A) },
-  { id: 'flatten', label: 'フラット化', api: 'toolsFlatten', button: 'fl-run', ready: (SigK) => SigK.toolsFlatten.setSource(A), taskResults: [CENSUS] },
+  // PDF→画像の対象は選んでいる帯（spec-2-5 確定事項E4）。開いたタブが選んでいる帯になる。
+  { id: 'toImage', label: 'PDF→画像', api: 'toolsToImage', button: 'toimage-run', ready: (SigK) => SigK.tabs.openPath(A) },
+  { id: 'watermark', label: '透かし', api: 'toolsWatermark', button: 'wm-run', ready: (SigK) => SigK.tabs.openPath(A) },
+  { id: 'flatten', label: 'フラット化', api: 'toolsFlatten', button: 'fl-run', ready: (SigK) => SigK.tabs.openPath(A), taskResults: [CENSUS] },
 ];
 const toolOf = (id) => TOOLS.find((tool) => tool.id === id);
 
@@ -73,10 +75,11 @@ async function prepare(shell, tool) {
 // 走っている Promise は包んで返す（async 関数がそのまま返すと、終わるまで待ってしまう）。
 async function startOther(shell, other) {
   const { SigK } = shell;
-  if (other.id === 'merge')
-    await SigK.toolsMerge.addPaths([B]);
-  else
-    await other.ready(SigK);
+  // 結合の準備は帯を開くので、選んでいる帯（PDF→画像・フラット化の対象。spec-2-5 確定事項E4・E5）が替わる。元の帯を選び直して対象を保つ。
+  const active = SigK.tabs.activeId();
+  await other.ready(SigK);
+  if (active !== null)
+    SigK.tabs.activate(active);
   SigK.tools.select(other.id);
   const running = SigK[other.api].run();
   await settle(shell);
@@ -118,7 +121,7 @@ test('分割: PDF→画像（レンダラーの中で回す処理）が終わっ
   shell.window.imageAPI.write = (target) => new Promise((resolve) => {
     gates.push(() => resolve({ ok: true, path: target, bytes: 0 }));
   });
-  await SigK.toolsToImage.setSource(B);
+  await SigK.tabs.openPath(B);
   SigK.toolsToImage.setPageMode('range');
   SigK.toolsToImage.setRange('1');
   SigK.tools.select('toImage');

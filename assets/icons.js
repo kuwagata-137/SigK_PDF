@@ -14,6 +14,18 @@
       ['path', { d: 'M12 4v10m0 0l-4-4m4 4l4-4' }],
       ['path', { d: 'M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2' }],
     ],
+    // ツールバーの［名前を付けて保存］（spec-2-5 確定事項B4。見本 screenshots/strips1-view.png）。保存の下向きの矢印を左へ寄せ、右に鉛筆。
+    saveAs: [
+      ['path', { d: 'M9 4v10m0 0l-3.5-3.5M9 14l3.5-3.5' }],
+      ['path', { d: 'M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2' }],
+      ['path', { d: 'M14.5 12.5l5.2-5.2a1.1 1.1 0 0 1 1.6 1.6l-5.2 5.2-2.2.6z' }],
+    ],
+    // 帯の見出しの［上書き保存］（spec-2-5 確定事項D5。見本 screenshots/strips2-merge.png）。フロッピーの形。
+    floppy: [
+      ['path', { d: 'M6 4h10l4 4v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z' }],
+      ['path', { d: 'M8.5 4v4.5h6V4' }],
+      ['path', { d: 'M8 20v-6h8v6' }],
+    ],
     chevronLeft: [['path', { d: 'M14 6l-6 6 6 6' }]],
     chevronRight: [['path', { d: 'M10 6l6 6-6 6' }]],
     chevronDown: [['path', { d: 'M6 9l6 6 6-6' }]],

@@ -16,6 +16,10 @@
     list: [],
     activeId: null,
     nextId: 1,
+    // 文書を読み込んでいる途中の数（前のタブを退かせたまま、activeId が null の間）。帯の操作はこの間止める（spec-2-5 危ない所）。
+    opening: 0,
+    // パスで開いている途中の読み込み（パスの鍵 → Promise）。同じファイルを続けて開いてもタブを 2 枚にしない（openPath）。
+    pending: new Map(),
   };
 
   let el = null;
@@ -112,6 +116,32 @@
     if (tab === null)
       return false;
     tab.session.imported = imported;
+    root.SigK.strips?.sync();
+    return true;
+  }
+
+  // タブの中身を、映しているかどうかを問わずに覗く（ツールモードの帯。spec-2-5 確定事項D8）。値は参照のまま返すので、
+  // 受け取った側は書き換えない。無い id は null、開けなかったタブ・中身がまだ無いタブは { error }（理由の文。無ければ null）。
+  function peek(id) {
+    const tab = find(id);
+    if (tab === null)
+      return null;
+    const view = tab.id === state.activeId ? viewer().peek() : tab.session;
+    if (view === null || view === undefined)
+      return { error: tab.error };
+    const { doc, file, basePages, plan, savedPlan, annots, savedAnnots, imported, inserts, sizes } = view;
+    return { doc, file, basePages, plan, savedPlan, annots, savedAnnots, imported, inserts, sizes, error: null };
+  }
+
+  // タブの並びを替える（帯の［↑］［↓］。spec-2-5 確定事項D4）。ids は今のタブの id をちょうど 1 回ずつ並べたもの。
+  // 映しているタブは変えない。
+  function reorder(ids) {
+    if (!Array.isArray(ids) || ids.length !== state.list.length || new Set(ids).size !== ids.length || !ids.every((id) => find(id) !== null))
+      return false;
+    if (ids.every((id, index) => state.list[index].id === id))
+      return false;
+    state.list = ids.map(find);
+    render();
     return true;
   }
 
@@ -199,6 +229,9 @@
     revealActive();
     syncTitle();
     root.SigK.recentPanel?.sync();
+    // ツールモードの帯と右の欄も、タブを描き直すここから合わせる（並び・選択・未保存の印。spec-2-5 確定事項D1〜D4・E2）。
+    root.SigK.strips?.sync();
+    root.SigK.toolPane?.sync();
   }
 
   // ---- 開く ----
@@ -261,7 +294,13 @@
     }
 
     const previous = stash();
-    const opened = await viewer().open(source);
+    let opened;
+    state.opening += 1;
+    try {
+      opened = await viewer().open(source);
+    } finally {
+      state.opening -= 1;
+    }
 
     // パスワードの入力を取りやめたときだけは、タブを作らずに戻す
     // （spec-1-6 確定事項68）。失敗ではないので、出す理由が無い。
@@ -310,6 +349,23 @@
       return true;
     }
 
+    // 同じファイルを読み込んでいる途中なら、その読み込みの結果を待つ（最近使ったファイルのダブルクリックで 2 枚にしない。点検の直し）。
+    const key = pathKey(filePath);
+    const pending = key === null ? undefined : state.pending.get(key);
+    if (pending !== undefined)
+      return pending;
+    const job = readAndOpen(api, filePath, call);
+    if (key === null)
+      return job;
+    state.pending.set(key, job);
+    try {
+      return await job;
+    } finally {
+      state.pending.delete(key);
+    }
+  }
+
+  async function readAndOpen(api, filePath, call) {
     const result = await api.read(filePath);
     if (result?.error !== undefined) {
       // 消えた・動かされたファイルを履歴に残しても押すたびに失敗する（確定事項10）。
@@ -411,6 +467,8 @@
 
     const tab = state.list[index];
     const wasActive = tab.id === state.activeId;
+    // 帯の描画を、文書を畳む前に手放す（畳んだ文書で描かない・cleanup しない）。
+    root.SigK.strips?.forget(id);
 
     if (wasActive) {
       state.activeId = null;
@@ -508,6 +566,9 @@
     findByPath,
     activeId: () => state.activeId,
     count: () => state.list.length,
+    peek,
+    reorder,
+    isOpening: () => state.opening > 0,
     openSource,
     openPath,
     openViaDialog,

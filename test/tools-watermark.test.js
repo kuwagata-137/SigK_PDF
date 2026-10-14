@@ -1,9 +1,9 @@
 'use strict';
 
-// 透かしの画面（spec-4-5 確定事項2〜6・11・34〜44）。
+// 透かし（spec-4-5 確定事項2〜6・11・35〜44、spec-2-5 確定事項E3。見本 screenshots/strips2-watermark.png）。対象は選んでいる帯。
 //
-// 実際に書くのはワーカーで、その中身は test/op-watermark.test.js が見ている。ここは「対象と画像を
-// どう決め、設定をどう欄に写し、何をワーカーへ渡し、終わったら何をするか」を見る。
+// 実際に書くのはワーカーで、その中身は test/op-watermark.test.js が見ている。ここは「画像をどう決め、設定をどう欄に写し、
+// 何をワーカーへ渡し、終わったら何をするか」と、帯のページへの重ねを見る。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -39,8 +39,9 @@ const bannerText = (shell) => shell.SigK.viewBanner.text();
 const summary = (shell) => byId(shell, 'wm-summary').textContent;
 const checkedValue = (shell, name) => shell.document.querySelector(`input[name="${name}"]:checked`)?.value ?? null;
 
+// 帯（＝タブ）を開いて選ぶ。開いたタブが選んでいる帯になり、それが対象になる。
 async function withSource(shell, path = A) {
-  assert.equal(await shell.SigK.toolsWatermark.setSource(path), true);
+  await shell.SigK.tabs.openPath(path);
   await shell.flush();
 }
 
@@ -65,33 +66,36 @@ test('一覧に「透かし」が並び、選ぶと既定値の画面が出る�
   assert.equal(byId(shell, 'wm-position-label').textContent, '中央');
   assert.equal(byId(shell, 'wm-image-row').hidden, true);
   assert.equal(byId(shell, 'wm-colors').hidden, false);
-  assert.equal(summary(shell), '透かしを入れる PDF を決めてください。');
+  assert.equal(byId(shell, 'wm-state').textContent, 'PDF を開くと、選んでいる帯が対象になります。');
+  assert.equal(summary(shell), '', '対象が無いときは状態の文が出る');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
+  assert.equal(shell.SigK.tools.panelFor('watermark').parentElement.id, 'tool-pane');
 });
 
-test('「ファイルを選ぶ」は題名付きで 1 本選ばせ、読めたら要約と実行が出る', async (t) => {
-  const shell = await createWatermarkShell(t, { toolSourceResults: [{ path: A }] });
-  byId(shell, 'wm-pick').click();
-  await shell.flush();
-  await shell.flush();
-  assert.deepEqual(plain(shell.toolSourceCalls), [{ defaultPath: undefined, title: '透かしを入れる PDF を選ぶ' }]);
+test('選んでいる帯が対象になり、要約（「a.pdf の 3 ページ」）と実行が出る。ファイルを開き直さない', async (t) => {
+  const shell = await createWatermarkShell(t);
+  await withSource(shell);
   assert.equal(shell.SigK.toolsWatermark.source().pageCount, 3);
-  assert.equal(byId(shell, 'wm-name').textContent, 'a.pdf');
-  assert.equal(summary(shell), '3 ページに文字の透かしを入れます');
+  assert.equal(byId(shell, 'wm-state').hidden, true);
+  assert.equal(summary(shell), 'a.pdf の 3 ページ');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), null);
+  assert.equal(byId(shell, 'wm-use-open'), null, '［開いているタブから選ぶ］は無い（spec-2-5 確定事項E6）');
 });
 
-test('パスワード付き・壊れた PDF はパスワードを聞かずに断り、実行できない', async (t) => {
-  for (const [pdfjs, pattern] of [[createPdfjsStub({ password: 'secret' }), /パスワード付き/], [createPdfjsStub({ openError: new Error('broken') }), /開けません/]]) {
-    const shell = await createWatermarkShell(t, { pdfjs });
-    await shell.SigK.toolsWatermark.setSource(A);
-    await shell.flush();
-    assert.match(shell.SigK.toolsWatermark.source().blocked, pattern);
-    assert.equal(shell.SigK.passwordPrompt.isOpen?.() ?? false, false);
-    assert.equal(shell.SigK.toolsWatermark.canRun(), false);
-    assert.equal(summary(shell), '対象の PDF を選び直してください。');
-    assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
-  }
+test('開けなかった帯・パスワード付きの帯は、状態の文を出して実行できない', async (t) => {
+  const failed = await createWatermarkShell(t, { pdfjs: createPdfjsStub({ openError: new Error('broken') }) });
+  await withSource(failed);
+  assert.equal(byId(failed, 'wm-state').textContent, '「a.pdf」は開けなかったので、ほかの帯を選んでください。');
+  assert.equal(failed.SigK.toolsWatermark.canRun(), false);
+  assert.equal(summary(failed), '');
+
+  const locked = await createWatermarkShell(t);
+  await withSource(locked);
+  const peek = locked.SigK.tabs.peek;
+  locked.window.SigK.tabs.peek = (id) => ({ ...peek(id), file: { ...peek(id).file, encrypted: true } });
+  locked.SigK.toolsWatermarkView.render();
+  assert.equal(locked.SigK.toolsWatermark.source().blocked, '「a.pdf」はパスワード付きなので透かしを入れられません。ほかの帯を選んでください。');
+  assert.equal(locked.SigK.toolsWatermark.canRun(), false);
 });
 
 test('欄の操作が設定に届き、ワーカーへ渡す spec に写る', async (t) => {
@@ -127,7 +131,7 @@ test('範囲は集合にして要約に出し、誤りは欄の下に出して�
   assert.equal(checkedValue(shell, 'wm-page-mode'), 'range');
   range.value = '3, 2, 3';
   range.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
-  assert.equal(summary(shell), '2 ページに文字の透かしを入れます');
+  assert.equal(summary(shell), 'a.pdf の 2 ページ');
   assert.deepEqual(plain(shell.SigK.toolsWatermark.currentPlan().pages), [1, 2]);
   range.value = '9';
   range.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
@@ -153,7 +157,7 @@ test('種類を「画像」にすると画像の欄が出て色が消え、画�
   assert.equal(byId(shell, 'wm-image-name').textContent, 'logo.png');
   assert.equal(byId(shell, 'wm-image-meta').textContent, '400 × 200 px');
   assert.equal(byId(shell, 'wm-image-note').hidden, true);
-  assert.equal(summary(shell), '3 ページに画像の透かしを入れます');
+  assert.equal(summary(shell), 'a.pdf の 3 ページ');
   assert.deepEqual(plain(shell.SigK.toolsWatermark.currentPlan().spec.mark),
     { type: 'image', image: LOGO, opacity: 0.3, angle: 45, size: 'medium', position: 'center' });
 });
@@ -195,7 +199,8 @@ test('入力と同じ出力先と、タブで開いている出力先は断っ�
   assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先に入力ファイルと同じファイルは選べません。');
   assert.equal(bannerText(shell), '出力先に入力ファイルと同じファイルは選べません。');
   await shell.SigK.tabs.openPath(B);
-  shell.SigK.shell.setMode(shell.document, 'tools');
+  // B を開くと選んでいる帯（＝対象）も B になるので、a.pdf の帯を選び直す。
+  shell.SigK.tabs.activate(shell.SigK.tabs.list()[0].id);
   assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0);
 });
@@ -234,7 +239,7 @@ test('ワーカーの失敗は文言をそのまま帯に出す', async (t) => {
   assert.equal(bannerText(shell), 'この PDF は内容が壊れているため保存できません。');
 });
 
-test('透かしを選んでいるときのドロップは、PDF を対象に、PNG・JPEG を透かしの画像にする', async (t) => {
+test('透かしを選んでいるときのドロップは、PDF を帯で開いて対象にし、PNG・JPEG を透かしの画像にする', async (t) => {
   const shell = await createWatermarkShell(t);
   const { SigK, window } = shell;
   const event = new window.Event('drop', { bubbles: true, cancelable: true });
@@ -262,7 +267,7 @@ test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、�
   });
   const { SigK } = shell;
 
-  assert.equal(await SigK.toolsWatermark.addPaths([LOGO, LOGO2]), true);
+  assert.equal(await SigK.toolsWatermark.addImages([LOGO, LOGO2]), true);
   await shell.flush();
 
   assert.equal(SigK.toolsWatermark.image().path, LOGO);
@@ -271,23 +276,43 @@ test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、�
   assert.equal(byId(shell, 'view-banner').getAttribute('data-tone'), 'warn');
 });
 
-// ［開いているタブから選ぶ ▾］を押し、一覧からそのファイルの行を選ぶ（spec-2-2b 確定事項F2）。
-function chooseTab(shell, buttonId, filePath) {
-  shell.document.getElementById(buttonId).click();
-  [...shell.document.querySelectorAll('.tab-menu .tab-menu-row')].find((row) => row.title === filePath).click();
-}
+// 帯のページへの重ね（spec-2-5 確定事項E3。strip-watermark.js）。
+const overlays = (shell) => [...shell.document.querySelectorAll('#strips .strip-wm')];
 
-test('［開いているタブから選ぶ］で選んだタブが未保存なら注意書きと帯を出す', async (t) => {
+test('透かしを選んでいる間は、選んでいる帯の透かしを入れるページに透かしを重ね、範囲・ツール・帯に合わせて付け外しする', async (t) => {
   const shell = await createWatermarkShell(t);
-  const { document: doc, SigK } = shell;
-  await SigK.tabs.openPath(A);
+  const { SigK, document: doc, window } = shell;
+  await withSource(shell, A);
+  await withSource(shell, B);
+  const sheetsOf = (index) => [...doc.querySelectorAll('#strips .strip')[index].querySelectorAll('.sheet')];
+  assert.equal(overlays(shell).length, 3, '選んでいる帯（b.pdf）の 3 ページ');
+  assert.ok(sheetsOf(1).every((sheet) => sheet.querySelector('.strip-wm') !== null));
+  assert.equal(sheetsOf(0).some((sheet) => sheet.querySelector('.strip-wm') !== null), false, 'ほかの帯には重ねない');
+  assert.equal(overlays(shell)[0].querySelector('text').textContent, '社外秘');
+
+  const range = byId(shell, 'wm-range');
+  range.dispatchEvent(new window.Event('focus'));
+  range.value = '2';
+  range.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.deepEqual(sheetsOf(1).map((sheet) => sheet.querySelector('.strip-wm') !== null), [false, true, false]);
+
+  doc.querySelector('#strips .strip .fname').click();
+  assert.deepEqual(sheetsOf(0).map((sheet) => sheet.querySelector('.strip-wm') !== null), [false, true, false], '帯を選び直すとその帯に重ねる');
+  assert.equal(sheetsOf(1).some((sheet) => sheet.querySelector('.strip-wm') !== null), false);
+
+  SigK.tools.select('merge');
+  assert.equal(overlays(shell).length, 0, 'ほかのツールでは重ねない');
+});
+
+// 保存していない帯は、実行の前に確かめる（spec-2-5 確定事項F。窓そのものは run-guard.test.js が見る）。
+test('保存していない帯を対象にすると、実行の前に確認の窓を出し、［キャンセル］なら保存先も聞かない', async (t) => {
+  const shell = await createWatermarkShell(t);
+  await withSource(shell);
+  shell.SigK.pageEdit.rotate(90, [0]);
+  const running = shell.SigK.toolsWatermark.run();
   await shell.flush();
-  SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
-  SigK.shell.setMode(doc, 'tools');
-  chooseTab(shell, 'wm-use-open', A);
-  await shell.flush();
-  await shell.flush();
-  assert.equal(SigK.toolsWatermark.source().note, '未保存の編集は反映されません');
-  assert.equal(byId(shell, 'wm-note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は透かしに反映されないので/);
+  assert.equal(shell.SigK.confirmUnsavedRun.isOpen(), true);
+  byId(shell, 'confirm-unsaved-run-cancel').click();
+  assert.deepEqual(plain(await running), { canceled: true });
+  assert.equal(shell.savePathCalls.length, 0);
 });

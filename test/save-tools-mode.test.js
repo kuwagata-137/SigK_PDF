@@ -36,21 +36,6 @@ async function inToolsMode(t, { edited = true, ...options } = {}) {
 
 const modeOf = (shell) => shell.document.documentElement.getAttribute('data-mode');
 
-// ツールバーの［名前を付けて保存］（本筋が index.html に足す。id は btn-save-as）。まだ無ければ［保存］の隣に置く。
-function saveAsButton(shell) {
-  const { document: doc } = shell;
-  const existing = doc.getElementById('btn-save-as');
-  if (existing !== null)
-    return existing;
-  const button = doc.createElement('div');
-  button.className = 'tb-btn';
-  button.id = 'btn-save-as';
-  button.setAttribute('aria-disabled', 'true');
-  doc.getElementById('btn-save').after(button);
-  shell.SigK.save.syncButtons();
-  return button;
-}
-
 // ---- 上書き保存・名前を付けて保存 ----
 
 test('ツールモードでも［保存］は押せ、押すと映しているタブを上書き保存し、ツールモードのまま「保存しました。」を出す', async (t) => {
@@ -100,7 +85,7 @@ test('ツールバーの［名前を付けて保存］につなぐ口（SigK.sav
 
 test('［名前を付けて保存］のボタン（btn-save-as）は、文書があればツールモードでも押せ、押すと保存先を聞く。文書が無ければ押せない', async (t) => {
   const shell = await inToolsMode(t, { edited: false, savePathResults: [{ canceled: true }] });
-  const button = saveAsButton(shell);
+  const button = shell.document.getElementById('btn-save-as');
   assert.equal(button.getAttribute('aria-disabled'), 'false');
 
   button.click();
@@ -119,7 +104,7 @@ test('［名前を付けて保存］のボタン（btn-save-as）は、文書が
 test('ツールモードでも、ほかの処理（ツールの実行など）が走っている間は、保存も名前を付けて保存もできない', async (t) => {
   const shell = await inToolsMode(t);
   const { SigK, document: doc } = shell;
-  const saveAs = saveAsButton(shell);
+  const saveAs = doc.getElementById('btn-save-as');
   let release = null;
   const running = SigK.save.runLocal({ label: '画像に', run: () => new Promise((resolve) => { release = () => resolve({ ok: true }); }) });
   await shell.flush();

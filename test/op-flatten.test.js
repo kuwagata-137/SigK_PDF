@@ -101,7 +101,55 @@ test('dryRun は数えるだけで文書を変えない（画面の件数と焼�
   // 1 ページ目の注釈はノート・Popup・直線・テキスト・スタンプ・リンクの 6 つのまま。
   assert.equal(annotsOf(doc, 0).length, 6);
   assert.equal(String(doc.getPage(0).node.get(PDFName.of('Contents'))), contentsBefore);
-  assert.deepEqual(flattenDocument(doc, TOOLS), preview);
+  // 数えるときだけ、画面が選び方に合わせて足し合わせるためのページごとの数を付ける（spec-2-5 確定事項E5）。
+  const { pages, ...totals } = preview;
+  assert.deepEqual(flattenDocument(doc, TOOLS), totals);
+  assert.deepEqual(pages.map((page) => [page.bake, page.keep]), [
+    [{ markup: 0, text: 0, shape: 0, note: 1, other: 1 }, { functional: 1, noAppearance: 2, hidden: 0 }],
+    [{ markup: 0, text: 0, shape: 0, note: 1, other: 0 }, { functional: 0, noAppearance: 0, hidden: 0 }],
+    [{ markup: 0, text: 0, shape: 0, note: 0, other: 0 }, { functional: 0, noAppearance: 0, hidden: 0 }],
+  ], '3 ページ目は書き込み無し');
+});
+
+// 焼き込む書き込みの種類とページを選ぶ（spec-2-5 確定事項E5。決定80 ㉞）。選ばなかったものは注釈のまま残す。
+test('kinds で選んだ種類だけを焼き、ほかの種類は注釈のまま残す。焼いたノートの Popup だけを外す', async () => {
+  const doc = await load(fs.readFileSync(fixturePath('annotated.pdf')));
+  const result = flattenDocument(doc, TOOLS, { kinds: ['note'] });
+  assert.deepEqual(result, {
+    ok: true, baked: 2, kept: 3, notes: 2,
+    bake: { markup: 0, text: 0, shape: 0, note: 2, other: 0 },
+    keep: { functional: 1, noAppearance: 2, hidden: 0 },
+  });
+  const saved = await roundTrip(doc);
+  assert.deepEqual(subtypesOf(saved, 0), ['Line', 'FreeText', 'Stamp', 'Link'], 'スタンプは注釈のまま');
+  assert.equal(saved.getPage(1).node.get(PDFName.of('Annots')), undefined);
+
+  const stamps = await load(fs.readFileSync(fixturePath('annotated.pdf')));
+  assert.equal(flattenDocument(stamps, TOOLS, { kinds: ['other'] }).baked, 1);
+  const kept = await roundTrip(stamps);
+  assert.deepEqual(subtypesOf(kept, 0), ['Text', 'Popup', 'Line', 'FreeText', 'Link'], 'ノートと Popup は残る');
+  assert.deepEqual(subtypesOf(kept, 1), ['Text', 'Popup']);
+});
+
+test('pages で選んだページ（0 始まり）だけを焼き、ほかのページは変えない。数えるときもページごとの数は全ページ分', async () => {
+  const doc = await load(fs.readFileSync(fixturePath('annotated.pdf')));
+  const contentsBefore = String(doc.getPage(0).node.get(PDFName.of('Contents')));
+  const result = flattenDocument(doc, TOOLS, { pages: [1] });
+  assert.equal(result.baked, 1);
+  assert.equal(result.notes, 1);
+  assert.deepEqual(result.keep, { functional: 0, noAppearance: 0, hidden: 0 }, '選んだページの分だけ数える');
+  assert.equal(annotsOf(doc, 0).length, 6, '1 ページ目は変えない');
+  assert.equal(String(doc.getPage(0).node.get(PDFName.of('Contents'))), contentsBefore);
+  const saved = await roundTrip(doc);
+  assert.equal(saved.getPage(1).node.get(PDFName.of('Annots')), undefined);
+
+  const preview = flattenDocument(await load(fs.readFileSync(fixturePath('annotated.pdf'))), TOOLS, { dryRun: true, pages: [1], kinds: ['note'] });
+  assert.equal(preview.baked, 1);
+  assert.equal(preview.pages.length, 3);
+  // 種類とページの欄に入らない値は無視する。何も選ばなければ何も焼かない。
+  const none = await load(fs.readFileSync(fixturePath('annotated.pdf')));
+  assert.equal(flattenDocument(none, TOOLS, { kinds: ['xyz', 3], pages: [-1, 'a', 0] }).baked, 0);
+  assert.equal(annotsOf(none, 0).length, 6);
 });
 
 // 焼く・残すの境目を 1 ページに集めた文書。
@@ -234,6 +282,23 @@ test('runTask の kind: flatten で焼いて書き、元のファイルは変わ
     assert.equal(result.path, target);
     assert.deepEqual(fs.readFileSync(source), before);
     assert.deepEqual(subtypesOf(await load(fs.readFileSync(target)), 0), ['Line', 'FreeText', 'Link']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runTask の kind: flatten は依頼の kinds・pages の分だけ焼く（spec-2-5 確定事項E5）', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigk-flatten-'));
+  try {
+    const source = path.join(dir, 'in.pdf');
+    const target = path.join(dir, 'out.pdf');
+    fs.copyFileSync(fixturePath('annotated.pdf'), source);
+    const result = await runTask({ kind: 'flatten', source, target, kinds: ['note'], pages: [0] });
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.baked, 1);
+    const saved = await load(fs.readFileSync(target));
+    assert.deepEqual(subtypesOf(saved, 0), ['Line', 'FreeText', 'Stamp', 'Link']);
+    assert.deepEqual(subtypesOf(saved, 1), ['Text', 'Popup'], '2 ページ目のノートは選んでいないので残る');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

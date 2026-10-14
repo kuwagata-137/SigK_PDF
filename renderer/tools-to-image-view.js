@@ -1,9 +1,9 @@
 (function (root) {
   'use strict';
 
-  // PDF→画像の画面の描画（spec-3-3 確定事項27〜30）。
+  // 右の欄の PDF→画像の節の描画（spec-3-3 確定事項27〜30、spec-2-5 確定事項E4。見本 screenshots/strips2-toimage.png）。
   //
-  // 状態は tools-to-image.js が持つ。ここは source() と currentPlan() を読んで DOM に
+  // 状態は tools-to-image.js が持つ。対象は選んでいる帯で、対象が無い・使えないときは状態の文を出す。ここは source() と currentPlan() を読んで DOM に
   // 写し、操作をあちらの関数へ返すだけである。範囲の欄は打つたびに描き直さず、
   // フォーカスの無いときだけ値を合わせる（分割の sync と同じ理由）。
 
@@ -24,10 +24,12 @@
     return node;
   }
 
-  // ---- 対象 ----
+  // ---- 対象（選んでいる帯） ----
 
   function renderTarget() {
-    root.SigK.sourcePicker.render(el, tool().source());
+    const text = tool().stateText();
+    el.state.textContent = text ?? '';
+    el.state.hidden = text === null;
   }
 
   // ---- 出力の例と要約（確定事項30） ----
@@ -54,10 +56,11 @@
       el.example.append(code(names[0]), ' … ', code(names[names.length - 1]), count);
   }
 
+  // 「見積書.pdf の 3 ページ → 画像 3 つ」（見本どおり。PR-2 の起草者の判断）。
   function summaryFor(plan) {
     if (!plan.ready)
       return '';
-    return `${plan.pages.length} ページを ${plan.format.label}（${plan.dpi} dpi）で ${plan.names.length} ファイルへ`;
+    return `${tool().source().name} の ${plan.pages.length} ページ → 画像 ${plan.names.length} つ`;
   }
 
   // 計画に関わるものだけを合わせる。対象の行は触らない。
@@ -98,14 +101,15 @@
     el.summary.textContent = summaryFor(plan);
 
     setDisabled(el.run, !tool().canRun());
-    for (const control of [el.useOpen, el.pick, el.folderPick])
-      setDisabled(control, running);
+    setDisabled(el.folderPick, running);
     return true;
   }
 
+  // 対象が替わったか（tool.sync）を見てから描く。帯を押すたびに tabs.render → toolPane.sync から呼ばれる。
   function render() {
     if (el === null)
       return false;
+    tool().sync();
     renderTarget();
     return sync();
   }
@@ -129,8 +133,7 @@
     const radios = (name) => Object.fromEntries([...doc.querySelectorAll(`input[name="${name}"]`)].map((input) => [input.value, input]));
     el = {
       doc, win, run,
-      file: byId('toimage-file'), name: byId('toimage-name'), pages: byId('toimage-pages'), note: byId('toimage-note'),
-      empty: byId('toimage-empty'), useOpen: byId('toimage-use-open'), pick: byId('toimage-pick'),
+      state: byId('toimage-state'),
       pageModes: radios('toimage-page-mode'), rangeRow: byId('toimage-page-modes'),
       range: byId('toimage-range'), rangeErr: byId('toimage-range-err'),
       formats: radios('toimage-format'), dpis: radios('toimage-dpi'),
@@ -148,8 +151,6 @@
     for (const [dpi, radio] of Object.entries(el.dpis))
       radio.addEventListener('change', () => { if (radio.checked) tool().setDpi(Number(dpi)); });
 
-    root.SigK.sourcePicker.bindTabMenu(el.useOpen, (id) => tool().useTab(id));
-    onClick(el.pick, () => tool().pickFile());
     onClick(el.folderPick, () => tool().pickFolder());
     onClick(el.run, () => tool().run());
 

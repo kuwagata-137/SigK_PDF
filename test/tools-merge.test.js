@@ -1,407 +1,241 @@
 'use strict';
 
-// 結合画面（spec-2-1 確定事項8〜25・35〜40）。
+// 結合（spec-2-1 確定事項21〜28・35〜40、spec-2-5 確定事項E1・E2・E7。見本 screenshots/strips2-merge.png）。
 //
-// 実際に書くのはワーカーで、その中身は test/op-merge.test.js が見ている。
-// ここは「何を足し、どう並べ、何を検証し、何をワーカーへ渡し、終わったら何をするか」を見る。
+// 結合する PDF は帯（＝タブ）で、順番はタブの並び。右の欄の行でチェックと範囲を決める。実際に書くのはワーカーで、その中身は
+// test/op-merge.test.js が見ている。ここは「どの帯を、どの順で、どの範囲でワーカーへ渡し、終わったら何をするか」を見る。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, makeSource, createPdfjsStub, makeDroppedFile, makeDataTransfer } = require('./harness.js');
+const { createShell, makeSource, createPdfjsStub } = require('./harness.js');
 
 const A = 'C:\\work\\a.pdf';
 const B = 'C:\\work\\b.pdf';
 const C = 'C:\\work\\c.pdf';
 const OUT = 'C:\\work\\a_結合.pdf';
 
-async function createMergeShell(t, options = {}) {
+async function createMergeShell(t, { open = [A, B], files = {}, ...options } = {}) {
   const shell = await createShell({
-    files: {
-      [A]: makeSource({ path: A }),
-      [B]: makeSource({ path: B }),
-      [C]: makeSource({ path: C }),
-    },
+    files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }), [OUT]: makeSource({ path: OUT }), ...files },
     ...options,
   });
   t.after(() => shell.cleanup());
-  // 前回の見た目の復元（restoreUi）は IPC の往復のあとに届く。先に切り替えると
-  // 復元で閲覧へ戻されるので、届くのを待ってからツールモードへ入る。
+  // 前回の見た目の復元（restoreUi）は IPC の往復のあとに届く。先に切り替えると閲覧へ戻されるので、届くのを待ってから入る。
   await shell.flush();
+  for (const filePath of open)
+    await shell.SigK.tabs.openPath(filePath);
   shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.SigK.tools.select('merge');
   return shell;
 }
 
 // jsdom の realm で作られた配列は Node の Array と参照が違うので、比べる前に写す。
 const plain = (value) => structuredClone(value);
-const rowNodes = (shell) => [...shell.document.querySelectorAll('#merge-list .merge-row')];
+const rowNodes = (shell) => [...shell.document.querySelectorAll('#merge-list .merge-pick')];
 const names = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.name));
-const rows = (shell) => plain(shell.SigK.toolsMerge.rows());
+const checked = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.checked));
+const text = (shell, id) => shell.document.getElementById(id).textContent;
 const runButton = (shell) => shell.document.getElementById('merge-run');
 const bannerText = (shell) => shell.document.getElementById('view-banner').textContent;
 const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
+const idOf = (shell, index) => shell.SigK.tabs.list()[index].id;
 
-// ---- 足す ----
+function check(shell, index, on) {
+  const box = rowNodes(shell)[index].querySelector('.cbox');
+  box.checked = on;
+  box.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+}
 
-test('初期状態は空で、実行は押せない', async (t) => {
-  const shell = await createMergeShell(t);
-  assert.deepEqual(rows(shell), []);
+function type(shell, index, value) {
+  const range = rowNodes(shell)[index].querySelector('input.rng');
+  range.focus();
+  range.value = value;
+  range.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+  return range;
+}
+
+// ---- 行と右の欄 ----
+
+test('帯が無ければ行も無く、実行は押せない', async (t) => {
+  const shell = await createMergeShell(t, { open: [] });
+  assert.equal(rowNodes(shell).length, 0);
+  assert.equal(text(shell, 'merge-count'), '0 / 0');
   assert.equal(shell.document.getElementById('merge-empty').hidden, false);
+  assert.equal(text(shell, 'merge-summary'), '');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
-  assert.equal(shell.SigK.toolsMerge.canRun(), false);
+  assert.equal(shell.document.getElementById('tool-pane').hidden, false);
+  assert.equal(shell.document.getElementById('strips-screen').hidden, false);
 });
 
-test('「ファイルを選ぶ」は複数選択で、選んだ順に末尾へ足す。ページ数も読む', async (t) => {
-  const shell = await createMergeShell(t, { mergeSourceResults: [{ paths: [B, A] }] });
-  await shell.SigK.toolsMerge.pickFiles();
-  assert.deepEqual(names(shell), ['b.pdf', 'a.pdf']);
-  assert.deepEqual(rows(shell).map((row) => row.pageCount), [3, 3]);
-  assert.equal(rowNodes(shell).length, 2);
-  assert.equal(rowNodes(shell)[0].querySelector('.pages').textContent, '3');
-  assert.equal(shell.document.getElementById('merge-empty').hidden, true);
+test('開いている帯が帯の順に行になり、既定でチェックが入る。ページ数はファイルの中身', async (t) => {
+  const shell = await createMergeShell(t, { open: [A, B, C] });
+  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf', 'c.pdf']);
+  assert.deepEqual(checked(shell), [true, true, true]);
+  const [first] = rowNodes(shell);
+  assert.equal(first.querySelector('.strip-no').textContent, '1');
+  assert.equal(first.querySelector('.p').textContent, '3 p');
+  assert.equal(text(shell, 'merge-count'), '3 / 3');
+  assert.equal(text(shell, 'merge-summary'), '3 個のファイル・合計 9 ページ');
   assert.equal(runButton(shell).hasAttribute('aria-disabled'), false);
-  assert.equal(shell.document.getElementById('merge-summary').textContent, '2 ファイル ・ 出力は 6 ページ');
-  // 読んだ文書は手放す。
-  assert.ok(shell.pdfjs.documents.every((doc) => doc.destroyed));
+  assert.equal(shell.document.getElementById('merge-empty').hidden, true);
 });
 
-test('取り消したら何も足さない', async (t) => {
-  const shell = await createMergeShell(t, { mergeSourceResults: [{ canceled: true }] });
-  assert.deepEqual(plain(await shell.SigK.toolsMerge.pickFiles()), []);
-  assert.deepEqual(names(shell), []);
-});
-
-test('［開いているタブをまとめて追加］はタブの並びで未追加のものだけ足し、未保存には注意を出す', async (t) => {
+test('チェックを外すと範囲の欄が打てなくなり、数と要約が変わる。全部外すと実行できない', async (t) => {
   const shell = await createMergeShell(t);
-  const { SigK } = shell;
-  await SigK.tabs.openPath(A);
-  await SigK.tabs.openPath(B);
-  await shell.flush();
-  // b.pdf を編集して未保存にする。
-  SigK.pageEdit.commit([{ src: 2, rotate: 0 }, { src: 0, rotate: 0 }, { src: 1, rotate: 0 }]);
-  assert.equal(SigK.viewer.isDirty(), true);
-
-  await SigK.toolsMerge.addPaths([A]);
-  await SigK.toolsMerge.addOpenTabs();
-  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
-  const rows = SigK.toolsMerge.rows();
-  assert.equal(rows[0].note, null);
-  assert.equal(rows[1].note, '未保存の編集は反映されません');
-  assert.equal(rowNodes(shell)[1].querySelector('.note').textContent, '未保存の編集は反映されません');
-  assert.match(bannerText(shell), /未保存の編集は結合に反映されないので/);
-  // 注意・お知らせは黄色の帯で出す（決定49）。
-  assert.equal(bannerTone(shell), 'warn');
-
-  // すべて入っていれば帯で伝える。
-  await SigK.toolsMerge.addOpenTabs();
-  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
-  assert.match(bannerText(shell), /すべて一覧に入っています/);
-  assert.equal(bannerTone(shell), 'warn');
-});
-
-test('タブが無ければ帯で伝える', async (t) => {
-  const shell = await createMergeShell(t);
-  assert.deepEqual(plain(await shell.SigK.toolsMerge.addOpenTabs()), []);
-  assert.match(bannerText(shell), /タブで開いている PDF がありません/);
-});
-
-test('同じファイルを2回足せる', async (t) => {
-  const shell = await createMergeShell(t);
-  await shell.SigK.toolsMerge.addPaths([A, A]);
-  assert.deepEqual(names(shell), ['a.pdf', 'a.pdf']);
-});
-
-test('ツールモードでは PDF のドロップが一覧へ足され、タブでも開く（決定80）', async (t) => {
-  const shell = await createMergeShell(t);
-  const { SigK, window } = shell;
-  const event = new window.Event('drop', { bubbles: true, cancelable: true });
-  event.dataTransfer = makeDataTransfer([makeDroppedFile('b.pdf', B), makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
-  await SigK.fileDrop.handleDrop(event);
-  assert.deepEqual(names(shell), ['b.pdf']);
-  assert.equal(SigK.tabs.count(), 1, 'タブでも開く');
-  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
-
-  const bad = new window.Event('drop', { bubbles: true, cancelable: true });
-  bad.dataTransfer = makeDataTransfer([makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
-  await SigK.fileDrop.handleDrop(bad);
-  assert.match(bannerText(shell), /PDF でも画像でもないので/);
-});
-
-test('上限は 100 ファイルで、超えたぶんは帯で断る', async (t) => {
-  const shell = await createMergeShell(t);
-  const many = Array.from({ length: 101 }, () => A);
-  const ids = await shell.SigK.toolsMerge.addPaths(many);
-  assert.equal(ids.length, 100);
-  assert.equal(shell.SigK.toolsMerge.rows().length, 100);
-  assert.match(bannerText(shell), /100 ファイルまで/);
-  assert.deepEqual(plain(await shell.SigK.toolsMerge.addPaths([B])), []);
-});
-
-// ---- 読めない入力（確定事項14・31） ----
-
-test('壊れた PDF は行に印が付き、実行できない', async (t) => {
-  const shell = await createMergeShell(t, { pdfjs: createPdfjsStub({ openError: new Error('broken') }) });
-  await shell.SigK.toolsMerge.addPaths([A]);
-  const row = shell.SigK.toolsMerge.rows()[0];
-  assert.equal(row.pageCount, null);
-  assert.match(row.blocked, /開けません/);
-  assert.equal(rowNodes(shell)[0].classList.contains('blocked'), true);
-  assert.equal(rowNodes(shell)[0].querySelector('.range').disabled, true);
+  check(shell, 1, false);
+  assert.deepEqual(checked(shell), [true, false]);
+  assert.equal(rowNodes(shell)[1].classList.contains('off'), true);
+  assert.equal(rowNodes(shell)[1].querySelector('input.rng').disabled, true);
+  assert.equal(text(shell, 'merge-count'), '1 / 2');
+  assert.equal(text(shell, 'merge-summary'), '1 個のファイル・合計 3 ページ');
+  check(shell, 0, false);
+  assert.equal(text(shell, 'merge-summary'), '');
   assert.equal(shell.SigK.toolsMerge.canRun(), false);
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
 });
 
-test('暗号化 PDF はパスワードを聞かずに断る', async (t) => {
-  const shell = await createMergeShell(t, { pdfjs: createPdfjsStub({ password: 'secret' }) });
-  await shell.SigK.toolsMerge.addPaths([A]);
-  const row = shell.SigK.toolsMerge.rows()[0];
-  assert.match(row.blocked, /パスワード付き/);
-  assert.equal(shell.SigK.passwordPrompt.isOpen?.() ?? false, false);
+test('範囲を書くと要約のページ数に映り、誤りは赤くして実行を止める。打っている欄には書き戻さない', async (t) => {
+  const shell = await createMergeShell(t);
+  const range = type(shell, 1, '2-3');
+  assert.equal(text(shell, 'merge-summary'), '2 個のファイル・合計 5 ページ');
+  type(shell, 1, '9');
+  assert.equal(range.classList.contains('invalid'), true);
+  assert.equal(rowNodes(shell)[1].querySelector('.err').hidden, false);
   assert.equal(shell.SigK.toolsMerge.canRun(), false);
+  // 帯を描き直しても（タブの合図）、フォーカスのある欄の文字は動かさない。
+  range.value = '1-';
+  shell.SigK.tabs.render();
+  assert.equal(range.value, '1-');
+  type(shell, 1, '');
+  assert.equal(shell.SigK.toolsMerge.canRun(), true);
 });
 
-// ---- 並べ替え（確定事項15） ----
-
-test('上へ／下へで並べ替えられ、端では押せない', async (t) => {
-  const shell = await createMergeShell(t);
-  const { SigK } = shell;
-  await SigK.toolsMerge.addPaths([A, B, C]);
-  const [a, b, c] = SigK.toolsMerge.rows().map((row) => row.id);
-
-  assert.equal(rowNodes(shell)[0].querySelector('[title="上へ"]').getAttribute('aria-disabled'), 'true');
-  assert.equal(rowNodes(shell)[2].querySelector('[title="下へ"]').getAttribute('aria-disabled'), 'true');
-
-  rowNodes(shell)[2].querySelector('[title="上へ"]').click();
-  assert.deepEqual(names(shell), ['a.pdf', 'c.pdf', 'b.pdf']);
-  assert.equal(SigK.toolsMerge.move(a, 1), true);
+test('帯の並びを替えると行の順も変わり、閉じた帯の行は消える', async (t) => {
+  const shell = await createMergeShell(t, { open: [A, B, C] });
+  const [a, b, c] = [0, 1, 2].map((index) => idOf(shell, index));
+  check(shell, 0, false);
+  shell.SigK.tabs.reorder([c, a, b]);
   assert.deepEqual(names(shell), ['c.pdf', 'a.pdf', 'b.pdf']);
-  assert.equal(SigK.toolsMerge.move(c, -1), false);
-  assert.equal(SigK.toolsMerge.move(b, 1), false);
-
-  assert.equal(SigK.toolsMerge.moveTo(b, 0), true);
-  assert.deepEqual(names(shell), ['b.pdf', 'c.pdf', 'a.pdf']);
-  assert.equal(SigK.toolsMerge.moveTo(b, 3), true);
-  assert.deepEqual(names(shell), ['c.pdf', 'a.pdf', 'b.pdf']);
+  assert.deepEqual(checked(shell), [true, false, true], 'チェックは帯についていく');
+  assert.deepEqual(rowNodes(shell).map((node) => node.querySelector('.fname').textContent), ['c.pdf', 'a.pdf', 'b.pdf']);
+  shell.SigK.tabs.forceCloseTab(a);
+  assert.deepEqual(names(shell), ['c.pdf', 'b.pdf']);
+  await shell.SigK.tabs.openPath(A);
+  assert.deepEqual(checked(shell), [true, true, true], '開き直した帯はまた既定でチェックが入る');
 });
 
-test('行をドラッグして落とすと並びが変わり、Esc で取り消せる', async (t) => {
-  const shell = await createMergeShell(t);
-  const { SigK, document: doc } = shell;
-  await SigK.toolsMerge.addPaths([A, B, C]);
-  const list = doc.getElementById('merge-list');
-  const grip = rowNodes(shell)[0].querySelector('.grip');
+test('開けなかった帯とパスワード付きの帯は、理由を赤で出し、チェックを入れられない', async (t) => {
+  const error = Object.assign(new Error('broken'), { name: 'InvalidPDFException' });
+  const shell = await createMergeShell(t, { open: [A], pdfjs: createPdfjsStub({ openError: error }) });
+  const [row] = rowNodes(shell);
+  assert.equal(row.classList.contains('blocked'), true);
+  assert.equal(row.querySelector('.cbox').disabled, true);
+  assert.equal(row.querySelector('.cbox').checked, false);
+  assert.equal(row.querySelector('.rng.note').textContent, '開けなかったので、結合に使えません');
+  assert.equal(shell.SigK.toolsMerge.canRun(), false);
 
-  // jsdom では rect がすべて 0 なので、y > 0 で落とすと末尾になる。
-  shell.firePointer(grip, 'pointerdown', { x: 5, y: 10 });
-  shell.firePointer(doc, 'pointermove', { x: 5, y: 40 });
-  assert.equal(SigK.toolsMergeList.isDragging(), true);
-  assert.equal(rowNodes(shell)[0].classList.contains('dragging'), true);
-  assert.notEqual(list.querySelector('.drop-line'), null);
-  shell.firePointer(list, 'pointerup', { x: 5, y: 40 });
-  assert.deepEqual(names(shell), ['b.pdf', 'c.pdf', 'a.pdf']);
-  assert.equal(list.querySelector('.drop-line'), null);
-
-  // Esc で取り消す。
-  shell.firePointer(rowNodes(shell)[0].querySelector('.grip'), 'pointerdown', { x: 5, y: 10 });
-  shell.firePointer(doc, 'pointermove', { x: 5, y: 40 });
-  doc.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-  assert.equal(SigK.toolsMergeList.isDragging(), false);
-  shell.firePointer(list, 'pointerup', { x: 5, y: 40 });
-  assert.deepEqual(names(shell), ['b.pdf', 'c.pdf', 'a.pdf']);
-
-  // 範囲欄の上で押しても掴まない。
-  shell.firePointer(rowNodes(shell)[0].querySelector('.range'), 'pointerdown', { x: 5, y: 10 });
-  shell.firePointer(doc, 'pointermove', { x: 5, y: 40 });
-  assert.equal(SigK.toolsMergeList.isDragging(), false);
+  // パスワード付き（開けたが保存も結合もできない）。
+  const peek = shell.SigK.tabs.peek;
+  shell.window.SigK.tabs.peek = (id) => ({ ...peek(id), doc: {}, basePages: [{}, {}], file: { encrypted: true } });
+  shell.SigK.toolsMergeList.render();
+  assert.equal(rowNodes(shell)[0].querySelector('.rng.note').textContent, 'パスワード付きなので、結合に使えません');
 });
 
-test('外す・すべて外す', async (t) => {
-  const shell = await createMergeShell(t);
-  const { SigK } = shell;
-  await SigK.toolsMerge.addPaths([A, B]);
-  rowNodes(shell)[0].querySelector('[title="外す"]').click();
-  assert.deepEqual(names(shell), ['b.pdf']);
-  shell.document.getElementById('merge-clear').click();
-  assert.deepEqual(names(shell), []);
-  assert.equal(shell.document.getElementById('merge-empty').hidden, false);
-});
+// ---- 実行（spec-2-1 確定事項21〜25・35〜38） ----
 
-// ---- ページ範囲（確定事項18〜20） ----
-
-test('範囲を書くと出力ページ数に映り、誤りは赤くして実行を止める', async (t) => {
-  const shell = await createMergeShell(t);
-  const { SigK } = shell;
-  await SigK.toolsMerge.addPaths([A, B]);
-  const input = rowNodes(shell)[0].querySelector('.range');
-
-  input.value = '1, 3';
-  input.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
-  assert.deepEqual(rows(shell)[0].pages, [0, 2]);
-  assert.equal(SigK.toolsMerge.outputPages(), 5);
-  assert.equal(shell.document.getElementById('merge-summary').textContent, '2 ファイル ・ 出力は 5 ページ');
-  assert.equal(SigK.toolsMerge.canRun(), true);
-
-  input.value = '2, 12';
-  input.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
-  assert.equal(SigK.toolsMerge.rows()[0].error, '3ページまでです');
-  assert.equal(rowNodes(shell)[0].classList.contains('invalid'), true);
-  assert.equal(rowNodes(shell)[0].querySelector('.note').textContent, '3ページまでです');
-  assert.equal(SigK.toolsMerge.canRun(), false);
-  assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
-  // 入力欄は描き直されず、フォーカスが飛ばない。
-  assert.equal(rowNodes(shell)[0].querySelector('.range'), input);
-
-  input.value = '';
-  input.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
-  assert.equal(SigK.toolsMerge.rows()[0].error, null);
-  assert.equal(SigK.toolsMerge.rows()[0].pages, null, '空欄は全ページ（null で渡す）');
-  assert.equal(SigK.toolsMerge.canRun(), true);
-});
-
-// ---- 実行（確定事項21〜25・35〜38） ----
-
-test('実行は保存先を聞き、ワーカーへ inputs と target を渡し、終わると新しいタブで開いてツールモードのまま', async (t) => {
+test('実行はチェックした帯を帯の順に範囲つきでワーカーへ渡し、できた PDF を新しい帯として足して選ぶ（チェックも入る）', async (t) => {
   const shell = await createMergeShell(t, {
+    open: [A, B, C],
     savePathResults: [{ path: OUT }],
     taskResults: [{ ok: true, path: OUT, pages: 5, inputs: 2, bytes: 100 }],
-    files: {
-      [A]: makeSource({ path: A }),
-      [B]: makeSource({ path: B }),
-      [OUT]: makeSource({ path: OUT, name: 'a_結合.pdf' }),
-    },
   });
   const { SigK, document: doc } = shell;
-  await SigK.toolsMerge.addPaths([A, B]);
-  SigK.toolsMerge.setRange(SigK.toolsMerge.rows()[1].id, '2-3');
+  check(shell, 1, false);
+  type(shell, 2, '2-3');
 
   const result = await SigK.toolsMerge.run();
   assert.equal(result.ok, true);
-  assert.deepEqual(shell.savePathCalls[0], { defaultPath: OUT, title: '結合した PDF を保存' });
-  assert.equal(shell.taskCalls.length, 1);
-  assert.deepEqual(shell.taskCalls[0].spec, {
+  assert.deepEqual(plain(shell.savePathCalls[0]), { defaultPath: OUT, title: '結合した PDF を保存' });
+  assert.deepEqual(plain(shell.taskCalls[0].spec), {
     kind: 'merge',
-    inputs: [{ path: A, name: 'a.pdf', pages: null }, { path: B, name: 'b.pdf', pages: [1, 2] }],
+    inputs: [{ path: A, name: 'a.pdf', pages: null }, { path: C, name: 'c.pdf', pages: [1, 2] }],
     target: OUT,
   });
-
-  // 新しいタブで開き、ツールモードのまま（確定事項35 を決定80 で改めた）。一覧は消さない（確定事項37）。
-  assert.equal(SigK.tabs.count(), 1);
-  assert.equal(SigK.tabs.list()[0].path, OUT);
+  assert.equal(SigK.tabs.count(), 4);
+  assert.equal(SigK.tabs.list()[3].path, OUT);
+  assert.equal(SigK.tabs.activeId(), SigK.tabs.list()[3].id);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(bannerText(shell), '2 ファイルを結合しました（5 ページ）');
-  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
   assert.equal(bannerTone(shell), 'info');
-  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
-  // 最近使ったファイルには openPath が足す（確定事項38）。
-  assert.equal(shell.recentCalls.some((call) => call.kind === 'add' && call.entry.path === OUT), true);
+  assert.deepEqual(checked(shell), [true, false, true, true], 'できた PDF の帯にも既定でチェック（PR-2 の起草者の判断）');
 });
 
 test('保存先を取り消せば何もしない', async (t) => {
   const shell = await createMergeShell(t, { savePathResults: [{ canceled: true }] });
-  await shell.SigK.toolsMerge.addPaths([A]);
   assert.deepEqual(plain(await shell.SigK.toolsMerge.run()), { canceled: true });
   assert.equal(shell.taskCalls.length, 0);
 });
 
-test('出力先が入力の1つと同じなら断る', async (t) => {
-  const shell = await createMergeShell(t, { savePathResults: [{ path: 'C:/work/A.PDF' }] });
-  await shell.SigK.toolsMerge.addPaths([A, B]);
-  const result = await shell.SigK.toolsMerge.run();
-  assert.equal(result.error, '出力先に入力ファイルと同じファイルは選べません。');
-  assert.equal(shell.taskCalls.length, 0);
-  assert.equal(bannerText(shell), '出力先に入力ファイルと同じファイルは選べません。');
-});
-
-test('出力先がタブで開いていれば、何も書かずに帯で断る（確定事項45）', async (t) => {
-  // 書いても openPath はそのタブを読み直さず、古い内容のまま前へ出すだけになるため。
-  const X = 'C:\\work\\x.pdf';
-  const shell = await createMergeShell(t, {
-    files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [X]: makeSource({ path: X }) },
-    savePathResults: [{ path: 'c:/work/X.PDF' }],
-  });
-  const { SigK, document: doc } = shell;
-  await SigK.tabs.openPath(X);
-  SigK.shell.setMode(doc, 'tools');
-  await SigK.toolsMerge.addPaths([A, B]);
-
-  const result = await SigK.toolsMerge.run();
-  assert.equal(result.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
+test('出力先が入力の 1 つと同じなら断り、タブで開いているほかのファイルなら確定事項45 の文で断る', async (t) => {
+  const shell = await createMergeShell(t, { open: [A, B, C], savePathResults: [{ path: 'C:/work/A.PDF' }, { path: 'c:/work/C.PDF' }] });
+  check(shell, 2, false);
+  const same = await shell.SigK.toolsMerge.run();
+  assert.equal(same.error, '出力先に入力ファイルと同じファイルは選べません。');
+  assert.equal(bannerText(shell), same.error);
+  const open = await shell.SigK.toolsMerge.run();
+  assert.equal(open.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
   assert.equal(shell.taskCalls.length, 0, 'ワーカーへ渡さない');
-  assert.equal(bannerText(shell), result.error);
-  // 結合画面に留まり、タブも一覧もそのまま。
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
-  assert.equal(SigK.tabs.count(), 1);
-  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
 });
 
-test('実行中は一覧の操作と実行ボタンが押せず、進捗はファイル単位で出る', async (t) => {
+test('実行中は行の操作と実行ボタンが押せず、進捗はファイル単位で出る', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
-  const shell = await createMergeShell(t, {
-    savePathResults: [{ path: OUT }],
-    taskResults: [gate],
-    files: { [A]: makeSource({ path: A }), [OUT]: makeSource({ path: OUT }) },
-  });
+  const shell = await createMergeShell(t, { savePathResults: [{ path: OUT }], taskResults: [gate] });
   const { SigK, document: doc } = shell;
-  await SigK.toolsMerge.addPaths([A]);
-
   const running = SigK.toolsMerge.run();
   await shell.flush();
   assert.equal(SigK.toolsMerge.isRunning(), true);
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
-  assert.equal(doc.getElementById('merge-add-open').getAttribute('aria-disabled'), 'true');
-  assert.equal(doc.getElementById('merge-pick').getAttribute('aria-disabled'), 'true');
-  assert.equal(rowNodes(shell)[0].querySelector('.range').disabled, true);
-  assert.equal(rowNodes(shell)[0].querySelector('[title="外す"]').getAttribute('aria-disabled'), 'true');
+  assert.equal(rowNodes(shell)[0].querySelector('.cbox').disabled, true);
+  assert.equal(rowNodes(shell)[0].querySelector('input.rng').disabled, true);
 
   shell.fireProgress({ taskId: shell.taskCalls[0].taskId, phase: 'apply', label: 'x', step: 3, total: 5, done: 1, of: 3 });
   assert.match(bannerText(shell), /結合しています（1 \/ 3 ファイル）/);
-  // モードの切り替えは許す（確定事項25）。
-  assert.equal(SigK.shell.setMode(doc, 'view'), true);
+  assert.equal(SigK.shell.setMode(doc, 'view'), true, 'モードの切り替えは許す（確定事項25）');
 
   release({ ok: true, path: OUT, pages: 3 });
   await running;
   assert.equal(SigK.toolsMerge.isRunning(), false);
-  assert.equal(runButton(shell).hasAttribute('aria-disabled'), false);
 });
 
 test('保存ダイアログを開いている間も実行中と数え、やめれば下ろす（spec-5-1 確定事項12）', async (t) => {
-  // 右クリックの束は、実行中なら預かられる。ダイアログの間に一覧へ入ると、戻ってから
-  // 読む一覧に混ざって出力が変わるため、run() の開始から実行中と数える。
   let answer;
   const dialog = new Promise((resolve) => { answer = resolve; });
   const shell = await createMergeShell(t, { savePathResults: [dialog] });
   const { SigK } = shell;
-  await SigK.toolsMerge.addPaths([A]);
-
   const running = SigK.toolsMerge.run();
   await shell.flush();
   assert.equal(SigK.toolsMerge.isRunning(), true);
   assert.equal(SigK.toolsMerge.canRun(), false);
-  assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
-
   answer({ canceled: true });
   assert.deepEqual(plain(await running), { canceled: true });
-  assert.equal(SigK.toolsMerge.isRunning(), false);
   assert.equal(SigK.toolsMerge.canRun(), true);
 });
 
-test('中止と失敗は帯で伝え、タブは開かない', async (t) => {
+test('中止と失敗は帯で伝え、新しい帯は足さない', async (t) => {
   const shell = await createMergeShell(t, {
     savePathResults: [{ path: OUT }, { path: OUT }],
     taskResults: [{ canceled: true }, { error: '「b.pdf」この PDF は内容が壊れているため保存できません。' }],
   });
   const { SigK } = shell;
-  await SigK.toolsMerge.addPaths([A]);
   assert.deepEqual(plain(await SigK.toolsMerge.run()), { canceled: true });
   assert.equal(bannerText(shell), '結合を中止しました。');
-  // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
   assert.equal(bannerTone(shell), 'info');
   const failed = await SigK.toolsMerge.run();
   assert.match(failed.error, /b\.pdf/);
   assert.equal(bannerText(shell), failed.error);
-  assert.equal(SigK.tabs.count(), 0);
-  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
+  assert.equal(SigK.tabs.count(), 2);
 });
 
 test('タブが上限なら開かずに帯で伝え、最近使ったファイルへ足す', async (t) => {
@@ -412,36 +246,21 @@ test('タブが上限なら開かずに帯で伝え、最近使ったファイ�
     files[filePath] = makeSource({ path: filePath });
     paths.push(filePath);
   }
-  const shell = await createMergeShell(t, {
-    files: { ...files, [A]: makeSource({ path: A }) },
-    savePathResults: [{ path: OUT }],
-    taskResults: [{ ok: true, path: OUT, pages: 3 }],
-  });
+  const shell = await createMergeShell(t, { open: paths, files, savePathResults: [{ path: OUT }], taskResults: [{ ok: true, path: OUT, pages: 3 }] });
   const { SigK } = shell;
-  for (const filePath of paths)
-    await SigK.tabs.openPath(filePath);
   assert.equal(SigK.tabs.count(), 20);
-  SigK.shell.setMode(shell.document, 'tools');
-
-  await SigK.toolsMerge.addPaths([A]);
   await SigK.toolsMerge.run();
   assert.equal(SigK.tabs.count(), 20);
   assert.equal(bannerText(shell), '結合しましたが、タブが多すぎるため開いていません。');
-  // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
   assert.equal(bannerTone(shell), 'info');
-  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(shell.recentList()[0].path, OUT);
 });
 
-// ---- 同名確認の経路（確定事項26〜28） ----
+// ---- 同名確認の経路（spec-2-1 確定事項26〜28。分割が使う） ----
 
 test('resolveTarget は同名があれば3択を出し、答えに応じて返す', async (t) => {
-  const shell = await createMergeShell(t, {
-    existingPaths: [OUT],
-    savePathResults: [{ path: 'C:\\work\\other.pdf' }],
-  });
+  const shell = await createMergeShell(t, { existingPaths: [OUT], savePathResults: [{ path: 'C:\\work\\other.pdf' }] });
   const { SigK, document: doc } = shell;
-
   const NEW = 'C:\\work\\new.pdf';
   assert.deepEqual(plain(await SigK.toolsMerge.resolveTarget(NEW)), { path: NEW }, '無ければ聞かない');
 
@@ -456,7 +275,6 @@ test('resolveTarget は同名があれば3択を出し、答えに応じて返�
   doc.getElementById('confirm-replace-cancel').click();
   assert.deepEqual(plain(await pending), { canceled: true });
 
-  // 別名で保存は、同じ既定名で保存ダイアログを開き直す。
   pending = SigK.toolsMerge.resolveTarget(OUT);
   await shell.flush();
   doc.getElementById('confirm-replace-rename').click();
@@ -464,138 +282,36 @@ test('resolveTarget は同名があれば3択を出し、答えに応じて返�
   assert.equal(shell.savePathCalls.at(-1).defaultPath, OUT);
 });
 
-// ---- --merge への備え（確定事項39・40） ----
+// ---- 起動からの結合（spec-5-1 確定事項9・16、spec-2-5 確定事項E7。決定80 ㉛） ----
 
-test('addFromLaunch はツールモードへ切り替えて結合を選び、末尾へ足す', async (t) => {
-  const shell = await createShell({ files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) } });
-  t.after(() => shell.cleanup());
-  await shell.flush();
-  const { SigK, document: doc } = shell;
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
-
-  await SigK.toolsMerge.addFromLaunch([A, B]);
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
-  assert.equal(SigK.tools.selected(), 'merge');
-  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf']);
-  assert.equal(SigK.toolsMerge.canRun(), true);
-});
-
-// ---- 右クリックの束（spec-5-1 確定事項9・16〜19） ----
-
-const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
 const first = (id) => ({ batch: { id, first: true } });
 const next = (id) => ({ batch: { id, first: false } });
+const openWith = (shell) => async (paths) => {
+  for (const filePath of paths)
+    await shell.SigK.toolHandoff.openOne(filePath);
+};
 
-async function createLaunchShell(t, options = {}) {
-  const shell = await createShell({
-    files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }), [OUT]: makeSource({ path: OUT }) },
-    ...options,
-  });
-  t.after(() => shell.cleanup());
-  await shell.flush();
-  return shell;
-}
-
-test('束の行はファイル名の順の位置へ入り、注記は行が 2 つになったときに束につき 1 回', async (t) => {
-  const shell = await createLaunchShell(t);
+test('起動からの結合は、選んだ PDF だけにチェックを入れ、前から開いていた帯のチェックを外し、束の中はファイル名の順', async (t) => {
+  const shell = await createMergeShell(t, { open: [B] });
   const { SigK, document: doc } = shell;
-
-  await SigK.toolsMerge.addFromLaunch([C], first(1));
-  assert.deepEqual(names(shell), ['c.pdf']);
-  assert.notEqual(bannerText(shell), NOTE_NAME_ORDER, '1 つだけなら注記は出さない');
-
-  await SigK.toolsMerge.addFromLaunch([A], next(1));
-  assert.deepEqual(names(shell), ['a.pdf', 'c.pdf']);
-  assert.equal(bannerText(shell), NOTE_NAME_ORDER);
-  // 注意・お知らせは黄色の帯で出す（決定49）。
-  assert.equal(bannerTone(shell), 'warn');
-
-  SigK.viewBanner.show('ほかの知らせ');
   SigK.shell.setMode(doc, 'view');
-  await SigK.toolsMerge.addFromLaunch([B], next(1));
-  assert.deepEqual(names(shell), ['a.pdf', 'b.pdf', 'c.pdf']);
-  assert.equal(bannerText(shell), 'ほかの知らせ', '注記は束につき 1 回');
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view', '束の 2 件目以降は画面を切り替えない');
-  assert.deepEqual(rows(shell).map((row) => row.batch), [1, 1, 1]);
-});
 
-test('アプリの中で足した行は束に入らず、束はその後ろにまとまる。注記も出さない', async (t) => {
-  const shell = await createLaunchShell(t);
-  const { SigK } = shell;
-  SigK.shell.setMode(shell.document, 'tools');
-
-  await SigK.toolsMerge.addPaths([C, B]);
-  assert.notEqual(bannerText(shell), NOTE_NAME_ORDER);
-  await SigK.toolsMerge.addFromLaunch([B], first(4));
-  await SigK.toolsMerge.addFromLaunch([A], next(4));
-  assert.deepEqual(names(shell), ['c.pdf', 'b.pdf', 'a.pdf', 'b.pdf'], '実行していない一覧には後ろに足す');
-  assert.deepEqual(rows(shell).map((row) => row.batch), [null, null, 4, 4]);
-});
-
-test('束の最初で、実行済みの一覧は置き換え、それ以外は後ろに足す（論点3）', async (t) => {
-  const shell = await createLaunchShell(t, {
-    savePathResults: [{ path: OUT }, { canceled: true }],
-    taskResults: [{ ok: true, path: OUT, pages: 6 }],
-  });
-  const { SigK, document: doc } = shell;
-
-  await SigK.toolsMerge.addFromLaunch([B, A], first(1));
-  assert.equal((await SigK.toolsMerge.run()).ok, true);
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools', '結合した PDF はタブで開き、ツールモードのまま');
-
-  await SigK.toolsMerge.addFromLaunch([C], first(2));
-  assert.deepEqual(names(shell), ['c.pdf'], '実行し終えた一覧は置き換える');
+  await SigK.toolsMerge.addFromLaunch([C], { ...first(1), open: openWith(shell) });
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
+  assert.equal(SigK.tools.selected(), 'merge');
+  assert.deepEqual(names(shell), ['b.pdf', 'c.pdf']);
+  assert.deepEqual(checked(shell), [false, true]);
+  assert.equal(doc.getElementById('merge-note').hidden, true, '1 つだけなら注記は出さない');
 
-  // 保存ダイアログをやめた（実行し終えていない）一覧には足す。
-  assert.deepEqual(plain(await SigK.toolsMerge.run()), { canceled: true });
-  await SigK.toolsMerge.addFromLaunch([A], first(3));
-  assert.deepEqual(names(shell), ['c.pdf', 'a.pdf']);
-});
+  await SigK.toolsMerge.addFromLaunch([A], { ...next(1), open: openWith(shell) });
+  assert.deepEqual(names(shell), ['b.pdf', 'a.pdf', 'c.pdf'], '束の帯がいる位置の中で名前の順');
+  assert.deepEqual(checked(shell), [false, true, true]);
+  assert.equal(doc.getElementById('merge-note').hidden, false);
+  assert.equal(text(shell, 'merge-note'), 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。');
 
-test('実行した後に一覧を変えれば、実行済みではなくなる', async (t) => {
-  const edits = {
-    外す: (SigK) => SigK.toolsMerge.remove(SigK.toolsMerge.rows()[0].id),
-    並べ替える: (SigK) => SigK.toolsMerge.move(SigK.toolsMerge.rows()[0].id, 1),
-    範囲を変える: (SigK) => SigK.toolsMerge.setRange(SigK.toolsMerge.rows()[0].id, '1'),
-    足す: (SigK) => SigK.toolsMerge.addPaths([C]),
-  };
-  for (const [label, edit] of Object.entries(edits)) {
-    const shell = await createLaunchShell(t, {
-      savePathResults: [{ path: OUT }],
-      taskResults: [{ ok: true, path: OUT, pages: 6 }],
-    });
-    const { SigK } = shell;
-    await SigK.toolsMerge.addPaths([A, B]);
-    assert.equal((await SigK.toolsMerge.run()).ok, true);
-    await edit(SigK);
-    const before = SigK.toolsMerge.rows().length;
-
-    await SigK.toolsMerge.addFromLaunch([C], first(9));
-    assert.equal(SigK.toolsMerge.rows().length, before + 1, `${label}: 置き換えずに足す`);
-  }
-});
-
-test('上限を超えた分は入れず、上限の帯は束につき 1 回', async (t) => {
-  const files = {};
-  const many = [];
-  for (let index = 0; index < 99; index += 1) {
-    const filePath = `C:\\work\\m${index}.pdf`;
-    files[filePath] = makeSource({ path: filePath });
-    many.push(filePath);
-  }
-  const shell = await createLaunchShell(t, { files: { ...files, [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }) } });
-  const { SigK } = shell;
-  SigK.shell.setMode(shell.document, 'tools');
-  await SigK.toolsMerge.addPaths(many);
-
-  await SigK.toolsMerge.addFromLaunch([A], first(1));
-  assert.equal(SigK.toolsMerge.rows().length, 100);
-  await SigK.toolsMerge.addFromLaunch([B], next(1));
-  assert.equal(SigK.toolsMerge.rows().length, 100);
-  assert.equal(bannerText(shell), '結合できるのは 100 ファイルまでです。');
-
-  SigK.viewBanner.show('ほかの知らせ');
-  await SigK.toolsMerge.addFromLaunch([C], next(1));
-  assert.equal(bannerText(shell), 'ほかの知らせ', '上限の帯は束につき 1 回');
+  // 次の束では、前の束の帯のチェックも外す。すでに開いている PDF を選べば、その帯にチェックが入る。
+  await SigK.toolsMerge.addFromLaunch([B], { ...first(2), open: openWith(shell) });
+  assert.deepEqual(names(shell), ['b.pdf', 'a.pdf', 'c.pdf']);
+  assert.deepEqual(checked(shell), [true, false, false]);
+  assert.equal(doc.getElementById('merge-note').hidden, true);
 });

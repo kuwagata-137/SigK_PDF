@@ -37,8 +37,11 @@ const DEFAULT_VIEWPORT = { width: 900, height: 700 };
 // 与えないと枠が1枚も並ばない（spec-1-3 確定事項5）。
 const DEFAULT_SIDE = { width: 240, height: 600 };
 
+// ツールモードの帯の器（#strips）の寸法。見えている帯と紙はここから決まる（spec-2-5 確定事項D8）。
+const DEFAULT_STRIPS = { width: 900, height: 600 };
+
 // 前回の見た目。settings.json に入っているものと同じ形にする。
-const DEFAULT_UI = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 } };
+const DEFAULT_UI = { mode: 'view', pageLayout: 'single', viewPointer: 'select', sidePanel: { open: true, width: 240 } };
 
 const A4 = { width: 595.28, height: 841.89 };
 
@@ -370,6 +373,14 @@ function applyViewport(window, viewport) {
   Object.defineProperty(view, 'clientHeight', { value: viewport.height, configurable: true });
 }
 
+function applyStrips(window, size) {
+  const strips = window.document.getElementById('strips');
+  if (strips === null || size === null)
+    return;
+  Object.defineProperty(strips, 'clientWidth', { value: size.width, configurable: true });
+  Object.defineProperty(strips, 'clientHeight', { value: size.height, configurable: true });
+}
+
 function applySide(window, side) {
   const scroll = window.document.getElementById('side-scroll');
   if (scroll === null || side === null)
@@ -405,6 +416,7 @@ async function createShell({
   withApis = true,
   viewport = DEFAULT_VIEWPORT,
   side = DEFAULT_SIDE,
+  strips = DEFAULT_STRIPS,
   pdfjs = createPdfjsStub(),
   openResults = [],
   recent = [],
@@ -429,6 +441,8 @@ async function createShell({
   // 答えるパス（spec-2-1）。
   mergeSourceResults = [],
   existingPaths = [],
+  // pdfAPI.pickOpenSources() が返すものの並び（帯の受け口の［ファイルを選ぶ…］。spec-2-5 確定事項D7）。
+  openSourceResults = [],
   // pdfAPI.pickSplitSource() / pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
   splitSourceResults = [],
   folderResults = [],
@@ -480,6 +494,7 @@ async function createShell({
   const savePathCalls = [];
   const insertSourceCalls = [];
   const mergeSourceCalls = [];
+  const openSourceCalls = [];
   const splitSourceCalls = [];
   const folderCalls = [];
   const imageSourceCalls = [];
@@ -544,6 +559,10 @@ async function createShell({
       pickMergeSources: async (options) => {
         mergeSourceCalls.push(structuredClone(options ?? {}));
         return mergeSourceResults.shift() ?? { canceled: true };
+      },
+      pickOpenSources: async (options) => {
+        openSourceCalls.push(structuredClone(options ?? {}));
+        return openSourceResults.shift() ?? { canceled: true };
       },
       exists: async (filePath) => ({ ok: true, exists: existingPaths.includes(filePath) }),
       // 大きさと更新日時だけ（spec-2-2b 確定事項D7）。files を差し替えると「書き換わった」ことにできる。
@@ -660,6 +679,8 @@ async function createShell({
           pageLayout: patch?.pageLayout ?? savedUi.pageLayout,
           // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。
           editSide: patch?.editSide ?? savedUi.editSide,
+          // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K5）。
+          viewPointer: patch?.viewPointer ?? savedUi.viewPointer,
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
           // 注釈の色（spec-4-1 確定事項34）。種類ごとに重ねる。
           annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },
@@ -729,6 +750,7 @@ async function createShell({
 
   applyViewport(window, viewport);
   applySide(window, side);
+  applyStrips(window, strips);
 
   const sources = readScriptSources(window.document);
   for (const src of readClassicSources(window.document)) {
@@ -773,6 +795,8 @@ async function createShell({
     insertSourceCalls,
     // pdfAPI.pickMergeSources() に届いたオプションの並び（spec-2-1）。
     mergeSourceCalls,
+    // pdfAPI.pickOpenSources() に届いたオプションの並び（spec-2-5 確定事項D7）。
+    openSourceCalls,
     splitSourceCalls,
     folderCalls,
     // pdfAPI.pickImageSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
@@ -876,6 +900,7 @@ module.exports = {
   DEFAULT_APP_INFO,
   DEFAULT_VIEWPORT,
   DEFAULT_SIDE,
+  DEFAULT_STRIPS,
   DEFAULT_UI,
   A4,
   readScriptSources,
@@ -887,5 +912,6 @@ module.exports = {
   waitForReady,
   applyViewport,
   applySide,
+  applyStrips,
   createShell,
 };

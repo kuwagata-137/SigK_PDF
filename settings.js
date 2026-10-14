@@ -25,6 +25,8 @@ const DEFAULTS = {
   pageLayout: 'single',
   // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。'thumbs' がサムネイル、'list' が注釈一覧。
   editSide: 'thumbs',
+  // 閲覧・ページ編集の［選択］［ハンド］（spec-2-5 確定事項K5・K7）。アプリ全体で 1 つを覚え、次の起動でも続く。
+  viewPointer: 'select',
   // 注釈の設定（色・塗り・線なし・線種・文字の大きさ・線の太さ・図形の種類・不透明度・作成者・色の移し替えの印）は
   // annotation-settings.js が持つ。
   ...structuredClone(ANNOT_DEFAULTS),
@@ -38,6 +40,8 @@ const UI_MODES = ['view', 'pages', 'annot', 'tools'];
 const PAGE_LAYOUTS = ['single', 'facing'];
 // 編集モードの左に出すもの。renderer/shell.js の EDIT_SIDES と同じ並びであること。
 const EDIT_SIDES = ['thumbs', 'list'];
+// 閲覧の［選択］［ハンド］。renderer/pointer-mode-rules.js の VIEW_POINTERS と同じ並びであること。
+const VIEW_POINTERS = ['select', 'hand'];
 
 const SIDE_PANEL_MIN = 180;
 const SIDE_PANEL_MAX = 420;
@@ -84,6 +88,7 @@ function mergeDefaults(raw) {
     mode: isValidMode(raw.mode) ? raw.mode : DEFAULTS.mode,
     pageLayout: isValidPageLayout(raw.pageLayout) ? raw.pageLayout : DEFAULTS.pageLayout,
     editSide: EDIT_SIDES.includes(raw.editSide) ? raw.editSide : DEFAULTS.editSide,
+    viewPointer: VIEW_POINTERS.includes(raw.viewPointer) ? raw.viewPointer : DEFAULTS.viewPointer,
     ...pickAnnotSettings(raw),
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
@@ -108,6 +113,7 @@ function pickUi(settings) {
     mode: settings.mode,
     pageLayout: settings.pageLayout,
     editSide: EDIT_SIDES.includes(settings.editSide) ? settings.editSide : DEFAULTS.editSide,
+    viewPointer: VIEW_POINTERS.includes(settings.viewPointer) ? settings.viewPointer : DEFAULTS.viewPointer,
     sidePanel: { open: settings.sidePanel.open, width: settings.sidePanel.width },
     ...annot,
   };
@@ -127,6 +133,9 @@ function mergeUi(current, patch) {
     editSide: EDIT_SIDES.includes(next.editSide)
       ? next.editSide
       : (EDIT_SIDES.includes(current.editSide) ? current.editSide : DEFAULTS.editSide),
+    viewPointer: VIEW_POINTERS.includes(next.viewPointer)
+      ? next.viewPointer
+      : (VIEW_POINTERS.includes(current.viewPointer) ? current.viewPointer : DEFAULTS.viewPointer),
     sidePanel: {
       open: pickBoolean(sidePanel.open, current.sidePanel.open),
       width: clampSidePanelWidth(pickNumber(sidePanel.width, current.sidePanel.width)),
@@ -269,6 +278,7 @@ module.exports = {
   UI_MODES,
   PAGE_LAYOUTS,
   EDIT_SIDES,
+  VIEW_POINTERS,
   ANNOT_FONT_SIZES,
   ANNOT_LINE_WIDTH_MIN,
   ANNOT_LINE_WIDTH_MAX,

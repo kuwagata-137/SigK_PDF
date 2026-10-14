@@ -9,7 +9,8 @@
   // taskId をこちらで採番するのは、run() の完了を待たずに中止を押させるため
   // である。メイン側が採番すると「まだ id を知らないのに中止したい」が起こる。
 
-  const state = { seq: 0, running: null };
+  // holds は、保存の入口から開き直しの終わりまで枠を押さえている数（holding）。
+  const state = { seq: 0, running: null, holds: 0 };
 
   function viewer() {
     return root.SigK.viewer;
@@ -29,7 +30,7 @@
   }
 
   function isBusy() {
-    return state.running !== null;
+    return state.running !== null || state.holds > 0;
   }
 
   // いま走っているものの名で断る。保存中に保存を押せば「いま保存しています」、
@@ -38,12 +39,32 @@
     return `いま${state.running?.label ?? '保存'}しています。`;
   }
 
+  // runTask・runLocal の断り。busy を添えるのは、後回しにできる処理（フラット化の数え）が「断られた」と「失敗した」を見分けるため。
+  function refusal() {
+    return { error: busyReason(), busy: true };
+  }
+
+  // 保存の入口から開き直しの終わりまで、枠を押さえる（点検の直し）。モザイクの確かめ・ワーカー・開き直しの間に枠が空くと、
+  // 帯を押して別のタブを前に出せたり（開き直しがそのタブの文書を差し替える）、フラット化の数えが保存と同時に走ったり
+  // （走っている処理の記録を上書きする）する。押さえている間に保存自身が回す runTask・runLocal は通す（断るのは走っている処理が
+  // あるときだけ）。ほかの入口（ツール・抽出・挿入・数え）は、走らせる前に isBusy を見る。
+  async function holding(work) {
+    state.holds += 1;
+    syncButtons();
+    try {
+      return await work();
+    } finally {
+      state.holds -= 1;
+      syncButtons();
+    }
+  }
+
   function activeTab() {
     return tabs()?.list().find((info) => info.active) ?? null;
   }
 
-  // ツールバーの［保存］と［名前を付けて保存］（id → 押したときの処理）。［名前を付けて保存］は 2026-10-14 に足す
-  // ボタンで、無ければ何もしない。
+  // ツールバーの［上書き保存］と［名前を付けて保存］（id → 押したときの処理。spec-2-5 確定事項B4）。
+  // viewer-controls.js の DOCUMENT_CONTROLS には入れない（押すたびに窓が 2 回出る）。
   const SAVE_BUTTONS = { 'btn-save': () => saveActive(), 'btn-save-as': () => saveAsActive() };
 
   // 保存中は保存・名前を付けて保存・閉じる・終了を塞ぐ（確定事項9）。
@@ -134,6 +155,9 @@
     const api = root.taskAPI;
     if (api?.available !== true)
       return { error: '保存の機能を使えません。' };
+    // 同時に回すと、走っている処理の記録を上書きする（点検の直し）。
+    if (state.running !== null)
+      return refusal();
 
     state.seq += 1;
     const taskId = `save-${state.seq}`;
@@ -162,8 +186,9 @@
   //                            最後の値は lastProgress() から読める（中止までに書けた数）。
   //   canceled()             … 中止が押されたか。
   async function runLocal({ label, run }) {
-    if (isBusy())
-      return { error: busyReason() };
+    // 保存が押さえている間に、保存自身がモザイクのページを画像にする（mosaic-save.js）ので、押さえは見ない（holding）。
+    if (state.running !== null)
+      return refusal();
 
     state.seq += 1;
     const taskId = `local-${state.seq}`;
@@ -214,10 +239,27 @@
     };
   }
 
+  // 保存したタブの文書を開き直す。開き直しは映しているタブの文書を差し替えるので、保存の途中で別のタブへ移っていたら、
+  // 保存したタブへ戻してから開き直す（点検の直し）。開き直している間に移されたら（viewer.reopen が false）、戻してもう一度。
+  // 保存したタブを閉じられた・戻せなかったら null（基準も更新しない。別のタブの基準を書き換えないため）。
+  async function reopenSaved(tabId, args) {
+    for (let tries = 0; tries < 3; tries += 1) {
+      if (tabId !== null && activeTab()?.id !== tabId && tabs().activate(tabId) !== true)
+        return null;
+      const reopened = await viewer().reopen(args);
+      if (reopened || tabId === null || activeTab()?.id === tabId)
+        return reopened;
+    }
+    return null;
+  }
+
   // 保存の1往復。外部で書き換えられていたら聞き直す（確定事項21）。
   async function writeTo({ source, target, makeBackup, name, label = '保存', mosaics = [], dropBackup = false }) {
     const file = viewer().getState().file;
-    let result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: signatureOf(file), mosaics, dropBackup }), label });
+    // 保存するタブと中身は、ここで控える（聞き直しの窓の間に別のタブへ移っても、同じものを書いて、同じタブを開き直す。点検の直し）。
+    const tabId = activeTab()?.id ?? null;
+    const spec = saveSpec({ source, target, makeBackup, expect: signatureOf(file), mosaics, dropBackup });
+    let result = await runTask({ ...spec, label });
 
     if (result?.changed === true) {
       const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
@@ -227,7 +269,7 @@
         return { canceled: true };
       }
       // 了承されたので、照合を外してもう一度回す。
-      result = await runTask({ ...saveSpec({ source, target, makeBackup, expect: null, mosaics, dropBackup }), label });
+      result = await runTask({ ...spec, expect: null, label });
     }
 
     if (result?.canceled === true) {
@@ -245,13 +287,10 @@
     // 2 回目の保存でワーカーが保存先を読んで plan をもう一度当ててしまう。
     // 読み直せなかったときは従来どおり基準だけを更新する（次の保存で気づける）。
     const moved = target !== source;
-    if (moved) {
-      const tab = activeTab();
-      if (tab !== null)
-        await tabs().rename(tab.id, { path: target, name });
-    }
-    const reopened = await viewer().reopen({ path: moved ? target : null, name: moved ? name : null });
-    if (!reopened) {
+    if (moved && tabId !== null)
+      await tabs().rename(tabId, { path: target, name });
+    const reopened = await reopenSaved(tabId, { path: moved ? target : null, name: moved ? name : null });
+    if (reopened === false) {
       viewer().markSaved({
         path: moved ? target : null,
         name: moved ? name : null,
@@ -273,6 +312,10 @@
   async function saveActive() {
     if (isBusy())
       return { error: busyReason() };
+    return holding(overwrite);
+  }
+
+  async function overwrite() {
     // 入力中のテキストは確定してから書く（spec-4-2 確定事項8）。
     root.SigK.annotate?.finishEditing();
 
@@ -306,6 +349,10 @@
   async function saveAsActive() {
     if (isBusy())
       return { error: busyReason() };
+    return holding(saveAs);
+  }
+
+  async function saveAs() {
     root.SigK.annotate?.finishEditing();
 
     const view = viewer().getState();

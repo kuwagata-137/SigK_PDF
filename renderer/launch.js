@@ -74,7 +74,14 @@
 
   const APPLY = {
     open: (paths, batch) => openAll(paths, batch),
-    merge: (paths, batch) => intoTool(() => SigKOf().toolsMerge.addFromLaunch(paths, { batch }), paths, batch),
+    // 結合は帯（＝タブ）を対象にするので、開いてから束の帯にチェックを入れる（spec-2-5 確定事項E7。決定80 ㉛）。
+    merge: (paths, batch) => SigKOf().toolsMerge.addFromLaunch(paths, {
+      batch,
+      open: (pdfs) => {
+        openBatches().enter(batch);
+        return openTabs(pdfs.filter((filePath) => /\.pdf$/i.test(filePath)));
+      },
+    }),
     toPdf: (paths, batch) => intoTool(() => SigKOf().toolsConvert.addFromLaunch(paths, { batch }), paths, batch),
     split: (paths, batch) => intoTool(() => SigKOf().toolsSplit.useFromLaunch(paths, { batch }), paths, batch),
   };

@@ -225,6 +225,7 @@
     state.imported = imported ?? {};
     render.redrawAnnotations({ rerender });
     root.SigK.annotationList?.refresh();
+    root.SigK.strips?.sync();
     return true;
   }
 
@@ -623,6 +624,15 @@
     return session;
   }
 
+  // 映している文書の中身を、外さずに覗く（ツールモードの帯。spec-2-5 確定事項D8）。値は参照のまま返すので、
+  // 受け取った側は書き換えない。文書が無ければ null。
+  function peek() {
+    if (state.doc === null)
+      return null;
+    const { doc, file, basePages, plan, savedPlan, annots, savedAnnots, imported, inserts, sizes } = state;
+    return { doc, file, basePages, plan, savedPlan, annots, savedAnnots, imported, inserts, sizes };
+  }
+
   function attach(session) {
     if (session === null || session === undefined || session.doc === undefined)
       return false;
@@ -872,9 +882,11 @@
   async function reopen({ path: nextPath = null, name = null } = {}) {
     if (state.doc === null || root.pdfAPI?.available !== true)
       return false;
+    // 読んでいる間に閉じられた・別のタブへ移された（文書が替わった）ら、読んだものを捨てる（点検の直し。替わった先の文書を差し替えない）。
+    const before = state.doc;
     const filePath = nextPath ?? state.file.path;
     const source = await root.pdfAPI.read(filePath);
-    if (source?.error !== undefined || state.doc === null)
+    if (source?.error !== undefined || state.doc !== before)
       return false;
 
     let doc;
@@ -886,8 +898,7 @@
       report(error, { path: filePath, reopen: true });
       return false;
     }
-    // 読んでいる間に閉じられていたら、読んだものを捨てる。
-    if (state.doc === null) {
+    if (state.doc !== before) {
       releaseDocument(doc);
       return false;
     }
@@ -991,6 +1002,7 @@
     close,
     detach,
     attach,
+    peek,
     destroySession,
     releaseDocument,
     getMetadata,
