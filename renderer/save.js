@@ -42,8 +42,8 @@
     return tabs()?.list().find((info) => info.active) ?? null;
   }
 
-  // ツールバーの［保存］と［名前を付けて保存］（id → 押したときの処理）。［名前を付けて保存］は 2026-10-14 に足す
-  // ボタンで、無ければ何もしない。
+  // ツールバーの［上書き保存］と［名前を付けて保存］（id → 押したときの処理。spec-2-5 確定事項B4）。
+  // viewer-controls.js の DOCUMENT_CONTROLS には入れない（押すたびに窓が 2 回出る）。
   const SAVE_BUTTONS = { 'btn-save': () => saveActive(), 'btn-save-as': () => saveAsActive() };
 
   // 保存中は保存・名前を付けて保存・閉じる・終了を塞ぐ（確定事項9）。

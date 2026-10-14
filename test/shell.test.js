@@ -290,6 +290,27 @@ test('ツールバーに元に戻す・やり直しが並ぶ（確定事項53）
   }
 });
 
+// 保存の 2 つは文字で明示する（spec-2-5 確定事項B4。決定80 ⑰㉑。見本 screenshots/strips1-view.png）。どちらも全部のモードに出す。
+// 押せる・押せない・押したときの処理は save.js の SAVE_BUTTONS が受け持つ（ツールモードでも使える。B6）。
+test('ツールバーの先頭に［開く］［上書き保存］［名前を付けて保存］が並び、文書が無ければ保存の 2 つは押せない', async (t) => {
+  const { document } = await withShell(t);
+  const save = document.getElementById('btn-save');
+  const saveAs = document.getElementById('btn-save-as');
+  const label = (node) => node.textContent.trim();
+
+  assert.notEqual(saveAs, null, '［名前を付けて保存］が無い');
+  assert.equal(label(save), '上書き保存');
+  assert.equal(save.getAttribute('title'), '上書き保存 (Ctrl+S)');
+  assert.equal(save.nextElementSibling, saveAs, '［名前を付けて保存］は［上書き保存］のすぐ右');
+  assert.equal(label(saveAs), '名前を付けて保存');
+  assert.equal(saveAs.getAttribute('title'), '名前を付けて保存 (Ctrl+Shift+S)');
+  assert.equal(saveAs.className, 'tb-btn');
+  assert.equal(saveAs.querySelector('[data-icon="saveAs"] svg') !== null, true, '［名前を付けて保存］の絵が描かれていない');
+  assert.equal(saveAs.nextElementSibling.className, 'tb-sep');
+  for (const node of [save, saveAs])
+    assert.equal(node.getAttribute('aria-disabled'), 'true', `${node.id} は文書が無いと押せない`);
+});
+
 test('ページ編集で足したアイコンが描ける', async (t) => {
   const { document, SigK } = await withShell(t);
 

@@ -41,7 +41,10 @@ body{
 
   <div id="toolbar">
     <div class="tb-btn" id="btn-open" title="PDF を開く (Ctrl+O)"><span data-icon="open"></span>開く</div>
-    <div class="tb-btn" id="btn-save" title="上書き保存 (Ctrl+S)" aria-disabled="true"><span data-icon="save"></span>保存</div>
+    <!-- 保存の 2 つは文字で明示する（spec-2-5 確定事項B4。決定80 ⑰㉑）。どちらも全部のモードに出し、ツールモードでも使える（B6）。
+         押せる・押せない・押したときの処理は save.js の SAVE_BUTTONS。 -->
+    <div class="tb-btn" id="btn-save" title="上書き保存 (Ctrl+S)" aria-disabled="true"><span data-icon="save"></span>上書き保存</div>
+    <div class="tb-btn" id="btn-save-as" title="名前を付けて保存 (Ctrl+Shift+S)" aria-disabled="true"><span data-icon="saveAs"></span>名前を付けて保存</div>
     <div class="tb-sep"></div>
     <div class="tb-btn icon" id="btn-undo" data-icon="undo" title="元に戻す (Ctrl+Z)" aria-disabled="true"></div>
     <div class="tb-btn icon" id="btn-redo" data-icon="redo" title="やり直し (Ctrl+Y)" aria-disabled="true"></div>
