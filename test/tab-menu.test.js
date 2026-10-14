@@ -158,13 +158,12 @@ test('一覧の外にフォーカスがあるときの Esc も、一覧を閉じ
 });
 
 // 結合は帯と右の欄へ移り、［開いているタブをまとめて追加］は無くした（spec-2-5 確定事項E6）。空のときの案内は右の欄の文。
-test('3 画面の何も選んでいないときの案内と、結合の空のときの案内（F8・F9・第 I 章、spec-2-5 確定事項E2・E4）', async (t) => {
+test('2 画面の何も選んでいないときの案内と、結合の空のときの案内（F8・F9・第 I 章、spec-2-5 確定事項E2・E4・E5）', async (t) => {
   const shell = await createToolShell(t);
   const text = (id) => shell.document.getElementById(id).textContent.trim();
   const lead = '［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、';
   assert.equal(text('split-empty'), `${lead}分割する PDF を決めてください。`);
   assert.equal(text('wm-empty'), `${lead}透かしを入れる PDF を決めてください。`);
-  assert.equal(text('fl-empty'), `${lead}書き込みを焼き込む PDF を決めてください。`);
   assert.equal(shell.document.getElementById('merge-add-open'), null);
   assert.equal(text('merge-empty'), 'PDF を開くと、ここにまとめるファイルが並びます。');
 });
@@ -228,11 +227,10 @@ test('押せない（実行中）ときは開かない', async (t) => {
   assert.equal(menuOf(shell), null);
 });
 
-// PDF→画像は帯の画面へ移り、選んでいる帯が対象になった（spec-2-5 確定事項E4・E6）。
-test('透かし・フラット化でも、選んだタブの PDF が対象になる', async (t) => {
+// PDF→画像・フラット化は帯の画面へ移り、選んでいる帯が対象になった（spec-2-5 確定事項E4・E5・E6）。
+test('透かしでも、選んだタブの PDF が対象になる', async (t) => {
   const screens = [
     { tool: 'watermark', id: 'wm-use-open', of: (SigK) => SigK.toolsWatermark },
-    { tool: 'flatten', id: 'fl-use-open', of: (SigK) => SigK.toolsFlatten },
   ];
   for (const screen of screens) {
     const shell = await createToolShell(t, screen.tool, { taskResults: [CENSUS] });

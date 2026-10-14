@@ -64,7 +64,7 @@ test('結合が走っている間に対象を決めても、書き込みは結�
   const { running } = await startMerge(shell);
 
   SigK.tools.select('flatten');
-  await SigK.toolsFlatten.setSource(A);
+  await SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E5）
   await settle(shell);
   assert.deepEqual(kinds(shell), ['merge'], '結合が走っている間は、数える処理をワーカーへ渡さない');
   assert.equal(SigK.save.isBusy(), true, '結合がまだ走っている');
@@ -93,7 +93,7 @@ test('結合の間に対象を決め、フラット化を見ないうちに結�
   const { running } = await startMerge(shell);
 
   SigK.tools.select('flatten');
-  await SigK.toolsFlatten.setSource(A);
+  await SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E5）
   await settle(shell);
   SigK.tools.select('merge');
   await settle(shell);
@@ -117,11 +117,11 @@ test('数えている間に対象を選び直すと、前の数えが終わっ�
   const shell = await createToolsShell(t, { taskResults: [first.gate, census(5)] });
   const { SigK } = shell;
   SigK.tools.select('flatten');
-  await SigK.toolsFlatten.setSource(A);
+  await SigK.tabs.openPath(A);   // 対象は選んでいる帯（spec-2-5 確定事項E5）
   await settle(shell);
   assert.equal(SigK.save.isBusy(), true, 'a.pdf を数えている');
 
-  await SigK.toolsFlatten.setSource(B);
+  await SigK.tabs.openPath(B);
   await settle(shell);
   assert.equal(shell.taskCalls.length, 1, 'a.pdf を数えている間は、b.pdf を数える処理をワーカーへ渡さない');
   assert.equal(SigK.save.isBusy(), true, 'a.pdf をまだ数えている');

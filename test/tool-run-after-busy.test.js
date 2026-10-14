@@ -39,7 +39,7 @@ const TOOLS = [
   // PDF→画像の対象は選んでいる帯（spec-2-5 確定事項E4）。開いたタブが選んでいる帯になる。
   { id: 'toImage', label: 'PDF→画像', api: 'toolsToImage', button: 'toimage-run', ready: (SigK) => SigK.tabs.openPath(A) },
   { id: 'watermark', label: '透かし', api: 'toolsWatermark', button: 'wm-run', ready: (SigK) => SigK.toolsWatermark.setSource(A) },
-  { id: 'flatten', label: 'フラット化', api: 'toolsFlatten', button: 'fl-run', ready: (SigK) => SigK.toolsFlatten.setSource(A), taskResults: [CENSUS] },
+  { id: 'flatten', label: 'フラット化', api: 'toolsFlatten', button: 'fl-run', ready: (SigK) => SigK.tabs.openPath(A), taskResults: [CENSUS] },
 ];
 const toolOf = (id) => TOOLS.find((tool) => tool.id === id);
 
@@ -75,7 +75,11 @@ async function prepare(shell, tool) {
 // 走っている Promise は包んで返す（async 関数がそのまま返すと、終わるまで待ってしまう）。
 async function startOther(shell, other) {
   const { SigK } = shell;
+  // 結合の準備は帯を開くので、選んでいる帯（PDF→画像・フラット化の対象。spec-2-5 確定事項E4・E5）が替わる。元の帯を選び直して対象を保つ。
+  const active = SigK.tabs.activeId();
   await other.ready(SigK);
+  if (active !== null)
+    SigK.tabs.activate(active);
   SigK.tools.select(other.id);
   const running = SigK[other.api].run();
   await settle(shell);

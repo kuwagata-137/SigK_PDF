@@ -144,7 +144,8 @@ function flattenScript({ source, target, stay }) {
     const pixelDiff = ${PIXEL_DIFF};
     SigK.shell.setMode(document, 'tools');
     SigK.tools.select('flatten');
-    await tool.setSource(${JSON.stringify(source)});
+    // 対象は選んでいる帯（spec-2-5 確定事項E5）。タブで開くと、それが選んでいる帯になる。
+    await SigK.toolHandoff.openOne(${JSON.stringify(source)});
     for (let tries = 0; tries < 80; tries += 1) {
       const census = tool.census();
       if (census !== null && !census.pending)

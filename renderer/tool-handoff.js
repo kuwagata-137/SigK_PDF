@@ -17,7 +17,6 @@
   const PDF_TOOLS = {
     split: { name: 'toolsSplit', single: true },
     watermark: { name: 'toolsWatermark', single: true },
-    flatten: { name: 'toolsFlatten', single: true },
   };
 
   const isToolsMode = () => root.SigK.tools?.isToolsMode() === true;

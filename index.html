@@ -470,44 +470,6 @@ body{
             <button type="button" class="dlg-btn primary" id="wm-run" aria-disabled="true">実行…</button>
           </div>
         </div>
-        <!-- フラット化（spec-4-5 確定事項7〜11）。対象と焼き込む注釈の 2 節。中身は tools-flatten.js（状態）と
-             tools-flatten-view.js（描画）、確認は confirm-flatten.js。出力先は実行時の保存ダイアログで決める（論点8）。 -->
-        <div class="tool-panel" data-tool="flatten" hidden>
-          <div class="tools-head">
-            <h2>フラット化</h2>
-            <span class="hint">書き込みをページの内容として焼き込み、新しいファイルに書き出します。元のファイルは変えません。</span>
-          </div>
-          <div class="split-body">
-            <section class="split-sec">
-              <h3>対象</h3>
-              <div class="split-target">
-                <div class="file" id="fl-file" hidden>
-                  <span class="name" id="fl-name"></span>
-                  <span class="pages" id="fl-pages"></span>
-                  <span class="note" id="fl-note" hidden></span>
-                </div>
-                <p class="empty" id="fl-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、書き込みを焼き込む PDF を決めてください。</p>
-                <div class="btns">
-                  <button type="button" class="act" id="fl-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
-                  <button type="button" class="act" id="fl-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-                </div>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>焼き込むもの</h3>
-              <p class="fl-status" id="fl-status" hidden></p>
-              <div class="fl-list" id="fl-list" hidden></div>
-              <p class="fl-keep" id="fl-keep" hidden><b>焼き込まずに残すもの</b><span id="fl-keep-text"></span></p>
-              <p class="fl-warn" id="fl-warn" hidden></p>
-              <p class="fit-note">ファイルを読み直して焼き込むので、未保存の書き込みは反映されません。「実行…」を押すと保存先を尋ねます。</p>
-            </section>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="fl-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="fl-run" aria-disabled="true">実行…</button>
-          </div>
-        </div>
       </div>
       <div id="view-banner" hidden></div>
       <div id="view-drop" hidden aria-hidden="true">
@@ -598,6 +560,37 @@ body{
           <span class="sum" id="toimage-summary"></span>
           <span class="spacer"></span>
           <button type="button" class="dlg-btn primary" id="toimage-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+      <!-- フラット化（spec-4-5 確定事項7〜11、spec-2-5 確定事項E5。決定80 ㉞。見本 screenshots/strips2-flatten.png）。対象は選んでいる帯。
+           焼き込む書き込みの種類をチェックボックスで、ページを［すべて］［範囲］で選ぶ。状態は tools-flatten.js、選び方の計算は flatten-choice.js、
+           描画は tools-flatten-view.js、確認は confirm-flatten.js。出力先は実行時の保存ダイアログで決める（論点8）。 -->
+      <section class="pane-tool" data-tool="flatten" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">フラット化</h2>
+          <p class="pane-desc">選んでいる帯の PDF の書き込みを、ページの内容として焼き込み、新しいファイルにします（元のファイルは変えません）。焼き込んだ書き込みは、あとから動かせません。</p>
+          <p class="pane-state" id="fl-state" hidden></p>
+          <section class="sb-card">
+            <h3>焼き込む書き込み</h3>
+            <p class="fl-status" id="fl-status" hidden></p>
+            <div class="fl-list" id="fl-list" hidden></div>
+            <p class="fl-keep" id="fl-keep" hidden><b>焼き込まずに残すもの</b><span id="fl-keep-text"></span></p>
+            <p class="fl-warn" id="fl-warn" hidden></p>
+          </section>
+          <section class="sb-card">
+            <h3>ページ</h3>
+            <div class="picks toimage-range-row" id="fl-page-modes">
+              <label class="pick"><input type="radio" name="fl-page-mode" value="all" checked><span class="lbl">すべて</span></label>
+              <label class="pick"><input type="radio" name="fl-page-mode" value="range"><span class="lbl">範囲</span></label>
+              <input type="text" class="split-inp wide" id="fl-range" placeholder="例: 1-3, 5, 8-" aria-label="焼き込むページ範囲" autocomplete="off" spellcheck="false">
+              <span class="err" id="fl-range-err" hidden></span>
+            </div>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="fl-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="fl-run" aria-disabled="true">実行…</button>
         </div>
       </section>
     </div>
@@ -1013,6 +1006,8 @@ body{
 <script src="renderer/watermark-preview.js"></script>
 <script src="renderer/confirm-flatten.js"></script>
 <script src="renderer/confirm-mosaic.js"></script>
+<script src="renderer/flatten-choice.js"></script>
+<script src="renderer/flatten-census.js"></script>
 <script src="renderer/tools-flatten.js"></script>
 <script src="renderer/tools-flatten-view.js"></script>
 <script src="renderer/save.js"></script>

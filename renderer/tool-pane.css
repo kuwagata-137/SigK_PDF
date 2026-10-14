@@ -63,3 +63,10 @@ html[data-tool-screen="strips"] #tabbar{display:none}
 #confirm-unsaved-run .dlg-list[hidden], #confirm-unsaved-run .dlg-note[hidden]{display:none}
 #confirm-unsaved-run .dlg-note{margin-top:8px; color:var(--muted); font-size:12px}
 #confirm-unsaved-run .dlg-btn[aria-disabled="true"]{opacity:.45; cursor:default}
+
+/* フラット化の種類の行（確定事項E5-1。見本 screenshots/strips2-flatten.png）: チェックボックス・名前・件数。 */
+#tool-pane .fl-list{max-width:none; font-size:12px; row-gap:7px}
+.fl-row{cursor:pointer}
+.fl-row .cbox{width:15px; height:15px; margin:0; accent-color:var(--primary); cursor:pointer}
+.fl-row .cbox:disabled{cursor:default}
+#tool-pane .fl-keep, #tool-pane .fl-warn{max-width:none; margin-top:10px}
