@@ -25,9 +25,22 @@
 #tool-pane .picks{flex-direction:column; align-items:flex-start; gap:5px}
 #tool-pane .pick{align-items:baseline; flex-wrap:wrap; column-gap:6px; row-gap:1px}
 #tool-pane .pick .sub{flex-basis:100%; padding-left:23px; font-size:11px}
-#tool-pane .toimage-range-row{flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px 14px}
+#tool-pane .toimage-range-row{flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px 0}
 #tool-pane .toimage-range-row .split-inp{margin-left:0; width:100%}
 #tool-pane .toimage-range-row .err{flex-basis:100%}
+
+/* 選択肢の少ないラジオボタンは、見本どおり区切りボタン（横並びのボタン）にする（.picks.seg と、ページの［すべて］［範囲］）。
+   ラジオボタンそのものは見えなくして残す（キーボードと読み上げはラジオボタンのまま）。説明の小さな文字は区切りボタンでは出さない。 */
+#tool-pane .picks.seg{flex-direction:row; flex-wrap:nowrap; gap:0; width:max-content; max-width:100%}
+#tool-pane .picks.seg .pick, #tool-pane .toimage-range-row .pick{position:relative; height:24px; padding:0 7px; display:flex; align-items:center; gap:0;
+  border:1px solid var(--border-strong); border-left-width:0; background:var(--surface); font-size:12px; cursor:pointer}
+#tool-pane .picks.seg .pick:first-child, #tool-pane .toimage-range-row .pick:first-child{border-left-width:1px; border-radius:7px 0 0 7px}
+#tool-pane .picks.seg .pick:last-of-type, #tool-pane .toimage-range-row .pick:nth-child(2){border-radius:0 7px 7px 0}
+#tool-pane .picks.seg .pick input, #tool-pane .toimage-range-row .pick input{position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer}
+#tool-pane .picks.seg .pick:has(input:checked), #tool-pane .toimage-range-row .pick:has(input:checked){background:var(--primary); border-color:var(--primary); color:#fff}
+#tool-pane .picks.seg .pick:has(input:focus-visible), #tool-pane .toimage-range-row .pick:has(input:focus-visible){outline:2px solid var(--primary); outline-offset:1px}
+#tool-pane .picks.seg .pick:has(input:disabled), #tool-pane .toimage-range-row .pick:has(input:disabled){opacity:.5; cursor:default}
+#tool-pane .picks.seg .sub{display:none}
 #tool-pane .split-out .folder{flex-wrap:wrap}
 #tool-pane .split-out .folder .path{max-width:100%}
 #tool-pane .split-out .example{min-width:0; overflow-wrap:anywhere}
@@ -75,7 +88,6 @@ html[data-tool-screen="strips"] #tabbar{display:none}
 #tool-pane .wm-opts{grid-template-columns:52px minmax(0,1fr); column-gap:8px; row-gap:10px; font-size:12px}
 #tool-pane .wm-opts .k{align-self:start; padding-top:3px}
 #tool-pane .wm-opts .split-inp.wide{width:100%}
-#tool-pane .wm-opts .picks{flex-direction:row; flex-wrap:wrap; gap:6px 12px}
-#tool-pane .wm-opts .picks .sub{flex-basis:100%; padding-left:0}
+#tool-pane .wm-opts .picks:not(.seg){flex-direction:row; flex-wrap:wrap; gap:6px 12px}
 #tool-pane .wm-preview{position:static}
 #tool-pane .wm-preview .page-box{min-height:0; padding:12px 0}
