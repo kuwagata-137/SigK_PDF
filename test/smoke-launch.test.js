@@ -42,14 +42,15 @@ test('画面で評価すると、束を当てた後の様子を報告する', as
 
   assert.equal(report.mode, 'tools');
   assert.equal(report.tool, 'merge');
-  // 結合・分割の PDF はタブでも開く（決定80）。画像→PDF の画像は開かない。
+  // 結合・分割の PDF はタブでも開く（決定80）。画像→PDF の画像は開かない。結合の束の帯は名前の順に並べ、束の帯だけにチェック
+  // （spec-2-5 確定事項E7。決定80 ㉛。b.pdf は分割の束で先に開いていたが、結合の束で選ばれたのでチェックが入る）。
   assert.equal(report.tabCount, 2);
-  assert.deepEqual(report.names, ['b.pdf', 'a.pdf']);
-  assert.deepEqual(report.merge.map((row) => [row.name, row.batch, row.pageCount, row.blocked]),
-    [['a.pdf', 3, 3, null], ['b.pdf', 3, 3, null]]);
+  assert.deepEqual(report.names, ['a.pdf', 'b.pdf']);
+  assert.deepEqual(report.merge.map((row) => [row.name, row.checked, row.pageCount, row.blocked]),
+    [['a.pdf', true, 3, null], ['b.pdf', true, 3, null]]);
   assert.deepEqual(report.convert.map((row) => [row.name, row.batch, row.kind]), [['a.png', 1, 'png']]);
   assert.deepEqual(report.split, { name: 'b.pdf', pageCount: 3, blocked: null });
-  assert.equal(report.banner, 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。');
+  assert.equal(report.mergeNote, 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。');
   assert.equal(report.pending, 0);
 });
 

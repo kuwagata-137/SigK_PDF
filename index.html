@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="renderer/text-layer.css">
 <link rel="stylesheet" href="renderer/split-board.css">
 <link rel="stylesheet" href="renderer/strips.css">
+<link rel="stylesheet" href="renderer/tool-pane.css">
 <style>
 :root{
   --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
@@ -210,27 +211,6 @@ body{
               <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
               <div class="recent" id="strip-drop-recent" hidden></div>
             </div>
-          </div>
-        </div>
-        <div class="tool-panel" data-tool="merge">
-          <div class="tools-head">
-            <h2>結合</h2>
-            <span class="hint">上から順に1つの PDF にまとめます。しおりは引き継がれません。</span>
-          </div>
-          <div class="merge-bar">
-            <button type="button" class="act" id="merge-add-open"><span data-icon="plus" data-icon-size="14" data-icon-stroke="2"></span>開いているタブをまとめて追加</button>
-            <button type="button" class="act" id="merge-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-            <span class="spacer"></span>
-            <button type="button" class="act quiet" id="merge-clear">すべて外す</button>
-          </div>
-          <div class="merge-list" id="merge-list">
-            <div class="merge-cols"><span></span><span>ファイル</span><span>ページ数</span><span>ページ範囲（空欄＝すべて）</span><span></span><span></span><span></span></div>
-            <p class="empty" id="merge-empty">［開いているタブをまとめて追加］か［ファイルを選ぶ…］で、結合する PDF を足してください。<br>PDF をここへドロップしても足せます。</p>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="merge-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="merge-run" aria-disabled="true">実行…</button>
           </div>
         </div>
         <!-- 分割（spec-2-2b。見本 screenshots/phase2-2b-*.png）。全ページのサムネイルを「できるファイルの箱」に並べ、その上で分ける。
@@ -617,6 +597,29 @@ body{
     </div>
     </div><!-- #main -->
 
+    <!-- ツールモードの右の欄（spec-2-5 第 E 章。見本 screenshots/strips2-*.png）。帯の画面を使うツール（結合・PDF→画像・透かし・フラット化）を
+         選んでいる間だけ出す（tool-pane.js）。編集モードの右パネル（#props）とは別のもの。節の中身は各ツールの描画が持つ。 -->
+    <div id="tool-pane" hidden>
+      <!-- 結合（spec-2-5 確定事項E2）。行はチェックボックス・帯の番号・名前・ページ数・範囲の欄。状態は tools-merge.js、描画は tools-merge-list.js。 -->
+      <section class="pane-tool" data-tool="merge" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">結合</h2>
+          <p class="pane-desc">チェックを入れたファイルを、左の帯の上から順に 1 つの PDF にまとめます（しおりは引き継がれません）。順番は帯の ↑↓ で変えます。</p>
+          <section class="sb-card">
+            <h3>まとめるファイル（<span id="merge-count">0 / 0</span>）</h3>
+            <div class="pane-rows" id="merge-list"></div>
+            <p class="pane-desc" id="merge-empty">PDF を開くと、ここにまとめるファイルが並びます。</p>
+            <p class="pane-note" id="merge-note" hidden></p>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="merge-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="merge-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+    </div>
+
     <!-- 注釈のプロパティ（spec-4-1 確定事項4）。注釈モードの間は常に出す。
          中身は annotation-props.js が実態に合わせる。 -->
     <div id="props">
@@ -969,6 +972,8 @@ body{
 <script src="renderer/strip-view.js"></script>
 <script src="renderer/strip-drop-zone.js"></script>
 <script src="renderer/strip-input.js"></script>
+<script src="renderer/merge-picks.js"></script>
+<script src="renderer/tool-pane.js"></script>
 <script src="renderer/tools-merge.js"></script>
 <script src="renderer/tools-merge-list.js"></script>
 <script src="renderer/split-plan.js"></script>

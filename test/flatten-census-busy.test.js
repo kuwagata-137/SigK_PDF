@@ -48,7 +48,8 @@ async function createToolsShell(t, options) {
 // 結合を走らせ、ワーカーの返事を待たせておく。走っている Promise は包んで返す（そのまま返すと終わるまで待ってしまう）。
 async function startMerge(shell) {
   const { SigK } = shell;
-  await SigK.toolsMerge.addPaths([B]);
+  // 結合する PDF は帯（＝タブ）。開くと結合の行に既定でチェックが入る（spec-2-5 確定事項E2）。
+  await SigK.tabs.openPath(B);
   SigK.tools.select('merge');
   const running = SigK.toolsMerge.run();
   await settle(shell);

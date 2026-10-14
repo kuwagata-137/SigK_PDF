@@ -32,6 +32,11 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(SigK.tools.selected(), 'merge');
   assert.equal(SigK.tools.panelFor('merge').hidden, false);
   assert.equal(SigK.tools.panelFor('split').hidden, true);
+  // 結合は帯の画面と右の欄。タブの列は隠す（spec-2-5 確定事項B3・D11・E1）。
+  assert.equal(SigK.tools.panelFor('merge').parentElement.id, 'tool-pane');
+  assert.equal(doc.getElementById('tool-pane').hidden, false);
+  assert.equal(doc.getElementById('strips-screen').hidden, false);
+  assert.equal(doc.documentElement.getAttribute('data-tool-screen'), 'strips');
   assert.equal(SigK.tools.panelFor('convert').hidden, true);
   assert.equal(SigK.tools.panelFor('toImage').hidden, true);
 
@@ -41,6 +46,10 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(items[1].classList.contains('active'), true);
   assert.equal(SigK.tools.panelFor('split').hidden, false);
   assert.equal(SigK.tools.panelFor('merge').hidden, true);
+  // 分割は PR-3 まで今の画面のまま。帯も右の欄も出さず、タブの列も出す（決定80 ㉚）。
+  assert.equal(doc.getElementById('tool-pane').hidden, true);
+  assert.equal(doc.getElementById('strips-screen').hidden, true);
+  assert.equal(doc.documentElement.hasAttribute('data-tool-screen'), false);
 
   // 画像→PDF も同じように切り替わる。
   items[2].click();
@@ -61,6 +70,8 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(SigK.tools.isToolsMode(), false);
   assert.equal(doc.getElementById('tools-list').hidden, true);
   assert.equal(doc.getElementById('tools-view').hidden, true);
+  assert.equal(doc.getElementById('tool-pane').hidden, true);
+  assert.equal(doc.documentElement.hasAttribute('data-tool-screen'), false, '閲覧ではタブの列を出す');
   assert.equal(doc.getElementById('thumbs-empty').hidden, false);
 });
 

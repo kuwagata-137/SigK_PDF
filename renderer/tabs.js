@@ -227,8 +227,9 @@
     revealActive();
     syncTitle();
     root.SigK.recentPanel?.sync();
-    // ツールモードの帯もタブを描き直すここから合わせる（並び・選択・未保存の印。spec-2-5 確定事項D1〜D4）。
+    // ツールモードの帯と右の欄も、タブを描き直すここから合わせる（並び・選択・未保存の印。spec-2-5 確定事項D1〜D4・E2）。
     root.SigK.strips?.sync();
+    root.SigK.toolPane?.sync();
   }
 
   // ---- 開く ----

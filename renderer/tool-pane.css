@@ -1,0 +1,40 @@
+/* ツールモードの右の欄（#tool-pane。spec-2-5 第 E 章。見本 screenshots/strips2-*.png）。編集モードの右パネル（#props）と同じ位置。
+   幅は 280px、窓が 1100px より狭いときは 244px（確定事項E1）。カードは分割の画面の .sb-card（split-board.css）を使う。 */
+
+#tool-pane{width:280px; flex:0 0 280px; border-left:1px solid var(--border); background:var(--surface-2); display:flex; flex-direction:column; min-height:0}
+#tool-pane[hidden]{display:none}
+@media (max-width:1100px){#tool-pane{width:244px; flex-basis:244px}}
+.pane-tool{flex:1; min-height:0; display:flex; flex-direction:column}
+.pane-tool[hidden]{display:none}
+.pane-body{flex:1; min-height:0; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px}
+.pane-title{font-size:15px; font-weight:700; margin:0}
+.pane-desc{margin:0; color:var(--muted); font-size:12px; line-height:1.7}
+.pane-desc[hidden], .pane-note[hidden]{display:none}
+.pane-note{margin:8px 0 0; padding:7px 9px; border-radius:6px; background:rgba(240,180,41,.14); color:var(--text); font-size:12px; line-height:1.6}
+.pane-foot{padding:10px 12px; border-top:1px solid var(--border); display:flex; align-items:center; gap:8px; background:var(--surface)}
+.pane-foot .sum{font-size:12px; color:var(--muted); min-width:0}
+.pane-foot .spacer{flex:1}
+
+/* ツールモードで帯の画面を使うツールを選んでいる間は、タブの列を出さない（確定事項B3。帯がタブの代わり）。 */
+html[data-tool-screen="strips"] #tabbar{display:none}
+
+/* 結合の行（確定事項E2）: チェックボックス・帯の番号・名前・ページ数、2 段目に範囲の欄。 */
+.pane-rows{display:flex; flex-direction:column}
+.pane-row{display:grid; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid var(--surface-2); font-size:12px}
+.pane-row:last-child{border-bottom:none}
+.pane-row .fname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pane-row .p{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
+.merge-pick{grid-template-columns:18px 20px minmax(0,1fr) 34px}
+.merge-pick .cbox{width:15px; height:15px; margin:0; accent-color:var(--primary); cursor:pointer}
+.merge-pick .cbox:disabled{cursor:default}
+.merge-pick .rng{grid-column:3 / 5; height:26px; box-sizing:border-box; border:1px solid var(--border-strong); border-radius:6px; padding:0 7px; font:inherit; font-size:12px; color:var(--text); background:var(--surface)}
+.merge-pick .rng::placeholder{color:var(--muted)}
+.merge-pick .rng:disabled{background:var(--surface-2); border-color:var(--border); color:#a7afba}
+.merge-pick .rng.invalid{border-color:var(--danger); background:rgba(214,69,69,.06)}
+.merge-pick .rng.note{display:flex; align-items:center; border:none; background:none; padding:0; color:var(--danger)}
+.merge-pick .rng[hidden]{display:none}
+.merge-pick .err{grid-column:3 / 5; margin:0; color:var(--danger); font-size:11.5px}
+.merge-pick .err[hidden]{display:none}
+.merge-pick.off .fname, .merge-pick.off .p{color:var(--muted)}
+.merge-pick.off .strip-no{background:var(--surface-2); color:var(--muted)}
+.merge-pick.blocked .fname{color:var(--danger)}

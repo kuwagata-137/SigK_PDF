@@ -1228,7 +1228,7 @@ function installSmokeCheck(win, mode) {
   //
   // 保存ダイアログは OS のもので自動では押せない（saveScript と同じ事情）ので、
   // 画面の「実行」は押さず、同じ spec を SigK.save.runTask へ直接渡す。
-  // 画面側は addFromLaunch で一覧を組み、ページ数が読めて実行できる状態に
+  // 画面側は addFromLaunch で入力をタブ（帯）で開いてチェックを入れ（spec-2-5 確定事項E7）、ページ数が読めて実行できる状態に
   // なるところまでを見る。あわせて同名確認の3択（confirm-replace）も、
   // 出力先を先に作っておいて resolveTarget を通し、「上書き」を押して確かめる
   // （完了判定9。画面から到達する経路は塊②）。
@@ -1238,7 +1238,13 @@ function installSmokeCheck(win, mode) {
     const inputs = ${JSON.stringify(inputs)};
     const target = ${JSON.stringify(target)};
 
-    await SigK.toolsMerge.addFromLaunch(inputs);
+    await SigK.toolsMerge.addFromLaunch(inputs, {
+      batch: null,
+      open: async (paths) => {
+        for (const filePath of paths)
+          await SigK.toolHandoff.openOne(filePath);
+      },
+    });
     await wait(500);
     const rows = SigK.toolsMerge.rows().map((row) => ({ name: row.name, pageCount: row.pageCount, blocked: row.blocked }));
     const mode = document.documentElement.getAttribute('data-mode');
@@ -1257,7 +1263,7 @@ function installSmokeCheck(win, mode) {
     const pending = SigK.save.runTask({
       kind: 'merge',
       label: '結合',
-      inputs: SigK.toolsMerge.rows().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
+      inputs: SigK.toolsMerge.inputs().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
       target,
     });
     // SIGK_SMOKE_MERGE_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。

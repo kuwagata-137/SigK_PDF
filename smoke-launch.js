@@ -29,7 +29,9 @@ function launchScript(waitMs) {
       openedName: state.file && state.file.name,
       pageCount: state.pageCount,
       message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
-      merge: SigK.toolsMerge.rows().map((row) => ({ name: row.name, batch: row.batch, pageCount: row.pageCount, blocked: row.blocked })),
+      // 結合の行は帯（＝タブ）の順。チェックと右の欄の注記（spec-2-5 確定事項E2・E7）。
+      merge: SigK.toolsMerge.rows().map((row) => ({ name: row.name, checked: row.checked, pageCount: row.pageCount, blocked: row.blocked })),
+      mergeNote: document.getElementById('merge-note').hidden ? null : document.getElementById('merge-note').textContent,
       convert: SigK.toolsConvert.rows().map((row) => ({ name: row.name, batch: row.batch, kind: row.kind, blocked: row.blocked })),
       split: split === null ? null : { name: split.name, pageCount: split.pageCount, blocked: split.blocked },
       banner: SigK.viewBanner.text(),

@@ -520,49 +520,6 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .merge-bar .act.quiet{background:transparent; border-color:transparent; color:var(--muted)}
 .merge-bar .act.quiet:hover{background:var(--surface-2); box-shadow:none}
 
-/* 一覧。行 36px（確定事項41）。ドロップの棒を置くため position:relative。 */
-.merge-list{
-  flex:1; min-height:0; overflow:auto; margin:0 24px; position:relative;
-  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
-}
-.merge-cols,.merge-row{
-  display:grid; grid-template-columns:22px 1fr 76px 150px 30px 30px 30px; align-items:center; gap:6px;
-  padding:0 8px 0 6px;
-}
-.merge-cols{
-  height:30px; position:sticky; top:0; z-index:1; background:var(--surface-2); border-bottom:1px solid var(--border);
-  color:var(--muted); font-size:11.5px; letter-spacing:.04em;
-}
-.merge-cols span:nth-child(3){text-align:right}
-.merge-row{min-height:36px; border-bottom:1px solid var(--border)}
-.merge-row:last-of-type{border-bottom:none}
-.merge-row:hover{background:var(--surface-2)}
-.merge-row.dragging{opacity:.4}
-.merge-row .grip{color:var(--border-strong); display:grid; place-items:center; cursor:grab}
-.merge-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.merge-row.blocked .name{color:var(--danger)}
-.merge-row .pages{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums}
-.merge-row .range{
-  height:26px; padding:0 8px; border:1px solid var(--border-strong); border-radius:6px;
-  background:var(--surface); color:var(--text); font:inherit; width:100%;
-}
-.merge-row .range::placeholder{color:var(--muted)}
-.merge-row .range:focus{outline:2px solid var(--primary); outline-offset:-1px; border-color:transparent}
-.merge-row .range:disabled{background:var(--surface-2); color:var(--muted)}
-.merge-row.invalid .range{border-color:var(--danger); background:rgba(214,69,69,.06)}
-.merge-row .rbtn{
-  width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted); cursor:pointer;
-}
-.merge-row .rbtn:hover{background:var(--surface); box-shadow:var(--shadow-item); color:var(--text)}
-.merge-row .rbtn.danger:hover{color:var(--danger)}
-.merge-row .rbtn[aria-disabled="true"]{opacity:.35; cursor:default}
-.merge-row .rbtn[aria-disabled="true"]:hover{background:transparent; box-shadow:none; color:var(--muted)}
-/* 行の下の注意・誤り（確定事項11・14・20）。2列目から範囲欄の列まで。 */
-.merge-row .note{grid-column:2 / 5; font-size:11.5px; line-height:1.5; margin:-4px 0 6px; color:var(--muted)}
-.merge-row .note[hidden]{display:none}
-.merge-row .note.error{color:var(--danger)}
-#merge-empty{color:var(--muted); font-size:12.5px; padding:36px 0; margin:0}
-#merge-empty[hidden]{display:none}
 .merge-foot{display:flex; align-items:center; gap:12px; padding:12px 24px 18px}
 .merge-foot .sum{color:var(--muted); font-size:12px}
 .merge-foot .spacer{flex:1}
@@ -627,9 +584,8 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .split-out .example .err{color:var(--danger)}
 
 /* ── 画像→PDF（spec-3-1 確定事項33） ────────────────────────── */
-/* 画像・用紙・出力の3節。節の枠は分割の .split-sec、一覧は結合の .merge-list、
-   出力の欄は .split-out をそのまま使う。ここで足すのは一覧の8列と
-   ラジオの並び（用紙・向き・余白・方式）だけである。 */
+/* 画像・用紙・出力の3節。節の枠は分割の .split-sec、出力の欄は .split-out をそのまま使う。一覧（.convert-list）は
+   結合の古い一覧の形を写したもの（結合は 2026-10-14 に帯と右の欄へ移った。spec-2-5 第 E 章）。 */
 .convert-bar{padding:0 0 10px}
 .convert-bar .drop-hint{color:var(--muted); font-size:12px}
 .convert-list{

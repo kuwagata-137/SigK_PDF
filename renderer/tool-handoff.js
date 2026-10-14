@@ -13,8 +13,8 @@
   // ツールはタブとは別にファイルを読み、読めなければ理由をツールの画面に出すため。
 
   // PDF を受けるツールと、その受け口（addPaths）を持つモジュール。single は対象が 1 本のツール。
+  // 結合は帯（＝タブ）を対象にするので渡さない（開いたタブは既定で結合のチェックが入る。spec-2-5 確定事項E2）。
   const PDF_TOOLS = {
-    merge: { name: 'toolsMerge', single: false },
     split: { name: 'toolsSplit', single: true },
     toImage: { name: 'toolsToImage', single: true },
     watermark: { name: 'toolsWatermark', single: true },

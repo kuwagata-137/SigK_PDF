@@ -130,9 +130,9 @@ test('閲覧モードでは、今までどおり別のタブを開くと前の�
 const plain = (value) => structuredClone(value);
 const mergePaths = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.path));
 
-test('結合を選んでいるとき、［開く］で開いたファイルは結合の一覧の末尾にも入る', async (t) => {
+// 結合は帯（＝タブ）を対象にするので、開いたタブがそのまま結合の行になり、既定でチェックが入る（spec-2-5 確定事項E2）。
+test('結合を選んでいるとき、［開く］で開いたファイルは帯になり、結合の行にもチェック付きで入る', async (t) => {
   const shell = await withShell(t, { openResults: [makeSource({ path: B })] });
-  await shell.SigK.toolsMerge.addPaths([A]);
 
   shell.fireOpenRequest();
   await shell.flush();
@@ -140,7 +140,8 @@ test('結合を選んでいるとき、［開く］で開いたファイルは�
   await shell.flush();
 
   assert.deepEqual(plain(shell.SigK.tabs.list().map((tab) => tab.path)), [B, A]);
-  assert.deepEqual(mergePaths(shell), [A, B, A], '結合は同じファイルを何度でも足せる（今までのドロップと同じ）');
+  assert.deepEqual(mergePaths(shell), [B, A]);
+  assert.deepEqual(plain(shell.SigK.toolsMerge.rows().map((row) => row.checked)), [true, true]);
   assert.equal(modeOf(shell), 'tools');
 });
 
@@ -184,5 +185,6 @@ test('閲覧モードの［開く］はツールに渡さない', async (t) => {
   await shell.flush();
 
   assert.equal(shell.SigK.tabs.count(), 1);
-  assert.deepEqual(mergePaths(shell), []);
+  // 結合は開いたタブがそのまま行になるので、渡さないことは対象を持つツール（分割）で見る。
+  assert.equal(shell.SigK.toolsSplit.source(), null);
 });

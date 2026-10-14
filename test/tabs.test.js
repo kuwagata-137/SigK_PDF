@@ -464,21 +464,24 @@ test('閲覧モードで開き始め、読み込みの間にツールモード�
   await shell.flush();
   const opening = shell.SigK.tabs.runOpenCommand(A);
   shell.SigK.shell.setMode(shell.document, 'tools');
+  // 結合は開いたタブがそのまま行になるので、渡さないことは対象を持つツール（分割）で見る（spec-2-5 確定事項E2）。
+  shell.SigK.tools.select('split');
   assert.equal(await opening, true);
   await shell.flush();
   assert.equal(modeOf(shell), 'tools');
   assert.equal(shell.SigK.tabs.count(), 1);
-  assert.deepEqual(structuredClone(mergePaths(shell)), [], '開き始めにツールを見ていなかった');
+  assert.equal(shell.SigK.toolsSplit.source(), null, '開き始めにツールを見ていなかった');
 });
 
 test('ツールモードで開き始め、読み込みの間に閲覧モードへ替えたら、ツールには渡さない', async (t) => {
   const shell = await inToolsMode(t);
+  shell.SigK.tools.select('split');
   const opening = shell.SigK.tabs.runOpenCommand(A);
   shell.SigK.shell.setMode(shell.document, 'view');
   assert.equal(await opening, true);
   await shell.flush();
   assert.equal(modeOf(shell), 'view');
-  assert.deepEqual(structuredClone(mergePaths(shell)), [], 'ツールの画面が見えていないので渡さない');
+  assert.equal(shell.SigK.toolsSplit.source(), null, 'ツールの画面が見えていないので渡さない');
 });
 
 test('ファイルを選ぶ窓で取りやめたら、ツールモードのままで、何もしない', async (t) => {
@@ -565,14 +568,13 @@ test('ページ編集・編集モードで開いても、モードは変えな�
   assert.equal(shell.SigK.tabs.count(), 2);
 });
 
-// ツールの画面の中のファイル選びは、ツールの画面へ渡す口である（spec-2-1 確定事項12）。タブは作らない。
-// ドロップはタブでも開く（決定80）。どちらもモードは変えない。
-test('ツールの画面の「ファイルを選ぶ…」とドロップでは、ツールモードのまま', async (t) => {
-  const shell = await inToolsMode(t, { mergeSourceResults: [{ paths: [A] }] });
+// 帯の画面の受け口の［ファイルを選ぶ…］とドロップは、どちらもタブ（帯）で開き、モードは変えない（決定80。spec-2-5 確定事項A1・D7）。
+test('帯の受け口の「ファイルを選ぶ…」とドロップでは、タブで開いてツールモードのまま', async (t) => {
+  const shell = await inToolsMode(t, { openSourceResults: [{ paths: [A] }] });
   shell.SigK.tools.select('merge');
 
-  press(shell, shell.document.getElementById('merge-pick'));
-  for (let i = 0; i < 5 && shell.SigK.toolsMerge.rows().length === 0; i += 1)
+  press(shell, shell.document.getElementById('strip-drop-pick'));
+  for (let i = 0; i < 5 && shell.SigK.tabs.count() === 0; i += 1)
     await shell.flush();
   assert.equal(shell.SigK.toolsMerge.rows().length, 1);
   assert.equal(modeOf(shell), 'tools');
@@ -580,9 +582,9 @@ test('ツールの画面の「ファイルを選ぶ…」とドロップでは�
   const drop = new shell.window.Event('drop', { bubbles: true, cancelable: true });
   drop.dataTransfer = makeDataTransfer([makeDroppedFile('b.pdf', B)]);
   shell.document.dispatchEvent(drop);
-  for (let i = 0; i < 5 && shell.SigK.toolsMerge.rows().length === 1; i += 1)
+  for (let i = 0; i < 5 && shell.SigK.tabs.count() === 1; i += 1)
     await shell.flush();
   assert.equal(shell.SigK.toolsMerge.rows().length, 2);
   assert.equal(modeOf(shell), 'tools');
-  assert.deepEqual(structuredClone(shell.SigK.tabs.list().map((tab) => tab.path)), [B], '落としたファイルだけタブで開く');
+  assert.deepEqual(structuredClone(shell.SigK.tabs.list().map((tab) => tab.path)), [A, B]);
 });

@@ -26,7 +26,8 @@ const CENSUS = {
 // 6 つのツール。ready は、そのツールだけなら［実行…］が押せるところまで整える。
 // taskResults は、整える間にワーカーへ頼む分の返事（フラット化の数え）。
 const TOOLS = [
-  { id: 'merge', label: '結合', api: 'toolsMerge', button: 'merge-run', ready: (SigK) => SigK.toolsMerge.addPaths([B]) },
+  // 結合する PDF は帯（＝タブ）。開くと結合の行に既定でチェックが入る（spec-2-5 確定事項E2）。
+  { id: 'merge', label: '結合', api: 'toolsMerge', button: 'merge-run', ready: (SigK) => SigK.tabs.openPath(B) },
   {
     id: 'split', label: '分割', api: 'toolsSplit', button: 'split-run',
     ready: async (SigK) => {
@@ -73,10 +74,7 @@ async function prepare(shell, tool) {
 // 走っている Promise は包んで返す（async 関数がそのまま返すと、終わるまで待ってしまう）。
 async function startOther(shell, other) {
   const { SigK } = shell;
-  if (other.id === 'merge')
-    await SigK.toolsMerge.addPaths([B]);
-  else
-    await other.ready(SigK);
+  await other.ready(SigK);
   SigK.tools.select(other.id);
   const running = SigK[other.api].run();
   await settle(shell);

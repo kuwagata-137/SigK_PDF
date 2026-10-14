@@ -39,8 +39,11 @@
     return el !== null && el.doc.documentElement.getAttribute('data-mode') === 'tools';
   }
 
+  // そのツールの設定の器。帯の画面を使うツールは右の欄の節（spec-2-5 第 E 章）、ほかは今の画面。
   function panelFor(id) {
-    return el?.view.querySelector(`[data-tool="${id}"]`) ?? null;
+    if (root.SigK.toolPane?.usesStrips(id) === true)
+      return root.SigK.toolPane.sectionFor(id);
+    return el?.view.querySelector(`.tool-panel[data-tool="${id}"]`) ?? null;
   }
 
   // 見えているツールの画面を描き直す（計画外の直し）。［実行…］が押せるかは、各ツールの canRun() が
@@ -63,8 +66,11 @@
     root.SigK.splitReload?.setShown(isToolsMode() && id === 'split');
     for (const item of el.list.querySelectorAll('.tool-item'))
       item.classList.toggle('active', item.dataset.tool === id);
-    for (const panel of el.view.querySelectorAll('[data-tool]'))
-      panel.hidden = panel.dataset.tool !== id;
+    // 帯の画面を使うツールは、真ん中に帯・右の欄に設定を出し、今の画面（.tool-panel）は隠す（spec-2-5 第 D・E 章）。
+    const strips = isToolsMode() && root.SigK.toolPane?.usesStrips(id) === true;
+    for (const panel of el.view.querySelectorAll('.tool-panel[data-tool]'))
+      panel.hidden = strips || panel.dataset.tool !== id;
+    root.SigK.toolPane?.show(isToolsMode() ? id : null);
     // 隠れている間に、ほかの処理が走り始めたり終わったりしていることがある。見せるときに描き直す。
     // 分割は、盤の PDF を開き直してから splitReload が描き直すので、ここでは描かない。
     if (id !== 'split')
@@ -119,6 +125,7 @@
     else {
       root.SigK.tabMenu?.close();
       root.SigK.splitReload?.setShown(false);
+      root.SigK.toolPane?.show(null);
     }
     root.SigK.save?.syncButtons();
     return active;

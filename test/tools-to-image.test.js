@@ -135,7 +135,7 @@ test('PDF→画像を選んでいるときの PDF のドロップは対象にな
   assert.equal(SigK.toolsToImage.source().path, B);
   assert.equal(SigK.tabs.count(), 2, 'タブでも開く（決定80）');
   assert.equal(SigK.toolsSplit.source(), null, '分割の対象にはしない');
-  assert.equal(SigK.toolsMerge.rows().length, 0, '結合の一覧には足さない');
+  assert.equal(SigK.toolsMerge.rows().length, 2, '結合は開いたタブ（帯）がそのまま行になる（spec-2-5 確定事項E2）');
   assert.equal(bannerText(shell), '1つ目のファイルだけを対象にしました。');
 });
 

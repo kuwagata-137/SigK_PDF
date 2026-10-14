@@ -45,8 +45,8 @@ test('index.html が読み込むスタイルシートはすべて実在する', 
   const { document } = await withShell(t);
   const hrefs = [...document.querySelectorAll('link[rel="stylesheet"]')].map((el) => el.getAttribute('href'));
 
-  // split-board.css は分割の盤（spec-2-2b）、strips.css はツールモードの帯の画面（spec-2-5 第 D 章）。
-  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css']);
+  // split-board.css は分割の盤（spec-2-2b）、strips.css・tool-pane.css はツールモードの帯の画面と右の欄（spec-2-5 第 D・E 章）。
+  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css', 'renderer/tool-pane.css']);
   for (const href of hrefs)
     assert.ok(fs.existsSync(path.join(ROOT, ...href.split('/'))), `${href} が無い`);
 });
@@ -70,8 +70,8 @@ test('画面の骨組みが組み上がる', async (t) => {
 });
 
 // タブの列はツールバーの下・左の欄の右・ページの表示のすぐ上（spec-2-5 確定事項B1・B2。見本 screenshots/strips1-view.png）。
-// 編集モードの右パネル（#props）は #main の外に置き、上から下まで伸ばす。ツールモードでもタブの列は出す（決定80 ㉖。隠すのは PR-2）。
-test('タブの列は #main の中で表示の器のすぐ上にあり、右パネルは #main の外にある', async (t) => {
+// 編集モードの右パネル（#props）とツールモードの右の欄（#tool-pane。spec-2-5 確定事項B2・E1）は #main の外に置き、上から下まで伸ばす。
+test('タブの列は #main の中で表示の器のすぐ上にあり、右パネルと右の欄は #main の外にある', async (t) => {
   const { document } = await withShell(t);
   const main = document.getElementById('main');
 
@@ -79,7 +79,8 @@ test('タブの列は #main の中で表示の器のすぐ上にあり、右パ�
   assert.equal(main.parentElement.id, 'body');
   assert.deepEqual([...main.children].map((el) => el.id), ['tabbar', 'view-wrap']);
   assert.equal(document.getElementById('props').parentElement.id, 'body');
-  assert.equal(main.nextElementSibling.id, 'props');
+  assert.equal(main.nextElementSibling.id, 'tool-pane');
+  assert.equal(document.getElementById('tool-pane').nextElementSibling.id, 'props');
   // ツールバーは今どおり #app の直下で、タブの列より上にある。
   assert.equal(document.getElementById('toolbar').parentElement.id, 'app');
 });
@@ -96,8 +97,10 @@ test('#main は残りの幅を取り、中を縦に並べ、表示の器が残�
   assert.match(rule('#main'), /flex-direction:column/);
   assert.match(rule('#main > #view-wrap'), /flex:1/);
   assert.match(rule('#main > #view-wrap'), /min-height:0/);
-  // ツールモードでタブの列を隠す規則はまだ入れない（決定80 ㉖）。
+  // タブの列を隠すのは、帯の画面を使うツールを選んでいるときだけ（spec-2-5 確定事項B3・D11。決定80 ㉖㉚）。ツールモードというだけでは隠さない。
   assert.doesNotMatch(css, /data-mode="tools"\][^{]*#tabbar/);
+  const pane = fs.readFileSync(path.join(ROOT, 'renderer', 'tool-pane.css'), 'utf8');
+  assert.match(pane, /html\[data-tool-screen="strips"\] #tabbar\{display:none\}/);
 });
 
 test('ツールレールは 4 つのモードだけを持ち、編集の道具は道具の段に並ぶ', async (t) => {

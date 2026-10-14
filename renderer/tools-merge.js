@@ -1,27 +1,23 @@
 (function (root) {
   'use strict';
 
-  // 結合画面の状態と指揮（spec-2-1 確定事項8〜25・35〜40）。
+  // 結合の状態と指揮（spec-2-1 確定事項21〜28・35〜40、spec-2-5 確定事項E2・E7）。
   //
-  // 一覧の行を持ち、足す・並べ替える・範囲を検証する・実行する、を受け持つ。
-  // 描画と行のドラッグは tools-merge-list.js にある。実際に書くのはワーカーで、
-  // 走らせるのは save.js の runTask（進捗の帯・中止・二重起動の防止を1か所に持つ）。
-  //
-  // 結合はファイルを読み直して組むので、画面上の並べ替え・回転・削除は結果に
-  // 映らない（確定事項11）。未保存のタブを足すことは止めず、注意だけ出す。
+  // 結合する PDF は帯（＝タブ）で、順番はタブの並び（帯の ↑↓ で変える）。ここはタブごとのチェックと範囲（merge-picks.js）を持ち、
+  // 行はそのつどタブから組む。ページ数はファイルの中身（basePages）で、ワーカーはこれまでどおりファイルを読み直して組む
+  // （保存していない変更は結果に入らない。実行の前に確かめる〔確定事項F〕）。描画は tools-merge-list.js。
 
-  const MAX_INPUTS = 100;
-  const NOTE_UNSAVED = '未保存の編集は反映されません';
+  // 起動からの結合の注記（確定事項E7）。
+  const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。';
 
-  // executed は「最後の実行が成功し、その後に一覧を変えていない」（spec-5-1 確定事項18）。
-  // 右クリックの束が届いたとき、実行し終えた一覧なら置き換える。
-  const state = { rows: [], seq: 0, running: false, executed: false };
+  const state = { running: false, launchTabs: [], note: false };
+  const picks = root.SigK.mergePicks.create();
   let el = null;
   let launchBatch = null;
 
   const banner = () => root.SigK.viewBanner;
   const tabs = () => root.SigK.tabs;
-  const list = () => root.SigK.toolsMergeList;
+  const view = () => root.SigK.toolsMergeList;
   const intake = () => root.SigK.launchIntake;
   const batches = () => (launchBatch ??= intake().createBatchTracker());
 
@@ -33,207 +29,108 @@
     return String(filePath ?? '').split(/[\\/]/).pop();
   }
 
+  // 使えない帯の理由（行に赤で出し、チェックを入れられない）。
+  function blockedOf(tab, peeked) {
+    if (peeked === null || peeked.doc === undefined)
+      return '開けなかったので、結合に使えません';
+    if (typeof tab.path !== 'string')
+      return '保存すると結合に使えます';
+    if (peeked.file?.encrypted === true)
+      return 'パスワード付きなので、結合に使えません';
+    return null;
+  }
+
+  function rowOf(tab, index) {
+    const peeked = tabs().peek(tab.id);
+    const blocked = blockedOf(tab, peeked);
+    const pageCount = blocked === null ? peeked.basePages.length : null;
+    const range = picks.rangeOf(tab.id);
+    const checked = blocked === null && picks.isChecked(tab.id);
+    let pages = null;
+    let error = null;
+    if (checked && range.trim() !== '') {
+      const parsed = root.SigK.pageRange.parsePageRange(range, pageCount);
+      if (parsed.error !== undefined)
+        error = parsed.error;
+      else
+        pages = parsed.pages;
+    }
+    return { tabId: tab.id, no: index + 1, path: tab.path, name: tab.name, pageCount, checked, range, pages, error, blocked };
+  }
+
+  // 帯の順の行（チェックを外した帯・使えない帯も含む）。
   function rows() {
-    return state.rows.map((row) => ({ ...row }));
+    const list = tabs().list();
+    picks.sync(list.map((tab) => tab.id));
+    return list.map(rowOf);
   }
 
-  function find(id) {
-    return state.rows.find((row) => row.id === id) ?? null;
+  // 結合に入れる行（チェックを入れた、使える帯）。
+  function inputs() {
+    return rows().filter((row) => row.checked);
   }
 
-  // ---- ページ数を読む（確定事項14） ----
-
-  // 読むのは tool-source.js（分割と共用）。文言の続き「外してください」はこちらで足す。
-  async function inspect(filePath) {
-    const info = await root.SigK.toolSource.inspectPdf(filePath);
-    if (info.reason === 'encrypted' || info.reason === 'broken')
-      return { error: `${info.error}。外してください` };
-    return info;
+  function setChecked(tabId, on) {
+    picks.setChecked(tabId, on);
+    view()?.render();
+    return true;
   }
 
-  // ---- 足す・外す・並べ替える ----
-
-  const validPaths = (paths) => (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
-
-  // batch を渡すと、右クリックの束の行として、同じ束の中でファイル名の順の位置へ入れる
-  // （spec-5-1 確定事項16）。渡さなければ末尾へ足す。
-  async function addPaths(paths, { dirty = () => false, batch = null, limitNotice = true } = {}) {
-    const incoming = validPaths(paths);
-    const room = MAX_INPUTS - state.rows.length;
-    if (incoming.length > room) {
-      if (limitNotice)
-        banner().show(limitMessage());
-      if (room <= 0)
-        return [];
-    }
-    const added = [];
-    for (const filePath of incoming.slice(0, Math.max(0, room))) {
-      state.seq += 1;
-      const row = {
-        id: `merge-${state.seq}`,
-        path: filePath,
-        name: baseName(filePath),
-        pageCount: null,
-        range: '',
-        pages: null,
-        error: null,
-        blocked: null,
-        note: dirty(filePath) === true ? NOTE_UNSAVED : null,
-        pending: true,
-        batch,
-      };
-      const at = batch === null ? state.rows.length : intake().insertAt(state.rows, batch, filePath);
-      state.rows.splice(at, 0, row);
-      added.push(row);
-    }
-    if (added.length > 0)
-      state.executed = false;
-    list()?.render();
-
-    await Promise.all(added.map(async (row) => {
-      const info = await inspect(row.path);
-      row.pending = false;
-      if (info.error !== undefined)
-        row.blocked = info.error;
-      else {
-        row.pageCount = info.pageCount;
-        row.name = info.name;
-      }
-      list()?.syncRow(row.id);
-    }));
-    list()?.render();
-    return added.map((row) => row.id);
+  function setRange(tabId, text) {
+    picks.setRange(tabId, text);
+    view()?.render();
+    return true;
   }
 
-  // 開いているタブを、まだ一覧に無いものだけ末尾へ足す（確定事項10・11）。
-  async function addOpenTabs() {
-    const open = tabs()?.list() ?? [];
-    const present = new Set(state.rows.map((row) => pathKey(row.path)));
-    const fresh = open.filter((tab) => typeof tab.path === 'string' && !present.has(pathKey(tab.path)));
-    if (open.length === 0) {
-      banner().show('タブで開いている PDF がありません。');
-      return [];
-    }
-    // 注意・お知らせは黄色の帯で出す（決定49）。
-    if (fresh.length === 0) {
-      banner().show('開いているタブの PDF は、すべて一覧に入っています。', { tone: 'warn' });
-      return [];
-    }
-    const dirtyIds = new Set(fresh.filter((tab) => tabs().isDirty(tab.id)).map((tab) => pathKey(tab.path)));
-    const ids = await addPaths(fresh.map((tab) => tab.path), { dirty: (filePath) => dirtyIds.has(pathKey(filePath)) });
-    if (dirtyIds.size > 0)
-      banner().show('未保存の編集は結合に反映されないので、保存してから結合し直してください。', { tone: 'warn' });
-    return ids;
+  // ---- 起動からの結合（spec-5-1 確定事項9・16・18、spec-2-5 確定事項E7。決定80 ㉛） ----
+
+  // 束の帯どうしを、束の帯がいる位置の中でファイル名の順に並べ替える。
+  function sortBatch(ids) {
+    const order = tabs().list().map((tab) => tab.id);
+    const slots = order.map((id, index) => (ids.includes(id) ? index : -1)).filter((index) => index >= 0);
+    const pathOf = (id) => tabs().list().find((tab) => tab.id === id)?.path;
+    const sorted = slots.map((index) => order[index]).sort((a, b) => intake().compareNames(pathOf(a), pathOf(b)));
+    slots.forEach((slot, at) => { order[slot] = sorted[at]; });
+    tabs().reorder(order);
   }
 
-  async function pickFiles() {
-    const api = root.pdfAPI;
-    if (api?.available !== true || typeof api.pickMergeSources !== 'function')
-      return [];
-    const picked = await api.pickMergeSources({ defaultPath: state.rows[0]?.path });
-    if (picked?.canceled === true || !Array.isArray(picked?.paths))
-      return [];
-    return addPaths(picked.paths);
-  }
-
-  function limitMessage() {
-    return `結合できるのは ${MAX_INPUTS} ファイルまでです。`;
-  }
-
-  // `--merge` の受け口（確定事項39・spec-5-1 確定事項9・16〜19・21）。右クリックで N 個選ぶと
-  // 1 件ずつ届くので、束の最初でだけ画面を切り替え、一覧を置き換えるか後ろに足すかを決める。
-  // 束の行はファイル名の順の位置へ入れ、注記と上限の帯は束につき 1 回だけ出す。
-  async function addFromLaunch(paths, { batch } = {}) {
-    const { id, starts } = batches().enter(batch);
+  // 右クリックで N 個選ぶと 1 件ずつ届く。束の最初でツールモードの結合へ切り替え、前から開いていた帯のチェックを外す。
+  // open（launch.js）で選んだ PDF をタブで開いてから、その帯にチェックを入れる。
+  async function addFromLaunch(paths, { batch, open }) {
+    const { starts } = batches().enter(batch);
     if (starts) {
       root.SigK.shell.setMode(el.doc, 'tools');
       root.SigK.tools.select('merge');
-      if (intake().planIntake({ count: state.rows.length, executed: state.executed }) === 'replace')
-        clear();
+      picks.sync(tabs().list().map((tab) => tab.id));
+      picks.uncheckAll();
+      state.launchTabs = [];
+      state.note = false;
     }
-    const incoming = validPaths(paths);
-    const overflow = incoming.length > MAX_INPUTS - state.rows.length;
-    const ids = await addPaths(incoming, { batch: id, limitNotice: false });
-    if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
-      banner().show(intake().NOTE_NAME_ORDER, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
-    if (overflow && batches().once('limit'))
-      banner().show(limitMessage());
-    return ids;
-  }
-
-  function setRange(id, text) {
-    const row = find(id);
-    if (row === null)
-      return false;
-    row.range = String(text ?? '');
-    row.error = null;
-    row.pages = null;
-    state.executed = false;
-    if (row.pageCount !== null) {
-      const parsed = root.SigK.pageRange.parsePageRange(row.range, row.pageCount);
-      if (parsed.error !== undefined)
-        row.error = parsed.error;
-      else if (row.range.trim() !== '')
-        row.pages = parsed.pages;
+    const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
+    await open(incoming);
+    for (const filePath of incoming) {
+      const tab = tabs().findByPath(filePath);
+      if (tab === null)
+        continue;
+      picks.setChecked(tab.id, true);
+      if (!state.launchTabs.includes(tab.id))
+        state.launchTabs.push(tab.id);
     }
-    list()?.syncRow(id);
-    return true;
+    sortBatch(state.launchTabs);
+    state.note = state.launchTabs.length >= 2;
+    view()?.render();
+    return state.launchTabs.length;
   }
 
-  function moveTo(id, at) {
-    const from = state.rows.findIndex((row) => row.id === id);
-    if (from < 0 || !Number.isInteger(at))
-      return false;
-    const target = Math.min(Math.max(at, 0), state.rows.length);
-    // at は「取り除く前」の挿入位置。取り除いたぶんだけ詰める。
-    const to = target > from ? target - 1 : target;
-    if (to === from)
-      return false;
-    const [row] = state.rows.splice(from, 1);
-    state.rows.splice(to, 0, row);
-    state.executed = false;
-    list()?.render();
-    return true;
-  }
-
-  function move(id, delta) {
-    const from = state.rows.findIndex((row) => row.id === id);
-    if (from < 0)
-      return false;
-    const to = from + delta;
-    if (to < 0 || to >= state.rows.length)
-      return false;
-    return moveTo(id, delta > 0 ? to + 1 : to);
-  }
-
-  function remove(id) {
-    const from = state.rows.findIndex((row) => row.id === id);
-    if (from < 0)
-      return false;
-    state.rows.splice(from, 1);
-    state.executed = false;
-    list()?.render();
-    return true;
-  }
-
-  function clear() {
-    state.rows = [];
-    state.executed = false;
-    list()?.render();
-    return true;
-  }
-
-  // ---- 実行（確定事項21〜25・35〜38） ----
+  // ---- 実行（spec-2-1 確定事項21〜25・35〜38） ----
 
   function canRun() {
-    return !state.running
-      && root.SigK.save?.isBusy() !== true
-      && state.rows.length > 0
-      && state.rows.every((row) => !row.pending && row.blocked === null && row.error === null);
+    const chosen = inputs();
+    return !state.running && root.SigK.save?.isBusy() !== true && chosen.length > 0 && chosen.every((row) => row.error === null);
   }
 
-  function outputPages() {
-    return state.rows.reduce((sum, row) => sum + (row.pages?.length ?? row.pageCount ?? 0), 0);
+  function outputPages(chosen = inputs()) {
+    return chosen.reduce((sum, row) => sum + (row.pages?.length ?? row.pageCount ?? 0), 0);
   }
 
   function defaultTargetFor(filePath) {
@@ -242,8 +139,7 @@
     return `${filePath.replace(/\.pdf$/i, '')}_結合.pdf`;
   }
 
-  // 出力先に同名があれば3択を出す（確定事項26〜28）。塊① の結合は OS の保存
-  // ダイアログが同名を確認するので通らない経路だが、塊② がそのまま使う。
+  // 出力先に同名があれば 3 択を出す（確定事項26〜28）。結合は OS の保存ダイアログが同名を確かめるので通らないが、分割が使う。
   // 戻り値は { path } / { canceled }。
   async function resolveTarget(target, { name = baseName(target) } = {}) {
     const api = root.pdfAPI;
@@ -252,7 +148,6 @@
     const found = await api.exists(target);
     if (found?.exists !== true)
       return { path: target };
-
     const answer = await root.SigK.confirmReplace.ask({ name });
     if (answer === root.SigK.confirmReplace.REPLACE)
       return { path: target };
@@ -264,68 +159,57 @@
     return resolveTarget(picked.path);
   }
 
-  // 保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12）。ダイアログの間に
-  // 右クリックの束が一覧へ入ると、戻ってから読む一覧に混ざって出力が変わるため、束は預かられる。
+  // 保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12）。
   async function run() {
     if (!canRun())
       return { error: '結合できる状態ではありません。' };
     state.running = true;
-    list()?.render();
+    view()?.render();
     try {
-      return await runChosen();
+      return await runChosen(inputs());
     } finally {
       state.running = false;
-      list()?.render();
+      view()?.render();
     }
   }
 
-  async function runChosen() {
-    const picked = await root.pdfAPI.pickSavePath({
-      defaultPath: defaultTargetFor(state.rows[0].path),
-      title: '結合した PDF を保存',
-    });
+  async function runChosen(chosen) {
+    const picked = await root.pdfAPI.pickSavePath({ defaultPath: defaultTargetFor(chosen[0].path), title: '結合した PDF を保存' });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
       return { error: picked?.error ?? '保存先を決められませんでした。' };
-
     const target = picked.path;
-    if (state.rows.some((row) => pathKey(row.path) === pathKey(target))) {
-      banner().show('出力先に入力ファイルと同じファイルは選べません。');
-      return { error: '出力先に入力ファイルと同じファイルは選べません。' };
-    }
-    // タブで開いているファイルへは書かない（確定事項45）。書いたあとの openPath は、
-    // そのタブを読み直さずに前へ出すだけで、古い内容のまま残るため。
-    const refused = root.SigK.outputTarget.refusalFor(target);
+    // 入力と同じファイル・タブで開いているファイルへは書かない（確定事項45）。帯はどれもタブなので、入力と同じ名前は後者でも断られる。
+    const refused = chosen.some((row) => pathKey(row.path) === pathKey(target))
+      ? '出力先に入力ファイルと同じファイルは選べません。'
+      : root.SigK.outputTarget.refusalFor(target);
     if (refused !== null) {
       banner().show(refused);
       return { error: refused };
     }
-
     const result = await root.SigK.save.runTask({
       kind: 'merge',
       label: '結合',
-      inputs: state.rows.map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
+      inputs: chosen.map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
       target,
     });
-    return finish(result, target);
+    return finish(result, target, chosen.length);
   }
 
-  async function finish(result, target) {
+  async function finish(result, target, count) {
     if (result?.canceled === true) {
-      // 自分で止めたので赤く塗らない（決定49）。
-      banner().show('結合を中止しました。', { tone: 'info' });
+      banner().show('結合を中止しました。', { tone: 'info' });   // 自分で止めたので赤く塗らない（決定49）
       return result;
     }
     if (result?.ok !== true) {
       banner().show(result?.error ?? '結合できませんでした。');
       return result ?? { error: '結合できませんでした。' };
     }
-
-    // ここから先は書けている。タブで開き、モードは変えない（tool-output.js。決定80）。
-    state.executed = true;
+    state.note = false;
+    // 書けている。新しい帯としてタブで開き、モードは変えない（tool-output.js。決定80。新しい帯にも既定でチェックが入る）。
     await root.SigK.toolOutput.openWritten(target, {
-      done: `${state.rows.length} ファイルを結合しました（${result.pages} ページ）`,
+      done: `${count} ファイルを結合しました（${result.pages} ページ）`,
       crowded: '結合しましたが、タブが多すぎるため開いていません。',
     });
     return result;
@@ -334,8 +218,6 @@
   function init(doc, win) {
     if (win.__sigkToolsMergeReady === true)
       return false;
-    if (doc.getElementById('merge-list') === null)
-      return false;
     win.__sigkToolsMergeReady = true;
     el = { doc, win };
     return true;
@@ -343,10 +225,10 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsMerge = {
-    MAX_INPUTS, NOTE_UNSAVED,
-    init, rows, find, addPaths, addOpenTabs, pickFiles, addFromLaunch,
-    setRange, move, moveTo, remove, clear,
+    NOTE_NAME_ORDER,
+    init, rows, inputs, setChecked, setRange, addFromLaunch,
     canRun, outputPages, defaultTargetFor, resolveTarget, run,
     isRunning: () => state.running,
+    showsNote: () => state.note,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
