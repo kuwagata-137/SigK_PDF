@@ -250,6 +250,13 @@
         return;
 
       const el = ctx.el();
+      // ツールモードではページの表示がツールの画面の下に隠れている。描いた分を手放して描かない（帯を押して文書を映し直すたびに、
+      // 見えないページを描かないため。spec-2-5 危ない所「メモリ」）。モードを抜けると shell.setMode の refit が描き直す。
+      if (el.doc.documentElement.getAttribute('data-mode') === 'tools') {
+        for (const index of [...state.rendered.keys()])
+          releasePage(index, { cleanup: true });
+        return;
+      }
       const pages = state.layout.pages;
       const scrollTop = el.view.scrollTop;
       const viewportHeight = el.view.clientHeight;

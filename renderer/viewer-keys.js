@@ -220,6 +220,10 @@
       return;
     if (handlePageEditKey(event, doc))
       return;
+    // ツールモードではページの表示が隠れているので、倍率とページ送りのキーを渡さない（Ctrl+Z・Ctrl+Y は上で効かせる。
+    // spec-2-5 PR-2 の起草者の判断）。
+    if (doc.documentElement.getAttribute('data-mode') === 'tools')
+      return;
 
     if (event.ctrlKey && ZOOM_KEYS[event.key] !== undefined) {
       event.preventDefault();
