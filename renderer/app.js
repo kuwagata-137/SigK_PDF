@@ -105,6 +105,7 @@
     // 帯の画面は tools.init（ツールモードなら選んでいるツールを出す）より前に用意する（spec-2-5 第 D 章）。
     root.SigK.strips.init(doc, win);
     root.SigK.stripDropZone.init(doc, win);
+    root.SigK.stripInput.init(doc, win);
     root.SigK.tools.init(doc, win);
     root.SigK.toolsMerge.init(doc, win);
     root.SigK.toolsMergeList.init(doc, win);

@@ -190,6 +190,11 @@
     strips.addEventListener('scroll', schedule, true);
     win.addEventListener('resize', schedule);
     root.SigK.stripThumbs.onDrawn(onDrawn);
+    selection().onChange((tabId) => {
+      const node = rowNode(tabId);
+      if (node !== null)
+        rowParts().markPicked(node, selection().get(tabId));
+    });
     return true;
   }
 
