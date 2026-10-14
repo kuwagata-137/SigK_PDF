@@ -70,7 +70,6 @@
       rowParts().syncPages(row.node, row.line.sheets);
       if (refs !== null)
         selection().onPlanChanged(tab.id, refs.plan);
-      root.SigK.stripThumbs?.invalidate(tab.id);
     }
     rowParts().markPicked(row.node, selection().get(tab.id));
   }
@@ -161,6 +160,18 @@
     return state.rows.get(tabId)?.node ?? null;
   }
 
+  // 描けた紙を帯へ入れ、手放した紙を空にする（strip-thumbs.js の知らせ）。
+  function onDrawn(tabId, index, canvas) {
+    const node = rowNode(tabId);
+    const sheet = node === null ? null : rowParts().sheetAt(node, index);
+    if (sheet === null)
+      return;
+    if (canvas === null)
+      sheet.replaceChildren();
+    else
+      sheet.replaceChildren(canvas);
+  }
+
   function getState() {
     return { shown: state.shown, ids: [...state.order], stale: state.stale };
   }
@@ -178,6 +189,7 @@
     // 帯の縦のスクロールと、帯の中の横のスクロール（scroll は泡立たないので捕まえる側で受ける）。
     strips.addEventListener('scroll', schedule, true);
     win.addEventListener('resize', schedule);
+    root.SigK.stripThumbs.onDrawn(onDrawn);
     return true;
   }
 

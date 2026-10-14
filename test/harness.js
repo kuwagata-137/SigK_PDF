@@ -37,6 +37,9 @@ const DEFAULT_VIEWPORT = { width: 900, height: 700 };
 // 与えないと枠が1枚も並ばない（spec-1-3 確定事項5）。
 const DEFAULT_SIDE = { width: 240, height: 600 };
 
+// ツールモードの帯の器（#strips）の寸法。見えている帯と紙はここから決まる（spec-2-5 確定事項D8）。
+const DEFAULT_STRIPS = { width: 900, height: 600 };
+
 // 前回の見た目。settings.json に入っているものと同じ形にする。
 const DEFAULT_UI = { mode: 'view', pageLayout: 'single', viewPointer: 'select', sidePanel: { open: true, width: 240 } };
 
@@ -370,6 +373,14 @@ function applyViewport(window, viewport) {
   Object.defineProperty(view, 'clientHeight', { value: viewport.height, configurable: true });
 }
 
+function applyStrips(window, size) {
+  const strips = window.document.getElementById('strips');
+  if (strips === null || size === null)
+    return;
+  Object.defineProperty(strips, 'clientWidth', { value: size.width, configurable: true });
+  Object.defineProperty(strips, 'clientHeight', { value: size.height, configurable: true });
+}
+
 function applySide(window, side) {
   const scroll = window.document.getElementById('side-scroll');
   if (scroll === null || side === null)
@@ -405,6 +416,7 @@ async function createShell({
   withApis = true,
   viewport = DEFAULT_VIEWPORT,
   side = DEFAULT_SIDE,
+  strips = DEFAULT_STRIPS,
   pdfjs = createPdfjsStub(),
   openResults = [],
   recent = [],
@@ -738,6 +750,7 @@ async function createShell({
 
   applyViewport(window, viewport);
   applySide(window, side);
+  applyStrips(window, strips);
 
   const sources = readScriptSources(window.document);
   for (const src of readClassicSources(window.document)) {
@@ -887,6 +900,7 @@ module.exports = {
   DEFAULT_APP_INFO,
   DEFAULT_VIEWPORT,
   DEFAULT_SIDE,
+  DEFAULT_STRIPS,
   DEFAULT_UI,
   A4,
   readScriptSources,
@@ -898,5 +912,6 @@ module.exports = {
   waitForReady,
   applyViewport,
   applySide,
+  applyStrips,
   createShell,
 };
