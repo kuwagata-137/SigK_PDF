@@ -59,7 +59,7 @@ test('1 件を選んだまま線の色を続けて変えると 1 世代で、Ctr
   SigK.annotate.select(a);
   const original = entry(shell, a).color;
   const start = at(shell);
-  SigK.annotate.setColor('#ff0000');
+  SigK.annotate.setColor('#7030a0');
   SigK.annotate.setColor('#0000ff');
   SigK.annotate.setColor('#00aa00');
   assert.equal(at(shell), start + 1);
@@ -80,7 +80,7 @@ test('線なしは線の色と同じ欄として畳む。別の欄（塗り）�
   SigK.annotate.setFill('#ffee00');
   SigK.annotate.setFill('#ffaa00');
   assert.equal(at(shell), start + 1);
-  SigK.annotate.setColor('#ff0000');
+  SigK.annotate.setColor('#7030a0');
   SigK.annotate.setStrokeNone();
   assert.equal(at(shell), start + 2);
   SigK.annotate.setLineWidth(8);
@@ -97,7 +97,7 @@ test('選択が替わったら、同じ欄でも別の世代（確定事項J2）
   const b = drawSquare(shell, [300, 700], [400, 600]);
   SigK.annotate.select(a);
   const start = at(shell);
-  SigK.annotate.setColor('#ff0000');
+  SigK.annotate.setColor('#7030a0');
   SigK.annotate.select(b);
   SigK.annotate.setColor('#0000ff');
   assert.equal(at(shell), start + 2);
@@ -108,7 +108,7 @@ test('取り消し・やり直しや保存を挟んだら、続けて変えて�
   const { SigK } = shell;
   const a = drawSquare(shell, [100, 700], [200, 600]);
   SigK.annotate.select(a);
-  SigK.annotate.setColor('#ff0000');
+  SigK.annotate.setColor('#7030a0');
   SigK.pageEdit.undo();
   SigK.pageEdit.redo();
   const start = at(shell);
@@ -126,7 +126,7 @@ test('試してから元の値に戻したら、その世代ごと落ちる（�
   SigK.annotate.select(a);
   const original = entry(shell, a).color;
   const start = at(shell);
-  SigK.annotate.setColor('#ff0000');
+  SigK.annotate.setColor('#7030a0');
   SigK.annotate.setColor(original);
   assert.equal(at(shell), start);
   assert.equal(SigK.viewer.isDirty(), true, '描いた四角そのものは保存していない');
@@ -153,7 +153,7 @@ test('読み込んだ書き込みは 1 回目で写しに替わっても、続�
   const { SigK } = shell;
   SigK.annotate.select('40R');
   const start = at(shell);
-  SigK.annotate.setColor('#ff0000');
+  SigK.annotate.setColor('#7030a0');
   const copy = SigK.annotate.getSelected();
   assert.notEqual(copy, '40R');
   SigK.annotate.setColor('#00aa00');

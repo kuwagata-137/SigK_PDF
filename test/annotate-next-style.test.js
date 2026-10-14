@@ -28,7 +28,7 @@ function withPersist(t) {
 
 test('既定は道具ごとのパレットの色・塗りなし・線あり・実線', (t) => {
   withPersist(t);
-  assert.deepEqual(next.nextStyleOf('square'), { color: '#c00000', fill: null, lineStyle: 'solid' });
+  assert.deepEqual(next.nextStyleOf('square'), { color: '#ff0000', fill: null, lineStyle: 'solid' });
   assert.deepEqual(next.nextStyleOf('highlight'), { color: '#ffd966', fill: null, lineStyle: 'solid' });
   assert.equal(next.colorOf('ink'), '#c00000');
   assert.equal(next.colorOf('text'), '#222a35');
@@ -37,7 +37,7 @@ test('既定は道具ごとのパレットの色・塗りなし・線あり・�
 test('起動時の値は形を確かめてから当て、色は小文字にそろえる', (t) => {
   withPersist(t);
   next.applyColors({ text: '#4472C4', shape: 'red', note: '#a9ce91' });
-  assert.deepEqual([next.colorOf('text'), next.colorOf('square'), next.colorOf('note')], ['#4472c4', '#c00000', '#a9ce91']);
+  assert.deepEqual([next.colorOf('text'), next.colorOf('square'), next.colorOf('note')], ['#4472c4', '#ff0000', '#a9ce91']);
   next.applyFills({ shape: '#FFFF00' });
   next.applyStrokeNone({ shape: true });
   next.applyLineStyles({ shape: 'dashed' });
@@ -47,7 +47,7 @@ test('起動時の値は形を確かめてから当て、色は小文字にそ�
   next.applyStrokeNone({ shape: 'yes' });
   next.applyLineStyles({ shape: 'wavy' });
   assert.deepEqual(next.nextStyleOf('square'), { color: null, fill: '#ffff00', lineStyle: 'dashed' });
-  assert.deepEqual(next.nextStyleOf('arrow'), { color: '#c00000', fill: null, lineStyle: 'dashed' });
+  assert.deepEqual(next.nextStyleOf('arrow'), { color: '#ff0000', fill: null, lineStyle: 'dashed' });
 });
 
 test('線なしは塗りがあるときだけで、直線・矢印の雲形は実線として返す', (t) => {

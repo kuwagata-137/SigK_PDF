@@ -94,7 +94,7 @@ test('図形の道具で紙をドラッグすると矩形が描かれ、1 世代
   assert.equal(added.length, 1);
   const entry = added[0];
   assert.equal(entry.kind, 'square');
-  assert.equal(entry.color, '#c00000');
+  assert.equal(entry.color, '#ff0000');
   assert.equal(entry.lineWidth, 2);
   assert.equal(entry.src, 0);
   entry.rect.forEach((value, i) => near(value, [100, 600, 300, 700][i]));
