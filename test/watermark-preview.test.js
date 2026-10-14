@@ -130,3 +130,20 @@ test('画像の透かしは、幅 100 の箱に縦横比で置いた画像を重
   const image = group.querySelector('image');
   assert.deepEqual(['x', 'y', 'width', 'height', 'opacity'].map((key) => image.getAttribute(key)), ['-50', '-25', '100', '50', '0.3']);
 });
+
+test('対象を続けて替えても、前に読んだ文書は手放し、最後の対象だけを開いておく（点検の直し）', async (t) => {
+  const B = 'C:\\work\\b.pdf';
+  const pdfjs = createPdfjsStub({ sizes: [A4, A4, A4] });
+  const shell = await createShell({ files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) }, pdfjs });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  const before = pdfjs.documents.length;
+  const src = (path) => ({ path, pending: false, blocked: null });
+  const preview = shell.SigK.watermarkPreview;
+
+  await Promise.all([preview.setSource(src(A), { reload: true }), preview.setSource(src(B), { reload: true })]);
+  await settle(shell);
+
+  const opened = pdfjs.documents.slice(before);
+  assert.equal(opened.filter((document) => !document.destroyed).length, 1, '手放さずに残る文書は最後の対象の 1 つだけ');
+});

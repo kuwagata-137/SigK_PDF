@@ -89,7 +89,7 @@ test('帯 20 本・各 100 ページでも、持つのは 160 枚まで、同時
 
 test('閉じたタブの紙は文書を畳む前に手放し、中身が変わった紙は描き直す', async (t) => {
   const shell = await withTabs(t, { count: 2, pages: 3 });
-  const { SigK, window } = shell;
+  const { SigK, window, pdfjs } = shell;
   const calls = [];
   const original = window.SigK.planPageImage.draw;
   window.SigK.planPageImage.draw = (doc, view, index, options) => {
@@ -102,10 +102,12 @@ test('閉じたタブの紙は文書を畳む前に手放し、中身が変わ�
   assert.equal(SigK.stripThumbs.getState().drawn, 6);
 
   calls.length = 0;
+  const cleaned = pdfjs.cleanups.length;
   SigK.pageEdit.rotate(90, [1]);   // 映しているのは b
   await settle(shell);
   assert.deepEqual(calls, [1], '回したページだけ描き直す');
   assert.equal(SigK.stripThumbs.getState().drawn, 6);
+  assert.equal(pdfjs.cleanups.length, cleaned + 1, '差し替えた前の紙のページの資源も手放す（点検の直し）');
 
   SigK.tabs.forceCloseTab(a);
   await settle(shell);

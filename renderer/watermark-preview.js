@@ -38,11 +38,16 @@
     const path = src !== null && !src.pending && src.blocked === null ? src.path : null;
     if (!reload && path === state.path && (path === null || state.doc !== null))
       return update();
-    await close();
+    // 札は close が番号を進めた直後に取る（畳むのを待ってから取ると、続けて呼ばれたときに同じ札を 2 つの呼び出しが持ち、
+    // 前の呼び出しが開いた文書を手放さずに上書きする。点検の直し）。
+    const closing = close();
+    const ticket = state.ticket;
+    await closing;
+    if (ticket !== state.ticket)
+      return undefined;
     state.path = path;
     if (path === null)
       return update();
-    const ticket = state.ticket;
     const read = await root.pdfAPI.read(path);
     if (ticket !== state.ticket)
       return undefined;

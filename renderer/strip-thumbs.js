@@ -112,9 +112,10 @@
         queue.unshift({ tabId, page: index });   // 描いている間に中身が変わった。新しい中身で描き直す
       return;
     }
+    // 前の紙は canvas と一緒にページの資源も手放す（保存して読み直した文書なら、前のページは古い文書のもの。点検の直し）。
     const previous = drawn.get(key);
     if (previous !== undefined)
-      root.SigK.pageImage.release(previous.canvas);
+      releaseEntry(previous);
     drawn.set(key, { tabId, index, canvas: result.canvas, page: result.page, sig });
     notify(tabId, index, result.canvas);
   }
