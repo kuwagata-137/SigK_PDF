@@ -32,6 +32,7 @@ const smokeSplit = require('./smoke-split.js');
 const smokeLaunch = require('./smoke-launch.js');
 const smokeAnnotate = require('./smoke-annotate.js');
 const smokeKeys = require('./smoke-keys.js');
+const smokeDrop = require('./smoke-drop.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -1276,6 +1277,8 @@ function installSmokeCheck(win, mode) {
       const tabsBefore = SigK.tabs.count();
       await SigK.tabs.openPath(target);
       await wait(700);
+      // 閲覧へ移してページ数を読むのは起動確認だけの手順。アプリの画面は、2026-10-14 から書いた PDF をツールモードのまま
+      // タブで開く（tool-output.js。spec-2-5 確定事項A4）。
       SigK.shell.setMode(document, 'view');
       opened = { tabsBefore, tabsAfter: SigK.tabs.count(), pageCount: SigK.viewer.getState().pageCount };
     }
@@ -1441,7 +1444,8 @@ function installSmokeCheck(win, mode) {
     const ms = Date.now() - started;
     await wait(300);
 
-    // 「まとめる」はここでタブに開く（画面の finish と同じ動き）。
+    // 「まとめる」はここでタブに開き、閲覧へ移してページ数を読む。閲覧へ移るのは起動確認だけの手順で、アプリの画面の finish は
+    // 2026-10-14 からツールモードのまま tool-output.js で開く（spec-2-5 確定事項A4）。
     // SIGK_SMOKE_CONVERT_STAY=1 なら変換画面に留まる（スクリーンショットを撮るため）。
     let opened = null;
     if (!each && result && result.ok === true && !${process.env.SIGK_SMOKE_CONVERT_STAY === '1'}) {
@@ -1625,36 +1629,6 @@ function installSmokeCheck(win, mode) {
       historyDepth: window.SigK.pageEdit.getHistoryState().depth,
       dragging: window.SigK.pageGrid.isDragging(),
       lineLeft: document.querySelector('.drop-line') === null,
-    };
-  })()`;
-
-  // SIGK_SMOKE_DROP=<path> を付けると、本物のドラッグ＆ドロップを再現する。
-  // Chromium の Input.dispatchDragEvent に実ファイルのパスを渡すと、ページには
-  // OS から落としたときと同じ File が届く。webUtils.getPathForFile がそこから
-  // パスを取り出せるか（spec-1-2 確定事項6）を、人の手を借りずに確かめられる。
-  async function dispatchDrop(filePath) {
-    const { debugger: dbg } = win.webContents;
-    dbg.attach('1.3');
-    try {
-      const data = { items: [], files: [filePath], dragOperationsMask: 1 };
-      for (const type of ['dragEnter', 'dragOver', 'drop'])
-        await dbg.sendCommand('Input.dispatchDragEvent', { type, x: 640, y: 400, data });
-    } finally {
-      dbg.detach();
-    }
-  }
-
-  const dropResultScript = `(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const state = window.SigK.viewer.getState();
-    return {
-      tabCount: window.SigK.tabs.count(),
-      names: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
-      openedName: state.file && state.file.name,
-      openedPath: state.file && state.file.path,
-      pageCount: state.pageCount,
-      message: document.getElementById('view-empty').hidden ? null : document.getElementById('view-message').textContent,
-      overlayHidden: document.getElementById('view-drop').hidden,
     };
   })()`;
 
@@ -1898,9 +1872,10 @@ function installSmokeCheck(win, mode) {
           const boxes = await dispatchPageDrag(from, to);
           drag = { boxes, ...(await win.webContents.executeJavaScript(dragResultScript)) };
         }
+        // 本物のドラッグ＆ドロップ（; で区切れば 1 回でまとめて落とす。smoke-drop.js）。
         if (process.env.SIGK_SMOKE_DROP) {
-          await dispatchDrop(path.resolve(process.env.SIGK_SMOKE_DROP));
-          drop = await win.webContents.executeJavaScript(dropResultScript);
+          await smokeDrop.dispatchDrop(win, smokeDrop.dropPaths(process.env.SIGK_SMOKE_DROP));
+          drop = await win.webContents.executeJavaScript(smokeDrop.resultScript());
         }
         // 本物のキーとマウスで Esc の順と倍率を確かめる（spec-4b-7a 確定事項J。操作列は smoke-keys.js の頭に）。
         if (process.env.SIGK_SMOKE_KEYS) {

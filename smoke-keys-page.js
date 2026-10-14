@@ -124,6 +124,24 @@ const stateScript = `(() => {
     print: { busy: SigK.print.isBusy(), result: window.__smokeKeysPrint ?? null },
     history: SigK.pageEdit.getHistoryState().at,
     dirty: SigK.viewer.isDirty(),
+    // 開いたファイルの見せ方の作り直し（spec-2-5）の PR-1 で足した欄。
+    tabs: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
+    thumbsDrawn: document.querySelectorAll('#thumbs .thumb canvas').length,
+    viewPointer: SigK.pointerMode?.get() ?? null,
+    panning: document.documentElement.hasAttribute('data-panning'),
+    scrollLeft: Math.round(view.scrollLeft),
+    lastAnnotColor: SigK.viewer.getAnnotations().added.at(-1)?.color ?? null,
+    dialogButtons: [...document.querySelectorAll('dialog[open] button')].map((button) => button.id || button.textContent.trim()),
+    layout: (() => {
+      const box = (id) => document.getElementById(id)?.getBoundingClientRect() ?? null;
+      const [bar, tabbar, wrap, help] = ['toolbar', 'tabbar', 'view-wrap', 'btn-help'].map(box);
+      return {
+        toolbarHeight: Math.round(bar.height), toolbarOverflow: document.getElementById('toolbar').scrollWidth > document.getElementById('toolbar').clientWidth,
+        helpRight: Math.round(help.right), innerWidth: window.innerWidth,
+        tabbar: { left: Math.round(tabbar.left), top: Math.round(tabbar.top), bottom: Math.round(tabbar.bottom) },
+        viewWrap: { left: Math.round(wrap.left), top: Math.round(wrap.top) },
+      };
+    })(),
     split: SigK.toolsSplitEdit.board() === null ? null : {
       selection: SigK.splitSelection.range(SigK.toolsSplitEdit.selection()),
       current: SigK.splitBoardInput.current(),

@@ -71,6 +71,8 @@
       "smoke-keys.js",
       "smoke-keys-page.js",
       "smoke-keys-split.js",
+      "smoke-keys-strips.js",
+      "smoke-drop.js",
       "worker/**",
       "index.html",
       "renderer/**",

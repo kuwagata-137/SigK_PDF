@@ -137,3 +137,44 @@ test('画面で評価すると、図形を描き、検索バー・ページの�
   assert.deepEqual(state.dialogs, ['help-dialog']);
   assert.equal(state.help, 'pages');
 });
+
+// 開いたファイルの見せ方の作り直し（spec-2-5）の起動確認で足した操作と、様子の欄。
+test('click・tab-x・chord は本物のマウスを送り、相手が無ければ止める（smoke-keys-strips.js）', async () => {
+  const strips = require('../smoke-keys-strips.js');
+  for (const name of ['click', 'tab-x', 'chord'])
+    assert.ok(OP_NAMES.includes(name), name);
+  assert.doesNotThrow(() => new vm.Script(strips.centerScript('#tabbar .tab .x', 1)));
+  assert.match(strips.centerScript('[id="btn-pointer-hand"]'), /querySelectorAll\("\[id=\\"btn-pointer-hand\\"\]"\)\[0\]/);
+
+  const win = fakeWindow();
+  win.webContents.executeJavaScript = async () => [100, 200];
+  const sent = [];
+  win.webContents.debugger.sendCommand = async (name, params) => { sent.push([params.type, params.button, params.buttons]); };
+  const report = await run(win, 'click:btn-pointer-hand,chord');
+  assert.deepEqual(report.problems, []);
+  assert.deepEqual(sent, [
+    ['mouseMoved', 'left', 0], ['mousePressed', 'left', 1], ['mouseReleased', 'left', 0],
+    ['mouseMoved', 'left', 0], ['mousePressed', 'left', 1], ['mousePressed', 'right', 3], ['mouseReleased', 'right', 1], ['mouseReleased', 'left', 0],
+  ]);
+
+  const missing = fakeWindow();
+  assert.match((await run(missing, 'tab-x:1')).problems[0], /tab-x:1: 1 番目のタブが無い/);
+  assert.match((await run(fakeWindow(), 'tab-x:a')).problems[0], /タブ を数として読めない/);
+});
+
+test('様子の控えに、タブ・サムネイル・選択とハンド・書き込みの色・窓のボタン・並びの寸法がある', async (t) => {
+  const shell = await createShell({ files: { [A]: makeSource({ path: A, name: 'a.pdf' }) } });
+  t.after(() => shell.cleanup());
+  await shell.SigK.tabs.openPath(A);
+  await shell.flush();
+  const state = structuredClone(await shell.window.eval(page.stateScript));
+  assert.deepEqual(state.tabs, ['a.pdf']);
+  assert.equal(typeof state.thumbsDrawn, 'number');
+  assert.equal(state.viewPointer, 'select');
+  assert.equal(state.panning, false);
+  assert.equal(state.scrollLeft, 0);
+  assert.equal(state.lastAnnotColor, null);
+  assert.deepEqual(state.dialogButtons, []);
+  for (const key of ['toolbarHeight', 'toolbarOverflow', 'helpRight', 'innerWidth', 'tabbar', 'viewWrap'])
+    assert.ok(key in state.layout, key);
+});

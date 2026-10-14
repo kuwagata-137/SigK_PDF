@@ -13,6 +13,7 @@
 //   fit・scroll:<割合>（画面の口を呼ぶ。smoke-keys-page.js）
 //   wait:<ms> / state（様子を控える）/ memory（アプリ全体の実メモリを控える）
 //   split（分割の盤を出す）・split-cut:<ページ>・split-press:<ページ>[:shift]・split-drag:<a>-<b>・split-dblclick:<ページ>（smoke-keys-split.js）
+//   click:<id>・tab-x:<n>・chord（本物のマウスで要素を押す・タブの × を押す・左＋右。smoke-keys-strips.js）
 // 例: SIGK_SMOKE_KEYS=mode:annot,shape:square:0:100x700-300x600,find:text,dialog:info,esc,state,esc,state
 //
 // 数・範囲が読めない操作は、黙って 0 回にせず、止めて problems に書く。mode・facing は設定に残るので、起動確認の決まりどおり
@@ -152,8 +153,8 @@ const OPS = {
   },
 };
 
-// 分割の盤を本物のマウスで押す操作（spec-2-2b 確定事項K3）。
-Object.assign(OPS, require('./smoke-keys-split.js').create({ numberOf, spanOf }));
+// 分割の盤を本物のマウスで押す操作（spec-2-2b 確定事項K3）と、タブの ×・要素を押す・左＋右（spec-2-5 の起動確認）。
+Object.assign(OPS, require('./smoke-keys-split.js').create({ numberOf, spanOf }), require('./smoke-keys-strips.js').create({ numberOf }));
 
 // 1 つの操作を流す。
 async function runStep(ctx, step, index) {
