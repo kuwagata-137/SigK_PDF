@@ -235,7 +235,7 @@ const DEFAULT_CALLOUT_STYLE = { fontSize: 12, bold: false, italic: false, fill: 
 test('pickUi はモードとサイドパネルと編集モードの左と注釈の色・塗り・線なし・線種・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, ...DEFAULT_SHAPE_STYLE, annotFontSize: 12, annotTextStyle: DEFAULT_TEXT_STYLE, annotCalloutStyle: DEFAULT_CALLOUT_STYLE, annotLineWidth: 2, annotMarkerWidth: 12, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '', annotMosaicBlock: 8 });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', viewPointer: 'select', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, ...DEFAULT_SHAPE_STYLE, annotFontSize: 12, annotTextStyle: DEFAULT_TEXT_STYLE, annotCalloutStyle: DEFAULT_CALLOUT_STYLE, annotLineWidth: 2, annotMarkerWidth: 12, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '', annotMosaicBlock: 8 });
   // 色の移し替えの印はメインだけが使い、レンダラーへは渡さない（spec-4b-1b 確定事項15）。
   assert.equal('annotPaletteVersion' in ui, false);
 });
@@ -248,6 +248,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     mode: 'view',
     pageLayout: 'single',
     editSide: 'thumbs',
+    viewPointer: 'select',
     sidePanel: { open: false, width: 300 },
     annotColors: DEFAULT_COLORS,
     ...DEFAULT_SHAPE_STYLE,
@@ -264,6 +265,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     mode: 'annot',
     pageLayout: 'single',
     editSide: 'thumbs',
+    viewPointer: 'select',
     sidePanel: { open: true, width: 300 },
     annotColors: DEFAULT_COLORS,
     ...DEFAULT_SHAPE_STYLE,
@@ -281,6 +283,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     mode: 'view',
     pageLayout: 'single',
     editSide: 'thumbs',
+    viewPointer: 'select',
     sidePanel: { open: true, width: SIDE_PANEL_MAX },
     annotColors: DEFAULT_COLORS,
     ...DEFAULT_SHAPE_STYLE,
@@ -293,7 +296,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotAuthor: '',
     annotMosaicBlock: 8,
   });
-  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs', ...DEFAULT_SHAPE_STYLE, annotMosaicBlock: 8 });
+  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs', viewPointer: 'select', ...DEFAULT_SHAPE_STYLE, annotMosaicBlock: 8 });
 });
 
 // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。既定はサムネイルで、使えない値は今の値か既定へ落ちる。
@@ -309,6 +312,21 @@ test('editSide は thumbs か list だけを受け取り、既定は thumbs', ()
   assert.equal(mergeUi(current, { editSide: 7 }).editSide, 'list');
   assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).editSide, 'thumbs', '古い settings.json でも落ちない');
   assert.equal(pickUi(mergeDefaults({ editSide: 'list' })).editSide, 'list');
+});
+
+// 閲覧の［選択］［ハンド］（spec-2-5 確定事項K5・K7。決定80 ㉔）。アプリ全体で 1 つを覚え、次の起動でも続く。既定は select。
+test('viewPointer は select か hand だけを受け取り、既定は select', () => {
+  const { VIEW_POINTERS } = require('../settings.js');
+  require('../renderer/pointer-mode-rules.js');
+  assert.deepEqual(VIEW_POINTERS, [...globalThis.SigK.pointerModeRules.VIEW_POINTERS]);
+  assert.equal(DEFAULTS.viewPointer, 'select');
+  assert.equal(mergeDefaults({ viewPointer: 'hand' }).viewPointer, 'hand');
+  assert.equal(mergeDefaults({ viewPointer: 'grab' }).viewPointer, 'select');
+  const current = { mode: 'view', pageLayout: 'single', editSide: 'thumbs', viewPointer: 'hand', sidePanel: { open: true, width: 300 } };
+  assert.equal(mergeUi(current, { viewPointer: 'select' }).viewPointer, 'select');
+  assert.equal(mergeUi(current, { viewPointer: true }).viewPointer, 'hand');
+  assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).viewPointer, 'select', '古い settings.json でも落ちない');
+  assert.equal(pickUi(mergeDefaults({ viewPointer: 'hand' })).viewPointer, 'hand');
 });
 
 // 注釈の色（spec-4-1 確定事項33・34、spec-4b-1b 確定事項22）。パレットから選ぶので #rrggbb なら何でも受け取り、小文字にそろえる。
