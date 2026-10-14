@@ -21,6 +21,12 @@
 
     // 数える相手を決める。src は strip-target の対象（null・使えない帯なら数えない）。描いている最中に呼ばれるので、印だけ立てる。
     function setTarget(src) {
+      // 閉じたタブの控えは捨てる（文書をつかんだままにしない。点検の直し）。
+      const open = new Set(root.SigK.tabs.list().map((tab) => tab.id));
+      for (const tabId of [...counted.keys()]) {
+        if (!open.has(tabId))
+          counted.delete(tabId);
+      }
       if (src === null || src.blocked !== null) {
         current = null;
         return;
@@ -46,6 +52,11 @@
       const result = await root.SigK.save.runTask({ kind: 'flatten-preview', label: COUNT_LABEL, source: next.path });
       if (current !== next) {
         resume();   // 数えている間に差し替えられた。差し替えた先が待っていれば、ここで数え始める
+        return;
+      }
+      // ほかの処理が先に枠を取っていた。後回しに戻し、画面が次に件数を読みに来たときに始める（点検の直し）。
+      if (result?.busy === true) {
+        next.waiting = true;
         return;
       }
       next.pending = false;

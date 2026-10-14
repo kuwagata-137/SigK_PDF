@@ -256,6 +256,69 @@ test('保存中は保存ボタンを押せない', async (t) => {
   assert.equal(shell.document.getElementById('btn-save').getAttribute('aria-disabled'), 'false');
 });
 
+// 保存の入口から開き直しの終わりまで枠を押さえる（点検の直し）。ワーカーが終わってから開き直すまでの間に枠が空くと、
+// 帯を押して別のタブを前に出せ、開き直しがそのタブの文書を差し替えてしまう。
+test('保存は入口から開き直しの終わりまで isBusy で、その間はほかの処理を走らせない', async (t) => {
+  const shell = await withOpenDocument(t, { taskResults: [okResult()] });
+  const { SigK, window } = shell;
+  edit(SigK);
+  const read = window.pdfAPI.read;
+  let release = null;
+  const gate = new Promise((resolve) => { release = resolve; });
+  window.pdfAPI.read = (filePath) => gate.then(() => read(filePath));
+
+  const saving = SigK.save.saveActive();
+  assert.equal(SigK.save.isBusy(), true, '押した瞬間から押さえる（モザイクの確かめの前）');
+  for (let index = 0; index < 4; index += 1)
+    await shell.flush();
+  assert.equal(shell.taskCalls.length, 1, 'ワーカーは終わり、開き直しの読み込みを待っている');
+  assert.equal(SigK.save.isBusy(), true, '開き直している間も押さえる');
+  assert.equal(shell.document.getElementById('btn-save').getAttribute('aria-disabled'), 'true');
+
+  release();
+  assert.equal((await saving).ok, true);
+  assert.equal(SigK.save.isBusy(), false);
+  assert.equal(SigK.viewer.isDirty(), false);
+});
+
+test('保存の途中で別のタブへ移っても、開き直すのは保存したタブで、移った先のタブの中身は変わらない（点検の直し）', async (t) => {
+  const shell = await withOpenDocument(t, { files: { [A]: makeSource({ path: A, mtimeMs: 1000 }), [B]: makeSource({ path: B, mtimeMs: 1000 }) } });
+  const { SigK, window } = shell;
+  await SigK.tabs.openPath(B);
+  const [tabA, tabB] = SigK.tabs.list().map((tab) => tab.id);
+  edit(SigK);   // B を未保存にする
+  const docB = SigK.tabs.peek(tabB).doc;
+  SigK.tabs.activate(tabA);
+  edit(SigK);
+  let release = null;
+  window.taskAPI.run = () => new Promise((resolve) => { release = () => resolve(okResult()); });
+
+  const saving = SigK.save.saveActive();
+  await shell.flush();
+  SigK.tabs.activate(tabB);   // タブの列で B へ移った
+  release();
+  assert.equal((await saving).ok, true);
+
+  assert.equal(SigK.tabs.activeId(), tabA, '開き直すために保存したタブへ戻る');
+  assert.equal(SigK.tabs.isDirty(tabA), false);
+  assert.equal(SigK.tabs.isDirty(tabB), true, '移った先のタブの編集は残る');
+  assert.equal(SigK.tabs.peek(tabB).doc, docB, '移った先のタブの文書は差し替えない');
+  assert.equal(SigK.tabs.peek(tabB).file.path, B);
+});
+
+test('runTask・runLocal は、走っている処理があれば断り、busy を添える（点検の直し）', async (t) => {
+  const shell = await withOpenDocument(t);
+  let done = null;
+  const local = shell.SigK.save.runLocal({ label: '画像に', run: () => new Promise((resolve) => { done = () => resolve({ ok: true }); }) });
+  await shell.flush();
+
+  const refused = await shell.SigK.save.runTask({ kind: 'flatten-preview', label: '書き込みを確認', source: A });
+  assert.deepEqual(plain(refused), { error: 'いま画像にしています。', busy: true });
+  assert.equal(shell.taskCalls.length, 0, 'ワーカーへは渡さない');
+  done();
+  await local;
+});
+
 test('中止したら、そのことを帯に出す', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [{ canceled: true }] });
   edit(shell.SigK);

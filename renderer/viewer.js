@@ -882,9 +882,11 @@
   async function reopen({ path: nextPath = null, name = null } = {}) {
     if (state.doc === null || root.pdfAPI?.available !== true)
       return false;
+    // 読んでいる間に閉じられた・別のタブへ移された（文書が替わった）ら、読んだものを捨てる（点検の直し。替わった先の文書を差し替えない）。
+    const before = state.doc;
     const filePath = nextPath ?? state.file.path;
     const source = await root.pdfAPI.read(filePath);
-    if (source?.error !== undefined || state.doc === null)
+    if (source?.error !== undefined || state.doc !== before)
       return false;
 
     let doc;
@@ -896,8 +898,7 @@
       report(error, { path: filePath, reopen: true });
       return false;
     }
-    // 読んでいる間に閉じられていたら、読んだものを捨てる。
-    if (state.doc === null) {
+    if (state.doc !== before) {
       releaseDocument(doc);
       return false;
     }
