@@ -49,6 +49,23 @@
     return true;
   }
 
+  // Esc の最後の段（K12。escape-order.js が呼ぶ）。閲覧・ページ編集でハンドなら選択へ戻して覚える。戻したら true。
+  function escape() {
+    if (!rules().followsPointer(modeOf()))
+      return false;
+    const next = rules().escaped(state.pointer);
+    return next !== null && change(next);
+  }
+
+  // 閲覧・ページ編集で紙を引いている途中なら取りやめる（K12。Esc の順の先頭）。取りやめたら true。引くのに使った押しは、全部の
+  // ボタンを離すまで捨てる（編集モードの Esc と同じ。annotate-right-button.js の holdUntilUp）。
+  function cancelPan() {
+    if (!rules().followsPointer(modeOf()) || root.SigK.annotateHand?.cancel() !== true)
+      return false;
+    root.SigK.annotateRightButton?.holdUntilUp();
+    return true;
+  }
+
   // 起動時に前回の値を当てる（K5）。覚え直さない。
   function apply(pointer) {
     if (state.doc === null)
@@ -83,5 +100,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pointerMode = { init, get: () => state.pointer, apply, press, onModeChanged, onToolChanged };
+  SigK.pointerMode = { init, get: () => state.pointer, apply, press, escape, cancelPan, onModeChanged, onToolChanged };
 })(typeof window !== 'undefined' ? window : globalThis);

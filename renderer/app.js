@@ -161,6 +161,8 @@
     root.SigK.annotationList.init(doc, win);
     // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K）。編集の道具を映すので annotate の後。
     root.SigK.pointerMode.init(doc, win);
+    // 閲覧・ページ編集のハンドで紙を引く（spec-2-5 確定事項K1）。#view の押しは annotatePointer（左＋右を先に受ける）の後に登録する。
+    root.SigK.viewPan.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
     root.SigK.helpDialog.init(doc, win);

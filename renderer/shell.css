@@ -928,6 +928,10 @@ html[data-mode="annot"][data-tool="select"] .textLayer span{user-select:none}
 html[data-mode="annot"][data-tool="hand"] #view, html[data-mode="annot"][data-tool="hand"] #view *{cursor:grab}
 html[data-mode="annot"][data-tool="hand"] .textLayer, html[data-mode="annot"][data-tool="hand"] .textLayer span{user-select:none}
 html[data-panning] #view, html[data-panning] #view *{cursor:grabbing !important}
+/* 閲覧・ページ編集のハンド（spec-2-5 確定事項K15。pointer-mode.js が html に data-pointer を付ける）。編集モードのハンドと同じく、#view の
+   どこでも grab にし、紙の文字を選ばせない。引いている間の grabbing は上の data-panning の規則。 */
+html[data-pointer="hand"]:is([data-mode="view"],[data-mode="pages"]) #view, html[data-pointer="hand"]:is([data-mode="view"],[data-mode="pages"]) #view *{cursor:grab}
+html[data-pointer="hand"]:is([data-mode="view"],[data-mode="pages"]) .textLayer, html[data-pointer="hand"]:is([data-mode="view"],[data-mode="pages"]) .textLayer span{user-select:none}
 /* ノート（spec-4-4 確定事項1）。押して置くので文字を選ばせない。 */
 html[data-mode="annot"][data-tool="note"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="note"] .textLayer span{user-select:none}
