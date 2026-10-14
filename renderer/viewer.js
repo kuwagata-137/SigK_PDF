@@ -554,8 +554,10 @@
   function resetView() {
     state.token += 1;
     render.releaseAll();
-    // 別の文書に移るのだから、前の文書について出した帯は用済みである。
-    root.SigK.viewBanner.hide();
+    // 別の文書に移るのだから、前の文書について出した帯は用済みである。ツールモードの帯はツールの画面の知らせで、
+    // 下で開くタブとは関係が無いので残す（決定80。ツールモードでもタブを開くようにしたため）。
+    if (root.SigK.tools?.isToolsMode() !== true)
+      root.SigK.viewBanner.hide();
     state.doc = null;
     state.file = null;
     state.basePages = [];

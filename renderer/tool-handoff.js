@@ -54,32 +54,27 @@
     return true;
   }
 
-  // 1 本をタブで開く。{ opened, canceled, error }（error は開けなかった理由。tabs.js が控えに残す）。
+  // 1 本をタブで開く。{ opened, canceled }（canceled はパスワードの入力を取りやめた）。
+  // 開けなかった理由は tabs.js が出す（ツールモードでは帯）。
   async function openOne(filePath) {
-    const call = { canceled: false, error: null };
+    const call = { canceled: false };
     const opened = await root.SigK.tabs.openPath(filePath, call);
-    return { opened, canceled: call.canceled, error: call.error };
+    return { opened, canceled: call.canceled };
   }
 
   // PDF を 1 本ずつタブで開き（まとめて走らせるとタブの並びが到着順で入れ替わる）、ツールモードなら選んでいる
-  // ツールにも渡す。開いた数を返す。開けなかった理由は、後のタブを開くときに帯が消えるので、最後に出し直す。
+  // ツールにも渡す。開いた数を返す。
   async function openPdfs(paths) {
     const kept = [];
     let opened = 0;
-    let failure = null;
     for (const filePath of validPaths(paths)) {
       const result = await openOne(filePath);
       if (result.opened)
         opened += 1;
-      if (result.canceled)
-        continue;
-      kept.push(filePath);
-      if (!result.opened && result.error !== null)
-        failure = result.error;
+      if (!result.canceled)
+        kept.push(filePath);
     }
     await givePdfs(kept);
-    if (failure !== null && isToolsMode())
-      root.SigK.viewBanner.show(failure);
     return opened;
   }
 

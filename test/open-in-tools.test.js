@@ -36,15 +36,13 @@ const modeOf = (shell) => shell.document.documentElement.getAttribute('data-mode
 
 test('ツールモードで壊れたファイルを開くと、理由を帯で出し、ツールモードのまま', async (t) => {
   const shell = await withShell(t, { pdfjs: createPdfjsStub({ openError: broken() }) });
-  const call = { canceled: false };
 
-  assert.equal(await shell.SigK.tabs.openPath(A, call), false);
+  assert.equal(await shell.SigK.tabs.openPath(A), false);
 
   assert.equal(shell.SigK.tabs.count(), 1, '開けなかったタブも作る（spec-1-2 確定事項19）');
   assert.equal(modeOf(shell), 'tools');
   assert.equal(shell.SigK.viewBanner.isVisible(), true);
   assert.match(shell.SigK.viewBanner.text(), /壊れている/);
-  assert.equal(call.error, shell.SigK.viewBanner.text(), '呼び出しの控えにも理由を残す（続けて開くと帯が消えるため）');
 });
 
 test('ツールモードで読めないファイルを開こうとすると、理由を帯で出す（タブは作らない）', async (t) => {
@@ -92,6 +90,38 @@ test('閲覧モードで開けなかったときは、今までどおりペー�
   await shell.SigK.tabs.openPath(A);
 
   assert.match(shell.document.getElementById('view-message').textContent, /壊れている/);
+  assert.equal(shell.SigK.viewBanner.isVisible(), false);
+});
+
+// ---- ツールモードの帯は、タブを開いても切り替えても消さない ----
+//
+// 別のタブへ移るとき、前の文書について出した帯は消す（viewer.js の resetView）。ツールモードの帯はツールの画面の
+// 知らせ（名前の順に並べた・1つ目だけを対象にした・開けなかった理由）で、下で開くタブとは関係が無い。ツールモードでも
+// タブを開くようにしたので、消すと、右クリックの束の 3 本目を開いたところで名前の順の注記が消えるなどしていた。
+
+test('ツールモードでは、タブを開いても切り替えても閉じても、ツールの帯を消さない', async (t) => {
+  const shell = await withShell(t);
+  await shell.SigK.tabs.openPath(A);
+  shell.SigK.viewBanner.show('ツールの知らせ', { tone: 'warn' });
+
+  await shell.SigK.tabs.openPath(B);
+  assert.equal(shell.SigK.viewBanner.text(), 'ツールの知らせ');
+
+  shell.SigK.tabs.activate(shell.SigK.tabs.list()[0].id);
+  assert.equal(shell.SigK.viewBanner.isVisible(), true);
+
+  shell.SigK.tabs.forceCloseTab(shell.SigK.tabs.activeId());
+  assert.equal(shell.SigK.viewBanner.isVisible(), true);
+  assert.equal(shell.SigK.viewBanner.text(), 'ツールの知らせ');
+});
+
+test('閲覧モードでは、今までどおり別のタブを開くと前の文書の帯を消す', async (t) => {
+  const shell = await withShell(t, { mode: 'view' });
+  await shell.SigK.tabs.openPath(A);
+  shell.SigK.viewBanner.show('a.pdf の知らせ');
+
+  await shell.SigK.tabs.openPath(B);
+
   assert.equal(shell.SigK.viewBanner.isVisible(), false);
 });
 
