@@ -42,8 +42,9 @@ test('画面で評価すると、束を当てた後の様子を報告する', as
 
   assert.equal(report.mode, 'tools');
   assert.equal(report.tool, 'merge');
-  assert.equal(report.tabCount, 0);
-  assert.deepEqual(report.names, []);
+  // 結合・分割の PDF はタブでも開く（決定80）。画像→PDF の画像は開かない。
+  assert.equal(report.tabCount, 2);
+  assert.deepEqual(report.names, ['b.pdf', 'a.pdf']);
   assert.deepEqual(report.merge.map((row) => [row.name, row.batch, row.pageCount, row.blocked]),
     [['a.pdf', 3, 3, null], ['b.pdf', 3, 3, null]]);
   assert.deepEqual(report.convert.map((row) => [row.name, row.batch, row.kind]), [['a.png', 1, 'png']]);
