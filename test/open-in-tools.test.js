@@ -94,3 +94,65 @@ test('閲覧モードで開けなかったときは、今までどおりペー�
   assert.match(shell.document.getElementById('view-message').textContent, /壊れている/);
   assert.equal(shell.SigK.viewBanner.isVisible(), false);
 });
+
+// ---- ［開く］で開いたファイルは、選んでいるツールにも渡す（tabs.js の runOpenCommand → tool-handoff.js） ----
+
+const plain = (value) => structuredClone(value);
+const mergePaths = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.path));
+
+test('結合を選んでいるとき、［開く］で開いたファイルは結合の一覧の末尾にも入る', async (t) => {
+  const shell = await withShell(t, { openResults: [makeSource({ path: B })] });
+  await shell.SigK.toolsMerge.addPaths([A]);
+
+  shell.fireOpenRequest();
+  await shell.flush();
+  shell.fireOpenRequest(A);
+  await shell.flush();
+
+  assert.deepEqual(plain(shell.SigK.tabs.list().map((tab) => tab.path)), [B, A]);
+  assert.deepEqual(mergePaths(shell), [A, B, A], '結合は同じファイルを何度でも足せる（今までのドロップと同じ）');
+  assert.equal(modeOf(shell), 'tools');
+});
+
+test('分割を選んでいるとき、［開く］で開いたファイルは分割の対象になる', async (t) => {
+  const shell = await withShell(t);
+  shell.SigK.tools.select('split');
+
+  assert.equal(await shell.SigK.tabs.runOpenCommand(B), true);
+  await shell.flush();
+
+  assert.equal(shell.SigK.toolsSplit.source().path, B);
+  assert.equal(shell.SigK.tabs.count(), 1);
+});
+
+test('画像→PDF を選んでいるとき、［開く］で開いた PDF はタブで開くだけ', async (t) => {
+  const shell = await withShell(t);
+  shell.SigK.tools.select('convert');
+
+  await shell.SigK.tabs.runOpenCommand(A);
+  await shell.flush();
+
+  assert.equal(shell.SigK.tabs.count(), 1);
+  assert.deepEqual(plain(shell.SigK.toolsConvert.rows()), []);
+  assert.equal(shell.SigK.tools.selected(), 'convert');
+});
+
+test('開けなかったファイルもツールに渡す（ツールの画面が自分で読んで理由を出す）', async (t) => {
+  const shell = await withShell(t, { pdfjs: createPdfjsStub({ openError: broken() }) });
+
+  assert.equal(await shell.SigK.tabs.runOpenCommand(A), false);
+  await shell.flush();
+
+  assert.deepEqual(mergePaths(shell), [A]);
+  assert.match(shell.SigK.viewBanner.text(), /壊れている/);
+});
+
+test('閲覧モードの［開く］はツールに渡さない', async (t) => {
+  const shell = await withShell(t, { mode: 'view' });
+
+  await shell.SigK.tabs.runOpenCommand(A);
+  await shell.flush();
+
+  assert.equal(shell.SigK.tabs.count(), 1);
+  assert.deepEqual(mergePaths(shell), []);
+});

@@ -335,29 +335,27 @@
         call.canceled = true;
       return false;
     }
+    if (call !== null)
+      call.path = result?.path ?? null;
     return openSource(result, call);
   }
 
   // 「開く」の口（ツールバーの「開く」・タブの「＋」・メニューの「開く」（Ctrl+O）と「最近使ったファイル」）。パスが
   // 付いていればそれを開き、無ければファイルを選ぶ窓を出す。
   //
-  // ツールモードで開いたら閲覧モードへ移る（spec-2-1 確定事項4。2026-10-08 の直し）。ツールの画面が表示域を覆った
-  // ままでは、開いた文書も、開けなかった理由も見えないためである。取りやめ（ファイルを選ぶ窓・パスワードの入力）なら
-  // ツールモードのまま。ツールの画面の「ファイルを選ぶ…」・ツールの画面へのドロップ・ツールの書き出しのあとに開く口は
-  // ここを通らない（書き出しのあとは各ツールが自分で移る）。エクスプローラーからの起動は launch.js が移す。
+  // どのモードで開いてもモードは変えない（決定80。2026-10-08 に「ツールモードで開いたら閲覧モードへ移る」とした
+  // spec-2-1 確定事項4 を改めた）。ツールモードでは、開けなかった理由を帯に出し（reportInTools）、開いたファイルを
+  // 選んでいるツールにも渡す（tool-handoff.js）。取りやめ（ファイルを選ぶ窓・パスワードの入力）なら何もしない。
   //
   // 取りやめの控えは呼び出しごとに持つ。開く処理の戻り値（開けたか）は呼び出し側が多く使っているので、取りやめと失敗は
-  // 控えで分ける。移るのは、始めも終わりもツールモードのときだけ（spec-4b-7b 点検の直し。控えが 1 つだと、開く処理が
-  // 重なったとき別の呼び出しの取りやめで移らず、読み込みの間に自分でツールモードへ替えると閲覧モードへ戻されていた）。
+  // 控えで分ける（spec-4b-7b 点検の直し。控えが 1 つだと、開く処理が重なったとき別の呼び出しの取りやめに引きずられる）。
+  // ツールに渡すのは、始めも終わりもツールモードのときだけ（読み込みの間にモードを替えたら、見ていない画面へ渡さない）。
   async function runOpenCommand(filePath = null) {
-    const doc = el?.doc ?? root.document;
-    const inTools = () => doc.documentElement.getAttribute('data-mode') === 'tools';
-    const call = { canceled: false, fromTools: inTools() };
-    const opened = typeof filePath === 'string' && filePath.length > 0
-      ? await openPath(filePath, call)
-      : await openViaDialog(call);
-    if (!call.canceled && call.fromTools && inTools())
-      root.SigK.shell.setMode(doc, 'view');
+    const given = typeof filePath === 'string' && filePath.length > 0 ? filePath : null;
+    const call = { canceled: false, path: given, fromTools: root.SigK.tools?.isToolsMode() === true };
+    const opened = given !== null ? await openPath(given, call) : await openViaDialog(call);
+    if (!call.canceled && call.fromTools)
+      await root.SigK.toolHandoff?.givePdfs([call.path]);
     return opened;
   }
 
