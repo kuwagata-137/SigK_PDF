@@ -459,8 +459,9 @@ test('「まとめる」は保存先を聞き、1本ぶんの spec を渡して�
   assert.deepEqual(plain(spec.images[1].layouts.map((layout) => layout.page)), [{ width: 595.28, height: 841.89 }], 'A4 縦');
   assert.equal(spec.images[0].layouts[0].allowUpscale, true);
 
-  // 開いたタブへ移り、帯で知らせる。成功は失敗ではないので赤く塗らない（決定48）。
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
+  // タブで開き（ツールモードのまま。決定80）、帯で知らせる。成功は失敗ではないので赤く塗らない（決定48）。
+  assert.equal(SigK.tabs.list().some((tab) => tab.path === OUT), true);
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(bannerText(shell), '2 ファイルを変換しました（2 ページ）');
   assert.equal(bannerTone(shell), 'info');
 });

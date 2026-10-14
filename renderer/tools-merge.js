@@ -322,18 +322,12 @@
       return result ?? { error: '結合できませんでした。' };
     }
 
-    // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
+    // ここから先は書けている。タブで開き、モードは変えない（tool-output.js。決定80）。
     state.executed = true;
-    const count = state.rows.length;
-    if (tabs().count() >= tabs().MAX_TABS) {
-      await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show('結合しましたが、タブが多すぎるため開いていません。', { tone: 'info' });
-      return result;
-    }
-    const opened = await tabs().openPath(target);
-    if (opened)
-      root.SigK.shell.setMode(el.doc, 'view');
-    banner().show(`${count} ファイルを結合しました（${result.pages} ページ）`, { autoHideMs: 2500, tone: 'info' });
+    await root.SigK.toolOutput.openWritten(target, {
+      done: `${state.rows.length} ファイルを結合しました（${result.pages} ページ）`,
+      crowded: '結合しましたが、タブが多すぎるため開いていません。',
+    });
     return result;
   }
 

@@ -185,7 +185,7 @@ test('実行は保存ダイアログで出力先を決め、spec をワーカー
     mark: { type: 'text', text: '社外秘', color: '#808080', opacity: 0.3, angle: 45, size: 'medium', position: 'center' },
   });
   assert.equal(shell.SigK.tabs.list().some((tab) => tab.path === OUT), true);
-  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'view');
+  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools', 'ツールモードのまま（決定80）');
   assert.equal(bannerText(shell), '3 ページに透かしを入れました');
 });
 
