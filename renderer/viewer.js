@@ -225,6 +225,7 @@
     state.imported = imported ?? {};
     render.redrawAnnotations({ rerender });
     root.SigK.annotationList?.refresh();
+    root.SigK.strips?.sync();
     return true;
   }
 
@@ -623,6 +624,15 @@
     return session;
   }
 
+  // 映している文書の中身を、外さずに覗く（ツールモードの帯。spec-2-5 確定事項D8）。値は参照のまま返すので、
+  // 受け取った側は書き換えない。文書が無ければ null。
+  function peek() {
+    if (state.doc === null)
+      return null;
+    const { doc, file, basePages, plan, savedPlan, annots, savedAnnots, imported, inserts, sizes } = state;
+    return { doc, file, basePages, plan, savedPlan, annots, savedAnnots, imported, inserts, sizes };
+  }
+
   function attach(session) {
     if (session === null || session === undefined || session.doc === undefined)
       return false;
@@ -991,6 +1001,7 @@
     close,
     detach,
     attach,
+    peek,
     destroySession,
     releaseDocument,
     getMetadata,
