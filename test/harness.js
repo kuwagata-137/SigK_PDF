@@ -38,7 +38,7 @@ const DEFAULT_VIEWPORT = { width: 900, height: 700 };
 const DEFAULT_SIDE = { width: 240, height: 600 };
 
 // 前回の見た目。settings.json に入っているものと同じ形にする。
-const DEFAULT_UI = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 } };
+const DEFAULT_UI = { mode: 'view', pageLayout: 'single', viewPointer: 'select', sidePanel: { open: true, width: 240 } };
 
 const A4 = { width: 595.28, height: 841.89 };
 
@@ -660,6 +660,8 @@ async function createShell({
           pageLayout: patch?.pageLayout ?? savedUi.pageLayout,
           // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。
           editSide: patch?.editSide ?? savedUi.editSide,
+          // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K5）。
+          viewPointer: patch?.viewPointer ?? savedUi.viewPointer,
           sidePanel: { ...savedUi.sidePanel, ...(patch?.sidePanel ?? {}) },
           // 注釈の色（spec-4-1 確定事項34）。種類ごとに重ねる。
           annotColors: { ...(savedUi.annotColors ?? {}), ...(patch?.annotColors ?? {}) },

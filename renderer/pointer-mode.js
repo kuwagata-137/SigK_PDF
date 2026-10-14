@@ -10,6 +10,8 @@
   const state = {
     doc: null,
     pointer: 'select',
+    // 前回見た編集の道具。道具が変わったときだけ viewPointer へ写す（初期化の描き直しで、前回の値を既定の選択で上書きしないため）。
+    lastTool: null,
   };
 
   function rules() {
@@ -78,26 +80,45 @@
     return true;
   }
 
-  // 起動時に前回の値を当てる（K5）。覚え直さない。
+  // 閲覧・ページ編集で選んだ方を編集の道具へ映す（K9・K10。決定80 ㉗）。ハンドなら道具をハンドに、選択なら道具がハンドのときだけ
+  // ハンドの前の戻り先（道具なしか選択）へ戻す。編集モードへ入るときと、起動時に編集モードで始まるときに呼ぶ。
+  function syncEditTool() {
+    const tools = root.SigK.annotateTools;
+    const next = rules().toolOnEnter(state.pointer, { tool: tools.getTool(), base: tools.getBase() });
+    if (next !== undefined)
+      tools.setTool(next);
+  }
+
+  // 起動時に前回の値を当てる（K5・K10）。覚え直さない。編集モードで始まるなら編集の道具にも映す。
   function apply(pointer) {
     if (state.doc === null)
       return state.pointer;
     change(pointer, { remember: false });
+    if (modeOf() === 'annot')
+      syncEditTool();
     return state.pointer;
   }
 
-  // モードが変わった（shell.setMode）。引いている途中を終え、1 組の印（押せるか・押している方）を描き直す。
-  function onModeChanged() {
+  // モードが変わった（shell.setMode）。引いている途中を終え、編集モードへ入るなら編集の道具に映し、1 組の印（押せるか・押している方）を
+  // 描き直す。
+  function onModeChanged(mode) {
     if (state.doc === null)
       return;
     root.SigK.annotateHand?.cancel();
+    if (mode === 'annot')
+      syncEditTool();
     root.SigK.pointerModeBar?.sync();
   }
 
-  // 編集の道具が変わった（annotate-tools.js の syncTools）。編集モードでは 1 組が道具を映すので描き直す。
-  function onToolChanged() {
+  // 編集の道具が変わった（annotate-tools.js の syncTools）。前回から変わったときだけ、ハンドかどうかを viewPointer へ写して覚える
+  // （K9。決定80 ㉗）。編集モードでは 1 組が道具を映すので描き直す。
+  function onToolChanged(tool) {
     if (state.doc === null)
       return;
+    if (tool !== state.lastTool) {
+      state.lastTool = tool;
+      change(rules().fromTool(tool));
+    }
     root.SigK.pointerModeBar?.sync();
   }
 
@@ -106,6 +127,7 @@
       return false;
     win.__sigkPointerModeReady = true;
     state.doc = doc;
+    state.lastTool = root.SigK.annotateTools?.getTool() ?? null;
     root.SigK.pointerModeBar?.init(doc);
     show();
     return true;
