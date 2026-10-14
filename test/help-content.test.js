@@ -116,16 +116,23 @@ test('分割は「分割」の節で説明し、ツールのボタン名は画�
   for (const button of ['［開いているタブから選ぶ］', '［前のファイルとつなげる］', '［1 ページずつに分ける］', '［ページごとに分ける］', '［ページの前で切る］',
     '［分け目をすべて消す］', '［この範囲を 1 つのファイルにする］', '［書き出さない］', '［書き出す］', '［元に戻す］', '［やり直す］', '［実行…］'])
     assert.ok(split.includes(button), button);
-  assert.match(tools, /［開いているタブから選ぶ］（結合では［開いているタブをまとめて追加］）/);
+  // 結合・PDF→画像・透かし・フラット化は帯の画面へ移った（spec-2-5 第 D・E 章）。［開いているタブから選ぶ］は分割だけ。
+  assert.match(tools, /分割は、［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか/);
+  assert.doesNotMatch(tools, /まとめて追加/);
 });
 
 test('ツールモードで開く・保存するときの動きで書いてある（決定80）', () => {
   // 落とした PDF はタブでも開き、画像はほかのツールからでも画像→PDF へ切り替わる（tool-handoff.js）。
-  assert.match(joined('tools'), /落とした PDF は、タブでも開きます/);
+  assert.match(joined('tools'), /選んだ PDF と落とした PDF は、タブでも開きます/);
   assert.match(joined('tools'), /画像を落とすと、画像→PDF に切り替わります/);
-  assert.match(joined('tools'), /できたファイルを新しいタブで開きます（ツールモードのままです）/);
+  assert.match(joined('tools'), /できたファイルを新しいタブ（帯）で開きます（ツールモードのままです）/);
+  // 帯の画面と、保存していない帯の確認の窓（spec-2-5 第 D・F 章。決定80 ㉜）。用語は「帯」「書き込み」「焼き込み」にそろえる。
+  assert.match(joined('tools'), /［上書き保存してから実行］［保存せずに実行］［キャンセル］/);
+  assert.match(joined('tools'), /このときタブの列は出ません/);
+  assert.match(joined('tools'), /ページの内容として焼き込み/);
+  assert.doesNotMatch(joined('tools'), /紙に焼き込/);
   // 保存はツールモードでも効く（save.js。spec-2-1 確定事項4・5 を改めた）。
-  assert.match(joined('basics'), /どのモードでも、保存するのはタブの列で選んでいるタブです/);
+  assert.match(joined('basics'), /どのモードでも、保存するのはタブの列で選んでいるタブ（ツールモードで帯が並んでいるときは、選んでいる帯）です/);
   const keys = sectionOf('keys').blocks[0].table;
   assert.equal(keys.find((row) => row[0] === '[Ctrl]+[S] / [Ctrl]+[Shift]+[S]')[2], '文書を開いているとき');
 });
