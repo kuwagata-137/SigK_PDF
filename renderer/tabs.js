@@ -18,6 +18,8 @@
     nextId: 1,
     // 文書を読み込んでいる途中の数（前のタブを退かせたまま、activeId が null の間）。帯の操作はこの間止める（spec-2-5 危ない所）。
     opening: 0,
+    // パスで開いている途中の読み込み（パスの鍵 → Promise）。同じファイルを続けて開いてもタブを 2 枚にしない（openPath）。
+    pending: new Map(),
   };
 
   let el = null;
@@ -347,6 +349,23 @@
       return true;
     }
 
+    // 同じファイルを読み込んでいる途中なら、その読み込みの結果を待つ（最近使ったファイルのダブルクリックで 2 枚にしない。点検の直し）。
+    const key = pathKey(filePath);
+    const pending = key === null ? undefined : state.pending.get(key);
+    if (pending !== undefined)
+      return pending;
+    const job = readAndOpen(api, filePath, call);
+    if (key === null)
+      return job;
+    state.pending.set(key, job);
+    try {
+      return await job;
+    } finally {
+      state.pending.delete(key);
+    }
+  }
+
+  async function readAndOpen(api, filePath, call) {
     const result = await api.read(filePath);
     if (result?.error !== undefined) {
       // 消えた・動かされたファイルを履歴に残しても押すたびに失敗する（確定事項10）。

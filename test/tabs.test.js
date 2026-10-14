@@ -588,3 +588,17 @@ test('帯の受け口の「ファイルを選ぶ…」とドロップでは、�
   assert.equal(modeOf(shell), 'tools');
   assert.deepEqual(structuredClone(shell.SigK.tabs.list().map((tab) => tab.path)), [A, B]);
 });
+
+test('同じファイルを読み込んでいる途中にもう一度開いても、タブは 1 枚（最近使ったファイルのダブルクリック。点検の直し）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const results = await Promise.all([SigK.tabs.openPath(A), SigK.tabs.openPath(A)]);
+  assert.deepEqual(results, [true, true]);
+  assert.deepEqual(names(document), ['a.pdf']);
+  assert.equal(SigK.tabs.list().length, 1);
+
+  // 読み終えたら、もう一度開くのは今までどおり切り替えだけ。
+  await SigK.tabs.openPath(B);
+  assert.equal(await SigK.tabs.openPath(A), true);
+  assert.deepEqual(names(document), ['a.pdf', 'b.pdf']);
+});
