@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   pickInsertSource: (options) => ipcRenderer.invoke('pdf:pickInsertSource', options),
   // 結合する PDF をまとめて選ばせる（spec-2-1 確定事項9）。{ paths } / { canceled }。
   pickMergeSources: (options) => ipcRenderer.invoke('pdf:pickMergeSources', options),
+  // ツールモードの帯の受け口で、開く PDF をまとめて選ばせる（spec-2-5 確定事項D7）。{ paths } / { canceled }。
+  pickOpenSources: (options) => ipcRenderer.invoke('pdf:pickOpenSources', options),
   // 出力先に同名があるか（spec-2-1 確定事項28）。{ ok, exists }。
   exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
   // 大きさと更新日時だけを読む（spec-2-2b 確定事項D7）。{ ok, size, mtimeMs } / { error }。

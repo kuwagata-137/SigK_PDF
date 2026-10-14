@@ -429,6 +429,8 @@ async function createShell({
   // 答えるパス（spec-2-1）。
   mergeSourceResults = [],
   existingPaths = [],
+  // pdfAPI.pickOpenSources() が返すものの並び（帯の受け口の［ファイルを選ぶ…］。spec-2-5 確定事項D7）。
+  openSourceResults = [],
   // pdfAPI.pickSplitSource() / pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
   splitSourceResults = [],
   folderResults = [],
@@ -480,6 +482,7 @@ async function createShell({
   const savePathCalls = [];
   const insertSourceCalls = [];
   const mergeSourceCalls = [];
+  const openSourceCalls = [];
   const splitSourceCalls = [];
   const folderCalls = [];
   const imageSourceCalls = [];
@@ -544,6 +547,10 @@ async function createShell({
       pickMergeSources: async (options) => {
         mergeSourceCalls.push(structuredClone(options ?? {}));
         return mergeSourceResults.shift() ?? { canceled: true };
+      },
+      pickOpenSources: async (options) => {
+        openSourceCalls.push(structuredClone(options ?? {}));
+        return openSourceResults.shift() ?? { canceled: true };
       },
       exists: async (filePath) => ({ ok: true, exists: existingPaths.includes(filePath) }),
       // 大きさと更新日時だけ（spec-2-2b 確定事項D7）。files を差し替えると「書き換わった」ことにできる。
@@ -775,6 +782,8 @@ async function createShell({
     insertSourceCalls,
     // pdfAPI.pickMergeSources() に届いたオプションの並び（spec-2-1）。
     mergeSourceCalls,
+    // pdfAPI.pickOpenSources() に届いたオプションの並び（spec-2-5 確定事項D7）。
+    openSourceCalls,
     splitSourceCalls,
     folderCalls,
     // pdfAPI.pickImageSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。

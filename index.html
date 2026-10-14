@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="renderer/shell.css">
 <link rel="stylesheet" href="renderer/text-layer.css">
 <link rel="stylesheet" href="renderer/split-board.css">
+<link rel="stylesheet" href="renderer/strips.css">
 <style>
 :root{
   --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
@@ -199,6 +200,18 @@ body{
       <!-- ツールモードの作業画面（spec-2-1 確定事項2）。#view の上に重ね、
            ページビューは隠すだけで捨てない。帯（#view-banner）はこの上に出る。 -->
       <div id="tools-view" hidden>
+        <!-- 帯の画面（spec-2-5 第 D 章。見本 screenshots/strips2-merge.png・strips2-empty.png）。開いているタブを 1 本ずつ横長の帯にして
+             上から並べる。結合・PDF→画像・透かし・フラット化を選んでいるときに出す（確定事項D11）。帯は strip-view.js（並びと描く所）・
+             strip-row.js（帯 1 本）が組み、いちばん下の受け口は strip-drop-zone.js。 -->
+        <div class="strips-screen" id="strips-screen" hidden>
+          <div class="strips" id="strips" role="list" aria-label="開いている PDF">
+            <div class="drop-zone" id="strip-drop">
+              <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">PDF をここへ落とすと、開いて帯に足します</span></div>
+              <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
+              <div class="recent" id="strip-drop-recent" hidden></div>
+            </div>
+          </div>
+        </div>
         <div class="tool-panel" data-tool="merge">
           <div class="tools-head">
             <h2>結合</h2>
@@ -950,6 +963,9 @@ body{
 <script src="renderer/unsaved-changes.js"></script>
 <script src="renderer/strip-layout.js"></script>
 <script src="renderer/strip-selection.js"></script>
+<script src="renderer/strip-row.js"></script>
+<script src="renderer/strip-view.js"></script>
+<script src="renderer/strip-drop-zone.js"></script>
 <script src="renderer/tools-merge.js"></script>
 <script src="renderer/tools-merge-list.js"></script>
 <script src="renderer/split-plan.js"></script>

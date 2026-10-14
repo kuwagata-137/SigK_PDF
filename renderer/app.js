@@ -102,6 +102,9 @@
     root.SigK.confirmReplace.init(doc, win);
     // ツールモードの枠組みと結合画面（spec-2-1）。shell.setMode から refresh が
     // 呼ばれるので、モードの復元（restoreUi）より先に用意しておく。
+    // 帯の画面は tools.init（ツールモードなら選んでいるツールを出す）より前に用意する（spec-2-5 第 D 章）。
+    root.SigK.strips.init(doc, win);
+    root.SigK.stripDropZone.init(doc, win);
     root.SigK.tools.init(doc, win);
     root.SigK.toolsMerge.init(doc, win);
     root.SigK.toolsMergeList.init(doc, win);

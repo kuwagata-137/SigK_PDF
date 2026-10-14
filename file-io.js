@@ -160,6 +160,11 @@ function pickMergeSources(options) {
   return pickPdfPaths({ ...options, title: '結合する PDF を選ぶ', multiple: true });
 }
 
+// ツールモードの帯の受け口の［ファイルを選ぶ…］（spec-2-5 確定事項D7。PR-2 の起草者の判断）。複数を選び、選んだものをタブで開く。
+function pickOpenSources(options) {
+  return pickPdfPaths({ ...options, title: '開く PDF を選ぶ', multiple: true });
+}
+
 // ツールの対象を1本選ばせる（spec-2-2 確定事項2・spec-3-3 確定事項2）。題名は
 // ツールごとに違う（分割・PDF→画像）ので引数で受ける。
 async function pickToolSource({ title = '対象の PDF を選ぶ', ...options }) {
@@ -242,6 +247,8 @@ function createFileIo({ dialog, onError = () => {} }) {
       pickInsertSource({ dialogLike: dialog, parentWindow, defaultPath }),
     pickMergeSources: (parentWindow = null, { defaultPath } = {}) =>
       pickMergeSources({ dialogLike: dialog, parentWindow, defaultPath }),
+    pickOpenSources: (parentWindow = null, { defaultPath } = {}) =>
+      pickOpenSources({ dialogLike: dialog, parentWindow, defaultPath }),
     pickSplitSource: (parentWindow = null, { defaultPath } = {}) =>
       pickSplitSource({ dialogLike: dialog, parentWindow, defaultPath }),
     pickToolSource: (parentWindow = null, { defaultPath, title } = {}) =>
@@ -266,6 +273,7 @@ module.exports = {
   pickInsertSource,
   pickPdfPaths,
   pickMergeSources,
+  pickOpenSources,
   pickToolSource,
   pickSplitSource,
   pickFolder,

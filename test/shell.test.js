@@ -45,8 +45,8 @@ test('index.html が読み込むスタイルシートはすべて実在する', 
   const { document } = await withShell(t);
   const hrefs = [...document.querySelectorAll('link[rel="stylesheet"]')].map((el) => el.getAttribute('href'));
 
-  // split-board.css は分割の盤（spec-2-2b）。
-  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css']);
+  // split-board.css は分割の盤（spec-2-2b）、strips.css はツールモードの帯の画面（spec-2-5 第 D 章）。
+  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css']);
   for (const href of hrefs)
     assert.ok(fs.existsSync(path.join(ROOT, ...href.split('/'))), `${href} が無い`);
 });

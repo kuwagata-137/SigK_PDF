@@ -396,6 +396,7 @@ function registerIpc() {
   ipcMain.handle('pdf:pickInsertSource', (_event, options = {}) => fileIo.pickInsertSource(mainWindow, options));
   // 結合の入力の複数選択と、出力先の同名判定（spec-2-1 確定事項9・28）。
   ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
+  ipcMain.handle('pdf:pickOpenSources', (_event, options = {}) => fileIo.pickOpenSources(mainWindow, options));
   ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
   // 分割の入力の1本選択と、出力フォルダーの選択（spec-2-2 確定事項2・14）。
   ipcMain.handle('pdf:pickSplitSource', (_event, options = {}) => fileIo.pickSplitSource(mainWindow, options));
