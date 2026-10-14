@@ -29,10 +29,11 @@
   const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'polygon']);
   const DEFAULT_SHAPE_KIND = 'square';
 
-  // 道具ごとの既定の色。今までの既定の色を、いちばん近いパレットの色へ置き換えた（spec-4b-1b 確定事項14）。色は右パネルの
-  // チップからパレット（annotation-palette.js）か「その他の色…」で選び、#rrggbb なら何でも受ける。
+  // 道具ごとの既定の色。今までの既定の色を、いちばん近いパレットの色へ置き換えた（spec-4b-1b 確定事項14）。図形だけは標準の色の
+  // 赤 #ff0000（2026-10-14 のユーザーの指示）。色は右パネルのチップからパレット（annotation-palette.js）か「その他の色…」で選び、
+  // #rrggbb なら何でも受ける。
   const DEFAULT_COLORS = Object.freeze({
-    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', marker: '#ffff00',
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00',
     note: '#ffd966',
   });
   // 吹き出しの道具の、次に付ける書式の既定（決定57 ⑪。文字の色は DEFAULT_COLORS.callout）。枠線の太さ 1.5 は、右パネルの太さの行（1〜40 の

@@ -56,7 +56,7 @@ test('四角の道具で塗り・線なし・線種を選ぶと次に描く四�
   const shell = await withShell(t);
   const { SigK } = shell;
   shapeTool(shell, 'square');
-  assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#c00000', fill: null, lineStyle: 'solid' });
+  assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#ff0000', fill: null, lineStyle: 'solid' });
   // 塗りなしのまま線なしにはできない（線と塗りを両方なしにはできない。確定事項4）。
   assert.equal(SigK.annotate.setStrokeNone(), false);
   assert.equal(SigK.annotate.setFill('#FFFF00'), true);
@@ -86,7 +86,7 @@ test('直線・矢印の道具は塗りと雲形を持たず、覚えた雲形�
   const { SigK } = shell;
   await shell.flush();
   shapeTool(shell, 'arrow');
-  assert.deepEqual(plain(SigK.annotate.nextStyleOf('arrow')), { color: '#c00000', fill: null, lineStyle: 'solid' });
+  assert.deepEqual(plain(SigK.annotate.nextStyleOf('arrow')), { color: '#ff0000', fill: null, lineStyle: 'solid' });
   assert.equal(SigK.annotate.setFill('#ffff00'), false);
   assert.equal(SigK.annotate.setStrokeNone(), false);
   assert.equal(SigK.annotate.setLineStyle('cloudy'), false);
@@ -133,7 +133,7 @@ test('選んでいる四角の塗り・線なし・線種は 1 世代で変わ�
   SigK.pageEdit.undo();
   assert.equal(SigK.viewer.getAnnotations().added.at(-1).lineStyle ?? 'solid', 'solid');
   SigK.pageEdit.undo();
-  assert.equal(SigK.viewer.getAnnotations().added.at(-1).color, '#c00000');
+  assert.equal(SigK.viewer.getAnnotations().added.at(-1).color, '#ff0000');
   SigK.pageEdit.undo();
   assert.equal(SigK.viewer.getAnnotations().added.at(-1).fill ?? null, null);
 });

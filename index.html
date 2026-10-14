@@ -709,6 +709,10 @@ body{
     </div>
   </dialog>
 
+  <!-- ここから下の窓の下の段は、Windows の決まりに合わせて肯定の選択肢を左、取りやめを右に並べる（2026-10-14 の
+       ユーザーの指示。test/dialog-button-order.test.js）。最初のフォーカスは下の段の並びに頼らない（確認の窓は各 confirm-*.js が
+       id で当て、パスワードは入力欄、印刷は showModal が見出しの［×］へ当てる）。 -->
+
   <!-- 印刷（spec-1-4 確定事項34〜37）。文書情報と同じ作法・同じ意匠のモーダル
        にする。モーダルなので、準備している間の背後の操作は自然に塞がれる。 -->
   <dialog id="print-dialog">
@@ -729,8 +733,8 @@ body{
       </div>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="print-cancel">閉じる</button>
       <button type="button" class="dlg-btn primary" id="print-run">印刷…</button>
+      <button type="button" class="dlg-btn" id="print-cancel">閉じる</button>
     </div>
   </dialog>
 
@@ -743,8 +747,8 @@ body{
       <p class="dlg-text" id="confirm-overwrite-text">このファイルは、開いたあとで変更されています。</p>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="confirm-overwrite-cancel">取りやめ</button>
       <button type="button" class="dlg-btn danger" id="confirm-overwrite-ok">上書き</button>
+      <button type="button" class="dlg-btn" id="confirm-overwrite-cancel">取りやめ</button>
     </div>
   </dialog>
 
@@ -758,8 +762,8 @@ body{
       <p class="dlg-error" id="password-prompt-error" hidden>パスワードが違います。</p>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="password-prompt-cancel">キャンセル</button>
       <button type="button" class="dlg-btn primary" id="password-prompt-ok">開く</button>
+      <button type="button" class="dlg-btn" id="password-prompt-cancel">キャンセル</button>
     </div>
   </dialog>
 
@@ -773,8 +777,8 @@ body{
       <p class="dlg-text" id="confirm-extract-text">選択したページを別のファイルへ書き出します。</p>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="confirm-extract-cancel">キャンセル</button>
       <button type="button" class="dlg-btn primary" id="confirm-extract-ok">抽出</button>
+      <button type="button" class="dlg-btn" id="confirm-extract-cancel">キャンセル</button>
     </div>
   </dialog>
 
@@ -787,8 +791,8 @@ body{
       <p class="dlg-text" id="confirm-flatten-notes" hidden></p>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="confirm-flatten-cancel">キャンセル</button>
       <button type="button" class="dlg-btn danger" id="confirm-flatten-ok">焼き込む</button>
+      <button type="button" class="dlg-btn" id="confirm-flatten-cancel">キャンセル</button>
     </div>
   </dialog>
 
@@ -802,8 +806,8 @@ body{
       <p class="dlg-text" id="confirm-mosaic-backup" hidden></p>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="confirm-mosaic-cancel">キャンセル</button>
       <button type="button" class="dlg-btn danger" id="confirm-mosaic-ok">置き換えて保存</button>
+      <button type="button" class="dlg-btn" id="confirm-mosaic-cancel">キャンセル</button>
     </div>
   </dialog>
 
@@ -815,9 +819,9 @@ body{
       <p class="dlg-text" id="confirm-replace-text">同じ名前のファイルが既にあります。上書きしますか。</p>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="confirm-replace-cancel">中止</button>
-      <button type="button" class="dlg-btn" id="confirm-replace-rename">別名で保存…</button>
       <button type="button" class="dlg-btn danger" id="confirm-replace-ok">上書き</button>
+      <button type="button" class="dlg-btn" id="confirm-replace-rename">別名で保存…</button>
+      <button type="button" class="dlg-btn" id="confirm-replace-cancel">中止</button>
     </div>
   </dialog>
 
@@ -827,9 +831,9 @@ body{
       <p class="dlg-text" id="confirm-discard-text">編集内容は保存されていません。閉じると失われます。</p>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="dlg-btn" id="confirm-discard-cancel">キャンセル</button>
-      <button type="button" class="dlg-btn danger" id="confirm-discard-discard">保存しない</button>
       <button type="button" class="dlg-btn primary" id="confirm-discard-save">保存</button>
+      <button type="button" class="dlg-btn danger" id="confirm-discard-discard">保存しない</button>
+      <button type="button" class="dlg-btn" id="confirm-discard-cancel">キャンセル</button>
     </div>
   </dialog>
 </div>
