@@ -80,10 +80,13 @@
   }
 
   // ボタンにフォーカスを移さない（帯はキーボードで動かさない。PR-2 の起草者の判断）。紙の Shift＋押しで文字が選ばれるのも止める。
-  // 帯の横のスクロールバーは引けるように、止めるのはボタンと紙の上だけ。
+  // 帯の横のスクロールバーは引けるように、止めるのはボタンと紙の上だけ。既定の動きを止めるとフォーカスが移らないので、右の欄の欄などに
+  // 残ったフォーカスはここで外す（続く Esc・Ctrl+Z を帯と文書へ渡す。起動確認で見つけた。閲覧のハンドの押しと同じ考え）。
   function onMouseDown(event) {
-    if ((event.button ?? 0) === 0 && (event.target.closest?.('.strip-btn, .strip-page') ?? null) !== null)
-      event.preventDefault();
+    if ((event.button ?? 0) !== 0 || (event.target.closest?.('.strip-btn, .strip-page') ?? null) === null)
+      return;
+    event.preventDefault();
+    el.doc.activeElement?.blur?.();
   }
 
   function init(doc, win) {

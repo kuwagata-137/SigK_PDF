@@ -97,6 +97,26 @@ test('ページを押すとタブを選んでページを選び、Shift・Ctrl �
   assert.deepEqual([...SigK.stripSelection.get(a)], []);
 });
 
+// 帯の紙・ボタンの押しは既定の動きを止めるのでフォーカスが移らず、右の欄のチェックボックスなどに残ったフォーカスに Esc が届いていた
+// （起動確認の 3 回目で見つけた）。押したら、残ったフォーカスを外す。
+test('右の欄の欄にフォーカスがあっても、帯の紙を押すとフォーカスが外れ、Esc で紙の選択が外れる', async (t) => {
+  const shell = await withStrips(t);
+  const { document } = shell;
+  shell.SigK.tools.select('merge');
+  const box = document.querySelector('#merge-list .merge-pick .cbox');
+  box.focus();
+  assert.equal(document.activeElement, box);
+  const cell = strip(document, 0).querySelectorAll('.strip-page')[1];
+  const down = new shell.window.MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+  cell.dispatchEvent(down);
+  assert.equal(down.defaultPrevented, true);
+  click(shell, cell);
+  assert.notEqual(document.activeElement, box, 'フォーカスを外す');
+  const esc = new shell.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  (document.activeElement ?? document.body).dispatchEvent(esc);
+  assert.deepEqual([...shell.SigK.stripSelection.get(shell.SigK.tabs.list()[0].id)], []);
+});
+
 test('ページをダブルクリックすると、閲覧モードでそのページを開く', async (t) => {
   const shell = await withStrips(t);
   const { SigK, document } = shell;
