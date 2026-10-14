@@ -13,7 +13,7 @@
 // appearance-reader.js（spec-4b-2 で読み戻しの口と共用するために移した）。
 
 const { pick } = require('./pdf-tree-reader.js');
-const { FLAGS, decide, emptyCensus, count, summarize } = require('./flatten-selection.js');
+const { FLAGS, GROUPS, decide, emptyCensus, count, summarize } = require('./flatten-selection.js');
 const { bakeMatrix } = require('./flatten-geometry.js');
 const { IDENTITY, matrixText } = require('./pdf-matrix.js');
 const { isRef, numbersOf, appearanceOf } = require('./appearance-reader.js');
@@ -92,16 +92,17 @@ function bakeLine(context, plan, xobjects, rotate, PDFName) {
 const isBaked = (plan) => plan.decision.action === 'bake' || plan.decision.action === 'draw-note';
 
 // 焼いた注釈の辞書と Popup を消し、/Annots を残すものだけの新しい配列にする（共有された配列は書き換えない）。
-// 消す Popup は、焼いた注釈が /Popup で指すものと、/Parent が焼いた注釈を指すもの。
-function removeBaked(doc, page, plans, PDFName) {
+// 消す Popup は、焼いた注釈が /Popup で指すものと、/Parent が焼いた注釈を指すもの。選ばなかった種類の注釈は焼かないので、
+// その Popup も残る（chosen は焼く注釈か）。
+function removeBaked(doc, page, plans, PDFName, chosen) {
   const { context } = doc;
-  const baked = plans.filter(isBaked);
+  const baked = plans.filter(chosen);
   const bakedKeys = new Set(baked.filter((plan) => isRef(plan.item)).map((plan) => String(plan.item)));
   const popupRefs = baked.map((plan) => pick(plan.dict, '/Popup')).filter(isRef);
   const popupKeys = new Set(popupRefs.map(String));
   const isOrphanPopup = (plan) => plan.decision.action === 'popup'
     && (popupKeys.has(String(plan.item)) || bakedKeys.has(String(pick(plan.dict, '/Parent'))));
-  const dropped = (plan) => isBaked(plan) || isOrphanPopup(plan);
+  const dropped = (plan) => chosen(plan) || isOrphanPopup(plan);
   const remaining = plans.filter((plan) => !dropped(plan)).map((plan) => plan.item);
   for (const plan of plans.filter(dropped)) {
     if (isRef(plan.item))
@@ -115,31 +116,63 @@ function removeBaked(doc, page, plans, PDFName) {
     page.node.set(PDFName.of('Annots'), context.obj(remaining));
 }
 
-function flattenPage(doc, page, census, { PDFName }, dryRun) {
+// bake が false なら数えるだけ。wantKind(group) は焼く種類か（spec-2-5 確定事項E5。選ばなかった種類は注釈のまま残す）。
+function flattenPage(doc, page, census, { PDFName }, { bake, wantKind }) {
   const { context } = doc;
   const annots = context.lookup(page.node.get(PDFName.of('Annots')));
   if (typeof annots?.asArray !== 'function')
     return;
   const plans = annots.asArray().map((item) => planOf(context, item));
   plans.forEach((plan) => count(census, plan.decision));
-  const toBake = plans.filter(isBaked);
-  if (dryRun || toBake.length === 0)
+  const chosen = (plan) => isBaked(plan) && wantKind(plan.decision.group);
+  const toBake = plans.filter(chosen);
+  if (!bake || toBake.length === 0)
     return;
   // normalizedEntries が既存の内容を q … Q で包み、/XObject の辞書を用意する。
   const { XObject: xobjects } = page.node.normalizedEntries();
   const rotate = page.getRotation().angle;
   const lines = toBake.map((plan) => bakeLine(context, plan, xobjects, rotate, PDFName));
   page.node.addContentStream(context.register(context.stream(lines.join('\n'))));
-  removeBaked(doc, page, plans, PDFName);
+  removeBaked(doc, page, plans, PDFName, chosen);
 }
 
-// 文書の全ページを焼く。dryRun なら数えるだけで文書を変えない（flatten-preview。確定事項32）。
-// 戻り値は { ok, baked, kept, notes, bake, keep }（flatten-selection.js の summarize）。
-function flattenDocument(doc, TOOLS, { dryRun = false } = {}) {
-  const census = emptyCensus();
-  for (const page of doc.getPages())
-    flattenPage(doc, page, census, TOOLS, dryRun);
-  return { ok: true, ...summarize(census) };
+// 選んだ種類だけを足し合わせる（焼き込まずに残すもの〔keep〕は全部足す）。
+function addCensus(total, census, wantKind) {
+  for (const [group, value] of Object.entries(census.bake)) {
+    if (wantKind(group))
+      total.bake[group] += value;
+  }
+  for (const [reason, value] of Object.entries(census.keep))
+    total.keep[reason] += value;
+}
+
+// 焼く種類（flatten-selection.js の GROUPS のまとまり）とページ（0 始まり）の選び方。省けば全部（spec-2-5 確定事項E5。決定80 ㉞）。
+function chooser(list, valid) {
+  if (!Array.isArray(list))
+    return () => true;
+  const chosen = new Set(list.filter(valid));
+  return (value) => chosen.has(value);
+}
+
+// 文書を焼く。dryRun なら数えるだけで文書を変えない（flatten-preview。確定事項32）。kinds・pages を渡せば、選んだ種類・ページの
+// 注釈だけを焼き、ほかは注釈のまま残す。戻り値は { ok, baked, kept, notes, bake, keep }（flatten-selection.js の summarize。
+// 選んだ種類・ページの分）。dryRun なら、画面が選び方に合わせて足し合わせるためのページごとの数（pages）も付ける。
+function flattenDocument(doc, TOOLS, { dryRun = false, kinds = null, pages = null } = {}) {
+  const groups = new Set(Object.values(GROUPS));
+  const wantKind = chooser(kinds, (group) => groups.has(group));
+  const wantPage = chooser(pages, (index) => Number.isInteger(index) && index >= 0);
+  const total = emptyCensus();
+  const perPage = [];
+  doc.getPages().forEach((page, index) => {
+    const census = emptyCensus();
+    const chosenPage = wantPage(index);
+    flattenPage(doc, page, census, TOOLS, { bake: !dryRun && chosenPage, wantKind });
+    if (chosenPage)
+      addCensus(total, census, wantKind);
+    if (dryRun)
+      perPage.push(summarize(census));
+  });
+  return dryRun ? { ok: true, ...summarize(total), pages: perPage } : { ok: true, ...summarize(total) };
 }
 
 module.exports = { FLATTEN_PREFIX, flattenDocument };

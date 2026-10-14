@@ -80,15 +80,16 @@ function runWatermark(spec, deps = {}) {
   }), deps);
 }
 
-// 注釈を焼き込む（確定事項27〜33）。焼くものが無ければ書かずに断る。
+// 注釈を焼き込む（確定事項27〜33）。焼くものが無ければ書かずに断る。spec.kinds・spec.pages（焼く種類と 0 始まりのページ）が
+// あれば、選んだものだけを焼き、ほかは注釈のまま残す（spec-2-5 確定事項E5。決定80 ㉞）。
 function runFlatten(spec, deps = {}) {
   return runRewrite(spec, (doc) => {
-    const result = flattenDocument(doc, TOOLS);
+    const result = flattenDocument(doc, TOOLS, { kinds: spec?.kinds ?? null, pages: spec?.pages ?? null });
     return result.baked > 0 ? result : { error: '焼き込める書き込みがありません。' };
   }, deps);
 }
 
-// 焼き込む件数を数える（確定事項32）。ファイルは書かない。差し込みの下見と同じく進捗は送らない。
+// 焼き込む件数を数える（確定事項32）。ファイルは書かない。差し込みの下見と同じく進捗は送らない。ページごとの数（pages）も返す。
 async function runFlattenPreview(spec, { fsLike = fs } = {}) {
   const opened = await openSource(spec?.source, { fsLike });
   if (opened.error !== undefined)
