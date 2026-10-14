@@ -78,6 +78,33 @@ for (const mode of ['view', 'pages']) {
   });
 }
 
+// ハンドの押しは既定の動きを止めるので、フォーカスがページ番号の欄・検索の欄に残り、続く Ctrl+Z が欄の文字の取り消しになっていた
+// （PR-1 の残りの点検の直し。編集モードの紙の押しと同じく欄からフォーカスを外す。spec-4b-7b 点検の直し）。
+for (const mode of ['view', 'pages']) {
+  test(`${mode === 'view' ? '閲覧' : 'ページ編集'}のハンドで紙を押すと、ページ番号の欄からフォーカスが外れ、Ctrl+Z が文書に効く`, async (t) => {
+    const shell = await withShell(t, { mode });
+    const { SigK, document } = shell;
+    SigK.pointerMode.press('hand');
+    if (mode === 'pages')
+      SigK.pageEdit.rotate(90, [0]);
+    const at = SigK.pageEdit.getHistoryState().at;
+    const input = document.getElementById('page-current');
+    input.focus();
+    assert.equal(document.activeElement, input);
+
+    mouse(shell, 'mousedown', pageNode(shell), [300, 300]);
+    mouse(shell, 'mousemove', document.body, [300, 250]);
+    mouse(shell, 'mouseup', document.body, [300, 250]);
+    assert.notEqual(document.activeElement, input);
+
+    const event = new shell.window.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+    (document.activeElement ?? document.body).dispatchEvent(event);
+    assert.equal(event.defaultPrevented, true);
+    if (mode === 'pages')
+      assert.equal(SigK.pageEdit.getHistoryState().at, at - 1, '回したページが戻る');
+  });
+}
+
 test('選択のときは引かず、押しの既定の動き（文字の選択）も止めない', async (t) => {
   const shell = await withShell(t);
   const down = mouse(shell, 'mousedown', pageNode(shell), [300, 300]);

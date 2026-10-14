@@ -410,6 +410,13 @@
 problems はどれも無し。写真は `screenshots/strips1-actual-*.png`、見本と並べた絵は `screenshots/strips1-actual-compare-*.png`（7 枚）。
 起動確認の `key:Enter` は文字の入力の合図を伴わないので、窓のボタンを押さない（4 回目はこれで一度空振りした）。窓のボタンは `click:<id>` で押す。
 
+#### 点検の直し（PR-1 の残り）
+
+- 閲覧・ページ編集のハンドで紙を押すと、ページ番号の欄・検索の欄にフォーカスが残り、続く Ctrl+Z・Delete・Esc が文書に効かなかった
+  （ハンドの押しは文字を選ばせないよう既定の動きを止めるので、フォーカスが移らない）。編集モードの紙の押し（`annotate-pointer.js`。spec-4b-7b 点検の直し）と
+  同じく、引き始める前に `viewerKeys.leaveTypingField` で欄から外す（`renderer/view-pan.js`）。テストは `test/view-pan.test.js`
+  （閲覧・ページ編集とも、欄に focus → 紙を引く → 欄から外れ、ページ編集では Ctrl+Z で回したページが戻る）。
+
 #### 完了の判定（PR-1）の結果
 
 ①✅（1 回目）②✅（1・2 回目。ツールモードでも出る）③✅（ツールバーの 2 つ・ツールモードの保存〔W2 のテスト〕・閉じるときの［保存］〔4 回目〕）

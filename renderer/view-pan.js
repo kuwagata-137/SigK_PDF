@@ -36,8 +36,12 @@
       event.preventDefault();
       return;
     }
-    if (wantsPan(event))
-      root.SigK.annotateHand.begin(event);
+    if (!wantsPan(event))
+      return;
+    // 押しの既定の動きを止めるのでフォーカスが移らない。ページ番号の欄・検索の欄から外し、続く Ctrl+Z・Esc を文書へ渡す
+    // （annotate-pointer.js の紙の押しと同じ。spec-4b-7b 点検の直し）。
+    root.SigK.viewerKeys?.leaveTypingField(state.doc);
+    root.SigK.annotateHand.begin(event);
   }
 
   function init(doc, win) {
