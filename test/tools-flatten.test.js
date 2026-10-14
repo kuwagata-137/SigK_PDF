@@ -177,7 +177,7 @@ test('フラット化を選んでいるときの PDF のドロップは対象に
   await SigK.fileDrop.handleDrop(event);
   await settle(shell);
   assert.equal(SigK.toolsFlatten.source().path, B);
-  assert.equal(SigK.tabs.count(), 0, 'タブには開かない');
+  assert.equal(SigK.tabs.count(), 1, 'タブでも開く（決定80）');
   assert.deepEqual(plain(shell.taskCalls[0].spec), { kind: 'flatten-preview', source: B });
 });
 

@@ -65,7 +65,7 @@ test('同じファイルが2回来ても、タブは1枚のままである', asy
   assert.equal(shell.SigK.tabs.count(), 1);
 });
 
-test('結合・画像→PDF・分割の要求は、それぞれの画面へ渡す（spec-5-1 確定事項8）', async (t) => {
+test('結合・画像→PDF・分割の要求は、それぞれの画面へ渡し、PDF はタブでも開く（spec-5-1 確定事項8・決定80）', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
 
@@ -73,15 +73,32 @@ test('結合・画像→PDF・分割の要求は、それぞれの画面へ渡�
   assert.equal(mode(shell), 'tools');
   assert.equal(SigK.tools.selected(), 'merge');
   assert.deepEqual(mergeNames(shell), ['b.pdf']);
+  assert.deepEqual(tabPaths(shell), [B]);
 
   await SigK.launch.handle(request('toPdf', [IMG], 2));
   assert.equal(SigK.tools.selected(), 'convert');
   assert.deepEqual(plain(SigK.toolsConvert.rows().map((row) => row.path)), [IMG]);
+  assert.deepEqual(tabPaths(shell), [B], '画像はタブにしない');
 
   await SigK.launch.handle(request('split', [A], 3));
   assert.equal(SigK.tools.selected(), 'split');
   assert.equal(SigK.toolsSplit.source().path, A);
-  assert.equal(SigK.tabs.count(), 0, 'タブは開かない');
+  assert.deepEqual(tabPaths(shell), [B, A]);
+  assert.equal(mode(shell), 'tools');
+});
+
+test('【要】結合の束を 3 本受けても、名前の順の注記はタブを開くときに消えない', async (t) => {
+  const C = 'C:\\work\\c.pdf';
+  const shell = await withShell(t, { files: { [C]: makeSource({ path: C, name: 'c.pdf' }) } });
+  const { SigK } = shell;
+
+  await SigK.launch.handle(request('merge', [C], 7));
+  await SigK.launch.handle(request('merge', [A], 7, false));
+  await SigK.launch.handle(request('merge', [B], 7, false));
+
+  assert.deepEqual(mergeNames(shell), ['a.pdf', 'b.pdf', 'c.pdf']);
+  assert.deepEqual(tabPaths(shell), [C, A, B], 'タブは届いた順');
+  assert.equal(SigK.viewBanner.text(), 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。');
 });
 
 test('知らない操作・パスの無い要求は何もしない', async (t) => {
@@ -97,23 +114,57 @@ test('知らない操作・パスの無い要求は何もしない', async (t) =
   assert.equal(mode(shell), 'view');
 });
 
-test('open の束の最初で、ツールモードなら閲覧モードへ移る。ページ・注釈モードはそのまま（spec-5-1 確定事項9）', async (t) => {
+test('open の要求では、どのモードでもモードを変えない（決定80。spec-5-1 確定事項9 を改めた）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document: doc } = shell;
 
   SigK.shell.setMode(doc, 'tools');
   await SigK.launch.handle(request('open', [A], 1));
-  assert.equal(mode(shell), 'view');
+  assert.equal(mode(shell), 'tools', '閲覧モードへ移らない');
 
   SigK.shell.setMode(doc, 'annot');
   await SigK.launch.handle(request('open', [B], 2));
-  assert.equal(mode(shell), 'annot', '文書が見えているモードはそのまま');
-
-  // 束の 2 件目以降では切り替えない（届いている間にユーザーが移っても引き戻さない）。
-  SigK.shell.setMode(doc, 'tools');
-  await SigK.launch.handle(request('open', [A], 2, false));
-  assert.equal(mode(shell), 'tools');
+  assert.equal(mode(shell), 'annot');
   assert.deepEqual(tabPaths(shell), [A, B]);
+});
+
+test('ツールモードで open の要求が来たら、タブで開き、選んでいるツールにも渡す（決定80）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document: doc } = shell;
+  SigK.shell.setMode(doc, 'tools');
+
+  await SigK.launch.handle(request('open', [B], 1));
+  await SigK.launch.handle(request('open', [A], 1, false));
+
+  assert.deepEqual(tabPaths(shell), [B, A]);
+  assert.deepEqual(mergeNames(shell), ['b.pdf', 'a.pdf'], '結合は届いた順に末尾へ');
+  assert.equal(mode(shell), 'tools');
+});
+
+test('ツールモードで open の束が来たら、対象が 1 本のツールは束の最初の 1 本だけを対象にする', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document: doc } = shell;
+  SigK.shell.setMode(doc, 'tools');
+  SigK.tools.select('split');
+
+  await SigK.launch.handle(request('open', [B], 4));
+  await SigK.launch.handle(request('open', [A], 4, false));
+
+  assert.deepEqual(tabPaths(shell), [B, A]);
+  assert.equal(SigK.toolsSplit.source().path, B, '後から届いた 1 本で差し替えない');
+
+  // 次の束では、その最初の 1 本で差し替える。
+  await SigK.launch.handle(request('open', [A], 5));
+  assert.equal(SigK.toolsSplit.source().path, A);
+});
+
+test('閲覧モードで open の要求が来ても、ツールには渡さない', async (t) => {
+  const shell = await withShell(t);
+
+  await shell.SigK.launch.handle(request('open', [A], 1));
+
+  assert.deepEqual(tabPaths(shell), [A]);
+  assert.deepEqual(mergeNames(shell), []);
 });
 
 test('タブが上限なら開かず、帯を束につき 1 回出す（spec-5-1 確定事項13）', async (t) => {
@@ -240,11 +291,15 @@ test('【要】前回を閲覧モードで閉じていても、右クリック�
   assert.deepEqual(mergeNames(shell), ['a.pdf']);
 });
 
-test('【要】前回をツールモードで閉じていても、「SigK PDF で開く」から起きれば閲覧モードでタブが見える', async (t) => {
+test('【要】前回をツールモードで閉じていて「SigK PDF で開く」から起きると、ツールモードのままタブで開く（決定80）', async (t) => {
   const shell = await withReadyLaunch(t, { ui: 'tools', requests: [request('open', [A], 1)] });
 
-  assert.equal(mode(shell), 'view');
+  assert.equal(mode(shell), 'tools', '前回のモードのまま');
   assert.deepEqual(tabPaths(shell), [A]);
+  assert.deepEqual(mergeNames(shell), ['a.pdf'], '選んでいるツール（起動直後は結合）にも渡す');
+  // 閲覧モードへ移れば、ページが見える。
+  shell.SigK.shell.setMode(shell.document, 'view');
+  assert.equal(shell.SigK.viewer.getState().file.path, A);
 });
 
 test('メインから届いた要求でも開く', async (t) => {

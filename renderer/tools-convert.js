@@ -22,7 +22,6 @@
   let launchBatch = null;
 
   const banner = () => root.SigK.viewBanner;
-  const tabs = () => root.SigK.tabs;
   const list = () => root.SigK.toolsConvertList;
   const view = () => root.SigK.toolsConvertView;
   const plan = () => root.SigK.convertPlan;
@@ -415,18 +414,12 @@
       return result ?? { error: '変換できませんでした。' };
     }
 
-    // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
+    // ここから先は書けている。タブで開き、モードは変えない（tool-output.js。決定80）。
     state.executed = true;
-    const count = state.rows.length;
-    if (tabs().count() >= tabs().MAX_TABS) {
-      await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show('変換しましたが、タブが多すぎるため開いていません。', { tone: 'info' });
-      return result;
-    }
-    const opened = await tabs().openPath(target);
-    if (opened)
-      root.SigK.shell.setMode(el.doc, 'view');
-    banner().show(`${count} ファイルを変換しました（${result.pages} ページ）`, { autoHideMs: 2500, tone: 'info' });
+    await root.SigK.toolOutput.openWritten(target, {
+      done: `${state.rows.length} ファイルを変換しました（${result.pages} ページ）`,
+      crowded: '変換しましたが、タブが多すぎるため開いていません。',
+    });
     return result;
   }
 

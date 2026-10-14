@@ -83,8 +83,9 @@ test('「ファイルを選ぶ…」は複数選択で、選んだ順に足し�
   assert.equal(shell.SigK.toolsConvert.canRun(), true);
 });
 
-test('ドロップでも足せる。変換画面では画像を受け、PDF は断る', async (t) => {
-  const shell = await createConvertShell(t);
+test('ドロップでも足せる。変換画面では画像を一覧へ足し、PDF はタブで開くだけ（決定80）', async (t) => {
+  const PDF = 'C:\\work\\x.pdf';
+  const shell = await createConvertShell(t, { files: { [PDF]: makeSource({ path: PDF }) } });
   const { SigK } = shell;
 
   const drop = (files) => SigK.fileDrop.handleDrop({
@@ -95,13 +96,17 @@ test('ドロップでも足せる。変換画面では画像を受け、PDF は�
   await drop([makeDroppedFile('a.png', A), makeDroppedFile('b.jpg', B)]);
   assert.deepEqual(names(shell), ['a.png', 'b.jpg']);
 
-  // PDF は変換画面では受けない。
-  await drop([makeDroppedFile('x.pdf', 'C:\\work\\x.pdf')]);
+  // PDF は変換の一覧には入れず、タブで開くだけ。
+  await drop([makeDroppedFile('x.pdf', PDF)]);
   assert.deepEqual(names(shell), ['a.png', 'b.jpg']);
-  assert.equal(bannerText(shell), '画像ファイルではないので、PNG・JPEG・BMP・GIF・TIFF を落としてください。');
+  assert.deepEqual(plain(SigK.tabs.list().map((tab) => tab.path)), [PDF]);
+
+  // PDF でも画像でもないものは断る。
+  await drop([makeDroppedFile('logo.webp', WEBP)]);
+  assert.equal(bannerText(shell), 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）を落としてください。');
 });
 
-test('結合の画面では従来どおり PDF だけを受け、画像は断る', async (t) => {
+test('結合の画面で画像を落とすと、画像→PDF に切り替えて一覧へ足す（決定80）', async (t) => {
   const shell = await createConvertShell(t);
   const { SigK } = shell;
   SigK.tools.select('merge');
@@ -110,9 +115,9 @@ test('結合の画面では従来どおり PDF だけを受け、画像は断る
     preventDefault: () => {},
     dataTransfer: makeDataTransfer([makeDroppedFile('a.png', A)]),
   });
-  assert.deepEqual(rows(shell), []);
+  assert.equal(SigK.tools.selected(), 'convert');
+  assert.deepEqual(names(shell), ['a.png']);
   assert.deepEqual(plain(SigK.toolsMerge.rows()), []);
-  assert.equal(bannerText(shell), 'PDF ファイルではないので、PDF を落としてください。');
 });
 
 test('addFromLaunch はツールモードへ切り替えて変換を選び、末尾へ足す', async (t) => {
@@ -459,8 +464,9 @@ test('「まとめる」は保存先を聞き、1本ぶんの spec を渡して�
   assert.deepEqual(plain(spec.images[1].layouts.map((layout) => layout.page)), [{ width: 595.28, height: 841.89 }], 'A4 縦');
   assert.equal(spec.images[0].layouts[0].allowUpscale, true);
 
-  // 開いたタブへ移り、帯で知らせる。成功は失敗ではないので赤く塗らない（決定48）。
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
+  // タブで開き（ツールモードのまま。決定80）、帯で知らせる。成功は失敗ではないので赤く塗らない（決定48）。
+  assert.equal(SigK.tabs.list().some((tab) => tab.path === OUT), true);
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(bannerText(shell), '2 ファイルを変換しました（2 ページ）');
   assert.equal(bannerTone(shell), 'info');
 });

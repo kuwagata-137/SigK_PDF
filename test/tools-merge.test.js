@@ -111,19 +111,20 @@ test('同じファイルを2回足せる', async (t) => {
   assert.deepEqual(names(shell), ['a.pdf', 'a.pdf']);
 });
 
-test('ツールモードでは PDF のドロップが一覧へ足される', async (t) => {
+test('ツールモードでは PDF のドロップが一覧へ足され、タブでも開く（決定80）', async (t) => {
   const shell = await createMergeShell(t);
   const { SigK, window } = shell;
   const event = new window.Event('drop', { bubbles: true, cancelable: true });
   event.dataTransfer = makeDataTransfer([makeDroppedFile('b.pdf', B), makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
   await SigK.fileDrop.handleDrop(event);
   assert.deepEqual(names(shell), ['b.pdf']);
-  assert.equal(SigK.tabs.count(), 0, 'タブには開かない');
+  assert.equal(SigK.tabs.count(), 1, 'タブでも開く');
+  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
 
   const bad = new window.Event('drop', { bubbles: true, cancelable: true });
   bad.dataTransfer = makeDataTransfer([makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
   await SigK.fileDrop.handleDrop(bad);
-  assert.match(bannerText(shell), /PDF ファイルではないので/);
+  assert.match(bannerText(shell), /PDF でも画像でもないので/);
 });
 
 test('上限は 100 ファイルで、超えたぶんは帯で断る', async (t) => {
@@ -259,7 +260,7 @@ test('範囲を書くと出力ページ数に映り、誤りは赤くして実�
 
 // ---- 実行（確定事項21〜25・35〜38） ----
 
-test('実行は保存先を聞き、ワーカーへ inputs と target を渡し、終わると新しいタブで開いて閲覧へ移る', async (t) => {
+test('実行は保存先を聞き、ワーカーへ inputs と target を渡し、終わると新しいタブで開いてツールモードのまま', async (t) => {
   const shell = await createMergeShell(t, {
     savePathResults: [{ path: OUT }],
     taskResults: [{ ok: true, path: OUT, pages: 5, inputs: 2, bytes: 100 }],
@@ -283,10 +284,10 @@ test('実行は保存先を聞き、ワーカーへ inputs と target を渡し�
     target: OUT,
   });
 
-  // 新しいタブで開き、閲覧モードへ移る（確定事項35）。一覧は消さない（確定事項37）。
+  // 新しいタブで開き、ツールモードのまま（確定事項35 を決定80 で改めた）。一覧は消さない（確定事項37）。
   assert.equal(SigK.tabs.count(), 1);
   assert.equal(SigK.tabs.list()[0].path, OUT);
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view');
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(bannerText(shell), '2 ファイルを結合しました（5 ページ）');
   // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
   assert.equal(bannerTone(shell), 'info');
@@ -540,7 +541,7 @@ test('束の最初で、実行済みの一覧は置き換え、それ以外は�
 
   await SigK.toolsMerge.addFromLaunch([B, A], first(1));
   assert.equal((await SigK.toolsMerge.run()).ok, true);
-  assert.equal(doc.documentElement.getAttribute('data-mode'), 'view', '結合した PDF を開いて閲覧へ');
+  assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools', '結合した PDF はタブで開き、ツールモードのまま');
 
   await SigK.toolsMerge.addFromLaunch([C], first(2));
   assert.deepEqual(names(shell), ['c.pdf'], '実行し終えた一覧は置き換える');
