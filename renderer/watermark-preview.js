@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
 
-  // 透かしのプレビュー（spec-4-5 確定事項5。モックの確定「右に置く」）。
+  // 透かしのプレビュー（spec-4-5 確定事項5。spec-2-5 確定事項E3 で右の欄のカード「プレビュー（1 ページ目）」へ移した）。
   //
   // 対象の PDF を pdf.js で開いたまま持ち、見ているページを縮小して canvas に描き（page-image.js）、
   // 同じ幾何（watermark-geometry.js）で透かしを SVG で重ねる。文字は保存と同じ字形の
@@ -9,8 +9,8 @@
   // 透かしの SVG だけを組み直す。透かしを入れないページは透かし無しで見せる。
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  // 紙を収める枠（CSS px）。
-  const BOX = Object.freeze({ width: 248, height: 300 });
+  // 紙を収める枠（CSS px）。右の欄のカードに収まる大きさ（PR-2 の起草者の判断）。
+  const BOX = Object.freeze({ width: 180, height: 230 });
 
   const state = { path: null, task: null, doc: null, pageCount: 0, index: 0, ticket: 0, page: null, imageKey: null, imageUrl: null };
   let el = null;
@@ -30,12 +30,13 @@
     await task?.destroy?.();
   }
 
-  // 対象が変わったら開き直す（確定事項5）。同じファイルなら開き直さない。
-  async function setSource(src) {
+  // 対象が変わったら開き直す（確定事項5）。同じファイルなら開き直さない。reload なら同じファイルでも開き直す（帯を選び直した・
+  // 保存して中身が変わった。strip-target.js は文書が替わったときに知らせる）。
+  async function setSource(src, { reload = false } = {}) {
     if (el === null)
       return;
     const path = src !== null && !src.pending && src.blocked === null ? src.path : null;
-    if (path === state.path && (path === null || state.doc !== null))
+    if (!reload && path === state.path && (path === null || state.doc !== null))
       return update();
     await close();
     state.path = path;
@@ -190,6 +191,8 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.watermarkPreview = {
     BOX, init, setSource, showPage, update, step,
+    // 帯のページへの重ね（strip-watermark.js）が同じ絵を使う。
+    markOf: (settings, image) => (el === null ? null : markOf(settings, image)),
     pageIndex: () => state.index,
     pageCount: () => state.pageCount,
   };

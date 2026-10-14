@@ -97,6 +97,7 @@
       state.order = ids;
     }
     root.SigK.stripDropZone?.render({ big: ids.length === 0, recent: root.SigK.recentPanel?.entries() ?? [] });
+    root.SigK.stripWatermark?.decorate();
     schedule();
   }
 
@@ -160,16 +161,15 @@
     return state.rows.get(tabId)?.node ?? null;
   }
 
-  // 描けた紙を帯へ入れ、手放した紙を空にする（strip-thumbs.js の知らせ）。
+  // 描けた紙を帯へ入れ、手放した紙を外す（strip-thumbs.js の知らせ）。紙の上に重ねた透かし（strip-watermark.js）は残す。
   function onDrawn(tabId, index, canvas) {
     const node = rowNode(tabId);
     const sheet = node === null ? null : rowParts().sheetAt(node, index);
     if (sheet === null)
       return;
-    if (canvas === null)
-      sheet.replaceChildren();
-    else
-      sheet.replaceChildren(canvas);
+    sheet.querySelector('canvas')?.remove();
+    if (canvas !== null)
+      sheet.prepend(canvas);
   }
 
   function getState() {

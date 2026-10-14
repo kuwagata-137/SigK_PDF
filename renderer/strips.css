@@ -26,6 +26,8 @@
 .strip-page{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:3px; padding:3px; border-radius:6px; border:1px solid transparent}
 .strip-page .sheet{position:relative; overflow:hidden; background:var(--page); box-shadow:0 0 0 1px rgba(16,24,40,.14), 0 1px 3px rgba(16,24,40,.16)}
 .strip-page .sheet canvas{display:block; width:100%; height:100%}
+/* 透かしを選んでいる間、透かしを入れるページに薄く重ねる（確定事項E3。strip-watermark.js）。 */
+.strip-page .sheet .strip-wm{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
 .strip-page .cap{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; height:14px; line-height:14px}
 .strip-page.picked{border-color:var(--accent); background:var(--select)}
 .strip-page.picked .cap{color:var(--accent); font-weight:600}

@@ -1,14 +1,13 @@
 (function (root) {
   'use strict';
 
-  // 透かしの画面の状態と指揮（spec-4-5 確定事項2〜6・11・34〜44）。
+  // 透かしの状態と指揮（spec-4-5 確定事項2〜6・11・35〜44、spec-2-5 確定事項E3。見本 screenshots/strips2-watermark.png）。
   //
-  // 対象（source-picker.js）・透かしの画像・設定を持ち、計画（watermark-plan.js）を組んで、実行時に
-  // 保存ダイアログで出力先を決め（rewrite-output.js）、ワーカー（kind: watermark）へ渡す。描画は
-  // tools-watermark-view.js（欄）と watermark-preview.js（右のプレビュー）。ファイルを読み直して書くので
-  // 未保存の編集は反映されない。設定は覚えない（論点6。アプリを閉じるまでは画面の値が残る）。
+  // 対象は選んでいる帯（strip-target.js）。透かしの画像・設定を持ち、計画（watermark-plan.js）を組んで、実行時に保存していない帯を
+  // 確かめ（run-guard.js）、保存ダイアログで出力先を決め（rewrite-output.js）、ワーカー（kind: watermark）へ渡す。描画は
+  // tools-watermark-view.js（欄）・watermark-preview.js（右の欄のプレビュー）・strip-watermark.js（帯のページへの重ね）。
+  // ファイルを読み直して書く。設定は覚えない（論点6。アプリを閉じるまでは画面の値が残る）。
 
-  const PICK_TITLE = '透かしを入れる PDF を選ぶ';
   const SAVE_TITLE = '透かしを入れた PDF を保存';
   const NOTE_FIRST_IMAGE = '1つ目の画像だけを使いました。';
 
@@ -28,27 +27,19 @@
   function changed() {
     view()?.sync();
     preview()?.update();
+    root.SigK.stripWatermark?.decorate();
   }
 
-  // ---- 対象（確定事項2・34・38） ----
+  // ---- 対象（選んでいる帯。spec-2-5 確定事項E3） ----
 
-  const field = root.SigK.sourcePicker.create({
-    inspect: (filePath) => root.SigK.toolSource.inspectPdf(filePath),
-    pick: ({ defaultPath }) => {
-      const api = root.pdfAPI;
-      if (api?.available !== true || typeof api.pickToolSource !== 'function')
-        return null;
-      return api.pickToolSource({ defaultPath, title: PICK_TITLE });
-    },
-    dirtyMessage: '未保存の編集は透かしに反映されないので、保存してから透かしを入れ直してください。',
-    onChange: () => {
-      view()?.render();
-      preview()?.setSource(field.source());
+  // 対象が替わったら（保存して読み直したときも）、プレビューをファイルから読み直す（PR-2 の起草者の判断）。
+  const target = root.SigK.stripTarget.create({
+    encryptedError: '透かしを入れられません',
+    onChange: (src) => {
+      preview()?.setSource(src, { reload: true });
     },
   });
-
-  const source = () => field.source();
-  const { setSource, useTab, pickFile } = field;
+  const source = () => target.source();
 
   // ---- 透かしの画像（確定事項35〜37。論点7） ----
 
@@ -86,19 +77,14 @@
     return setImage(picked.path);
   }
 
-  // ドロップの受け口（確定事項37）。PDF の先頭を対象に、PNG・JPEG の先頭を透かしの画像にする。
-  async function addPaths(paths) {
-    const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
-    const pdfs = incoming.filter((filePath) => /\.pdf$/i.test(filePath));
-    const images = incoming.filter((filePath) => /\.(png|jpe?g)$/i.test(filePath));
-    let ok = false;
-    if (pdfs.length > 0)
-      ok = (await field.addPaths(pdfs)) || ok;
-    if (images.length > 0) {
-      ok = (await setImage(images[0])) || ok;
-      if (images.length > 1)
-        banner().show(NOTE_FIRST_IMAGE, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
-    }
+  // 落とした画像の受け口（確定事項37）。PNG・JPEG の先頭を透かしの画像にする。PDF はタブ（帯）で開き、選んでいる帯が対象になる。
+  async function addImages(paths) {
+    const images = (paths ?? []).filter((filePath) => typeof filePath === 'string' && /\.(png|jpe?g)$/i.test(filePath));
+    if (images.length === 0)
+      return false;
+    const ok = await setImage(images[0]);
+    if (images.length > 1)
+      banner().show(NOTE_FIRST_IMAGE, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
     return ok;
   }
 
@@ -134,13 +120,26 @@
     return !state.running && root.SigK.save?.isBusy() !== true && currentPlan().ready === true;
   }
 
-  // 保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12。結合と同じ）。
+  // 保存していない帯の確かめ・保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '透かしを入れられる状態ではありません。' };
     state.running = true;
     view()?.render();
     try {
+      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId]);
+      if (!guard.go)
+        return { canceled: true };
+      // 上書き保存したら、ファイルの中身（ページ数）が変わっている。計画を組み直して確かめ、プレビューも読み直す。
+      if (guard.saved) {
+        target.sync();
+        const replanned = currentPlan();
+        if (replanned.ready !== true) {
+          const error = replanned.error ?? '透かしを入れられる状態ではありません。';
+          banner().show(error);
+          return { error };
+        }
+      }
       return await runPlanned();
     } finally {
       state.running = false;
@@ -174,9 +173,10 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsWatermark = {
-    PICK_TITLE, SAVE_TITLE, NOTE_FIRST_IMAGE,
+    SAVE_TITLE, NOTE_FIRST_IMAGE,
     init, source, image, settings, currentPlan, canRun,
-    setSource, useTab, pickFile, addPaths, setImage, pickImage,
+    sync: () => target.sync(), stateText: () => target.stateText(),
+    addImages, setImage, pickImage,
     setType, setText, setSize, setColor, setOpacity, setAngle, setPosition, setPageMode, setRange,
     run,
     isRunning: () => state.running,

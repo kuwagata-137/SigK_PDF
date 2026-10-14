@@ -11,8 +11,6 @@ const { createShell, makeSource } = require('./harness.js');
 const A = 'C:\\work\\a.pdf';
 const B = 'C:\\work\\b.pdf';
 const C = 'C:\\work\\c.pdf';
-// フラット化は対象を決めると書き込みを数える（tools-flatten.test.js と同じ形の結果を返す）。
-const CENSUS = { ok: true, baked: 0, kept: 0, notes: 0, bake: { markup: 0, text: 0, shape: 0, note: 0, other: 0 }, keep: { functional: 0, noAppearance: 0, hidden: 0 } };
 
 async function createToolShell(t, tool = 'split', options = {}) {
   const shell = await createShell({
@@ -158,12 +156,11 @@ test('一覧の外にフォーカスがあるときの Esc も、一覧を閉じ
 });
 
 // 結合は帯と右の欄へ移り、［開いているタブをまとめて追加］は無くした（spec-2-5 確定事項E6）。空のときの案内は右の欄の文。
-test('2 画面の何も選んでいないときの案内と、結合の空のときの案内（F8・F9・第 I 章、spec-2-5 確定事項E2・E4・E5）', async (t) => {
+test('分割の何も選んでいないときの案内と、結合の空のときの案内（F8・F9・第 I 章、spec-2-5 確定事項E2〜E5）', async (t) => {
   const shell = await createToolShell(t);
   const text = (id) => shell.document.getElementById(id).textContent.trim();
   const lead = '［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、';
   assert.equal(text('split-empty'), `${lead}分割する PDF を決めてください。`);
-  assert.equal(text('wm-empty'), `${lead}透かしを入れる PDF を決めてください。`);
   assert.equal(shell.document.getElementById('merge-add-open'), null);
   assert.equal(text('merge-empty'), 'PDF を開くと、ここにまとめるファイルが並びます。');
 });
@@ -227,24 +224,8 @@ test('押せない（実行中）ときは開かない', async (t) => {
   assert.equal(menuOf(shell), null);
 });
 
-// PDF→画像・フラット化は帯の画面へ移り、選んでいる帯が対象になった（spec-2-5 確定事項E4・E5・E6）。
-test('透かしでも、選んだタブの PDF が対象になる', async (t) => {
-  const screens = [
-    { tool: 'watermark', id: 'wm-use-open', of: (SigK) => SigK.toolsWatermark },
-  ];
-  for (const screen of screens) {
-    const shell = await createToolShell(t, screen.tool, { taskResults: [CENSUS] });
-    await openThreeTabs(shell);
-    shell.SigK.tools.select(screen.tool);
-    const button = shell.document.getElementById(screen.id);
-    assert.match(button.textContent, /開いているタブから選ぶ/, screen.tool);
-    button.click();
-    rowsOf(shell)[2].click();
-    await shell.flush();
-    await shell.flush();
-    assert.equal(screen.of(shell.SigK).source().path, C, screen.tool);
-  }
-});
+// PDF→画像・透かし・フラット化は帯の画面へ移り、選んでいる帯が対象になった（spec-2-5 確定事項E3〜E6）。［開いているタブから選ぶ ▾］は
+// 分割（PR-3 まで今の画面）だけが使う。
 
 test('ツールを切り替えると一覧は閉じる', async (t) => {
   const shell = await createToolShell(t);

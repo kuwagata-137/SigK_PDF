@@ -16,7 +16,6 @@
   // 結合は帯（＝タブ）を対象にするので渡さない（開いたタブは既定で結合のチェックが入る。spec-2-5 確定事項E2）。
   const PDF_TOOLS = {
     split: { name: 'toolsSplit', single: true },
-    watermark: { name: 'toolsWatermark', single: true },
   };
 
   const isToolsMode = () => root.SigK.tools?.isToolsMode() === true;
@@ -45,7 +44,7 @@
       return false;
     const selected = root.SigK.tools.selected();
     if (selected === 'watermark')
-      return root.SigK.toolsWatermark.addPaths(incoming);
+      return root.SigK.toolsWatermark.addImages(incoming);
     if (selected !== 'convert')
       root.SigK.tools.select('convert');
     await root.SigK.toolsConvert.addPaths(incoming);

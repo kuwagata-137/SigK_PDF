@@ -38,7 +38,7 @@ const TOOLS = [
   { id: 'convert', label: '画像→PDF', api: 'toolsConvert', button: 'convert-run', ready: (SigK) => SigK.toolsConvert.addPaths([PNG]) },
   // PDF→画像の対象は選んでいる帯（spec-2-5 確定事項E4）。開いたタブが選んでいる帯になる。
   { id: 'toImage', label: 'PDF→画像', api: 'toolsToImage', button: 'toimage-run', ready: (SigK) => SigK.tabs.openPath(A) },
-  { id: 'watermark', label: '透かし', api: 'toolsWatermark', button: 'wm-run', ready: (SigK) => SigK.toolsWatermark.setSource(A) },
+  { id: 'watermark', label: '透かし', api: 'toolsWatermark', button: 'wm-run', ready: (SigK) => SigK.tabs.openPath(A) },
   { id: 'flatten', label: 'フラット化', api: 'toolsFlatten', button: 'fl-run', ready: (SigK) => SigK.tabs.openPath(A), taskResults: [CENSUS] },
 ];
 const toolOf = (id) => TOOLS.find((tool) => tool.id === id);

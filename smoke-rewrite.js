@@ -40,7 +40,8 @@ function watermarkScript({ source, ops, target, stay }) {
     const textOf = ${TEXT_OF};
     SigK.shell.setMode(document, 'tools');
     SigK.tools.select('watermark');
-    await tool.setSource(${JSON.stringify(source)});
+    // 対象は選んでいる帯（spec-2-5 確定事項E3）。タブで開くと、それが選んでいる帯になる。
+    await SigK.toolHandoff.openOne(${JSON.stringify(source)});
     await wait(500);
     const applied = [];
     for (const raw of ${JSON.stringify(ops)}.split(',')) {

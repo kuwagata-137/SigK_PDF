@@ -70,3 +70,12 @@ html[data-tool-screen="strips"] #tabbar{display:none}
 .fl-row .cbox{width:15px; height:15px; margin:0; accent-color:var(--primary); cursor:pointer}
 .fl-row .cbox:disabled{cursor:default}
 #tool-pane .fl-keep, #tool-pane .fl-warn{max-width:none; margin-top:10px}
+
+/* 透かしのカード（確定事項E3。見本 screenshots/strips2-watermark.png）。今までの欄（.wm-opts・.wm-preview）を右の欄の幅に収める。 */
+#tool-pane .wm-opts{grid-template-columns:52px minmax(0,1fr); column-gap:8px; row-gap:10px; font-size:12px}
+#tool-pane .wm-opts .k{align-self:start; padding-top:3px}
+#tool-pane .wm-opts .split-inp.wide{width:100%}
+#tool-pane .wm-opts .picks{flex-direction:row; flex-wrap:wrap; gap:6px 12px}
+#tool-pane .wm-opts .picks .sub{flex-basis:100%; padding-left:0}
+#tool-pane .wm-preview{position:static}
+#tool-pane .wm-preview .page-box{min-height:0; padding:12px 0}

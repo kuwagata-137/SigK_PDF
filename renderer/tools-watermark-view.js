@@ -1,7 +1,8 @@
 (function (root) {
   'use strict';
 
-  // 透かしの画面の欄の描画と結線（spec-4-5 確定事項2〜6）。
+  // 右の欄の透かしの節の欄の描画と結線（spec-4-5 確定事項2〜6、spec-2-5 確定事項E3。見本 screenshots/strips2-watermark.png）。
+  // 対象は選んでいる帯で、対象が無い・使えないときは状態の文を出す。
   //
   // 状態は tools-watermark.js が持つ。ここは読んで DOM に写し、操作をあちらの関数へ返すだけである。
   // 色の丸・不透明度・位置の格子はプリセット（watermark-plan.js・watermark-geometry.js）から組み、
@@ -133,19 +134,24 @@
     el.rangeErr.hidden = !rangeInvalid;
 
     renderImage(running);
-    el.summary.textContent = plan.ready ? plan.summary : (rangeInvalid ? '' : plan.error ?? '');
+    // 要約は見本どおり「会議資料.pdf の 12 ページ」（PR-2 の起草者の判断）。対象が無い・使えないときは状態の文が出るので空。
+    const src = tool().source();
+    const unusable = src === null || src.blocked !== null;
+    el.summary.textContent = plan.ready ? `${src.name} の ${plan.pages.length} ページ` : (rangeInvalid || unusable ? '' : plan.error ?? '');
     setDisabled(el.run, !tool().canRun());
-    for (const control of [el.useOpen, el.pick])
-      setDisabled(control, running);
     for (const input of [el.text, el.range, ...el.types, ...el.sizes, ...el.angles, ...el.pageModes, ...el.opacities.querySelectorAll('input')])
       input.disabled = running;
     return true;
   }
 
+  // 対象が替わったか（tool.sync）を見てから描く。帯を押すたびに tabs.render → toolPane.sync から呼ばれる。
   function render() {
     if (el === null)
       return false;
-    root.SigK.sourcePicker.render(el, tool().source());
+    tool().sync();
+    const text = tool().stateText();
+    el.state.textContent = text ?? '';
+    el.state.hidden = text === null;
     return sync();
   }
 
@@ -161,8 +167,7 @@
     const inputsOf = (name) => [...doc.querySelectorAll(`input[name="${name}"]`)];
     el = {
       doc, win, run,
-      file: byId('wm-file'), name: byId('wm-name'), pages: byId('wm-pages'), note: byId('wm-note'), empty: byId('wm-empty'),
-      useOpen: byId('wm-use-open'), pick: byId('wm-pick'),
+      state: byId('wm-state'),
       types: inputsOf('wm-type'), textKey: byId('wm-text-key'), textRow: byId('wm-text-row'), text: byId('wm-text'),
       imageKey: byId('wm-image-key'), imageRow: byId('wm-image-row'), imageName: byId('wm-image-name'),
       imageMeta: byId('wm-image-meta'), imagePick: byId('wm-image-pick'), imageNote: byId('wm-image-note'),
@@ -183,8 +188,6 @@
     el.range.addEventListener('input', () => tool().setRange(el.range.value));
     // 範囲の欄に触れたら「範囲」を選ぶ。ラジオまで戻らせない（PDF→画像と同じ）。
     el.range.addEventListener('focus', () => tool().setPageMode('range'));
-    root.SigK.sourcePicker.bindTabMenu(el.useOpen, (id) => tool().useTab(id));
-    onClick(el.pick, () => tool().pickFile());
     onClick(el.imagePick, () => tool().pickImage());
     onClick(el.run, () => tool().run());
 
