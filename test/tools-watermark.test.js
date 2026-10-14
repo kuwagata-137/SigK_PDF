@@ -244,12 +244,12 @@ test('透かしを選んでいるときのドロップは、PDF を対象に、P
   assert.equal(SigK.toolsWatermark.source().path, B);
   assert.equal(SigK.toolsWatermark.image().path, LOGO);
   assert.equal(SigK.toolsWatermark.settings().type, 'image');
-  assert.equal(SigK.tabs.count(), 0, 'タブには開かない');
+  assert.deepEqual(plain(SigK.tabs.list().map((tab) => tab.path)), [B], 'PDF はタブでも開く（決定80）。画像は開かない');
 
   const rejected = new window.Event('drop', { bubbles: true, cancelable: true });
   rejected.dataTransfer = makeDataTransfer([makeDroppedFile('memo.txt', 'C:\\work\\memo.txt')]);
   assert.equal(await SigK.fileDrop.handleDrop(rejected), false);
-  assert.equal(bannerText(shell), 'PDF か画像（PNG・JPEG）を落としてください。');
+  assert.equal(bannerText(shell), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像を落としてください。');
 });
 
 test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、黄色の帯で知らせる', async (t) => {

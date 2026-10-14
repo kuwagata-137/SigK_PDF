@@ -565,7 +565,8 @@ test('ページ編集・編集モードで開いても、モードは変えな�
   assert.equal(shell.SigK.tabs.count(), 2);
 });
 
-// ツールの画面の中のファイル選びとドロップは、ツールの画面へ渡す口である（spec-2-1 確定事項12）。タブは作らず、移らない。
+// ツールの画面の中のファイル選びは、ツールの画面へ渡す口である（spec-2-1 確定事項12）。タブは作らない。
+// ドロップはタブでも開く（決定80）。どちらもモードは変えない。
 test('ツールの画面の「ファイルを選ぶ…」とドロップでは、ツールモードのまま', async (t) => {
   const shell = await inToolsMode(t, { mergeSourceResults: [{ paths: [A] }] });
   shell.SigK.tools.select('merge');
@@ -583,5 +584,5 @@ test('ツールの画面の「ファイルを選ぶ…」とドロップでは�
     await shell.flush();
   assert.equal(shell.SigK.toolsMerge.rows().length, 2);
   assert.equal(modeOf(shell), 'tools');
-  assert.equal(shell.SigK.tabs.count(), 0);
+  assert.deepEqual(structuredClone(shell.SigK.tabs.list().map((tab) => tab.path)), [B], '落としたファイルだけタブで開く');
 });

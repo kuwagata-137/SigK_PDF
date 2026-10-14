@@ -111,19 +111,20 @@ test('同じファイルを2回足せる', async (t) => {
   assert.deepEqual(names(shell), ['a.pdf', 'a.pdf']);
 });
 
-test('ツールモードでは PDF のドロップが一覧へ足される', async (t) => {
+test('ツールモードでは PDF のドロップが一覧へ足され、タブでも開く（決定80）', async (t) => {
   const shell = await createMergeShell(t);
   const { SigK, window } = shell;
   const event = new window.Event('drop', { bubbles: true, cancelable: true });
   event.dataTransfer = makeDataTransfer([makeDroppedFile('b.pdf', B), makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
   await SigK.fileDrop.handleDrop(event);
   assert.deepEqual(names(shell), ['b.pdf']);
-  assert.equal(SigK.tabs.count(), 0, 'タブには開かない');
+  assert.equal(SigK.tabs.count(), 1, 'タブでも開く');
+  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
 
   const bad = new window.Event('drop', { bubbles: true, cancelable: true });
   bad.dataTransfer = makeDataTransfer([makeDroppedFile('x.txt', 'C:\\work\\x.txt')]);
   await SigK.fileDrop.handleDrop(bad);
-  assert.match(bannerText(shell), /PDF ファイルではないので/);
+  assert.match(bannerText(shell), /PDF でも画像でもないので/);
 });
 
 test('上限は 100 ファイルで、超えたぶんは帯で断る', async (t) => {

@@ -133,7 +133,7 @@ test('PDF→画像を選んでいるときの PDF のドロップは対象にな
   event.dataTransfer = makeDataTransfer([makeDroppedFile('b.pdf', B), makeDroppedFile('a.pdf', A)]);
   await SigK.fileDrop.handleDrop(event);
   assert.equal(SigK.toolsToImage.source().path, B);
-  assert.equal(SigK.tabs.count(), 0, 'タブには開かない');
+  assert.equal(SigK.tabs.count(), 2, 'タブでも開く（決定80）');
   assert.equal(SigK.toolsSplit.source(), null, '分割の対象にはしない');
   assert.equal(SigK.toolsMerge.rows().length, 0, '結合の一覧には足さない');
   assert.equal(bannerText(shell), '1つ目のファイルだけを対象にしました。');
