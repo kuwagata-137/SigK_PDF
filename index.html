@@ -39,10 +39,6 @@ body{
 <body>
 <div id="app">
 
-  <div id="tabbar">
-    <div class="tab-add" data-icon="plus" data-icon-size="14" data-icon-stroke="2" title="タブを追加" aria-disabled="true"></div>
-  </div>
-
   <div id="toolbar">
     <div class="tb-btn" id="btn-open" title="PDF を開く (Ctrl+O)"><span data-icon="open"></span>開く</div>
     <div class="tb-btn" id="btn-save" title="上書き保存 (Ctrl+S)" aria-disabled="true"><span data-icon="save"></span>保存</div>
@@ -169,6 +165,14 @@ body{
          パネルと一緒に消えるので、開き直す「＞」をここに置く。出し入れは shell.js の setSidePanelOpen。 -->
     <div id="side-strip" hidden>
       <button type="button" id="side-expand" data-icon="chevronRight" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを開く" aria-label="サイドパネルを開く"></button>
+    </div>
+
+    <!-- タブの列とページの表示を縦に並べる器（spec-2-5 確定事項B1・B2。見本 screenshots/strips1-view.png）。タブの列は
+         ツールバーの下・左の欄の右・表示のすぐ上に置き、編集モードの右パネル（#props）は #main の外で上から下まで伸ばす。
+         ツールモードでもタブの列は出す（決定80 ㉖。隠すのは帯ができる PR-2）。 -->
+    <div id="main">
+    <div id="tabbar">
+      <div class="tab-add" data-icon="plus" data-icon-size="14" data-icon-stroke="2" title="タブを追加" aria-disabled="true"></div>
     </div>
 
     <!-- 重ねるものは #view の「外」に置く。#view はスクロールする器であり、
@@ -588,6 +592,7 @@ body{
         <button type="button" class="find-btn" id="find-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" title="閉じる (Esc)"></button>
       </div>
     </div>
+    </div><!-- #main -->
 
     <!-- 注釈のプロパティ（spec-4-1 確定事項4）。注釈モードの間は常に出す。
          中身は annotation-props.js が実態に合わせる。 -->

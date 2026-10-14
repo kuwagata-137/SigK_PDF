@@ -69,6 +69,37 @@ test('画面の骨組みが組み上がる', async (t) => {
     assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
 });
 
+// タブの列はツールバーの下・左の欄の右・ページの表示のすぐ上（spec-2-5 確定事項B1・B2。見本 screenshots/strips1-view.png）。
+// 編集モードの右パネル（#props）は #main の外に置き、上から下まで伸ばす。ツールモードでもタブの列は出す（決定80 ㉖。隠すのは PR-2）。
+test('タブの列は #main の中で表示の器のすぐ上にあり、右パネルは #main の外にある', async (t) => {
+  const { document } = await withShell(t);
+  const main = document.getElementById('main');
+
+  assert.notEqual(main, null, '#main が無い');
+  assert.equal(main.parentElement.id, 'body');
+  assert.deepEqual([...main.children].map((el) => el.id), ['tabbar', 'view-wrap']);
+  assert.equal(document.getElementById('props').parentElement.id, 'body');
+  assert.equal(main.nextElementSibling.id, 'props');
+  // ツールバーは今どおり #app の直下で、タブの列より上にある。
+  assert.equal(document.getElementById('toolbar').parentElement.id, 'app');
+});
+
+test('#main は残りの幅を取り、中を縦に並べ、表示の器が残りの高さを取る（shell.css）', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
+  const rule = (selector) => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\#>]/g, '\\$&');
+    return css.match(new RegExp(`(?:^|\\n)${escaped}\\{([^}]*)\\}`))?.[1] ?? '';
+  };
+
+  assert.match(rule('#main'), /flex:1/);
+  assert.match(rule('#main'), /min-width:0/);
+  assert.match(rule('#main'), /flex-direction:column/);
+  assert.match(rule('#main > #view-wrap'), /flex:1/);
+  assert.match(rule('#main > #view-wrap'), /min-height:0/);
+  // ツールモードでタブの列を隠す規則はまだ入れない（決定80 ㉖）。
+  assert.doesNotMatch(css, /data-mode="tools"\][^{]*#tabbar/);
+});
+
 test('ツールレールは 4 つのモードだけを持ち、編集の道具は道具の段に並ぶ', async (t) => {
   const { document, SigK } = await withShell(t);
 
@@ -406,9 +437,9 @@ test('サイドパネルを閉じると細い帯が出て、帯の「＞」で�
 
   assert.notEqual(strip, null, '帯が無い');
   assert.equal(strip.hidden, true, '開いている間は帯を出さない');
-  // 帯はレールとページの表示域の間に置く。
+  // 帯はレールとページの表示域（タブの列とページの表示を縦に並べた #main。spec-2-5 確定事項B1）の間に置く。
   assert.equal(strip.previousElementSibling.id, 'side-resizer');
-  assert.equal(strip.nextElementSibling.id, 'view-wrap');
+  assert.equal(strip.nextElementSibling.id, 'main');
   assert.equal(expand.closest('#side-strip'), strip);
   assert.equal(expand.tagName, 'BUTTON');
   assert.equal(expand.getAttribute('type'), 'button');
