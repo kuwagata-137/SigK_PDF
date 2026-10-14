@@ -80,23 +80,8 @@ test('文書を開いたままツールモードへ入り、戻ると文書は�
   assert.equal(SigK.viewer.getState().pageCount, 3);
 });
 
-test('ツールモードでは保存ボタンも Ctrl+S も効かない', async (t) => {
-  const shell = await createShell({ files: { [A]: makeSource({ path: A }) } });
-  t.after(() => shell.cleanup());
-  const { document: doc, SigK } = shell;
-  await SigK.tabs.openPath(A);
-  const save = doc.getElementById('btn-save');
-  assert.equal(save.getAttribute('aria-disabled'), 'false');
-
-  SigK.shell.setMode(doc, 'tools');
-  assert.equal(save.getAttribute('aria-disabled'), 'true');
-  assert.equal((await SigK.save.saveActive()).error, 'ツールモードでは保存できません。');
-  assert.equal((await SigK.save.saveAsActive()).error, 'ツールモードでは保存できません。');
-  assert.equal(shell.savePathCalls.length, 0);
-
-  SigK.shell.setMode(doc, 'view');
-  assert.equal(save.getAttribute('aria-disabled'), 'false');
-});
+// ツールモードでの保存（確定事項4・5 を 2026-10-14 に改め、ツールモードでも保存できるようにした）は
+// test/save-tools-mode.test.js が見る。
 
 test('起動時に tools で復元されたら、そのまま結合画面を出す', async (t) => {
   const shell = await createShell({ ui: { mode: 'tools', sidePanel: { open: true, width: 240 } } });

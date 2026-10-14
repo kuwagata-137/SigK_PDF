@@ -223,7 +223,7 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 });
 
 // レンダラーへ渡すのは画面の見た目の設定だけである。ウィンドウの位置や履歴は渡さない。
-const DEFAULT_COLORS = { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' };
+const DEFAULT_COLORS = { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' };
 // 図形の塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。
 const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { shape: false }, annotLineStyles: { shape: 'solid' } };
 const DEFAULT_OPACITY = { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 };
@@ -345,15 +345,34 @@ test('古い settings.json の候補の色は、読み込むときに 1 回だ�
   assert.equal(loaded.annotColors.shape, '#4472c4');
   assert.equal(loaded.annotColors.pen, '#123456', '自分で選んだ色はそのまま');
   assert.equal(loaded.annotColors.note, '#ffa8c8', '桃はそのまま');
-  assert.equal(loaded.annotPaletteVersion, 1);
+  assert.equal(loaded.annotPaletteVersion, 2);
   // 移したあとに今までの候補と同じ色を選び直しても、次の読み込みでは移さない。
   store.set(mergeUi(pickUi(store.get()), { annotColors: { shape: '#2c5cd9' } }));
-  assert.equal(store.get().annotPaletteVersion, 1);
+  assert.equal(store.get().annotPaletteVersion, 2);
   assert.equal(store.save(), true);
-  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 1);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 2);
   const reopened = createSettingsStore({ dir }).load();
   assert.equal(reopened.annotColors.shape, '#2c5cd9');
   assert.equal(reopened.annotColors.highlight, '#a9ce91');
+});
+
+// 図形の既定の色を #c00000 から #ff0000 へ変えた（2026-10-14 のユーザーの指示）。印 1 の settings.json に古い既定が
+// 残っていれば、読み込むときに 1 回だけ移す。移したあとに #c00000 を選び直せば、次の読み込みでは移さない。
+test('印 1 の settings.json の図形の色 #c00000 は、読み込むときに 1 回だけ #ff0000 へ移る', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'settings.json');
+  fs.writeFileSync(file, JSON.stringify({ annotPaletteVersion: 1, annotColors: { ...DEFAULT_COLORS, shape: '#c00000' } }));
+  const store = createSettingsStore({ dir });
+  const loaded = store.load();
+  assert.deepEqual(loaded.annotColors, DEFAULT_COLORS, '図形だけが移り、下線・取り消し線・ペンの #c00000 は残る');
+  assert.equal(loaded.annotPaletteVersion, 2);
+  store.set(mergeUi(pickUi(store.get()), { annotColors: { shape: '#c00000' } }));
+  assert.equal(store.save(), true);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 2);
+  assert.equal(createSettingsStore({ dir }).load().annotColors.shape, '#c00000');
+  // 自分で選んだ色（印 1 で #c00000 でない色）は移さない。
+  fs.writeFileSync(file, JSON.stringify({ annotPaletteVersion: 1, annotColors: { shape: '#4472c4' } }));
+  assert.equal(createSettingsStore({ dir }).load().annotColors.shape, '#4472c4');
 });
 
 // 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。線と塗りを両方なしにはできない。

@@ -62,12 +62,12 @@ test('図形の種類は ×印・多角形を足して 6 つで、既定は矩�
 });
 
 // 色は右パネルのチップとパレットで選ぶ（spec-4b-1b 確定事項2・6）。既定の色は今までの既定をいちばん近いパレットの色へ
-// 置き換えたもので、どれもパレットにある（確定事項14）。候補の丸の並びはやめた。
+// 置き換えたもので、どれもパレットにある（確定事項14）。図形だけは標準の色の赤 #ff0000（2026-10-14 のユーザーの指示）。候補の丸の並びはやめた。
 test('既定の色は道具ごとのパレットの色', () => {
   require('../renderer/annotation-palette.js');
   const palette = globalThis.SigK.annotationPalette;
   assert.deepEqual(presets.DEFAULT_COLORS, {
-    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', marker: '#ffff00',
+    highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00',
     note: '#ffd966',
   });
   assert.deepEqual(Object.keys(presets.DEFAULT_COLORS), presets.TOOLS);

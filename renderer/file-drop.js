@@ -3,7 +3,8 @@
 
   // ドラッグ＆ドロップで開く（F-06-1・spec-1-2 確定事項5・6）。
   //
-  // 受けるのはウィンドウ全体である。落とす場所を狙わせない。
+  // 受けるのはウィンドウ全体である。落とす場所を狙わせない。どのモードで落としても PDF はタブで開き、モードは
+  // 変えない（決定80）。ツールモードでは、移り期間として、選んでいるツールにも渡す（tool-handoff.js）。
   // dragover と drop の両方で preventDefault を呼ぶのは、既定の動作が
   // 「そのファイルへページ遷移する」であり、放っておくと画面が飛ぶためである
   // （main.js の will-navigate でも止めてはいるが、そこまで行かせない）。
@@ -12,15 +13,15 @@
 
   let el = null;
 
-  function tabs() {
-    return root.SigK.tabs;
+  function handoff() {
+    return root.SigK.toolHandoff;
   }
 
   function isPdfName(name) {
     return typeof name === 'string' && name.toLowerCase().endsWith('.pdf');
   }
 
-  // 変換画面が受ける画像（spec-3-1 確定事項2・spec-3-2 確定事項33）。ここは拡張子で粗く選り分ける
+  // 画像→PDF が受ける画像（spec-3-1 確定事項2・spec-3-2 確定事項33）。ここは拡張子で粗く選り分ける
   // だけで、本当にその形式かは足したあとに inspectImage が先頭バイトで判定する。
   function isImageName(name) {
     return typeof name === 'string' && /\.(png|jpe?g|bmp|gif|tiff?)$/i.test(name);
@@ -36,22 +37,24 @@
     return root.SigK.tools?.isToolsMode() === true ? root.SigK.tools.selected() : null;
   }
 
+  // 受けるファイル。ツールモードでは PDF（タブで開く）と画像（画像→PDF の一覧へ）を受ける。透かしを選んで
+  // いるときの画像は透かしの画像にするので、PNG・JPEG だけ（spec-4-5 確定事項37）。ツールモード以外は PDF だけ。
   function isAcceptedName(name) {
     const tool = selectedTool();
-    if (tool === 'convert')
-      return isImageName(name);
+    if (tool === null)
+      return isPdfName(name);
     if (tool === 'watermark')
       return isPdfName(name) || isWatermarkImageName(name);
-    return isPdfName(name);
+    return isPdfName(name) || isImageName(name);
   }
 
   // 受けられるものが 1 つも無かったときの文言。
   function rejectionFor(tool) {
-    if (tool === 'convert')
-      return '画像ファイルではないので、PNG・JPEG・BMP・GIF・TIFF を落としてください。';
+    if (tool === null)
+      return 'PDF ファイルではないので、PDF を落としてください。';
     if (tool === 'watermark')
-      return 'PDF か画像（PNG・JPEG）を落としてください。';
-    return 'PDF ファイルではないので、PDF を落としてください。';
+      return 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像を落としてください。';
+    return 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）を落としてください。';
   }
 
   // ファイルを運んでいるドラッグかどうか。文字の選択をドラッグしただけで
@@ -110,25 +113,16 @@
       return false;
     }
 
-    // ツールモードでは選んでいるツールの画面が受け取る（spec-2-1 確定事項12・
-    // spec-2-2 確定事項2・spec-3-1 確定事項2・spec-3-3 確定事項1・spec-4-5 確定事項37）。タブに開くのではなく、
-    // 結合なら一覧の末尾へ足し、分割と PDF→画像なら対象にし、変換なら画像として一覧へ足し、
-    // 透かしなら PDF を対象に・画像を透かしの画像にし、フラット化なら対象にする。表に無いツールは結合へ落ちる。
-    if (root.SigK.tools?.isToolsMode() === true) {
-      const tools = {
-        split: root.SigK.toolsSplit, convert: root.SigK.toolsConvert, toImage: root.SigK.toolsToImage,
-        watermark: root.SigK.toolsWatermark, flatten: root.SigK.toolsFlatten,
-      };
-      const tool = tools[root.SigK.tools.selected()] ?? root.SigK.toolsMerge;
-      if (tool !== undefined) {
-        await tool.addPaths(paths);
-        return true;
-      }
+    // ツールモードでは、PDF はタブで開いたうえで選んでいるツールにも渡し、画像は画像→PDF（透かしなら透かしの
+    // 画像）へ渡す（決定80。今まではツールにだけ渡し、タブでは開かなかった。spec-2-1 確定事項12 ほかを改めた）。
+    if (selectedTool() !== null) {
+      const pdfs = paths.filter(isPdfName);
+      await handoff().receiveDrop({ pdfs, images: paths.filter((filePath) => !isPdfName(filePath)) });
+      return true;
     }
 
-    // 1つずつ開く。まとめて走らせるとタブの並びが到着順で入れ替わる。
-    for (const filePath of paths)
-      await tabs().openPath(filePath);
+    // 1つずつ開く（tool-handoff.js の openPdfs）。まとめて走らせるとタブの並びが到着順で入れ替わる。
+    await handoff().openPdfs(paths);
     return true;
   }
 

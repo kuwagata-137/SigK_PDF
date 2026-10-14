@@ -3,7 +3,7 @@
 起草日: 2026-10-09
 ステータス: **確定**（2026-10-09。着手の答えは `docs/07` 決定76〔問い 14 件〕、見本を見たあとの論点 4 件は `docs/07` 決定77 で同日ユーザーが決定。
 4 件とも起草者の推し。2026-10-13 に、文の順番の対照表と数の書き方を `docs/07` 決定78、点検 R1 で出た論点 2 件を決定79 で決めた。末尾「ユーザーの確定」を参照。残る細部は起草者の推しで書き、その一覧を「起草者の判断で決めたもの」に置いた）
-ブランチ: `claude/phase-2-2b-split-board`（`32abdb7` から）
+ブランチ: `claude/phase-2-2b-split-board`（`32abdb7` から。PR #46 でマージした。2026-10-13。マージコミット `7a80fcc`）
 関連: `docs/spec-2-2-split.md`（今の分割。出力・同名の 3 択・ワーカーはここを引き継ぐ）／`docs/spec-4-5-watermark-flatten.md` 確定事項34（対象の欄の部品）／
 `docs/spec-1-1-viewer.md` 確定事項9（IntersectionObserver を使わない）／`docs/spec-4b-7a-escape-zoom.md`（Esc の順番）／`docs/spec-4b-7b-help.md`（使い方の窓）／
 `docs/04_UI設計.md` 4-4／`docs/05_開発ロードマップ.md`「分割の作り直し」

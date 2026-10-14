@@ -70,11 +70,14 @@ test('キーの書き方 [キー] は閉じていて、決めた名前だけを�
 test('計画外の直しのあとの動きで書いてある', () => {
   // ① Ctrl＋クリック・Shift＋クリックで複数のページを選べる。
   assert.match(joined('pages'), /\[Ctrl\] を押しながらクリックすると 1 枚ずつ足す・外す/);
-  // ② 閉じた左のパネルは「＞」で開く。⑥ ツールモードで開くと閲覧モードへ移る。
+  // ② 閉じた左のパネルは「＞」で開く。
   assert.match(joined('basics'), /「＞」で開きます/);
-  assert.match(joined('basics'), /ツールモードでこれらを使うと、閲覧モードへ移ります/);
-  // ツールモードで落としたファイルは、選んでいるツールの画面に入る（点検の直し）。
-  assert.match(joined('basics'), /ツールモードのときは、選んでいるツールの画面に入ります/);
+  // ⑥ どのモードで開いてもタブで開き、モードは変えない。ツールモードではツールの画面にも入る（決定80。2026-10-08 の
+  // 「ツールモードで開くと閲覧モードへ移る」を改めた）。
+  assert.match(joined('basics'), /どのモードで開いても、ファイルはタブで開き、モードはそのままです/);
+  assert.match(joined('basics'), /ツールモードで開いたときは、選んでいるツールの画面にも入ります/);
+  for (const id of ['basics', 'tools'])
+    assert.doesNotMatch(joined(id), /閲覧モードへ移ります/, id);
   // ④⑤ Ctrl+Shift+Z はやり直し。文字を打つ欄の中では欄の文字を戻す。
   const keys = content.SECTIONS.find((section) => section.id === 'keys').blocks[0].table;
   const redo = keys.find((row) => row[0].includes('[Ctrl]+[Shift]+[Z]'));
@@ -114,6 +117,17 @@ test('分割は「分割」の節で説明し、ツールのボタン名は画�
     '［分け目をすべて消す］', '［この範囲を 1 つのファイルにする］', '［書き出さない］', '［書き出す］', '［元に戻す］', '［やり直す］', '［実行…］'])
     assert.ok(split.includes(button), button);
   assert.match(tools, /［開いているタブから選ぶ］（結合では［開いているタブをまとめて追加］）/);
+});
+
+test('ツールモードで開く・保存するときの動きで書いてある（決定80）', () => {
+  // 落とした PDF はタブでも開き、画像はほかのツールからでも画像→PDF へ切り替わる（tool-handoff.js）。
+  assert.match(joined('tools'), /落とした PDF は、タブでも開きます/);
+  assert.match(joined('tools'), /画像を落とすと、画像→PDF に切り替わります/);
+  assert.match(joined('tools'), /できたファイルを新しいタブで開きます（ツールモードのままです）/);
+  // 保存はツールモードでも効く（save.js。spec-2-1 確定事項4・5 を改めた）。
+  assert.match(joined('basics'), /どのモードでも、保存するのはタブの列で選んでいるタブです/);
+  const keys = sectionOf('keys').blocks[0].table;
+  assert.equal(keys.find((row) => row[0] === '[Ctrl]+[S] / [Ctrl]+[Shift]+[S]')[2], '文書を開いているとき');
 });
 
 test('Esc の例は、持っている道具と選んでいる書き込みを書き分ける', () => {

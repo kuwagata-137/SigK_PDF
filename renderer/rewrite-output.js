@@ -5,17 +5,13 @@
   // 後始末（spec-4-5 確定事項40〜44。論点8）。ワーカー側の worker/rewrite-task.js に対応する。
   //
   // 出力先は結合（tools-merge.js）と同じく実行時に OS の保存ダイアログで決め、同名の確認は OS に
-  // 任せる。書けたら新しいタブで開いて閲覧モードへ移る（タブが上限なら「最近使ったファイル」へ）。
+  // 任せる。書けたら新しいタブで開く。モードは変えない（tool-output.js。決定80）。
 
   const banner = () => root.SigK.viewBanner;
   const tabs = () => root.SigK.tabs;
 
   function pathKey(filePath) {
     return typeof filePath === 'string' ? filePath.replace(/\//g, '\\').toLowerCase() : null;
-  }
-
-  function baseName(filePath) {
-    return String(filePath ?? '').split(/[\\/]/).pop();
   }
 
   // 断る出力先（確定事項41・42）。入力そのものと、タブで開いているファイル。後者は、
@@ -58,16 +54,8 @@
       banner().show(result?.error ?? failed);
       return result ?? { error: failed };
     }
-    // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
-    if (tabs().count() >= tabs().MAX_TABS) {
-      await root.recentAPI?.add?.({ path: target, name: baseName(target), openedAt: new Date().toISOString() });
-      banner().show(`${done}が、タブが多すぎるため開いていません。`, { tone: 'info' });
-      return result;
-    }
-    const opened = await tabs().openPath(target);
-    if (opened)
-      root.SigK.shell.setMode(root.document, 'view');
-    banner().show(done, { autoHideMs: 2500, tone: 'info' });
+    // ここから先は書けている。タブで開き、モードは変えない（タブが上限なら「最近使ったファイル」へ）。
+    await root.SigK.toolOutput.openWritten(target, { done, crowded: `${done}が、タブが多すぎるため開いていません。` });
     return result;
   }
 

@@ -9,13 +9,14 @@
 
 const { ANNOT_FONT_SIZES, textDefaults, pickTextSettings } = require('./annotation-text-settings.js');
 
-// 候補の色の移し替え（確定事項15）を済ませた設定に書く印。
-const ANNOT_PALETTE_VERSION = 1;
+// 色の移し替えを済ませた設定に書く印。1 が候補の色の移し替え（確定事項15）、2 が図形の既定の色の移し替え
+// （#c00000 → #ff0000。2026-10-14 のユーザーの指示）。
+const ANNOT_PALETTE_VERSION = 2;
 
 // 種類ごとに最後に使った色・図形の塗り（null は塗りなし）・図形の線なし・図形の線種・テキストの文字の大きさ（pt）・図形とペンの線の太さ（pt）・マーカーの太さ（pt。
 // spec-4b-5b 確定事項3）・「図形」の道具の種類・道具ごとの不透明度・ノートの作成者（空ならメインが OS のユーザー名で埋める）・モザイクの粗さ（pt。spec-4b-6b 確定事項14）。
 const ANNOT_DEFAULTS = {
-  annotColors: { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#c00000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' },
+  annotColors: { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' },
   annotFills: { shape: null },
   annotStrokeNone: { shape: false },
   annotLineStyles: { shape: 'solid' },
@@ -39,6 +40,9 @@ const LEGACY_COLOR_MAP = Object.freeze({
   '#8ce99a': '#a9ce91',
   '#8fbfff': '#8faadc',
 });
+
+// 図形の古い既定の色（印 2 の移し替えの元。行き先は今の既定の ANNOT_DEFAULTS.annotColors.shape）。
+const LEGACY_SHAPE_COLOR = '#c00000';
 
 const ANNOT_LINE_WIDTH_MIN = 1;
 const ANNOT_LINE_WIDTH_MAX = 40;
@@ -102,10 +106,24 @@ function pickAnnotColors(raw, fallback) {
 }
 
 // 移し替えの印が無い（古い）設定の色のうち、今までの候補の色とちょうど同じものをパレットの色へ移す（確定事項15。自分で選んだ色はそのまま）。
-function migrateColors(raw) {
+function migrateLegacyColors(raw) {
+  return Object.fromEntries(Object.entries(raw).map(([kind, color]) => [kind, LEGACY_COLOR_MAP[normalizeHex(color)] ?? color]));
+}
+
+// 印が 2 より前の設定で、図形の色が古い既定の #c00000 のままなら新しい既定へ移す。図形でない道具の #c00000 と、自分で選んだ色はそのまま。
+function migrateShapeColor(raw) {
+  if (normalizeHex(raw.shape) !== LEGACY_SHAPE_COLOR)
+    return raw;
+  return { ...raw, shape: ANNOT_DEFAULTS.annotColors.shape };
+}
+
+// 印の版に応じて、まだ済んでいない移し替えを古い順に重ねる。印が整数でなければ、印が無いのと同じに扱う。
+function migrateColors(raw, version) {
   if (!isPlainObject(raw))
     return raw;
-  return Object.fromEntries(Object.entries(raw).map(([kind, color]) => [kind, LEGACY_COLOR_MAP[normalizeHex(color)] ?? color]));
+  const from = Number.isInteger(version) ? version : 0;
+  const palette = from < 1 ? migrateLegacyColors(raw) : raw;
+  return from < 2 ? migrateShapeColor(palette) : palette;
 }
 
 // 図形の塗り。受け取れる値が無ければ既定の null（塗りなし）。
@@ -140,11 +158,11 @@ function pickAnnotAuthor(raw, fallback) {
   return raw.trim().slice(0, ANNOT_AUTHOR_MAX);
 }
 
-// 読み込んだ値（settings.json の中身か、いまの設定）から注釈のキーだけを検証して取り出す。移し替えの印が無ければ
-// 候補の色を移し、印を付けて返す（起動時の読み込みで 1 回だけ移る。確定事項15）。
+// 読み込んだ値（settings.json の中身か、いまの設定）から注釈のキーだけを検証して取り出す。移し替えの印が今の版より
+// 前なら色を移し、印を付けて返す（起動時の読み込みで 1 回だけ移る。確定事項15）。
 function pickAnnotSettings(source) {
   const raw = objectOf(source);
-  const colors = raw.annotPaletteVersion === ANNOT_PALETTE_VERSION ? raw.annotColors : migrateColors(raw.annotColors);
+  const colors = migrateColors(raw.annotColors, raw.annotPaletteVersion);
   const annotFills = pickAnnotFills(raw.annotFills, ANNOT_DEFAULTS.annotFills);
   return {
     annotColors: pickAnnotColors(colors, ANNOT_DEFAULTS.annotColors),
