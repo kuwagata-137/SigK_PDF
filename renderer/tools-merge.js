@@ -9,6 +9,7 @@
 
   // 起動からの結合の注記（確定事項E7）。
   const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。';
+  const RANGE_RECHECK = '上書き保存でページの数が変わり、合わない範囲があるので、範囲を直してから、もう一度実行してください。';
 
   const state = { running: false, launchTabs: [], note: false };
   const picks = root.SigK.mergePicks.create();
@@ -159,14 +160,23 @@
     return resolveTarget(picked.path);
   }
 
-  // 保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12）。
+  // 保存していない帯の確かめ（確定事項F）・保存ダイアログ・書いた後の始末まで実行中と数える（spec-5-1 確定事項12）。
   async function run() {
     if (!canRun())
       return { error: '結合できる状態ではありません。' };
     state.running = true;
     view()?.render();
     try {
-      return await runChosen(inputs());
+      const guard = await root.SigK.runGuard.confirmUnsaved(inputs().map((row) => row.tabId));
+      if (!guard.go)
+        return { canceled: true };
+      // 上書き保存したら、ファイルの中身（ページ数）が変わっている。範囲を確かめ直す。
+      const chosen = inputs();
+      if (chosen.length === 0 || chosen.some((row) => row.error !== null)) {
+        banner().show(RANGE_RECHECK);
+        return { error: RANGE_RECHECK };
+      }
+      return await runChosen(chosen);
     } finally {
       state.running = false;
       view()?.render();

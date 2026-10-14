@@ -867,6 +867,22 @@ body{
       <button type="button" class="dlg-btn" id="confirm-discard-cancel">キャンセル</button>
     </div>
   </dialog>
+
+  <!-- 保存していない帯をツールで使う前の確認（spec-2-5 第 F 章。決定80 ㉜。見本 screenshots/strips2-confirm-run.png）。肯定を左に並べ、
+       最初のフォーカスは［キャンセル］。文は unsaved-changes.js、出し入れは confirm-unsaved-run.js、保存してから実行する流れは run-guard.js。 -->
+  <dialog id="confirm-unsaved-run">
+    <div class="dlg-head"><span>保存していない変更があります</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-unsaved-run-text"></p>
+      <ul class="dlg-list" id="confirm-unsaved-run-list" hidden></ul>
+      <p class="dlg-text dlg-note" id="confirm-unsaved-run-note" hidden></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn primary" id="confirm-unsaved-run-save">上書き保存してから実行</button>
+      <button type="button" class="dlg-btn" id="confirm-unsaved-run-run">保存せずに実行</button>
+      <button type="button" class="dlg-btn" id="confirm-unsaved-run-cancel">キャンセル</button>
+    </div>
+  </dialog>
 </div>
 
 <!-- 印刷用のコンテナ（確定事項28）。画面では隠れており、@media print の
@@ -974,6 +990,8 @@ body{
 <script src="renderer/strip-input.js"></script>
 <script src="renderer/merge-picks.js"></script>
 <script src="renderer/tool-pane.js"></script>
+<script src="renderer/confirm-unsaved-run.js"></script>
+<script src="renderer/run-guard.js"></script>
 <script src="renderer/tools-merge.js"></script>
 <script src="renderer/tools-merge-list.js"></script>
 <script src="renderer/split-plan.js"></script>

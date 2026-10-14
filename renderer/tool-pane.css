@@ -38,3 +38,11 @@ html[data-tool-screen="strips"] #tabbar{display:none}
 .merge-pick.off .fname, .merge-pick.off .p{color:var(--muted)}
 .merge-pick.off .strip-no{background:var(--surface-2); color:var(--muted)}
 .merge-pick.blocked .fname{color:var(--danger)}
+
+/* 保存していない帯をツールで使う前の確認（確定事項F1〜F4。見本 screenshots/strips2-confirm-run.png）。ほかの確認の窓と同じ枠。 */
+#confirm-unsaved-run{padding:0; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); color:var(--text); box-shadow:var(--shadow); width:min(470px, 88vw)}
+#confirm-unsaved-run::backdrop{background:rgba(16,24,40,.34)}
+#confirm-unsaved-run .dlg-list{margin:6px 0 0; padding-left:1.4em; line-height:1.7}
+#confirm-unsaved-run .dlg-list[hidden], #confirm-unsaved-run .dlg-note[hidden]{display:none}
+#confirm-unsaved-run .dlg-note{margin-top:8px; color:var(--muted); font-size:12px}
+#confirm-unsaved-run .dlg-btn[aria-disabled="true"]{opacity:.45; cursor:default}

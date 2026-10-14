@@ -107,6 +107,7 @@
     root.SigK.stripDropZone.init(doc, win);
     root.SigK.stripInput.init(doc, win);
     root.SigK.toolPane.init(doc, win);
+    root.SigK.confirmUnsavedRun.init(doc, win);
     root.SigK.tools.init(doc, win);
     root.SigK.toolsMerge.init(doc, win);
     root.SigK.toolsMergeList.init(doc, win);
