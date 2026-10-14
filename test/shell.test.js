@@ -535,6 +535,29 @@ test('上書き・パスワード・抽出・モザイクの確認の窓に、�
   assert.ok(css.includes('#confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}'));
 });
 
+// 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにして、幅 960 の窓でもツールバーを 1 列に収める
+// （spec-2-5 確定事項B5・K2。見本 screenshots/strips1-view-hand-960.png）。jsdom は CSS を読まないので文字で見張り、1 列に収まるかは起動確認で見る。
+test('窓が 1100px より狭いときは、幅・全体・見開き・選択・ハンドを絵だけにし、ツールバーを詰める（shell.css）', async (t) => {
+  const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
+  const narrow = [...css.matchAll(/@media \(max-width:1100px\)\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
+  const ICON_ONLY = ['#btn-fit-width', '#btn-fit-page', '#btn-facing', '#btn-pointer-select', '#btn-pointer-hand'];
+
+  assert.notEqual(narrow, '', '狭い窓の規則が無い');
+  const iconOnly = narrow.match(/([^{}]+)\{([^}]*font-size:0[^}]*)\}/);
+  assert.notEqual(iconOnly, null, '文字を消す規則が無い');
+  assert.deepEqual(iconOnly[1].split(',').map((s) => s.trim()), ICON_ONLY);
+  for (const part of ['gap:0', 'width:30px', 'padding:0', 'justify-content:center'])
+    assert.ok(iconOnly[2].includes(part), part);
+  assert.match(narrow, /#toolbar\{gap:4px; padding:0 8px\}/);
+  assert.match(narrow, /\.tb-sep\{margin:0 2px\}/);
+  assert.match(narrow, /\.pager \.num\{padding:0 4px; white-space:nowrap\}/);
+
+  // 絵だけになっても、読み上げでは見えている文字を含む名前で読める。
+  const { document } = await withShell(t);
+  for (const [id, name] of [['btn-fit-width', '幅に合わせる'], ['btn-fit-page', '全体を表示'], ['btn-facing', '見開き表示']])
+    assert.equal(document.getElementById(id).getAttribute('aria-label'), name, id);
+});
+
 // jsdom は shell.css を読まないので、帯の寸法と出し入れの規則は文字で見張る。
 test('帯は幅 18px で、hidden の間は場所を取らない（shell.css）', () => {
   const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');

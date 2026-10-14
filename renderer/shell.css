@@ -84,6 +84,14 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
 .pager .step:hover,.zoom .step:hover{background:var(--surface); color:var(--text)}
 .zoom .val{min-width:48px; text-align:center; font-variant-numeric:tabular-nums}
 .spacer{flex:1}
+/* 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにし、すき間を詰めて、幅 960 の窓（最小の大きさ）でも
+   ツールバーを 1 列に収める（spec-2-5 確定事項B5・K2。見本 screenshots/strips1-view-hand-960.png）。名前は title と aria-label に残る。 */
+@media (max-width:1100px){
+  #btn-fit-width,#btn-fit-page,#btn-facing,#btn-pointer-select,#btn-pointer-hand{font-size:0; gap:0; width:30px; padding:0; justify-content:center}
+  #toolbar{gap:4px; padding:0 8px}
+  .tb-sep{margin:0 2px}
+  .pager .num{padding:0 4px; white-space:nowrap}
+}
 
 /* ── 本体 ───────────────────────────────────── */
 #body{flex:1; display:flex; min-height:0}
