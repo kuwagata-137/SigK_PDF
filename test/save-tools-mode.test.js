@@ -36,6 +36,21 @@ async function inToolsMode(t, { edited = true, ...options } = {}) {
 
 const modeOf = (shell) => shell.document.documentElement.getAttribute('data-mode');
 
+// ツールバーの［名前を付けて保存］（本筋が index.html に足す。id は btn-save-as）。まだ無ければ［保存］の隣に置く。
+function saveAsButton(shell) {
+  const { document: doc } = shell;
+  const existing = doc.getElementById('btn-save-as');
+  if (existing !== null)
+    return existing;
+  const button = doc.createElement('div');
+  button.className = 'tb-btn';
+  button.id = 'btn-save-as';
+  button.setAttribute('aria-disabled', 'true');
+  doc.getElementById('btn-save').after(button);
+  shell.SigK.save.syncButtons();
+  return button;
+}
+
 // ---- 上書き保存・名前を付けて保存 ----
 
 test('ツールモードでも［保存］は押せ、押すと映しているタブを上書き保存し、ツールモードのまま「保存しました。」を出す', async (t) => {
@@ -83,14 +98,34 @@ test('ツールバーの［名前を付けて保存］につなぐ口（SigK.sav
   assert.equal(shell.taskCalls[0].spec.makeBackup, false);
 });
 
+test('［名前を付けて保存］のボタン（btn-save-as）は、文書があればツールモードでも押せ、押すと保存先を聞く。文書が無ければ押せない', async (t) => {
+  const shell = await inToolsMode(t, { edited: false, savePathResults: [{ canceled: true }] });
+  const button = saveAsButton(shell);
+  assert.equal(button.getAttribute('aria-disabled'), 'false');
+
+  button.click();
+  await shell.flush();
+  assert.equal(shell.savePathCalls.length, 1);
+  assert.equal(shell.taskCalls.length, 0, '保存先を選ばなかったので書かない');
+
+  shell.SigK.tabs.closeActive();
+  await shell.flush();
+  assert.equal(button.getAttribute('aria-disabled'), 'true');
+  button.click();
+  await shell.flush();
+  assert.equal(shell.savePathCalls.length, 1, '押せないときは保存先を聞かない');
+});
+
 test('ツールモードでも、ほかの処理（ツールの実行など）が走っている間は、保存も名前を付けて保存もできない', async (t) => {
   const shell = await inToolsMode(t);
   const { SigK, document: doc } = shell;
+  const saveAs = saveAsButton(shell);
   let release = null;
   const running = SigK.save.runLocal({ label: '画像に', run: () => new Promise((resolve) => { release = () => resolve({ ok: true }); }) });
   await shell.flush();
 
   assert.equal(doc.getElementById('btn-save').getAttribute('aria-disabled'), 'true');
+  assert.equal(saveAs.getAttribute('aria-disabled'), 'true');
   assert.match((await SigK.save.saveActive()).error, /いま画像にしています/);
   assert.match((await SigK.save.saveAsActive()).error, /いま画像にしています/);
   assert.equal(shell.savePathCalls.length, 0);
@@ -98,6 +133,7 @@ test('ツールモードでも、ほかの処理（ツールの実行など）�
   release();
   await running;
   assert.equal(doc.getElementById('btn-save').getAttribute('aria-disabled'), 'false');
+  assert.equal(saveAs.getAttribute('aria-disabled'), 'false');
 });
 
 // jsdom は shell.css を読まないので、重なりの順は index.html の並びと z-index の文字で見張る。

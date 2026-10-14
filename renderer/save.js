@@ -42,6 +42,10 @@
     return tabs()?.list().find((info) => info.active) ?? null;
   }
 
+  // ツールバーの［保存］と［名前を付けて保存］（id → 押したときの処理）。［名前を付けて保存］は 2026-10-14 に足す
+  // ボタンで、無ければ何もしない。
+  const SAVE_BUTTONS = { 'btn-save': () => saveActive(), 'btn-save-as': () => saveAsActive() };
+
   // 保存中は保存・名前を付けて保存・閉じる・終了を塞ぐ（確定事項9）。
   // タブをまたいだ同時保存は別プロセスなので干渉しないが、第1版では
   // 「映しているタブを保存する」1本しか入口が無いため、まとめて塞ぐ。
@@ -50,7 +54,9 @@
     const target = doc ?? state.doc;
     if (target === undefined || target === null)
       return;
-    target.getElementById('btn-save')?.setAttribute('aria-disabled', String(!viewer().getState().open || isBusy()));
+    const disabled = String(!viewer().getState().open || isBusy());
+    for (const id of Object.keys(SAVE_BUTTONS))
+      target.getElementById(id)?.setAttribute('aria-disabled', disabled);
     // 抽出もワーカーを回すので、保存中は一緒に塞ぐ。押せる・押せないを持つのは
     // page-edit.js（サイドパネルの操作列の持ち主）である。
     root.SigK.pageEdit?.syncActions();
@@ -296,7 +302,7 @@
     });
   }
 
-  // 名前を付けて保存（Ctrl+Shift+S）。dirty でなくても押せる（確定事項24）。
+  // 名前を付けて保存（Ctrl+Shift+S・ツールバーの［名前を付けて保存］）。dirty でなくても押せる（確定事項24）。
   async function saveAsActive() {
     if (isBusy())
       return { error: busyReason() };
@@ -348,9 +354,12 @@
     win.__sigkSaveReady = true;
     state.doc = doc;
 
-    doc.getElementById('btn-save')?.addEventListener('click', () => {
-      if (doc.getElementById('btn-save').getAttribute('aria-disabled') !== 'true')
-        saveActive();
+    // ［保存］［名前を付けて保存］の押し下げは文書で受ける。ボタンが後から足されても同じ口で効く。
+    doc.addEventListener('click', (event) => {
+      const button = event.target?.closest?.('#btn-save, #btn-save-as');
+      if (button === null || button === undefined || button.getAttribute('aria-disabled') === 'true')
+        return;
+      SAVE_BUTTONS[button.id]();
     });
 
     root.taskAPI?.onProgress?.(onProgress);
