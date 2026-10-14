@@ -178,3 +178,44 @@ test('様子の控えに、タブ・サムネイル・選択とハンド・書�
   for (const key of ['toolbarHeight', 'toolbarOverflow', 'helpRight', 'innerWidth', 'tabbar', 'viewWrap'])
     assert.ok(key in state.layout, key);
 });
+
+// 帯の画面（spec-2-5 第 D〜F 章）の起動確認の口。
+test('strip-click・strip-btn・strip-page・strip-dbl・merge-check は本物のマウスを送る。Shift・Ctrl は modifiers に載る', async () => {
+  const strips = require('../smoke-keys-strips.js');
+  for (const name of ['strip-click', 'strip-btn', 'strip-page', 'strip-dbl', 'merge-check'])
+    assert.ok(OP_NAMES.includes(name), name);
+  assert.doesNotThrow(() => new vm.Script(strips.centerScript('#strips .strip', 1, '.strip-page', 3)));
+
+  const win = fakeWindow();
+  win.webContents.executeJavaScript = async () => [100, 200];
+  const sent = [];
+  win.webContents.debugger.sendCommand = async (name, params) => { sent.push([params.type, params.clickCount, params.modifiers]); };
+  const report = await run(win, 'strip-page:0:2:shift,strip-dbl:1:0');
+  assert.deepEqual(report.problems, []);
+  assert.deepEqual(sent, [
+    ['mouseMoved', 1, 8], ['mousePressed', 1, 8], ['mouseReleased', 1, 8],
+    ['mouseMoved', 1, 0], ['mousePressed', 1, 0], ['mouseReleased', 1, 0],
+    ['mouseMoved', 1, 0], ['mousePressed', 2, 0], ['mouseReleased', 2, 0],
+  ]);
+  assert.match((await run(fakeWindow(), 'strip-btn:2:save')).problems[0], /strip-btn:2:save: 2 番目の帯の save が無い/);
+});
+
+test('pick-tool・scroll-strips・scroll-strip は画面で回せ、様子の控えに帯の欄がある', async (t) => {
+  for (const name of ['pick-tool', 'scroll-strips', 'scroll-strip'])
+    assert.ok(page.ACTION_NAMES.includes(name), name);
+  const shell = await createShell({ files: { [A]: makeSource({ path: A, name: 'a.pdf' }) } });
+  t.after(() => shell.cleanup());
+  await shell.SigK.tabs.openPath(A);
+  await shell.flush();
+  await shell.window.eval(page.actionScript('pick-tool', 'merge'));
+  await shell.window.eval(page.actionScript('scroll-strip', '0:0.5'));
+  const state = structuredClone(await shell.window.eval(page.stateScript));
+  assert.equal(state.mode, 'tools');
+  assert.equal(state.strips.shown, true);
+  assert.deepEqual(state.strips.names, ['a.pdf']);
+  assert.equal(state.strips.selected, 0);
+  assert.deepEqual(state.strips.merge, [{ name: 'a.pdf', checked: true, blocked: null }]);
+  assert.equal(state.strips.summary.merge, '1 個のファイル・合計 3 ページ');
+  for (const key of ['unsaved', 'picked', 'canvases', 'drawn', 'drawing', 'overlays', 'bigDrop', 'tabbarHidden', 'paneWidth', 'tool'])
+    assert.ok(key in state.strips, key);
+});
