@@ -140,3 +140,16 @@ test('既定のアプリの入口を、メニューと同じ名前で案内す�
   assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」で Windows の設定を開き、SigK PDF を選びます/);
   assert.match(joined('basics'), /「プログラムから開く」から選ぶこともできます/);
 });
+
+// 閲覧の［選択］［ハンド］（spec-2-5 確定事項K。2026-10-14）。閲覧の節に節を立て、マウスの表と Esc の順にも閲覧・ページ編集を書く。
+test('閲覧の節に［選択］［ハンド］の節があり、マウスの表と Esc の順が閲覧・ページ編集のハンドを含む', () => {
+  const block = sectionOf('view').blocks.find((b) => b.h === '選択とハンド');
+  assert.notEqual(block, undefined, '閲覧の節に「選択とハンド」が無い');
+  const text = block.items.join('\n');
+  for (const part of ['［選択］', '［ハンド］', '左ボタンを押したまま右クリック', 'ツールモードでは使えません', '次に起動したときも続きます'])
+    assert.ok(text.includes(part), part);
+  const mouse = sectionOf('keys').blocks.find((b) => b.h === 'マウス').table;
+  assert.deepEqual(mouse.find((row) => row[0] === 'ホイール（ハンドのとき）'), ['ホイール（ハンドのとき）', '拡大・縮小', '閲覧・ページ編集・編集']);
+  assert.equal(mouse.find((row) => row[0] === '左ボタンを押したまま右クリック')[2], '閲覧・ページ編集・編集');
+  assert.match(sectionOf('escape').blocks[0].table.at(-1)[1], /閲覧・ページ編集では、ハンドを選択に戻す/);
+});
