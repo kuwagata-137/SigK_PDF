@@ -45,17 +45,12 @@
   // 保存中は保存・名前を付けて保存・閉じる・終了を塞ぐ（確定事項9）。
   // タブをまたいだ同時保存は別プロセスなので干渉しないが、第1版では
   // 「映しているタブを保存する」1本しか入口が無いため、まとめて塞ぐ。
+  // ツールモードでも押せる（2026-10-14 の決定。spec-2-1 確定事項4 を改めた）。保存するのは映しているタブである。
   function syncButtons(doc) {
     const target = doc ?? state.doc;
     if (target === undefined || target === null)
       return;
-    const open = viewer().getState().open;
-    // ツールモードでは押せない（spec-2-1 確定事項4）。保存は文書ではなく画面の話で、
-    // ツールモードの画面には保存するものが無い。
-    const toolsMode = target.documentElement?.getAttribute('data-mode') === 'tools';
-    const button = target.getElementById('btn-save');
-    if (button !== null)
-      button.setAttribute('aria-disabled', String(!open || isBusy() || toolsMode));
+    target.getElementById('btn-save')?.setAttribute('aria-disabled', String(!viewer().getState().open || isBusy()));
     // 抽出もワーカーを回すので、保存中は一緒に塞ぐ。押せる・押せないを持つのは
     // page-edit.js（サイドパネルの操作列の持ち主）である。
     root.SigK.pageEdit?.syncActions();
@@ -267,18 +262,11 @@
     return result;
   }
 
-  // ツールモードでは Ctrl+S / Ctrl+Shift+S も効かせない（spec-2-1 確定事項4・5）。
-  // メニューの accelerator はモードを知らないので、ここで止める。
-  function inToolsMode() {
-    return state.doc?.documentElement?.getAttribute('data-mode') === 'tools';
-  }
-
-  // 上書き保存（Ctrl+S）。
+  // 上書き保存（Ctrl+S）。どのモードでも、映しているタブを保存する（ツールモードでも。2026-10-14 の決定。
+  // spec-2-1 確定事項4・5 を改めた）。閉じる・終えるときの確認の「保存」（confirm-discard.js）もここを通る。
   async function saveActive() {
     if (isBusy())
       return { error: busyReason() };
-    if (inToolsMode())
-      return { error: 'ツールモードでは保存できません。' };
     // 入力中のテキストは確定してから書く（spec-4-2 確定事項8）。
     root.SigK.annotate?.finishEditing();
 
@@ -312,8 +300,6 @@
   async function saveAsActive() {
     if (isBusy())
       return { error: busyReason() };
-    if (inToolsMode())
-      return { error: 'ツールモードでは保存できません。' };
     root.SigK.annotate?.finishEditing();
 
     const view = viewer().getState();
