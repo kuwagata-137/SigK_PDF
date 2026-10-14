@@ -122,6 +122,8 @@
     // 開けなかったタブは session を持たない。理由をもう一度出す（確定事項19）。
     if (tab.session === null) {
       viewer().setMessage(tab.error ?? viewer().EMPTY_MESSAGE);
+      if (tab.error !== null)
+        reportInTools(tab.error);
       return false;
     }
     viewer().attach(tab.session);
@@ -201,8 +203,18 @@
 
   // ---- 開く ----
 
-  function messageFor(text) {
+  // 開けなかった理由。ツールモードではページビューがツールの画面の下に隠れて見えないので、帯にも出す（決定80）。
+  // 呼び出しごとの控え（call）にも残す。続けて開くと、次のタブを開くときに帯が消えるため（tool-handoff.js が出し直す）。
+  function reportInTools(text, call = null) {
+    if (call !== null)
+      call.error = text;
+    if (root.SigK.tools?.isToolsMode() === true)
+      root.SigK.viewBanner.show(text);
+  }
+
+  function messageFor(text, call = null) {
     viewer().setMessage(text);
+    reportInTools(text, call);
   }
 
   async function rememberRecent(source) {
@@ -234,7 +246,7 @@
   // call は runOpenCommand の呼び出しごとの控え（取りやめたら canceled を立てる）。ほかの呼び出し元は渡さない。
   async function openSource(source, call = null) {
     if (source?.error !== undefined) {
-      messageFor(source.error);
+      messageFor(source.error, call);
       return false;
     }
 
@@ -246,7 +258,7 @@
     }
 
     if (state.list.length >= MAX_TABS) {
-      messageFor(`${MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
+      messageFor(`${MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`, call);
       return false;
     }
 
@@ -276,6 +288,8 @@
     state.list.push(tab);
     state.activeId = tab.id;
     render();
+    if (!opened)
+      reportInTools(tab.error, call);
 
     // 開けなかったものは履歴に残さない。押すたびに同じ失敗を繰り返すため。
     if (opened)
@@ -286,7 +300,7 @@
   async function openPath(filePath, call = null) {
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
-      messageFor('ファイルを開く機能が使えません。');
+      messageFor('ファイルを開く機能が使えません。', call);
       return false;
     }
 
@@ -302,7 +316,7 @@
     if (result?.error !== undefined) {
       // 消えた・動かされたファイルを履歴に残しても押すたびに失敗する（確定事項10）。
       await forgetRecent(filePath);
-      messageFor(result.error);
+      messageFor(result.error, call);
       root.SigK.recentPanel?.refresh();
       return false;
     }
@@ -312,7 +326,7 @@
   async function openViaDialog(call = null) {
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
-      messageFor('ファイルを開く機能が使えません。');
+      messageFor('ファイルを開く機能が使えません。', call);
       return false;
     }
     const result = await api.open();
