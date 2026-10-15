@@ -26,11 +26,21 @@
 
   // sheet は紙の大きさ（CSS px。strip-layout の sheetOf）。{ canvas, page } を返す（canvas は描けない環境では null）。
   // 引けないページは null。page は手放すときに cleanup する（strip-thumbs.js）。
+  // 描けなかったときは、ここでページの資源を手放してから例外を返す（呼ぶ側には page が渡らないため）。
   async function draw(domDoc, view, index, { sheet, dpr = 1 }) {
     const source = root.SigK.pagePlan.sourceOf(view.plan, index, { doc: view.doc, inserts: view.inserts });
     if (source === null)
       return null;
     const page = await source.doc.getPage(source.number);
+    try {
+      return await render(domDoc, view, index, page, { sheet, dpr });
+    } catch (error) {
+      page.cleanup?.();
+      throw error;
+    }
+  }
+
+  async function render(domDoc, view, index, page, { sheet, dpr }) {
     const entry = view.plan[index];
     const rotation = (page.rotate ?? 0) + (entry?.rotate ?? 0);
     const box = entry?.crop ?? null;

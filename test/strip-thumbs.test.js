@@ -161,3 +161,23 @@ test('紙 1 枚は今の並びの回転・切り取り・モザイクと、保�
   assert.equal(painted.some((entry) => entry.entries !== undefined), false, '差し込んだページには書き込みを付けない');
   assert.equal(SigK.planPageImage.overlayFor(view, 1), null);
 });
+
+// 計画外の直し（2026-10-15）。描けなかったときは呼ぶ側（strip-thumbs.js）に page が渡らないので、描く関数の中で手放す。
+test('紙を描けなかったときは、読んだページの資源を手放してから例外を返す', async () => {
+  require('../renderer/page-plan.js');
+  require('../renderer/page-image.js');
+  require('../renderer/plan-page-image.js');
+  const SigK = globalThis.SigK;
+  SigK.annotationState = { annotsOnPage: () => [] };
+  const cleaned = [];
+  const page = { rotate: 0, cleanup: () => cleaned.push('page'), getViewport: ({ scale }) => ({ width: 595 * scale, height: 842 * scale }) };
+  const view = { doc: { getPage: async () => page }, plan: [{ src: 0 }], annots: { added: [], removed: [] }, imported: {}, inserts: [] };
+  const original = SigK.pageImage.renderToCanvas;
+  SigK.pageImage.renderToCanvas = async () => { throw new Error('broken'); };
+  try {
+    await assert.rejects(SigK.planPageImage.draw({}, view, 0, { sheet: { width: 74, height: 104 } }), /broken/);
+  } finally {
+    SigK.pageImage.renderToCanvas = original;
+  }
+  assert.deepEqual(cleaned, ['page']);
+});
