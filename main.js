@@ -21,6 +21,7 @@ const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = 
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
+const imageThumbnail = require('./image-thumbnail.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
@@ -408,6 +409,8 @@ function registerIpc() {
   ipcMain.handle('pdf:readWatermarkImage', (_event, filePath) => imageIo.readWatermark(filePath));
   // PDF→画像（spec-3-3 確定事項19）。レンダラーが描いた 1 ページぶんを書く。
   ipcMain.handle('image:write', (_event, target, bytes) => imageIo.write(target, bytes));
+  // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。画像の拡張子の絶対パスだけ受け、data URL で返す。
+  ipcMain.handle('image:thumbnail', (_event, filePath) => imageThumbnail.createThumbnail(filePath, { nativeImageLike: nativeImage }));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
   // 任意のパスでエクスプローラーを開かせないよう、実在するファイルに限る。
   ipcMain.handle('shell:showInFolder', (_event, filePath) => {

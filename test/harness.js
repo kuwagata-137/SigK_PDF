@@ -452,6 +452,9 @@ async function createShell({
   imageInfos = {},
   // imageAPI.write() が返すものの並び（spec-3-3）。仕込まなければ、書けたことにして { ok, path, bytes } を返す。
   imageWriteResults = [],
+  // imageAPI.thumbnail() が返すもの（パス → { ok, url, width, height } か { error }。spec-2-5 確定事項H5）。
+  // 仕込まなければ、作れたことにして小さな data URL を返す。
+  imageThumbnails = {},
   // pdfAPI.pickWatermarkImage() が返すものの並びと、readWatermarkImage() が返す画像
   // （パス → { kind, width, height, bytes? } か { error, kind? }）（spec-4-5 確定事項35・36）。
   watermarkImageResults = [],
@@ -497,6 +500,8 @@ async function createShell({
   const watermarkImageCalls = [];
   // imageAPI.write() に届いた { target, bytes } の並び（spec-3-3 確定事項19）。
   const imageWrites = [];
+  // imageAPI.thumbnail() に届いたパスの並び（spec-2-5 確定事項H5）。
+  const thumbnailCalls = [];
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
   const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
@@ -714,6 +719,10 @@ async function createShell({
         imageWrites.push({ target, bytes });
         return imageWriteResults.shift() ?? { ok: true, path: target, bytes: bytes?.length ?? 0 };
       },
+      thumbnail: async (filePath) => {
+        thumbnailCalls.push(filePath);
+        return imageThumbnails[filePath] ?? { ok: true, url: 'data:image/png;base64,AAAA', width: 192, height: 128 };
+      },
     };
     window.recentAPI = {
       available: true,
@@ -790,6 +799,8 @@ async function createShell({
     // imageAPI.write() に届いた書き出し（spec-3-3）。
     imageWrites,
     imageWriteResults,
+    // imageAPI.thumbnail() に届いたパス（spec-2-5 確定事項H5）。
+    thumbnailCalls,
     // pdfAPI.pickWatermarkImage() に届いたオプションと、readWatermarkImage が返す画像（spec-4-5）。
     watermarkImageCalls,
     watermarkImages,
