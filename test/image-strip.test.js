@@ -157,3 +157,57 @@ test('画像をすべて外して画像の帯が消えたら、PDF の帯に枠�
   assert.equal(host(shell).hidden, true);
   assert.equal(framed(pdfStrip(shell)), true, '最後の 1 枚の［×］');
 });
+
+// 点検で見つかった（2026-10-15）。サムネイルは見えている画像（と左右 2 枚）だけ頼むが、前は帯の幅が変わっても頼み直さず、
+// 窓を広げて新しく見えた画像は、横にスクロールするまで形式の名前の紙のままだった。
+const MANY = Array.from({ length: 14 }, (_, index) => `${DIR}\\p${String(index).padStart(2, '0')}.png`);
+const MANY_INFOS = Object.fromEntries(MANY.map((filePath) => [filePath, { kind: 'png', width: 640, height: 480 }]));
+
+async function createWideShell(t) {
+  const shell = await createShell({ files: { [PDF]: makeSource({ path: PDF }) }, imageInfos: MANY_INFOS });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  await shell.SigK.tabs.openPath(PDF);
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.SigK.tools.select('convert');
+  // jsdom は幅を数えないので、画像を並べる所の幅を差し替える（はじめは 4 枚分）。
+  const strip = { width: shell.SigK.imageStrip.ITEM_STEP * 4 };
+  Object.defineProperty(shell.document.getElementById('image-strip-items'), 'clientWidth', { configurable: true, get: () => strip.width });
+  return { shell, strip };
+}
+
+const requested = (shell) => new Set(shell.thumbnailCalls);
+const imageNo = (from, to) => MANY.slice(from, to);
+
+test('窓を広げて帯の幅が変わったら、新しく見えた画像のサムネイルを頼む（左右 2 枚の先読みも）', async (t) => {
+  const { shell, strip } = await createWideShell(t);
+  await shell.SigK.toolsConvert.addPaths(MANY);
+  await shell.flush();
+  assert.deepEqual([...requested(shell)].sort(), imageNo(0, 6), '4 枚分の幅と先読みの 2 枚');
+
+  strip.width = shell.SigK.imageStrip.ITEM_STEP * 10;
+  shell.window.dispatchEvent(new shell.window.Event('resize'));
+  await shell.flush();
+  assert.deepEqual([...requested(shell)].sort(), imageNo(0, 12));
+});
+
+test('左のツールの一覧を閉じて帯の幅だけが広がったときも、画像を並べる所の大きさの変化で頼む（ResizeObserver）', async (t) => {
+  const { shell, strip } = await createWideShell(t);
+  const watchers = [];
+  shell.window.ResizeObserver = class {
+    constructor(callback) { this.callback = callback; }
+    observe(target) { watchers.push({ target, callback: this.callback }); }
+  };
+  await shell.SigK.toolsConvert.addPaths(MANY);
+  await shell.flush();
+  assert.deepEqual(watchers.map((entry) => entry.target.id), ['image-strip-items'], '画像の帯を初めて出したときに 1 つだけ見張る');
+
+  strip.width = shell.SigK.imageStrip.ITEM_STEP * 10;
+  for (const { callback } of watchers)
+    callback([]);
+  await shell.flush();
+  assert.deepEqual([...requested(shell)].sort(), imageNo(0, 12));
+
+  await shell.SigK.toolsConvert.addPaths([MANY[0]]);
+  assert.equal(watchers.length, 1, '描き直しても見張りを増やさない');
+});

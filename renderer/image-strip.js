@@ -94,8 +94,22 @@
     el.note.replaceChildren(...lines);
     el.note.hidden = lines.length === 0;
     thumbs().keep(rows.map((row) => row.path));
+    watchWidth();
     requestThumbs();
     return true;
+  }
+
+  // 幅が変わったら（窓を広げた・左のツールの一覧を閉じた）、新しく見えた画像のサムネイルを頼む（点検で見つけた。前は横にスクロール
+  // するまで頼まず、形式の名前の紙のままだった）。見張りは帯を初めて出したときに付ける（隠れている間は幅が 0 で、測る意味が無い）。
+  // 窓の resize は init で受ける（ResizeObserver が無いとき）。
+  function watchWidth() {
+    if (el.watching || typeof el.win.ResizeObserver !== 'function')
+      return;
+    el.watching = true;
+    new el.win.ResizeObserver(() => {
+      if (isShown())
+        requestThumbs();
+    }).observe(el.items);
   }
 
   // 見えている画像（左右に 2 枚の先読み）のサムネイルを頼む。幅が分からない（隠れている・テスト）ときは 8 枚分と見る。
@@ -156,10 +170,17 @@
     if (host === null)
       return false;
     win.__sigkImageStripReady = true;
-    el = { doc, host, items: doc.getElementById('image-strip-items'), count: doc.getElementById('image-strip-count'), note: doc.getElementById('image-strip-note') };
+    el = {
+      doc, win, host, watching: false,
+      items: doc.getElementById('image-strip-items'), count: doc.getElementById('image-strip-count'), note: doc.getElementById('image-strip-note'),
+    };
     host.addEventListener('click', onClick);
     host.addEventListener('mousedown', onMouseDown);
     el.items.addEventListener('scroll', requestThumbs);
+    win.addEventListener('resize', () => {
+      if (isShown())
+        requestThumbs();
+    });
     thumbs().onReady(onThumbReady);
     return true;
   }
