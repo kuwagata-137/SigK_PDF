@@ -156,7 +156,7 @@ test('右クリックの束はファイル名の順に並び、注記は束に�
   await SigK.toolsConvert.addFromLaunch([A], { batch: { id: 1, first: false } });
   assert.deepEqual(names(shell), ['a.png', 'c.png']);
   assert.equal(bannerText(shell), note);
-  // 注意・お知らせは黄色の帯で出す（決定49）。
+  // 注意・お知らせは黄色の通知バーで出す（決定49）。
   assert.equal(bannerTone(shell), 'warn');
   SigK.viewBanner.show('ほかの知らせ');
   await SigK.toolsConvert.addFromLaunch([B], { batch: { id: 1, first: false } });
@@ -253,7 +253,7 @@ test('用紙・向き・余白・出力のしかた・出力フォルダーを�
   assert.deepEqual(names(shell), ['c.png'], '設定は一覧ではないので、次の束で置き換える');
 });
 
-test('上限を超えた分は入れず、上限の帯は束につき 1 回', async (t) => {
+test('上限を超えた分は入れず、上限の通知バーは束につき 1 回', async (t) => {
   const shell = await createLaunchShell(t);
   const { SigK } = shell;
   const many = Array.from({ length: 99 }, (_, index) => `${DIR}\\m${index}.png`);
@@ -271,7 +271,7 @@ test('上限を超えた分は入れず、上限の帯は束につき 1 回', as
   SigK.viewBanner.show('ほかの知らせ');
   await SigK.toolsConvert.addFromLaunch([C], next(1));
   assert.equal(rows(shell).length, 100);
-  assert.equal(bannerText(shell), 'ほかの知らせ', '上限の帯は束につき 1 回');
+  assert.equal(bannerText(shell), 'ほかの知らせ', '上限の通知バーは束につき 1 回');
 });
 
 test('読めない画像は名前が赤くなり、帯の下に理由が出て、実行できない（spec-2-5 確定事項H8）', async (t) => {
@@ -306,7 +306,7 @@ test('見つからないファイルも断る', async (t) => {
   assert.equal(rows(shell)[0].blocked, 'ファイルが見つかりません。外してください');
 });
 
-test(`上限は ${'100'} ファイルで、超えたぶんは切り捨てて帯で伝える`, async (t) => {
+test(`上限は ${'100'} ファイルで、超えたぶんは切り捨てて通知バーで伝える`, async (t) => {
   const shell = await createConvertShell(t);
   const { SigK } = shell;
   const many = Array.from({ length: 101 }, (_, index) => `${DIR}\\m${index}.png`);
@@ -530,7 +530,7 @@ test('出力先に入力の画像と同じファイルは選べない', async (t
   assert.equal(shell.taskCalls.length, 0);
 });
 
-test('「まとめる」の出力先がタブで開いていれば、何も書かずに帯で断る（確定事項38）', async (t) => {
+test('「まとめる」の出力先がタブで開いていれば、何も書かずに通知バーで断る（確定事項38）', async (t) => {
   const shell = await createConvertShell(t, {
     files: { [OUT]: makeSource({ path: OUT }) },
     savePathResults: [{ path: OUT }],
@@ -629,7 +629,7 @@ test('「画像ごと」で同名があれば3択を1回だけ出す', async (t)
   assert.deepEqual(plain(shell.taskCalls[1].spec.targets), [`${OTHER_DIR}\\a.pdf`, `${OTHER_DIR}\\b.pdf`]);
 });
 
-test('中止と失敗は帯で伝え、画像ごとの中止では書き出し済みの本数を添える', async (t) => {
+test('中止と失敗は通知バーで伝え、画像ごとの中止では書き出し済みの本数を添える', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   const shell = await createConvertShell(t, {

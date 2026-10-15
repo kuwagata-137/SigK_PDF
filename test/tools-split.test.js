@@ -179,7 +179,7 @@ test('パスワード付きの帯は「分割できません」と断る', async
 
 // ---- 実行（確定事項20〜32） ----
 
-test('実行はワーカーへ source・parts・targets を渡し、終わると帯に「フォルダを開く」が出てタブは開かない', async (t) => {
+test('実行はワーカーへ source・parts・targets を渡し、終わると通知バーに「フォルダを開く」が出てタブは開かない', async (t) => {
   const shell = await createSplitShell(t, {
     taskResults: [{ ok: true, written: 3, targets: A_TARGETS, pages: [1, 1, 1] }],
   });
@@ -285,7 +285,7 @@ test('「別名で保存」で選び直したフォルダーの出力先がタ�
   assert.equal(shell.taskCalls.length, 0);
 });
 
-test('中止と失敗は帯で伝え、中止では書き出し済みの本数を添える', async (t) => {
+test('中止と失敗は通知バーで伝え、中止では書き出し済みの本数を添える', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   const shell = await createSplitShell(t, {
@@ -370,11 +370,11 @@ test('useFromLaunch はツールモードへ切り替えて分割を選び、帯
   assert.equal(SigK.tabs.count(), 2, '束の PDF は帯（タブ）で開く');
   assert.equal(SigK.toolsSplit.source().path, A);
   assert.equal(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY);
-  // 右クリックから届いたときの注記も黄色の帯で出す（決定49）。
+  // 右クリックから届いたときの注記も黄色の通知バーで出す（決定49）。
   assert.equal(bannerTone(shell), 'warn');
 });
 
-test('右クリックの束では、後から届いたパスが名前の順で前なら対象を差し替え、帯は束につき 1 回（spec-5-1 確定事項20）', async (t) => {
+test('右クリックの束では、後から届いたパスが名前の順で前なら対象を差し替え、通知バーは束につき 1 回（spec-5-1 確定事項20）', async (t) => {
   const C = 'C:\\work\\c.pdf';
   const shell = await createShell({ files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [C]: makeSource({ path: C }) } });
   t.after(() => shell.cleanup());
@@ -384,7 +384,7 @@ test('右クリックの束では、後から届いたパスが名前の順で�
   // シェルは 1 ファイル 1 本で起こすので、分割にも 1 本ずつ届く（子の Single は効かない。事前調査 A2）。
   await SigK.toolsSplit.useFromLaunch([B], { batch: { id: 1, first: true } });
   assert.equal(SigK.toolsSplit.source().path, B);
-  assert.notEqual(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY, '1 本だけなら帯は出さない');
+  assert.notEqual(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY, '1 本だけなら通知バーは出さない');
 
   await SigK.toolsSplit.useFromLaunch([A], { batch: { id: 1, first: false } });
   assert.equal(SigK.toolsSplit.source().path, A, '名前の順で前なので差し替える');
@@ -395,7 +395,7 @@ test('右クリックの束では、後から届いたパスが名前の順で�
   await SigK.toolsSplit.useFromLaunch([C], { batch: { id: 1, first: false } });
   assert.equal(SigK.toolsSplit.source().path, A, '名前の順で後ろなので差し替えない（開いて前に出た帯から戻す）');
   assert.equal(SigK.tabs.count(), 3);
-  assert.notEqual(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY, '帯は束につき 1 回');
+  assert.notEqual(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY, '通知バーは束につき 1 回');
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'view', '束の 2 件目以降は画面を切り替えない');
 
   // 次の束は、今の対象に関わらずその束の先頭で決め直す。

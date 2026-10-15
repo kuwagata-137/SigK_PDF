@@ -242,7 +242,7 @@ test('上限を超えて開こうとすると断る', async (t) => {
   assert.equal(opened, false);
   assert.equal(SigK.tabs.count(), SigK.tabs.MAX_TABS, '上限を超えて開けてしまった');
 
-  // 文書は開いたままなので、理由は上端の帯に出す（確定事項20）。
+  // 文書は開いたままなので、理由は上端の通知バーに出す（確定事項20）。
   // 全面のオーバーレイで出すと、読んでいる文書が隠れてしまう。
   assert.match(document.getElementById('view-banner').textContent, /タブが多すぎるので/);
   assert.equal(document.getElementById('view-banner').hidden, false);
@@ -250,7 +250,7 @@ test('上限を超えて開こうとすると断る', async (t) => {
   assert.equal(SigK.viewer.getState().open, true);
 });
 
-test('タブを切り替えると、前の文書について出した帯は消える', async (t) => {
+test('タブを切り替えると、前の文書について出した通知バーは消える', async (t) => {
   const files = {};
   for (let i = 0; i < 25; i += 1)
     files[`C:\\work\\${i}.pdf`] = makeSource({ path: `C:\\work\\${i}.pdf` });
@@ -518,7 +518,7 @@ test('パスワードの入力を取りやめたら、ツールモードのま�
 });
 
 // 開けなかった理由は、ページの表示域に出る。ツールの画面の下に隠れて見えないので、帯にも出す（決定80。spec-4b-7b ⑥を改めた）。
-test('ツールモードで開けなかったときもツールモードのままで、理由は帯に出る', async (t) => {
+test('ツールモードで開けなかったときもツールモードのままで、理由は通知バーに出る', async (t) => {
   const error = Object.assign(new Error('broken'), { name: 'InvalidPDFException' });
   const shell = await inToolsMode(t, { pdfjs: createPdfjsStub({ openError: error }) });
 
@@ -537,7 +537,7 @@ test('ツールモードで開けなかったときもツールモードのま�
   assert.equal(shell.SigK.viewBanner.text(), '読み込み結果が用意されていません。');
 });
 
-test('前のパスワードの取りやめに引きずられず、次に開けなかったときは理由を帯に出す', async (t) => {
+test('前のパスワードの取りやめに引きずられず、次に開けなかったときは理由を通知バーに出す', async (t) => {
   const shell = await inToolsMode(t, { pdfjs: createPdfjsStub({ password: 'user1' }) });
 
   shell.fireOpenRequest(A);

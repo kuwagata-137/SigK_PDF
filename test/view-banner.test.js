@@ -24,7 +24,7 @@ async function withOpenDocument(t, options = {}) {
 
 const sleep = (window, ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-test('起動直後は帯を出していない', async (t) => {
+test('起動直後は通知バーを出していない', async (t) => {
   const { document, SigK } = await withShell(t);
 
   assert.equal(document.getElementById('view-banner').hidden, true);
@@ -33,7 +33,7 @@ test('起動直後は帯を出していない', async (t) => {
 
 // 塊② で持ち込んだ不具合の回帰テスト。文書を開いたまま setMessage を呼ぶと、
 // 全面のオーバーレイが文書の上に出たまま残っていた。
-test('文書が映っているときは、帯に出して文書を隠さない', async (t) => {
+test('文書が映っているときは、通知バーに出して文書を隠さない', async (t) => {
   const { document, SigK } = await withOpenDocument(t);
 
   SigK.viewer.setMessage('何かに失敗しました。');
@@ -51,10 +51,10 @@ test('文書が映っていなければ、空の表示の文言を差し替え�
 
   assert.equal(document.getElementById('view-message').textContent, '開けませんでした。');
   assert.equal(document.getElementById('view-empty').hidden, false);
-  assert.equal(document.getElementById('view-banner').hidden, true, '文書が無いのに帯を出す必要はない');
+  assert.equal(document.getElementById('view-banner').hidden, true, '文書が無いのに通知バーを出す必要はない');
 });
 
-test('帯は放っておけば消える', async (t) => {
+test('通知バーは放っておけば消える', async (t) => {
   const shell = await withOpenDocument(t);
 
   shell.SigK.viewBanner.show('しばらくしたら消えます。', 20);
@@ -65,7 +65,7 @@ test('帯は放っておけば消える', async (t) => {
   assert.equal(shell.document.getElementById('view-banner').textContent, '');
 });
 
-test('帯は押せばすぐ消える', async (t) => {
+test('通知バーは押せばすぐ消える', async (t) => {
   const shell = await withOpenDocument(t);
   shell.SigK.viewBanner.show('押すと消えます。');
 
@@ -76,7 +76,7 @@ test('帯は押せばすぐ消える', async (t) => {
   assert.equal(shell.SigK.viewBanner.isVisible(), false);
 });
 
-test('新しい帯を出すと、前の帯の消灯予約は取り消される', async (t) => {
+test('新しい通知バーを出すと、前の通知バーの消灯予約は取り消される', async (t) => {
   const shell = await withOpenDocument(t);
 
   shell.SigK.viewBanner.show('1つ目', 30);
@@ -88,7 +88,7 @@ test('新しい帯を出すと、前の帯の消灯予約は取り消される',
   assert.equal(shell.SigK.viewBanner.text(), '2つ目');
 });
 
-test('文書を開いたまま PDF 以外を落とすと、帯で断る', async (t) => {
+test('文書を開いたまま PDF 以外を落とすと、通知バーで断る', async (t) => {
   const shell = await withOpenDocument(t);
 
   const event = new shell.window.Event('drop', { bubbles: true, cancelable: true });
@@ -119,7 +119,7 @@ test('重ねるものは、スクロールする器の外に置く', async (t) =
 
 // --- 塊⑤ で足した2つ（spec-1-6 確定事項6〜8） ---
 
-test('帯に操作ボタンを載せられる', async (t) => {
+test('通知バーに操作ボタンを載せられる', async (t) => {
   const shell = await withOpenDocument(t);
   let pressed = 0;
 
@@ -139,8 +139,8 @@ test('帯に操作ボタンを載せられる', async (t) => {
 
   button.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
   assert.equal(pressed, 1);
-  // 帯そのものを押すと閉じる作りなので、ボタンの押下がそこへ伝わってはいけない。
-  assert.equal(shell.SigK.viewBanner.isVisible(), true, '中止を押しただけで帯が消えては、結果を出す場所が無くなる');
+  // 通知バーそのものを押すと閉じる作りなので、ボタンの押下がそこへ伝わってはいけない。
+  assert.equal(shell.SigK.viewBanner.isVisible(), true, '中止を押しただけで通知バーが消えては、結果を出す場所が無くなる');
 });
 
 test('autoHideMs に 0 を渡すと、消すまで出したままになる', async (t) => {
@@ -154,7 +154,7 @@ test('autoHideMs に 0 を渡すと、消すまで出したままになる', asy
   assert.equal(shell.SigK.viewBanner.isVisible(), false);
 });
 
-test('次の帯を出すと、前のボタンと色は残らない', async (t) => {
+test('次の通知バーを出すと、前のボタンと色は残らない', async (t) => {
   const shell = await withOpenDocument(t);
 
   shell.SigK.viewBanner.show('保存しています', {
@@ -180,7 +180,7 @@ test('従来どおり show(text) と show(text, 数値) で呼べる', async (t)
 
 // --- 注意・お知らせの黄色（決定49） ---
 
-test('注意・お知らせは黄色の帯（data-tone="warn"）で出せる', async (t) => {
+test('注意・お知らせは黄色の通知バー（data-tone="warn"）で出せる', async (t) => {
   const shell = await withOpenDocument(t);
 
   shell.SigK.viewBanner.show('1つ目のファイルだけを対象にしました。', { tone: 'warn' });
@@ -191,7 +191,7 @@ test('注意・お知らせは黄色の帯（data-tone="warn"）で出せる', a
 
 // jsdom は CSS を当てないので、見た目の決まりは文字で確かめる。data-tone を付けても
 // shell.css に規則が無ければ、既定の赤のまま出てしまう。
-test('黄色の帯の見た目が shell.css と色の定義にあり、文字は本文の色で書く', () => {
+test('黄色の通知バーの見た目が shell.css と色の定義にあり、文字は本文の色で書く', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'shell.css'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 

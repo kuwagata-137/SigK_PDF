@@ -96,7 +96,7 @@
     if (files.length === 0)
       return false;
 
-    // ツールモードでは空の表示（#view-empty）が作業画面の下に隠れるので、帯で伝える。
+    // ツールモードでは空の表示（#view-empty）が作業画面の下に隠れるので、通知バーで伝える。
     const complain = (text) => (root.SigK.tools?.isToolsMode() === true
       ? root.SigK.viewBanner.show(text)
       : root.SigK.viewer.setMessage(text));

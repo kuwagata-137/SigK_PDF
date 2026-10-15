@@ -20,7 +20,7 @@
     left: '左', center: '中央', right: '右',
     'bottom-left': '左下', bottom: '下', 'bottom-right': '右下',
   });
-  // 帯の文言「<label>しています」の頭（save.js の runTask）。
+  // 通知バーの文言「<label>しています」の頭（save.js の runTask）。
   const LABEL = '透かしを追加';
 
   function normalizeText(text) {

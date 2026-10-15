@@ -94,7 +94,7 @@
     if (mode === 'pages')
       root.SigK.save?.warnIfUnsaveable();
 
-    // 注釈モードを離れたら注釈の選択を解除する。入ったら同じ帯を出す（spec-4-1 確定事項8・9）。
+    // 注釈モードを離れたら注釈の選択を解除する。入ったら同じ通知バーを出す（spec-4-1 確定事項8・9）。
     root.SigK.annotate?.onModeChanged(mode);
     // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K）。引いている途中を終え、ツールバーの 1 組の印を描き直す。
     root.SigK.pointerMode?.onModeChanged(mode);

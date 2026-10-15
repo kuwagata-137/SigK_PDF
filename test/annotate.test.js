@@ -453,7 +453,7 @@ test('painterFor はページの注釈を canvas に描く口を返す', async (
   assert.equal(calls.some((call) => call[0] === 'fill'), true);
 });
 
-test('パスワード付きの文書では注釈モードに入ると帯が出る', async (t) => {
+test('パスワード付きの文書では注釈モードに入ると通知バーが出る', async (t) => {
   const shell = await withShell(t, { stub: { password: 'user1' } });
   const opening = shell.SigK.tabs.openPath(A);
   await shell.flush();

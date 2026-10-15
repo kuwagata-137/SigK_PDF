@@ -167,9 +167,9 @@ utif・omggif はともに MIT。`findCopyleft` の該当なし。utif の内蔵
 |---|---|---|
 | 19 | `embedImage(doc, loaded, tools, { frame })` | png／jpeg は従来どおり `embedPng`／`embedJpg`。bmp／gif／tiff は `decodeImage(kind, bytes, { frame })` → `embedPixels`。寸法と画素上限は従来どおり**埋め込む前**に `imageSize(kind, bytes, { frame })` で読む。`placeImage(doc, loaded, box, tools, { frame })` も同じく |
 | 20 | 1ファイル＝1エントリ | `images: [{ path, name, layouts: [layout…], target? }]`。`layouts` はページ数ぶん（TIFF 以外は1つ）。`convertToSingle` は**ページ単位**で `makePage(doc, entry, frame)` → `addPage` → `embed()`。`bytes` はそのファイルの全ページを載せてから手放す |
-| 21 | 進捗 | `apply` を**ページ単位**で刻む（`advance('apply', donePages, totalPages, 'ページ')`）。帯は「変換しています（3 / 12 ページ）」。`task-runner.js` → `save.js` の `onProgress` に `unit` を通し、無ければ従来の「ファイル」 |
+| 21 | 進捗 | `apply` を**ページ単位**で刻む（`advance('apply', donePages, totalPages, 'ページ')`）。通知バーは「変換しています（3 / 12 ページ）」。`task-runner.js` → `save.js` の `onProgress` に `unit` を通し、無ければ従来の「ファイル」 |
 | 22 | 画像ごと | 1ファイル → 1本（複数ページ TIFF は N ページの1本）。`runConvertEach` の戻り `pages` は本ごとのページ数 |
-| 23 | 戻り | `runConvertSingle` の `pages` は総ページ数、`inputs` はファイル数（帯「N ファイルを変換しました（M ページ）」はそのまま） |
+| 23 | 戻り | `runConvertSingle` の `pages` は総ページ数、`inputs` はファイル数（通知バー「N ファイルを変換しました（M ページ）」はそのまま） |
 
 ### E. 差し込み（`worker/op-insert.js`・`file-io.js`）
 
@@ -263,7 +263,7 @@ utif・omggif はともに MIT。`findCopyleft` の該当なし。utif の内蔵
 ## 完了の判定
 
 1. 変換画面に BMP／GIF／TIFF が入り、形式・画素数・ページ数（2 以上のとき）が出て、実行できる
-2. 複数ページ TIFF が全ページ変換される（まとめる: 総ページ数、画像ごと: 1本に N ページ）。帯の進捗はページ単位
+2. 複数ページ TIFF が全ページ変換される（まとめる: 総ページ数、画像ごと: 1本に N ページ）。通知バーの進捗はページ単位
 3. 差し込みで3形式が入り、複数ページ TIFF はページ数ぶん差し込まれる（プレビューも本番も）
 4. 透過 GIF に白地が敷かれ、2値 TIFF（WhiteIsZero・BlackIsZero）の白黒が正しい。1bit のまま埋め込まれている（G4 A4 600dpi が 100KB 以下）
 5. 非対応の圧縮・色の形式・壊れたファイルは名指しの文言で断られ、行に印が付く
@@ -346,7 +346,7 @@ utif・omggif はともに MIT。`findCopyleft` の該当なし。utif の内蔵
 | # | 判定 | 結果 |
 |---|---|---|
 | 1 | 変換画面に3形式が入り、形式・画素数・ページ数（2 以上のとき）が出て、実行できる | ✅ jsdom（`test/tools-convert.test.js`）・起動確認（`rows` に `bmp`／`gif`／`tiff`、`pixels` に `640×480 ・ 3 ページ`） |
-| 2 | 複数ページ TIFF が全ページ変換される（まとめる: 総ページ数、画像ごと: 1本に N ページ）。帯の進捗はページ単位 | ✅ `test/op-convert.test.js`（3ページ → 3ページ・進捗 `1/4 … 4/4 ページ`・`each` で `pages: [2, 1]`）・起動確認（4ファイル → 6ページ、`each` で `pages: [1, 1, 3, 1]`） |
+| 2 | 複数ページ TIFF が全ページ変換される（まとめる: 総ページ数、画像ごと: 1本に N ページ）。通知バーの進捗はページ単位 | ✅ `test/op-convert.test.js`（3ページ → 3ページ・進捗 `1/4 … 4/4 ページ`・`each` で `pages: [2, 1]`）・起動確認（4ファイル → 6ページ、`each` で `pages: [1, 1, 3, 1]`） |
 | 3 | 差し込みで3形式が入り、複数ページ TIFF はページ数ぶん（プレビューも本番も） | ✅ `test/op-insert.test.js`（`buildPreview` が 2 ページ・`page: 2` で3ページ目・範囲外は文言）・`test/insert.test.js`（画面の控えが `page: 0, 1, 2`） |
 | 4 | 透過 GIF に白地、2値 TIFF の白黒が正しい。1bit のまま埋め込まれる（G4 A4 600dpi が 100KB 以下） | ✅ `test/decode-gif.test.js`・`test/decode-tiff.test.js`・`test/pixel-image.test.js`（`/BitsPerComponent 1`・`/Decode [1 0]`）。A4 600dpi G4 の出力 0.1MB（下の「実測」）。実機の描画は `scratchpad` のスクリーンショットで GIF の市松の透過が白、G4 の三角が黒、CMYK の4色、4bit パレットの縞を確認 |
 | 5 | 非対応の圧縮・色の形式・壊れたファイルは名指しの文言で断られ、行に印が付く | ✅ `test/tiff-directory.test.js`（圧縮 2・6・34712・99999、色の形式 10 通り）・`test/decode-bmp.test.js`・`test/image-format.test.js`（2ページ目が旧 JPEG なら一覧で断る） |

@@ -31,7 +31,7 @@
   const openBatches = () => (openBatch ??= SigKOf().launchIntake.createBatchTracker());
 
   // 1本ずつ順にタブで開く（確定事項13）。まとめて投げると、同じファイルが2枚のタブになる経路（tabs.js の重複判定は
-  // 開き終わってから効く）を作ってしまう。タブが上限なら開かず、帯を束につき 1 回出す。
+  // 開き終わってから効く）を作ってしまう。タブが上限なら開かず、通知バーを束につき 1 回出す。
   // { opened } を返す（開いた数）。
   async function openTabs(paths) {
     const tabs = SigKOf().tabs;
@@ -64,7 +64,7 @@
   }
 
   // PDF に変換（確定事項8）。画像→PDF に切り替えて渡し（apply）、続けて PDF をタブでも開く（決定80。画像はタブにしない）。
-  // ツールモードへ切り替えてから開くので、開けなかった理由はツールモードの帯に出る。
+  // ツールモードへ切り替えてから開くので、開けなかった理由はツールモードの通知バーに出る。
   async function intoTool(apply, paths, batch) {
     const result = await apply();
     await openPdfTabs(paths, batch);

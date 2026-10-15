@@ -41,7 +41,7 @@ test('chooseTarget は保存ダイアログの答えを { target } / { canceled 
   assert.deepEqual(structuredClone(shell.savePathCalls[0]), { defaultPath: 'C:\\work\\a_x.pdf', title: 'T' });
 });
 
-test('finish は中止と失敗を帯で伝え、書けたら新しいタブで開いてツールモードのまま', async (t) => {
+test('finish は中止と失敗を通知バーで伝え、書けたら新しいタブで開いてツールモードのまま', async (t) => {
   const shell = await openShell(t);
   const { finish } = shell.SigK.rewriteOutput;
   shell.SigK.shell.setMode(shell.document, 'tools');
@@ -58,11 +58,11 @@ test('finish は中止と失敗を帯で伝え、書けたら新しいタブで�
   assert.equal(shell.SigK.tabs.list()[0].path, OUT);
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools', '閲覧モードへ移らない（決定80）');
   assert.equal(shell.SigK.viewBanner.text(), '書きました');
-  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  // 成功は失敗ではないので赤く塗らない（決定48）。通知バーの既定の色は失敗の赤である。
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
-test('タブが上限なら開かず、「最近使ったファイル」に足して帯で伝える', async (t) => {
+test('タブが上限なら開かず、「最近使ったファイル」に足して通知バーで伝える', async (t) => {
   const shell = await openShell(t);
   shell.SigK.tabs.count = () => shell.SigK.tabs.MAX_TABS;
   await shell.SigK.rewriteOutput.finish({ ok: true }, OUT, MESSAGES);

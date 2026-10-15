@@ -431,7 +431,7 @@ function registerIpc() {
   }));
   ipcMain.handle('task:cancel', (_event, taskId) => taskRunner.cancel(taskId));
 
-  // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。保存や透かしと同じワーカーで読むが、帯も「実行中」の
+  // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。保存や透かしと同じワーカーで読むが、通知バーも「実行中」の
   // 表示も出さず、進捗も返さない。形の確かめはワーカーが持ち、ここはパスが実在するファイルかだけを見る。
   // 10 秒で答えが無ければ打ち切る（開いたときに 1 回だけ呼ぶので、待たせすぎない）。
   ipcMain.handle('annotation:readDetails', async (_event, spec) => {
@@ -449,7 +449,7 @@ function registerIpc() {
   });
 
   // 紙全体の大きさ（MediaBox）の読み取り（spec-4b-6a 確定事項9・10）。トリミングの道具を初めて持ったときに 1 回だけ呼ぶ。
-  // 注釈の口と同じく、帯も「実行中」の表示も出さず、進捗も返さない。
+  // 注釈の口と同じく、通知バーも「実行中」の表示も出さず、進捗も返さない。
   ipcMain.handle('pdf:readBoxes', async (_event, spec) => {
     if (typeof spec?.source !== 'string' || !isExistingFile(spec.source))
       return { ok: false, reason: 'invalid' };
@@ -1267,7 +1267,7 @@ function installSmokeCheck(win, mode) {
       inputs: SigK.toolsMerge.inputs().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
       target,
     });
-    // SIGK_SMOKE_MERGE_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
+    // SIGK_SMOKE_MERGE_CANCEL=1 なら、通知バーの「中止」を押す（完了判定7）。
     // 1,000ページ×2本なら 2秒ほど掛かるので、少し待ってから押せば途中で止まる。
     let canceledAt = null;
     if (${process.env.SIGK_SMOKE_MERGE_CANCEL === '1'}) {
@@ -1453,7 +1453,7 @@ function installSmokeCheck(win, mode) {
     const focusOnCancel = document.activeElement === document.getElementById('confirm-replace-cancel');
     if (dialogOpen)
       document.getElementById('confirm-replace-ok').click();
-    // SIGK_SMOKE_CONVERT_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
+    // SIGK_SMOKE_CONVERT_CANCEL=1 なら、通知バーの「中止」を押す（完了判定7）。
     let canceledAt = null;
     if (${process.env.SIGK_SMOKE_CONVERT_CANCEL === '1'}) {
       await wait(400);
@@ -1578,7 +1578,7 @@ function installSmokeCheck(win, mode) {
       document.getElementById('confirm-replace-ok').click();
     await wait(150);
     const bannerWhileRunning = SigK.viewBanner.text();
-    // SIGK_SMOKE_TO_IMAGE_CANCEL=1 なら、帯の「中止」を押す（完了判定6）。
+    // SIGK_SMOKE_TO_IMAGE_CANCEL=1 なら、通知バーの「中止」を押す（完了判定6）。
     let canceledAt = null;
     if (${process.env.SIGK_SMOKE_TO_IMAGE_CANCEL === '1'}) {
       await wait(300);

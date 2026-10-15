@@ -167,7 +167,7 @@ contextBridge.exposeInMainWorld('printAPI', {
 // ここは 1 ページぶんのバイト列をファイルに書くだけである。ほかのツールと向きが
 // 逆になる理由は worker/op-convert.js の頭にある。
 // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。pdf.js が返さない欄（/CA・/IC・/BE・/RD など）を、
-// 開いたファイルの注釈についてワーカーで読む。帯も「実行中」の表示も出さない。
+// 開いたファイルの注釈についてワーカーで読む。通知バーも「実行中」の表示も出さない。
 contextBridge.exposeInMainWorld('annotationAPI', {
   available: true,
   // spec は { source, expect: { size, mtimeMs }, refs: ['12R', ...] }。

@@ -9,7 +9,7 @@
 //     scroll:<0〜1> / fold（別のツールへ移って戻る） / leave（別のツールへ移ったまま。畳んだあとのメモリを見るため） /
 //     zoom:<ページ> / zoom-step:<±1> / zoom-close / state（その時点を控える）
 //     省略時は every:10。
-//   SIGK_SMOKE_SPLIT_STAY=1 なら実行せずに盤の画面に留まる（画面写真を撮るため）。SIGK_SMOKE_SPLIT_CANCEL=1 なら帯の「中止」を押す。
+//   SIGK_SMOKE_SPLIT_STAY=1 なら実行せずに盤の画面に留まる（画面写真を撮るため）。SIGK_SMOKE_SPLIT_CANCEL=1 なら通知バーの「中止」を押す。
 //
 // PDF はタブ（帯）で開いて分割を選び、その帯を ✂ の盤に広げる（spec-2-5 確定事項G1・G13。エクスプローラーからの分割と同じ useFromLaunch）。
 // 盤は帯の画面（#strips）のスクロールに乗るので、scroll の操作と scrollTop はその器で見る（G9）。

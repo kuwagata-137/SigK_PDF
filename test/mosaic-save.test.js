@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { A, B, PAPER, withMosaic, stubImages, byId, spec, okResult, makeSource } = require('./fixtures/mosaic-shell.js');
 
 // 保存・抽出の前にモザイクのページを画像にする（spec-4b-6b 確定事項18・19・23〜25。決定64 ⑤⑧・決定66 ①②）。jsdom には 2D コンテキストが
-// 無いので、描く部品を差し替えて（fixtures/mosaic-shell.js）、確認・ワーカーへ渡す spec・帯を見る。描いた画像に元の文字が残らないことは
+// 無いので、描く部品を差し替えて（fixtures/mosaic-shell.js）、確認・ワーカーへ渡す spec・通知バーを見る。描いた画像に元の文字が残らないことは
 // ワーカーのテスト（mosaic-save-worker.test.js）と起動確認が見る。画像にしている間の編集・中止・照合は mosaic-save-guard.test.js。
 
 test('上書き保存: 確認でページ・保存先・控えを作らないことを名指しし、了承すると 300dpi・回転 0・紙全体・書き込みなしで描いて渡す', async (t) => {
@@ -81,7 +81,7 @@ test('名前を付けて保存: 元のファイルは変わらないと伝え、
   assert.equal(spec(shell).mosaics.length, 1);
 });
 
-test('前の控えを消せなかったら、保存は成功のまま黄色の帯で知らせる', async (t) => {
+test('前の控えを消せなかったら、保存は成功のまま黄色の通知バーで知らせる', async (t) => {
   const shell = await withMosaic(t, { taskResults: [{ ...okResult(), backupLeft: true }] });
   stubImages(t, shell);
   const saving = shell.SigK.save.saveActive();

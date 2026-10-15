@@ -169,7 +169,7 @@ test('閲覧モードで open の要求が来ても、閲覧モードのまま�
   assert.equal(mode(shell), 'view');
 });
 
-test('タブが上限なら開かず、帯を束につき 1 回出す（spec-5-1 確定事項13）', async (t) => {
+test('タブが上限なら開かず、通知バーを束につき 1 回出す（spec-5-1 確定事項13）', async (t) => {
   const files = {};
   const paths = [];
   for (let index = 0; index < 22; index += 1) {
@@ -186,7 +186,7 @@ test('タブが上限なら開かず、帯を束につき 1 回出す（spec-5-1
   assert.equal(SigK.viewBanner.text(), '20 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。');
   SigK.viewBanner.show('ほかの知らせ');
   assert.equal(await SigK.launch.handle(request('open', [paths[21]], 5, false)), 0);
-  assert.equal(SigK.viewBanner.text(), 'ほかの知らせ', '帯は束につき 1 回');
+  assert.equal(SigK.viewBanner.text(), 'ほかの知らせ', '通知バーは束につき 1 回');
 
   // 開いているファイルなら、上限でも前へ出せる。
   assert.equal(await SigK.launch.handle(request('open', [paths[3]], 6)), 1);

@@ -278,7 +278,7 @@ test('分割を選んでいるときに PDF を 2 つ落とすと、タブは 2 
   assert.notEqual(shell.SigK.viewBanner.text(), shell.SigK.toolsSplit.NOTE_FIRST_ONLY);
 });
 
-test('ツールモードで PDF でも画像でもないものだけを落とすと、理由を帯で出す', async (t) => {
+test('ツールモードで PDF でも画像でもないものだけを落とすと、理由を通知バーで出す', async (t) => {
   const shell = await inTools(t, 'merge');
 
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('表.xlsx', 'C:\\work\\表.xlsx')]));

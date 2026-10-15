@@ -91,7 +91,7 @@ function watermarkScript({ source, ops, target, stay }) {
         out.opened = { tabs: SigK.tabs.count(), pageCount: SigK.viewer.getState().pageCount };
       }
     }
-    // 画面に留まるときは、走っていた帯を下げてから撮る（本物は完了の帯に置き換わる）。
+    // 画面に留まるときは、走っていた通知バーを下げてから撮る（本物は完了の通知バーに置き換わる）。
     if (${stay === true})
       SigK.viewBanner.hide();
     return out;

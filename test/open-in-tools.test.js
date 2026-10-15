@@ -84,7 +84,7 @@ test('ツールモードで開けなかったタブへ切り替えると、理�
   assert.match(shell.SigK.viewBanner.text(), /壊れている/);
 });
 
-test('閲覧モードで開けなかったときは、今までどおりページビューの真ん中に出し、帯は出さない', async (t) => {
+test('閲覧モードで開けなかったときは、今までどおりページビューの真ん中に出し、通知バーは出さない', async (t) => {
   const shell = await withShell(t, { mode: 'view', pdfjs: createPdfjsStub({ openError: broken() }) });
 
   await shell.SigK.tabs.openPath(A);
@@ -99,7 +99,7 @@ test('閲覧モードで開けなかったときは、今までどおりペー�
 // 知らせ（名前の順に並べた・1つ目だけを対象にした・開けなかった理由）で、下で開くタブとは関係が無い。ツールモードでも
 // タブを開くようにしたので、消すと、右クリックの束の 3 本目を開いたところで名前の順の注記が消えるなどしていた。
 
-test('ツールモードでは、タブを開いても切り替えても閉じても、ツールの帯を消さない', async (t) => {
+test('ツールモードでは、タブを開いても切り替えても閉じても、ツールの通知バーを消さない', async (t) => {
   const shell = await withShell(t);
   await shell.SigK.tabs.openPath(A);
   shell.SigK.viewBanner.show('ツールの知らせ', { tone: 'warn' });
@@ -115,7 +115,7 @@ test('ツールモードでは、タブを開いても切り替えても閉じ�
   assert.equal(shell.SigK.viewBanner.text(), 'ツールの知らせ');
 });
 
-test('閲覧モードでは、今までどおり別のタブを開くと前の文書の帯を消す', async (t) => {
+test('閲覧モードでは、今までどおり別のタブを開くと前の文書の通知バーを消す', async (t) => {
   const shell = await withShell(t, { mode: 'view' });
   await shell.SigK.tabs.openPath(A);
   shell.SigK.viewBanner.show('a.pdf の知らせ');

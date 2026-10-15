@@ -245,7 +245,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* scrollbar-gutter を確保するのは、幅に合わせる の計算が「まだスクロールバーが
    出ていない幅」で走り、ページを並べた瞬間に幅が縮んで左右の余白がずれるのを
    防ぐためである。出ても出なくても clientWidth が変わらないようにする。 */
-/* 重ねるもの（空の表示・帯・ドロップの受け入れ）の土台。スクロールしない
+/* 重ねるもの（空の表示・通知バー・ドロップの受け入れ）の土台。スクロールしない
    のがこの器の役目である。#view の中に重ねると、position:absolute が
    スクロールする中身を基準に置かれ、読み進めた分だけ画面外へ出ていく。 */
 #view-wrap{flex:1; min-width:0; display:flex; position:relative}
@@ -297,7 +297,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* 場所はファイル名の下に添えるだけなので、末尾から省いてよい。 */
 .recent-path{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
-/* 知らせの帯（spec-1-2 確定事項20）。既定の色は失敗の赤で、data-tone で塗り替える。
+/* 通知バー（spec-1-2 確定事項20）。既定の色は失敗の赤で、data-tone で塗り替える。
    文書を開いたままでも読めるよう上端に出す。押せば消え、出さなければ数秒で自動的に消える。 */
 #view-banner{
   position:absolute; top:0; left:0; right:0; z-index:3;
@@ -311,7 +311,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* 注意・お知らせは黄色（決定49）。黄色の上では白い文字が読みにくいので本文の色で書く。 */
 #view-banner[data-tone="warn"]{background:var(--warn); color:var(--text)}
 #view-banner .banner-text{vertical-align:middle}
-/* 保存中の「中止」。帯の中に置く（確定事項8）。 */
+/* 保存中の「中止」。通知バーの中に置く（確定事項8）。 */
 #view-banner .banner-action{
   margin-left:12px; vertical-align:middle;
   padding:2px 10px; font:inherit; font-size:12px; line-height:1.6;
@@ -812,7 +812,7 @@ html[data-mode="annot"][data-tool="mosaic"] .pdf-page *{cursor:crosshair; user-s
 .mosaic-draft{position:absolute; z-index:3; box-sizing:border-box; pointer-events:none; border:1.5px dashed var(--accent); background:rgba(47,111,235,0.06)}
 .props-kinds.mosaic-blocks button{width:auto; padding:0 10px; font-family:inherit; font-size:12px}
 /* 枠の外側を暗くする 4 枚・2px の枠・8 点のつまみ（白地にアクセント色の縁の 10px）・大きさの札。押し離しはページが受ける。
-   重なりは 3: 文字の層（0）・入力欄（2）より上、道具の段と「その他」の一覧（4）より下、帯（3。DOM で後ろ）より下。 */
+   重なりは 3: 文字の層（0）・入力欄（2）より上、道具の段と「その他」の一覧（4）より下、通知バー（3。DOM で後ろ）より下。 */
 .trim-layer{position:absolute; inset:0; z-index:3; pointer-events:none}
 .trim-shade{position:absolute; background:rgba(0,0,0,0.45)}
 .trim-box{position:absolute; box-sizing:border-box; border:2px solid var(--accent)}

@@ -173,7 +173,7 @@ test('保存先を選ばなければ何も起きない', async (t) => {
   assert.equal(shell.taskCalls.length, 0);
 });
 
-test('出力先が元のファイル自身なら、何も書かずに帯で断る（確定事項96）', async (t) => {
+test('出力先が元のファイル自身なら、何も書かずに通知バーで断る（確定事項96）', async (t) => {
   // 書けば元が選んだページだけに置き換わり、.bak も残らない（makeBackup: false）。
   const shell = await withOpenDocument(t, { savePathResults: [{ path: 'c:/work/A.PDF' }] });
   shell.SigK.pageGrid.setSelection([0]);
@@ -184,7 +184,7 @@ test('出力先が元のファイル自身なら、何も書かずに帯で断�
   assert.equal(shell.SigK.viewBanner.text(), result.error);
 });
 
-test('出力先が別のタブで開いていれば、何も書かずに帯で断る（確定事項96）', async (t) => {
+test('出力先が別のタブで開いていれば、何も書かずに通知バーで断る（確定事項96）', async (t) => {
   const X = 'C:\\work\\x.pdf';
   const shell = await withOpenDocument(t, {
     files: { [A]: makeSource({ path: A, name: 'a.pdf', size: 1024, mtimeMs: 1000 }), [X]: makeSource({ path: X }) },
@@ -221,11 +221,11 @@ test('抽出しても、タブも未保存の印も動かない', async (t) => {
   assert.equal(shell.recentCalls.some((call) => call.kind === 'add' && call.entry.path === OUT), false,
     '抽出したファイルは開かないので、最近使ったファイルにも載せない');
   assert.match(shell.SigK.viewBanner.text(), /抽出しました/);
-  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  // 成功は失敗ではないので赤く塗らない（決定48）。通知バーの既定の色は失敗の赤である。
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
-test('失敗したら、ワーカーの文言をそのまま帯に出す', async (t) => {
+test('失敗したら、ワーカーの文言をそのまま通知バーに出す', async (t) => {
   const shell = await withOpenDocument(t, {
     taskResults: [{ error: 'パスワードで保護された PDF は保存できません。' }],
     savePathResults: [{ path: OUT }],
@@ -238,7 +238,7 @@ test('失敗したら、ワーカーの文言をそのまま帯に出す', async
   assert.match(shell.SigK.viewBanner.text(), /パスワードで保護された/);
 });
 
-test('中止したら、そのことを帯に出す', async (t) => {
+test('中止したら、そのことを通知バーに出す', async (t) => {
   const shell = await withOpenDocument(t, {
     taskResults: [{ canceled: true }],
     savePathResults: [{ path: OUT }],

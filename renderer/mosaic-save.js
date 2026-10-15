@@ -6,7 +6,7 @@
   // 上書き保存・名前を付けて保存では、まず確認（confirm-mosaic.js）を出す。抽出は抽出の確認に一文を足す（extract.js）ので、ここでは
   // 出さない。了承されたら、モザイクのあるページを順に、紙全体（MediaBox。page-boxes.js。読めなければ page.view）・回転 0・書き込みを
   // 描かずに 300dpi で描き、モザイクを塗って（mosaic-paint.js。base は要らない）、PNG か JPEG のバイト列にする。描く間は保存の枠
-  // （save.js の runLocal）に載せ、帯「モザイクのページを画像にしています（n / N ページ）」と［中止］を出す。ワーカーへ渡す形は
+  // （save.js の runLocal）に載せ、通知バー「モザイクのページを画像にしています（n / N ページ）」と［中止］を出す。ワーカーへ渡す形は
   // [{ src, kind, bytes, box }]（worker/op-mosaic.js）。
   //
   // 確認の間・画像にしている間も、編集・タブの切り替えは止まらない。始めたときの文書と plan を控え、各ページを描く直前と描き終えたあとに
@@ -108,12 +108,12 @@
     return { changed: true };
   }
 
-  // 保存・抽出の前に呼ぶ。{ ok, mosaics }（無ければ空の配列）か { canceled } か { error }。帯は出し終えて返す。
+  // 保存・抽出の前に呼ぶ。{ ok, mosaics }（無ければ空の配列）か { canceled } か { error }。通知バーは出し終えて返す。
   //   mode    … 'overwrite'・'saveAs'（確認を出す）・'extract'（確認を出さない。抽出の確認が一文を足す）
   //   indices … 画像にするページの表示上の位置（既定は plan のモザイクのあるページ全部）
   //   name・sourceName … 確認の文の保存先と元のファイルの名前
   //   plan … 呼ぶ側が先に読んだ plan（抽出は確認と保存先のダイアログの前に読む）。今と違えば取りやめる。既定は今の plan
-  // ページかタブが変わっていれば、帯を出して { changed } を返す。
+  // ページかタブが変わっていれば、通知バーを出して { changed } を返す。
   async function prepare({ mode = 'overwrite', indices = null, name = '', sourceName = '', plan: expected = null } = {}) {
     const file = viewer().getState().file;
     const plan = expected ?? viewer().getPlan();

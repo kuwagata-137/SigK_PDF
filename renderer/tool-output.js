@@ -16,7 +16,7 @@
     return String(filePath ?? '').split(/[\\/]/).pop();
   }
 
-  // messages は { done, crowded }（帯の文言。crowded はタブが上限で開かなかったとき）。開いたかを返す。
+  // messages は { done, crowded }（通知バーの文言。crowded はタブが上限で開かなかったとき）。開いたかを返す。
   // ここから先は書けている。タブを開けなかったときも含め、知らせは赤く塗らない（決定48）。
   async function openWritten(target, { done, crowded }) {
     if (tabs().count() >= tabs().MAX_TABS) {

@@ -138,7 +138,7 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 | 6 | 選ぶ | テキストレイヤーの上で**ドラッグせずに押して離した**とき（選択範囲が空のまま）、その点を含む注釈（quads の当たり判定。上に描いたものが優先）を選ぶ。無ければ選択解除。選ぶと枠とプロパティが出る |
 | 7 | キー | Delete＝選んだ注釈を消す（注釈モードのとき。`handlePageEditKey` の Delete がページモード限定なのと同じ形で注釈モード限定）。Esc＝選んだ注釈があれば解除、無ければ道具を離す（検索バーが開いていればそちらが先。`spec-1-5` 確定事項19。**2026-10-07 訂正**: 参照先を `spec-1-4` と書き誤っていた）。**2026-10-07 追記**: Esc の順は `spec-4b-7a` 確定事項A に 1 本化した。押して引いている途中の操作・浮いている小窓・描きかけは検索バーより先に取りやめ、紙の上の文字の選択は書き込みの選択より先に外す（決定68 ①③）。Ctrl+Z／Ctrl+Y＝どのモードでも最後の編集を戻す・やり直す（確定事項15） |
 | 8 | モードを離れるとき | 注釈の選択を解除する。道具はそのまま持ち越す（戻ったときに同じ道具）。閲覧モードでは道具があっても付かない |
-| 9 | パスワード付き PDF | 注釈モードに入った時点で帯「パスワードで保護された PDF は保存できません。」（`save.warnIfUnsaveable`。ページモードと同じ）。付けることはできる |
+| 9 | パスワード付き PDF | 注釈モードに入った時点で通知バー「パスワードで保護された PDF は保存できません。」（`save.warnIfUnsaveable`。ページモードと同じ）。付けることはできる |
 
 ### B. 付け方と座標（F-05-1・事前調査 D）
 
@@ -229,7 +229,7 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 | `renderer/page-image.js` | `renderToCanvas` に `annotationMode`・`overlay` |
 | `renderer/print.js` | `overlay` を渡す |
 | `renderer/save.js`・`renderer/extract.js` | spec に `annotations`。保存成功後に `viewer.reopen()`（`markSaved` の代わり。名前を付けて保存ではタブの移動のあと） |
-| `renderer/shell.js` | `setMode` で注釈の選択解除・プロパティの出し入れ・帯（確定事項8・9）。`MODE_TITLES.annot` は「サムネイル」（塊④で「注釈」へ） |
+| `renderer/shell.js` | `setMode` で注釈の選択解除・プロパティの出し入れ・通知バー（確定事項8・9）。`MODE_TITLES.annot` は「サムネイル」（塊④で「注釈」へ） |
 | `renderer/thumbnails.js` | `isVisible()` に `annot` |
 | `renderer/viewer-controls.js` | Delete・Esc の注釈モード分岐（確定事項7） |
 | `worker/pdf-task.js` | `TOOLS` に `PDFRef`・`PDFArray`・`PDFString`・`PDFNumber`。`applyForSave`／`applyForExtract` で `applyAnnotations`（確定事項23） |
@@ -250,7 +250,7 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 | 層 | 対象 |
 |---|---|
 | 依存なし | `annotation-state.js`（追加・削除・色変更・`sameAnnots`・複製・ページごとの取り出し）、`markup-quads.js`（CSS px → pt の四隅、UL・UR・LL・LR の並べ直し、item からの高さ、外接、当たり判定、回転した viewport）、`worker/annotation-appearance.js`（3 種の content stream と BBox）、`worker/op-annotate.js`（fixtures に書いて pdf-lib で読み返す: `/Annots` の数・`/Subtype`・`/QuadPoints`・`/AP`・`/NM`、`remove` で消えて孤児が残らない、`/Popup` も消える、範囲外は `error`、`applyPlan` の前に当てて並べ替え後のページに付いている、抽出に付いていく）、`edit-history.js`（`{ plan, annots }` の世代）、`settings.js`（`annotColors` の既定と丸め） |
-| jsdom | `annotate.test.js`（道具のトグル、選択 → 作成（両方の操作）、ページをまたぐ選択、選ぶ・解除・Delete・Esc、色変更、undo/redo がページ編集と 1 本、dirty、タブの持ち回り、モードの出入り、読み込んだ注釈の削除・色変更、`imported` が履歴に入らない、暗号化の帯）、`annotation-layer.test.js`（SVG の要素と枠、`paint` の呼び出し）、`annotation-props.test.js`、`page-render.test.js`（層の生成・破棄と `ENABLE_STORAGE`）、`text-layer.test.js`（handle の `viewport`・`items`）、`viewer.test.js`／`tabs.test.js`（`reopen` が倍率・位置を保つ、履歴が空になる、`isDirty` が注釈を見る）、`save.test.js`／`extract.test.js`（spec に `annotations`、保存後に `reopen` が呼ばれる）、`print.test.js`（`overlay` が渡る）、`shell.test.js`（レールの道具・`#props`・`<script>`・アイコン） |
+| jsdom | `annotate.test.js`（道具のトグル、選択 → 作成（両方の操作）、ページをまたぐ選択、選ぶ・解除・Delete・Esc、色変更、undo/redo がページ編集と 1 本、dirty、タブの持ち回り、モードの出入り、読み込んだ注釈の削除・色変更、`imported` が履歴に入らない、暗号化の通知バー）、`annotation-layer.test.js`（SVG の要素と枠、`paint` の呼び出し）、`annotation-props.test.js`、`page-render.test.js`（層の生成・破棄と `ENABLE_STORAGE`）、`text-layer.test.js`（handle の `viewport`・`items`）、`viewer.test.js`／`tabs.test.js`（`reopen` が倍率・位置を保つ、履歴が空になる、`isDirty` が注釈を見る）、`save.test.js`／`extract.test.js`（spec に `annotations`、保存後に `reopen` が呼ばれる）、`print.test.js`（`overlay` が渡る）、`shell.test.js`（レールの道具・`#props`・`<script>`・アイコン） |
 | 起動確認 | `SIGK_SMOKE_ANNOTATE=<操作列>`（例 `select:1:3-4,highlight,color:green,select:1:6-6,underline,delete,undo,save`）＋ `SIGK_SMOKE_PDF`。作成した注釈の数・quads・dirty・履歴の深さ・保存後の `/Annots` の数（pdf-lib で読み返す）・回転ページ（`rotated.pdf`）で span と item の横位置が一致することを JSON で出す。開発ツリーと配布物の両方 |
 
 ---
@@ -314,7 +314,7 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 
 | 項目 | 扱い |
 |---|---|
-| 差し込んだページへの注釈 | 保存して開き直せば付けられる。塊①では「差し込んだページには保存後に付けられます」の帯で断る |
+| 差し込んだページへの注釈 | 保存して開き直せば付けられる。塊①では「差し込んだページには保存後に付けられます」の通知バーで断る |
 | 縦書き・回転した文字列の四角 | 外接矩形で近似（確定事項12）。要望が出たら item の `transform` から回転した四角を作る |
 | 画像だけのページ（テキストレイヤーが無い） | 付かない。図形（塊③）で代替 |
 | サムネイルへの反映 | 自前の注釈は映らない（確定事項30）。塊④の注釈一覧で置き換える |
@@ -359,7 +359,7 @@ canvas 2D に `globalCompositeOperation = 'multiply'` で四角を塗る／線�
 |---|---|
 | ハイライトを付ける（選択 → 四角 → 履歴 → 描画） | 12〜15ms |
 | 色を変える・選ぶ・消す・戻す | 0.1〜5ms |
-| 保存 → 開き直し（`text-heavy.pdf` 40 ページ・注釈 3） | 保存 381ms（ワーカー）／段全体 1.2 秒（開き直し・帯の待ち込み） |
+| 保存 → 開き直し（`text-heavy.pdf` 40 ページ・注釈 3） | 保存 381ms（ワーカー）／段全体 1.2 秒（開き直し・通知バーの待ち込み） |
 | 保存 → 開き直し（`huge-pages.pdf` 1,000 ページ・注釈 1） | 保存 1,226ms（ワーカー）／段全体 2.0 秒。開き直しは約 0.8 秒（読み直し・寸法の集め直し・注釈の集め直し） |
 | 2 回保存した `three-pages.pdf` | 2,221 bytes・オブジェクト 14。1 ページ目 `/Rotate 180`、ハイライト 1（`/AP` あり）、2 ページ目 下線 1 |
 | 回転したページの span と item の横位置 | 47.9〜157.65 対 48〜157.75 pt（`/Rotate 90`・表示 90） |

@@ -130,7 +130,7 @@ test('差し込むと plan にその位置の要素が増える', async (t) => {
   assert.equal(shell.SigK.viewer.getState().pageCount, 4);
   assert.equal(shell.SigK.viewer.isDirty(), true);
   assert.match(shell.SigK.viewBanner.text(), /1 ページを差し込みました/);
-  // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+  // 成功は失敗ではないので赤く塗らない（決定48）。通知バーの既定の色は失敗の赤である。
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
@@ -253,7 +253,7 @@ test('ファイルを選ばなければ何も起きない', async (t) => {
   assert.equal(shell.SigK.viewer.getState().pageCount, 3);
 });
 
-test('組み立ての途中で中止したら、何も差し込まずに青い帯で知らせる', async (t) => {
+test('組み立ての途中で中止したら、何も差し込まずに青い通知バーで知らせる', async (t) => {
   const shell = await withOpenDocument(t, { insertSourceResults: [{ path: PHOTO }], taskResults: [{ canceled: true }] });
 
   assert.deepEqual(plain(await shell.SigK.insert.run()), { canceled: true });
@@ -263,7 +263,7 @@ test('組み立ての途中で中止したら、何も差し込まずに青い�
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
-test('断られたら、ワーカーの文言をそのまま帯に出す', async (t) => {
+test('断られたら、ワーカーの文言をそのまま通知バーに出す', async (t) => {
   const shell = await withOpenDocument(t, {
     insertSourceResults: [{ path: 'C:\\work\\a.gif' }],
     taskResults: [{ error: 'GIF は挿入できません。PNG・JPEG・PDF を選んでください。' }],
