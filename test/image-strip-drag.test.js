@@ -120,3 +120,37 @@ test('引いている途中の Esc は取りやめるだけで、Esc の振り�
   esc();
   assert.deepEqual([...SigK.stripSelection.get(tabId)], [], '次の Esc で紙の選択が外れる');
 });
+
+// 点検で見つかった（2026-10-15）。タッチやペンで引くと、離した合図（pointerup）の代わりに取りやめの合図（pointercancel）が来る。
+// 前は引いている途中のまま残り、ボタンを押さずに動かしても線が付いてきて、次のクリックで並びが変わった（ページ編集の page-grid.js・✂ の盤と同じにする）。
+test('取りやめの合図（pointercancel）が来たら引くのをやめ、そのあとボタンを押さずに動かして離しても並びを変えない', async (t) => {
+  const shell = await createDragShell(t);
+  const { SigK, document: doc } = shell;
+  const strip = doc.getElementById('image-strip-items');
+  startDrag(shell, 0, 10);
+  shell.firePointer(doc, 'pointermove', { x: 180, y: 5 });
+  shell.firePointer(items(shell)[0], 'pointercancel', { x: 180, y: 5 });
+  assert.equal(SigK.imageStripDrag.isDragging(), false);
+  assert.equal(line(shell), null, '線を片付ける');
+  assert.equal(items(shell)[0].classList.contains('dragging'), false);
+  shell.firePointer(doc, 'pointermove', { x: 300, y: 5 });
+  shell.firePointer(strip, 'pointerup', { x: 300, y: 5 });
+  assert.deepEqual(names(shell), ['a.png', 'b.jpg', 'c.png']);
+
+  startDrag(shell, 0, 10);
+  shell.firePointer(items(shell)[0], 'pointercancel', { x: 10, y: 5 });
+  shell.firePointer(doc, 'pointermove', { x: 300, y: 5 });
+  assert.equal(SigK.imageStripDrag.isDragging(), false, '引き始める前に取りやめが来たときも、押した控えを残さない');
+});
+
+test('引いている途中に窓が非活性になったら引くのをやめ、そのあと離しても並びを変えない', async (t) => {
+  const shell = await createDragShell(t);
+  const { SigK, document: doc } = shell;
+  startDrag(shell, 0, 10);
+  shell.firePointer(doc, 'pointermove', { x: 180, y: 5 });
+  shell.window.dispatchEvent(new shell.window.Event('blur'));
+  assert.equal(SigK.imageStripDrag.isDragging(), false);
+  assert.equal(line(shell), null);
+  shell.firePointer(doc.getElementById('image-strip-items'), 'pointerup', { x: 180, y: 5 });
+  assert.deepEqual(names(shell), ['a.png', 'b.jpg', 'c.png']);
+});

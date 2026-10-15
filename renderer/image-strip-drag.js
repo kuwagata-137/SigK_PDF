@@ -113,6 +113,10 @@
     items.addEventListener('pointerdown', onPointerDown);
     doc.addEventListener('pointermove', onPointerMove);
     doc.addEventListener('pointerup', onPointerUp);
+    // タッチやペンで引くと pointerup の代わりに pointercancel が来る。窓が非活性になると pointerup が届かないことがある。
+    // どちらも並びを変えずにやめる（引いている途中のまま残すと、次のクリックで並びが変わる。点検で見つかった。✂ の盤と同じ）。
+    doc.addEventListener('pointercancel', endDrag);
+    win.addEventListener('blur', endDrag);
     doc.addEventListener('keydown', onKeyDown);
     return true;
   }
