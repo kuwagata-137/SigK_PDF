@@ -671,13 +671,19 @@ PR-1 の残りは PR-2 と一緒に、ユーザーの指示で **PR #48 とし�
 | 画像→PDF の本体 | `5bc4b2e` | 「変換する画像」の帯（`image-strip.js`・注意と説明の文 `image-strip-notes.js`・サムネイルを頼む `image-thumbs.js`）、横に引く並べ替え（`image-strip-drag.js`）、右の欄の画像→PDF の節、受け口の文と `pdf:pickConvertSources`、変換のあとの帯と「できた PDF」のカード（`convert-result.js`）。実行（`convert-run.js`）と画像を足す所（`convert-intake.js`）を `tools-convert.js` から分けた。`tools-convert-list.js`・`row-drag.js` を消した |
 | テスト | `1aa1440` | `test/image-strip.test.js`・`image-strip-drag.test.js`・`convert-result.test.js`（16 件。作りを 14 か所わざと壊して赤を見た）。`tools-convert.test.js` は本体のコミットで帯の形に書き直した |
 | 台本・表 | `5c057e6` | `main.js` の `SIGK_SMOKE_CONVERT` の台本を画像の帯から読む形に。docs/02 の口の表。コメントの「一覧」 |
+| 要約の文・記録 | `25fedad`・`5411861` | 右の欄の要約を「画像 4 枚のうち 3 枚は変換できません」に。この章の第 H 章の追記・既知の限界 |
+| 計画外の直し | `e334bde` | 帯・盤・大きく見る窓の紙を CPU で描く canvas にした（`pageImage.renderToCanvas` の `software`）。下の起動確認の字欠けの直し |
+| 使い方の窓・文書 | `6bfaefa` ほか | 使い方の窓の分割と画像→PDF を帯の画面の作りで書き直した。spec-2-2b・spec-2-2・spec-3-1・spec-3-2・docs/04・使い方ガイドの該当行に「2026-10-15 改訂」を書き足した |
 
 - 200 行に収めるために動かしたもの: まとめて分けるの次の盤（`split-plan.js` の `bulkNext`）、帯の DOM の小さな処理（`strip-row.js` の `putCanvas`・`place`・`contentOf`・`sameContent`）。
 - 無くした受け渡しを前提にしていたテスト（`open-in-tools`・`launch`・`tabs`・`file-drop`・`smoke-launch`・`tool-run-after-busy`・`tools`・`tools-to-image`）は、
   帯が対象になる今の作りに合わせて書き直した（「ツールに渡さない」を見ていたものは、モードと開いた帯を見る形にした）。
 - 起動確認（窓を出さず、`--user-data-dir` は scratchpad）: `many-pages.pdf`（40 ページ）を 5 ページごと → 3 ページ目の前で切る → 2〜4 ページを選ぶ。
   盤は帯の中（`inStrip`・`board` とも真）、タブの列は隠れ、描いた盤の紙は見えている 15 枚だけ、problems なし。**同時に描いた 2 枚の片方で数字が途中までしか
-  描けていなかった**（PR-2 の帯の紙にも出ていた。`strips2-actual-merge.png` の見積書.pdf の 2 ページ目）→ 計画外の直しとして調べている。
+  描けていなかった**（PR-2 の帯の紙にも出ていた。`strips2-actual-merge.png` の見積書.pdf の 2 ページ目）→ 計画外の直しとして調べて直した（`e334bde`）。
+  canvas の中身そのものが欠けていて、同時に描く本数を 1 本にするか、canvas を CPU で描かせる（`willReadFrequently`）と欠けない。左の欄のサムネイル
+  （GPU の canvas・紙が大きい）は同時に何枚も描いても欠けない。Chromium が GPU で描く小さな canvas に 2 枚分を交互に書き込むと字の形が一部しか
+  描かれない（Chromium の中の不具合）と見て、帯・盤の紙だけを CPU で描く canvas にした。直したあと、同じ盤を 3 回・結合の帯 3 本を 1 回出し、欠けは無かった。
 
 ---
 
