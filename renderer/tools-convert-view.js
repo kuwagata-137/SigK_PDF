@@ -57,7 +57,7 @@
     if (plan.ready === true)
       return settings.output === 'single' ? `画像 ${rows.length} 枚 → 1 つの PDF（${plan.totalPages} ページ）` : `画像 ${rows.length} 枚 → ${plan.names.length} 個の PDF`;
     const blocked = rows.filter((row) => row.blocked !== null).length;
-    return blocked > 0 ? `画像 ${rows.length} 枚・${blocked} 枚は変換できません` : `画像 ${rows.length} 枚`;
+    return blocked > 0 ? `画像 ${rows.length} 枚のうち ${blocked} 枚は変換できません` : `画像 ${rows.length} 枚`;
   }
 
   // 用紙・向き・余白・出力のラジオボタンを状態へ合わせる。実行中はすべて押せない（確定事項27）。

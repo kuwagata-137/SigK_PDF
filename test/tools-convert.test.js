@@ -294,7 +294,7 @@ test('読めない画像は名前が赤くなり、帯の下に理由が出て�
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
 
   // 外せば実行できる。数え上げは右の欄の下に出る。
-  assert.equal(shell.document.getElementById('convert-summary').textContent, '画像 4 枚・3 枚は変換できません');
+  assert.equal(shell.document.getElementById('convert-summary').textContent, '画像 4 枚のうち 3 枚は変換できません');
   for (const row of rows(shell).filter((entry) => entry.blocked !== null))
     SigK.toolsConvert.remove(row.id);
   assert.equal(SigK.toolsConvert.canRun(), true);
