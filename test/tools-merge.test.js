@@ -223,7 +223,7 @@ test('保存ダイアログを開いている間も実行中と数え、やめ�
   assert.equal(SigK.toolsMerge.canRun(), true);
 });
 
-test('中止と失敗は帯で伝え、新しい帯は足さない', async (t) => {
+test('中止と失敗は通知バーで伝え、新しい帯は足さない', async (t) => {
   const shell = await createMergeShell(t, {
     savePathResults: [{ path: OUT }, { path: OUT }],
     taskResults: [{ canceled: true }, { error: '「b.pdf」この PDF は内容が壊れているため保存できません。' }],
@@ -238,7 +238,7 @@ test('中止と失敗は帯で伝え、新しい帯は足さない', async (t) =
   assert.equal(SigK.tabs.count(), 2);
 });
 
-test('タブが上限なら開かずに帯で伝え、最近使ったファイルへ足す', async (t) => {
+test('タブが上限なら開かずに通知バーで伝え、最近使ったファイルへ足す', async (t) => {
   const files = {};
   const paths = [];
   for (let index = 0; index < 20; index += 1) {

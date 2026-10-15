@@ -30,15 +30,19 @@
   }
 
   // tabIds は実行の対象の帯。{ go, saved } を返す（go が false なら実行しない）。
-  async function confirmUnsaved(tabIds) {
+  // canRunUnsaved(tabId) が false の帯が 1 本でもあれば［保存せずに実行］を押せなくし、runNote でその理由を添える
+  // （分割で、ページの並べ替え・削除・差し込みを保存していないとき。spec-2-5 確定事項F3・G7）。
+  async function confirmUnsaved(tabIds, { canRunUnsaved = () => true, runNote = null } = {}) {
     const dirty = (tabIds ?? []).filter((id) => tabs().isDirty(id));
     if (dirty.length === 0)
       return { go: true, saved: false };
     const named = new Map(tabs().list().map((tab) => [tab.id, tab]));
     const entries = dirty.map((id) => ({ name: named.get(id)?.name ?? '', counts: root.SigK.unsavedChanges.count(tabs().peek(id)) }));
     const encrypted = dirty.some((id) => tabs().peek(id)?.file?.encrypted === true);
+    const canRun = dirty.every((id) => canRunUnsaved(id));
+    const notes = [encrypted ? NOTE_ENCRYPTED : null, canRun ? null : runNote].filter((note) => note !== null);
     const dialog = root.SigK.confirmUnsavedRun;
-    const answer = await dialog.ask({ entries, canSave: !encrypted, note: encrypted ? NOTE_ENCRYPTED : null });
+    const answer = await dialog.ask({ entries, canSave: !encrypted, canRun, note: notes.length === 0 ? null : notes.join('') });
     if (answer === dialog.RUN)
       return { go: true, saved: false };
     if (answer !== dialog.SAVE)

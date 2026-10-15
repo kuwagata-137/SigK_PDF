@@ -82,7 +82,7 @@ test('結合が走っている間に対象を決めても、書き込みは結�
   assert.equal(byId(shell, 'fl-summary').textContent, '書き込み 3 件を焼き込みます');
   assert.equal(SigK.toolsFlatten.canRun(), true);
   assert.notEqual(byId(shell, 'fl-run').getAttribute('aria-disabled'), 'true');
-  // 結合の知らせは、数える処理の帯に消されずに残る。
+  // 結合の知らせは、数える処理の通知バーに消されずに残る。
   assert.equal(SigK.viewBanner.text(), '結合を中止しました。');
 });
 

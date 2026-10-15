@@ -77,8 +77,9 @@ const ACTIONS = {
   facing: (arg) => `SigK.shell.setPageLayout(document, ${JSON.stringify(arg === 'on' ? 'facing' : 'single')})`,
   fit: (arg) => `SigK.viewer.applyFit(${JSON.stringify(arg)})`,
   scroll: (arg) => `(() => { const view = document.getElementById('view'); view.scrollTop = Math.round((view.scrollHeight - view.clientHeight) * ${Number(arg)}); return view.scrollTop; })()`,
-  // 分割の盤（spec-2-2b 確定事項K3）。分割の画面に切り替えて、映しているタブの PDF（SIGK_SMOKE_PDF はタブを作らないので、表示している文書）を対象にする。
-  split: () => `(SigK.shell.setMode(document, 'tools'), SigK.tools.select('split'), SigK.toolsSplit.setSource(SigK.tabs.list().find((tab) => tab.active)?.path ?? SigK.viewer.getState().file.path))`,
+  // 分割の盤（spec-2-2b 確定事項K3、spec-2-5 確定事項G1）。盤は選んでいる帯（＝映しているタブ）に広がるので、タブが無ければ
+  // （SIGK_SMOKE_PDF はタブを作らない）表示している文書をタブで開いてから、分割を選ぶ。返すのは対象の名前。
+  split: () => `(async () => { if (SigK.tabs.count() === 0) await SigK.tabs.openPath(SigK.viewer.getState().file.path); SigK.shell.setMode(document, 'tools'); SigK.tools.select('split'); return SigK.toolsSplit.source()?.name ?? null; })()`,
   'split-cut': (arg) => `SigK.toolsSplitEdit.cut(${Number(arg)})`,
   // 帯の画面（spec-2-5 第 D・E 章）。ツールモードでツールを選ぶ・帯の縦のスクロール（割合）・n 番目の帯の横のスクロール（n:割合）。
   'pick-tool': (arg) => `(SigK.shell.setMode(document, 'tools'), SigK.tools.select(${JSON.stringify(arg)}))`,

@@ -86,7 +86,7 @@
     root.SigK.log.install(win);
     fillIcons(doc);
     root.SigK.shell.init(doc);
-    // 帯はビューアが失敗を伝えるのに使う。先に用意しておく。
+    // 通知バーはビューアが失敗を伝えるのに使う。先に用意しておく。
     root.SigK.viewBanner.init(doc, win);
     // サムネイルはビューアが文書を開いたときに差し替えられる。先に用意しておく。
     root.SigK.thumbnails.init(doc, win);
@@ -113,15 +113,19 @@
     root.SigK.toolsMergeList.init(doc, win);
     root.SigK.toolsSplit.init(doc, win);
     root.SigK.toolsSplitView.init(doc, win);
-    // 分割の盤（spec-2-2b）。右の欄の render から描き直されるので、右の欄の後に用意する。
+    // 分割の盤（spec-2-2b）。右の欄の render から描き直されるので、右の欄の後に用意する。盤は選んでいる帯の中に入れる（spec-2-5 確定事項G1）。
     root.SigK.splitBoardView.init(doc, win);
+    root.SigK.splitStrip.init(doc, win);
     root.SigK.splitBoardBand.init(doc, win);
     // なぞる途中の Esc を受ける document の keydown は、Esc の振り分け（viewerControls の handleKey）より先に登録する。
     root.SigK.splitBoardInput.init(doc, win);
     root.SigK.splitBoardKeys.init(doc, win);
     root.SigK.splitZoom.init(doc, win);
     root.SigK.toolsConvert.init(doc, win);
-    root.SigK.toolsConvertList.init(doc, win);
+    // 「変換する画像」の帯（spec-2-5 確定事項H4〜H8）。引いている途中の Esc を受ける keydown も、Esc の振り分けより先に登録する。
+    root.SigK.imageStrip.init(doc, win);
+    root.SigK.imageStripDrag.init(doc, win);
+    root.SigK.convertResult.init(doc, win);
     root.SigK.toolsConvertView.init(doc, win);
     root.SigK.toolsToImage.init(doc, win);
     root.SigK.toolsToImageView.init(doc, win);

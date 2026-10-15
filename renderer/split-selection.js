@@ -31,7 +31,7 @@
     return { anchor: Math.min(sel.anchor, last), from: sel.from, to: Math.min(sel.to, last) };
   }
 
-  // 操作の帯に出す中身（確定事項C4）。全部が書き出さないページなら［書き出す］を出す。
+  // 選んだときの操作の行に出す中身（確定事項C4）。全部が書き出さないページなら［書き出す］を出す。
   function bandOf(board, sel) {
     if (isEmpty(sel))
       return null;

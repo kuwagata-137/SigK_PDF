@@ -46,10 +46,11 @@ test('ツールモードに入ると、一覧と結合の作業画面が出て�
   assert.equal(items[1].classList.contains('active'), true);
   assert.equal(SigK.tools.panelFor('split').hidden, false);
   assert.equal(SigK.tools.panelFor('merge').hidden, true);
-  // 分割は PR-3 まで今の画面のまま。帯も右の欄も出さず、タブの列も出す（決定80 ㉚）。
-  assert.equal(doc.getElementById('tool-pane').hidden, true);
-  assert.equal(doc.getElementById('strips-screen').hidden, true);
-  assert.equal(doc.documentElement.hasAttribute('data-tool-screen'), false);
+  // 分割も帯の画面と右の欄。選んでいる帯を ✂ の盤に広げ、タブの列は隠す（spec-2-5 確定事項G1・G13）。
+  assert.equal(SigK.tools.panelFor('split').parentElement.id, 'tool-pane');
+  assert.equal(doc.getElementById('tool-pane').hidden, false);
+  assert.equal(doc.getElementById('strips-screen').hidden, false);
+  assert.equal(doc.documentElement.getAttribute('data-tool-screen'), 'strips');
 
   // 画像→PDF も同じように切り替わる。
   items[2].click();

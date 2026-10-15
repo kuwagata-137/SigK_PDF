@@ -224,10 +224,10 @@ html[data-mode="annot"] #side-title{display:none}
 #side-resizer:hover{background:var(--select)}
 html[data-panel="collapsed"] #side-resizer{display:none}
 
-/* サイドパネルを閉じている間だけ出す細い帯（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。
+/* サイドパネルを閉じている間だけ出す、閉じたパネルの細い欄（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。
    「＞」は閉じる「＜」（.side-head .collapse）と同じ高さに置く。見出しは高さ 34px（下の線 1px を含む）で、
    その中の 24px を上下の真ん中に置いているので、上の余白は (34 − 1 − 24) ÷ 2 = 4.5px になる。
-   帯の中は 17px しかないので、幅だけ 16px に詰める。押せることが見えるよう、地を薄く塗っておく。 */
+   閉じたパネルの細い欄の中は 17px しかないので、幅だけ 16px に詰める。押せることが見えるよう、地を薄く塗っておく。 */
 #side-strip{
   flex:0 0 18px; display:flex; flex-direction:column; align-items:center;
   background:var(--surface); border-right:1px solid var(--border);
@@ -245,7 +245,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* scrollbar-gutter を確保するのは、幅に合わせる の計算が「まだスクロールバーが
    出ていない幅」で走り、ページを並べた瞬間に幅が縮んで左右の余白がずれるのを
    防ぐためである。出ても出なくても clientWidth が変わらないようにする。 */
-/* 重ねるもの（空の表示・帯・ドロップの受け入れ）の土台。スクロールしない
+/* 重ねるもの（空の表示・通知バー・ドロップの受け入れ）の土台。スクロールしない
    のがこの器の役目である。#view の中に重ねると、position:absolute が
    スクロールする中身を基準に置かれ、読み進めた分だけ画面外へ出ていく。 */
 #view-wrap{flex:1; min-width:0; display:flex; position:relative}
@@ -297,7 +297,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* 場所はファイル名の下に添えるだけなので、末尾から省いてよい。 */
 .recent-path{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
-/* 知らせの帯（spec-1-2 確定事項20）。既定の色は失敗の赤で、data-tone で塗り替える。
+/* 通知バー（spec-1-2 確定事項20）。既定の色は失敗の赤で、data-tone で塗り替える。
    文書を開いたままでも読めるよう上端に出す。押せば消え、出さなければ数秒で自動的に消える。 */
 #view-banner{
   position:absolute; top:0; left:0; right:0; z-index:3;
@@ -311,7 +311,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* 注意・お知らせは黄色（決定49）。黄色の上では白い文字が読みにくいので本文の色で書く。 */
 #view-banner[data-tone="warn"]{background:var(--warn); color:var(--text)}
 #view-banner .banner-text{vertical-align:middle}
-/* 保存中の「中止」。帯の中に置く（確定事項8）。 */
+/* 保存中の「中止」。通知バーの中に置く（確定事項8）。 */
 #view-banner .banner-action{
   margin-left:12px; vertical-align:middle;
   padding:2px 10px; font:inherit; font-size:12px; line-height:1.6;
@@ -509,53 +509,8 @@ html[data-panel="collapsed"] #side-resizer{display:none}
   display:flex; flex-direction:column; min-height:0;
 }
 #tools-view[hidden]{display:none}
-.tool-panel{display:flex; flex-direction:column; flex:1; min-height:0}
-.tool-panel[hidden]{display:none}
-.tools-head{display:flex; align-items:baseline; gap:12px; padding:18px 24px 10px}
-.tools-head h2{margin:0; font-size:16px; font-weight:600}
-.tools-head .hint{color:var(--muted); font-size:12px}
-.merge-bar{display:flex; align-items:center; gap:8px; padding:0 24px 10px}
-.merge-bar .spacer{flex:1}
-.merge-bar .act{padding:0 12px; height:30px}
-.merge-bar .act.quiet{background:transparent; border-color:transparent; color:var(--muted)}
-.merge-bar .act.quiet:hover{background:var(--surface-2); box-shadow:none}
-
-.merge-foot{display:flex; align-items:center; gap:12px; padding:12px 24px 18px}
-.merge-foot .sum{color:var(--muted); font-size:12px}
-.merge-foot .spacer{flex:1}
-.merge-foot .dlg-btn{min-width:96px}
-
 /* ── 分割画面（spec-2-2 確定事項38） ────────────────────────── */
-/* 対象・分け方・出力の3節。結合画面と同じトークンで、節は一覧と同じ枠に入れる。 */
-.split-body{flex:1; min-height:0; overflow:auto; margin:0 24px; display:flex; flex-direction:column; gap:14px}
-.split-sec{border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:14px 18px 16px; flex:0 0 auto}
-.split-sec h3{margin:0 0 10px; font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.04em}
-.split-target{display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px}
-.split-target .file{display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap}
-.split-target .file[hidden]{display:none}
-.split-target .file .name{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.split-target .file.blocked .name{color:var(--danger)}
-.split-target .file .pages{color:var(--muted); font-variant-numeric:tabular-nums}
-.split-target .file .note{font-size:11.5px; color:var(--muted)}
-.split-target .file .note.error{color:var(--danger)}
-.split-target .file .note[hidden]{display:none}
-#split-empty{margin:0; color:var(--muted); font-size:12.5px; line-height:1.6}
-#split-empty[hidden]{display:none}
-/* ［開いているタブから選ぶ ▾］の一覧（spec-2-2b 確定事項F2。tab-menu.js。見本 screenshots/phase2-2b-07-tab-menu.png）。
-   押したボタンのすぐ後ろに組み、ボタンの下に重ねる。分割・PDF→画像・透かし・フラット化で同じ見た目。 */
-.tab-menu{position:absolute; z-index:20; min-width:252px; max-width:360px; max-height:320px; overflow:auto; padding:4px;
-  background:var(--surface); border:1px solid var(--border-strong); border-radius:9px; box-shadow:var(--shadow)}
-.tab-menu:focus{outline:none}
-.tab-menu-row{display:flex; align-items:center; gap:8px; width:100%; padding:7px 9px; border-radius:6px; font-size:12.5px; text-align:left; color:var(--text)}
-.tab-menu-row:hover,.tab-menu-row:focus-visible{background:var(--surface-2)}
-.tab-menu-row.on{background:var(--select)}
-.tab-menu-row svg{flex:0 0 auto; color:var(--muted)}
-.tab-menu-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.tab-menu-row .dot{width:6px; height:6px; border-radius:50%; background:var(--accent); flex:0 0 6px}
-.tab-menu-row .mark{margin-left:auto; padding-left:10px; color:var(--muted); font-size:11px; white-space:nowrap}
-.tab-menu-empty{display:block; padding:8px 10px; color:var(--muted); font-size:12px}
-.split-target .btns{display:flex; gap:8px}
-.split-target .btns .act{padding:0 12px; height:30px}
+/* 欄（.split-inp）と出力の欄（.split-out）。2026-10-15 から右の欄の分割・画像→PDF・PDF→画像が使う（節の枠は .sb-card）。 */
 .split-inp{
   height:28px; padding:0 8px; border:1px solid var(--border-strong); border-radius:6px;
   background:var(--surface); color:var(--text); font:inherit;
@@ -584,50 +539,6 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .split-out .example .err{color:var(--danger)}
 
 /* ── 画像→PDF（spec-3-1 確定事項33） ────────────────────────── */
-/* 画像・用紙・出力の3節。節の枠は分割の .split-sec、出力の欄は .split-out をそのまま使う。一覧（.convert-list）は
-   結合の古い一覧の形を写したもの（結合は 2026-10-14 に帯と右の欄へ移った。spec-2-5 第 E 章）。 */
-.convert-bar{padding:0 0 10px}
-.convert-bar .drop-hint{color:var(--muted); font-size:12px}
-.convert-list{
-  position:relative; max-height:320px; overflow:auto;
-  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
-}
-.convert-cols,.convert-row{
-  display:grid; grid-template-columns:22px 1fr 150px 52px 116px 30px 30px 30px; align-items:center; gap:6px;
-  padding:0 8px 0 6px;
-}
-/* 画素数の列は「4960×7016 ・ 3 ページ」（複数ページの TIFF。spec-3-2 確定事項29）まで折り返さずに入る幅。 */
-/* 「形式」は右寄せ、「この紙」は左寄せなので、そのままだと隣り合って読みにくい。
-   この紙の側に一段ぶんの余白を入れて、列の切れ目を見せる。 */
-.convert-cols span:nth-child(5),.convert-row .paper{padding-left:14px}
-.convert-cols{
-  height:30px; position:sticky; top:0; z-index:1; background:var(--surface-2); border-bottom:1px solid var(--border);
-  color:var(--muted); font-size:11.5px; letter-spacing:.04em;
-}
-.convert-cols span:nth-child(3),.convert-cols span:nth-child(4){text-align:right}
-.convert-row{min-height:36px; border-bottom:1px solid var(--border)}
-.convert-row:last-of-type{border-bottom:none}
-.convert-row:hover{background:var(--surface-2)}
-.convert-row.dragging{opacity:.4}
-.convert-row .grip{color:var(--border-strong); display:grid; place-items:center; cursor:grab}
-.convert-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.convert-row.blocked .name,.convert-row.dup .name{color:var(--danger)}
-.convert-row .px,.convert-row .kind{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
-.convert-row .paper{color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.convert-row .rbtn{
-  width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted); cursor:pointer;
-}
-.convert-row .rbtn:hover{background:var(--surface); box-shadow:var(--shadow-item); color:var(--text)}
-.convert-row .rbtn.danger:hover{color:var(--danger)}
-.convert-row .rbtn[aria-disabled="true"]{opacity:.35; cursor:default}
-.convert-row .rbtn[aria-disabled="true"]:hover{background:transparent; box-shadow:none; color:var(--muted)}
-/* 行の下の注意・誤り。2列目から「この紙」の列まで。 */
-.convert-row .note{grid-column:2 / 6; font-size:11.5px; line-height:1.5; margin:-4px 0 6px; color:var(--muted)}
-.convert-row .note[hidden]{display:none}
-.convert-row .note.error{color:var(--danger)}
-#convert-empty{color:var(--muted); font-size:12.5px; padding:36px 0; margin:0}
-#convert-empty[hidden]{display:none}
-
 /* 用紙の3行（サイズ・向き・余白）。左に見出し、右にラジオを横並び。 */
 .convert-opts{display:grid; grid-template-columns:120px 1fr; row-gap:10px; column-gap:12px; align-items:center}
 .convert-opts .k{color:var(--muted); font-size:12px}
@@ -640,9 +551,8 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .convert-out .folder[hidden],.convert-out .k[hidden]{display:none}
 
 /* ── PDF→画像（spec-3-3 確定事項27） ────────────────────────── */
-/* 対象・ページと形式・出力の3節。節の枠は分割の .split-sec、対象の行は .split-target、
-   ラジオは .picks、出力の欄は .split-out をそのまま使う。ここで足すのは「範囲」の欄が
-   ラジオと同じ行に並ぶことと、「すべて」のときに欄を薄く見せることだけである。 */
+/* 右の欄の節（spec-2-5 確定事項E4）。ラジオボタンは .picks、出力の欄は .split-out をそのまま使う。ここで足すのは
+   「範囲」の欄がラジオボタンと同じ行に並ぶことと、「すべて」のときに欄を薄く見せることだけである。 */
 .toimage-range-row .split-inp{margin-left:4px}
 .toimage-range-row:not(.on) .split-inp{background:var(--surface-2); color:var(--muted)}
 .toimage-range-row .err{color:var(--danger); font-size:11.5px; flex-basis:100%}
@@ -671,7 +581,6 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .wm-cell:hover{border-color:var(--accent)}
 .wm-cell.on{background:var(--accent); border-color:var(--accent)}
 .wm-cell:focus-visible{outline:2px solid var(--primary); outline-offset:1px}
-.split-sec > .fit-note{margin:8px 0 0; color:var(--muted); font-size:11.5px; line-height:1.5}
 /* プレビュー。紙の絵（canvas）の上に透かしの SVG を重ねる。 */
 .wm-preview{position:sticky; top:0}
 .wm-preview .page-box{display:grid; place-items:center; min-height:320px; padding:14px 0 6px; background:var(--canvas); border-radius:8px}
@@ -903,7 +812,7 @@ html[data-mode="annot"][data-tool="mosaic"] .pdf-page *{cursor:crosshair; user-s
 .mosaic-draft{position:absolute; z-index:3; box-sizing:border-box; pointer-events:none; border:1.5px dashed var(--accent); background:rgba(47,111,235,0.06)}
 .props-kinds.mosaic-blocks button{width:auto; padding:0 10px; font-family:inherit; font-size:12px}
 /* 枠の外側を暗くする 4 枚・2px の枠・8 点のつまみ（白地にアクセント色の縁の 10px）・大きさの札。押し離しはページが受ける。
-   重なりは 3: 文字の層（0）・入力欄（2）より上、道具の段と「その他」の一覧（4）より下、帯（3。DOM で後ろ）より下。 */
+   重なりは 3: 文字の層（0）・入力欄（2）より上、道具の段と「その他」の一覧（4）より下、通知バー（3。DOM で後ろ）より下。 */
 .trim-layer{position:absolute; inset:0; z-index:3; pointer-events:none}
 .trim-shade{position:absolute; background:rgba(0,0,0,0.45)}
 .trim-box{position:absolute; box-sizing:border-box; border:2px solid var(--accent)}

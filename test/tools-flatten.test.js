@@ -100,7 +100,7 @@ test('選んでいる帯をワーカーで数え、ファイルにある種類�
   assert.equal(summary(shell), '書き込み 12 件を焼き込みます');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), null);
   assert.equal(byId(shell, 'fl-page-modes').querySelector('input[value="all"]').checked, true, '既定は［すべて］');
-  assert.equal(shell.SigK.viewBanner.isVisible(), false, '数え終えたら「書き込みを確認しています」の帯は下げる');
+  assert.equal(shell.SigK.viewBanner.isVisible(), false, '数え終えたら「書き込みを確認しています」の通知バーは下げる');
 });
 
 test('種類のチェックを外すと、焼く件数と要約が変わり、選ばなかった書き込みは残すと書く。全部外すと実行できない', async (t) => {

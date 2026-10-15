@@ -207,7 +207,7 @@
     if (handleTabKey(event))
       return;
     // 分割の画面の元に戻す・やり直し（spec-2-2b 確定事項G1）。文書が無くても効かせ、文書の Ctrl+Z より先に取る。
-    if (root.SigK.toolsSplitEdit?.handleKey(event, doc) === true)
+    if (root.SigK.splitBoardKeys?.historyKey(event, doc) === true)
       return;
     if (viewer().getState().open !== true)
       return;

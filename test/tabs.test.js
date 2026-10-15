@@ -242,7 +242,7 @@ test('上限を超えて開こうとすると断る', async (t) => {
   assert.equal(opened, false);
   assert.equal(SigK.tabs.count(), SigK.tabs.MAX_TABS, '上限を超えて開けてしまった');
 
-  // 文書は開いたままなので、理由は上端の帯に出す（確定事項20）。
+  // 文書は開いたままなので、理由は上端の通知バーに出す（確定事項20）。
   // 全面のオーバーレイで出すと、読んでいる文書が隠れてしまう。
   assert.match(document.getElementById('view-banner').textContent, /タブが多すぎるので/);
   assert.equal(document.getElementById('view-banner').hidden, false);
@@ -250,7 +250,7 @@ test('上限を超えて開こうとすると断る', async (t) => {
   assert.equal(SigK.viewer.getState().open, true);
 });
 
-test('タブを切り替えると、前の文書について出した帯は消える', async (t) => {
+test('タブを切り替えると、前の文書について出した通知バーは消える', async (t) => {
   const files = {};
   for (let i = 0; i < 25; i += 1)
     files[`C:\\work\\${i}.pdf`] = makeSource({ path: `C:\\work\\${i}.pdf` });
@@ -449,7 +449,7 @@ test('ツールモードで既に開いているファイルを選ぶと、そ�
 });
 
 // 取りやめの控えは呼び出しごとに持つ（spec-4b-7b 点検の直し）。1 つだけだと、重なった別の「開く」の取りやめに引きずられる。
-test('開く処理が重なり、あとの「開く」を取りやめても、先に開けた方はツールにも渡す', async (t) => {
+test('開く処理が重なり、あとの「開く」を取りやめても、先に開けた方は帯になり、結合の行に入る', async (t) => {
   const shell = await inToolsMode(t);
   const first = shell.SigK.tabs.runOpenCommand(A);
   const second = shell.SigK.tabs.runOpenCommand();
@@ -459,21 +459,21 @@ test('開く処理が重なり、あとの「開く」を取りやめても、�
   assert.deepEqual(structuredClone(mergePaths(shell)), [A]);
 });
 
-test('閲覧モードで開き始め、読み込みの間にツールモードへ替えたら、ツールモードのままで、ツールには渡さない', async (t) => {
+// 開いたファイルをツールに渡す仕組みは無くした（spec-2-5 確定事項G13）。読み込みの間にモードを替えても、替えたモードのままで、開いた帯が選ばれる。
+test('閲覧モードで開き始め、読み込みの間にツールモードへ替えたら、ツールモードのままで、開いた帯が分割の対象になる', async (t) => {
   const shell = await withShell(t);
   await shell.flush();
   const opening = shell.SigK.tabs.runOpenCommand(A);
   shell.SigK.shell.setMode(shell.document, 'tools');
-  // 結合は開いたタブがそのまま行になるので、渡さないことは対象を持つツール（分割）で見る（spec-2-5 確定事項E2）。
   shell.SigK.tools.select('split');
   assert.equal(await opening, true);
   await shell.flush();
   assert.equal(modeOf(shell), 'tools');
   assert.equal(shell.SigK.tabs.count(), 1);
-  assert.equal(shell.SigK.toolsSplit.source(), null, '開き始めにツールを見ていなかった');
+  assert.equal(shell.SigK.toolsSplit.source().path, A, '分割の対象は選んでいる帯（spec-2-5 確定事項G1）');
 });
 
-test('ツールモードで開き始め、読み込みの間に閲覧モードへ替えたら、ツールには渡さない', async (t) => {
+test('ツールモードで開き始め、読み込みの間に閲覧モードへ替えたら、閲覧モードのままで、ツールモードへ戻さない', async (t) => {
   const shell = await inToolsMode(t);
   shell.SigK.tools.select('split');
   const opening = shell.SigK.tabs.runOpenCommand(A);
@@ -481,7 +481,7 @@ test('ツールモードで開き始め、読み込みの間に閲覧モード�
   assert.equal(await opening, true);
   await shell.flush();
   assert.equal(modeOf(shell), 'view');
-  assert.equal(shell.SigK.toolsSplit.source(), null, 'ツールの画面が見えていないので渡さない');
+  assert.equal(shell.SigK.tabs.count(), 1);
 });
 
 test('ファイルを選ぶ窓で取りやめたら、ツールモードのままで、何もしない', async (t) => {
@@ -518,7 +518,7 @@ test('パスワードの入力を取りやめたら、ツールモードのま�
 });
 
 // 開けなかった理由は、ページの表示域に出る。ツールの画面の下に隠れて見えないので、帯にも出す（決定80。spec-4b-7b ⑥を改めた）。
-test('ツールモードで開けなかったときもツールモードのままで、理由は帯に出る', async (t) => {
+test('ツールモードで開けなかったときもツールモードのままで、理由は通知バーに出る', async (t) => {
   const error = Object.assign(new Error('broken'), { name: 'InvalidPDFException' });
   const shell = await inToolsMode(t, { pdfjs: createPdfjsStub({ openError: error }) });
 
@@ -537,7 +537,7 @@ test('ツールモードで開けなかったときもツールモードのま�
   assert.equal(shell.SigK.viewBanner.text(), '読み込み結果が用意されていません。');
 });
 
-test('前のパスワードの取りやめに引きずられず、次に開けなかったときは理由を帯に出す', async (t) => {
+test('前のパスワードの取りやめに引きずられず、次に開けなかったときは理由を通知バーに出す', async (t) => {
   const shell = await inToolsMode(t, { pdfjs: createPdfjsStub({ password: 'user1' }) });
 
   shell.fireOpenRequest(A);

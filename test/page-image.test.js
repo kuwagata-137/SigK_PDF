@@ -55,7 +55,10 @@ function makeDocWithCanvas({ blob = new Uint8Array([1, 2, 3]) } = {}) {
       const canvas = {
         width: 0,
         height: 0,
-        getContext: () => ({}),
+        getContext: (...args) => {
+          canvas.contextArgs = args;
+          return {};
+        },
         toDataURL: () => 'data:image/png;base64,AAAA',
         toBlob: (callback, type, quality) => {
           canvas.blobArgs = { type, quality };
@@ -123,6 +126,15 @@ test('overlay は描いたあとに ctx と viewport で呼ばれ、annotationMo
   const skipped = [];
   await images.renderToCanvas(makeDocWithoutCanvas(), makePage(), { scale: 1, overlay: () => skipped.push(1) });
   assert.equal(skipped.length, 0);
+});
+
+// 計画外の直し（2026-10-15）。GPU で描く小さな canvas に 2 枚分を交互に描くと、字の形が一部しか描かれないことがある（Chromium の中の不具合）。
+// 帯・盤の紙（plan-page-image.js）は software を渡して CPU で描く canvas にする。ほかの呼び手は今までどおり。
+test('software を渡すと CPU で描く 2D コンテキスト（willReadFrequently）を頼み、渡さなければ既定のまま頼む', async () => {
+  const doc = makeDocWithCanvas();
+  await images.renderToCanvas(doc, makePage(), { scale: 1, software: true });
+  await images.renderToCanvas(doc, makePage(), { scale: 1 });
+  assert.deepEqual(doc.canvases.map((canvas) => canvas.contextArgs), [['2d', { willReadFrequently: true }], ['2d']]);
 });
 
 test('release は canvas の寸法を 0 にして中身を手放す。null にも耐える', async () => {

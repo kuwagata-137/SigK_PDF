@@ -109,7 +109,7 @@ test('切ったページでもう一度引くと、切った範囲の中で切�
   assert.deepEqual(crops(shell), [[150, 250, 300, 500], null, null]);
 });
 
-test('すべてのページ: 大きさの違うページ・回したページも上下左右を同じ幅だけ切り、小さすぎるページはそのまま。帯で数を知らせる', async (t) => {
+test('すべてのページ: 大きさの違うページ・回したページも上下左右を同じ幅だけ切り、小さすぎるページはそのまま。通知バーで数を知らせる', async (t) => {
   const pdfjs = createPdfjsStub({ sizes: [A4, { width: 800, height: 1000 }, { width: 20, height: 20 }], rotations: [0, 90, 0] });
   const shell = await withTrim(t, { pdfjs });
   const { SigK, document } = shell;
@@ -125,7 +125,7 @@ test('すべてのページ: 大きさの違うページ・回したページも
   assert.equal(document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
-test('すべてのページ: 差し込んだページは切らず、帯に数を添える', async (t) => {
+test('すべてのページ: 差し込んだページは切らず、通知バーに数を添える', async (t) => {
   const shell = await withTrim(t, {
     insertSourceResults: [{ path: PHOTO }],
     taskResults: [{ ok: true, bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]), pages: [{ width: A4.width, height: A4.height }], kind: 'jpeg' }],
@@ -256,7 +256,7 @@ test('切った範囲の外の書き込みは消えずに残り、外すとま�
   assert.equal(drawn(), true);
 });
 
-test('外すのを待つ間に切り直したら、待ち明けに外さず、帯で知らせる（点検 1）', async (t) => {
+test('外すのを待つ間に切り直したら、待ち明けに外さず、通知バーで知らせる（点検 1）', async (t) => {
   let release = null;
   const shell = await withTrim(t, { boxesResults: [() => new Promise((resolve) => { release = resolve; })] });
   const { SigK } = shell;
@@ -274,7 +274,7 @@ test('外すのを待つ間に切り直したら、待ち明けに外さず、�
   assert.equal(SigK.viewBanner.text(), '読み込みを待つ間にページが変わったので、トリミングを外しませんでした。もう一度押してください。');
 });
 
-test('すべてのページで、枠が今の見える範囲と同じなら、何も積まず帯も出さない（点検 6）', async (t) => {
+test('すべてのページで、枠が今の見える範囲と同じなら、何も積まず通知バーも出さない（点検 6）', async (t) => {
   const shell = await withTrim(t);
   const { SigK } = shell;
   SigK.trimTool.setScope('all');

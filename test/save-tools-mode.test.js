@@ -122,14 +122,14 @@ test('ツールモードでも、ほかの処理（ツールの実行など）�
 });
 
 // jsdom は shell.css を読まないので、重なりの順は index.html の並びと z-index の文字で見張る。
-test('保存の帯（#view-banner）は、ツールの画面（#tools-view）より上に出る', () => {
+test('保存の通知バー（#view-banner）は、ツールの画面（#tools-view）より上に出る', () => {
   const root = path.join(__dirname, '..');
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   const css = fs.readFileSync(path.join(root, 'renderer', 'shell.css'), 'utf8');
   const zOf = (selector) => Number(new RegExp(`${selector}\\{[^}]*z-index:(\\d+)`).exec(css)?.[1]);
 
-  assert.ok(html.indexOf('id="view-banner"') > html.indexOf('id="tools-view"'), '帯はツールの画面より後ろに書く');
-  assert.ok(zOf('#view-banner') > zOf('#tools-view'), `帯の z-index（${zOf('#view-banner')}）がツールの画面（${zOf('#tools-view')}）以下`);
+  assert.ok(html.indexOf('id="view-banner"') > html.indexOf('id="tools-view"'), '通知バーはツールの画面より後ろに書く');
+  assert.ok(zOf('#view-banner') > zOf('#tools-view'), `通知バーの z-index（${zOf('#view-banner')}）がツールの画面（${zOf('#tools-view')}）以下`);
 });
 
 // ---- 閉じる・終えるときの確認（不具合の直し） ----

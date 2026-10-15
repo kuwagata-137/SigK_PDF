@@ -146,7 +146,7 @@ test('Esc は引いている途中が無ければ道具を外す', async (t) => 
   assert.equal(SigK.annotate.getTool(), null);
 });
 
-test('差し込んだ未保存のページで引くと、置かずに帯（黄）で断る', async (t) => {
+test('差し込んだ未保存のページで引くと、置かずに通知バー（黄）で断る', async (t) => {
   const shell = await withMosaic(t, {
     insertSourceResults: [{ path: PHOTO }],
     taskResults: [{ ok: true, bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]), pages: [{ width: A4.width, height: A4.height }], kind: 'jpeg' }],

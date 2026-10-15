@@ -6,7 +6,7 @@
   // 押しただけでは選択を変えない。動かさずに離せば click で選び（Shift なら前に選んだページとの間）、5px 以上動かせば
   // なぞるとみなして、押したページから指の下のページまでを選ぶ（page-grid.js と同じ作法。本物のマウスでは pointerdown が
   // click より先に来るので、押した瞬間に選び直すと Shift＋クリックが効かなくなる）。なぞり終えたときの click は 1 回捨てる。
-  // 盤の端に寄せている間は自動でスクロールする。✂ と［つなげる］の上ではなぞり始めない。
+  // 帯の画面の端に寄せている間は自動でスクロールする。✂ と［つなげる］の上ではなぞり始めない。
   //
   // なぞる途中の Esc は、なぞる前の選択に戻して止める。document の keydown を Esc の振り分け（viewer-keys.js）より先に登録する
   // （app.js の init の順）ので、preventDefault を見て escape-order.js は何もしない。盤の上のキーは split-board-keys.js。
@@ -50,17 +50,19 @@
     drag.timer = 0;
   }
 
-  // 端に寄せている間だけスクロールを続け、そのたびに指の下を選び直す（指を止めても中身が動くため）。
+  // 端に寄せている間だけスクロールを続け、そのたびに指の下を選び直す（指を止めても中身が動くため）。盤は帯の画面のスクロールに
+  // 乗っているので、帯の画面（split-board-view.js の scroller）の端で見て、帯の画面を送る（spec-2-5 確定事項G9）。
   function updateAutoScroll(point) {
-    const rect = el.scroll.getBoundingClientRect();
+    const scroller = view().scroller();
+    const rect = scroller.getBoundingClientRect();
     const step = root.SigK.pageGridRules.autoScrollStep({
-      y: point.clientY - rect.top, viewportHeight: el.scroll.clientHeight, edge: AUTO_SCROLL.edge, step: AUTO_SCROLL.step,
+      y: point.clientY - rect.top, viewportHeight: scroller.clientHeight, edge: AUTO_SCROLL.edge, step: AUTO_SCROLL.step,
     });
     stopAutoScroll();
     if (step === 0)
       return;
     drag.timer = el.win.setInterval(() => {
-      el.scroll.scrollTop += step;
+      scroller.scrollTop += step;
       selectUnder(drag.last);
     }, AUTO_SCROLL.interval);
   }

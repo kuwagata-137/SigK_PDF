@@ -290,7 +290,7 @@ test('保存に失敗したら閉じない', async (t) => {
 
   assert.equal(await closing, false);
   await shell.flush();
-  // 編集を消さない（確定事項34）。理由は帯に出ている。
+  // 編集を消さない（確定事項34）。理由は通知バーに出ている。
   assert.equal(shell.SigK.tabs.count(), 1);
   assert.equal(shell.SigK.viewer.isDirty(), true);
   assert.match(shell.SigK.viewBanner.text(), /他のプログラムで使われています/);

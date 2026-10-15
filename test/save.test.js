@@ -107,7 +107,7 @@ test('保存に成功すると未保存でなくなる', async (t) => {
   assert.match(shell.SigK.viewBanner.text(), /保存しました/);
 });
 
-// 帯の既定の色は失敗の赤（--danger）である。成功は失敗ではないので、進捗と同じ
+// 通知バーの既定の色は失敗の赤（--danger）である。成功は失敗ではないので、進捗と同じ
 // 知らせの色で出す（spec-1-6 確定事項6・30）。
 test('保存に成功した知らせは、失敗の赤ではなく知らせの色で出す', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [okResult()] });
@@ -176,7 +176,7 @@ test('保存先を選ばなければ何も起きない', async (t) => {
   assert.equal(shell.taskCalls.length, 0);
 });
 
-test('名前を付けて保存の保存先が別のタブで開いていれば、何も書かずに帯で断る（確定事項97）', async (t) => {
+test('名前を付けて保存の保存先が別のタブで開いていれば、何も書かずに通知バーで断る（確定事項97）', async (t) => {
   // 保存するとこのタブが保存先へ移る（確定事項26）ので、同じパスのタブが 2 枚になってしまう。
   const shell = await withOpenDocument(t, {
     files: { [A]: makeSource({ path: A, name: 'a.pdf', size: 1024, mtimeMs: 1000 }), [B]: makeSource({ path: B }) },
@@ -204,7 +204,7 @@ test('名前を付けて保存で映しているファイル自身を選ぶの�
   assert.equal(shell.taskCalls[0].spec.target, A);
 });
 
-test('進捗は帯に段の番号つきで出て、中止ボタンが付く', async (t) => {
+test('進捗は通知バーに段の番号つきで出て、中止ボタンが付く', async (t) => {
   // 進捗を見るあいだ run を待たせる。
   let release = null;
   const shell = await withOpenDocument(t);
@@ -319,7 +319,7 @@ test('runTask・runLocal は、走っている処理があれば断り、busy �
   await local;
 });
 
-test('中止したら、そのことを帯に出す', async (t) => {
+test('中止したら、そのことを通知バーに出す', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [{ canceled: true }] });
   edit(shell.SigK);
 
@@ -331,7 +331,7 @@ test('中止したら、そのことを帯に出す', async (t) => {
   assert.equal(shell.SigK.viewer.isDirty(), true, '書いていないので未保存のままである');
 });
 
-test('失敗したら、ワーカーの文言をそのまま帯に出す', async (t) => {
+test('失敗したら、ワーカーの文言をそのまま通知バーに出す', async (t) => {
   const shell = await withOpenDocument(t, {
     taskResults: [{ error: 'パスワードで保護された PDF は保存できません。' }],
   });
@@ -416,7 +416,7 @@ test('保存したあと、2回目の上書きは開き直したファイルの�
 
 // ---- レンダラーの中で回す枠（spec-3-3 確定事項17）----
 
-test('runLocal は帯と中止を出し、走っている間は isBusy になる', async (t) => {
+test('runLocal は通知バーと中止を出し、走っている間は isBusy になる', async (t) => {
   const shell = await withOpenDocument(t);
   let release = null;
   let seen = null;
@@ -435,7 +435,7 @@ test('runLocal は帯と中止を出し、走っている間は isBusy になる
   assert.equal(shell.SigK.viewBanner.action()?.textContent, '中止');
   assert.match((await shell.SigK.save.saveActive()).error, /いま画像にしています/);
 
-  // 進捗はページ単位で帯に出て、最後の値は lastProgress から読める。
+  // 進捗はページ単位で通知バーに出て、最後の値は lastProgress から読める。
   seen.report(3, 12);
   assert.match(shell.SigK.viewBanner.text(), /画像にしています（3 \/ 12 ページ）/);
   assert.deepEqual(plain(shell.SigK.save.lastProgress()), { taskId: 'local-1', phase: 'write', done: 3, of: 12, unit: 'ページ' });

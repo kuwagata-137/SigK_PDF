@@ -12,7 +12,7 @@
   // 別々に組み立てると、紙の大きさや余白が必ずどこかで食い違う。
   //
   // 形式の判定はここでしない。拡張子は中身と食い違うことがあるので、
-  // ワーカーが先頭バイトで見て断る（確定事項53）。ここは断り文句を帯へ出すだけ。
+  // ワーカーが先頭バイトで見て断る（確定事項53）。ここは断り文句を通知バーへ出すだけ。
 
   function viewer() {
     return root.SigK.viewer;
@@ -115,7 +115,7 @@
     const after = numbers.map((_number, index) => at + index);
     root.SigK.pageEdit.commit(next, { before: [], after });
 
-    // 成功は失敗ではないので赤く塗らない（決定48）。帯の既定の色は失敗の赤である。
+    // 成功は失敗ではないので赤く塗らない（決定48）。通知バーの既定の色は失敗の赤である。
     banner().show(`${numbers.length} ページを差し込みました。`, { autoHideMs: 2500, tone: 'info' });
     return { ok: true, pages: numbers.length, at };
   }

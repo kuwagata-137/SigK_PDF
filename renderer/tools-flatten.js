@@ -9,7 +9,7 @@
   // 既定はキャンセル）のあと、選んだ種類とページをワーカー（kind: flatten）へ渡す。描画は tools-flatten-view.js。
 
   const SAVE_TITLE = 'フラット化した PDF を保存';
-  // 帯の文言「<label>しています」の頭（save.js の runTask）。
+  // 通知バーの文言「<label>しています」の頭（save.js の runTask）。
   const RUN_LABEL = 'フラット化';
 
   const banner = () => root.SigK.viewBanner;

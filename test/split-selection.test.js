@@ -32,7 +32,7 @@ test('なぞると、押したページからなぞった所までを選ぶ', ()
   assert.deepEqual(selection.range(selection.dragTo(8, 3)), { from: 3, to: 8 });
 });
 
-test('帯の中身: 選んだ数と、全部が書き出さないページか', () => {
+test('選んだときの操作の行の中身: 選んだ数と、全部が書き出さないページか', () => {
   const split = board.setSkipped(board.cut(board.create(12), 8), 10, 11, true);
   assert.deepEqual(selection.bandOf(split, selection.dragTo(8, 10)), { from: 8, to: 10, count: 3, allSkipped: false });
   assert.deepEqual(selection.bandOf(split, selection.dragTo(10, 11)), { from: 10, to: 11, count: 2, allSkipped: true });

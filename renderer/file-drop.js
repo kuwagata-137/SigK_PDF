@@ -37,7 +37,7 @@
     return root.SigK.tools?.isToolsMode() === true ? root.SigK.tools.selected() : null;
   }
 
-  // 受けるファイル。ツールモードでは PDF（タブで開く）と画像（画像→PDF の一覧へ）を受ける。透かしを選んで
+  // 受けるファイル。ツールモードでは PDF（タブで開く）と画像（画像→PDF の「変換する画像」の帯へ）を受ける。透かしを選んで
   // いるときの画像は透かしの画像にするので、PNG・JPEG だけ（spec-4-5 確定事項37）。ツールモード以外は PDF だけ。
   function isAcceptedName(name) {
     const tool = selectedTool();
@@ -96,7 +96,7 @@
     if (files.length === 0)
       return false;
 
-    // ツールモードでは空の表示（#view-empty）が作業画面の下に隠れるので、帯で伝える。
+    // ツールモードでは空の表示（#view-empty）が作業画面の下に隠れるので、通知バーで伝える。
     const complain = (text) => (root.SigK.tools?.isToolsMode() === true
       ? root.SigK.viewBanner.show(text)
       : root.SigK.viewer.setMessage(text));

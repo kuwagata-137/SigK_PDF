@@ -173,7 +173,7 @@ body{
 
     <div id="side-resizer"></div>
 
-    <!-- サイドパネルを閉じている間だけ出す細い帯（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じる「＜」は
+    <!-- サイドパネルを閉じている間だけ出す、閉じたパネルの細い欄（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じる「＜」は
          パネルと一緒に消えるので、開き直す「＞」をここに置く。出し入れは shell.js の setSidePanelOpen。 -->
     <div id="side-strip" hidden>
       <button type="button" id="side-expand" data-icon="chevronRight" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを開く" aria-label="サイドパネルを開く"></button>
@@ -199,177 +199,63 @@ body{
         <div id="view-recent" hidden></div>
       </div>
       <!-- ツールモードの作業画面（spec-2-1 確定事項2）。#view の上に重ね、
-           ページビューは隠すだけで捨てない。帯（#view-banner）はこの上に出る。 -->
+           ページビューは隠すだけで捨てない。通知バー（#view-banner）はこの上に出る。 -->
       <div id="tools-view" hidden>
         <!-- 帯の画面（spec-2-5 第 D 章。見本 screenshots/strips2-merge.png・strips2-empty.png）。開いているタブを 1 本ずつ横長の帯にして
-             上から並べる。結合・PDF→画像・透かし・フラット化を選んでいるときに出す（確定事項D11）。帯は strip-view.js（並びと描く所）・
-             strip-row.js（帯 1 本）が組み、いちばん下の受け口は strip-drop-zone.js。 -->
+             上から並べる。ツールモードのどのツールでも出す（確定事項D11・G1・H1）。帯は strip-view.js（並びと描く所）・strip-row.js（帯 1 本）が組み、
+             いちばん下の受け口は strip-drop-zone.js。PDF の帯は「変換する画像」の帯（#image-strip）の前に並べる。 -->
         <div class="strips-screen" id="strips-screen" hidden>
           <div class="strips" id="strips" role="list" aria-label="開いている PDF">
+            <!-- 「変換する画像」の帯（spec-2-5 確定事項H1・H4〜H8。見本 screenshots/strips3-convert.png）。画像→PDF を選んでいて、画像が 1 枚でも
+                 あるときだけ出す。タブではないので .strip にしない（帯の数え上げに入れない）。描くのは image-strip.js、サムネイルは image-thumbs.js、
+                 引いて並べ替えるのは image-strip-drag.js。 -->
+            <div class="img-strip" id="image-strip" hidden>
+              <div class="img-strip-head">
+                <span class="img-badge">画</span><span class="fname">変換する画像</span><span class="count" id="image-strip-count"></span><span class="spacer"></span>
+                <button type="button" class="strip-btn" id="image-strip-clear" title="すべて外す" aria-label="すべて外す" tabindex="-1"><span data-icon="close" data-icon-size="15" data-icon-stroke="1.9"></span></button>
+              </div>
+              <div class="img-strip-items" id="image-strip-items"></div>
+              <div class="img-strip-note" id="image-strip-note" hidden></div>
+            </div>
             <div class="drop-zone" id="strip-drop">
               <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">PDF をここへ落とすと、開いて帯に足します</span></div>
               <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
               <div class="recent" id="strip-drop-recent" hidden></div>
             </div>
           </div>
-        </div>
-        <!-- 分割（spec-2-2b。見本 screenshots/phase2-2b-*.png）。全ページのサムネイルを「できるファイルの箱」に並べ、その上で分ける。
-             左の盤は split-board-view.js（箱とページ）・split-board-band.js（上の段と操作の帯）・split-board-input.js（押す・なぞる）、
-             右の欄と下の要約は tools-split-view.js、状態は tools-split.js（対象と出力）と tools-split-edit.js（盤と履歴と選択）が持つ。 -->
-        <div class="tool-panel" data-tool="split" hidden>
-          <div class="tools-head">
-            <h2>分割</h2>
-            <span class="hint">ページの間で切って、1 つの PDF をいくつかのファイルに分けます。元のファイルはそのまま残ります。</span>
-          </div>
-          <div class="sb-body">
-            <div class="sb-main">
-              <div class="sb-tools" id="split-tools">
-                <div class="sb-row">
-                  <span class="k">まとめて分ける</span>
-                  <button type="button" class="sb-btn" id="split-each">1 ページずつに分ける</button>
-                  <span class="sb-pair"><input type="text" class="sb-inp num" id="split-every" value="3" inputmode="numeric" autocomplete="off" aria-label="何ページごとに分けるか"><button type="button" class="sb-btn" id="split-every-go">ページごとに分ける</button></span>
-                  <span class="sb-pair"><input type="text" class="sb-inp wide" id="split-at" placeholder="例: 3, 7, 12" autocomplete="off" spellcheck="false" aria-label="その前で切るページの番号"><button type="button" class="sb-btn" id="split-at-go">ページの前で切る</button></span>
-                </div>
-                <div class="sb-row">
-                  <button type="button" class="sb-btn" id="split-clear">分け目をすべて消す</button>
-                  <button type="button" class="sb-btn ghost" id="split-undo" title="元に戻す (Ctrl+Z)"><span data-icon="undo" data-icon-size="14"></span>元に戻す</button>
-                  <button type="button" class="sb-btn ghost" id="split-redo" title="やり直す (Ctrl+Y)"><span data-icon="redo" data-icon-size="14"></span>やり直す</button>
-                  <span class="spacer"></span>
-                  <span class="k">大きさ</span>
-                  <span class="sb-seg" id="split-size" role="radiogroup" aria-label="サムネイルの大きさ"><button type="button" role="radio" data-size="small" aria-checked="false">小</button><button type="button" role="radio" data-size="mid" aria-checked="true">中</button><button type="button" role="radio" data-size="large" aria-checked="false">大</button></span>
-                </div>
-                <p class="sb-err" id="split-bulk-err" hidden></p>
+          <!-- 分割の ✂ の盤（spec-2-2b、spec-2-5 第 G 章。見本 screenshots/strips3-split.png）。分割を選んでいる間、split-strip.js が選んでいる帯の中へ入れ、
+               帯の紙の列の代わりに出す。上の段と選んだときの操作の行は split-board-band.js、箱とページは split-board-view.js、押す・なぞるは
+               split-board-input.js。盤にできない帯（パスワード付きなど）では、理由（#split-board-empty）だけを出す。 -->
+          <div class="strip-board" id="split-strip-board" hidden>
+            <div class="sb-tools" id="split-tools">
+              <div class="sb-row">
+                <span class="k">まとめて分ける</span>
+                <button type="button" class="sb-btn" id="split-each">1 ページずつに分ける</button>
+                <span class="sb-pair"><input type="text" class="sb-inp num" id="split-every" value="3" inputmode="numeric" autocomplete="off" aria-label="何ページごとに分けるか"><button type="button" class="sb-btn" id="split-every-go">ページごとに分ける</button></span>
+                <span class="sb-pair"><input type="text" class="sb-inp wide" id="split-at" placeholder="例: 3, 7, 12" autocomplete="off" spellcheck="false" aria-label="その前で切るページの番号"><button type="button" class="sb-btn" id="split-at-go">ページの前で切る</button></span>
               </div>
-              <div class="sb-guide" id="split-guide">
-                <div><span data-icon="cut" data-icon-size="15" data-icon-stroke="1.9"></span>ページとページの間の ✂ を押すと、そこで分かれます。</div>
-                <div><span data-icon="pointerSelect" data-icon-size="15"></span>ページをクリックしてから Shift キーを押したまま別のページをクリックするか、押したままなぞると、その間のページを選べます。</div>
-              </div>
-              <div class="sb-guide-short"><span data-icon="cut" data-icon-size="15" data-icon-stroke="1.9"></span>ページの間の ✂ で分け、なぞるか Shift キーで範囲を選びます。</div>
-              <div class="sb-band" id="split-band" hidden>
-                <b id="split-band-text"></b>
+              <div class="sb-row">
+                <button type="button" class="sb-btn" id="split-clear">分け目をすべて消す</button>
+                <button type="button" class="sb-btn ghost" id="split-undo" title="元に戻す (Ctrl+Z)"><span data-icon="undo" data-icon-size="14"></span>元に戻す</button>
+                <button type="button" class="sb-btn ghost" id="split-redo" title="やり直す (Ctrl+Y)"><span data-icon="redo" data-icon-size="14"></span>やり直す</button>
                 <span class="spacer"></span>
-                <button type="button" class="sb-btn" id="split-band-one">この範囲を 1 つのファイルにする</button>
-                <button type="button" class="sb-btn" id="split-band-skip">書き出さない</button>
-                <button type="button" class="sb-btn" id="split-band-unskip" hidden>書き出す</button>
-                <button type="button" class="sb-btn ghost" id="split-band-clear">選ぶのをやめる</button>
+                <span class="k">大きさ</span>
+                <span class="sb-seg" id="split-size" role="radiogroup" aria-label="サムネイルの大きさ"><button type="button" role="radio" data-size="small" aria-checked="false">小</button><button type="button" role="radio" data-size="mid" aria-checked="true">中</button><button type="button" role="radio" data-size="large" aria-checked="false">大</button></span>
               </div>
-              <div class="sb-scroll" id="split-board-scroll" tabindex="0" aria-label="ページの並び">
-                <div class="sb-canvas" id="split-board-canvas"></div>
-                <p class="sb-empty" id="split-board-empty">分割する PDF を決めると、ここに全部のページが並びます。</p>
-              </div>
+              <p class="sb-err" id="split-bulk-err" hidden></p>
             </div>
-            <div class="sb-side">
-              <section class="sb-card sb-target">
-                <h3>分割する PDF</h3>
-                <div class="file" id="split-file" hidden>
-                  <span class="name" id="split-name"></span>
-                  <span class="pages" id="split-pages"></span>
-                  <span class="note" id="split-note" hidden></span>
-                </div>
-                <p class="empty" id="split-empty">［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか、ここへ PDF をドラッグして、分割する PDF を決めてください。</p>
-                <div class="btns">
-                  <button type="button" class="act" id="split-use-open" aria-haspopup="menu" aria-expanded="false"><span data-icon="modeView" data-icon-size="14" data-icon-stroke="1.9"></span>開いているタブから選ぶ<span data-icon="chevronDown" data-icon-size="13" data-icon-stroke="2"></span></button>
-                  <button type="button" class="act" id="split-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-                </div>
-              </section>
-              <section class="sb-card" id="split-files-card" hidden>
-                <h3>できるファイル<span class="n" id="split-files-count"></span></h3>
-                <div class="sb-files" id="split-files"></div>
-              </section>
-              <section class="sb-card">
-                <h3>出力</h3>
-                <div class="sb-out">
-                  <span class="k">フォルダ</span>
-                  <div class="folder">
-                    <span class="path" id="split-folder"></span>
-                    <button type="button" class="act" id="split-folder-pick">変更…</button>
-                  </div>
-                  <span class="k top">ファイル名</span>
-                  <div class="rules" id="split-rules">
-                    <label class="rule"><input type="radio" name="split-rule" value="seq" checked><span>連番</span><code id="split-rule-seq"></code></label>
-                    <label class="rule"><input type="radio" name="split-rule" value="pages"><span>ページ番号</span><code id="split-rule-pages"></code></label>
-                  </div>
-                </div>
-              </section>
+            <div class="sb-band" id="split-band" hidden>
+              <b id="split-band-text"></b>
+              <span class="spacer"></span>
+              <button type="button" class="sb-btn" id="split-band-one">この範囲を 1 つのファイルにする</button>
+              <button type="button" class="sb-btn" id="split-band-skip">書き出さない</button>
+              <button type="button" class="sb-btn" id="split-band-unskip" hidden>書き出す</button>
+              <button type="button" class="sb-btn ghost" id="split-band-clear">選ぶのをやめる</button>
             </div>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="split-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="split-run" aria-disabled="true">実行…</button>
-          </div>
-        </div>
-        <!-- 画像→PDF（spec-3-1 確定事項33）。画像・用紙・出力の3節。中身は
-             tools-convert.js（状態）、tools-convert-list.js（一覧）、
-             tools-convert-view.js（用紙と出力の欄）が持つ。 -->
-        <div class="tool-panel" data-tool="convert" hidden>
-          <div class="tools-head">
-            <h2>画像 → PDF</h2>
-            <span class="hint">JPEG・PNG・BMP・GIF・TIFF を PDF にします。並び順がページ順になります。</span>
-          </div>
-          <div class="split-body">
-            <section class="split-sec">
-              <h3>画像</h3>
-              <div class="merge-bar convert-bar">
-                <button type="button" class="act" id="convert-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-                <span class="drop-hint">画像をここへドロップしても足せます</span>
-                <span class="spacer"></span>
-                <button type="button" class="act quiet" id="convert-clear">すべて外す</button>
-              </div>
-              <div class="convert-list" id="convert-list">
-                <div class="convert-cols"><span></span><span>ファイル</span><span>画素数</span><span>形式</span><span>この紙</span><span></span><span></span><span></span></div>
-                <p class="empty" id="convert-empty">「ファイルを選ぶ…」で、PDF にする画像を足してください。<br>画像をここへドロップしても足せます。</p>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>用紙</h3>
-              <div class="convert-opts">
-                <span class="k">サイズ</span>
-                <div class="picks" id="convert-papers">
-                  <label class="pick"><input type="radio" name="convert-paper" value="a4" checked><span class="lbl">A4</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="a3"><span class="lbl">A3</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="b5"><span class="lbl">B5</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="letter"><span class="lbl">レター</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="image"><span class="lbl">画像サイズに合わせる</span><span class="sub">1px = 1pt（72dpi 相当）</span></label>
-                </div>
-                <span class="k">向き</span>
-                <div class="picks" id="convert-orients">
-                  <label class="pick"><input type="radio" name="convert-orient" value="auto" checked><span class="lbl">自動</span><span class="sub">画像の縦横比に合わせる</span></label>
-                  <label class="pick"><input type="radio" name="convert-orient" value="portrait"><span class="lbl">縦</span></label>
-                  <label class="pick"><input type="radio" name="convert-orient" value="landscape"><span class="lbl">横</span></label>
-                </div>
-                <span class="k">余白</span>
-                <div class="picks" id="convert-margins">
-                  <label class="pick"><input type="radio" name="convert-margin" value="none"><span class="lbl">なし</span></label>
-                  <label class="pick"><input type="radio" name="convert-margin" value="narrow"><span class="lbl">狭い</span><span class="sub">10mm</span></label>
-                  <label class="pick"><input type="radio" name="convert-margin" value="normal" checked><span class="lbl">標準</span><span class="sub">20mm</span></label>
-                </div>
-                <span class="k"></span>
-                <p class="fit-note" id="convert-fit-note">画像は余白の内側に、縦横比を保って収まる大きさに合わせます。</p>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>出力</h3>
-              <div class="split-out convert-out">
-                <span class="k">方式</span>
-                <div class="picks" id="convert-outputs">
-                  <label class="pick"><input type="radio" name="convert-output" value="single" checked><span class="lbl">1つの PDF にまとめる</span></label>
-                  <label class="pick"><input type="radio" name="convert-output" value="each"><span class="lbl">画像ごとに別の PDF にする</span></label>
-                </div>
-                <span class="k" id="convert-folder-key" hidden>フォルダ</span>
-                <div class="folder" id="convert-folder-row" hidden>
-                  <span class="path" id="convert-folder"></span>
-                  <button type="button" class="act" id="convert-folder-pick">変更…</button>
-                </div>
-                <span class="k">出力の例</span>
-                <div class="example" id="convert-example"></div>
-              </div>
-            </section>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="convert-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="convert-run" aria-disabled="true">実行…</button>
+            <div class="sb-scroll" id="split-board-scroll" tabindex="0" aria-label="ページの並び">
+              <div class="sb-canvas" id="split-board-canvas"></div>
+              <p class="sb-empty" id="split-board-empty"></p>
+            </div>
           </div>
         </div>
       </div>
@@ -413,6 +299,104 @@ body{
           <span class="sum" id="merge-summary"></span>
           <span class="spacer"></span>
           <button type="button" class="dlg-btn primary" id="merge-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+      <!-- 分割（spec-2-2b、spec-2-5 第 G 章。見本 screenshots/strips3-split.png）。対象は選んでいる帯で、その帯が ✂ の盤に広がる（#split-strip-board）。
+           状態は tools-split.js（対象と出力）と tools-split-edit.js（盤と記録と選択）、描画は tools-split-view.js。 -->
+      <section class="pane-tool" data-tool="split" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">分割</h2>
+          <p class="pane-desc">選んでいる帯（枠の色が付いた帯）の PDF を、ページの間の ✂ で分けて、いくつかのファイルにします。元のファイルはそのまま残ります。</p>
+          <p class="pane-desc">ページを押してから Shift キーを押したまま別のページを押すか、押したままなぞると、その間のページを選べます。</p>
+          <p class="pane-state" id="split-state" hidden></p>
+          <section class="sb-card" id="split-files-card" hidden>
+            <h3>できるファイル<span class="n" id="split-files-count"></span></h3>
+            <div class="sb-files" id="split-files"></div>
+          </section>
+          <section class="sb-card">
+            <h3>出力</h3>
+            <div class="sb-out">
+              <span class="k">フォルダ</span>
+              <div class="folder">
+                <span class="path" id="split-folder"></span>
+                <button type="button" class="act" id="split-folder-pick">変更…</button>
+              </div>
+              <span class="k top">ファイル名</span>
+              <div class="rules" id="split-rules">
+                <label class="rule"><input type="radio" name="split-rule" value="seq" checked><span>連番</span><code id="split-rule-seq"></code></label>
+                <label class="rule"><input type="radio" name="split-rule" value="pages"><span>ページ番号</span><code id="split-rule-pages"></code></label>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="split-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="split-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+      <!-- 画像→PDF（spec-3-1、spec-2-5 第 H 章。見本 screenshots/strips3-convert.png・strips3-converted.png）。変換するのは「変換する画像」の帯の画像。
+           状態は tools-convert.js、描画は tools-convert-view.js、「できた PDF」のカードは convert-result.js、実行は convert-run.js。 -->
+      <section class="pane-tool" data-tool="convert" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">画像 → PDF</h2>
+          <p class="pane-desc">下の「変換する画像」の帯の画像を、左から順にページにして PDF を作ります。できた PDF は新しい帯になります。</p>
+          <p class="pane-state" id="convert-state" hidden></p>
+          <section class="sb-card convert-result" id="convert-result" hidden>
+            <h3 id="convert-result-title">できた PDF</h3>
+            <p class="pane-desc" id="convert-result-desc"></p>
+            <button type="button" class="act result-go" id="convert-result-merge"><span data-icon="merge" data-icon-size="14"></span><span class="t">この PDF をほかの帯と結合する</span></button>
+            <button type="button" class="act result-go" id="convert-result-split"><span data-icon="split" data-icon-size="14"></span><span class="t">この PDF を分割する</span></button>
+          </section>
+          <section class="sb-card">
+            <h3>用紙</h3>
+            <div class="convert-opts">
+              <span class="k">大きさ</span>
+              <div class="picks seg convert-papers" id="convert-papers">
+                <label class="pick"><input type="radio" name="convert-paper" value="a4" checked><span class="lbl">A4</span></label>
+                <label class="pick"><input type="radio" name="convert-paper" value="a3"><span class="lbl">A3</span></label>
+                <label class="pick"><input type="radio" name="convert-paper" value="b5"><span class="lbl">B5</span></label>
+                <label class="pick"><input type="radio" name="convert-paper" value="letter"><span class="lbl">レター</span></label>
+                <label class="pick fit"><input type="radio" name="convert-paper" value="image"><span class="lbl">画像に合わせる</span></label>
+              </div>
+              <span class="k">向き</span>
+              <div class="picks seg" id="convert-orients">
+                <label class="pick"><input type="radio" name="convert-orient" value="auto" checked><span class="lbl">自動</span></label>
+                <label class="pick"><input type="radio" name="convert-orient" value="portrait"><span class="lbl">縦</span></label>
+                <label class="pick"><input type="radio" name="convert-orient" value="landscape"><span class="lbl">横</span></label>
+              </div>
+              <span class="k">余白</span>
+              <div class="picks seg" id="convert-margins">
+                <label class="pick"><input type="radio" name="convert-margin" value="none"><span class="lbl">なし</span></label>
+                <label class="pick"><input type="radio" name="convert-margin" value="narrow"><span class="lbl">狭い</span></label>
+                <label class="pick"><input type="radio" name="convert-margin" value="normal" checked><span class="lbl">標準</span></label>
+              </div>
+              <span class="k"></span>
+              <p class="fit-note" id="convert-fit-note">画像は余白の内側に、縦横比を保って収まる大きさに合わせます。</p>
+            </div>
+          </section>
+          <section class="sb-card">
+            <h3>出力</h3>
+            <div class="split-out convert-out">
+              <span class="k">方式</span>
+              <div class="picks" id="convert-outputs">
+                <label class="pick"><input type="radio" name="convert-output" value="single" checked><span class="lbl">1 つの PDF にまとめる</span></label>
+                <label class="pick"><input type="radio" name="convert-output" value="each"><span class="lbl">画像ごとに 1 つの PDF</span></label>
+              </div>
+              <span class="k" id="convert-folder-key" hidden>フォルダ</span>
+              <div class="folder" id="convert-folder-row" hidden>
+                <span class="path" id="convert-folder"></span>
+                <button type="button" class="act" id="convert-folder-pick">変更…</button>
+              </div>
+              <span class="k">出力の例</span>
+              <div class="example" id="convert-example"></div>
+            </div>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="convert-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="convert-run" aria-disabled="true">実行…</button>
         </div>
       </section>
       <!-- PDF→画像（spec-3-3、spec-2-5 確定事項E4。見本 screenshots/strips2-toimage.png）。対象は選んでいる帯。状態は tools-to-image.js、
@@ -931,7 +915,6 @@ body{
 <script src="renderer/page-range.js"></script>
 <script src="renderer/page-image.js"></script>
 <script src="renderer/tools.js"></script>
-<script src="renderer/row-drag.js"></script>
 <script src="renderer/launch-intake.js"></script>
 <script src="renderer/tool-output.js"></script>
 <script src="renderer/tool-handoff.js"></script>
@@ -955,27 +938,32 @@ body{
 <script src="renderer/split-plan.js"></script>
 <script src="renderer/split-board-model.js"></script>
 <script src="renderer/split-board-history.js"></script>
+<script src="renderer/split-board-store.js"></script>
 <script src="renderer/split-selection.js"></script>
 <script src="renderer/split-board-layout.js"></script>
 <script src="renderer/split-thumbs.js"></script>
 <script src="renderer/tool-source.js"></script>
-<script src="renderer/tab-menu.js"></script>
-<script src="renderer/source-picker.js"></script>
 <script src="renderer/tools-split.js"></script>
 <script src="renderer/tools-split-edit.js"></script>
 <script src="renderer/split-run.js"></script>
-<script src="renderer/split-reload.js"></script>
 <script src="renderer/tools-split-view.js"></script>
 <script src="renderer/split-board-nodes.js"></script>
 <script src="renderer/split-board-view.js"></script>
+<script src="renderer/split-strip.js"></script>
 <script src="renderer/split-board-band.js"></script>
 <script src="renderer/split-board-input.js"></script>
 <script src="renderer/split-board-keys.js"></script>
 <script src="renderer/split-zoom.js"></script>
 <script src="renderer/paper-size.js"></script>
 <script src="renderer/convert-plan.js"></script>
+<script src="renderer/convert-intake.js"></script>
 <script src="renderer/tools-convert.js"></script>
-<script src="renderer/tools-convert-list.js"></script>
+<script src="renderer/convert-run.js"></script>
+<script src="renderer/convert-result.js"></script>
+<script src="renderer/image-thumbs.js"></script>
+<script src="renderer/image-strip-notes.js"></script>
+<script src="renderer/image-strip.js"></script>
+<script src="renderer/image-strip-drag.js"></script>
 <script src="renderer/tools-convert-view.js"></script>
 <script src="renderer/image-export-plan.js"></script>
 <script src="renderer/tools-to-image.js"></script>

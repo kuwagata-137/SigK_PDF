@@ -117,7 +117,7 @@ test('PDF→画像を選んでいるときに PDF を 2 つ落とすと、帯が
   await SigK.fileDrop.handleDrop(event);
   assert.equal(SigK.tabs.count(), 2, 'タブでも開く（決定80）');
   assert.equal(SigK.toolsToImage.source().path, A);
-  assert.equal(SigK.toolsSplit.source(), null, '分割の対象にはしない');
+  assert.equal(SigK.tools.selected(), 'toImage', '選んでいるツールは替わらない');
   assert.equal(bannerText(shell), '');
 });
 
@@ -231,7 +231,7 @@ test('501 ページ以上は理由を出して実行できない（ユーザー�
 
 // ---- 実行（確定事項16〜24） ----
 
-test('実行は 1 ページずつ描いて imageAPI.write へ渡し、終わると帯に「フォルダを開く」が出る', async (t) => {
+test('実行は 1 ページずつ描いて imageAPI.write へ渡し、終わると通知バーに「フォルダを開く」が出る', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
   await openTab(shell, A);
@@ -325,7 +325,7 @@ test('同名があれば3択を1回だけ出す。上書きは全件、中止は
   assert.equal(SigK.toolsToImage.settings().folder, OUT_DIR);
 });
 
-test('中止は次のページの前で止まり、書き出し済みの枚数を帯に添える', async (t) => {
+test('中止は次のページの前で止まり、書き出し済みの枚数を通知バーに添える', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
   await openTab(shell, A);
@@ -335,7 +335,7 @@ test('中止は次のページの前で止まり、書き出し済みの枚数�
   await shell.flush();
   assert.equal(gates.length, 1, '1 ページ目を書いている');
   assert.match(bannerText(shell), /画像にしています（0 \/ 3 ページ）/);
-  // 帯の「中止」を押す。旗が立つだけで、いま書いている 1 枚は終わる。
+  // 通知バーの「中止」を押す。旗が立つだけで、いま書いている 1 枚は終わる。
   SigK.viewBanner.action().click();
   gates[0]();
   const result = await running;
@@ -424,7 +424,7 @@ test('実行中は入力と実行ボタンが押せず、進捗はページ数�
   assert.equal(doc.getElementById('toimage-range').disabled, false);
 });
 
-test('imageAPI が無ければ帯で伝えて何も書かない', async (t) => {
+test('imageAPI が無ければ通知バーで伝えて何も書かない', async (t) => {
   const shell = await createToImageShell(t);
   const { SigK } = shell;
   await openTab(shell, A);

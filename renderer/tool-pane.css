@@ -91,3 +91,17 @@ html[data-tool-screen="strips"] #tabbar{display:none}
 #tool-pane .wm-opts .picks:not(.seg){flex-direction:row; flex-wrap:wrap; gap:6px 12px}
 #tool-pane .wm-preview{position:static}
 #tool-pane .wm-preview .page-box{min-height:0; padding:12px 0}
+
+/* 画像→PDF（確定事項H2・H3・H9。見本 screenshots/strips3-convert.png・strips3-converted.png）。用紙の大きさは 5 つあるので、
+   区切りボタンを 2 段にする（上の段に A4・A3・B5・レター、下の段に「画像に合わせる」）。 */
+#tool-pane .picks.seg.convert-papers{flex-wrap:wrap; row-gap:4px}
+#tool-pane .picks.seg.convert-papers .pick:nth-child(4){border-radius:0 7px 7px 0}
+#tool-pane .picks.seg.convert-papers .pick.fit{border-left-width:1px; border-radius:7px}
+#tool-pane .picks.seg.convert-papers::after{content:""; order:4; flex-basis:100%; height:0}
+#tool-pane .picks.seg.convert-papers .pick.fit{order:5}
+#tool-pane .convert-opts .fit-note{grid-column:2; font-size:11px}
+/* 「できた PDF」のカード（確定事項H3。決定80 ㊱）。押すとそのツールへ移るボタンを 2 つ縦に並べる。 */
+.convert-result[hidden]{display:none}
+.convert-result .pane-desc{margin-bottom:8px}
+.convert-result .result-go{display:flex; align-items:center; gap:7px; width:100%; height:30px; padding:0 9px; margin-top:6px; text-align:left; font-size:12px}
+.convert-result .result-go .t{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}

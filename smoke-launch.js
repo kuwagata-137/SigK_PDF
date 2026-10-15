@@ -20,6 +20,7 @@ function launchScript(waitMs) {
     await new Promise((resolve) => setTimeout(resolve, ${wait}));
     const SigK = window.SigK;
     const state = SigK.viewer.getState();
+    // 分割の対象は選んでいる帯（＝映しているタブ。spec-2-5 確定事項G1）。
     const split = SigK.toolsSplit.source();
     return {
       mode: document.documentElement.getAttribute('data-mode'),

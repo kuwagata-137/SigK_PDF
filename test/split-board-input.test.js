@@ -2,7 +2,7 @@
 
 // 分割の盤を押す・なぞる・キーで動かす（spec-2-2b 確定事項C3・G2・G3）。
 // 本物のマウスでは click の前に pointerdown が来るので、押して離して click まで送る（page-grid.test.js と同じ作法）。
-// jsdom は大きさを計算しない（getBoundingClientRect は 0）ので、盤の器の幅と高さを与え、位置は配置の計算から取る。
+// jsdom は大きさを計算しない（getBoundingClientRect は 0）ので、盤の器の幅と帯の画面の高さを与え、位置は配置の計算から取る。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -18,12 +18,17 @@ async function createInputShell(t, { pages = 12 } = {}) {
   });
   t.after(() => shell.cleanup());
   await shell.flush();
+  // 盤は帯の中にあり、帯の画面（#strips）のスクロールに乗る（spec-2-5 確定事項G9）。盤の器の上端は帯の画面の中身の 0 の所にあることにする。
   const scroll = shell.document.getElementById('split-board-scroll');
+  const strips = shell.document.getElementById('strips');
+  const canvas = shell.document.getElementById('split-board-canvas');
   Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => 640 });
-  Object.defineProperty(scroll, 'clientHeight', { configurable: true, get: () => 500 });
+  Object.defineProperty(strips, 'clientHeight', { configurable: true, get: () => 500 });
+  strips.getBoundingClientRect = () => ({ top: 0, left: 0, right: 640, bottom: 500, width: 640, height: 500 });
+  canvas.getBoundingClientRect = () => ({ top: -strips.scrollTop, left: 0, right: 640, bottom: 500, width: 640, height: 500 });
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('split');
-  await shell.SigK.toolsSplit.setSource(A);
+  await shell.SigK.tabs.openPath(A);
   for (let i = 0; i < 4; i += 1)
     await shell.flush();
   return shell;
@@ -213,13 +218,14 @@ test('盤のキーは裏の画面へ流さない', async (t) => {
   let reached = false;
   shell.document.addEventListener('keydown', () => { reached = true; });
   key(shell, scroll, 'PageDown');
+  assert.equal(shell.document.getElementById('strips').scrollTop, 450, 'PageDown は盤が乗っている帯の画面を送る（spec-2-5 確定事項G9）');
   key(shell, scroll, 'ArrowDown');
   assert.equal(reached, false);
 });
 
 // ---- 元に戻す・やり直すのキー（spec-2-2b 確定事項G1） ----
 
-test('分割の画面の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z は、文書が開いていなくても盤の操作を戻す・やり直す', async (t) => {
+test('分割の画面の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z は、盤の操作を戻す・やり直す', async (t) => {
   const shell = await createInputShell(t);
   const edit = shell.SigK.toolsSplitEdit;
   edit.cut(3);

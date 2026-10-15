@@ -66,7 +66,7 @@
       } else {
         next.error = result?.canceled === true ? '書き込みを数えるのを中止しました。' : (result?.error ?? '書き込みを数えられませんでした。');
       }
-      // 数え終えたら「書き込みを確認しています」の帯を下げる（結果は右の欄に出る）。
+      // 数え終えたら「書き込みを確認しています」の通知バーを下げる（結果は右の欄に出る）。
       if (banner().text().startsWith(`${COUNT_LABEL}しています`))
         banner().hide();
       onDone();

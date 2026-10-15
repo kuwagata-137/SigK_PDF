@@ -79,14 +79,28 @@
 
   const stripTop = (index) => COLUMN_PAD + index * (STRIP_HEIGHT + STRIP_GAP);
 
-  // 見えている帯 [first, last) と、先読みを足した [from, to)。
-  function visibleStrips(count, scrollTop, height, prefetch = PREFETCH_STRIPS) {
+  // 帯ごとの上端。heights[i] は i 本目の帯の高さ（分割の ✂ の盤を広げた帯だけ高い。spec-2-5 確定事項G9）。
+  function tops(heights) {
+    const result = [];
+    let y = COLUMN_PAD;
+    for (const height of heights) {
+      result.push(y);
+      y += height + STRIP_GAP;
+    }
+    return result;
+  }
+
+  // 見えている帯 [first, last) と、先読みを足した [from, to)。heights を渡せば帯ごとの高さで数える（渡さなければどれも STRIP_HEIGHT）。
+  function visibleStrips(count, scrollTop, height, prefetch = PREFETCH_STRIPS, heights = null) {
     if (count === 0 || !(height > 0))
       return { first: 0, last: 0, from: 0, to: 0 };
-    const step = STRIP_HEIGHT + STRIP_GAP;
-    const first = Math.min(count, Math.max(0, Math.floor((scrollTop - COLUMN_PAD + STRIP_GAP) / step)));
+    const sizes = heights ?? Array.from({ length: count }, () => STRIP_HEIGHT);
+    const at = tops(sizes);
+    let first = 0;
+    while (first < count && at[first] + sizes[first] <= scrollTop)
+      first += 1;
     let last = first;
-    while (last < count && stripTop(last) < scrollTop + height)
+    while (last < count && at[last] < scrollTop + height)
       last += 1;
     return { first, last, from: Math.max(0, first - prefetch), to: Math.min(count, last + prefetch) };
   }
@@ -104,6 +118,6 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.stripLayout = {
     SHEET_HEIGHT, SHEET_MAX_WIDTH, STRIP_HEIGHT, STRIP_GAP, COLUMN_PAD, PAGES_INSET, LIMIT, PARALLEL,
-    sheetOf, row, visibleCells, stripTop, visibleStrips, drawOrder, moved,
+    sheetOf, row, visibleCells, stripTop, tops, visibleStrips, drawOrder, moved,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
