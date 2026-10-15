@@ -11,6 +11,9 @@
 //     省略時は every:10。
 //   SIGK_SMOKE_SPLIT_STAY=1 なら実行せずに盤の画面に留まる（画面写真を撮るため）。SIGK_SMOKE_SPLIT_CANCEL=1 なら帯の「中止」を押す。
 //
+// PDF はタブ（帯）で開いて分割を選び、その帯を ✂ の盤に広げる（spec-2-5 確定事項G1・G13。エクスプローラーからの分割と同じ useFromLaunch）。
+// 盤は帯の画面（#strips）のスクロールに乗るので、scroll の操作と scrollTop はその器で見る（G9）。
+//
 // 2 段に分ける。先に画面を組んで出力先の一覧をメインへ返し、メインが先頭の出力先を空で作ってから、画面の［実行…］と同じ
 // run() を回す。同名の 3 択は run() の中で開くので、開いたのを見て「上書き」を押す（spec-2-2 完了判定6）。
 
@@ -20,7 +23,8 @@ const WAIT = 'const wait = (ms) => new Promise((resolve) => setTimeout(resolve, 
 const SNAPSHOT = `() => {
   const SigK = window.SigK;
   const plan = SigK.toolsSplit.currentPlan();
-  const scroll = document.getElementById('split-board-scroll');
+  const scroller = SigK.splitBoardView.scroller();
+  const host = SigK.splitStrip.hostNode();
   return {
     files: plan.files ?? 0,
     reason: plan.reason,
@@ -32,7 +36,12 @@ const SNAPSHOT = `() => {
     fileRows: document.querySelectorAll('#split-files .sb-file').length,
     canvases: document.querySelectorAll('#split-board-canvas canvas').length,
     thumbs: SigK.splitThumbs.getState(),
-    scrollTop: Math.round(scroll.scrollTop),
+    scrollTop: Math.round(scroller.scrollTop),
+    // 盤を入れている帯（spec-2-5 確定事項G1）。帯の中にあるか・広げているか・その帯の高さ。
+    host: host === null ? null : { name: host.querySelector('.fname')?.textContent ?? null, inStrip: host.contains(document.getElementById('split-strip-board')),
+      board: host.classList.contains('board'), height: Math.round(host.getBoundingClientRect().height) },
+    strips: document.querySelectorAll('#strips .strip').length,
+    tabbarHidden: getComputedStyle(document.getElementById('tabbar')).display === 'none',
     totalHeight: Math.round(Number.parseFloat(document.getElementById('split-board-canvas').style.height) || 0),
     heapMb: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null,
     zoom: SigK.splitZoom ? { open: SigK.splitZoom.isOpen(), page: SigK.splitZoom.current() } : null,
@@ -57,7 +66,7 @@ function setupScript({ source, ops = 'every:10', outDir = null, rule = 'seq' }) 
       if (step === '')
         continue;
       const [name, arg = ''] = step.split(':');
-      const scroll = document.getElementById('split-board-scroll');
+      const scroll = SigK.splitBoardView.scroller();
       if (name === 'each' || name === 'clear') edit.bulk(name);
       else if (name === 'every') { edit.setBulkText('every', arg); edit.bulk('every'); }
       else if (name === 'at') { edit.setBulkText('at', arg.split('+').join(', ')); edit.bulk('at'); }
