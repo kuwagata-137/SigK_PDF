@@ -398,9 +398,7 @@ function registerIpc() {
   ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
   ipcMain.handle('pdf:pickOpenSources', (_event, options = {}) => fileIo.pickOpenSources(mainWindow, options));
   ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
-  // 分割の入力の1本選択と、出力フォルダーの選択（spec-2-2 確定事項2・14）。
-  ipcMain.handle('pdf:pickSplitSource', (_event, options = {}) => fileIo.pickSplitSource(mainWindow, options));
-  ipcMain.handle('pdf:pickToolSource', (_event, options = {}) => fileIo.pickToolSource(mainWindow, options));
+  // 出力フォルダーの選択（spec-2-2 確定事項14）。
   ipcMain.handle('pdf:pickFolder', (_event, options = {}) => fileIo.pickFolder(mainWindow, options));
   // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
   ipcMain.handle('pdf:pickImageSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
