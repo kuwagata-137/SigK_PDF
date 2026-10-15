@@ -13,13 +13,14 @@
 
   const state = { tabId: null, size: 'mid' };
   const drawn = new Map();     // ページ → { canvas, page, sig }
-  const pending = new Map();   // 描いている途中のページ → sig
+  const pending = new Map();   // 描いている途中の「帯の id:ページ」→ sig（帯を替えても、前の帯の描きかけと取り違えない）
   const listeners = [];
   let queue = [];
   let wanted = new Set();
 
   const layout = () => root.SigK.splitLayout;
   const view = () => (state.tabId === null ? null : root.SigK.tabs?.peek(state.tabId) ?? null);
+  const pendingKey = (tabId, index) => `${tabId}:${index}`;
 
   // ページの紙の大きさ（CSS px）。大きさ（小・中・大）の枠に、回転・切り取りのあとの縦横比のまま収める。
   function sheetFor(size, pageSize) {
@@ -82,7 +83,7 @@
         releasePage(index);
     }
     queue = keep.filter((index) => {
-      if (pending.has(index))
+      if (pending.has(pendingKey(state.tabId, index)))
         return false;
       const sig = sigOf(index);
       return sig !== null && drawn.get(index)?.sig !== sig;
@@ -102,7 +103,7 @@
     const tabId = state.tabId;
     if (sig === null)
       return;
-    pending.set(index, sig);
+    pending.set(pendingKey(tabId, index), sig);
     let result = null;
     try {
       const current = view();
@@ -111,7 +112,7 @@
     } catch {
       result = null;   // 描けなかったページは枠のまま残す（閉じた文書・描画の取りやめ）
     }
-    pending.delete(index);
+    pending.delete(pendingKey(tabId, index));
     if (result === null)
       return;
     if (tabId !== state.tabId || !wanted.has(index) || sigOf(index) !== sig) {

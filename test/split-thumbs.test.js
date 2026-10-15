@@ -87,6 +87,20 @@ test('描いている途中に大きさを変えても、そのページは新�
   assert.deepEqual(structuredClone(thumbs.getState().drawn), [0, 1]);
 });
 
+// 点検で見つかった（2026-10-15）。描いている途中の控えをページの番号だけで持っていたので、帯を替えると、移った先の同じ番号のページを
+// 頼まず、前の帯の分は捨てて頼み直さず、空の枠のまま残った。
+test('紙を描いている途中に帯を替えても、移った先の帯の同じ番号のページを描く', async (t) => {
+  const { shell, thumbs, a, b } = await createThumbShell(t);
+  thumbs.setTab(a);
+  thumbs.want([0, 1], { cap: 72 });
+  assert.equal(thumbs.getState().pending, 2, 'a の 2 枚を描いている途中');
+  thumbs.setTab(b);
+  thumbs.want([0, 1], { cap: 72 });
+  await settle(shell);
+  assert.equal(thumbs.getState().tabId, b);
+  assert.deepEqual(structuredClone(thumbs.getState().drawn), [0, 1]);
+});
+
 test('帯を替えると全部手放す。同じ帯なら何もしない', async (t) => {
   const { shell, pdfjs, thumbs, a, b } = await createThumbShell(t);
   thumbs.setTab(a);
