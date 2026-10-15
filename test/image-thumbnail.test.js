@@ -32,11 +32,11 @@ test('受けるのは画像の拡張子の絶対パスだけ（Windows のパス
   assert.equal(isThumbnailPath(null), false);
 });
 
-test('画像の縮小を data URL で返す。頼む大きさは 192px 四方', async () => {
+test('画像の縮小を data URL で返す。頼む大きさは 208px 四方（枠の幅 104px の 2 倍）', async () => {
   const nativeImageLike = fakeNativeImage();
   assert.deepEqual(await createThumbnail(PNG, { nativeImageLike }), { ok: true, url: 'data:image/png;base64,AAAA', width: 192, height: 128 });
   assert.deepEqual(nativeImageLike.calls, [{ filePath: PNG, wanted: { width: THUMB_PX, height: THUMB_PX } }]);
-  assert.equal(THUMB_PX, 192);
+  assert.equal(THUMB_PX, 208);
 });
 
 test('画像でないパス・大きすぎるファイルは、作らずに断る', async () => {

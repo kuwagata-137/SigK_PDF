@@ -13,8 +13,8 @@ const path = require('node:path');
 
 const { MAX_IMAGE_BYTES } = require('./image-io.js');
 
-// 帯の画像の枠は 96px 四方。画素比 2 まで細かく作る。
-const THUMB_PX = 192;
+// 帯の画像の枠は 104×72px（strips.css の .img-thumb）。画素比 2 まで細かく作るので、長い辺を 208px にする。
+const THUMB_PX = 208;
 const EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff']);
 const FAILED = 'サムネイルを作れませんでした。';
 
