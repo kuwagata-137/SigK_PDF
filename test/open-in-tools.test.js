@@ -3,8 +3,8 @@
 // ツールモードで開く（決定80）。
 //
 // ファイルはどのモードで開いてもタブで開き、モードは変えない。ツールモードではページビューがツールの画面の下に
-// 隠れるので、開けなかった理由は帯で出す。［開く］・ドロップ・エクスプローラーからの起動で開いたファイルは、
-// 移り期間として、選んでいるツールにも渡す（tool-handoff.js）。
+// 隠れるので、開けなかった理由は帯で出す。［開く］・ドロップ・エクスプローラーからの起動で開いたファイルは帯（タブ）になり、
+// 帯を対象にするツールは、その帯をそのまま使う（ツールへの受け渡しは spec-2-5 確定事項G13 で無くした）。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -125,7 +125,7 @@ test('閲覧モードでは、今までどおり別のタブを開くと前の�
   assert.equal(shell.SigK.viewBanner.isVisible(), false);
 });
 
-// ---- ［開く］で開いたファイルは、選んでいるツールにも渡す（tabs.js の runOpenCommand → tool-handoff.js） ----
+// ---- ［開く］で開いたファイルは帯になり、帯を対象にするツールはそれを使う（tabs.js の runOpenCommand） ----
 
 const plain = (value) => structuredClone(value);
 const mergePaths = (shell) => plain(shell.SigK.toolsMerge.rows().map((row) => row.path));
@@ -168,7 +168,7 @@ test('画像→PDF を選んでいるとき、［開く］で開いた PDF は�
   assert.equal(shell.SigK.tools.selected(), 'convert');
 });
 
-test('開けなかったファイルもツールに渡す（ツールの画面が自分で読んで理由を出す）', async (t) => {
+test('開けなかったファイルも帯になり、結合の行に入る（理由は帯で出す）', async (t) => {
   const shell = await withShell(t, { pdfjs: createPdfjsStub({ openError: broken() }) });
 
   assert.equal(await shell.SigK.tabs.runOpenCommand(A), false);
@@ -178,13 +178,12 @@ test('開けなかったファイルもツールに渡す（ツールの画面�
   assert.match(shell.SigK.viewBanner.text(), /壊れている/);
 });
 
-test('閲覧モードの［開く］はツールに渡さない', async (t) => {
+test('閲覧モードの［開く］はタブで開くだけで、ツールモードへ移らない', async (t) => {
   const shell = await withShell(t, { mode: 'view' });
 
   await shell.SigK.tabs.runOpenCommand(A);
   await shell.flush();
 
   assert.equal(shell.SigK.tabs.count(), 1);
-  // 結合は開いたタブがそのまま行になるので、渡さないことは対象を持つツール（分割）で見る。
-  assert.equal(shell.SigK.toolsSplit.source(), null);
+  assert.equal(modeOf(shell), 'view');
 });

@@ -117,7 +117,7 @@ test('PDF→画像を選んでいるときに PDF を 2 つ落とすと、帯が
   await SigK.fileDrop.handleDrop(event);
   assert.equal(SigK.tabs.count(), 2, 'タブでも開く（決定80）');
   assert.equal(SigK.toolsToImage.source().path, A);
-  assert.equal(SigK.toolsSplit.source(), null, '分割の対象にはしない');
+  assert.equal(SigK.tools.selected(), 'toImage', '選んでいるツールは替わらない');
   assert.equal(bannerText(shell), '');
 });
 

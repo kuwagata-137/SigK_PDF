@@ -1,27 +1,25 @@
 (function (root) {
   'use strict';
 
-  // 分割画面の状態と指揮（spec-2-2 確定事項1〜32・spec-2-2b）。
+  // 分割画面の状態と指揮（spec-2-2 確定事項1〜32・spec-2-2b・spec-2-5 第 G 章）。
   //
-  // 対象は 1 ファイル（spec-2-2 ユーザー確定①）。対象と出力の設定を持ち、盤（tools-split-edit.js）から計画（parts と出力パス）を
-  // 組む。実行は split-run.js。描くのは tools-split-view.js（右の欄と下の要約）と split-board-view.js（盤）。
-  //
-  // 対象は 1 回だけ読み、描く層（split-thumbs.js）が開いたまま持つ（spec-2-2b 確定事項D1）。分割の画面を離れると畳み、戻ると
-  // 読み直して、書き換わっていれば知らせる（確定事項D7。split-reload.js）。分割はファイルを読み直して分けるので、画面上の並べ替え・回転・削除は
-  // 結果に映らない（spec-2-2 確定事項3）。未保存のタブを対象にすることは止めず、注意だけ出す。
+  // 対象は選んでいる帯（＝映しているタブ。strip-target.js。spec-2-5 G1）。対象と出力の設定を持ち、盤（tools-split-edit.js）から
+  // 計画（parts と出力パス）を組む。実行は split-run.js。描くのは tools-split-view.js（右の欄）と split-board-view.js（盤）。
+  // 盤は帯の今の並び（保存していない並べ替え・削除・差し込みを含む）で数え、分割はファイルに保存してある中身から作る（spec-2-5 G6・G7）。
+  // 保存していない変更は、実行の前に確認の窓で知らせる（run-guard.js）。並び・削除・差し込みを保存していなければ［保存せずに実行］は押せない。
 
-  // 対象の欄は source-picker.js（spec-4-5 確定事項34）。右クリック起動で複数本が届いたときの
-  // 文言 NOTE_FIRST_ONLY は、Phase 5 で見直して変えないことにした（spec-5-1 確定事項20）。
-  const { NOTE_UNSAVED, NOTE_FIRST_ONLY } = root.SigK.sourcePicker;
+  // 右クリック起動で複数本が届いたときの文言。Phase 5 で見直して変えないことにした（spec-5-1 確定事項20）。
+  const NOTE_FIRST_ONLY = '1つ目のファイルだけを対象にしました。';
+  const NOTE_ORDER = 'ページの並べ替え・削除・差し込みを保存していないので、✂ の位置がファイルのページとずれます。［保存せずに実行］は使えません。';
 
-  const state = { folder: null, folderTouched: false, rule: 'seq', running: false, boardKey: null };
+  const state = { folder: null, folderTouched: false, rule: 'seq', running: false };
   let el = null;
   let launchBatch = null;
 
   const banner = () => root.SigK.viewBanner;
   const view = () => root.SigK.toolsSplitView;
   const edit = () => root.SigK.toolsSplitEdit;
-  const thumbs = () => root.SigK.splitThumbs;
+  const tabs = () => root.SigK.tabs;
   const intake = () => root.SigK.launchIntake;
   const batches = () => (launchBatch ??= intake().createBatchTracker());
 
@@ -41,57 +39,32 @@
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
   }
 
-  // ---- 対象（spec-2-2 確定事項1〜5・spec-2-2b 確定事項B6・D1・F） ----
+  // ---- 対象（spec-2-5 G1・G12） ----
 
-  const field = root.SigK.sourcePicker.create({
-    inspect: (filePath) => thumbs().open(filePath),
-    pick: ({ defaultPath }) => {
-      const api = root.pdfAPI;
-      if (api?.available !== true || typeof api.pickSplitSource !== 'function')
-        return null;
-      return api.pickSplitSource({ defaultPath });
-    },
-    dirtyMessage: '未保存の編集は分割に反映されないので、保存してから分割し直してください。',
-    onSelect: (filePath) => {
-      if (!state.folderTouched)
-        state.folder = dirOf(filePath);
-    },
-    onChange: () => {
-      syncBoard();
-      view()?.render();
+  // 出力のフォルダーは、ユーザーが変えるまで対象の帯のフォルダーに追従する（spec-2-2 確定事項14）。
+  const field = root.SigK.stripTarget.create({
+    encryptedError: '分割できません',
+    onChange: (src) => {
+      if (!state.folderTouched && typeof src?.path === 'string')
+        state.folder = dirOf(src.path);
     },
   });
 
   const source = () => field.source();
-  const isReady = (src) => src !== null && !src.pending && src.blocked === null && src.pageCount !== null;
-  // ドロップの受け口は addPaths（対象は1つなので先頭だけ使う）。`--split` は useFromLaunch。
-  const { setSource, useTab, pickFile } = field;
+  const isReady = (src) => src !== null && src.blocked === null;
 
-  // 実行中のドロップでは対象を替えない。替えると盤と元に戻す履歴が作り直される（点検 R1）。ボタンは実行中は押せない。
-  async function addPaths(paths) {
-    if (state.running) {
-      banner().show('いま分割しているので、終わってからもう一度ドロップしてください。', { tone: 'warn' });
-      return false;
-    }
-    return field.addPaths(paths);
+  // 並びがファイルと同じか（並べ替え・削除・差し込みを保存していない帯は false。spec-2-5 G7）。同じなら、盤の位置がファイルのページになる。
+  function matchesFile(peeked) {
+    const plan = peeked?.plan;
+    const count = peeked?.basePages?.length;
+    return Array.isArray(plan) && plan.length === count && plan.every((page, index) => page.src === index && !Number.isInteger(page.insert));
   }
 
-  // 対象が読めたら盤を作る。同じファイルを選び直したとき（ページ数も同じ）は今の盤を残す（確定事項B6）。
-  function syncBoard() {
-    const src = source();
-    if (!isReady(src))
-      return;
-    const key = `${pathKey(src.path)}|${src.pageCount}`;
-    if (key === state.boardKey)
-      return;
-    state.boardKey = key;
-    edit().reset(src.pageCount);
-  }
-
-  // `--split` の受け口（spec-2-2 確定事項6・spec-5-1 確定事項9・20・21）。右クリックで N 個選ぶと、分割にも
-  // 1 本ずつ届く（子の MultiSelectModel=Single は効かない。事前調査 A2）。束の中でファイル名の順に
-  // 先頭の 1 本を対象にし、後から届いたパスが前なら差し替える。帯は束につき 1 回。
-  async function useFromLaunch(paths, { batch } = {}) {
+  // `--split` の受け口（spec-2-2 確定事項6・spec-5-1 確定事項9・20・21、spec-2-5 G13）。右クリックで N 個選ぶと、分割にも
+  // 1 本ずつ届く（子の MultiSelectModel=Single は効かない。事前調査 A2）。束の最初でツールモードの分割へ移り、PDF をタブ（帯）で開いて、
+  // 束の中でファイル名の順に先頭の帯を選ぶ（後から届いたパスが前なら選び直す。後ろなら、開いて前に出た帯から元の帯へ戻す）。
+  // open は launch.js がタブで開く関数。帯の知らせは束につき 1 回。
+  async function useFromLaunch(paths, { batch, open = (pdfs) => root.SigK.toolHandoff.openPdfs(pdfs) } = {}) {
     const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
     if (incoming.length === 0)
       return false;
@@ -100,13 +73,16 @@
       root.SigK.shell.setMode(el.doc, 'tools');
       root.SigK.tools.select('split');
     }
+    const current = starts ? null : source();
+    await open(incoming);
     const first = [...incoming].sort(intake().compareNames)[0];
-    const current = source();
-    const replace = starts || current === null || intake().compareNames(first, current.path) < 0;
-    const ok = replace ? await setSource(first) : true;
+    const replace = current === null || intake().compareNames(first, current.path ?? '') < 0;
+    const tab = replace ? tabs().findByPath(first) : tabs().list().find((entry) => entry.id === current.tabId) ?? null;
+    if (tab !== null)
+      tabs().activate(tab.id);
     if ((incoming.length > 1 || !starts) && batches().once('first-only'))
       banner().show(NOTE_FIRST_ONLY, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
-    return ok;
+    return replace ? tab !== null : true;
   }
 
   // ---- 出力（spec-2-2 確定事項14〜19） ----
@@ -141,11 +117,12 @@
 
   const settings = () => ({ folder: state.folder, rule: state.rule });
 
-  // いまの盤から計画を組む。対象が決まっていなければ reason は 'no-source'。ほかの reason は盤の status（確定事項B5）。
+  // いまの盤から計画を組む。対象が使えなければ reason は 'no-source'。ほかの reason は盤の status（確定事項B5）。
+  // parts は盤の位置（帯の今の並びの位置）。ファイルのページへの読み替えは実行のとき（split-run.js）。
   function currentPlan() {
     const src = source();
-    const board = edit().board();
-    if (!isReady(src) || board === null)
+    const board = isReady(src) ? edit().board() : null;
+    if (board === null)
       return { ready: false, reason: 'no-source' };
     const status = root.SigK.splitBoard.status(board);
     const parts = root.SigK.splitBoard.parts(board);
@@ -158,13 +135,20 @@
     return !state.running && root.SigK.save?.isBusy() !== true && currentPlan().ready === true;
   }
 
-  // 同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
+  // 保存していない帯の確かめ・同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '分割できる状態ではありません。' };
     state.running = true;
     view()?.render();
     try {
+      const tabId = source().tabId;
+      const guard = await root.SigK.runGuard.confirmUnsaved([tabId], {
+        canRunUnsaved: (id) => matchesFile(tabs().peek(id)),
+        runNote: NOTE_ORDER,
+      });
+      if (!guard.go)
+        return { canceled: true };
       return await root.SigK.splitRun.execute();
     } finally {
       state.running = false;
@@ -184,11 +168,12 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsSplit = {
-    NOTE_UNSAVED, NOTE_FIRST_ONLY,
-    init, source, settings, currentPlan, joinPath, pathKey,
-    setSource, useTab, pickFile, addPaths, useFromLaunch,
+    NOTE_FIRST_ONLY, NOTE_ORDER,
+    init, source, settings, currentPlan, joinPath, pathKey, matchesFile, useFromLaunch,
     setRule, setFolder, pickFolder,
     canRun, run,
+    sync: () => field.sync(),
+    stateText: () => field.stateText(),
     isRunning: () => state.running,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

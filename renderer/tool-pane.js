@@ -5,12 +5,12 @@
   //
   // 帯の画面を使うツール（STRIP_TOOLS）を選んでいる間は、真ん中に帯を出し、右の欄にそのツールの節（section.pane-tool[data-tool]）を出す。
   // そのとき <html> に data-tool-screen="strips" を付け、CSS がタブの列を隠す（確定事項B3。帯がタブの代わり）。
-  // 分割と画像→PDF は PR-3 まで今の画面のまま（決定80 ㉚。確定事項D11）なので、ここには入れず、タブの列も出す。
+  // 分割は選んでいる帯を ✂ の盤に広げる（確定事項G1。split-strip.js）。画像→PDF は PR-3 の後半で移すまで今の画面のまま
+  // （決定80 ㉚。確定事項D11）なので、ここには入れず、タブの列も出す。
 
-  // PR-2 では各ツールを移すコミットで 1 つずつ足す。
-  const STRIP_TOOLS = Object.freeze(['merge', 'toImage', 'watermark', 'flatten']);
+  const STRIP_TOOLS = Object.freeze(['merge', 'split', 'toImage', 'watermark', 'flatten']);
   // 節を描き直す入口（tools.js の VIEWS と同じもの）。
-  const VIEWS = { merge: 'toolsMergeList', toImage: 'toolsToImageView', watermark: 'toolsWatermarkView', flatten: 'toolsFlattenView' };
+  const VIEWS = { merge: 'toolsMergeList', split: 'toolsSplitView', toImage: 'toolsToImageView', watermark: 'toolsWatermarkView', flatten: 'toolsFlattenView' };
 
   const state = { shown: null };
   let el = null;
@@ -39,6 +39,8 @@
       sync();
     // 透かしを選んだとき・離れたときに、帯のページへの重ねを付け外しする（spec-2-5 確定事項E3）。
     root.SigK.stripWatermark?.decorate();
+    // 分割を選んだとき・離れたときに、✂ の盤を帯へ入れる・戻す（確定事項G1）。
+    root.SigK.splitStrip?.sync();
     return next !== null;
   }
 

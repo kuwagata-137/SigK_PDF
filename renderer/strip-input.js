@@ -15,7 +15,7 @@
   let el = null;
 
   // 帯の画面を使うツール。確認の窓・保存先の窓・出力先の確かめの間も実行中で、その間に帯を替えると、確かめた帯と違う帯を書く（点検の直し）。
-  const STRIP_TOOLS = ['toolsMerge', 'toolsToImage', 'toolsWatermark', 'toolsFlatten'];
+  const STRIP_TOOLS = ['toolsMerge', 'toolsSplit', 'toolsToImage', 'toolsWatermark', 'toolsFlatten'];
 
   function isLocked() {
     return root.SigK.tabs.isOpening() || root.SigK.save?.isBusy() === true

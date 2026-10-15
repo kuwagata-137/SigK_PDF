@@ -1,8 +1,9 @@
 'use strict';
 
-// 分割の盤の画面（spec-2-2b 確定事項A・B・C・H・I。見本 screenshots/phase2-2b-*.png）。
-// 盤の純粋な操作は split-board-model.test.js、配置は split-board-layout.test.js、描く層は split-thumbs.test.js が見る。
-// ここは、画面の上で押した・選んだときに盤・右の欄・下の要約・実行がどう変わるかを見る。
+// 分割の盤の画面（spec-2-2b 確定事項A・B・C・H・I、spec-2-5 第 G 章。見本 screenshots/strips3-split.png）。
+// 盤の純粋な操作は split-board-model.test.js、帯ごとに覚える層は split-board-store.test.js、配置は split-board-layout.test.js、
+// 描く層は split-thumbs.test.js が見る。ここは、選んでいる帯を盤に広げた画面の上で押した・選んだときに、盤・右の欄・要約・実行が
+// どう変わるかを見る。帯との行き来（帯ごとに覚える・並びが変わる・保存していない変更）は split-strip.test.js。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -20,18 +21,28 @@ async function createBoardShell(t, { pages = 3, ...options } = {}) {
   });
   t.after(() => shell.cleanup());
   await shell.flush();
-  // jsdom は大きさを計算しないので、盤の器の幅と高さを与える。
-  const scroll = shell.document.getElementById('split-board-scroll');
-  Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => 640 });
-  Object.defineProperty(scroll, 'clientHeight', { configurable: true, get: () => 500 });
+  sizeBoard(shell, { width: 640, height: 500 });
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('split');
   return shell;
 }
 
+// jsdom は大きさを計算しないので、盤の器の幅と、盤が乗っている帯の画面（#strips）の高さを与える。盤の器の上端は、
+// 帯の画面の中身の 0 の所にあることにする（getBoundingClientRect はスクロールした分だけ上へずれる。本物と同じ）。
+function sizeBoard(shell, { width, height }) {
+  const scroll = shell.document.getElementById('split-board-scroll');
+  const strips = shell.document.getElementById('strips');
+  const canvas = shell.document.getElementById('split-board-canvas');
+  Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => width });
+  Object.defineProperty(strips, 'clientHeight', { configurable: true, get: () => height });
+  strips.getBoundingClientRect = () => ({ top: 0, left: 0, right: width, bottom: height, width, height });
+  canvas.getBoundingClientRect = () => ({ top: -strips.scrollTop, left: 0, right: width, bottom: height, width, height });
+}
+
+// 分割を選んだまま PDF を帯（タブ）で開く。開いた帯が選んでいる帯になり、盤に広がる（spec-2-5 確定事項G1）。
 async function withSource(t, options) {
   const shell = await createBoardShell(t, options);
-  await shell.SigK.toolsSplit.setSource(A);
+  await shell.SigK.tabs.openPath(A);
   await settle(shell);
   return shell;
 }
@@ -49,11 +60,12 @@ const boxHeads = (shell) => $$(shell, '#split-board-canvas .sb-box').map((box) =
 const fileRows = (shell) => $$(shell, '#split-files .sb-file').map((row) => row.textContent);
 const edit = (shell) => shell.SigK.toolsSplitEdit;
 
-test('PDF を決める前は、盤に案内を出し、実行は押せない', async (t) => {
+test('帯が 1 本も無いときは、盤を出さず、右の欄に状態の文を出して実行は押せない', async (t) => {
   const shell = await createBoardShell(t);
-  assert.equal($(shell, '#split-board-empty').hidden, false);
-  assert.equal($(shell, '#split-board-empty').textContent, '分割する PDF を決めると、ここに全部のページが並びます。');
-  assert.equal(summary(shell), '分割する PDF を決めてください。');
+  assert.equal($(shell, '#split-strip-board').hidden, true);
+  assert.equal($(shell, '#split-state').hidden, false);
+  assert.equal($(shell, '#split-state').textContent, 'PDF を開くと、選んでいる帯が対象になります。');
+  assert.equal(summary(shell), '');
   assert.equal(runDisabled(shell), true);
   assert.equal($(shell, '#split-files-card').hidden, true);
 });
@@ -61,6 +73,8 @@ test('PDF を決める前は、盤に案内を出し、実行は押せない', a
 test('入れた直後は分け目なしの箱 1 つで、✂ の使い方を案内して実行は押せない（決定76 ④）', async (t) => {
   const shell = await withSource(t);
   assert.equal($(shell, '#split-board-empty').hidden, true);
+  assert.equal($(shell, '#split-state').hidden, true);
+  assert.equal($(shell, '#split-strip-board').closest('.strip').dataset.tabId, String(shell.SigK.tabs.activeId()), '選んでいる帯の中に広がる');
   assert.deepEqual(boxHeads(shell), ['1a_001.pdf1〜3 ページ']);
   assert.equal($$(shell, '#split-board-canvas .sb-page').length, 3);
   assert.deepEqual($$(shell, '#split-board-canvas .sb-cut').map((cut) => cut.dataset.cut), ['1', '2']);
@@ -235,10 +249,10 @@ test('できるファイルの行を押すと、その箱へスクロールす�
   $$(shell, '#split-files .sb-file')[4].click();
   const top = shell.SigK.splitBoardView.boxTop(4);
   assert.ok(top > 0);
-  assert.equal($(shell, '#split-board-scroll').scrollTop, top);
+  assert.equal($(shell, '#strips').scrollTop, top, '盤が乗っている帯の画面を送る（spec-2-5 確定事項G9）');
 });
 
-test('実行は盤の parts と、読んだときの大きさと更新日時をワーカーへ渡す', async (t) => {
+test('実行は盤の parts と、タブが開いたときの大きさと更新日時をワーカーへ渡す', async (t) => {
   const shell = await withSource(t, { taskResults: [{ ok: true, written: 2, targets: [] }] });
   edit(shell).cut(1);
   edit(shell).select(2);
@@ -252,73 +266,15 @@ test('実行は盤の parts と、読んだときの大きさと更新日時を�
   });
 });
 
-test('実行の前にファイルが書き換わっていたら、読み直して止める（確定事項D7）', async (t) => {
+test('実行の前にファイルが書き換わっていたら止める（spec-2-5 確定事項G11）', async (t) => {
   const shell = await withSource(t);
   edit(shell).cut(1);
   shell.files[A] = makeSource({ path: A, mtimeMs: 5 });
   const result = await shell.SigK.toolsSplit.run();
-  assert.equal(result.error, '「a.pdf」が書き換えられていたので、分割を止めました。読み直したページを確かめてから、もう一度実行してください。');
+  assert.equal(result.error, '「a.pdf」が書き換えられていたので、分割を止めました。タブを閉じて開き直してから、もう一度実行してください。');
   assert.equal(shell.SigK.viewBanner.text(), result.error);
   assert.equal(shell.taskCalls.length, 0);
-  assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]], 'ページ数が同じなら分け目は残す');
-  assert.equal(await shell.SigK.splitThumbs.isChanged(), false, '読み直した');
-});
-
-test('PDF を読んでいる途中で別のツールへ移っても、文書を開いたまま残さない。戻ると読み直して盤を出す', async (t) => {
-  const shell = await createBoardShell(t);
-  const setting = shell.SigK.toolsSplit.setSource(A);
-  shell.SigK.tools.select('merge');
-  assert.equal(await setting, true);
-  await settle(shell);
-  assert.ok(shell.pdfjs.documents.length >= 1, '読んだ');
-  assert.equal(shell.pdfjs.documents.every((document) => document.destroyed), true);
-  assert.equal(shell.SigK.toolsSplit.source().pageCount, 3);
-  assert.equal(shell.SigK.toolsSplit.source().blocked, null);
-
-  shell.SigK.tools.select('split');
-  await settle(shell);
-  assert.equal(shell.SigK.splitThumbs.getState().open, true);
-  assert.equal(boxHeads(shell).length, 1);
-  assert.notEqual(shell.SigK.viewBanner.text(), '「a.pdf」が書き換えられていたので、読み直しました。');
-});
-
-test('別のツールへ移ると畳み、戻ると読み直す。書き換わっていれば知らせる', async (t) => {
-  const shell = await withSource(t);
-  edit(shell).cut(1);
-  shell.SigK.tools.select('merge');
-  await settle(shell);
-  assert.equal(shell.SigK.splitThumbs.getState().folded, true);
-  assert.equal(shell.pdfjs.documents.every((document) => document.destroyed), true);
-
-  shell.SigK.tools.select('split');
-  await settle(shell);
-  assert.equal(shell.SigK.splitThumbs.getState().open, true);
-  assert.notEqual(shell.SigK.viewBanner.text(), '「a.pdf」が書き換えられていたので、読み直しました。');
-
-  shell.SigK.tools.select('merge');
-  await settle(shell);
-  shell.files[A] = makeSource({ path: A, mtimeMs: 7 });
-  shell.SigK.tools.select('split');
-  await settle(shell);
-  assert.equal(shell.SigK.viewBanner.text(), '「a.pdf」が書き換えられていたので、読み直しました。');
-  assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]]);
-});
-
-test('戻ったときにページ数が変わっていたら、分け目を消して知らせる', async (t) => {
-  const sizes = [A4, A4, A4];
-  const shell = await createBoardShell(t, { pdfjs: createPdfjsStub({ sizes }) });
-  await shell.SigK.toolsSplit.setSource(A);
-  await settle(shell);
-  edit(shell).cut(1);
-  shell.SigK.shell.setMode(shell.document, 'view');
-  await settle(shell);
-  sizes.push(A4);
-  shell.files[A] = makeSource({ path: A, size: 4000 });
-  shell.SigK.shell.setMode(shell.document, 'tools');
-  await settle(shell);
-  assert.equal(shell.SigK.viewBanner.text(), '「a.pdf」のページ数が変わっていたので、読み直して分け目を消しました。');
-  assert.equal(shell.SigK.toolsSplit.source().pageCount, 4);
-  assert.equal(shell.SigK.toolsSplit.currentPlan().reason, 'untouched');
+  assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]], '盤はそのまま');
 });
 
 test('実行中は盤の操作と段と帯を受けない', async (t) => {
@@ -377,7 +333,6 @@ test('1,000 以上の数には、分割の画面のどこでもカンマを付�
   assert.equal(summary(shell), '1,200 ページを 12 個のファイルに分けます。');
   assert.equal($(shell, '#split-files-count').textContent, '12 個');
   assert.match(fileRows(shell)[10], /1,001〜1,100 ページ$/);
-  assert.equal($(shell, '#split-pages').textContent, '1,200 ページ');
 
   shell.SigK.splitBoardView.revealBox(10);
   assert.ok(boxHeads(shell).some((head) => head.includes('1,001〜1,100 ページ')));
@@ -434,9 +389,7 @@ test('✂・［つなげる］・帯のボタンを押したあとも、フォ�
 
 test('大きな画面で見えているページが上限を超えるときは、見えている分を全部描く（決定79 ①）', async (t) => {
   const shell = await withSource(t, { pages: 1000 });
-  const scroll = $(shell, '#split-board-scroll');
-  Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => 2000 });
-  Object.defineProperty(scroll, 'clientHeight', { configurable: true, get: () => 1120 });
+  sizeBoard(shell, { width: 2000, height: 1120 });
   $(shell, '#split-size [data-size="small"]').click();
   await settle(shell);
   const view = shell.SigK.splitBoardView;
@@ -462,18 +415,22 @@ test('左の一覧を開け閉めして盤の幅が変わったら、盤を組�
   assert.equal($(shell, '.sb-box').style.width, '418px', '画面の箱も組み直す（配置の計算だけでなく）');
 });
 
-test('実行中のドロップでは、分割する PDF を替えない（盤と元に戻す履歴を守る）', async (t) => {
+test('実行中は帯を押しても選び替えない（盤と元に戻す履歴を守る）', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
-  const shell = await withSource(t, { taskResults: [gate] });
+  const shell = await withSource(t, { taskResults: [gate], files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) } });
+  await shell.SigK.tabs.openPath(B);
+  const [a, b] = shell.SigK.tabs.list().map((tab) => tab.id);
+  shell.SigK.tabs.activate(a);
+  await settle(shell);
   edit(shell).cut(1);
   const running = shell.SigK.toolsSplit.run();
   await shell.flush();
   await shell.flush();
   assert.equal(shell.SigK.toolsSplit.isRunning(), true);
-  assert.equal(await shell.SigK.toolsSplit.addPaths([B]), false);
+  $(shell, `#strips .strip[data-tab-id="${b}"] .fname`).click();
+  assert.equal(shell.SigK.tabs.activeId(), a);
   assert.equal(shell.SigK.toolsSplit.source().path, A);
-  assert.equal(shell.SigK.viewBanner.text(), 'いま分割しているので、終わってからもう一度ドロップしてください。');
   assert.equal(shell.SigK.toolsSplitEdit.canUndo(), true);
   release({ ok: true, written: 2, targets: [] });
   await running;

@@ -53,33 +53,34 @@
     setDisabled(el.prev, index <= 0);
     setDisabled(el.next, index >= board.pageCount - 1);
     el.page.replaceChildren();
-    let page = null;
-    let drawn = null;
-    const ratio = Math.min(el.win.devicePixelRatio || 1, MAX_DPR);
-    try {
-      page = await root.SigK.splitThumbs.getPage(index);
-      if (page === null || page === undefined || ticket !== state.ticket) {
-        page?.cleanup?.();
-        return;
-      }
-      const base = page.getViewport({ scale: 1 });
-      const fit = Math.min((el.win.innerWidth - MARGIN.x) / base.width, (el.win.innerHeight - MARGIN.y) / base.height);
-      drawn = await pageImage().renderToCanvas(el.doc, page, { scale: Math.max(0.1, fit) * ratio });
-    } catch {
-      page?.cleanup?.();   // 描けなかったページは空の紙のまま。窓は閉じられる（点検 R1）
+    // 選んでいる帯の今の中身で描く（spec-2-5 確定事項G6。盤の紙と同じ planPageImage.draw）。
+    const tabs = root.SigK.tabs;
+    const view = tabs?.peek(root.SigK.splitThumbs.tabId()) ?? null;
+    const size = view?.sizes?.[index];
+    if (view?.doc === undefined || !(size?.width > 0) || !(size?.height > 0))
       return;
+    const fit = Math.max(0.1, Math.min((el.win.innerWidth - MARGIN.x) / size.width, (el.win.innerHeight - MARGIN.y) / size.height));
+    const ratio = Math.min(el.win.devicePixelRatio || 1, MAX_DPR);
+    let drawn = null;
+    try {
+      drawn = await root.SigK.planPageImage.draw(el.doc, view, index, { sheet: { width: size.width * fit, height: size.height * fit }, dpr: ratio });
+    } catch {
+      return;   // 描けなかったページは空の紙のまま。窓は閉じられる（点検 R1）
     }
+    if (drawn === null)
+      return;
     if (ticket !== state.ticket) {
       pageImage().release(drawn.canvas);
-      page.cleanup?.();
+      drawn.page?.cleanup?.();
       return;
     }
     state.canvas = drawn.canvas;
-    state.pdfPage = page;
+    state.pdfPage = drawn.page;
     if (drawn.canvas === null)
       return;
-    drawn.canvas.style.width = `${drawn.width / ratio}px`;
-    drawn.canvas.style.height = `${drawn.height / ratio}px`;
+    const scale = Math.max(1, ratio);
+    drawn.canvas.style.width = `${drawn.canvas.width / scale}px`;
+    drawn.canvas.style.height = `${drawn.canvas.height / scale}px`;
     el.page.replaceChildren(drawn.canvas);
   }
 

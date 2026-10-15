@@ -2,12 +2,16 @@
    箱・ページ・✂ の位置は split-board-layout.js が計算して style に書く。寸法（紙の余白 3px・番号の行 20px・✂ の幅 26px・
    箱の余白と見出し 34px・段の間 12px）はあちらの定数と同じ値にしてある。変えるときは両方を直す。 */
 
-.sb-body{flex:1; min-height:0; margin:0 24px; display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:14px}
-.sb-main{display:flex; flex-direction:column; min-height:0; min-width:0}
-.sb-side{display:flex; flex-direction:column; gap:12px; min-height:0; overflow:auto}
+/* 盤は選んでいる帯の中に入る（spec-2-5 確定事項G1・G9。split-strip.js）。帯の紙の列の代わりに出し、帯の画面全体のスクロールに乗せる
+   （盤の中に別のスクロールを作らない）。盤にできない帯（data-blocked）では理由だけを出す。 */
+.strip-board{display:flex; flex-direction:column; gap:8px; padding:6px 0 4px; cursor:default}
+.strip-board[hidden]{display:none}
+.strip.board{cursor:default}
+.strip.board .strip-pages{display:none}
+.strip-board[data-blocked] .sb-tools, .strip-board[data-blocked] .sb-band, .strip-board[data-blocked] .sb-canvas{display:none}
 
 /* ── 上の段（まとめて分ける・元に戻す・大きさ） ── */
-.sb-tools{display:flex; flex-direction:column; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface)}
+.sb-tools{display:flex; flex-direction:column; gap:8px; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-2)}
 .sb-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
 .sb-row .k{color:var(--muted); font-size:12px; font-weight:600; margin-right:2px}
 .sb-row .spacer{flex:1}
@@ -34,11 +38,8 @@
 .sb-seg button:first-child{border-left:none}
 .sb-seg button[aria-checked="true"]{background:var(--primary); color:#fff}
 
-/* ── 使い方の案内と、選んだときの帯 ── */
-.sb-guide{margin:8px 2px; color:var(--muted); font-size:12px; line-height:1.75}
-.sb-guide div,.sb-guide-short{display:flex; align-items:center; gap:6px}
-.sb-guide-short{display:none; margin:6px 2px; color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.sb-band{display:flex; align-items:center; gap:8px; padding:7px 10px 7px 14px; margin-bottom:10px; border:1px solid #b9cdf7; border-radius:var(--radius); background:#e8effd}
+/* ── 選んだときの帯（使い方の案内は右の欄の説明へ移した。spec-2-5 確定事項G14） ── */
+.sb-band{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:8px; padding:7px 10px 7px 14px; border:1px solid #b9cdf7; border-radius:var(--radius); background:#e8effd}
 .sb-band[hidden]{display:none}
 .sb-band b{font-size:12.5px; font-weight:600}
 .sb-band .spacer{flex:1}
@@ -46,12 +47,10 @@
 .sb-band .sb-btn[hidden]{display:none}
 
 /* ── 盤（箱とページ。位置は split-board-layout.js） ── */
-/* 縦のスクロールバーの幅をはじめから取っておく（出た瞬間に箱がはみ出して横のスクロールバーが出ないように。shell.css のページビューと同じ） */
-.sb-scroll{flex:1; min-height:0; overflow:auto; position:relative; padding:0 0 16px; outline:none; scrollbar-gutter:stable}
+.sb-scroll{position:relative; padding:0 0 6px; outline:none}
 .sb-scroll:focus-visible{outline:2px solid var(--primary); outline-offset:-2px; border-radius:var(--radius)}
 .sb-canvas{position:relative}
-.sb-empty{position:absolute; inset:0 0 16px; margin:0; display:grid; place-items:center; padding:0 24px; text-align:center;
-  color:var(--muted); font-size:12.5px; line-height:1.8; border:2px dashed var(--border-strong); border-radius:var(--radius)}
+.sb-empty{margin:0; padding:2px; color:var(--danger); font-size:12px; line-height:1.7}
 .sb-empty[hidden]{display:none}
 .sb-box{position:absolute; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:9px 12px 0}
 .sb-box.dead{background:var(--surface-2)}
@@ -98,18 +97,6 @@
 .sb-card[hidden]{display:none}
 .sb-card h3{margin:0 0 10px; font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.04em; display:flex; align-items:baseline; gap:8px}
 .sb-card h3 .n{font-weight:400}
-.sb-target .file{display:flex; align-items:baseline; gap:8px; min-width:0; flex-wrap:wrap}
-.sb-target .file[hidden]{display:none}
-.sb-target .file .name{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%}
-.sb-target .file.blocked .name{color:var(--danger)}
-.sb-target .file .pages{color:var(--muted); font-variant-numeric:tabular-nums}
-.sb-target .file .note{flex-basis:100%; font-size:11.5px; color:var(--muted)}
-.sb-target .file .note.error{color:var(--danger)}
-.sb-target .file .note[hidden]{display:none}
-.sb-target .empty{margin:0; color:var(--muted); font-size:12px; line-height:1.7}
-.sb-target .empty[hidden]{display:none}
-.sb-target .btns{position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:6px; margin-top:10px}
-.sb-target .btns .act{padding:0 12px; height:30px}
 .sb-files{display:flex; flex-direction:column; max-height:260px; overflow:auto}
 .sb-file{display:flex; align-items:center; gap:8px; padding:6px 2px; border:none; border-bottom:1px solid var(--surface-2); background:none; font-size:12px; text-align:left; color:var(--text); min-width:0}
 .sb-file:last-child{border-bottom:none}
@@ -148,9 +135,5 @@
 
 /* ── 狭い窓（確定事項A3。決定77 ④） ── */
 @media (max-width:1100px){
-  .sb-body{grid-template-columns:minmax(0,1fr) 232px}
-  .sb-guide{display:none}
-  .sb-guide-short{display:flex}
-  .tool-panel[data-tool="split"] .tools-head .hint{display:none}
   .sb-tools .sb-row:first-child .k{display:none}
 }

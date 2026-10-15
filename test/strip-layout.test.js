@@ -56,6 +56,16 @@ test('見えている帯と、上下 1 本の先読み', () => {
   assert.deepEqual(L.visibleStrips(0, 0, 600), { first: 0, last: 0, from: 0, to: 0 });
 });
 
+test('高さの違う帯（分割の ✂ の盤を広げた帯）があっても、帯ごとの高さで数える（spec-2-5 確定事項G9）', () => {
+  const H = L.STRIP_HEIGHT;
+  const heights = [H, 1000, H, H];
+  // 帯の上端は 12・210・1220・1418。
+  assert.deepEqual(L.tops(heights), [12, 12 + H + 10, 12 + H + 10 + 1010, 12 + 2 * (H + 10) + 1010]);
+  assert.deepEqual(L.visibleStrips(4, 0, 600, 1, heights), { first: 0, last: 2, from: 0, to: 3 }, '広げた帯の途中までしか見えない');
+  assert.deepEqual(L.visibleStrips(4, 1100, 400, 1, heights), { first: 1, last: 4, from: 0, to: 4 }, '広げた帯の下端と、その下の 2 本');
+  assert.deepEqual(L.visibleStrips(4, 1300, 100, 1, heights), { first: 2, last: 3, from: 1, to: 4 });
+});
+
 test('描く順は見えているものが先で、帯の順・紙の順', () => {
   const order = L.drawOrder([
     { strip: 1, page: 0, near: true }, { strip: 2, page: 3, near: false }, { strip: 0, page: 9, near: false }, { strip: 2, page: 1, near: false },

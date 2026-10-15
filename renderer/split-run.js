@@ -1,15 +1,23 @@
 (function (root) {
   'use strict';
 
-  // 分割の実行（spec-2-2 確定事項20〜32・42、spec-2-2b 確定事項D7・H1〜H4）。
+  // 分割の実行（spec-2-2 確定事項20〜32・42、spec-2-2b 確定事項H1〜H4、spec-2-5 確定事項G7・G11）。
   //
-  // tools-split.js の run() から呼ばれる。書き換わりを照らし、出力先を確かめ（元のファイル・タブで開いている出力先・同名の 3 択）、
-  // ワーカーへ渡し、終わったら帯で知らせる。中身は tools-split.js にあったものを、200 行の目安に収めるために移した（振る舞いは同じ）。
+  // tools-split.js の run() から、保存していない帯の確かめ（run-guard.js）のあとで呼ばれる。書き換わりを照らし、盤の位置（帯の今の並びの位置）を
+  // ファイルのページへ読み替え、出力先を確かめ（元のファイル・タブで開いている出力先・同名の 3 択）、ワーカーへ渡し、終わったら帯で知らせる。
 
   const banner = () => root.SigK.viewBanner;
   const split = () => root.SigK.toolsSplit;
-  const thumbs = () => root.SigK.splitThumbs;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
+  const sameSignature = (a, b) => a !== null && b !== null && a.size === b.size && a.mtimeMs === b.mtimeMs;
+
+  // タブが開いたあとで、ファイルがほかのアプリで書き換えられたか（spec-2-5 G11）。照らせなければ変わったとみなす。
+  async function isChanged(src, expect) {
+    if (expect === null)
+      return false;
+    const now = await root.pdfAPI?.stat?.(src.path);
+    return now?.ok !== true || !sameSignature(expect, { size: now.size, mtimeMs: now.mtimeMs });
+  }
 
   async function countExisting(targets) {
     const api = root.pdfAPI;
@@ -53,12 +61,14 @@
 
   async function execute() {
     const src = split().source();
-    const expectSource = thumbs().signature();   // ワーカーで照らす控えは、照らす前に取っておく（確定事項H4。点検 R1）
-    // 読んだあとで書き換わっていたら、読み直して止める（確定事項D7）。見ているサムネイルと違う中身を黙って分けないため。
-    if (await thumbs().isChanged()) {
-      await root.SigK.splitReload.reloadAfterChange();
-      return refuse(`「${src.name}」が書き換えられていたので、分割を止めました。読み直したページを確かめてから、もう一度実行してください。`);
-    }
+    const peeked = root.SigK.tabs.peek(src.tabId);
+    // ワーカーで照らす控えは、照らす前に取っておく（spec-2-2b 確定事項H4。点検 R1）。
+    const expectSource = root.SigK.save.signatureOf(peeked?.file);
+    if (await isChanged(src, expectSource))
+      return refuse(`「${src.name}」が書き換えられていたので、分割を止めました。タブを閉じて開き直してから、もう一度実行してください。`);
+    // 盤の位置はファイルのページと同じでなければならない（並び・削除・差し込みを保存していない帯は、確認の窓で止めている。G7）。
+    if (!split().matchesFile(peeked))
+      return refuse(split().NOTE_ORDER);
     const current = split().currentPlan();
     if (!current.ready)
       return { error: '分割できる状態ではありません。' };
@@ -78,7 +88,8 @@
       label: '分割',
       source: src.path,
       name: src.name,
-      parts: current.parts.map((pages, index) => ({ pages, target: targets[index] })),
+      // 盤の位置 i は、並びがファイルと同じなので plan[i].src（＝i）のページ。
+      parts: current.parts.map((pages, index) => ({ pages: pages.map((page) => peeked.plan[page].src), target: targets[index] })),
       targets,
       // ワーカーも読む前に照らす（確定事項H4）。
       expectSource,

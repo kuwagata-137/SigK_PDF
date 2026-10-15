@@ -12,33 +12,17 @@
   let queue = [];
   let wanted = new Set();
   const listeners = [];
-  const docIds = new WeakMap();
-  let nextDocId = 1;
   // 描き始めた回数（起動確認で、描き直しが止まっていることを見る）。
   let draws = 0;
 
   const layout = () => root.SigK.stripLayout;
   const keyOf = (tabId, index) => `${tabId}:${index}`;
 
-  function docId(doc) {
-    if (doc === null || doc === undefined)
-      return 0;
-    if (!docIds.has(doc))
-      docIds.set(doc, nextDocId++);
-    return docIds.get(doc);
-  }
-
-  // 紙の印。null は描けない（開けなかったタブ・無い位置）。
+  // 紙の印（plan-page-image.js の signature）。null は描けない（開けなかったタブ・無い位置）。
   function sigOf(tabId, index) {
     const view = root.SigK.tabs.peek(tabId);
-    const entry = view?.plan?.[index];
-    if (view?.doc === undefined || entry === undefined)
-      return null;
-    const sheet = layout().sheetOf(view.sizes[index]);
-    const added = Number.isInteger(entry.insert) ? view.inserts?.[entry.insert] : null;
-    const insert = added === null ? '' : `${docId(added?.doc)}/${added?.page ?? 0}`;
-    const annots = Number.isInteger(entry.src) ? root.SigK.annotationState.annotsOnPage(view.annots, view.imported, entry.src) : [];
-    return `${docId(view.doc)}|${JSON.stringify(entry)}|${insert}|${JSON.stringify(annots)}|${sheet.width}x${sheet.height}`;
+    const sheet = layout().sheetOf(view?.sizes?.[index]);
+    return root.SigK.planPageImage.signature(view, index, `${sheet.width}x${sheet.height}`);
   }
 
   function notify(tabId, index, canvas) {

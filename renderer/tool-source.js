@@ -1,64 +1,13 @@
 (function (root) {
   'use strict';
 
-  // ツールの入力ファイルを覗く（spec-2-1 確定事項14・spec-2-2 確定事項4）。
+  // ツールの入力ファイルの名前と、画像の形式・画素数（spec-3-1 確定事項4・spec-3-2 確定事項28）。
   //
-  // pdf.js で numPages だけ読んで、文書はすぐ手放す。パスワード付きは聞かずに
-  // 断る（password-prompt.js は通さない。結合も分割も暗号化 PDF を書けないため）。
-  //
-  // 戻り値は { pageCount, name } か { reason, error }。reason は
-  // 'unavailable'（読む機能が無い）・'read'（ファイルを読めない）・
-  // 'encrypted'・'broken'。画面に出す文言は呼ぶ側が決める（結合は「外してください」、
-  // 分割は「選び直してください」と続きが違う）。error は素の文言である。
+  // 2026-10-15: PDF を読んで覗く口（openPdf・inspectPdf。分割の対象の欄と盤が使っていた）は無くした。分割も選んでいる帯（タブの文書）を
+  // 対象にし、盤もタブの文書から描くため（spec-2-5 確定事項G6・G14）。
 
   function baseName(filePath) {
     return String(filePath ?? '').split(/[\\/]/).pop();
-  }
-
-  // 開いて、文書を開いたまま返す（spec-2-2b 確定事項D1。分割の盤が読むのを 1 回で済ませるため）。閉じるのは呼ぶ側で、
-  // task.destroy() を呼ぶ。戻り値は { info, task, doc } か { reason, error }。info は { pageCount, name, size, mtimeMs }。
-  async function openPdf(filePath, { encryptedError }) {
-    const api = root.pdfAPI;
-    if (api?.available !== true || root.SigK.pdfjs?.available !== true)
-      return { reason: 'unavailable', error: 'PDF を読む機能を使えません' };
-    const read = await api.read(filePath);
-    if (read?.error !== undefined)
-      return { reason: 'read', error: read.error };
-
-    const task = root.SigK.pdfjs.getDocument({ data: read.bytes });
-    let encrypted = false;
-    task.onPassword = (update) => {
-      encrypted = true;
-      update(new Error('パスワード付きの PDF は扱えません'));
-    };
-    try {
-      const doc = await task.promise;
-      return { task, doc, info: { pageCount: doc.numPages, name: read.name ?? baseName(filePath), size: read.size, mtimeMs: read.mtimeMs } };
-    } catch {
-      // 開けなかったときも畳んでおく（pdf.js は失敗したタスクの destroy を許す）。
-      await task.destroy?.();
-      return encrypted
-        ? { reason: 'encrypted', error: encryptedError }
-        : { reason: 'broken', error: 'この PDF を開けません' };
-    }
-  }
-
-  async function inspect(filePath, { encryptedError }) {
-    const opened = await openPdf(filePath, { encryptedError });
-    if (opened.reason !== undefined)
-      return opened;
-    try {
-      return { pageCount: opened.info.pageCount, name: opened.info.name };
-    } finally {
-      // 畳むのは loadingTask（spec-3-3 確定事項25）。doc.destroy は pdf.js 6 に無い。
-      await opened.task.destroy?.();
-    }
-  }
-
-  // 分割の対象。書けないので暗号化は「保存できない」と断る。PDF→画像の対象（寸法まで読む inspectPdfPages）は、2026-10-14 に
-  // 選んでいる帯（タブの文書）から取るようにしたので無くした（spec-2-5 確定事項E4）。
-  function inspectPdf(filePath) {
-    return inspect(filePath, { encryptedError: 'パスワード付きで、保存できない PDF です' });
   }
 
   // 画像の形式と画素数（spec-3-1 確定事項4・spec-3-2 確定事項28）。読むのはメイン側 image-io.js で、
@@ -76,5 +25,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.toolSource = { openPdf, inspectPdf, inspectImage, baseName };
+  SigK.toolSource = { inspectImage, baseName };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -449,7 +449,7 @@ test('ツールモードで既に開いているファイルを選ぶと、そ�
 });
 
 // 取りやめの控えは呼び出しごとに持つ（spec-4b-7b 点検の直し）。1 つだけだと、重なった別の「開く」の取りやめに引きずられる。
-test('開く処理が重なり、あとの「開く」を取りやめても、先に開けた方はツールにも渡す', async (t) => {
+test('開く処理が重なり、あとの「開く」を取りやめても、先に開けた方は帯になり、結合の行に入る', async (t) => {
   const shell = await inToolsMode(t);
   const first = shell.SigK.tabs.runOpenCommand(A);
   const second = shell.SigK.tabs.runOpenCommand();
@@ -459,21 +459,21 @@ test('開く処理が重なり、あとの「開く」を取りやめても、�
   assert.deepEqual(structuredClone(mergePaths(shell)), [A]);
 });
 
-test('閲覧モードで開き始め、読み込みの間にツールモードへ替えたら、ツールモードのままで、ツールには渡さない', async (t) => {
+// 開いたファイルをツールに渡す仕組みは無くした（spec-2-5 確定事項G13）。読み込みの間にモードを替えても、替えたモードのままで、開いた帯が選ばれる。
+test('閲覧モードで開き始め、読み込みの間にツールモードへ替えたら、ツールモードのままで、開いた帯が分割の対象になる', async (t) => {
   const shell = await withShell(t);
   await shell.flush();
   const opening = shell.SigK.tabs.runOpenCommand(A);
   shell.SigK.shell.setMode(shell.document, 'tools');
-  // 結合は開いたタブがそのまま行になるので、渡さないことは対象を持つツール（分割）で見る（spec-2-5 確定事項E2）。
   shell.SigK.tools.select('split');
   assert.equal(await opening, true);
   await shell.flush();
   assert.equal(modeOf(shell), 'tools');
   assert.equal(shell.SigK.tabs.count(), 1);
-  assert.equal(shell.SigK.toolsSplit.source(), null, '開き始めにツールを見ていなかった');
+  assert.equal(shell.SigK.toolsSplit.source().path, A, '分割の対象は選んでいる帯（spec-2-5 確定事項G1）');
 });
 
-test('ツールモードで開き始め、読み込みの間に閲覧モードへ替えたら、ツールには渡さない', async (t) => {
+test('ツールモードで開き始め、読み込みの間に閲覧モードへ替えたら、閲覧モードのままで、ツールモードへ戻さない', async (t) => {
   const shell = await inToolsMode(t);
   shell.SigK.tools.select('split');
   const opening = shell.SigK.tabs.runOpenCommand(A);
@@ -481,7 +481,7 @@ test('ツールモードで開き始め、読み込みの間に閲覧モード�
   assert.equal(await opening, true);
   await shell.flush();
   assert.equal(modeOf(shell), 'view');
-  assert.equal(shell.SigK.toolsSplit.source(), null, 'ツールの画面が見えていないので渡さない');
+  assert.equal(shell.SigK.tabs.count(), 1);
 });
 
 test('ファイルを選ぶ窓で取りやめたら、ツールモードのままで、何もしない', async (t) => {

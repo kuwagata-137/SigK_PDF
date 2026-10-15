@@ -266,15 +266,16 @@ test('画像→PDF を選んでいるときに PDF を落とすと、タブで�
   assert.equal(modeOf(shell), 'tools');
 });
 
-test('分割を選んでいるときに PDF を 2 つ落とすと、タブは 2 枚、分割の対象は先頭の 1 本', async (t) => {
+// 分割の対象は選んでいる帯なので、最後に開いた帯が ✂ の盤になる。どの帯も盤にできるので、1 本だけの知らせは出さない（spec-2-5 確定事項G13）。
+test('分割を選んでいるときに PDF を 2 つ落とすと、タブは 2 枚、分割の対象は最後に開いた帯', async (t) => {
   const shell = await inTools(t, 'split');
 
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('b.pdf', B), makeDroppedFile('a.pdf', A)]));
   await shell.flush();
 
   assert.deepEqual(tabPaths(shell), [B, A]);
-  assert.equal(shell.SigK.toolsSplit.source().path, B);
-  assert.equal(shell.SigK.viewBanner.text(), '1つ目のファイルだけを対象にしました。');
+  assert.equal(shell.SigK.toolsSplit.source().path, A);
+  assert.notEqual(shell.SigK.viewBanner.text(), shell.SigK.toolsSplit.NOTE_FIRST_ONLY);
 });
 
 test('ツールモードで PDF でも画像でもないものだけを落とすと、理由を帯で出す', async (t) => {

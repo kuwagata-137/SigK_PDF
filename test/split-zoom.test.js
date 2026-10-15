@@ -18,12 +18,13 @@ async function createZoomShell(t, { pages = 6 } = {}) {
   });
   t.after(() => shell.cleanup());
   await shell.flush();
+  // 盤は帯の中にあり、帯の画面（#strips）のスクロールに乗る（spec-2-5 確定事項G9）。
   const scroll = shell.document.getElementById('split-board-scroll');
   Object.defineProperty(scroll, 'clientWidth', { configurable: true, get: () => 640 });
-  Object.defineProperty(scroll, 'clientHeight', { configurable: true, get: () => 500 });
+  Object.defineProperty(shell.document.getElementById('strips'), 'clientHeight', { configurable: true, get: () => 500 });
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('split');
-  await shell.SigK.toolsSplit.setSource(A);
+  await shell.SigK.tabs.openPath(A);
   await settle(shell);
   return shell;
 }

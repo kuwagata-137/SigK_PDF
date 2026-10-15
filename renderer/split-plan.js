@@ -73,6 +73,20 @@
     return `p${runs.map((run) => (run.from === run.to ? `${run.from + 1}` : `${run.from + 1}-${run.to + 1}`)).join('+')}`;
   }
 
+  // まとめて分けるのボタン（kind）を押したときの次の盤（spec-2-2b 確定事項C7）。欄（texts の every・at）が読めなければ { error }。
+  // 盤を組むのは split-board-model.js（呼んだときに引く）。
+  function bulkNext(kind, board, texts) {
+    const model = root.SigK.splitBoard;
+    if (kind === 'each')
+      return { next: model.splitEach(board) };
+    if (kind === 'clear')
+      return { next: model.clearCuts(board) };
+    const parsed = kind === 'every' ? parseEvery(texts.every) : parseCuts(texts.at, board.pageCount);
+    if (parsed.error !== undefined)
+      return { error: parsed.error };
+    return { next: kind === 'every' ? model.splitEvery(board, parsed.n) : model.splitBefore(board, parsed.numbers) };
+  }
+
   function outputNames(baseName, parts, rule) {
     const base = stem(baseName);
     if (rule === 'pages')
@@ -82,5 +96,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.splitPlan = { MAX_OUTPUTS, withCommas, parseEvery, parseCuts, outputNames, pageLabel, stem };
+  SigK.splitPlan = { MAX_OUTPUTS, withCommas, parseEvery, parseCuts, bulkNext, outputNames, pageLabel, stem };
 })(typeof window !== 'undefined' ? window : globalThis);

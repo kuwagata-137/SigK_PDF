@@ -113,8 +113,9 @@
     root.SigK.toolsMergeList.init(doc, win);
     root.SigK.toolsSplit.init(doc, win);
     root.SigK.toolsSplitView.init(doc, win);
-    // 分割の盤（spec-2-2b）。右の欄の render から描き直されるので、右の欄の後に用意する。
+    // 分割の盤（spec-2-2b）。右の欄の render から描き直されるので、右の欄の後に用意する。盤は選んでいる帯の中に入れる（spec-2-5 確定事項G1）。
     root.SigK.splitBoardView.init(doc, win);
+    root.SigK.splitStrip.init(doc, win);
     root.SigK.splitBoardBand.init(doc, win);
     // なぞる途中の Esc を受ける document の keydown は、Esc の振り分け（viewerControls の handleKey）より先に登録する。
     root.SigK.splitBoardInput.init(doc, win);

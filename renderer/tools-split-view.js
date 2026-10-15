@@ -1,10 +1,11 @@
 (function (root) {
   'use strict';
 
-  // 分割画面の右の欄と下の要約（spec-2-2b 確定事項C11・H1・H5・I）。
+  // 分割の右の欄（#tool-pane の節。spec-2-2b 確定事項C11・H1・H5・I、spec-2-5 確定事項G2・G14）。
   //
   // 状態は tools-split.js（対象と出力）と tools-split-edit.js（盤）が持つ。ここは読んで DOM に写し、操作をあちらの関数へ返す。
-  // render() が画面全体の描き直しの入口で、盤（split-board-view.js）と上の段・帯（split-board-band.js）もここから描き直す。
+  // render() が分割の画面全体の描き直しの入口で、盤を選んでいる帯へ入れ（split-strip.js）、盤（split-board-view.js）と
+  // 上の段・操作の帯（split-board-band.js）もここから描き直す。
 
   let el = null;
   let filesKey = null;   // 一覧に並べた中身。同じなら組み直さない
@@ -101,9 +102,10 @@
     return `${board.skipped.map((page) => digits(page + 1)).join('・')} ページ目`;
   }
 
+  // 対象の帯が無い・使えないときは空にする（状態の文が出るため。PR-2 のほかのツールと同じ）。
   function summaryOf(plan) {
     if (plan.reason === 'no-source')
-      return split().source() === null ? '分割する PDF を決めてください。' : '';
+      return '';
     if (plan.reason === 'untouched')
       return '✂ で分け目を入れるか、書き出さないページを決めると、実行できます。';
     if (plan.reason === 'empty')
@@ -120,17 +122,20 @@
   function render() {
     if (el === null)
       return false;
+    split().sync();
+    root.SigK.splitStrip?.sync();
     const src = split().source();
     const plan = split().currentPlan();
     const running = split().isRunning();
-    root.SigK.sourcePicker.render(el, src);
+    const stateText = split().stateText();
+    el.state.hidden = stateText === null;
+    el.state.textContent = stateText ?? '';
     renderFiles(plan);
     renderOutput(plan, src);
     el.summary.textContent = summaryOf(plan);
     el.summary.classList.toggle('wait', !plan.ready);
     setDisabled(el.run, !split().canRun());
-    for (const control of [el.useOpen, el.pick, el.folderPick])
-      setDisabled(control, running);
+    setDisabled(el.folderPick, running);
     el.ruleRadios.seq.disabled = running;
     el.ruleRadios.pages.disabled = running;
     root.SigK.splitBoardBand?.sync();
@@ -155,9 +160,7 @@
 
     const byId = (id) => doc.getElementById(id);
     el = {
-      doc, win, run,
-      file: byId('split-file'), name: byId('split-name'), pages: byId('split-pages'), note: byId('split-note'),
-      empty: byId('split-empty'), useOpen: byId('split-use-open'), pick: byId('split-pick'),
+      doc, win, run, state: byId('split-state'),
       filesCard: byId('split-files-card'), files: byId('split-files'), filesCount: byId('split-files-count'),
       folder: byId('split-folder'), folderPick: byId('split-folder-pick'),
       ruleRadios: { seq: doc.querySelector('input[name="split-rule"][value="seq"]'), pages: doc.querySelector('input[name="split-rule"][value="pages"]') },
@@ -173,8 +176,6 @@
         root.SigK.splitBoardView?.revealBox(Number(row.dataset.box));
     });
 
-    root.SigK.sourcePicker.bindTabMenu(el.useOpen, (id) => split().useTab(id));
-    onClick(el.pick, () => split().pickFile());
     onClick(el.folderPick, () => split().pickFolder());
     onClick(el.run, () => split().run());
 
