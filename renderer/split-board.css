@@ -38,7 +38,7 @@
 .sb-seg button:first-child{border-left:none}
 .sb-seg button[aria-checked="true"]{background:var(--primary); color:#fff}
 
-/* ── 選んだときの帯（使い方の案内は右の欄の説明へ移した。spec-2-5 確定事項G14） ── */
+/* ── 選んだときの操作の行（使い方の案内は右の欄の説明へ移した。spec-2-5 確定事項G14） ── */
 .sb-band{position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:8px; padding:7px 10px 7px 14px; border:1px solid #b9cdf7; border-radius:var(--radius); background:#e8effd}
 .sb-band[hidden]{display:none}
 .sb-band b{font-size:12.5px; font-weight:600}

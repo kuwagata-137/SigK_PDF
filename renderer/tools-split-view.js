@@ -5,7 +5,7 @@
   //
   // 状態は tools-split.js（対象と出力）と tools-split-edit.js（盤）が持つ。ここは読んで DOM に写し、操作をあちらの関数へ返す。
   // render() が分割の画面全体の描き直しの入口で、盤を選んでいる帯へ入れ（split-strip.js）、盤（split-board-view.js）と
-  // 上の段・操作の帯（split-board-band.js）もここから描き直す。
+  // 上の段・選んだときの操作の行（split-board-band.js）もここから描き直す。
 
   let el = null;
   let filesKey = null;   // 一覧に並べた中身。同じなら組み直さない

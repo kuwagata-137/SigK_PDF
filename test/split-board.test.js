@@ -134,7 +134,7 @@ test('まとめて分ける 4 つ。番号の欄の誤りは赤くして段の�
   assert.equal(shell.SigK.toolsSplit.currentPlan().reason, 'untouched');
 });
 
-test('選ぶと帯が出て、書き出さない・書き出す・1 つのファイルにする・選ぶのをやめるが効く', async (t) => {
+test('選ぶと選んだときの操作の行が出て、書き出さない・書き出す・1 つのファイルにする・選ぶのをやめるが効く', async (t) => {
   const shell = await withSource(t, { pages: 6 });
   edit(shell).cut(4);
   edit(shell).select(1);
@@ -174,7 +174,7 @@ test('狭い箱（幅 420px 未満）は見出しを 2 行にし、書き出さ�
   assert.equal($(shell, '.sb-page[data-page="1"] .tag').textContent, '書き出さない');
 });
 
-test('1 ページだけ選んだときの帯の文', async (t) => {
+test('1 ページだけ選んだときの操作の行の文', async (t) => {
   const shell = await withSource(t);
   edit(shell).select(2);
   assert.equal($(shell, '#split-band-text').textContent, '3 ページ目を選んでいます');
@@ -277,7 +277,7 @@ test('実行の前にファイルが書き換わっていたら止める（spec-
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]], '盤はそのまま');
 });
 
-test('実行中は盤の操作と段と帯を受けない', async (t) => {
+test('実行中は盤の操作と段と選んだときの操作の行を受けない', async (t) => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   const shell = await withSource(t, { taskResults: [gate] });
@@ -367,7 +367,7 @@ test('できるファイルの一覧は上限の 500 行までにし、残りの
   assert.equal($(shell, '#split-files .sb-files-more'), null);
 });
 
-test('✂・［つなげる］・帯のボタンを押したあとも、フォーカスは盤の器に残る（裏のページビューへキーを流さない）', async (t) => {
+test('✂・［つなげる］・選んだときの操作の行のボタンを押したあとも、フォーカスは盤の器に残る（裏のページビューへキーを流さない）', async (t) => {
   const shell = await withSource(t, { pages: 6 });
   const scroll = $(shell, '#split-board-scroll');
   const pressButton = (selector) => {

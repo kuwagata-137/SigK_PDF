@@ -173,7 +173,7 @@ body{
 
     <div id="side-resizer"></div>
 
-    <!-- サイドパネルを閉じている間だけ出す細い帯（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じる「＜」は
+    <!-- サイドパネルを閉じている間だけ出す、閉じたパネルの細い欄（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じる「＜」は
          パネルと一緒に消えるので、開き直す「＞」をここに置く。出し入れは shell.js の setSidePanelOpen。 -->
     <div id="side-strip" hidden>
       <button type="button" id="side-expand" data-icon="chevronRight" data-icon-size="14" data-icon-stroke="1.9" title="サイドパネルを開く" aria-label="サイドパネルを開く"></button>
@@ -224,7 +224,7 @@ body{
             </div>
           </div>
           <!-- 分割の ✂ の盤（spec-2-2b、spec-2-5 第 G 章。見本 screenshots/strips3-split.png）。分割を選んでいる間、split-strip.js が選んでいる帯の中へ入れ、
-               帯の紙の列の代わりに出す。上の段と選んだときの操作の帯は split-board-band.js、箱とページは split-board-view.js、押す・なぞるは
+               帯の紙の列の代わりに出す。上の段と選んだときの操作の行は split-board-band.js、箱とページは split-board-view.js、押す・なぞるは
                split-board-input.js。盤にできない帯（パスワード付きなど）では、理由（#split-board-empty）だけを出す。 -->
           <div class="strip-board" id="split-strip-board" hidden>
             <div class="sb-tools" id="split-tools">

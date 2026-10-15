@@ -120,7 +120,7 @@
     root.SigK.strips?.schedule();   // 帯の見えている紙も幅で決まる（spec-2-5 確定事項D8）
   }
 
-  // 閉じている間だけ、開き直す「＞」の細い帯を出す（2026-10-08 の直し）。閉じる「＜」はパネルと一緒に消えるため。
+  // 閉じている間だけ、開き直す「＞」のある、閉じたパネルの細い欄を出す（2026-10-08 の直し）。閉じる「＜」はパネルと一緒に消えるため。
   function setSidePanelOpen(doc, open) {
     doc.documentElement.setAttribute('data-panel', open ? 'open' : 'collapsed');
     const strip = doc.getElementById('side-strip');
@@ -221,7 +221,7 @@
         setSidePanelOpen(doc, !open);
       });
     }
-    // キーボードで「＞」を押した（click の detail が 0）ときは、パネルの中へフォーカスを移す。「＞」は帯と一緒に隠れ、閉じる「＜」は
+    // キーボードで「＞」を押した（click の detail が 0）ときは、パネルの中へフォーカスを移す。「＞」は閉じたパネルの細い欄と一緒に隠れ、閉じる「＜」は
     // フォーカスを受けないので、行き場が無くなるため（spec-4b-7b 点検の直し）。
     doc.getElementById('side-expand')?.addEventListener('click', (event) => {
       setSidePanelOpen(doc, true);
