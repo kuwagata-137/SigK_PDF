@@ -140,3 +140,20 @@ test('画像を足すと画像の帯に枠が付き、PDF の帯を押すと枠�
   SigK.tools.select('merge');
   assert.equal(framed(pdfStrip(shell)), true, '画像の帯を隠したら PDF の帯に枠を戻す');
 });
+
+// 点検で見つかった（2026-10-15）。外したときの描き直しは画像の帯を隠すだけで、PDF の帯の枠を付け直さなかった。
+test('画像をすべて外して画像の帯が消えたら、PDF の帯に枠を戻す（見出しの［×］でも、最後の 1 枚の［×］でも）', async (t) => {
+  const shell = await createImageShell(t);
+  const { SigK, document: doc } = shell;
+  await SigK.toolsConvert.addPaths([A, B]);
+  assert.equal(framed(pdfStrip(shell)), false);
+  doc.getElementById('image-strip-clear').click();
+  assert.equal(host(shell).hidden, true);
+  assert.equal(framed(pdfStrip(shell)), true, '見出しの［×］');
+
+  await SigK.toolsConvert.addPaths([A]);
+  assert.equal(framed(pdfStrip(shell)), false);
+  items(shell)[0].querySelector('.img-x').click();
+  assert.equal(host(shell).hidden, true);
+  assert.equal(framed(pdfStrip(shell)), true, '最後の 1 枚の［×］');
+});

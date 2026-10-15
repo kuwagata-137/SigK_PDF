@@ -16,7 +16,7 @@
   const ITEM_STEP = 116;   // .img-item の幅 104px ＋ 間 12px（strips.css）
   const PREFETCH = 2;
 
-  const state = { selected: false };
+  const state = { selected: false, shown: false };
   let el = null;
 
   const convert = () => root.SigK.toolsConvert;
@@ -74,6 +74,11 @@
       return false;
     const shown = isShown();
     el.host.hidden = !shown;
+    // 出す・隠すが変わったら、PDF の帯の枠を付け直す（画像をすべて外して隠れたときに、どの帯にも枠が無くなっていた。点検で見つけた）。
+    if (shown !== state.shown) {
+      state.shown = shown;
+      root.SigK.strips?.sync();
+    }
     if (!shown)
       return false;
     const rows = convert().rows();
