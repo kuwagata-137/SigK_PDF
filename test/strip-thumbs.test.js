@@ -135,9 +135,10 @@ test('紙 1 枚は今の並びの回転・切り取り・モザイクと、保�
   });
   const doc = { getPage: async (number) => makePage(number, 90) };
   const insertDoc = { getPage: async (number) => makePage(100 + number) };
+  const contexts = [];
   const domDoc = {
     defaultView: { CanvasRenderingContext2D: function CanvasRenderingContext2D() {} },
-    createElement: () => ({ width: 0, height: 0, getContext: () => ({}) }),
+    createElement: () => ({ width: 0, height: 0, getContext: (...args) => { contexts.push(args); return {}; } }),
   };
   const view = {
     doc,
@@ -154,6 +155,8 @@ test('紙 1 枚は今の並びの回転・切り取り・モザイクと、保�
   assert.deepEqual(painted[0], { mosaic: view.plan[0].mosaic });
   assert.deepEqual(painted[1].entries.map((entry) => entry.kind), ['highlight', 'shape']);
   assert.equal(painted[1].viewport.rotation, 180);
+  // 帯・盤の紙は CPU で描く canvas に描く（計画外の直し 2026-10-15。GPU の canvas では同時に描いた片方の字が欠けた）。
+  assert.deepEqual(contexts, [['2d', { willReadFrequently: true }]]);
 
   painted.length = 0;
   const second = await SigK.planPageImage.draw(domDoc, view, 1, { sheet: { width: 74, height: 104 } });

@@ -78,6 +78,7 @@
       mosaic: entry?.mosaic ?? null,
       annotationMode: root.SigK.pdfjs?.lib?.AnnotationMode?.ENABLE_STORAGE,
       overlay: overlay?.paint ?? null,
+      software: true,   // 同時に描いた片方の字が欠けないように（page-image.js の software）
     });
     return { canvas: result.canvas, page };
   }
