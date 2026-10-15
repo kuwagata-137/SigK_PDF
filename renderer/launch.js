@@ -9,8 +9,8 @@
   // 始まらないからである。メイン側は ready を受けるまで要求を溜めている。
   //
   // 要求は { intent, paths, batch: { id, first } } の形で 1 件ずつ届く（main.js の queueLaunch。
-  // 右クリックで N 個選ぶと N 件）。ここは届いた順に 1 件ずつ画面へ渡すだけで、束の中の並びと
-  // 一覧の置き換えは受け取る画面が決める（tools-merge.js・tools-convert.js・tools-split.js）。
+  // 右クリックで N 個選ぶと N 件）。ここは届いた順に 1 件ずつ画面へ渡すだけで、束の中の並びと、
+  // 前の並びを置き換えるかは、受け取る画面が決める（tools-merge.js・tools-convert.js・tools-split.js）。
   // PDF はどの操作でもタブで開き、`open` ではモードを変えない（決定80）。
   //
   // **手が空いていなければ当てずに預かる**（論点4）。結合と画像→PDF は保存ダイアログから

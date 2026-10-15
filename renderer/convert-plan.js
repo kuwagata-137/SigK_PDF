@@ -105,7 +105,7 @@
     return { layouts };
   }
 
-  // 一覧と設定から計画を組む。行が無い・読んでいる途中・読めない行があれば ready: false
+  // 画像の並び（行。「変換する画像」の帯に描く）と設定から計画を組む。行が無い・読んでいる途中・読めない行があれば ready: false
   // （error は null。行の側に理由がある）。「画像ごと」で出力名が衝突すれば ready: false と error。
   // pages は行 × ページの紙（ワーカーの layouts）、totalPages は「まとめる」のページ数。
   function planConvert(rows, settings) {

@@ -1405,8 +1405,20 @@ function installSmokeCheck(win, mode) {
       runDisabled: document.getElementById('convert-run').getAttribute('aria-disabled'),
       example: document.getElementById('convert-example').textContent,
       summary: document.getElementById('convert-summary').textContent,
-      papers: [...document.querySelectorAll('#convert-list .convert-row .paper')].map((node) => node.textContent),
-      pixels: [...document.querySelectorAll('#convert-list .convert-row .px')].map((node) => node.textContent),
+      // 「変換する画像」の帯（spec-2-5 確定事項H4〜H8）。画素数・この紙は画像の説明（title）に入っている。
+      strip: {
+        shown: document.getElementById('image-strip').hidden === false,
+        framed: document.getElementById('image-strip').classList.contains('sel'),
+        count: document.getElementById('image-strip-count').textContent,
+        note: document.getElementById('image-strip-note').textContent,
+        items: [...document.querySelectorAll('#image-strip .img-item')].map((node) => ({
+          name: node.querySelector('.cap').textContent,
+          title: node.title,
+          bad: node.classList.contains('bad'),
+          thumb: node.querySelector('.img-thumb img') !== null,
+          pages: node.querySelector('.img-pages')?.textContent ?? null,
+        })),
+      },
       planError: plan.error,
       pages: plan.ready ? plan.pages.map((layouts) => layouts.map((layout) => layout.page)) : [],
       totalPages: plan.ready ? plan.totalPages : null,
@@ -1477,6 +1489,12 @@ function installSmokeCheck(win, mode) {
       written: result ? (result.written ?? null) : null,
       tabs: SigK.tabs.count(),
       mode: document.documentElement.getAttribute('data-mode'),
+      // 「画像ごと」は画面の［実行…］と同じ経路なので、できた帯と「できた PDF」のカードが出る（spec-2-5 確定事項H3・H11）。
+      strips: document.querySelectorAll('#strips .strip').length,
+      resultCard: document.getElementById('convert-result').hidden ? null : {
+        title: document.getElementById('convert-result-title').textContent,
+        desc: document.getElementById('convert-result-desc').textContent,
+      },
       ms,
       opened,
     };

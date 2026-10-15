@@ -11,8 +11,8 @@
   const isToolsMode = () => root.SigK.tools?.isToolsMode() === true;
   const validPaths = (paths) => (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
 
-  // ツールモードで落とした画像。画像→PDF なら一覧へ、透かしなら透かしの画像に（PNG・JPEG。toolsWatermark.addImages。
-  // 選り分けは file-drop.js が済ませている）。ほかのツールでは、画像→PDF に切り替えて一覧へ足す。
+  // ツールモードで落とした画像。画像→PDF なら「変換する画像」の帯へ、透かしなら透かしの画像に（PNG・JPEG。toolsWatermark.addImages。
+  // 選り分けは file-drop.js が済ませている）。ほかのツールでは、画像→PDF に切り替えて「変換する画像」の帯へ足す（spec-2-5 確定事項H1）。
   async function giveImages(paths) {
     const incoming = validPaths(paths);
     if (!isToolsMode() || incoming.length === 0)
