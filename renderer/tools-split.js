@@ -63,7 +63,7 @@
   // `--split` の受け口（spec-2-2 確定事項6・spec-5-1 確定事項9・20・21、spec-2-5 G13）。右クリックで N 個選ぶと、分割にも
   // 1 本ずつ届く（子の MultiSelectModel=Single は効かない。事前調査 A2）。束の最初でツールモードの分割へ移り、PDF をタブ（帯）で開いて、
   // 束の中でファイル名の順に先頭の帯を選ぶ（後から届いたパスが前なら選び直す。後ろなら、開いて前に出た帯から元の帯へ戻す）。
-  // open は launch.js がタブで開く関数。帯の知らせは束につき 1 回。
+  // open は launch.js がタブで開く関数。「1つ目のファイルだけを対象にしました。」の通知バーは束につき 1 回。
   async function useFromLaunch(paths, { batch, open = (pdfs) => root.SigK.toolHandoff.openPdfs(pdfs) } = {}) {
     const incoming = (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
     if (incoming.length === 0)

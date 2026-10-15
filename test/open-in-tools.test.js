@@ -3,7 +3,7 @@
 // ツールモードで開く（決定80）。
 //
 // ファイルはどのモードで開いてもタブで開き、モードは変えない。ツールモードではページビューがツールの画面の下に
-// 隠れるので、開けなかった理由は知らせに出す。［開く］・ドロップ・エクスプローラーからの起動で開いたファイルは帯（タブ）になり、
+// 隠れるので、開けなかった理由は通知バーに出す。［開く］・ドロップ・エクスプローラーからの起動で開いたファイルは帯（タブ）になり、
 // 帯を対象にするツールは、その帯をそのまま使う（ツールへの受け渡しは spec-2-5 確定事項G13 で無くした）。
 
 const test = require('node:test');
@@ -32,9 +32,9 @@ async function withShell(t, { mode = 'tools', files = {}, ...options } = {}) {
 
 const modeOf = (shell) => shell.document.documentElement.getAttribute('data-mode');
 
-// ---- 開けなかった理由は知らせに出す ----
+// ---- 開けなかった理由は通知バーに出す ----
 
-test('ツールモードで壊れたファイルを開くと、理由を知らせに出し、ツールモードのまま', async (t) => {
+test('ツールモードで壊れたファイルを開くと、理由を通知バーに出し、ツールモードのまま', async (t) => {
   const shell = await withShell(t, { pdfjs: createPdfjsStub({ openError: broken() }) });
 
   assert.equal(await shell.SigK.tabs.openPath(A), false);
@@ -45,7 +45,7 @@ test('ツールモードで壊れたファイルを開くと、理由を知ら�
   assert.match(shell.SigK.viewBanner.text(), /壊れている/);
 });
 
-test('ツールモードで読めないファイルを開こうとすると、理由を知らせに出す（タブは作らない）', async (t) => {
+test('ツールモードで読めないファイルを開こうとすると、理由を通知バーに出す（タブは作らない）', async (t) => {
   const shell = await withShell(t);
 
   assert.equal(await shell.SigK.tabs.openPath(GONE), false);
@@ -55,7 +55,7 @@ test('ツールモードで読めないファイルを開こうとすると、�
   assert.equal(modeOf(shell), 'tools');
 });
 
-test('ツールモードでタブが上限を超えると、理由を知らせに出す', async (t) => {
+test('ツールモードでタブが上限を超えると、理由を通知バーに出す', async (t) => {
   const files = {};
   const paths = [];
   for (let index = 0; index < 21; index += 1) {
@@ -168,7 +168,7 @@ test('画像→PDF を選んでいるとき、［開く］で開いた PDF は�
   assert.equal(shell.SigK.tools.selected(), 'convert');
 });
 
-test('開けなかったファイルも帯になり、結合の行に入る（理由は知らせに出す）', async (t) => {
+test('開けなかったファイルも帯になり、結合の行に入る（理由は通知バーに出す）', async (t) => {
   const shell = await withShell(t, { pdfjs: createPdfjsStub({ openError: broken() }) });
 
   assert.equal(await shell.SigK.tabs.runOpenCommand(A), false);

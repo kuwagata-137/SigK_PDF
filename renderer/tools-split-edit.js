@@ -37,7 +37,7 @@
     root.SigK.splitBoardInput?.resetCurrent();
   }
 
-  // 選んでいる帯の履歴。並びが変わっていれば split-board-store.js がずらす。ページ数が変わって作り直したときは知らせを出す（G8）。
+  // 選んでいる帯の履歴。並びが変わっていれば split-board-store.js がずらす。ページ数が変わって作り直したときは通知バーに出す（G8）。
   function currentHistory() {
     const now = target();
     follow(now?.tabId ?? null);

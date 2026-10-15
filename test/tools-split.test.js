@@ -124,7 +124,7 @@ test('分割を選んでいるときに PDF を 2 つ落とすと、帯が 2 本
   assert.equal(SigK.tabs.count(), 2, 'タブでも開く（決定80）');
   assert.equal(SigK.toolsSplit.source().path, A, '最後に開いた帯を選んでいる');
   assert.equal(SigK.toolsMerge.rows().length, 2, '結合は開いたタブ（帯）がそのまま行になる（spec-2-5 確定事項E2）');
-  assert.notEqual(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY, 'どの帯も盤にできるので、1 本だけの知らせは出さない');
+  assert.notEqual(bannerText(shell), SigK.toolsSplit.NOTE_FIRST_ONLY, 'どの帯も盤にできるので、「1つ目のファイルだけを対象にしました。」の通知バーは出さない');
 });
 
 test('帯を選び替えると盤はその帯へ移り、前の帯の盤は覚えている。出力の設定は残る（spec-2-5 確定事項G5。決定80 ㉟）', async (t) => {

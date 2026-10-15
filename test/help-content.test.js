@@ -142,8 +142,9 @@ test('画像→PDF は「変換する画像」の帯で並べ、変換のあと�
   assert.match(tools, /右の欄に「できた PDF」のカードが出ます/);
   assert.match(joined('escape'), /「変換する画像」の帯の画像を引いている途中の \[Esc\] は、引くのだけをやめます/);
   assert.doesNotMatch(joined('escape'), /ファイルの一覧の行/);
-  // 進み具合を出す行は帯と呼ばない。
+  // 進み具合を出す行は帯と呼ばない。呼び名は「通知バー」（決定80 ㊲）。
   assert.doesNotMatch(tools, /青い帯/);
+  assert.match(tools, /画面の上に出る通知バー（青い 1 行）に進み具合が出て/);
 });
 
 test('ツールモードで開く・保存するときの動きで書いてある（決定80）', () => {

@@ -157,7 +157,7 @@ test('ツールモードで分割を選んでいるときに open の束が来�
 
   assert.deepEqual(tabPaths(shell), [B, A]);
   assert.equal(SigK.toolsSplit.source().path, A);
-  assert.notEqual(SigK.viewBanner.text(), SigK.toolsSplit.NOTE_FIRST_ONLY, 'どの帯も盤にできるので、1 本だけの知らせは出さない');
+  assert.notEqual(SigK.viewBanner.text(), SigK.toolsSplit.NOTE_FIRST_ONLY, 'どの帯も盤にできるので、「1つ目のファイルだけを対象にしました。」の通知バーは出さない');
 });
 
 test('閲覧モードで open の要求が来ても、閲覧モードのままタブで開くだけ', async (t) => {

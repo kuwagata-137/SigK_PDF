@@ -23,7 +23,7 @@
     return progress?.phase === 'write' && Number.isInteger(progress.done) ? progress.done : 0;
   }
 
-  // 中止・失敗なら知らせを出して true（自分で止めたときは赤く塗らない。決定49）。
+  // 中止・失敗なら通知バーに出して true（自分で止めたときは赤く塗らない。決定49）。
   function stopped(result, { each = false } = {}) {
     if (result?.canceled === true) {
       const written = each ? writtenBeforeCancel() : 0;
@@ -36,9 +36,9 @@
     return true;
   }
 
-  // 知らせの文（H13）。skipped は帯の上限で開かなかった本数、failed は開こうとして開けなかった本数。ここから先は書けているので、
-  // 開けなかったときも赤く塗らない（決定48）。開けなかった理由は tabs.js が先に知らせに出すが、書けたことは伝えたいので、この知らせで
-  // 置き換える。帯を足せたのに開けなかったものがあるときは、その個数も書く（前は書かず、知らせと帯の数が合わなかった。点検で見つけた）。
+  // 通知バーの文（H13）。skipped は帯の上限で開かなかった本数、failed は開こうとして開けなかった本数。ここから先は書けているので、
+  // 開けなかったときも赤く塗らない（決定48）。開けなかった理由は tabs.js が先に通知バーに出すが、書けたことは伝えたいので、この文で
+  // 置き換える。帯を足せたのに開けなかったものがあるときは、その個数も書く（前は書かず、通知バーと帯の数が合わなかった。点検で見つけた）。
   function announce(targets, opened, skipped) {
     const total = targets.length;
     const max = tabs().MAX_TABS;
