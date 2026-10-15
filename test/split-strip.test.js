@@ -145,3 +145,48 @@ test('［上書き保存してから実行］は、保存したあとのファ�
   assert.deepEqual(plain(spec.expectSource), { size: 2048, mtimeMs: 2000 });
   assert.equal(SigK.tabs.isDirty(SigK.tabs.activeId()), false);
 });
+
+// 計画で承認した G-d（spec-2-5 確定事項G9）のとおり、帯の上端が見えていても送る。960×600 の窓では、盤を広げた帯の上端が窓の下の端近くに
+// 見えたまま盤のページが見えなかった（2026-10-15 の起動確認で見つけた。前は上端が見えていないときだけ送っていた）。
+test('盤を広げる帯を替えたときは、その帯の上端が見えていても、帯の上端まで帯の画面を送る（G9）', async (t) => {
+  const { shell } = await createStripShell(t);
+  const { SigK, document: doc } = shell;
+  const strips = doc.getElementById('strips');
+  Object.defineProperty(strips, 'clientHeight', { configurable: true, value: 600 });
+  strips.getBoundingClientRect = () => ({ top: 100, bottom: 700, left: 0, right: 800, width: 800, height: 600 });
+  strips.scrollTop = 0;
+  nodeOf(shell, A).getBoundingClientRect = () => ({ top: 300, bottom: 500, left: 0, right: 800, width: 800, height: 200 });
+
+  SigK.tabs.activate(SigK.tabs.findByPath(A).id);
+  await settle(shell);
+  assert.equal(board(shell).parentNode, nodeOf(shell, A));
+  assert.equal(strips.scrollTop, 200 - SigK.stripLayout.COLUMN_PAD, 'a.pdf の帯の上端（帯の画面の中で 200px）から余白の分だけ上');
+});
+
+// 送る時点で盤の器の高さが前の帯の盤のまま（か 0）だと、帯の画面の中身が短く、送る量が切られる（2026-10-15 の起動確認で、1280×800 では
+// 送られず、960×600 では途中までしか送られなかった）。盤を描いて高さを決めてから送る。
+test('盤を広げる帯を替えたときは、移った先の盤の高さを決めてから帯の画面を送る（G9）', async (t) => {
+  const { shell } = await createStripShell(t);
+  const { SigK, document: doc } = shell;
+  press(shell, 'split-each');
+  await settle(shell);
+  const canvas = doc.getElementById('split-board-canvas');
+  const heightOfB = canvas.style.height;
+  const strips = doc.getElementById('strips');
+  let value = 0;
+  let heightAtScroll = null;
+  Object.defineProperty(strips, 'scrollTop', {
+    configurable: true,
+    get: () => value,
+    set: (next) => {
+      heightAtScroll ??= canvas.style.height;
+      value = next;
+    },
+  });
+
+  SigK.tabs.activate(SigK.tabs.findByPath(A).id);
+  await settle(shell);
+  assert.notEqual(heightAtScroll, null, '帯の画面を送った');
+  assert.equal(heightAtScroll, `${SigK.splitBoardView.layout().totalHeight}px`, 'a.pdf の盤の高さで送る');
+  assert.notEqual(heightAtScroll, heightOfB, 'b.pdf（1 ページずつ）の盤の高さのままではない');
+});

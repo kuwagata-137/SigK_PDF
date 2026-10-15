@@ -50,18 +50,20 @@
       node.append(el.board);
     el.board.hidden = false;
     Object.assign(state, { host: node, tabId: src.tabId, expanded });
-    // 選び替えたら、その帯の上端まで送る（G9）。
-    if (moved)
+    // 選び替えたら、その帯の上端まで送る（G9）。盤の器の高さは盤を描く回で決まるので、先に描いて高さを決めてから送る
+    // （描く前は高さが 0 で、帯の画面の中身が短く、送る量が切られた）。
+    if (moved) {
+      root.SigK.splitBoardView?.render();
       reveal(node);
+    }
     return true;
   }
 
+  // 帯の上端が見えていても送る（盤は縦に長いので、上端が窓の下の端近くにあると盤のページが見えない。960×600 の窓の起動確認で見つけた）。
   function reveal(node) {
     const strips = el.strips;
     const top = node.getBoundingClientRect().top - strips.getBoundingClientRect().top + strips.scrollTop;
-    const pad = root.SigK.stripLayout.COLUMN_PAD;
-    if (top < strips.scrollTop || top > strips.scrollTop + strips.clientHeight - pad)
-      strips.scrollTop = Math.max(0, top - pad);
+    strips.scrollTop = Math.max(0, top - root.SigK.stripLayout.COLUMN_PAD);
   }
 
   function init(doc, win) {
