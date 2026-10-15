@@ -190,3 +190,38 @@ test('「まとめる」でできた PDF を開けなかったときは、作っ
   assert.equal(bannerText(shell), '画像を PDF にして「a.pdf」を作りました。フォルダを開く');
   assert.equal(card(shell).hidden, true);
 });
+
+// 点検で見つかった（2026-10-15）。前は 1 個を開けなくても「画像を 3 個の PDF にして、帯を足しました。」とだけ出し、開けなかった理由の知らせも
+// この知らせで上書きしていた。知らせは「3 個」、帯とカードは「2 個」で、数が合わない理由が分からなかった。
+test('「画像ごと」でできた PDF の一部を開けなかったときは、足した帯の本数と開けなかった個数を知らせる', async (t) => {
+  const shell = await createResultShell(t, {
+    files: { [EACH[1]]: { ok: false, error: 'ファイルを読めませんでした。' } },
+    taskResults: [{ ok: true, written: 3, targets: EACH, pages: 3 }],
+  });
+  const { SigK } = shell;
+  await SigK.toolsConvert.addPaths([A, B, C]);
+  pick(shell, 'output', 'each');
+  await SigK.toolsConvert.run();
+
+  assert.deepEqual(paths(shell), [PDF, EACH[0], EACH[2]]);
+  assert.equal(bannerText(shell), '画像を 3 個の PDF にして、帯を 2 本足しました。1 個は開けませんでした。フォルダを開く');
+  assert.equal(action(shell).textContent, 'フォルダを開く');
+  assert.equal(cardText(shell).title, 'できた PDF（2 個）', 'カードは足した帯だけを書く');
+});
+
+test('「画像ごと」で開けなかった PDF と、帯の上限で開かなかった PDF があるときは、両方の個数を知らせる', async (t) => {
+  const many = Array.from({ length: 18 }, (_value, index) => `${DIR}\\t${index}.pdf`);
+  const shell = await createResultShell(t, {
+    open: [PDF, ...many],   // 帯は 19 本。開けない 1 個目のあと、2 個目で 20 本になり、3 個目は開かない
+    files: { ...Object.fromEntries(many.map((filePath) => [filePath, makeSource({ path: filePath })])), [EACH[0]]: { ok: false, error: 'ファイルを読めませんでした。' } },
+    taskResults: [{ ok: true, written: 3, targets: EACH, pages: 3 }],
+  });
+  const { SigK } = shell;
+  await SigK.toolsConvert.addPaths([A, B, C]);
+  pick(shell, 'output', 'each');
+  await SigK.toolsConvert.run();
+
+  assert.equal(SigK.tabs.count(), 20);
+  assert.equal(paths(shell).at(-1), EACH[1]);
+  assert.equal(bannerText(shell), '画像を 3 個の PDF にして、帯を 1 本足しました。1 個は、帯が 20 本を超えるので開いていません。1 個は開けませんでした。フォルダを開く');
+});
