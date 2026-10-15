@@ -695,6 +695,9 @@ test('実行中は画像の帯と設定と実行ボタンが押せず、進捗�
   rowNodes(shell)[0].querySelector('.img-x').click();
   doc.getElementById('image-strip-clear').click();
   assert.equal(rows(shell).length, 2);
+  // 実行中は画像を足せない（受け口の［ファイルを選ぶ…］・ドロップから。点検で見つかった。前の画面では［ファイルを選ぶ…］を押せなくしていた）。
+  assert.deepEqual(plain(await SigK.toolsConvert.addPaths([C])), []);
+  assert.equal(rows(shell).length, 2);
   shell.firePointer(rowNodes(shell)[0], 'pointerdown', { x: 10, y: 5 });
   shell.firePointer(doc, 'pointermove', { x: 40, y: 5 });
   assert.equal(SigK.imageStripDrag.isDragging(), false);
