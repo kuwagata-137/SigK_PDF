@@ -46,3 +46,34 @@
 .drop-zone .recent .row:hover{background:var(--surface-2)}
 .drop-zone .recent .row .n{white-space:nowrap}
 .drop-zone .recent .row .p{margin-left:auto; color:var(--muted); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* 「変換する画像」の帯（確定事項H4〜H8。見本 screenshots/strips3-convert.png）。PDF の帯と同じ枠で、高さは中身に合わせる。
+   画像の枠は 96×72 の紙＋余白で幅 104px、間は 12px（image-strip.js の ITEM_STEP と合わせる）。 */
+.img-strip{display:flex; flex-direction:column; flex:0 0 auto; box-sizing:border-box; border:1px solid var(--border-strong); border-radius:var(--radius); background:var(--surface); padding:7px 10px 6px; cursor:pointer}
+.img-strip[hidden]{display:none}
+.img-strip.sel{border:2px solid var(--accent); padding:6px 9px 5px; box-shadow:0 0 0 3px var(--select)}
+.img-strip-head{display:flex; align-items:center; gap:8px; height:26px; flex:0 0 26px}
+.img-badge{display:inline-grid; place-items:center; width:20px; height:20px; border-radius:6px; background:#fdf0d5; color:#9a6200; font-size:11.5px; font-weight:700}
+.img-strip-head .fname{font-weight:600; white-space:nowrap}
+.img-strip-head .count{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.img-strip-head .spacer{flex:1}
+.img-strip-items{position:relative; display:flex; gap:12px; overflow-x:auto; overflow-y:hidden; padding:8px 8px 6px 2px}
+.img-strip-items::-webkit-scrollbar{height:6px}
+.img-strip-items::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:3px}
+.img-item{position:relative; flex:0 0 104px; width:104px; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:grab}
+.img-item.dragging{opacity:.45}
+.img-thumb{position:relative; width:104px; height:72px; display:grid; place-items:center; overflow:hidden; background:var(--surface-2);
+  box-shadow:0 0 0 1px rgba(16,24,40,.14), 0 1px 3px rgba(16,24,40,.16)}
+.img-thumb img{display:block; width:100%; height:100%; object-fit:contain; pointer-events:none}
+.img-kind{font-size:12px; font-weight:700; letter-spacing:.06em; color:var(--muted)}
+.img-pages{position:absolute; right:4px; bottom:4px; padding:1px 5px; border-radius:5px; background:rgba(16,24,40,.72); color:#fff; font-size:10.5px}
+.img-x{position:absolute; top:-7px; right:-7px; width:20px; height:20px; padding:0; border-radius:50%; border:1px solid var(--border-strong); background:var(--surface);
+  color:var(--muted); display:none; place-items:center; cursor:pointer; z-index:1}
+.img-item:hover .img-x{display:grid}
+.img-x:hover{color:var(--danger); border-color:var(--danger)}
+.img-item .cap{max-width:104px; font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.img-item.bad .cap{color:var(--danger); font-weight:600}
+/* 引いている間の落とす先（確定事項H6。image-strip-drag.js）。 */
+.img-drop-line{position:absolute; top:6px; bottom:22px; width:2px; margin-left:-1px; background:var(--accent); border-radius:1px; pointer-events:none}
+.img-strip-note{margin:2px 2px 0; color:var(--danger); font-size:12px; line-height:1.6}
+.img-strip-note[hidden]{display:none}

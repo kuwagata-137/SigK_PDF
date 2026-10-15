@@ -402,7 +402,7 @@ function registerIpc() {
   // 出力フォルダーの選択（spec-2-2 確定事項14）。
   ipcMain.handle('pdf:pickFolder', (_event, options = {}) => fileIo.pickFolder(mainWindow, options));
   // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
-  ipcMain.handle('pdf:pickImageSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
+  ipcMain.handle('pdf:pickConvertSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
   ipcMain.handle('pdf:inspectImage', (_event, filePath) => imageIo.inspect(filePath));
   // 透かしにする画像を 1 枚選ぶ・丸ごと読む（spec-4-5 確定事項35・36）。
   ipcMain.handle('pdf:pickWatermarkImage', (_event, options = {}) => imageIo.pickWatermark(mainWindow, options));

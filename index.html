@@ -202,10 +202,21 @@ body{
            ページビューは隠すだけで捨てない。帯（#view-banner）はこの上に出る。 -->
       <div id="tools-view" hidden>
         <!-- 帯の画面（spec-2-5 第 D 章。見本 screenshots/strips2-merge.png・strips2-empty.png）。開いているタブを 1 本ずつ横長の帯にして
-             上から並べる。結合・分割・PDF→画像・透かし・フラット化を選んでいるときに出す（確定事項D11・G1）。帯は strip-view.js（並びと描く所）・
-             strip-row.js（帯 1 本）が組み、いちばん下の受け口は strip-drop-zone.js。 -->
+             上から並べる。ツールモードのどのツールでも出す（確定事項D11・G1・H1）。帯は strip-view.js（並びと描く所）・strip-row.js（帯 1 本）が組み、
+             いちばん下の受け口は strip-drop-zone.js。PDF の帯は「変換する画像」の帯（#image-strip）の前に並べる。 -->
         <div class="strips-screen" id="strips-screen" hidden>
           <div class="strips" id="strips" role="list" aria-label="開いている PDF">
+            <!-- 「変換する画像」の帯（spec-2-5 確定事項H1・H4〜H8。見本 screenshots/strips3-convert.png）。画像→PDF を選んでいて、画像が 1 枚でも
+                 あるときだけ出す。タブではないので .strip にしない（帯の数え上げに入れない）。描くのは image-strip.js、サムネイルは image-thumbs.js、
+                 引いて並べ替えるのは image-strip-drag.js。 -->
+            <div class="img-strip" id="image-strip" hidden>
+              <div class="img-strip-head">
+                <span class="img-badge">画</span><span class="fname">変換する画像</span><span class="count" id="image-strip-count"></span><span class="spacer"></span>
+                <button type="button" class="strip-btn" id="image-strip-clear" title="すべて外す" aria-label="すべて外す" tabindex="-1"><span data-icon="close" data-icon-size="15" data-icon-stroke="1.9"></span></button>
+              </div>
+              <div class="img-strip-items" id="image-strip-items"></div>
+              <div class="img-strip-note" id="image-strip-note" hidden></div>
+            </div>
             <div class="drop-zone" id="strip-drop">
               <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">PDF をここへ落とすと、開いて帯に足します</span></div>
               <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
@@ -245,79 +256,6 @@ body{
               <div class="sb-canvas" id="split-board-canvas"></div>
               <p class="sb-empty" id="split-board-empty"></p>
             </div>
-          </div>
-        </div>
-        <!-- 画像→PDF（spec-3-1 確定事項33）。画像・用紙・出力の3節。中身は
-             tools-convert.js（状態）、tools-convert-list.js（一覧）、
-             tools-convert-view.js（用紙と出力の欄）が持つ。 -->
-        <div class="tool-panel" data-tool="convert" hidden>
-          <div class="tools-head">
-            <h2>画像 → PDF</h2>
-            <span class="hint">JPEG・PNG・BMP・GIF・TIFF を PDF にします。並び順がページ順になります。</span>
-          </div>
-          <div class="split-body">
-            <section class="split-sec">
-              <h3>画像</h3>
-              <div class="merge-bar convert-bar">
-                <button type="button" class="act" id="convert-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
-                <span class="drop-hint">画像をここへドロップしても足せます</span>
-                <span class="spacer"></span>
-                <button type="button" class="act quiet" id="convert-clear">すべて外す</button>
-              </div>
-              <div class="convert-list" id="convert-list">
-                <div class="convert-cols"><span></span><span>ファイル</span><span>画素数</span><span>形式</span><span>この紙</span><span></span><span></span><span></span></div>
-                <p class="empty" id="convert-empty">「ファイルを選ぶ…」で、PDF にする画像を足してください。<br>画像をここへドロップしても足せます。</p>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>用紙</h3>
-              <div class="convert-opts">
-                <span class="k">サイズ</span>
-                <div class="picks" id="convert-papers">
-                  <label class="pick"><input type="radio" name="convert-paper" value="a4" checked><span class="lbl">A4</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="a3"><span class="lbl">A3</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="b5"><span class="lbl">B5</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="letter"><span class="lbl">レター</span></label>
-                  <label class="pick"><input type="radio" name="convert-paper" value="image"><span class="lbl">画像サイズに合わせる</span><span class="sub">1px = 1pt（72dpi 相当）</span></label>
-                </div>
-                <span class="k">向き</span>
-                <div class="picks" id="convert-orients">
-                  <label class="pick"><input type="radio" name="convert-orient" value="auto" checked><span class="lbl">自動</span><span class="sub">画像の縦横比に合わせる</span></label>
-                  <label class="pick"><input type="radio" name="convert-orient" value="portrait"><span class="lbl">縦</span></label>
-                  <label class="pick"><input type="radio" name="convert-orient" value="landscape"><span class="lbl">横</span></label>
-                </div>
-                <span class="k">余白</span>
-                <div class="picks" id="convert-margins">
-                  <label class="pick"><input type="radio" name="convert-margin" value="none"><span class="lbl">なし</span></label>
-                  <label class="pick"><input type="radio" name="convert-margin" value="narrow"><span class="lbl">狭い</span><span class="sub">10mm</span></label>
-                  <label class="pick"><input type="radio" name="convert-margin" value="normal" checked><span class="lbl">標準</span><span class="sub">20mm</span></label>
-                </div>
-                <span class="k"></span>
-                <p class="fit-note" id="convert-fit-note">画像は余白の内側に、縦横比を保って収まる大きさに合わせます。</p>
-              </div>
-            </section>
-            <section class="split-sec">
-              <h3>出力</h3>
-              <div class="split-out convert-out">
-                <span class="k">方式</span>
-                <div class="picks" id="convert-outputs">
-                  <label class="pick"><input type="radio" name="convert-output" value="single" checked><span class="lbl">1つの PDF にまとめる</span></label>
-                  <label class="pick"><input type="radio" name="convert-output" value="each"><span class="lbl">画像ごとに別の PDF にする</span></label>
-                </div>
-                <span class="k" id="convert-folder-key" hidden>フォルダ</span>
-                <div class="folder" id="convert-folder-row" hidden>
-                  <span class="path" id="convert-folder"></span>
-                  <button type="button" class="act" id="convert-folder-pick">変更…</button>
-                </div>
-                <span class="k">出力の例</span>
-                <div class="example" id="convert-example"></div>
-              </div>
-            </section>
-          </div>
-          <div class="merge-foot">
-            <span class="sum" id="convert-summary"></span>
-            <span class="spacer"></span>
-            <button type="button" class="dlg-btn primary" id="convert-run" aria-disabled="true">実行…</button>
           </div>
         </div>
       </div>
@@ -395,6 +333,70 @@ body{
           <span class="sum" id="split-summary"></span>
           <span class="spacer"></span>
           <button type="button" class="dlg-btn primary" id="split-run" aria-disabled="true">実行…</button>
+        </div>
+      </section>
+      <!-- 画像→PDF（spec-3-1、spec-2-5 第 H 章。見本 screenshots/strips3-convert.png・strips3-converted.png）。変換するのは「変換する画像」の帯の画像。
+           状態は tools-convert.js、描画は tools-convert-view.js、「できた PDF」のカードは convert-result.js、実行は convert-run.js。 -->
+      <section class="pane-tool" data-tool="convert" hidden>
+        <div class="pane-body">
+          <h2 class="pane-title">画像 → PDF</h2>
+          <p class="pane-desc">下の「変換する画像」の帯の画像を、左から順にページにして PDF を作ります。できた PDF は新しい帯になります。</p>
+          <p class="pane-state" id="convert-state" hidden></p>
+          <section class="sb-card convert-result" id="convert-result" hidden>
+            <h3 id="convert-result-title">できた PDF</h3>
+            <p class="pane-desc" id="convert-result-desc"></p>
+            <button type="button" class="act result-go" id="convert-result-merge"><span data-icon="merge" data-icon-size="14"></span><span class="t">この PDF をほかの帯と結合する</span></button>
+            <button type="button" class="act result-go" id="convert-result-split"><span data-icon="split" data-icon-size="14"></span><span class="t">この PDF を分割する</span></button>
+          </section>
+          <section class="sb-card">
+            <h3>用紙</h3>
+            <div class="convert-opts">
+              <span class="k">大きさ</span>
+              <div class="picks seg convert-papers" id="convert-papers">
+                <label class="pick"><input type="radio" name="convert-paper" value="a4" checked><span class="lbl">A4</span></label>
+                <label class="pick"><input type="radio" name="convert-paper" value="a3"><span class="lbl">A3</span></label>
+                <label class="pick"><input type="radio" name="convert-paper" value="b5"><span class="lbl">B5</span></label>
+                <label class="pick"><input type="radio" name="convert-paper" value="letter"><span class="lbl">レター</span></label>
+                <label class="pick fit"><input type="radio" name="convert-paper" value="image"><span class="lbl">画像に合わせる</span></label>
+              </div>
+              <span class="k">向き</span>
+              <div class="picks seg" id="convert-orients">
+                <label class="pick"><input type="radio" name="convert-orient" value="auto" checked><span class="lbl">自動</span></label>
+                <label class="pick"><input type="radio" name="convert-orient" value="portrait"><span class="lbl">縦</span></label>
+                <label class="pick"><input type="radio" name="convert-orient" value="landscape"><span class="lbl">横</span></label>
+              </div>
+              <span class="k">余白</span>
+              <div class="picks seg" id="convert-margins">
+                <label class="pick"><input type="radio" name="convert-margin" value="none"><span class="lbl">なし</span></label>
+                <label class="pick"><input type="radio" name="convert-margin" value="narrow"><span class="lbl">狭い</span></label>
+                <label class="pick"><input type="radio" name="convert-margin" value="normal" checked><span class="lbl">標準</span></label>
+              </div>
+              <span class="k"></span>
+              <p class="fit-note" id="convert-fit-note">画像は余白の内側に、縦横比を保って収まる大きさに合わせます。</p>
+            </div>
+          </section>
+          <section class="sb-card">
+            <h3>出力</h3>
+            <div class="split-out convert-out">
+              <span class="k">方式</span>
+              <div class="picks" id="convert-outputs">
+                <label class="pick"><input type="radio" name="convert-output" value="single" checked><span class="lbl">1 つの PDF にまとめる</span></label>
+                <label class="pick"><input type="radio" name="convert-output" value="each"><span class="lbl">画像ごとに 1 つの PDF</span></label>
+              </div>
+              <span class="k" id="convert-folder-key" hidden>フォルダ</span>
+              <div class="folder" id="convert-folder-row" hidden>
+                <span class="path" id="convert-folder"></span>
+                <button type="button" class="act" id="convert-folder-pick">変更…</button>
+              </div>
+              <span class="k">出力の例</span>
+              <div class="example" id="convert-example"></div>
+            </div>
+          </section>
+        </div>
+        <div class="pane-foot">
+          <span class="sum" id="convert-summary"></span>
+          <span class="spacer"></span>
+          <button type="button" class="dlg-btn primary" id="convert-run" aria-disabled="true">実行…</button>
         </div>
       </section>
       <!-- PDF→画像（spec-3-3、spec-2-5 確定事項E4。見本 screenshots/strips2-toimage.png）。対象は選んでいる帯。状態は tools-to-image.js、
@@ -913,7 +915,6 @@ body{
 <script src="renderer/page-range.js"></script>
 <script src="renderer/page-image.js"></script>
 <script src="renderer/tools.js"></script>
-<script src="renderer/row-drag.js"></script>
 <script src="renderer/launch-intake.js"></script>
 <script src="renderer/tool-output.js"></script>
 <script src="renderer/tool-handoff.js"></script>
@@ -955,8 +956,14 @@ body{
 <script src="renderer/split-zoom.js"></script>
 <script src="renderer/paper-size.js"></script>
 <script src="renderer/convert-plan.js"></script>
+<script src="renderer/convert-intake.js"></script>
 <script src="renderer/tools-convert.js"></script>
-<script src="renderer/tools-convert-list.js"></script>
+<script src="renderer/convert-run.js"></script>
+<script src="renderer/convert-result.js"></script>
+<script src="renderer/image-thumbs.js"></script>
+<script src="renderer/image-strip-notes.js"></script>
+<script src="renderer/image-strip.js"></script>
+<script src="renderer/image-strip-drag.js"></script>
 <script src="renderer/tools-convert-view.js"></script>
 <script src="renderer/image-export-plan.js"></script>
 <script src="renderer/tools-to-image.js"></script>

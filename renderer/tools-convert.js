@@ -1,37 +1,24 @@
 (function (root) {
   'use strict';
 
-  // 画像→PDF の状態と指揮（spec-3-1 確定事項1〜9・18〜27）。
+  // 画像→PDF の状態と指揮（spec-3-1 確定事項1〜9・18〜27、spec-2-5 第 H 章）。
   //
-  // 一覧の行（画像）と用紙・出力の設定を持ち、計画（convert-plan.js）を組み、
-  // ワーカーへ渡す。描画は tools-convert-list.js（一覧）と tools-convert-view.js
-  // （用紙・出力の欄）。実際に書くのはワーカーで、走らせるのは save.js の runTask。
-  //
-  // 結合（tools-merge.js）と分割（tools-split.js）の両方に似る。行を並べるところは
-  // 結合、設定から計画を組んで同名を確かめるところは分割と同じ作法にしてある。
+  // 画像の並び（rows）と用紙・出力の設定を持ち、計画（convert-plan.js）を組む。描くのは「変換する画像」の帯（image-strip.js）と
+  // 右の欄（tools-convert-view.js）、画像を足すのは convert-intake.js、実行は convert-run.js、書けたあとの始末は convert-result.js。
+  // revision は画像の帯の中身・用紙・出力を変えるたびに進む（「できた PDF」のカードを消す合図。H12）。
 
-  // executed は「最後の実行が成功し、その後に一覧を変えていない」（spec-5-1 確定事項18）。
-  // 用紙・出力の設定は一覧ではないので、変えても下ろさない。
+  // executed は「最後の実行が成功し、その後に画像の並びを変えていない」（spec-5-1 確定事項18）。
+  // 用紙・出力の設定は並びではないので、変えても下ろさない。
   const state = {
-    rows: [], seq: 0,
+    rows: [], seq: 0, revision: 0,
     paper: 'a4', orientation: 'auto', margin: 'normal', output: 'single',
     folder: null, folderTouched: false,
     running: false, executed: false,
   };
   let el = null;
-  let launchBatch = null;
+  let adder = null;
 
-  const banner = () => root.SigK.viewBanner;
-  const list = () => root.SigK.toolsConvertList;
-  const view = () => root.SigK.toolsConvertView;
   const plan = () => root.SigK.convertPlan;
-  const intake = () => root.SigK.launchIntake;
-  const batches = () => (launchBatch ??= intake().createBatchTracker());
-  const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
-
-  function pathKey(filePath) {
-    return typeof filePath === 'string' ? filePath.replace(/\//g, '\\').toLowerCase() : null;
-  }
 
   function dirOf(filePath) {
     const at = Math.max(filePath.lastIndexOf('\\'), filePath.lastIndexOf('/'));
@@ -46,143 +33,38 @@
 
   const rows = () => state.rows.map((row) => ({ ...row }));
   const find = (id) => state.rows.find((row) => row.id === id) ?? null;
-  const settings = () => ({
-    paper: state.paper, orientation: state.orientation, margin: state.margin,
-    output: state.output, folder: state.folder,
-  });
+  const settings = () => ({ paper: state.paper, orientation: state.orientation, margin: state.margin, output: state.output, folder: state.folder });
 
   function redraw() {
-    list()?.render();
-    view()?.render();
+    root.SigK.imageStrip?.render();
+    root.SigK.toolsConvertView?.render();
   }
 
-  // ---- 足す（確定事項1・2・4〜7） ----
-
-  // 読むのは tool-source.js の inspectImage（メインの image-io.js が先頭バイトだけ見る）。
-  // 文言の続き「外してください」はこちらで足す（結合と同じ作法）。
-  async function inspect(filePath) {
-    const info = await root.SigK.toolSource.inspectImage(filePath);
-    if (info.ok === true)
-      return info;
-    return { error: `${info.error}。外してください` };
-  }
-
-  const validPaths = (paths) => (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
-  const limitMessage = () => `変換できるのは ${plan().MAX_INPUTS} ファイルまでです。`;
-
-  // batch を渡すと、右クリックの束の行として、同じ束の中でファイル名の順の位置へ入れる
-  // （spec-5-1 確定事項16。結合と同じ）。渡さなければ末尾へ足す。
-  async function addPaths(paths, { batch = null, limitNotice = true } = {}) {
-    const incoming = validPaths(paths);
-    const room = plan().MAX_INPUTS - state.rows.length;
-    if (incoming.length > room) {
-      if (limitNotice)
-        banner().show(limitMessage());
-      if (room <= 0)
-        return [];
-    }
-    const added = [];
-    for (const filePath of incoming.slice(0, Math.max(0, room))) {
-      state.seq += 1;
-      const row = {
-        id: `convert-${state.seq}`,
-        path: filePath,
-        name: baseName(filePath),
-        kind: null,
-        width: null,
-        height: null,
-        pages: 1,
-        frames: null,
-        blocked: null,
-        pending: true,
-        batch,
-      };
-      const at = batch === null ? state.rows.length : intake().insertAt(state.rows, batch, filePath);
-      state.rows.splice(at, 0, row);
-      added.push(row);
-    }
-    if (added.length > 0)
+  // 画像の帯の中身・用紙・出力を変えた。並びを変えたなら実行済みも下ろす。
+  function changed({ rowsChanged = false } = {}) {
+    state.revision += 1;
+    if (rowsChanged)
       state.executed = false;
-    // 出力フォルダーの既定は先頭画像の場所。ユーザーが変えたあとは追従しない（確定事項20）。
-    if (!state.folderTouched && state.rows.length > 0)
-      state.folder = dirOf(state.rows[0].path);
     redraw();
-
-    await Promise.all(added.map(async (row) => {
-      const info = await inspect(row.path);
-      row.pending = false;
-      if (info.error !== undefined)
-        row.blocked = info.error;
-      else {
-        row.kind = info.kind;
-        row.width = info.width;
-        row.height = info.height;
-        row.pages = info.pages ?? 1;
-        row.frames = info.frames ?? [{ width: info.width, height: info.height }];
-        row.name = info.name;
-      }
-      list()?.syncRow(row.id);
-    }));
-    redraw();
-    return added.map((row) => row.id);
+    return true;
   }
 
-  async function pickFiles() {
-    const api = root.pdfAPI;
-    if (api?.available !== true || typeof api.pickImageSources !== 'function')
-      return [];
-    const picked = await api.pickImageSources({ defaultPath: state.rows[0]?.path });
-    if (picked?.canceled === true || !Array.isArray(picked?.paths))
-      return [];
-    return addPaths(picked.paths);
-  }
+  // 画像を足す所（convert-intake.js）。並びと設定はここが持ち、足す所へ渡す。
+  const intakeOf = () => (adder ??= root.SigK.convertIntake.create({ state, changed, redraw, clear, dirOf, doc: () => el.doc }));
 
-  // `--to-pdf` の受け口（確定事項2・9・spec-5-1 確定事項9・16〜19・21）。結合の addFromLaunch と
-  // 同じ決まりで、束の最初でだけ画面を切り替え、束の行をファイル名の順に並べる。
-  async function addFromLaunch(paths, { batch } = {}) {
-    const { id, starts } = batches().enter(batch);
-    if (starts) {
-      root.SigK.shell.setMode(el.doc, 'tools');
-      root.SigK.tools.select('convert');
-      if (intake().planIntake({ count: state.rows.length, executed: state.executed }) === 'replace')
-        clear();
-    }
-    const incoming = validPaths(paths);
-    const overflow = incoming.length > plan().MAX_INPUTS - state.rows.length;
-    const ids = await addPaths(incoming, { batch: id, limitNotice: false });
-    if (state.rows.filter((row) => row.batch === id).length >= 2 && batches().once('note'))
-      banner().show(intake().NOTE_NAME_ORDER, { tone: 'warn' });   // 注意・お知らせは黄色（決定49）
-    if (overflow && batches().once('limit'))
-      banner().show(limitMessage());
-    return ids;
-  }
+  // ---- 並べ替える・外す（確定事項8。spec-2-5 確定事項H6） ----
 
-  // ---- 並べ替える・外す（確定事項8） ----
-
+  // at は「取り除く前」の挿入位置（image-strip-drag.js の落とす先）。
   function moveTo(id, at) {
     const from = state.rows.findIndex((row) => row.id === id);
     if (from < 0 || !Number.isInteger(at))
       return false;
     const target = Math.min(Math.max(at, 0), state.rows.length);
-    // at は「取り除く前」の挿入位置。取り除いたぶんだけ詰める。
     const to = target > from ? target - 1 : target;
     if (to === from)
       return false;
-    const [row] = state.rows.splice(from, 1);
-    state.rows.splice(to, 0, row);
-    state.executed = false;
-    redraw();
-    return true;
-  }
-
-  function move(id, delta) {
-    const from = state.rows.findIndex((row) => row.id === id);
-    if (from < 0)
-      return false;
-    const to = from + delta;
-    if (to < 0 || to >= state.rows.length)
-      return false;
-    return moveTo(id, delta > 0 ? to + 1 : to);
+    state.rows.splice(to, 0, ...state.rows.splice(from, 1));
+    return changed({ rowsChanged: true });
   }
 
   function remove(id) {
@@ -190,58 +72,33 @@
     if (from < 0)
       return false;
     state.rows.splice(from, 1);
-    state.executed = false;
-    redraw();
-    return true;
+    return changed({ rowsChanged: true });
   }
 
   function clear() {
     state.rows = [];
-    state.executed = false;
-    redraw();
-    return true;
+    return changed({ rowsChanged: true });
   }
 
   // ---- 用紙と出力の設定（確定事項10〜14・18・20） ----
 
-  function setPaper(paperId) {
-    if (!root.SigK.paperSize.isPaper(paperId))
+  function setChoice(key, value, isValid) {
+    if (!isValid(value))
       return false;
-    state.paper = paperId;
-    redraw();
-    return true;
+    state[key] = value;
+    return changed();
   }
 
-  function setOrientation(orientation) {
-    if (!root.SigK.paperSize.isOrientation(orientation))
-      return false;
-    state.orientation = orientation;
-    redraw();
-    return true;
-  }
-
-  function setMargin(margin) {
-    if (!root.SigK.paperSize.isMargin(margin))
-      return false;
-    state.margin = margin;
-    redraw();
-    return true;
-  }
-
-  function setOutput(output) {
-    if (output !== 'single' && output !== 'each')
-      return false;
-    state.output = output;
-    redraw();
-    return true;
-  }
+  const paperSize = () => root.SigK.paperSize;
+  const setPaper = (id) => setChoice('paper', id, (value) => paperSize().isPaper(value));
+  const setOrientation = (id) => setChoice('orientation', id, (value) => paperSize().isOrientation(value));
+  const setMargin = (id) => setChoice('margin', id, (value) => paperSize().isMargin(value));
+  const setOutput = (id) => setChoice('output', id, (value) => value === 'single' || value === 'each');
 
   function setFolder(folder) {
-    if (typeof folder !== 'string' || folder === '')
+    if (!setChoice('folder', folder, (value) => typeof value === 'string' && value !== ''))
       return false;
-    state.folder = folder;
     state.folderTouched = true;
-    redraw();
     return true;
   }
 
@@ -250,13 +107,11 @@
     if (typeof api?.pickFolder !== 'function')
       return false;
     const picked = await api.pickFolder({ defaultPath: state.folder ?? undefined });
-    if (picked?.canceled === true || typeof picked?.path !== 'string')
-      return false;
-    return setFolder(picked.path);
+    return picked?.canceled !== true && typeof picked?.path === 'string' && setFolder(picked.path);
   }
 
-  // いまの設定から計画を組む。行が無い・読んでいる途中・読めない行があれば
-  // ready: false（error は null。理由は行の側にある）。「画像ごと」なら出力先も添える。
+  // いまの設定から計画を組む。画像が無い・読んでいる途中・読めない画像があれば ready: false（error は null。理由は画像の側にある）。
+  // 「画像ごと」なら出力先も添える。
   function currentPlan() {
     const planned = plan().planConvert(state.rows, settings());
     if (planned.ready !== true)
@@ -269,185 +124,22 @@
     return !state.running && root.SigK.save?.isBusy() !== true && currentPlan().ready === true;
   }
 
-  // ワーカーへ渡す画像の並び（確定事項22・spec-3-2 確定事項20）。layouts は計画がそのまま
-  // 持っている（1ファイルにページ数ぶん）。
-  function imagesFor(current, targets) {
-    return state.rows.map((row, index) => ({
-      path: row.path,
-      name: row.name,
-      layouts: current.pages[index],
-      ...(targets === undefined ? {} : { target: targets[index] }),
-    }));
-  }
-
-  function defaultSingleTarget() {
-    const first = state.rows[0];
-    if (first === undefined)
-      return undefined;
-    return joinPath(dirOf(first.path), plan().defaultSingleName(state.rows));
-  }
-
-  // ---- 同名確認（確定事項20） ----
-
-  async function countExisting(targets) {
-    const api = root.pdfAPI;
-    if (typeof api?.exists !== 'function')
-      return [];
-    const found = [];
-    for (const target of targets) {
-      const answer = await api.exists(target);
-      if (answer?.exists === true)
-        found.push(target);
-    }
-    return found;
-  }
-
-  // 3択は1回だけ出し、「別名で保存」はフォルダーを選び直してもう一度確かめる。タブで開いている
-  // 出力先は3択より前に断る（確定事項38）。分割の resolveTargets と同じで、戻り値は
-  // { targets } / { canceled } / { error }。
-  async function resolveTargets(targets) {
-    const refused = root.SigK.outputTarget.refusalForFolder(targets);
-    if (refused !== null)
-      return { error: refused };
-    const found = await countExisting(targets);
-    if (found.length === 0)
-      return { targets };
-    const confirm = root.SigK.confirmReplace;
-    const answer = await confirm.ask({ name: baseName(found[0]), count: found.length });
-    if (answer === confirm.REPLACE)
-      return { targets };
-    if (answer !== confirm.RENAME)
-      return { canceled: true };
-    if (!(await pickFolder()))
-      return { canceled: true };
-    const next = currentPlan();
-    return next.ready ? resolveTargets(next.targets) : { canceled: true };
-  }
-
-  // ---- 実行（確定事項19・20・22〜27） ----
-
   // 保存ダイアログ・同名の 3 択・書いた後の始末まで実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '変換できる状態ではありません。' };
     state.running = true;
+    root.SigK.convertResult?.clear();   // 次の変換を始めたら「できた PDF」のカードを消す（H12）
     redraw();
     try {
-      return await (state.output === 'each' ? runEach() : runSingle());
+      const result = await (state.output === 'each' ? root.SigK.convertRun.runEach() : root.SigK.convertRun.runSingle());
+      if (result?.ok === true)
+        state.executed = true;
+      return result;
     } finally {
       state.running = false;
       redraw();
     }
-  }
-
-  // 1つの PDF にまとめる（確定事項19）。保存先は OS の保存ダイアログが決め、
-  // 同名の確認もダイアログに任せる（結合と同じ）。
-  async function runSingle() {
-    const picked = await root.pdfAPI.pickSavePath({
-      defaultPath: defaultSingleTarget(),
-      title: '変換した PDF を保存',
-    });
-    if (picked?.canceled === true)
-      return { canceled: true };
-    if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
-
-    const target = picked.path;
-    if (state.rows.some((row) => pathKey(row.path) === pathKey(target))) {
-      banner().show('出力先に入力ファイルと同じファイルは選べません。');
-      return { error: '出力先に入力ファイルと同じファイルは選べません。' };
-    }
-    // タブで開いているファイルへは書かない（確定事項38。結合と同じ）。
-    const refused = root.SigK.outputTarget.refusalFor(target);
-    if (refused !== null) {
-      banner().show(refused);
-      return { error: refused };
-    }
-
-    const current = currentPlan();
-    const result = await runTask({
-      output: 'single',
-      images: imagesFor(current),
-      target,
-      targets: [target],
-    });
-    return finishSingle(result, target);
-  }
-
-  // 画像ごとに別の PDF（確定事項20）。出力先は一覧から組み、同名は3択で1回だけ確かめる。
-  async function runEach() {
-    const current = currentPlan();
-    if (current.targets.some((target) => state.rows.some((row) => pathKey(row.path) === pathKey(target)))) {
-      banner().show('出力先に入力ファイルと同じファイルは選べません。');
-      return { error: '出力先に入力ファイルと同じファイルは選べません。' };
-    }
-
-    const resolved = await resolveTargets(current.targets);
-    if (resolved.canceled === true)
-      return { canceled: true };
-    if (resolved.error !== undefined) {
-      banner().show(resolved.error);
-      return { error: resolved.error };
-    }
-    const targets = resolved.targets;
-
-    const result = await runTask({
-      output: 'each',
-      images: imagesFor(currentPlan(), targets),
-      targets,
-    });
-    return finishEach(result, targets);
-  }
-
-  function runTask(spec) {
-    return root.SigK.save.runTask({ kind: 'convert', label: '変換', ...spec });
-  }
-
-  async function finishSingle(result, target) {
-    if (result?.canceled === true) {
-      // 自分で止めたので赤く塗らない（決定49）。
-      banner().show('変換を中止しました。', { tone: 'info' });
-      return result;
-    }
-    if (result?.ok !== true) {
-      banner().show(result?.error ?? '変換できませんでした。');
-      return result ?? { error: '変換できませんでした。' };
-    }
-
-    // ここから先は書けている。タブで開き、モードは変えない（tool-output.js。決定80）。
-    state.executed = true;
-    await root.SigK.toolOutput.openWritten(target, {
-      done: `${state.rows.length} ファイルを変換しました（${result.pages} ページ）`,
-      crowded: '変換しましたが、タブが多すぎるため開いていません。',
-    });
-    return result;
-  }
-
-  // 中止までに書き終えた本数。出力先の有無で数えると、上書きする前からあった
-  // ファイルまで数えてしまうので、ワーカーの進捗（write の done）を見る（確定事項24）。
-  function writtenBeforeCancel() {
-    const progress = root.SigK.save?.lastProgress?.() ?? null;
-    return progress?.phase === 'write' && Number.isInteger(progress.done) ? progress.done : 0;
-  }
-
-  function finishEach(result, targets) {
-    if (result?.canceled === true) {
-      const written = writtenBeforeCancel();
-      // 自分で止めたので赤く塗らない（決定49）。
-      banner().show(written > 0 ? `変換を中止しましたが、${written} ファイルは書き出し済みです。` : '変換を中止しました。', { tone: 'info' });
-      return result;
-    }
-    if (result?.ok !== true) {
-      banner().show(result?.error ?? '変換できませんでした。');
-      return result ?? { error: '変換できませんでした。' };
-    }
-    state.executed = true;
-    banner().show(`${result.written} ファイルに変換しました`, {
-      autoHideMs: 0,
-      tone: 'info',
-      action: { label: 'フォルダを開く', onClick: () => root.shellAPI?.showInFolder?.(targets[0]) },
-    });
-    return result;
   }
 
   function init(doc, win) {
@@ -462,11 +154,15 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsConvert = {
-    init, rows, find, settings, currentPlan, joinPath,
-    addPaths, pickFiles, addFromLaunch,
-    move, moveTo, remove, clear,
+    init, rows, find, settings, currentPlan, joinPath, dirOf,
+    addPaths: (paths, options) => intakeOf().addPaths(paths, options),
+    addFromLaunch: (paths, options) => intakeOf().addFromLaunch(paths, options),
+    moveTo, remove, clear,
     setPaper, setOrientation, setMargin, setOutput, setFolder, pickFolder,
-    canRun, resolveTargets, defaultSingleTarget, run,
+    canRun, run,
+    resolveTargets: (targets) => root.SigK.convertRun.resolveTargets(targets),
+    defaultSingleTarget: () => root.SigK.convertRun.defaultSingleTarget(),
+    revision: () => state.revision,
     isRunning: () => state.running,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

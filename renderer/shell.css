@@ -509,27 +509,8 @@ html[data-panel="collapsed"] #side-resizer{display:none}
   display:flex; flex-direction:column; min-height:0;
 }
 #tools-view[hidden]{display:none}
-.tool-panel{display:flex; flex-direction:column; flex:1; min-height:0}
-.tool-panel[hidden]{display:none}
-.tools-head{display:flex; align-items:baseline; gap:12px; padding:18px 24px 10px}
-.tools-head h2{margin:0; font-size:16px; font-weight:600}
-.tools-head .hint{color:var(--muted); font-size:12px}
-.merge-bar{display:flex; align-items:center; gap:8px; padding:0 24px 10px}
-.merge-bar .spacer{flex:1}
-.merge-bar .act{padding:0 12px; height:30px}
-.merge-bar .act.quiet{background:transparent; border-color:transparent; color:var(--muted)}
-.merge-bar .act.quiet:hover{background:var(--surface-2); box-shadow:none}
-
-.merge-foot{display:flex; align-items:center; gap:12px; padding:12px 24px 18px}
-.merge-foot .sum{color:var(--muted); font-size:12px}
-.merge-foot .spacer{flex:1}
-.merge-foot .dlg-btn{min-width:96px}
-
 /* ── 分割画面（spec-2-2 確定事項38） ────────────────────────── */
-/* 対象・分け方・出力の3節。結合画面と同じトークンで、節は一覧と同じ枠に入れる。 */
-.split-body{flex:1; min-height:0; overflow:auto; margin:0 24px; display:flex; flex-direction:column; gap:14px}
-.split-sec{border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:14px 18px 16px; flex:0 0 auto}
-.split-sec h3{margin:0 0 10px; font-size:12px; font-weight:600; color:var(--muted); letter-spacing:.04em}
+/* 欄（.split-inp）と出力の欄（.split-out）。2026-10-15 から右の欄の分割・画像→PDF・PDF→画像が使う（節の枠は .sb-card）。 */
 .split-inp{
   height:28px; padding:0 8px; border:1px solid var(--border-strong); border-radius:6px;
   background:var(--surface); color:var(--text); font:inherit;
@@ -558,50 +539,6 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .split-out .example .err{color:var(--danger)}
 
 /* ── 画像→PDF（spec-3-1 確定事項33） ────────────────────────── */
-/* 画像・用紙・出力の3節。節の枠は分割の .split-sec、出力の欄は .split-out をそのまま使う。一覧（.convert-list）は
-   結合の古い一覧の形を写したもの（結合は 2026-10-14 に帯と右の欄へ移った。spec-2-5 第 E 章）。 */
-.convert-bar{padding:0 0 10px}
-.convert-bar .drop-hint{color:var(--muted); font-size:12px}
-.convert-list{
-  position:relative; max-height:320px; overflow:auto;
-  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
-}
-.convert-cols,.convert-row{
-  display:grid; grid-template-columns:22px 1fr 150px 52px 116px 30px 30px 30px; align-items:center; gap:6px;
-  padding:0 8px 0 6px;
-}
-/* 画素数の列は「4960×7016 ・ 3 ページ」（複数ページの TIFF。spec-3-2 確定事項29）まで折り返さずに入る幅。 */
-/* 「形式」は右寄せ、「この紙」は左寄せなので、そのままだと隣り合って読みにくい。
-   この紙の側に一段ぶんの余白を入れて、列の切れ目を見せる。 */
-.convert-cols span:nth-child(5),.convert-row .paper{padding-left:14px}
-.convert-cols{
-  height:30px; position:sticky; top:0; z-index:1; background:var(--surface-2); border-bottom:1px solid var(--border);
-  color:var(--muted); font-size:11.5px; letter-spacing:.04em;
-}
-.convert-cols span:nth-child(3),.convert-cols span:nth-child(4){text-align:right}
-.convert-row{min-height:36px; border-bottom:1px solid var(--border)}
-.convert-row:last-of-type{border-bottom:none}
-.convert-row:hover{background:var(--surface-2)}
-.convert-row.dragging{opacity:.4}
-.convert-row .grip{color:var(--border-strong); display:grid; place-items:center; cursor:grab}
-.convert-row .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.convert-row.blocked .name,.convert-row.dup .name{color:var(--danger)}
-.convert-row .px,.convert-row .kind{text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
-.convert-row .paper{color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.convert-row .rbtn{
-  width:26px; height:26px; border-radius:6px; display:grid; place-items:center; color:var(--muted); cursor:pointer;
-}
-.convert-row .rbtn:hover{background:var(--surface); box-shadow:var(--shadow-item); color:var(--text)}
-.convert-row .rbtn.danger:hover{color:var(--danger)}
-.convert-row .rbtn[aria-disabled="true"]{opacity:.35; cursor:default}
-.convert-row .rbtn[aria-disabled="true"]:hover{background:transparent; box-shadow:none; color:var(--muted)}
-/* 行の下の注意・誤り。2列目から「この紙」の列まで。 */
-.convert-row .note{grid-column:2 / 6; font-size:11.5px; line-height:1.5; margin:-4px 0 6px; color:var(--muted)}
-.convert-row .note[hidden]{display:none}
-.convert-row .note.error{color:var(--danger)}
-#convert-empty{color:var(--muted); font-size:12.5px; padding:36px 0; margin:0}
-#convert-empty[hidden]{display:none}
-
 /* 用紙の3行（サイズ・向き・余白）。左に見出し、右にラジオを横並び。 */
 .convert-opts{display:grid; grid-template-columns:120px 1fr; row-gap:10px; column-gap:12px; align-items:center}
 .convert-opts .k{color:var(--muted); font-size:12px}
@@ -614,9 +551,8 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .convert-out .folder[hidden],.convert-out .k[hidden]{display:none}
 
 /* ── PDF→画像（spec-3-3 確定事項27） ────────────────────────── */
-/* 対象・ページと形式・出力の3節。節の枠は分割の .split-sec、対象の行は .split-target、
-   ラジオは .picks、出力の欄は .split-out をそのまま使う。ここで足すのは「範囲」の欄が
-   ラジオと同じ行に並ぶことと、「すべて」のときに欄を薄く見せることだけである。 */
+/* 右の欄の節（spec-2-5 確定事項E4）。ラジオボタンは .picks、出力の欄は .split-out をそのまま使う。ここで足すのは
+   「範囲」の欄がラジオボタンと同じ行に並ぶことと、「すべて」のときに欄を薄く見せることだけである。 */
 .toimage-range-row .split-inp{margin-left:4px}
 .toimage-range-row:not(.on) .split-inp{background:var(--surface-2); color:var(--muted)}
 .toimage-range-row .err{color:var(--danger); font-size:11.5px; flex-basis:100%}
@@ -645,7 +581,6 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .wm-cell:hover{border-color:var(--accent)}
 .wm-cell.on{background:var(--accent); border-color:var(--accent)}
 .wm-cell:focus-visible{outline:2px solid var(--primary); outline-offset:1px}
-.split-sec > .fit-note{margin:8px 0 0; color:var(--muted); font-size:11.5px; line-height:1.5}
 /* プレビュー。紙の絵（canvas）の上に透かしの SVG を重ねる。 */
 .wm-preview{position:sticky; top:0}
 .wm-preview .page-box{display:grid; place-items:center; min-height:320px; padding:14px 0 6px; background:var(--canvas); border-radius:8px}

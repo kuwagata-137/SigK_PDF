@@ -445,10 +445,10 @@ async function createShell({
   openSourceResults = [],
   // pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
   folderResults = [],
-  // pdfAPI.pickImageSources() が返すものの並びと、pdfAPI.inspectImage() が返す
+  // pdfAPI.pickConvertSources() が返すもの（PDF と画像のパス。spec-2-5 確定事項H10）の並びと、pdfAPI.inspectImage() が返す
   // 画像の情報（パス → { kind, width, height, frames? } か { error }）（spec-3-1・spec-3-2）。
   // frames を渡すと複数ページ（TIFF）になる。
-  imageSourceResults = [],
+  convertSourceResults = [],
   imageInfos = {},
   // imageAPI.write() が返すものの並び（spec-3-3）。仕込まなければ、書けたことにして { ok, path, bytes } を返す。
   imageWriteResults = [],
@@ -496,7 +496,7 @@ async function createShell({
   const mergeSourceCalls = [];
   const openSourceCalls = [];
   const folderCalls = [];
-  const imageSourceCalls = [];
+  const convertSourceCalls = [];
   const watermarkImageCalls = [];
   // imageAPI.write() に届いた { target, bytes } の並び（spec-3-3 確定事項19）。
   const imageWrites = [];
@@ -577,9 +577,9 @@ async function createShell({
       },
       // 変換の入力の複数選択と、画像の形式・画素数（spec-3-1 確定事項2・4）。
       // 本物は先頭バイトを読む。ここは仕込んだ情報を返すだけである。
-      pickImageSources: async (options) => {
-        imageSourceCalls.push(structuredClone(options ?? {}));
-        return imageSourceResults.shift() ?? { canceled: true };
+      pickConvertSources: async (options) => {
+        convertSourceCalls.push(structuredClone(options ?? {}));
+        return convertSourceResults.shift() ?? { canceled: true };
       },
       inspectImage: async (filePath) => {
         const info = imageInfos[filePath];
@@ -793,8 +793,8 @@ async function createShell({
     // pdfAPI.pickOpenSources() に届いたオプションの並び（spec-2-5 確定事項D7）。
     openSourceCalls,
     folderCalls,
-    // pdfAPI.pickImageSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
-    imageSourceCalls,
+    // pdfAPI.pickConvertSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
+    convertSourceCalls,
     imageInfos,
     // imageAPI.write() に届いた書き出し（spec-3-3）。
     imageWrites,

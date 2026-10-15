@@ -8,7 +8,7 @@
   //   押して引いている途中の操作 → 浮いている小窓 → 欄（戻して抜ける）→ 検索バーの中で押したなら検索バー → 描きかけ → 検索バー →
   //   紙の上の文字の選択 → 書き込み・ページの選択 → 道具（閲覧・ページ編集ではハンドを選択へ。spec-2-5 確定事項K12）
   // 編集モードの分は annotate-cancel.js の段（cancelHeld・closeOverlays・dropDrafts・unselect・dropTool）が持つ。
-  // ページ・ツールの一覧の行のドラッグは、page-grid.js・row-drag.js が先に受けて取りやめる（確定事項C1）。
+  // ページのドラッグと「変換する画像」の帯の画像を引く途中は、page-grid.js・image-strip-drag.js が先に受けて取りやめる（確定事項C1、spec-2-5 確定事項H6）。
 
   function isTextField(node) {
     const name = node?.tagName;
@@ -65,8 +65,8 @@
     return true;
   }
 
-  // 先に処理された Esc（ページ・一覧の行のドラッグの取りやめ）と、IME の変換中の Esc は何もしない（確定事項C1）。page-grid.js・
-  // row-drag.js の受け口は、この振り分けより先に登録されている（app.js の init の順）。押し続けたときの繰り返しも見ない（1 回の押しで
+  // 先に処理された Esc（ページのドラッグ・画像を引く途中の取りやめ）と、IME の変換中の Esc は何もしない（確定事項C1）。page-grid.js・
+  // image-strip-drag.js の受け口は、この振り分けより先に登録されている（app.js の init の順）。押し続けたときの繰り返しも見ない（1 回の押しで
   // 1 つだけ。窓を閉じたあとの繰り返しが後ろの画面に届かないように。点検の直し）。
   function isSpent(event) {
     return event.defaultPrevented || event.isComposing === true || event.keyCode === 229 || event.repeat === true;

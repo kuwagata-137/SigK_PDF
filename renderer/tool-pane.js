@@ -5,12 +5,15 @@
   //
   // 帯の画面を使うツール（STRIP_TOOLS）を選んでいる間は、真ん中に帯を出し、右の欄にそのツールの節（section.pane-tool[data-tool]）を出す。
   // そのとき <html> に data-tool-screen="strips" を付け、CSS がタブの列を隠す（確定事項B3。帯がタブの代わり）。
-  // 分割は選んでいる帯を ✂ の盤に広げる（確定事項G1。split-strip.js）。画像→PDF は PR-3 の後半で移すまで今の画面のまま
-  // （決定80 ㉚。確定事項D11）なので、ここには入れず、タブの列も出す。
+  // 分割は選んでいる帯を ✂ の盤に広げる（確定事項G1。split-strip.js）。画像→PDF は PDF の帯の下に「変換する画像」の帯を出す
+  // （確定事項H1。image-strip.js）。2026-10-15 から、ツールモードのすべてのツールがこの画面を使う。
 
-  const STRIP_TOOLS = Object.freeze(['merge', 'split', 'toImage', 'watermark', 'flatten']);
+  const STRIP_TOOLS = Object.freeze(['merge', 'split', 'convert', 'toImage', 'watermark', 'flatten']);
   // 節を描き直す入口（tools.js の VIEWS と同じもの）。
-  const VIEWS = { merge: 'toolsMergeList', split: 'toolsSplitView', toImage: 'toolsToImageView', watermark: 'toolsWatermarkView', flatten: 'toolsFlattenView' };
+  const VIEWS = {
+    merge: 'toolsMergeList', split: 'toolsSplitView', convert: 'toolsConvertView',
+    toImage: 'toolsToImageView', watermark: 'toolsWatermarkView', flatten: 'toolsFlattenView',
+  };
 
   const state = { shown: null };
   let el = null;
@@ -41,6 +44,10 @@
     root.SigK.stripWatermark?.decorate();
     // 分割を選んだとき・離れたときに、✂ の盤を帯へ入れる・戻す（確定事項G1）。
     root.SigK.splitStrip?.sync();
+    // 画像→PDF を選んだとき・離れたときに、「変換する画像」の帯と受け口の文を出し替える（確定事項H1・H10）。PDF の帯の枠も付け直す。
+    root.SigK.imageStrip?.render();
+    root.SigK.stripDropZone?.refresh();
+    root.SigK.strips?.sync();
     return next !== null;
   }
 

@@ -49,7 +49,8 @@
     const failed = view === null || view.doc === undefined;
     rowParts().updateHead(row.node, {
       no: index + 1, name: tab.name, path: tab.path, pages: failed ? 0 : view.sizes.length, encrypted: view?.file?.encrypted === true,
-      failed, dirty: tabs.isDirty(tab.id), first: index === 0, last: index === count - 1, selected: tab.active,
+      // 「変換する画像」の帯に枠があるときは、PDF の帯に枠を付けない（spec-2-5 確定事項H7）。
+      failed, dirty: tabs.isDirty(tab.id), first: index === 0, last: index === count - 1, selected: tab.active && root.SigK.imageStrip?.hasFrame() !== true,
     });
     rowParts().showNote(row.node, failed ? view?.error ?? '' : null);
     const refs = failed ? null : rowParts().contentOf(view);
@@ -74,7 +75,7 @@
     list.forEach((tab, index) => syncRow(tab, index, list.length));
     // 並びが変わったときだけ並べ直す。
     if (layout().moved(state.order, ids)) {
-      rowParts().place(el.strips, ids.map((id) => state.rows.get(id).node), el.drop);
+      rowParts().place(el.strips, ids.map((id) => state.rows.get(id).node), el.anchor);
       state.order = ids;
     }
     root.SigK.stripDropZone?.render({ big: ids.length === 0, recent: root.SigK.recentPanel?.entries() ?? [] });
@@ -171,7 +172,8 @@
     if (screen === null || strips === null || dropZone === null)
       return false;
     win.__sigkStripsReady = true;
-    el = { doc, win, screen, strips, drop: dropZone };
+    // PDF の帯は「変換する画像」の帯（spec-2-5 確定事項H4）の前、無ければ受け口の前に並べる。
+    el = { doc, win, screen, strips, anchor: doc.getElementById('image-strip') ?? dropZone };
     // 帯の縦のスクロールと、帯の中の横のスクロール（scroll は泡立たないので捕まえる側で受ける）。
     strips.addEventListener('scroll', schedule, true);
     win.addEventListener('resize', schedule);

@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 
 const {
   MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, WATERMARK_IMAGE_FILTERS, WATERMARK_IMAGE_TITLE, WATERMARK_KIND_ERROR,
-  inspectImage, pickImageSources, pickWatermarkImage, readWatermarkImage, createImageIo,
+  inspectImage, pickConvertSources, pickWatermarkImage, readWatermarkImage, createImageIo,
 } = require('../image-io.js');
 const { makePng, makeJpeg, GIF89A, WEBP } = require('./fixtures/images.js');
 const { makeTiff } = require('./fixtures/tiff.js');
@@ -131,7 +131,7 @@ test('上限・無い・フォルダー・権限は読む前に断る', async ()
   assert.ok(MAX_IMAGE_BYTES < 200 * 1024 * 1024, 'PDF の上限より小さい');
 });
 
-test('pickImageSources は画像のフィルターで複数選択させ、親の有無で呼び分ける', async () => {
+test('pickConvertSources は PDF と画像のフィルターで複数選択させ、親の有無で呼び分ける（spec-2-5 確定事項H10）', async () => {
   const calls = [];
   const dialogLike = {
     showOpenDialog: async (...args) => {
@@ -139,18 +139,20 @@ test('pickImageSources は画像のフィルターで複数選択させ、親の
       return { canceled: false, filePaths: [IN_B, IN_A, ''] };
     },
   };
-  assert.deepEqual(await pickImageSources({ dialogLike, defaultPath: 'C:/in' }), { paths: [IN_B, IN_A] });
+  assert.deepEqual(await pickConvertSources({ dialogLike, defaultPath: 'C:/in' }), { paths: [IN_B, IN_A] });
   assert.equal(calls[0].length, 1, '親が無ければ options だけ');
   assert.deepEqual(calls[0][0].properties, ['openFile', 'multiSelections']);
-  assert.deepEqual(calls[0][0].filters, IMAGE_FILTERS);
+  assert.deepEqual(calls[0][0].filters.map((filter) => filter.name), ['PDF と画像', 'PDF', '画像ファイル']);
+  assert.deepEqual(calls[0][0].filters[0].extensions, ['pdf', ...IMAGE_FILTERS[0].extensions]);
+  assert.equal(calls[0][0].title, 'PDF か変換する画像を選ぶ');
   assert.equal(calls[0][0].defaultPath, 'C:/in');
 
   const parent = { id: 1 };
-  await pickImageSources({ dialogLike, parentWindow: parent });
+  await pickConvertSources({ dialogLike, parentWindow: parent });
   assert.equal(calls[1][0], parent, '親があれば先頭に渡す');
 
-  assert.deepEqual(await pickImageSources({ dialogLike: { showOpenDialog: async () => ({ canceled: true }) } }), { canceled: true });
-  assert.deepEqual(await pickImageSources({ dialogLike: { showOpenDialog: async () => ({ canceled: false, filePaths: [] }) } }), { canceled: true });
+  assert.deepEqual(await pickConvertSources({ dialogLike: { showOpenDialog: async () => ({ canceled: true }) } }), { canceled: true });
+  assert.deepEqual(await pickConvertSources({ dialogLike: { showOpenDialog: async () => ({ canceled: false, filePaths: [] }) } }), { canceled: true });
 });
 
 // ---- 透かしの画像（spec-4-5 確定事項35・36） ----

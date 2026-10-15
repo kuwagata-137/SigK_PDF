@@ -15,7 +15,7 @@
   let el = null;
 
   // 帯の画面を使うツール。確認の窓・保存先の窓・出力先の確かめの間も実行中で、その間に帯を替えると、確かめた帯と違う帯を書く（点検の直し）。
-  const STRIP_TOOLS = ['toolsMerge', 'toolsSplit', 'toolsToImage', 'toolsWatermark', 'toolsFlatten'];
+  const STRIP_TOOLS = ['toolsMerge', 'toolsSplit', 'toolsConvert', 'toolsToImage', 'toolsWatermark', 'toolsFlatten'];
 
   function isLocked() {
     return root.SigK.tabs.isOpening() || root.SigK.save?.isBusy() === true
@@ -67,6 +67,8 @@
         ACTIONS[button.dataset.act]?.(tabId);
       return;
     }
+    // PDF の帯を押したら、枠は PDF の帯へ（「変換する画像」の帯の枠を外す。spec-2-5 確定事項H7）。
+    root.SigK.imageStrip?.deselect();
     root.SigK.tabs.activate(tabId);
     const page = pageOf(event.target);
     if (page !== null)

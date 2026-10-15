@@ -73,8 +73,8 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   stat: (filePath) => ipcRenderer.invoke('pdf:stat', filePath),
   // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
   pickFolder: (options) => ipcRenderer.invoke('pdf:pickFolder', options),
-  // 変換する画像をまとめて選ばせる（spec-3-1 確定事項2）。{ paths } / { canceled }。
-  pickImageSources: (options) => ipcRenderer.invoke('pdf:pickImageSources', options),
+  // 画像→PDF の受け口で、PDF と変換する画像をまとめて選ばせる（spec-2-5 確定事項H10）。{ paths } / { canceled }。
+  pickConvertSources: (options) => ipcRenderer.invoke('pdf:pickConvertSources', options),
   // 画像の形式と画素数を先頭バイトから読む（spec-3-1 確定事項4）。
   // { ok, kind, width, height, name, size } / { error }。
   inspectImage: (filePath) => ipcRenderer.invoke('pdf:inspectImage', filePath),
