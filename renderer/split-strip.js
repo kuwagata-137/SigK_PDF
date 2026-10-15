@@ -18,6 +18,9 @@
       state.host.style.height = `${root.SigK.stripLayout.STRIP_HEIGHT}px`;
     }
     Object.assign(state, { host: null, tabId: null, expanded: false });
+    // 盤の紙（canvas と pdf.js のページ）も手放す（spec-2-2b D5。分割を離れたときに残っていた。点検で見つけた）。
+    // 盤を別の帯へ移すときは、このあと盤を描く回で新しい帯の紙を描く。
+    root.SigK.splitThumbs?.setTab(null);
     if (el.board.parentNode !== el.home)
       el.home.append(el.board);
     el.board.hidden = true;

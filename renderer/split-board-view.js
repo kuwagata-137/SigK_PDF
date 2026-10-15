@@ -23,6 +23,9 @@
   const nodes = () => root.SigK.splitBoardNodes;
 
   const isReady = () => edit().board() !== null;
+  // 盤を帯に出しているか（分割を選んで、選んでいる帯に盤を入れた。split-strip.js）。出していない間は描かず、盤の紙も持たない
+  // （前は、ツールモードに入ったときの描き直しの予約から、結合を選んでいても盤の紙を描いていた。点検の直しで見つけた）。
+  const isHosted = () => (root.SigK.splitStrip?.hostId() ?? null) !== null;
 
   // 盤から見た、帯の画面の見えている所。offset は盤の器の上端が帯の画面の中身のどこにあるか。
   function viewport() {
@@ -85,7 +88,7 @@
   function render() {
     if (el === null)
       return false;
-    const ready = isReady();
+    const ready = isHosted() && isReady();
     thumbs().setTab(ready ? split().source().tabId : null);
     el.empty.hidden = ready;
     el.empty.textContent = ready ? '' : split().stateText() ?? '';

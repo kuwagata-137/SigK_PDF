@@ -190,3 +190,46 @@ test('盤を広げる帯を替えたときは、移った先の盤の高さを�
   assert.equal(heightAtScroll, `${SigK.splitBoardView.layout().totalHeight}px`, 'a.pdf の盤の高さで送る');
   assert.notEqual(heightAtScroll, heightOfB, 'b.pdf（1 ページずつ）の盤の高さのままではない');
 });
+
+// 点検で見つかった（2026-10-15）。盤の紙は盤を描くときにしか手放さなかったので、分割を離れても、上限分の canvas と pdf.js のページが
+// 残った（spec-2-2b D5「畳むときは全部手放す」。帯の紙は帯の画面を隠すときに手放している）。
+test('分割を離れたとき（別のツール・ツールモードを抜ける）は、盤の紙を全部手放す', async (t) => {
+  const { shell } = await createStripShell(t);
+  const { SigK } = shell;
+  assert.notEqual(SigK.splitThumbs.getState().drawn.length, 0, '盤の紙を描いた');
+  SigK.tools.select('merge');
+  assert.deepEqual(plain(SigK.splitThumbs.getState()).drawn, []);
+  assert.equal(SigK.splitThumbs.getState().tabId, null);
+
+  SigK.tools.select('split');
+  await settle(shell);
+  assert.notEqual(SigK.splitThumbs.getState().drawn.length, 0, '戻ったら描き直す');
+  SigK.shell.setMode(shell.document, 'view');
+  assert.deepEqual(plain(SigK.splitThumbs.getState()).drawn, []);
+  assert.equal(SigK.splitThumbs.getState().tabId, null);
+});
+
+// 点検 2 の直しで見つかった（2026-10-15）。盤の描き直しの予約（split-board-view.js の schedule。ツールモードに入ったときの幅の知らせから）が、
+// 分割を選んでいるかを見ずに盤の紙を描いていた（結合を選んでいても、選んでいる帯の盤の紙を中の上限まで描いて持っていた）。
+test('分割を選んでいない間は、盤の紙を描かない', async (t) => {
+  const files = { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }) };
+  const shell = await createShell({ files, pdfjs: createPdfjsStub({ sizes: [A4, A4, A4] }) });
+  t.after(() => shell.cleanup());
+  const { SigK } = shell;
+  const boardTabs = [];
+  const setTab = SigK.splitThumbs.setTab;
+  SigK.splitThumbs.setTab = (tabId) => {
+    boardTabs.push(tabId);
+    return setTab(tabId);
+  };
+  for (const filePath of [A, B])
+    await SigK.tabs.openPath(filePath);
+  SigK.shell.setMode(shell.document, 'tools');
+  await settle(shell);
+  assert.equal(SigK.tools.selected(), 'merge');
+  SigK.tabs.activate(SigK.tabs.findByPath(A).id);
+  await settle(shell);
+  SigK.splitThumbs.setTab = setTab;
+  assert.deepEqual(boardTabs.filter((tabId) => tabId !== null), [], '盤の紙を描く層へ帯を渡さない');
+  assert.deepEqual(plain(SigK.splitThumbs.getState()).drawn, []);
+});
