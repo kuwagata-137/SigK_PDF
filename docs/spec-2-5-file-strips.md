@@ -478,6 +478,8 @@ problems はどれも無し。写真は `screenshots/strips1-actual-*.png`、見
 ①✅（1 回目）②✅（1・2 回目。ツールモードでも出る）③✅（ツールバーの 2 つ・ツールモードの保存〔W2 のテスト〕・閉じるときの［保存］〔4 回目〕）
 ④✅（3・4 回目）⑤✅（3 回目と `dialog-button-order.test.js` の 8 つの窓）⑥✅（7 回目）⑦✅（5・6・8 回目とテスト）⑧✅（`npm test`・`TZ=UTC npm test` とも 3,014 件 fail 0。起動確認 8 回とも problems なし）⑨✅（比べ図 7 枚を送った）
 
+PR-1 の残りは PR-2 と一緒に、ユーザーの指示で **PR #48 としてマージした（2026-10-14。`67b7013`）**。作業ブランチ `claude/strips-1b-tabbar-pointer` はリモートも手元も削除済み。
+
 ### PR-2 の実装の記録（2026-10-14。作業ブランチ `claude/strips-1b-tabbar-pointer`。PR-1 の残りと同じ PR。決定80 ㉙）
 
 | 作業 | コミット | 中身 |
@@ -565,6 +567,8 @@ problems はどれも無し。写真は `screenshots/strips1-actual-*.png`、見
 ［ファイルを選ぶ…］で選んだ PDF もタブで開く ✅（`tools-split.test.js`・`strip-view.test.js`）。起動からの結合は選んだ PDF だけにチェック ✅（9 回目・`tools-merge.test.js`）。
 タブ 20 本でメモリの増え方がおよそ 100MB 以内 ✅（2 回測り、1 回目は最大 +133MB・2 回目は増えなかった。測るたびに 100MB ほど揺れるので、目安の範囲と見た）。
 `npm test`・`TZ=UTC npm test` fail 0（点検の直しのあと 3,066 件）、起動確認 problems なし。実物の写真を見本と並べてユーザーに見せた。
+
+ユーザーの指示で **PR #48 を作り、マージした（2026-10-14。マージコミット `67b7013`）**。マージの前に、先頭のコミット `7d6955c` の push の検査（build・test）が通っていたことを確かめた。
 
 ---
 
