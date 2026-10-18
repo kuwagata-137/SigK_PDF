@@ -32,7 +32,7 @@ test('phaseStep は done / total を受けると of を添える', () => {
   assert.deepEqual(phaseStep('read', { done: 0, total: 0 }), plain);
 });
 
-test('ワーカーの progress に done / total が付いていれば帯まで通す', async () => {
+test('ワーカーの progress に done / total が付いていれば通知バーまで通す', async () => {
   const utilityProcess = fakeUtilityProcess((child, message) => {
     if (message?.type !== 'run')
       return;

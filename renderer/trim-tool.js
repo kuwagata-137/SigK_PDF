@@ -4,7 +4,7 @@
   // トリミングの道具の操作（spec-4b-6a 確定事項10・14・17〜19。決定64 ②③）。当てるページ・Enter と［適用］・［トリミングを外す］。
   //
   // 枠と押し離しは annotate-trim.js、plan の作り替えは trim-commit.js、右パネルは trim-props.js。ここは枠を受け取って切り、切ったページへ
-  // 表示を寄せ、すべてのページなら帯で数を知らせる。外すときは紙全体（page-boxes.js）を読み終えるのを待つ。
+  // 表示を寄せ、すべてのページなら通知バーで数を知らせる。外すときは紙全体（page-boxes.js）を読み終えるのを待つ。
 
   const state = {
     // 当てるページ（'page'＝このページ、'all'＝すべてのページ）。道具を持つたびに 'page' へ戻す（起草者の判断）。
@@ -28,7 +28,7 @@
     return root.SigK.pageCrop.sizeLabel(frame.box, (base?.rotate ?? 0) + (entry?.rotate ?? 0));
   }
 
-  // 帯（青）「○ ページを切りました。」。そのままにしたページがあれば数を添える（確定事項18）。
+  // 通知バー（青）「○ ページを切りました。」。そのままにしたページがあれば数を添える（確定事項18）。
   function announce({ count, small, inserted }) {
     const kept = [small > 0 ? `小さすぎる ${small} ページ` : null, inserted > 0 ? `差し込んだ ${inserted} ページ` : null].filter(Boolean);
     const rest = kept.length === 0 ? '' : `${kept.join('と')}はそのままです。`;
@@ -43,7 +43,7 @@
     const result = root.SigK.trimCommit.apply(frame.index, frame.box, state.scope);
     if (result.count > 0)
       viewer().goToPage(frame.index);
-    // 何も変わらなければ（枠が今の見える範囲と同じ）帯も出さない（点検 6）。
+    // 何も変わらなければ（枠が今の見える範囲と同じ）通知バーも出さない（点検 6）。
     if (state.scope === 'all' && result.count + result.small + result.inserted > 0)
       announce(result);
     refresh();
@@ -51,7 +51,7 @@
   }
 
   // ［トリミングを外す］（確定事項19）: 紙全体を読み終えるのを待ってから、押したときのページ（すべてなら元のページ全部）を戻す。戻したら true。
-  // 押したときの並びと当てるページを控え、待つ間に切り直す・並べ替えるなどしてページが変わったら、当てずに帯で知らせる（点検 1）。
+  // 押したときの並びと当てるページを控え、待つ間に切り直す・並べ替えるなどしてページが変わったら、当てずに通知バーで知らせる（点検 1）。
   async function remove() {
     if (state.removing || viewer()?.getState().open !== true)
       return false;

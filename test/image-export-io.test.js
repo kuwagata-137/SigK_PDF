@@ -1,7 +1,7 @@
 'use strict';
 
-// PDF→画像のメイン側の口（spec-3-3 確定事項2・19）。対象を1本選ぶダイアログの題名と、
-// 描いたバイト列を書く防具。fs と dialog は偽物を渡す。
+// PDF→画像のメイン側の口（spec-3-3 確定事項19）。描いたバイト列を書く防具。fs は偽物を渡す。
+// 対象を 1 本選ぶ窓（pickToolSource）は、対象が選んでいる帯になったので無くした（spec-2-5 確定事項E4・G14）。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,47 +9,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { pickToolSource, pickSplitSource, createFileIo } = require('../file-io.js');
 const { IMAGE_WRITE_EXTENSIONS, isImageWritePath, writeImage, createImageIo } = require('../image-io.js');
 const { tempPathFor } = require('../pdf-write.js');
-
-const IN_A = 'C:/in/a.pdf';
-
-// ---- 対象を1本選ぶ（確定事項2）----
-
-test('pickToolSource は題名を受け、1本だけ返す', async () => {
-  const calls = [];
-  const dialogLike = {
-    showOpenDialog: async (options) => {
-      calls.push(options);
-      return { canceled: false, filePaths: [IN_A, 'C:/in/b.pdf'] };
-    },
-  };
-  assert.deepEqual(await pickToolSource({ dialogLike, title: '画像にする PDF を選ぶ' }), { path: IN_A });
-  assert.equal(calls[0].title, '画像にする PDF を選ぶ');
-  assert.deepEqual(calls[0].properties, ['openFile']);
-  // 題名を省いても壊れない。
-  await pickToolSource({ dialogLike });
-  assert.equal(calls[1].title, '対象の PDF を選ぶ');
-});
-
-test('pickSplitSource は pickToolSource を分割の題名で呼ぶ（従来どおり）', async () => {
-  const calls = [];
-  const dialogLike = { showOpenDialog: async (options) => { calls.push(options); return { canceled: false, filePaths: [IN_A] }; } };
-  assert.deepEqual(await pickSplitSource({ dialogLike }), { path: IN_A });
-  assert.equal(calls[0].title, '分割する PDF を選ぶ');
-});
-
-test('createFileIo の pickToolSource は親ウィンドウと題名を dialog へ渡す', async () => {
-  const calls = [];
-  const dialog = { showOpenDialog: async (parent, options) => { calls.push({ parent, options }); return { canceled: true }; } };
-  const io = createFileIo({ dialog });
-  const parent = { id: 'win' };
-  assert.deepEqual(await io.pickToolSource(parent, { defaultPath: IN_A, title: 'T' }), { canceled: true });
-  assert.equal(calls[0].parent, parent);
-  assert.equal(calls[0].options.title, 'T');
-  assert.equal(calls[0].options.defaultPath, IN_A);
-});
 
 // ---- 書く（確定事項19）----
 

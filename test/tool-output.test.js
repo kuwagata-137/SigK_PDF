@@ -25,7 +25,7 @@ async function openShell(t, options = {}) {
 const modeOf = (shell) => shell.document.documentElement.getAttribute('data-mode');
 const toneOf = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
 
-test('書けた PDF は新しいタブで開き、ツールモードのままで、青の帯で知らせる', async (t) => {
+test('書けた PDF は新しいタブで開き、ツールモードのままで、青の通知バーで知らせる', async (t) => {
   const shell = await openShell(t);
   shell.SigK.shell.setMode(shell.document, 'tools');
 
@@ -49,7 +49,7 @@ test('ほかのモードで呼ばれても、モードは変えない', async (t
   assert.equal(modeOf(shell), 'pages');
 });
 
-test('タブが上限なら開かず、「最近使ったファイル」に足して青の帯で知らせる', async (t) => {
+test('タブが上限なら開かず、「最近使ったファイル」に足して青の通知バーで知らせる', async (t) => {
   const shell = await openShell(t);
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tabs.count = () => shell.SigK.tabs.MAX_TABS;

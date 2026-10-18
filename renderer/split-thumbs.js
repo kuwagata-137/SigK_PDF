@@ -1,32 +1,51 @@
 (function (root) {
   'use strict';
 
-  // 分割の盤のサムネイルを描く層（spec-2-2b 確定事項D1〜D8）。
+  // 分割の盤のサムネイルを描く層（spec-2-2b 確定事項D2〜D5、spec-2-5 確定事項G6・G10）。
   //
-  // 対象の PDF を 1 回だけ読み、開いたまま持つ（tool-source.js の openPdf。対象の欄の inspect として使われる）。頼まれたページ（want）
-  // だけを、紙の枠に収まる倍率で canvas に描く（page-image.js の renderToCanvas）。上限を超えたページと頼まれなくなったページは、
-  // canvas を手放して page.cleanup() を呼ぶ（呼ばないと pdf.js が展開した画像を抱え続ける。spec-3-3 事前調査 B-1）。
-  // 畳む（別のツールへ移る・ツールモードを抜ける）ときは全部手放して loadingTask.destroy()。広げるときは読み直し、大きさと更新日時で
-  // 書き換わりを照らす（確定事項D7）。同時に走らせる描画は 2 本まで。描き終えたら onDrawn で知らせ、画面が canvas を紙の枠へ差し込む。
+  // 2026-10-15 から、盤は選んでいる帯（タブ）の今の中身から描く（spec-2-5 G6。前は対象の PDF をもう一度読んで開いたまま持っていた）。
+  // 頼まれたページ（want。index は帯の今の並びの位置）だけを、紙の枠に収まる大きさで planPageImage.draw（保存していない回転・切り取り・
+  // モザイク・書き込みも描く）で描く。印（plan-page-image.js の signature）が変わった紙は描き直す。上限を超えたページと頼まれなく
+  // なったページは canvas を手放して page.cleanup() を呼ぶ。帯の紙（strip-thumbs.js）とは別に数える（G10）。同時に描くのは 2 本まで。
+  // 描き終えたら onDrawn で知らせ、画面（split-board-view.js）が紙の枠へ差し込む。
 
-  const ENCRYPTED = 'パスワード付きで、保存できない PDF です';
   const PARALLEL = 2;
 
-  const state = { path: null, task: null, doc: null, pageCount: 0, signature: null, folded: false, size: 'mid', ticket: 0, loading: null };
-  const drawn = new Map();     // ページ → { canvas, page }
-  const pending = new Set();   // 描いている途中のページ
+  const state = { tabId: null, size: 'mid' };
+  const drawn = new Map();     // ページ → { canvas, page, sig }
+  const pending = new Map();   // 描いている途中の「帯の id:ページ」→ sig（帯を替えても、前の帯の描きかけと取り違えない）
   const listeners = [];
   let queue = [];
   let wanted = new Set();
 
   const layout = () => root.SigK.splitLayout;
-  const pageImage = () => root.SigK.pageImage;
-  const signatureOf = (info) => ({ size: info.size, mtimeMs: info.mtimeMs });
-  const sameSignature = (a, b) => a !== null && b !== null && a.size === b.size && a.mtimeMs === b.mtimeMs;
+  const view = () => (state.tabId === null ? null : root.SigK.tabs?.peek(state.tabId) ?? null);
+  const pendingKey = (tabId, index) => `${tabId}:${index}`;
+
+  // ページの紙の大きさ（CSS px）。大きさ（小・中・大）の枠に、回転・切り取りのあとの縦横比のまま収める。
+  function sheetFor(size, pageSize) {
+    const cell = layout().cellOf(size);
+    const width = Number(pageSize?.width);
+    const height = Number(pageSize?.height);
+    if (!(width > 0) || !(height > 0))
+      return { width: cell.sheetWidth, height: cell.sheetHeight };
+    const scale = Math.min(cell.sheetWidth / width, cell.sheetHeight / height);
+    return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+  }
+
+  function sigOf(index) {
+    const current = view();
+    const sheet = sheetFor(state.size, current?.sizes?.[index]);
+    return root.SigK.planPageImage.signature(current, index, `${sheet.width}x${sheet.height}`);
+  }
 
   function releaseEntry({ canvas, page }) {
-    pageImage().release(canvas);
-    page?.cleanup?.();
+    root.SigK.pageImage.release(canvas);
+    try {
+      page?.cleanup?.();
+    } catch {
+      // 閉じた文書のページ。手放すものはもう無い。
+    }
   }
 
   function releasePage(index) {
@@ -44,133 +63,69 @@
     wanted = new Set();
   }
 
-  // 描きかけを捨て、全部手放し、文書を閉じる。
-  async function closeDoc() {
-    releaseAll();
-    const task = state.task;
-    state.task = null;
-    state.doc = null;
-    await task?.destroy?.();
-  }
-
-  // 読んで開く。ticket は対象を決めたときの番号で、読んでいる間に対象が替わったら（open・close が番号を進める）、遅れて開いた
-  // 文書も閉じて stale を返す。読んでいる間に畳まれたら、ページ数と控えだけ覚えて閉じる（広げるときに読み直す）。
-  async function adopt(filePath, ticket) {
-    const opened = await root.SigK.toolSource.openPdf(filePath, { encryptedError: ENCRYPTED });
-    if (ticket !== state.ticket) {
-      await opened.task?.destroy?.();
-      return { reason: 'stale', error: '' };
-    }
-    if (opened.reason !== undefined)
-      return opened;
-    Object.assign(state, { pageCount: opened.info.pageCount, signature: signatureOf(opened.info) });
-    if (state.folded)
-      await opened.task?.destroy?.();
-    else
-      Object.assign(state, { task: opened.task, doc: opened.doc });
-    return opened;
-  }
-
-  // 読んでいる途中かを、畳む・広げる側から見えるように持つ。
-  function load(filePath, ticket) {
-    const loading = (state.loading = adopt(filePath, ticket));
-    loading.finally(() => { if (state.loading === loading) state.loading = null; }).catch(() => {});
-    return loading;
-  }
-
-  // 対象の欄の inspect として呼ばれる。戻り値は { pageCount, name } か { reason, error }。
-  // 番号は閉じるのを待つ前に取る。待っている間に次の対象が決まったら、こちらが stale になる（点検 R1）。
-  async function open(filePath) {
-    const ticket = (state.ticket += 1);
-    await closeDoc();
-    if (ticket !== state.ticket)
-      return { reason: 'stale', error: '' };
-    Object.assign(state, { path: filePath, pageCount: 0, signature: null });
-    const opened = await load(filePath, ticket);
-    if (opened.reason !== undefined)
-      return { reason: opened.reason, error: opened.error };
-    return { pageCount: opened.info.pageCount, name: opened.info.name };
-  }
-
-  function close() {
-    state.ticket += 1;
-    Object.assign(state, { path: null, pageCount: 0, signature: null });
-    return closeDoc();
-  }
-
-  // 分割の画面を離れるとき。読んだファイルと控えは覚えておく。読んでいる途中なら、読み終えたところで閉じる（adopt）。
-  async function fold() {
-    state.folded = true;
-    await closeDoc();
-  }
-
-  // 分割の画面に戻ったとき。読み直して、書き換わったか（changed）と、前のページ数を返す。読んでいる途中なら、その結果を使う。
-  async function unfold() {
-    state.folded = false;
-    if (state.loading !== null)
-      await state.loading;
-    const previousPageCount = state.pageCount;
-    if (state.folded || state.path === null || state.signature === null || state.doc !== null)
-      return { ok: true, changed: false, pageCount: previousPageCount, previousPageCount };
-    const previous = state.signature;
-    const opened = await load(state.path, state.ticket);   // 同じ対象を読み直すので番号は進めない
-    if (opened.reason !== undefined)
-      return { reason: opened.reason, error: opened.error };
-    return { ok: true, changed: !sameSignature(previous, state.signature), pageCount: opened.info.pageCount, previousPageCount };
-  }
-
-  // 読まずに、大きさと更新日時だけを照らす（［実行…］の前。確定事項D7）。照らせなければ変わったとみなす。
-  async function isChanged() {
-    if (state.path === null || state.signature === null)
+  // 盤にする帯（タブ）。替わったら全部手放す。
+  function setTab(tabId) {
+    const next = tabId ?? null;
+    if (next === state.tabId)
       return false;
-    const now = await root.pdfAPI?.stat?.(state.path);
-    return now?.ok !== true || !sameSignature(state.signature, signatureOf(now));
+    releaseAll();
+    state.tabId = next;
+    return true;
   }
 
   // pages は描く順（見えている所の中心に近い順）。先頭から cap 枚だけ持ち、ほかは手放す。
   function want(pages, { cap = layout().renderCap(state.size) } = {}) {
-    const keep = pages.filter((index) => Number.isInteger(index) && index >= 0 && index < state.pageCount).slice(0, cap);
+    const count = view()?.plan?.length ?? 0;
+    const keep = pages.filter((index) => Number.isInteger(index) && index >= 0 && index < count).slice(0, cap);
     wanted = new Set(keep);
     for (const index of [...drawn.keys()]) {
       if (!wanted.has(index))
         releasePage(index);
     }
-    queue = keep.filter((index) => !drawn.has(index) && !pending.has(index));
+    queue = keep.filter((index) => {
+      if (pending.has(pendingKey(state.tabId, index)))
+        return false;
+      const sig = sigOf(index);
+      return sig !== null && drawn.get(index)?.sig !== sig;
+    });
     pump();
   }
 
   function pump() {
-    while (pending.size < PARALLEL && queue.length > 0 && state.doc !== null) {
+    while (pending.size < PARALLEL && queue.length > 0) {
       const index = queue.shift();
-      pending.add(index);
-      draw(index).then((again) => {
-        pending.delete(index);
-        if (again && wanted.has(index) && !drawn.has(index) && !queue.includes(index))
-          queue.unshift(index);   // 描いている間に大きさが変わった。新しい大きさで描き直す（点検 R1）
-        pump();
-      });
+      draw(index).then(pump);
     }
   }
 
-  // 描き終えたときに大きさだけが変わっていたら true（描き直す）。
   async function draw(index) {
-    const { doc, size } = state;
-    let page = null;
+    const sig = sigOf(index);
+    const tabId = state.tabId;
+    if (sig === null)
+      return;
+    pending.set(pendingKey(tabId, index), sig);
+    let result = null;
     try {
-      page = await doc.getPage(index + 1);
-      const base = page.getViewport({ scale: 1 });
-      const scale = layout().thumbScale({ cell: layout().cellOf(size), pageWidth: base.width, pageHeight: base.height, devicePixelRatio: root.devicePixelRatio ?? 1 });
-      const result = await pageImage().renderToCanvas(root.document, page, { scale });
-      if (doc !== state.doc || size !== state.size || !wanted.has(index)) {
-        releaseEntry({ canvas: result.canvas, page });
-        return doc === state.doc && size !== state.size;
-      }
-      drawn.set(index, { canvas: result.canvas, page });
-      listeners.forEach((listener) => listener(index, result.canvas));
+      const current = view();
+      const sheet = sheetFor(state.size, current.sizes?.[index]);
+      result = await root.SigK.planPageImage.draw(root.document, current, index, { sheet, dpr: root.devicePixelRatio ?? 1 });
     } catch {
-      page?.cleanup?.();   // 描けなかったページは枠のまま残す（描画の取りやめも含む）
+      result = null;   // 描けなかったページは枠のまま残す（閉じた文書・描画の取りやめ）
     }
-    return false;
+    pending.delete(pendingKey(tabId, index));
+    if (result === null)
+      return;
+    if (tabId !== state.tabId || !wanted.has(index) || sigOf(index) !== sig) {
+      releaseEntry(result);
+      if (tabId === state.tabId && wanted.has(index) && !queue.includes(index))
+        queue.unshift(index);   // 描いている間に中身か大きさが変わった。新しい中身で描き直す
+      return;
+    }
+    const previous = drawn.get(index);
+    if (previous !== undefined)
+      releaseEntry(previous);
+    drawn.set(index, { canvas: result.canvas, page: result.page, sig });
+    listeners.forEach((listener) => listener(index, result.canvas));
   }
 
   function setSize(size) {
@@ -185,15 +140,11 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.splitThumbs = {
-    open, close, fold, unfold, isChanged, want, setSize,
+    setTab, want, setSize, releaseAll, sheetFor,
     onDrawn: (listener) => listeners.push(listener),
     canvasOf: (index) => drawn.get(index)?.canvas ?? null,
-    getPage: (index) => (state.doc === null ? null : state.doc.getPage(index + 1)),
     size: () => state.size,
-    signature: () => state.signature,
-    getState: () => ({
-      path: state.path, open: state.doc !== null, folded: state.folded, pageCount: state.pageCount, size: state.size,
-      drawn: [...drawn.keys()].sort((a, b) => a - b), pending: pending.size,
-    }),
+    tabId: () => state.tabId,
+    getState: () => ({ tabId: state.tabId, size: state.size, drawn: [...drawn.keys()].sort((a, b) => a - b), pending: pending.size }),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

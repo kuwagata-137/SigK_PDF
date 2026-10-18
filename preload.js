@@ -71,14 +71,10 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
   // 大きさと更新日時だけを読む（spec-2-2b 確定事項D7）。{ ok, size, mtimeMs } / { error }。
   stat: (filePath) => ipcRenderer.invoke('pdf:stat', filePath),
-  // 分割する PDF を1本選ばせる（spec-2-2 確定事項2）。{ path } / { canceled }。
-  pickSplitSource: (options) => ipcRenderer.invoke('pdf:pickSplitSource', options),
-  // ツールの対象を1本選ばせる。題名を渡せる（spec-3-3 確定事項2）。{ path } / { canceled }。
-  pickToolSource: (options) => ipcRenderer.invoke('pdf:pickToolSource', options),
   // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
   pickFolder: (options) => ipcRenderer.invoke('pdf:pickFolder', options),
-  // 変換する画像をまとめて選ばせる（spec-3-1 確定事項2）。{ paths } / { canceled }。
-  pickImageSources: (options) => ipcRenderer.invoke('pdf:pickImageSources', options),
+  // 画像→PDF の受け口で、PDF と変換する画像をまとめて選ばせる（spec-2-5 確定事項H10）。{ paths } / { canceled }。
+  pickConvertSources: (options) => ipcRenderer.invoke('pdf:pickConvertSources', options),
   // 画像の形式と画素数を先頭バイトから読む（spec-3-1 確定事項4）。
   // { ok, kind, width, height, name, size } / { error }。
   inspectImage: (filePath) => ipcRenderer.invoke('pdf:inspectImage', filePath),
@@ -171,7 +167,7 @@ contextBridge.exposeInMainWorld('printAPI', {
 // ここは 1 ページぶんのバイト列をファイルに書くだけである。ほかのツールと向きが
 // 逆になる理由は worker/op-convert.js の頭にある。
 // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。pdf.js が返さない欄（/CA・/IC・/BE・/RD など）を、
-// 開いたファイルの注釈についてワーカーで読む。帯も「実行中」の表示も出さない。
+// 開いたファイルの注釈についてワーカーで読む。通知バーも「実行中」の表示も出さない。
 contextBridge.exposeInMainWorld('annotationAPI', {
   available: true,
   // spec は { source, expect: { size, mtimeMs }, refs: ['12R', ...] }。
@@ -183,6 +179,8 @@ contextBridge.exposeInMainWorld('imageAPI', {
   available: true,
   // { ok, path, bytes } / { error }
   write: (target, bytes) => ipcRenderer.invoke('image:write', target, bytes),
+  // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。{ ok, url, width, height } / { error }
+  thumbnail: (filePath) => ipcRenderer.invoke('image:thumbnail', filePath),
 });
 
 // 最近使ったファイル（spec-1-2 確定事項8〜10）。実体は settings.json にあり、

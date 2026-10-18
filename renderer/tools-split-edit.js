@@ -1,30 +1,61 @@
 (function (root) {
   'use strict';
 
-  // 分割の盤の操作・履歴・選択の指揮（spec-2-2b 確定事項C1〜C9）。
+  // 分割の盤の操作・履歴・選択の指揮（spec-2-2b 確定事項C1〜C9、spec-2-5 確定事項G5・G8）。
   //
-  // 盤（split-board-model.js）を履歴（split-board-history.js）に積み、選択（split-selection.js）と、まとめて分けるの欄の文字を持つ。
+  // 盤（split-board-model.js）と履歴（split-board-history.js）は、帯（タブ）ごとに split-board-store.js が持つ（決定80 ㉟）。
+  // ここは選んでいる帯の盤を取り出して操作し、選択（split-selection.js）と、まとめて分けるの欄の文字を持つ。選択は帯を替えると外す。
   // 画面のボタン・欄・キーは、ここの関数を呼ぶだけにする。盤が変わったら tools-split-view.js の render で画面全体を描き直す。
   // 実行中は盤の操作を受けない（確定事項C12）。大きさ（小・中・大）は描く層（split-thumbs.js）が持つ。
 
-  const state = { history: null, selection: null, bulkText: { every: '3', at: '' }, bulkError: null };
+  const state = { tabId: null, selection: null, bulkText: { every: '3', at: '' }, bulkError: null };
 
   const model = () => root.SigK.splitBoard;
   const history = () => root.SigK.splitHistory;
+  const store = () => root.SigK.splitBoardStore;
   const selection = () => root.SigK.splitSelection;
   const thumbs = () => root.SigK.splitThumbs;
   const split = () => root.SigK.toolsSplit;
   const changed = () => root.SigK.toolsSplitView?.render();
 
-  // 対象が決まったとき（tools-split.js）。盤と履歴を作り直す（確定事項B6）。
-  function reset(pageCount) {
-    state.history = history().create(model().create(pageCount));
+  // 盤にする帯。分割の対象が使えるときだけ（パスワード付き・開けなかった帯は盤にしない。spec-2-5 G12）。
+  function target() {
+    const src = split()?.source() ?? null;
+    if (src === null || src.blocked !== null)
+      return null;
+    const view = root.SigK.tabs?.peek(src.tabId) ?? null;
+    return view === null || view.doc === undefined ? null : { tabId: src.tabId, name: src.name, view };
+  }
+
+  // 帯が替わったら、選択・まとめて分けるの誤り・今のページを外す。
+  function follow(tabId) {
+    if (tabId === state.tabId)
+      return;
+    state.tabId = tabId;
     state.selection = null;
     state.bulkError = null;
     root.SigK.splitBoardInput?.resetCurrent();
   }
 
-  const board = () => (state.history === null ? null : history().current(state.history));
+  // 選んでいる帯の履歴。並びが変わっていれば split-board-store.js がずらす。ページ数が変わって作り直したときは通知バーに出す（G8）。
+  function currentHistory() {
+    const now = target();
+    follow(now?.tabId ?? null);
+    if (now === null)
+      return null;
+    store().prune(root.SigK.tabs.list().map((tab) => tab.id));
+    const { history: h, notice } = store().entryFor(now.tabId, now.view);
+    if (notice === 'recount') {
+      state.selection = null;
+      root.SigK.viewBanner?.show(`「${now.name}」のページ数が変わったので、分け目を消しました。`, { tone: 'warn' });
+    }
+    return h;
+  }
+
+  const board = () => {
+    const h = currentHistory();
+    return h === null ? null : history().current(h);
+  };
   const locked = () => board() === null || split()?.isRunning() === true;
   const range = () => selection().range(state.selection);
 
@@ -32,16 +63,17 @@
   function apply(next, { keepSelection = true } = {}) {
     if (locked())
       return false;
-    const pushed = history().push(state.history, next);
+    const h = currentHistory();
+    const pushed = history().push(h, next);
     const cleared = !keepSelection && state.selection !== null;
     if (!keepSelection)
       state.selection = null;
-    if (pushed === state.history) {
+    if (pushed === h) {
       if (cleared)
         changed();
       return false;
     }
-    state.history = pushed;
+    store().set(state.tabId, pushed);
     changed();
     return true;
   }
@@ -68,24 +100,11 @@
     return false;
   }
 
-  // 押したまとめて分けるの次の盤。欄が読めなければ { error }。
-  function bulkBoard(kind, now) {
-    const plan = root.SigK.splitPlan;
-    if (kind === 'each')
-      return { next: model().splitEach(now) };
-    if (kind === 'clear')
-      return { next: model().clearCuts(now) };
-    const parsed = kind === 'every' ? plan.parseEvery(state.bulkText.every) : plan.parseCuts(state.bulkText.at, now.pageCount);
-    if (parsed.error !== undefined)
-      return { error: parsed.error };
-    return { next: kind === 'every' ? model().splitEvery(now, parsed.n) : model().splitBefore(now, parsed.numbers) };
-  }
-
-  // どれを押しても、前の誤りの表示は消す（盤が同じでも）。
+  // どれを押しても、前の誤りの表示は消す（盤が同じでも）。次の盤は split-plan.js の bulkNext が組む。
   function bulk(kind) {
     if (locked())
       return false;
-    const { next, error } = bulkBoard(kind, board());
+    const { next, error } = root.SigK.splitPlan.bulkNext(kind, board(), state.bulkText);
     if (error !== undefined)
       return fail(kind, error);
     const hadError = state.bulkError !== null;
@@ -134,20 +153,6 @@
     return true;
   }
 
-  // 分割の画面の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z（確定事項G1。viewer-keys.js の handleKey から）。分割の画面を出しているときだけ取る。
-  // 文字を打つ欄（N・ページ番号）の中では取らず、欄の素の取り消しに任せる。実行中は取るが何もしない。
-  function handleKey(event, doc) {
-    const keys = root.SigK.viewerKeys;
-    const direction = keys.historyStep(event);
-    if (direction === null || doc.documentElement.getAttribute('data-mode') !== 'tools' || root.SigK.tools?.selected() !== 'split')
-      return false;
-    if (keys.isTypingField(event.target))
-      return false;
-    event.preventDefault();
-    step(direction);
-    return true;
-  }
-
   // Esc の順の最後の段（確定事項G2④。escape-order.js）。分割の画面を出しているときだけ、選択を外す。
   const escape = () => root.SigK.tools?.selected() === 'split' && clearSelection();
 
@@ -156,11 +161,11 @@
   function step(direction) {
     if (locked())
       return false;
-    const h = state.history;
+    const h = currentHistory();
     const can = direction === 'undo' ? history().canUndo(h) : history().canRedo(h);
     if (!can)
       return false;
-    state.history = direction === 'undo' ? history().undo(h) : history().redo(h);
+    store().set(state.tabId, direction === 'undo' ? history().undo(h) : history().redo(h));
     state.selection = null;
     changed();
     return true;
@@ -175,13 +180,13 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsSplitEdit = {
-    reset, board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, handleKey, setSize,
+    board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
     skip: () => setSkipped(true),
     unskip: () => setSkipped(false),
     undo: () => step('undo'),
     redo: () => step('redo'),
-    canUndo: () => state.history !== null && history().canUndo(state.history),
-    canRedo: () => state.history !== null && history().canRedo(state.history),
+    canUndo: () => { const h = currentHistory(); return h !== null && history().canUndo(h); },
+    canRedo: () => { const h = currentHistory(); return h !== null && history().canRedo(h); },
     selection: () => state.selection,
     bulkText: (kind) => state.bulkText[kind],
     bulkError: () => state.bulkError,

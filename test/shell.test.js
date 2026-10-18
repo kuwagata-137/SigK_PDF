@@ -450,8 +450,8 @@ test('サイドパネルの開閉を覚える', async (t) => {
 
 // 閉じる「＜」はパネルの見出しの中にあり、閉じるとパネルごと消える。開き直す口が無く、閉じた状態を覚えるので次の起動でも
 // 閉じたままだった（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じている間だけ、レールと表示域の
-// 間に細い帯を出し、帯の「＞」で開く。
-test('サイドパネルを閉じると細い帯が出て、帯の「＞」で開き、開いたことを覚える', async (t) => {
+// 間に閉じたパネルの細い欄を出し、その「＞」で開く。
+test('サイドパネルを閉じると閉じたパネルの細い欄が出て、その「＞」で開き、開いたことを覚える', async (t) => {
   const { document, flush, uiCalls, savedUi } = await withShell(t);
   await flush();
   const html = document.documentElement;
@@ -459,8 +459,8 @@ test('サイドパネルを閉じると細い帯が出て、帯の「＞」で�
   const expand = document.getElementById('side-expand');
   const click = (node) => node.dispatchEvent(new (document.defaultView.MouseEvent)('click', { bubbles: true }));
 
-  assert.notEqual(strip, null, '帯が無い');
-  assert.equal(strip.hidden, true, '開いている間は帯を出さない');
+  assert.notEqual(strip, null, '閉じたパネルの細い欄が無い');
+  assert.equal(strip.hidden, true, '開いている間は閉じたパネルの細い欄を出さない');
   // 帯はレールとページの表示域（タブの列とページの表示を縦に並べた #main。spec-2-5 確定事項B1）の間に置く。
   assert.equal(strip.previousElementSibling.id, 'side-resizer');
   assert.equal(strip.nextElementSibling.id, 'main');
@@ -479,29 +479,29 @@ test('サイドパネルを閉じると細い帯が出て、帯の「＞」で�
 
   click(document.getElementById('side-collapse'));
   assert.equal(html.getAttribute('data-panel'), 'collapsed');
-  assert.equal(strip.hidden, false, '閉じたら帯を出す');
+  assert.equal(strip.hidden, false, '閉じたら閉じたパネルの細い欄を出す');
 
   click(expand);
   await flush();
   assert.equal(html.getAttribute('data-panel'), 'open');
-  assert.equal(strip.hidden, true, '開いたら帯を消す');
+  assert.equal(strip.hidden, true, '開いたら閉じたパネルの細い欄を消す');
   assert.deepEqual(uiCalls, [{ sidePanel: { open: false } }, { sidePanel: { open: true } }]);
   assert.equal(savedUi().sidePanel.open, true, '開いたことを覚える');
 });
 
-test('前回閉じていたら、どのモードでも帯が出た状態で立ち上がる', async (t) => {
+test('前回閉じていたら、どのモードでも閉じたパネルの細い欄が出た状態で立ち上がる', async (t) => {
   for (const mode of ['view', 'pages', 'annot', 'tools']) {
     const { document, flush } = await withShell(t, { ui: { mode, sidePanel: { open: false, width: 240 } } });
     await flush();
     assert.equal(document.documentElement.getAttribute('data-panel'), 'collapsed', mode);
-    assert.equal(document.getElementById('side-strip').hidden, false, `${mode} で帯が出ない`);
+    assert.equal(document.getElementById('side-strip').hidden, false, `${mode} で閉じたパネルの細い欄が出ない`);
     document.getElementById('side-expand').dispatchEvent(new (document.defaultView.MouseEvent)('click'));
     assert.equal(document.documentElement.getAttribute('data-panel'), 'open', `${mode} で開かない`);
   }
 });
 
-// 帯を出し入れすると表示域の幅が変わる。「幅」「全体」で追従していれば倍率を計算し直す（閉じるときと同じ合図）。
-test('帯の「＞」で開くと、ビューアへ表示域の追従を頼む', async (t) => {
+// 閉じたパネルの細い欄を出し入れすると表示域の幅が変わる。「幅」「全体」で追従していれば倍率を計算し直す（閉じるときと同じ合図）。
+test('閉じたパネルの細い欄の「＞」で開くと、ビューアへ表示域の追従を頼む', async (t) => {
   const { document, SigK, flush } = await withShell(t, { ui: { mode: 'view', sidePanel: { open: false, width: 240 } } });
   await flush();
   const original = SigK.viewer.refit;
@@ -512,7 +512,7 @@ test('帯の「＞」で開くと、ビューアへ表示域の追従を頼む',
   assert.equal(calls, 1);
 });
 
-// キーボードで「＞」を押すと、帯と一緒に「＞」が隠れ、フォーカスの行き場が無くなっていた（spec-4b-7b 点検の直し）。
+// キーボードで「＞」を押すと、閉じたパネルの細い欄と一緒に「＞」が隠れ、フォーカスの行き場が無くなっていた（spec-4b-7b 点検の直し）。
 test('キーボードで「＞」を押したらパネルの中へフォーカスを移す。マウスなら移さない', async (t) => {
   const { document, flush } = await withShell(t, { ui: { mode: 'view', sidePanel: { open: false, width: 240 } } });
   await flush();
@@ -561,8 +561,8 @@ test('窓が 1100px より狭いときは、幅・全体・見開き・選択・
     assert.equal(document.getElementById(id).getAttribute('aria-label'), name, id);
 });
 
-// jsdom は shell.css を読まないので、帯の寸法と出し入れの規則は文字で見張る。
-test('帯は幅 18px で、hidden の間は場所を取らない（shell.css）', () => {
+// jsdom は shell.css を読まないので、閉じたパネルの細い欄の寸法と出し入れの規則は文字で見張る。
+test('閉じたパネルの細い欄は幅 18px で、hidden の間は場所を取らない（shell.css）', () => {
   const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
   const rule = css.match(/#side-strip\{([^}]*)\}/);
   assert.notEqual(rule, null, 'shell.css に #side-strip の規則が無い');

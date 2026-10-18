@@ -21,6 +21,7 @@ const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = 
 const { createErrorLog } = require('./errorlog.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
+const imageThumbnail = require('./image-thumbnail.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
@@ -398,18 +399,18 @@ function registerIpc() {
   ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
   ipcMain.handle('pdf:pickOpenSources', (_event, options = {}) => fileIo.pickOpenSources(mainWindow, options));
   ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
-  // 分割の入力の1本選択と、出力フォルダーの選択（spec-2-2 確定事項2・14）。
-  ipcMain.handle('pdf:pickSplitSource', (_event, options = {}) => fileIo.pickSplitSource(mainWindow, options));
-  ipcMain.handle('pdf:pickToolSource', (_event, options = {}) => fileIo.pickToolSource(mainWindow, options));
+  // 出力フォルダーの選択（spec-2-2 確定事項14）。
   ipcMain.handle('pdf:pickFolder', (_event, options = {}) => fileIo.pickFolder(mainWindow, options));
   // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
-  ipcMain.handle('pdf:pickImageSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
+  ipcMain.handle('pdf:pickConvertSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
   ipcMain.handle('pdf:inspectImage', (_event, filePath) => imageIo.inspect(filePath));
   // 透かしにする画像を 1 枚選ぶ・丸ごと読む（spec-4-5 確定事項35・36）。
   ipcMain.handle('pdf:pickWatermarkImage', (_event, options = {}) => imageIo.pickWatermark(mainWindow, options));
   ipcMain.handle('pdf:readWatermarkImage', (_event, filePath) => imageIo.readWatermark(filePath));
   // PDF→画像（spec-3-3 確定事項19）。レンダラーが描いた 1 ページぶんを書く。
   ipcMain.handle('image:write', (_event, target, bytes) => imageIo.write(target, bytes));
+  // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。画像の拡張子の絶対パスだけ受け、data URL で返す。
+  ipcMain.handle('image:thumbnail', (_event, filePath) => imageThumbnail.createThumbnail(filePath, { nativeImageLike: nativeImage }));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
   // 任意のパスでエクスプローラーを開かせないよう、実在するファイルに限る。
   ipcMain.handle('shell:showInFolder', (_event, filePath) => {
@@ -430,7 +431,7 @@ function registerIpc() {
   }));
   ipcMain.handle('task:cancel', (_event, taskId) => taskRunner.cancel(taskId));
 
-  // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。保存や透かしと同じワーカーで読むが、帯も「実行中」の
+  // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。保存や透かしと同じワーカーで読むが、通知バーも「実行中」の
   // 表示も出さず、進捗も返さない。形の確かめはワーカーが持ち、ここはパスが実在するファイルかだけを見る。
   // 10 秒で答えが無ければ打ち切る（開いたときに 1 回だけ呼ぶので、待たせすぎない）。
   ipcMain.handle('annotation:readDetails', async (_event, spec) => {
@@ -448,7 +449,7 @@ function registerIpc() {
   });
 
   // 紙全体の大きさ（MediaBox）の読み取り（spec-4b-6a 確定事項9・10）。トリミングの道具を初めて持ったときに 1 回だけ呼ぶ。
-  // 注釈の口と同じく、帯も「実行中」の表示も出さず、進捗も返さない。
+  // 注釈の口と同じく、通知バーも「実行中」の表示も出さず、進捗も返さない。
   ipcMain.handle('pdf:readBoxes', async (_event, spec) => {
     if (typeof spec?.source !== 'string' || !isExistingFile(spec.source))
       return { ok: false, reason: 'invalid' };
@@ -1266,7 +1267,7 @@ function installSmokeCheck(win, mode) {
       inputs: SigK.toolsMerge.inputs().map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
       target,
     });
-    // SIGK_SMOKE_MERGE_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
+    // SIGK_SMOKE_MERGE_CANCEL=1 なら、通知バーの「中止」を押す（完了判定7）。
     // 1,000ページ×2本なら 2秒ほど掛かるので、少し待ってから押せば途中で止まる。
     let canceledAt = null;
     if (${process.env.SIGK_SMOKE_MERGE_CANCEL === '1'}) {
@@ -1404,8 +1405,20 @@ function installSmokeCheck(win, mode) {
       runDisabled: document.getElementById('convert-run').getAttribute('aria-disabled'),
       example: document.getElementById('convert-example').textContent,
       summary: document.getElementById('convert-summary').textContent,
-      papers: [...document.querySelectorAll('#convert-list .convert-row .paper')].map((node) => node.textContent),
-      pixels: [...document.querySelectorAll('#convert-list .convert-row .px')].map((node) => node.textContent),
+      // 「変換する画像」の帯（spec-2-5 確定事項H4〜H8）。画素数・この紙は画像の説明（title）に入っている。
+      strip: {
+        shown: document.getElementById('image-strip').hidden === false,
+        framed: document.getElementById('image-strip').classList.contains('sel'),
+        count: document.getElementById('image-strip-count').textContent,
+        note: document.getElementById('image-strip-note').textContent,
+        items: [...document.querySelectorAll('#image-strip .img-item')].map((node) => ({
+          name: node.querySelector('.cap').textContent,
+          title: node.title,
+          bad: node.classList.contains('bad'),
+          thumb: node.querySelector('.img-thumb img') !== null,
+          pages: node.querySelector('.img-pages')?.textContent ?? null,
+        })),
+      },
       planError: plan.error,
       pages: plan.ready ? plan.pages.map((layouts) => layouts.map((layout) => layout.page)) : [],
       totalPages: plan.ready ? plan.totalPages : null,
@@ -1440,7 +1453,7 @@ function installSmokeCheck(win, mode) {
     const focusOnCancel = document.activeElement === document.getElementById('confirm-replace-cancel');
     if (dialogOpen)
       document.getElementById('confirm-replace-ok').click();
-    // SIGK_SMOKE_CONVERT_CANCEL=1 なら、帯の「中止」を押す（完了判定7）。
+    // SIGK_SMOKE_CONVERT_CANCEL=1 なら、通知バーの「中止」を押す（完了判定7）。
     let canceledAt = null;
     if (${process.env.SIGK_SMOKE_CONVERT_CANCEL === '1'}) {
       await wait(400);
@@ -1476,6 +1489,12 @@ function installSmokeCheck(win, mode) {
       written: result ? (result.written ?? null) : null,
       tabs: SigK.tabs.count(),
       mode: document.documentElement.getAttribute('data-mode'),
+      // 「画像ごと」は画面の［実行…］と同じ経路なので、できた帯と「できた PDF」のカードが出る（spec-2-5 確定事項H3・H11）。
+      strips: document.querySelectorAll('#strips .strip').length,
+      resultCard: document.getElementById('convert-result').hidden ? null : {
+        title: document.getElementById('convert-result-title').textContent,
+        desc: document.getElementById('convert-result-desc').textContent,
+      },
       ms,
       opened,
     };
@@ -1559,7 +1578,7 @@ function installSmokeCheck(win, mode) {
       document.getElementById('confirm-replace-ok').click();
     await wait(150);
     const bannerWhileRunning = SigK.viewBanner.text();
-    // SIGK_SMOKE_TO_IMAGE_CANCEL=1 なら、帯の「中止」を押す（完了判定6）。
+    // SIGK_SMOKE_TO_IMAGE_CANCEL=1 なら、通知バーの「中止」を押す（完了判定6）。
     let canceledAt = null;
     if (${process.env.SIGK_SMOKE_TO_IMAGE_CANCEL === '1'}) {
       await wait(300);

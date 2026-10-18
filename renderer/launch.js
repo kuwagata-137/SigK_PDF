@@ -9,8 +9,8 @@
   // 始まらないからである。メイン側は ready を受けるまで要求を溜めている。
   //
   // 要求は { intent, paths, batch: { id, first } } の形で 1 件ずつ届く（main.js の queueLaunch。
-  // 右クリックで N 個選ぶと N 件）。ここは届いた順に 1 件ずつ画面へ渡すだけで、束の中の並びと
-  // 一覧の置き換えは受け取る画面が決める（tools-merge.js・tools-convert.js・tools-split.js）。
+  // 右クリックで N 個選ぶと N 件）。ここは届いた順に 1 件ずつ画面へ渡すだけで、束の中の並びと、
+  // 前の並びを置き換えるかは、受け取る画面が決める（tools-merge.js・tools-convert.js・tools-split.js）。
   // PDF はどの操作でもタブで開き、`open` ではモードを変えない（決定80）。
   //
   // **手が空いていなければ当てずに預かる**（論点4）。結合と画像→PDF は保存ダイアログから
@@ -31,59 +31,52 @@
   const openBatches = () => (openBatch ??= SigKOf().launchIntake.createBatchTracker());
 
   // 1本ずつ順にタブで開く（確定事項13）。まとめて投げると、同じファイルが2枚のタブになる経路（tabs.js の重複判定は
-  // 開き終わってから効く）を作ってしまう。タブが上限なら開かず、帯を束につき 1 回出す。
-  // { opened, kept } を返す。kept は取りやめ（パスワードの入力）でないパス（ツールに渡す。上限で開かなかったものも含む）。
+  // 開き終わってから効く）を作ってしまう。タブが上限なら開かず、通知バーを束につき 1 回出す。
+  // { opened } を返す（開いた数）。
   async function openTabs(paths) {
     const tabs = SigKOf().tabs;
-    const kept = [];
     let opened = 0;
     for (const filePath of paths) {
       if (tabs.count() >= tabs.MAX_TABS && tabs.findByPath(filePath) === null) {
         if (openBatches().once('tabs'))
           SigKOf().viewBanner.show(`${tabs.MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
-        kept.push(filePath);
         continue;
       }
       const result = await SigKOf().toolHandoff.openOne(filePath);
       if (result.opened)
         opened += 1;
-      if (!result.canceled)
-        kept.push(filePath);
     }
-    return { opened, kept };
+    return { opened };
   }
 
   // `open` の束（確定事項9）。どのモードでもモードは変えない（決定80。今までは束の最初で、ツールモードなら閲覧モードへ
-  // 移っていた）。ツールモードなら、開いたファイルを選んでいるツールにも渡す（tool-handoff.js。対象が 1 本のツールは
-  // 束の最初の要求の分だけ）。開いた数を返す。
+  // 移っていた）。ツールモードなら、開いたタブが帯になり、選んでいる帯としてツールの対象になる（spec-2-5 確定事項G13）。開いた数を返す。
   async function openAll(paths, batch) {
-    const { starts } = openBatches().enter(batch);
-    const { opened, kept } = await openTabs(paths);
-    await SigKOf().toolHandoff.givePdfs(kept, { batchStarts: starts });
+    openBatches().enter(batch);
+    const { opened } = await openTabs(paths);
     return opened;
   }
 
-  // 結合・分割・PDF に変換（確定事項8）。そのツールに切り替えて渡し（apply）、続けて PDF をタブでも開く（決定80。
-  // PDF に変換の画像はタブにしない）。ツールモードへ切り替えてから開くので、開けなかった理由はツールモードの帯に出る。
+  // PDF をタブで開く（束につき帯は 1 回。結合・分割の受け口に渡す）。
+  function openPdfTabs(paths, batch) {
+    openBatches().enter(batch);
+    return openTabs(paths.filter((filePath) => /\.pdf$/i.test(filePath)));
+  }
+
+  // PDF に変換（確定事項8）。画像→PDF に切り替えて渡し（apply）、続けて PDF をタブでも開く（決定80。画像はタブにしない）。
+  // ツールモードへ切り替えてから開くので、開けなかった理由はツールモードの通知バーに出る。
   async function intoTool(apply, paths, batch) {
     const result = await apply();
-    openBatches().enter(batch);
-    await openTabs(paths.filter((filePath) => /\.pdf$/i.test(filePath)));
+    await openPdfTabs(paths, batch);
     return result;
   }
 
   const APPLY = {
     open: (paths, batch) => openAll(paths, batch),
-    // 結合は帯（＝タブ）を対象にするので、開いてから束の帯にチェックを入れる（spec-2-5 確定事項E7。決定80 ㉛）。
-    merge: (paths, batch) => SigKOf().toolsMerge.addFromLaunch(paths, {
-      batch,
-      open: (pdfs) => {
-        openBatches().enter(batch);
-        return openTabs(pdfs.filter((filePath) => /\.pdf$/i.test(filePath)));
-      },
-    }),
+    // 結合・分割は帯（＝タブ）を対象にするので、開いてから束の帯にチェックを入れる・束の帯を選ぶ（spec-2-5 確定事項E7・G13。決定80 ㉛）。
+    merge: (paths, batch) => SigKOf().toolsMerge.addFromLaunch(paths, { batch, open: (pdfs) => openPdfTabs(pdfs, batch) }),
     toPdf: (paths, batch) => intoTool(() => SigKOf().toolsConvert.addFromLaunch(paths, { batch }), paths, batch),
-    split: (paths, batch) => intoTool(() => SigKOf().toolsSplit.useFromLaunch(paths, { batch }), paths, batch),
+    split: (paths, batch) => SigKOf().toolsSplit.useFromLaunch(paths, { batch, open: (pdfs) => openPdfTabs(pdfs, batch) }),
   };
 
   function isRequest(request) {

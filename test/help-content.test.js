@@ -72,10 +72,13 @@ test('計画外の直しのあとの動きで書いてある', () => {
   assert.match(joined('pages'), /\[Ctrl\] を押しながらクリックすると 1 枚ずつ足す・外す/);
   // ② 閉じた左のパネルは「＞」で開く。
   assert.match(joined('basics'), /「＞」で開きます/);
-  // ⑥ どのモードで開いてもタブで開き、モードは変えない。ツールモードではツールの画面にも入る（決定80。2026-10-08 の
-  // 「ツールモードで開くと閲覧モードへ移る」を改めた）。
+  // ⑥ どのモードで開いてもタブで開き、モードは変えない。ツールモードでは帯の画面に帯として足す（決定80。2026-10-08 の
+  // 「ツールモードで開くと閲覧モードへ移る」を改めた。2026-10-15 に、分割・画像→PDF も帯の画面へ移った〔spec-2-5 第 G・H 章〕）。
   assert.match(joined('basics'), /どのモードで開いても、ファイルはタブで開き、モードはそのままです/);
-  assert.match(joined('basics'), /ツールモードで開いたときは、選んでいるツールの画面にも入ります/);
+  assert.match(joined('basics'), /ツールモードで開いたときは、帯の画面に帯として足します/);
+  assert.doesNotMatch(joined('basics'), /画像→PDF は除きます/);
+  // 「帯」は PDF の帯だけに使う。閉じた左のパネルの「＞」の所は帯と呼ばない（用語を揺らさない。2026-10-15）。
+  assert.doesNotMatch(joined('basics'), /細い帯/);
   for (const id of ['basics', 'tools'])
     assert.doesNotMatch(joined(id), /閲覧モードへ移ります/, id);
   // ④⑤ Ctrl+Shift+Z はやり直し。文字を打つ欄の中では欄の文字を戻す。
@@ -113,19 +116,42 @@ test('分割は「分割」の節で説明し、ツールのボタン名は画�
   assert.doesNotMatch(tools, /N ページごと|範囲（例 1-3, 8）/, '無くなった分け方を書かない');
   assert.match(tools, /［実行…］を押すと始まります/);
   const split = joined('split');
-  for (const button of ['［開いているタブから選ぶ］', '［前のファイルとつなげる］', '［1 ページずつに分ける］', '［ページごとに分ける］', '［ページの前で切る］',
+  for (const button of ['［前のファイルとつなげる］', '［1 ページずつに分ける］', '［ページごとに分ける］', '［ページの前で切る］',
     '［分け目をすべて消す］', '［この範囲を 1 つのファイルにする］', '［書き出さない］', '［書き出す］', '［元に戻す］', '［やり直す］', '［実行…］'])
     assert.ok(split.includes(button), button);
-  // 結合・PDF→画像・透かし・フラット化は帯の画面へ移った（spec-2-5 第 D・E 章）。［開いているタブから選ぶ］は分割だけ。
-  assert.match(tools, /分割は、［開いているタブから選ぶ］か［ファイルを選ぶ…］で選ぶか/);
+  // どのツールも帯の画面を使う（spec-2-5 第 D・E・G・H 章）。［開いているタブから選ぶ］は 2026-10-15 に無くした（G14）。
+  for (const id of ['tools', 'split', 'escape'])
+    assert.doesNotMatch(joined(id), /開いているタブから選ぶ/, id);
+  assert.match(tools, /分割・PDF→画像・透かし・フラット化は、選んでいる帯（枠の色が付いた帯）の PDF に使います/);
   assert.doesNotMatch(tools, /まとめて追加/);
+  // 分割は選んでいる帯を ✂ の盤に広げ、切った位置は帯ごとに覚える（G1・G5）。書き換わっていたら止める（G11）。
+  assert.match(split, /選んでいる帯が ✂ の盤/);
+  assert.match(split, /帯ごとに覚えるので、別の帯を選んでから戻っても残っています/);
+  assert.match(split, /［保存せずに実行］は使えません/);
+  assert.match(split, /分割を止めて知らせます/);
+  assert.doesNotMatch(split, /戻ったときに読み直して/);
+  // 範囲を選んだときのボタンの行は帯と呼ばない（PDF の帯と取り違えない）。
+  assert.doesNotMatch(split, /上に帯が出ます/);
+});
+
+test('画像→PDF は「変換する画像」の帯で並べ、変換のあとは「できた PDF」のカードから続けられる（spec-2-5 第 H 章）', () => {
+  const tools = joined('tools');
+  assert.match(tools, /画像→PDF を選んでいるときは、PDF の帯の下に「変換する画像」の帯が出ます/);
+  assert.match(tools, /画像を横に引くと並びが変わり/);
+  assert.match(tools, /画像→PDF（画像ごと）は選んだフォルダへ書き出し、できた PDF を帯で開きます/);
+  assert.match(tools, /右の欄に「できた PDF」のカードが出ます/);
+  assert.match(joined('escape'), /「変換する画像」の帯の画像を引いている途中の \[Esc\] は、引くのだけをやめます/);
+  assert.doesNotMatch(joined('escape'), /ファイルの一覧の行/);
+  // 進み具合を出す行は帯と呼ばない。呼び名は「通知バー」（決定80 ㊲）。
+  assert.doesNotMatch(tools, /青い帯/);
+  assert.match(tools, /画面の上に出る通知バー（青い 1 行）に進み具合が出て/);
 });
 
 test('ツールモードで開く・保存するときの動きで書いてある（決定80）', () => {
   // 落とした PDF はタブでも開き、画像はほかのツールからでも画像→PDF へ切り替わる（tool-handoff.js）。
-  assert.match(joined('tools'), /選んだ PDF と落とした PDF は、タブでも開きます/);
+  assert.match(joined('tools'), /受け口に PDF を落とすか、［ファイルを選ぶ…］で選ぶと、開いて帯に足します/);
   assert.match(joined('tools'), /画像を落とすと、画像→PDF に切り替わります/);
-  assert.match(joined('tools'), /できたファイルを新しいタブ（帯）で開きます（ツールモードのままです）/);
+  assert.match(joined('tools'), /できたファイルを新しい帯で開きます（ツールモードのままです）/);
   // 帯の画面と、保存していない帯の確認の窓（spec-2-5 第 D・F 章。決定80 ㉜）。用語は「帯」「書き込み」「焼き込み」にそろえる。
   assert.match(joined('tools'), /［上書き保存してから実行］［保存せずに実行］［キャンセル］/);
   assert.match(joined('tools'), /このときタブの列は出ません/);

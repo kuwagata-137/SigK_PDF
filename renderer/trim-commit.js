@@ -3,7 +3,7 @@
 
   // トリミングを当てる・外す（spec-4b-6a 確定事項14・18・19。決定64 ②③）。plan の crop を作り替え、pageEdit.commit で 1 世代にする。
   //
-  // 枠を引くのは annotate-trim.js、右パネルは trim-props.js。ここは plan を作り替えるだけで、DOM に触れない（切ったあとの帯と表示の
+  // 枠を引くのは annotate-trim.js、右パネルは trim-props.js。ここは plan を作り替えるだけで、DOM に触れない（切ったあとの通知バーと表示の
   // 寄せは annotate-trim.js）。紙全体（MediaBox）は page-boxes.js が読み終えたものを使い、読めていなければファイルの見える範囲で代える。
 
   function viewer() {

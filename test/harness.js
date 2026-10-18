@@ -443,18 +443,18 @@ async function createShell({
   existingPaths = [],
   // pdfAPI.pickOpenSources() が返すものの並び（帯の受け口の［ファイルを選ぶ…］。spec-2-5 確定事項D7）。
   openSourceResults = [],
-  // pdfAPI.pickSplitSource() / pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
-  splitSourceResults = [],
+  // pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
   folderResults = [],
-  // pdfAPI.pickImageSources() が返すものの並びと、pdfAPI.inspectImage() が返す
+  // pdfAPI.pickConvertSources() が返すもの（PDF と画像のパス。spec-2-5 確定事項H10）の並びと、pdfAPI.inspectImage() が返す
   // 画像の情報（パス → { kind, width, height, frames? } か { error }）（spec-3-1・spec-3-2）。
   // frames を渡すと複数ページ（TIFF）になる。
-  imageSourceResults = [],
+  convertSourceResults = [],
   imageInfos = {},
-  // pdfAPI.pickToolSource() が返すものの並びと、imageAPI.write() が返すものの並び（spec-3-3）。
-  // write の結果を仕込まなければ、書けたことにして { ok, path, bytes } を返す。
-  toolSourceResults = [],
+  // imageAPI.write() が返すものの並び（spec-3-3）。仕込まなければ、書けたことにして { ok, path, bytes } を返す。
   imageWriteResults = [],
+  // imageAPI.thumbnail() が返すもの（パス → { ok, url, width, height } か { error }。spec-2-5 確定事項H5）。
+  // 仕込まなければ、作れたことにして小さな data URL を返す。
+  imageThumbnails = {},
   // pdfAPI.pickWatermarkImage() が返すものの並びと、readWatermarkImage() が返す画像
   // （パス → { kind, width, height, bytes? } か { error, kind? }）（spec-4-5 確定事項35・36）。
   watermarkImageResults = [],
@@ -495,13 +495,13 @@ async function createShell({
   const insertSourceCalls = [];
   const mergeSourceCalls = [];
   const openSourceCalls = [];
-  const splitSourceCalls = [];
   const folderCalls = [];
-  const imageSourceCalls = [];
-  const toolSourceCalls = [];
+  const convertSourceCalls = [];
   const watermarkImageCalls = [];
   // imageAPI.write() に届いた { target, bytes } の並び（spec-3-3 確定事項19）。
   const imageWrites = [];
+  // imageAPI.thumbnail() に届いたパスの並び（spec-2-5 確定事項H5）。
+  const thumbnailCalls = [];
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
   const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
@@ -570,25 +570,16 @@ async function createShell({
         const file = files[filePath];
         return file?.ok === true ? { ok: true, size: file.size, mtimeMs: file.mtimeMs } : { error: 'ファイルが見つかりません。' };
       },
-      // 分割の入力の1本選択と出力フォルダーの選択（spec-2-2 確定事項2・14）。
-      pickSplitSource: async (options) => {
-        splitSourceCalls.push(structuredClone(options ?? {}));
-        return splitSourceResults.shift() ?? { canceled: true };
-      },
+      // 出力フォルダーの選択（spec-2-2 確定事項14）。
       pickFolder: async (options) => {
         folderCalls.push(structuredClone(options ?? {}));
         return folderResults.shift() ?? { canceled: true };
       },
-      // ツールの対象の1本選択（spec-3-3 確定事項2）。題名も控える。
-      pickToolSource: async (options) => {
-        toolSourceCalls.push(structuredClone(options ?? {}));
-        return toolSourceResults.shift() ?? { canceled: true };
-      },
       // 変換の入力の複数選択と、画像の形式・画素数（spec-3-1 確定事項2・4）。
       // 本物は先頭バイトを読む。ここは仕込んだ情報を返すだけである。
-      pickImageSources: async (options) => {
-        imageSourceCalls.push(structuredClone(options ?? {}));
-        return imageSourceResults.shift() ?? { canceled: true };
+      pickConvertSources: async (options) => {
+        convertSourceCalls.push(structuredClone(options ?? {}));
+        return convertSourceResults.shift() ?? { canceled: true };
       },
       inspectImage: async (filePath) => {
         const info = imageInfos[filePath];
@@ -728,6 +719,10 @@ async function createShell({
         imageWrites.push({ target, bytes });
         return imageWriteResults.shift() ?? { ok: true, path: target, bytes: bytes?.length ?? 0 };
       },
+      thumbnail: async (filePath) => {
+        thumbnailCalls.push(filePath);
+        return imageThumbnails[filePath] ?? { ok: true, url: 'data:image/png;base64,AAAA', width: 192, height: 128 };
+      },
     };
     window.recentAPI = {
       available: true,
@@ -797,15 +792,15 @@ async function createShell({
     mergeSourceCalls,
     // pdfAPI.pickOpenSources() に届いたオプションの並び（spec-2-5 確定事項D7）。
     openSourceCalls,
-    splitSourceCalls,
     folderCalls,
-    // pdfAPI.pickImageSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
-    imageSourceCalls,
+    // pdfAPI.pickConvertSources() に届いたオプションの並びと、inspectImage が返す情報（spec-3-1）。
+    convertSourceCalls,
     imageInfos,
-    // pdfAPI.pickToolSource() に届いたオプションと、imageAPI.write() に届いた書き出し（spec-3-3）。
-    toolSourceCalls,
+    // imageAPI.write() に届いた書き出し（spec-3-3）。
     imageWrites,
     imageWriteResults,
+    // imageAPI.thumbnail() に届いたパス（spec-2-5 確定事項H5）。
+    thumbnailCalls,
     // pdfAPI.pickWatermarkImage() に届いたオプションと、readWatermarkImage が返す画像（spec-4-5）。
     watermarkImageCalls,
     watermarkImages,

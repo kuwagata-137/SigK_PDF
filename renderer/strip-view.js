@@ -22,17 +22,6 @@
   const rowParts = () => root.SigK.stripRow;
   const selection = () => root.SigK.stripSelection;
 
-  function refsOf(view) {
-    const { doc, plan, annots, imported, inserts, sizes } = view;
-    return { doc, plan, annots, imported, inserts, sizes };
-  }
-
-  function sameRefs(a, b) {
-    if (a === null || b === null)
-      return a === b;
-    return Object.keys(a).every((key) => a[key] === b[key]);
-  }
-
   function drop(tabId) {
     const row = state.rows.get(tabId);
     if (row === undefined)
@@ -60,11 +49,12 @@
     const failed = view === null || view.doc === undefined;
     rowParts().updateHead(row.node, {
       no: index + 1, name: tab.name, path: tab.path, pages: failed ? 0 : view.sizes.length, encrypted: view?.file?.encrypted === true,
-      failed, dirty: tabs.isDirty(tab.id), first: index === 0, last: index === count - 1, selected: tab.active,
+      // 「変換する画像」の帯に枠があるときは、PDF の帯に枠を付けない（spec-2-5 確定事項H7）。
+      failed, dirty: tabs.isDirty(tab.id), first: index === 0, last: index === count - 1, selected: tab.active && root.SigK.imageStrip?.hasFrame() !== true,
     });
     rowParts().showNote(row.node, failed ? view?.error ?? '' : null);
-    const refs = failed ? null : refsOf(view);
-    if (!sameRefs(row.refs, refs)) {
+    const refs = failed ? null : rowParts().contentOf(view);
+    if (!rowParts().sameContent(row.refs, refs)) {
       row.refs = refs;
       row.line = layout().row(refs?.sizes ?? []);
       rowParts().syncPages(row.node, row.line.sheets);
@@ -72,15 +62,6 @@
         selection().onPlanChanged(tab.id, refs.plan);
     }
     rowParts().markPicked(row.node, selection().get(tab.id));
-  }
-
-  // 並びが変わったときだけ並べ直す。動かすと横のスクロールが戻るので、控えて戻す。
-  function place(ids) {
-    const kept = ids.map((id) => [rowParts().pagesOf(state.rows.get(id).node), rowParts().pagesOf(state.rows.get(id).node).scrollLeft]);
-    for (const id of ids)
-      el.strips.insertBefore(state.rows.get(id).node, el.drop);
-    for (const [pages, left] of kept)
-      pages.scrollLeft = left;
   }
 
   function reconcile() {
@@ -92,12 +73,15 @@
         drop(id);
     }
     list.forEach((tab, index) => syncRow(tab, index, list.length));
+    // 並びが変わったときだけ並べ直す。
     if (layout().moved(state.order, ids)) {
-      place(ids);
+      rowParts().place(el.strips, ids.map((id) => state.rows.get(id).node), el.anchor);
       state.order = ids;
     }
     root.SigK.stripDropZone?.render({ big: ids.length === 0, recent: root.SigK.recentPanel?.entries() ?? [] });
     root.SigK.stripWatermark?.decorate();
+    // 分割を選んでいれば、選んでいる帯に ✂ の盤を入れる（spec-2-5 確定事項G1）。
+    root.SigK.splitStrip?.sync();
     schedule();
   }
 
@@ -112,18 +96,25 @@
     return true;
   }
 
-  // 見えている帯と紙を数えて、描く分を strip-thumbs.js へ渡す（1 フレームに 1 回）。
+  // 帯ごとの高さ。分割の ✂ の盤を入れた帯だけは、中身に合わせた高さ（spec-2-5 確定事項G9）。
+  function heights() {
+    const host = root.SigK.splitStrip?.hostId() ?? null;
+    return state.order.map((id) => (id === host ? rowNode(id)?.offsetHeight || layout().STRIP_HEIGHT : layout().STRIP_HEIGHT));
+  }
+
+  // 見えている帯と紙を数えて、描く分を strip-thumbs.js へ渡す（1 フレームに 1 回）。盤を広げた帯の紙は、盤の層（split-thumbs.js）が描く。
   function update() {
     if (!state.shown)
       return;
     const width = el.strips.clientWidth;
     const height = el.strips.clientHeight;
-    const strips = layout().visibleStrips(state.order.length, el.strips.scrollTop, height);
+    const strips = layout().visibleStrips(state.order.length, el.strips.scrollTop, height, undefined, heights());
+    const expanded = root.SigK.splitStrip?.expanded() === true ? root.SigK.splitStrip.hostId() : null;
     const items = [];
     for (let index = strips.from; index < strips.to; index += 1) {
       const id = state.order[index];
       const row = state.rows.get(id);
-      if (row === undefined || row.refs === null)
+      if (row === undefined || row.refs === null || id === expanded)
         continue;
       const pages = rowParts().pagesOf(row.node);
       const cells = layout().visibleCells(row.line, pages.scrollLeft, width - layout().PAGES_INSET);
@@ -161,15 +152,11 @@
     return state.rows.get(tabId)?.node ?? null;
   }
 
-  // 描けた紙を帯へ入れ、手放した紙を外す（strip-thumbs.js の知らせ）。紙の上に重ねた透かし（strip-watermark.js）は残す。
+  // 描けた紙を帯へ入れ、手放した紙を外す（strip-thumbs.js の知らせ）。
   function onDrawn(tabId, index, canvas) {
     const node = rowNode(tabId);
-    const sheet = node === null ? null : rowParts().sheetAt(node, index);
-    if (sheet === null)
-      return;
-    sheet.querySelector('canvas')?.remove();
-    if (canvas !== null)
-      sheet.prepend(canvas);
+    if (node !== null)
+      rowParts().putCanvas(node, index, canvas);
   }
 
   function getState() {
@@ -185,7 +172,8 @@
     if (screen === null || strips === null || dropZone === null)
       return false;
     win.__sigkStripsReady = true;
-    el = { doc, win, screen, strips, drop: dropZone };
+    // PDF の帯は「変換する画像」の帯（spec-2-5 確定事項H4）の前、無ければ受け口の前に並べる。
+    el = { doc, win, screen, strips, anchor: doc.getElementById('image-strip') ?? dropZone };
     // 帯の縦のスクロールと、帯の中の横のスクロール（scroll は泡立たないので捕まえる側で受ける）。
     strips.addEventListener('scroll', schedule, true);
     win.addEventListener('resize', schedule);

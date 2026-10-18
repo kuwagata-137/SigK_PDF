@@ -78,12 +78,19 @@ async function inspectImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_BYTES,
   }
 }
 
-// 変換する画像をまとめて選ばせる。選んだ順が戻り値の順である。
-async function pickImageSources({ dialogLike, parentWindow = null, defaultPath = undefined }) {
+// 画像→PDF を選んでいるときの帯の受け口の［ファイルを選ぶ…］（spec-2-5 確定事項H10）。PDF と画像をまとめて選ばせ、画面が PDF は帯、
+// 画像は「変換する画像」の帯へ振り分ける。選んだ順が戻り値の順である。2026-10-15 に、画像だけを選ぶ窓（pickImageSources）からこれへ替えた。
+const CONVERT_SOURCE_FILTERS = [
+  { name: 'PDF と画像', extensions: ['pdf', ...IMAGE_FILTERS[0].extensions] },
+  { name: 'PDF', extensions: ['pdf'] },
+  ...IMAGE_FILTERS,
+];
+
+async function pickConvertSources({ dialogLike, parentWindow = null, defaultPath = undefined }) {
   const options = {
-    title: '変換する画像を選ぶ',
+    title: 'PDF か変換する画像を選ぶ',
     properties: ['openFile', 'multiSelections'],
-    filters: IMAGE_FILTERS,
+    filters: CONVERT_SOURCE_FILTERS,
     defaultPath,
   };
   // showOpenDialog(options) と showOpenDialog(window, options) は別の呼び出しである
@@ -109,7 +116,7 @@ const WATERMARK_KIND_ERROR = 'PNG か JPEG の画像を選んでください。'
 // 透かしにする画像を 1 枚選ばせる。戻り値 { path } / { canceled }。
 async function pickWatermarkImage({ dialogLike, parentWindow = null, defaultPath = undefined }) {
   const options = { title: WATERMARK_IMAGE_TITLE, properties: ['openFile'], filters: WATERMARK_IMAGE_FILTERS, defaultPath };
-  // showOpenDialog(options) と showOpenDialog(window, options) は別の呼び出しである（pickImageSources と同じ）。
+  // showOpenDialog(options) と showOpenDialog(window, options) は別の呼び出しである（pickConvertSources と同じ）。
   const result = parentWindow === null
     ? await dialogLike.showOpenDialog(options)
     : await dialogLike.showOpenDialog(parentWindow, options);
@@ -175,7 +182,7 @@ function createImageIo({ dialog, onError = () => {} }) {
     MAX_IMAGE_BYTES,
     inspect: (filePath) => inspectImage(filePath, { onError }),
     pickSources: (parentWindow = null, { defaultPath } = {}) =>
-      pickImageSources({ dialogLike: dialog, parentWindow, defaultPath }),
+      pickConvertSources({ dialogLike: dialog, parentWindow, defaultPath }),
     pickWatermark: (parentWindow = null, { defaultPath } = {}) =>
       pickWatermarkImage({ dialogLike: dialog, parentWindow, defaultPath }),
     readWatermark: (filePath) => readWatermarkImage(filePath, { onError }),
@@ -184,7 +191,7 @@ function createImageIo({ dialog, onError = () => {} }) {
 }
 
 module.exports = {
-  MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, IMAGE_WRITE_EXTENSIONS,
+  MAX_IMAGE_BYTES, HEAD_BYTES, IMAGE_FILTERS, CONVERT_SOURCE_FILTERS, IMAGE_WRITE_EXTENSIONS,
   WATERMARK_IMAGE_FILTERS, WATERMARK_IMAGE_TITLE, WATERMARK_KIND_ERROR,
-  inspectImage, pickImageSources, pickWatermarkImage, readWatermarkImage, isImageWritePath, writeImage, createImageIo,
+  inspectImage, pickConvertSources, pickWatermarkImage, readWatermarkImage, isImageWritePath, writeImage, createImageIo,
 };

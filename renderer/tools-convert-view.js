@@ -1,19 +1,17 @@
 (function (root) {
   'use strict';
 
-  // 画像→PDF の用紙・出力の欄（spec-3-1 確定事項10〜14・18〜21・33）。
+  // 右の欄の画像→PDF の節（spec-3-1 確定事項10〜14・18〜21、spec-2-5 確定事項H2・H3・H9。見本 screenshots/strips3-convert.png）。
   //
-  // 状態は tools-convert.js が持つ。ここはラジオと欄を状態へ合わせ、変えられたら
-  // あちらの setter を呼ぶだけである（分割の tools-split-view.js と同じ役割）。
-  // 一覧そのものは tools-convert-list.js が描く。
-  //
-  // 「画像サイズに合わせる」を選ぶと向きと余白は決まってしまうので、その2つの
-  // ラジオを押せなくする（確定事項11・13）。値は据え置き、用紙を戻せばまた効く。
+  // 状態は tools-convert.js が持つ。ここは区切りボタン（ラジオボタン）と欄を状態へ合わせ、変えられたらあちらの setter を呼ぶ。
+  // 画像の並びは「変換する画像」の帯（image-strip.js）、「できた PDF」のカードは convert-result.js が描く（ここから描き直しを呼ぶ）。
+  // 「画像に合わせる」を選ぶと向きと余白は決まってしまうので、その 2 つを押せなくする（確定事項11・13）。値は据え置き、用紙を戻せばまた効く。
 
   const PAPERS = ['a4', 'a3', 'b5', 'letter', 'image'];
   const ORIENTATIONS = ['auto', 'portrait', 'landscape'];
   const MARGINS = ['none', 'narrow', 'normal'];
   const OUTPUTS = ['single', 'each'];
+  const EMPTY = '画像を落とすか、下の受け口の［ファイルを選ぶ…］で選ぶと、「変換する画像」の帯に並びます。';
 
   let el = null;
 
@@ -32,21 +30,15 @@
     return node;
   }
 
-  // 出力の例（確定事項21）。まとめるなら `photo.pdf（12 ページ）`、
-  // 画像ごとなら `a.pdf … l.pdf（12 ファイル）`。誤りがあれば例の代わりに文言。
+  // 出力の例（確定事項21）。まとめるなら `photo.pdf（12 ページ）`、画像ごとなら `a.pdf … l.pdf（12 ファイル）`。誤りがあれば例の代わりに文言。
   function renderExample(plan, settings) {
     el.example.replaceChildren();
     if (plan.ready !== true) {
-      if (plan.error !== null) {
-        const err = el.doc.createElement('span');
-        err.className = 'err';
-        err.textContent = plan.error;
-        el.example.append(err);
-      }
+      if (plan.error !== null)
+        el.example.append(Object.assign(el.doc.createElement('span'), { className: 'err', textContent: plan.error }));
       return;
     }
-    const count = el.doc.createElement('span');
-    count.className = 'n';
+    const count = Object.assign(el.doc.createElement('span'), { className: 'n' });
     if (settings.output === 'single') {
       count.textContent = `（${plan.totalPages} ページ）`;
       el.example.append(code(root.SigK.convertPlan.defaultSingleName(convert().rows())), count);
@@ -54,30 +46,29 @@
     }
     const { names } = plan;
     count.textContent = `（${names.length} ファイル）`;
-    if (names.length === 1)
-      el.example.append(code(names[0]), count);
-    else
-      el.example.append(code(names[0]), ' … ', code(names[names.length - 1]), count);
+    el.example.append(...(names.length === 1 ? [code(names[0])] : [code(names[0]), ' … ', code(names.at(-1))]), count);
   }
 
-  // 用紙・向き・余白・方式のラジオを状態へ合わせる。実行中はすべて押せない（確定事項27）。
+  // 下の要約。「画像 5 枚 → 1 つの PDF（5 ページ）」「画像 5 枚 → 5 個の PDF」。変換できない画像があれば、その枚数。
+  function summaryText(plan, settings) {
+    const rows = convert().rows();
+    if (rows.length === 0)
+      return '';
+    if (plan.ready === true)
+      return settings.output === 'single' ? `画像 ${rows.length} 枚 → 1 つの PDF（${plan.totalPages} ページ）` : `画像 ${rows.length} 枚 → ${plan.names.length} 個の PDF`;
+    const blocked = rows.filter((row) => row.blocked !== null).length;
+    return blocked > 0 ? `画像 ${rows.length} 枚のうち ${blocked} 枚は変換できません` : `画像 ${rows.length} 枚`;
+  }
+
+  // 用紙・向き・余白・出力のラジオボタンを状態へ合わせる。実行中はすべて押せない（確定事項27）。
   function syncRadios(settings, running) {
     const byImage = settings.paper === 'image';
-    for (const id of PAPERS) {
-      el.papers[id].checked = settings.paper === id;
-      el.papers[id].disabled = running;
-    }
-    for (const id of ORIENTATIONS) {
-      el.orients[id].checked = settings.orientation === id;
-      el.orients[id].disabled = running || byImage;
-    }
-    for (const id of MARGINS) {
-      el.margins[id].checked = settings.margin === id;
-      el.margins[id].disabled = running || byImage;
-    }
-    for (const id of OUTPUTS) {
-      el.outputs[id].checked = settings.output === id;
-      el.outputs[id].disabled = running;
+    const groups = [[el.papers, settings.paper, false], [el.orients, settings.orientation, byImage], [el.margins, settings.margin, byImage], [el.outputs, settings.output, false]];
+    for (const [radios, value, fixed] of groups) {
+      for (const [id, radio] of Object.entries(radios)) {
+        radio.checked = value === id;
+        radio.disabled = running || fixed;
+      }
     }
   }
 
@@ -87,29 +78,25 @@
     const settings = convert().settings();
     const plan = convert().currentPlan();
     const running = convert().isRunning();
-
+    const empty = convert().rows().length === 0;
+    el.state.textContent = EMPTY;
+    el.state.hidden = !empty;
     syncRadios(settings, running);
     el.fitNote.textContent = settings.paper === 'image'
       ? '画像の画素数をそのまま紙の大きさにします。余白は付きません。'
       : '画像は余白の内側に、縦横比を保って収まる大きさに合わせます。';
-
-    // フォルダーの欄は「画像ごと」のときだけ出す（まとめるときの保存先は
-    // OS の保存ダイアログが決めるため。確定事項19・20）。
+    // フォルダーの欄は「画像ごと」のときだけ出す（まとめるときの保存先は OS の保存ダイアログが決めるため。確定事項19・20）。
     const each = settings.output === 'each';
     el.folderKey.hidden = !each;
     el.folderRow.hidden = !each;
     el.folder.textContent = settings.folder ?? '';
     el.folder.title = settings.folder ?? '';
-
     renderExample(plan, settings);
+    el.summary.textContent = summaryText(plan, settings);
     setDisabled(el.run, !convert().canRun());
     setDisabled(el.folderPick, running);
+    root.SigK.convertResult?.render();
     return true;
-  }
-
-  // 一覧は tools-convert-list.js が描く。ここから呼ぶのは欄の同期だけでよい。
-  function render() {
-    return sync();
   }
 
   function onClick(node, handler) {
@@ -119,7 +106,7 @@
     });
   }
 
-  // name で引いたラジオを id ごとに束ね、change で setter を呼ぶ。
+  // name で引いたラジオボタンを id ごとに束ね、change で setter を呼ぶ。
   function bindRadios(doc, name, ids, apply) {
     const radios = {};
     for (const id of ids) {
@@ -137,28 +124,28 @@
     if (run === null)
       return false;
     win.__sigkToolsConvertViewReady = true;
-
     const byId = (id) => doc.getElementById(id);
     el = {
       doc, win, run,
+      state: byId('convert-state'),
       fitNote: byId('convert-fit-note'),
       folderKey: byId('convert-folder-key'),
       folderRow: byId('convert-folder-row'),
       folder: byId('convert-folder'),
       folderPick: byId('convert-folder-pick'),
       example: byId('convert-example'),
+      summary: byId('convert-summary'),
       papers: bindRadios(doc, 'convert-paper', PAPERS, (id) => convert().setPaper(id)),
       orients: bindRadios(doc, 'convert-orient', ORIENTATIONS, (id) => convert().setOrientation(id)),
       margins: bindRadios(doc, 'convert-margin', MARGINS, (id) => convert().setMargin(id)),
       outputs: bindRadios(doc, 'convert-output', OUTPUTS, (id) => convert().setOutput(id)),
     };
-
     onClick(el.folderPick, () => convert().pickFolder());
-
+    onClick(run, () => convert().run());
     sync();
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.toolsConvertView = { init, render, sync };
+  SigK.toolsConvertView = { init, render: sync, sync };
 })(typeof window !== 'undefined' ? window : globalThis);

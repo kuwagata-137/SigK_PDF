@@ -132,7 +132,7 @@ test('open の要求では、どのモードでもモードを変えない（決
   assert.deepEqual(tabPaths(shell), [A, B]);
 });
 
-test('ツールモードで open の要求が来たら、タブで開き、選んでいるツールにも渡す（決定80）', async (t) => {
+test('ツールモードで open の要求が来たら、タブで開き、その帯が結合の行にも入る（決定80）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document: doc } = shell;
   SigK.shell.setMode(doc, 'tools');
@@ -145,7 +145,8 @@ test('ツールモードで open の要求が来たら、タブで開き、選�
   assert.equal(mode(shell), 'tools');
 });
 
-test('ツールモードで open の束が来たら、対象が 1 本のツールは束の最初の 1 本だけを対象にする', async (t) => {
+// 分割は選んでいる帯（＝映しているタブ）を対象にするので、open の束では最後に開いた帯が対象になる（spec-2-5 確定事項G13）。
+test('ツールモードで分割を選んでいるときに open の束が来たら、帯で開き、最後に開いた帯が分割の対象になる', async (t) => {
   const shell = await withShell(t);
   const { SigK, document: doc } = shell;
   SigK.shell.setMode(doc, 'tools');
@@ -155,24 +156,20 @@ test('ツールモードで open の束が来たら、対象が 1 本のツー�
   await SigK.launch.handle(request('open', [A], 4, false));
 
   assert.deepEqual(tabPaths(shell), [B, A]);
-  assert.equal(SigK.toolsSplit.source().path, B, '後から届いた 1 本で差し替えない');
-
-  // 次の束では、その最初の 1 本で差し替える。
-  await SigK.launch.handle(request('open', [A], 5));
   assert.equal(SigK.toolsSplit.source().path, A);
+  assert.notEqual(SigK.viewBanner.text(), SigK.toolsSplit.NOTE_FIRST_ONLY, 'どの帯も盤にできるので、「1つ目のファイルだけを対象にしました。」の通知バーは出さない');
 });
 
-test('閲覧モードで open の要求が来ても、ツールには渡さない', async (t) => {
+test('閲覧モードで open の要求が来ても、閲覧モードのままタブで開くだけ', async (t) => {
   const shell = await withShell(t);
 
   await shell.SigK.launch.handle(request('open', [A], 1));
 
   assert.deepEqual(tabPaths(shell), [A]);
-  // 結合は開いたタブ（帯）がそのまま行になるので、渡さないことは対象を持つツール（分割）で見る。
-  assert.equal(shell.SigK.toolsSplit.source(), null);
+  assert.equal(mode(shell), 'view');
 });
 
-test('タブが上限なら開かず、帯を束につき 1 回出す（spec-5-1 確定事項13）', async (t) => {
+test('タブが上限なら開かず、通知バーを束につき 1 回出す（spec-5-1 確定事項13）', async (t) => {
   const files = {};
   const paths = [];
   for (let index = 0; index < 22; index += 1) {
@@ -189,7 +186,7 @@ test('タブが上限なら開かず、帯を束につき 1 回出す（spec-5-1
   assert.equal(SigK.viewBanner.text(), '20 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。');
   SigK.viewBanner.show('ほかの知らせ');
   assert.equal(await SigK.launch.handle(request('open', [paths[21]], 5, false)), 0);
-  assert.equal(SigK.viewBanner.text(), 'ほかの知らせ', '帯は束につき 1 回');
+  assert.equal(SigK.viewBanner.text(), 'ほかの知らせ', '通知バーは束につき 1 回');
 
   // 開いているファイルなら、上限でも前へ出せる。
   assert.equal(await SigK.launch.handle(request('open', [paths[3]], 6)), 1);

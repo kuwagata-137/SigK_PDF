@@ -125,7 +125,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     pages: applied.pages,
     signature: written.signature,
     pruned: applied.pruned,
-    // 前からある控えを消せなかった（spec-4b-6b 確定事項23。画面が帯で知らせる）。
+    // 前からある控えを消せなかった（spec-4b-6b 確定事項23。画面が通知バーで知らせる）。
     backupLeft: written.backupLeft === true,
   };
 }

@@ -398,19 +398,15 @@
   // 付いていればそれを開き、無ければファイルを選ぶ窓を出す。
   //
   // どのモードで開いてもモードは変えない（決定80。2026-10-08 に「ツールモードで開いたら閲覧モードへ移る」とした
-  // spec-2-1 確定事項4 を改めた）。ツールモードでは、開けなかった理由を帯に出し（reportInTools）、開いたファイルを
-  // 選んでいるツールにも渡す（tool-handoff.js）。取りやめ（ファイルを選ぶ窓・パスワードの入力）なら何もしない。
+  // spec-2-1 確定事項4 を改めた）。ツールモードでは、開けなかった理由を通知バーに出す（reportInTools）。開いたタブは帯になり、
+  // 選んでいる帯としてツールの対象になる（spec-2-5 確定事項A2・G13）。取りやめ（ファイルを選ぶ窓・パスワードの入力）なら何もしない。
   //
   // 取りやめの控えは呼び出しごとに持つ。開く処理の戻り値（開けたか）は呼び出し側が多く使っているので、取りやめと失敗は
   // 控えで分ける（spec-4b-7b 点検の直し。控えが 1 つだと、開く処理が重なったとき別の呼び出しの取りやめに引きずられる）。
-  // ツールに渡すのは、始めも終わりもツールモードのときだけ（読み込みの間にモードを替えたら、見ていない画面へ渡さない）。
   async function runOpenCommand(filePath = null) {
     const given = typeof filePath === 'string' && filePath.length > 0 ? filePath : null;
-    const call = { canceled: false, path: given, fromTools: root.SigK.tools?.isToolsMode() === true };
-    const opened = given !== null ? await openPath(given, call) : await openViaDialog(call);
-    if (!call.canceled && call.fromTools)
-      await root.SigK.toolHandoff?.givePdfs([call.path]);
-    return opened;
+    const call = { canceled: false, path: given };
+    return given !== null ? openPath(given, call) : openViaDialog(call);
   }
 
   // ---- 切り替えと後始末 ----
@@ -446,7 +442,7 @@
     // 映していないタブなら、聞く前にそのタブを映す。保存（saveActive）は映しているタブが対象で、映さずに聞くと
     // 映しているタブを保存し、閉じるタブの編集を消していた（2026-10-07 の直し）。何について聞かれているかも画面で
     // 分かる（終了の askAll と同じ）。閉じ終えたら元のタブへ戻る（未保存でないタブを閉じるときと同じく、閉じる前後で
-    // 映すタブを変えない）。取りやめ・保存の失敗では、聞いたタブを映したままにする（askAll と同じ。失敗の帯もそのタブで読める）。
+    // 映すタブを変えない）。取りやめ・保存の失敗では、聞いたタブを映したままにする（askAll と同じ。失敗の通知バーもそのタブで読める）。
     const previous = state.activeId;
     activate(id);
     return root.SigK.confirmDiscard

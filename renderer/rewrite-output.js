@@ -25,7 +25,7 @@
     return null;
   }
 
-  // 保存ダイアログで出力先を決める。戻り値は { target } / { canceled } / { error }（断った理由は帯にも出す）。
+  // 保存ダイアログで出力先を決める。戻り値は { target } / { canceled } / { error }（断った理由は通知バーにも出す）。
   async function chooseTarget({ sourcePath, defaultPath, title }) {
     const api = root.pdfAPI;
     if (typeof api?.pickSavePath !== 'function')
@@ -43,7 +43,7 @@
     return { target: picked.path };
   }
 
-  // 書いたあとの後始末。messages は { canceled, failed, done }（帯の文言）。
+  // 書いたあとの後始末。messages は { canceled, failed, done }（通知バーの文言）。
   async function finish(result, target, { canceled, failed, done }) {
     if (result?.canceled === true) {
       // 自分で止めたので赤く塗らない（決定49）。

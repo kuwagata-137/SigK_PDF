@@ -25,7 +25,7 @@
 // 動く canvas の実装（ネイティブ依存）を足すことになり、依存とインストーラーが膨らむ。
 // 描画そのものは軽く（300dpi の A4 で 3〜10ms。重いのは PNG 化の 25〜38ms）、
 // レンダラーで 1 ページずつ描いて捨てれば画面は固まらない（spec-3-3 事前調査 A・B）。
-// 帯・中止・二重起動の防止は save.js の runLocal に載せ、ワーカー経路と同じ枠に見せている。
+// 通知バー・中止・二重起動の防止は save.js の runLocal に載せ、ワーカー経路と同じ枠に見せている。
 
 const { inspectImageBytes } = require('./image-format.js');
 const { embedImage, drawImagePage } = require('./image-page.js');

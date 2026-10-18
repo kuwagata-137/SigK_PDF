@@ -25,8 +25,7 @@
     { id: 'flatten', label: 'フラット化', hint: '書き込みを焼き込む', icon: 'flatten' },
   ];
 
-  // ツールごとの画面の描き直しの入口（render）。画像→PDF の［実行…］は欄の側（tools-convert-view.js）も合わせるので、
-  // 一覧（tools-convert-list.js）までは描き直さない。
+  // ツールごとの画面の描き直しの入口（render）。
   const VIEWS = {
     merge: 'toolsMergeList', split: 'toolsSplitView', convert: 'toolsConvertView',
     toImage: 'toolsToImageView', watermark: 'toolsWatermarkView', flatten: 'toolsFlattenView',
@@ -39,11 +38,9 @@
     return el !== null && el.doc.documentElement.getAttribute('data-mode') === 'tools';
   }
 
-  // そのツールの設定の器。帯の画面を使うツールは右の欄の節（spec-2-5 第 E 章）、ほかは今の画面。
+  // そのツールの設定の器（右の欄の節。spec-2-5 第 E 章）。2026-10-15 に画像→PDF も右の欄へ移り、前の画面（.tool-panel）は無くなった。
   function panelFor(id) {
-    if (root.SigK.toolPane?.usesStrips(id) === true)
-      return root.SigK.toolPane.sectionFor(id);
-    return el?.view.querySelector(`.tool-panel[data-tool="${id}"]`) ?? null;
+    return root.SigK.toolPane?.sectionFor(id) ?? null;
   }
 
   // 見えているツールの画面を描き直す（計画外の直し）。［実行…］が押せるかは、各ツールの canRun() が
@@ -60,21 +57,12 @@
     if (el === null || !TOOLS.some((tool) => tool.id === id))
       return false;
     state.selected = id;
-    // ［開いているタブから選ぶ ▾］の一覧は、ツールを切り替えたら閉じる（spec-2-2b 確定事項F6）。
-    root.SigK.tabMenu?.close();
-    // 分割の盤は、見えている間だけ PDF を開いておく（spec-2-2b 確定事項D5）。
-    root.SigK.splitReload?.setShown(isToolsMode() && id === 'split');
     for (const item of el.list.querySelectorAll('.tool-item'))
       item.classList.toggle('active', item.dataset.tool === id);
-    // 帯の画面を使うツールは、真ん中に帯・右の欄に設定を出し、今の画面（.tool-panel）は隠す（spec-2-5 第 D・E 章）。
-    const strips = isToolsMode() && root.SigK.toolPane?.usesStrips(id) === true;
-    for (const panel of el.view.querySelectorAll('.tool-panel[data-tool]'))
-      panel.hidden = strips || panel.dataset.tool !== id;
+    // 真ん中に帯・右の欄に設定を出す（spec-2-5 第 D・E 章）。
     root.SigK.toolPane?.show(isToolsMode() ? id : null);
     // 隠れている間に、ほかの処理が走り始めたり終わったりしていることがある。見せるときに描き直す。
-    // 分割は、盤の PDF を開き直してから splitReload が描き直すので、ここでは描かない。
-    if (id !== 'split')
-      renderShown();
+    renderShown();
     return true;
   }
 
@@ -122,11 +110,8 @@
       placeholder.hidden = active || listShown || el.doc.getElementById('thumbs')?.hidden === false;
     if (active)
       select(state.selected);
-    else {
-      root.SigK.tabMenu?.close();
-      root.SigK.splitReload?.setShown(false);
+    else
       root.SigK.toolPane?.show(null);
-    }
     root.SigK.save?.syncButtons();
     return active;
   }

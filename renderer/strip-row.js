@@ -121,6 +121,37 @@
     [...pagesOf(node).children].forEach((cell, index) => cell.classList.toggle('picked', picked.has(index)));
   }
 
+  // 描けた紙を入れ、手放した紙（canvas が null）を外す。紙の上に重ねた透かし（strip-watermark.js）は残す。
+  function putCanvas(node, index, canvas) {
+    const sheet = sheetAt(node, index);
+    if (sheet === null)
+      return;
+    sheet.querySelector('canvas')?.remove();
+    if (canvas !== null)
+      sheet.prepend(canvas);
+  }
+
+  // 帯を nodes の順に before の前へ並べ直す。動かすと帯の中の横のスクロールが戻るので、控えて戻す。
+  function place(container, nodes, before) {
+    const kept = nodes.map((node) => [pagesOf(node), pagesOf(node).scrollLeft]);
+    for (const node of nodes)
+      container.insertBefore(node, before);
+    for (const [pages, left] of kept)
+      pages.scrollLeft = left;
+  }
+
+  // 帯の中身の参照（文書・並び・書き込み・寸法）。前と同じなら、帯は見出しだけを直せばよい。
+  function contentOf(view) {
+    const { doc, plan, annots, imported, inserts, sizes } = view;
+    return { doc, plan, annots, imported, inserts, sizes };
+  }
+
+  function sameContent(a, b) {
+    if (a === null || b === null)
+      return a === b;
+    return Object.keys(a).every((key) => a[key] === b[key]);
+  }
+
   function showNote(node, text) {
     const note = node.querySelector('.strip-note');
     note.textContent = text ?? '';
@@ -128,5 +159,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.stripRow = { BUTTONS, create, updateHead, syncPages, pagesOf, sheetAt, markPicked, showNote };
+  SigK.stripRow = { BUTTONS, create, updateHead, syncPages, pagesOf, sheetAt, putCanvas, place, contentOf, sameContent, markPicked, showNote };
 })(typeof window !== 'undefined' ? window : globalThis);

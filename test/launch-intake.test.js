@@ -72,7 +72,7 @@ test('実行済みの一覧は置き換え、そうでなければ後ろに足�
   assert.equal(intake.planIntake({ count: 3, executed: true }), 'replace');
 });
 
-test('束の控え: 最初の要求で始まり、帯は束につき 1 回', () => {
+test('束の控え: 最初の要求で始まり、通知バーは束につき 1 回', () => {
   const tracker = intake.createBatchTracker();
 
   assert.deepEqual({ ...tracker.enter({ id: 1, first: true }) }, { id: 1, starts: true });
@@ -80,7 +80,7 @@ test('束の控え: 最初の要求で始まり、帯は束につき 1 回', () 
   assert.equal(tracker.once('note'), false, '同じ束では 2 回目を出さない');
   assert.deepEqual({ ...tracker.enter({ id: 1, first: false }) }, { id: 1, starts: false });
   assert.equal(tracker.once('note'), false);
-  assert.equal(tracker.once('limit'), true, '帯の種類ごとに 1 回');
+  assert.equal(tracker.once('limit'), true, '通知バーの種類ごとに 1 回');
 
   assert.deepEqual({ ...tracker.enter({ id: 2, first: true }) }, { id: 2, starts: true });
   assert.equal(tracker.once('note'), true, '次の束ではまた出す');

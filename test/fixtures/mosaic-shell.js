@@ -1,7 +1,7 @@
 'use strict';
 
 // モザイクの保存の画面のテストの土台（mosaic-save.test.js・mosaic-save-guard.test.js）。jsdom には 2D コンテキストが無いので、描く部品
-// （pageImage.renderToCanvas・toBytes）を差し替えて、確認・ワーカーへ渡す spec・帯を見る。
+// （pageImage.renderToCanvas・toBytes）を差し替えて、確認・ワーカーへ渡す spec・通知バーを見る。
 
 const { createShell, makeSource } = require('../harness.js');
 

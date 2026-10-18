@@ -1,11 +1,11 @@
 (function (root) {
   'use strict';
 
-  // ページビューの上端に出す帯（spec-1-2 確定事項20・spec-1-6 確定事項6〜8）。
+  // ページビューの上端に出す通知バー（spec-1-2 確定事項20・spec-1-6 確定事項6〜8）。
   //
   // 文書を開いたまま失敗を伝える場所である。全面のオーバーレイで伝えると
   // 読んでいる文書が隠れるうえ、#view の中に重ねると中身と一緒に流れて
-  // 画面外へ出る。docs/04 第6章が進捗表示に「ページビューの上に帯状」を
+  // 画面外へ出る。docs/04 第6章が進捗表示に「ページビューの上の通知バー」を
   // 定めているので、様式をそちらへ揃えた。
   //
   // 文書が開いていないときの文言は viewer.js が #view-empty に出す。
@@ -50,7 +50,7 @@
     button.type = 'button';
     button.className = 'banner-action';
     button.textContent = action.label;
-    // 帯そのものを押すと閉じる作りなので、ボタンの押下がそこへ伝わらないようにする。
+    // 通知バーそのものを押すと閉じる作りなので、ボタンの押下がそこへ伝わらないようにする。
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       action.onClick();

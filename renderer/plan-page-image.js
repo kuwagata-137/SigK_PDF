@@ -9,6 +9,28 @@
 
   // 画素比は 2 まで（帯の紙は小さいので、それ以上は細かくしても見分けられない）。
   const MAX_RATIO = 2;
+  const docIds = new WeakMap();
+  let nextDocId = 1;
+
+  function docId(doc) {
+    if (doc === null || doc === undefined)
+      return 0;
+    if (!docIds.has(doc))
+      docIds.set(doc, nextDocId++);
+    return docIds.get(doc);
+  }
+
+  // 紙の印（帯の紙 strip-thumbs.js・分割の盤 split-thumbs.js）。「文書・plan の要素・差し込み・書き込み・紙の大きさ」で、印が変わった紙は描き直す。
+  // sheetKey は紙の大きさの印（"100x141" など）。描けない（開けなかったタブ・無い位置）なら null。
+  function signature(view, index, sheetKey) {
+    const entry = view?.plan?.[index];
+    if (view?.doc === undefined || entry === undefined)
+      return null;
+    const added = Number.isInteger(entry.insert) ? view.inserts?.[entry.insert] : null;
+    const insert = added === null ? '' : `${docId(added?.doc)}/${added?.page ?? 0}`;
+    const annots = Number.isInteger(entry.src) ? root.SigK.annotationState.annotsOnPage(view.annots, view.imported, entry.src) : [];
+    return `${docId(view.doc)}|${JSON.stringify(entry)}|${insert}|${JSON.stringify(annots)}|${sheetKey}`;
+  }
 
   function overlayFor(view, index) {
     const src = view.plan[index]?.src;
@@ -25,12 +47,22 @@
   }
 
   // sheet は紙の大きさ（CSS px。strip-layout の sheetOf）。{ canvas, page } を返す（canvas は描けない環境では null）。
-  // 引けないページは null。page は手放すときに cleanup する（strip-thumbs.js）。
+  // 引けないページは null。page は手放すときに cleanup する（strip-thumbs.js・split-thumbs.js・split-zoom.js）。
+  // 描けなかったときは、ここでページの資源を手放してから例外を返す（呼ぶ側には page が渡らないため）。
   async function draw(domDoc, view, index, { sheet, dpr = 1 }) {
     const source = root.SigK.pagePlan.sourceOf(view.plan, index, { doc: view.doc, inserts: view.inserts });
     if (source === null)
       return null;
     const page = await source.doc.getPage(source.number);
+    try {
+      return await render(domDoc, view, index, page, { sheet, dpr });
+    } catch (error) {
+      page.cleanup?.();
+      throw error;
+    }
+  }
+
+  async function render(domDoc, view, index, page, { sheet, dpr }) {
     const entry = view.plan[index];
     const rotation = (page.rotate ?? 0) + (entry?.rotate ?? 0);
     const box = entry?.crop ?? null;
@@ -46,10 +78,11 @@
       mosaic: entry?.mosaic ?? null,
       annotationMode: root.SigK.pdfjs?.lib?.AnnotationMode?.ENABLE_STORAGE,
       overlay: overlay?.paint ?? null,
+      software: true,   // 同時に描いた片方の字が欠けないように（page-image.js の software）
     });
     return { canvas: result.canvas, page };
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.planPageImage = { MAX_RATIO, draw, overlayFor };
+  SigK.planPageImage = { MAX_RATIO, draw, overlayFor, signature };
 })(typeof window !== 'undefined' ? window : globalThis);

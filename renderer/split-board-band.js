@@ -1,10 +1,10 @@
 (function (root) {
   'use strict';
 
-  // 分割の盤の上の段と、選んだときの操作の帯（spec-2-2b 確定事項C4〜C9。見本 screenshots/phase2-2b-04a-band-top.png）。
+  // 分割の盤の上の段と、選んだときの操作の行（spec-2-2b 確定事項C4〜C9。見本 screenshots/phase2-2b-04a-band-top.png）。
   //
   // 上の段は、まとめて分ける 4 つ（［1 ページずつに分ける］・［N］［ページごとに分ける］・［番号］［ページの前で切る］・
-  // ［分け目をすべて消す］）と［元に戻す］［やり直す］と大きさ 小・中・大。帯は選んでいる間だけ、箱の並びの上に固定して出す
+  // ［分け目をすべて消す］）と［元に戻す］［やり直す］と大きさ 小・中・大。選んだときの操作の行は選んでいる間だけ、箱の並びの上に固定して出す
   // （決定77 ①）。押した・打ったことは tools-split-edit.js へ渡すだけで、sync() で見た目を合わせる。
 
   let el = null;
@@ -102,7 +102,7 @@
     bindInput('at');
     for (const button of el.sizes)
       button.addEventListener('click', () => edit().setSize(button.dataset.size));
-    // 帯のボタンは押すと隠れることがあるので、押したらフォーカスを盤の器へ戻す（点検 R1）。
+    // 選んだときの操作の行のボタンは押すと隠れることがあるので、押したらフォーカスを盤の器へ戻す（点検 R1）。
     const toBoard = (action) => () => {
       action();
       doc.getElementById('split-board-scroll')?.focus?.({ preventScroll: true });

@@ -28,10 +28,11 @@ const CENSUS = {
 const TOOLS = [
   // 結合する PDF は帯（＝タブ）。開くと結合の行に既定でチェックが入る（spec-2-5 確定事項E2）。
   { id: 'merge', label: '結合', api: 'toolsMerge', button: 'merge-run', ready: (SigK) => SigK.tabs.openPath(B) },
+  // 分割の対象も選んでいる帯（spec-2-5 確定事項G1）。開いた帯を 1 ページずつに分ける。
   {
     id: 'split', label: '分割', api: 'toolsSplit', button: 'split-run',
     ready: async (SigK) => {
-      await SigK.toolsSplit.setSource(A);
+      await SigK.tabs.openPath(A);
       SigK.toolsSplitEdit.bulk('each');
     },
   },
@@ -75,15 +76,16 @@ async function prepare(shell, tool) {
 // 走っている Promise は包んで返す（async 関数がそのまま返すと、終わるまで待ってしまう）。
 async function startOther(shell, other) {
   const { SigK } = shell;
-  // 結合の準備は帯を開くので、選んでいる帯（PDF→画像・フラット化の対象。spec-2-5 確定事項E4・E5）が替わる。元の帯を選び直して対象を保つ。
+  // 準備で帯を開くと、選んでいる帯（分割・PDF→画像・フラット化などの対象。spec-2-5 確定事項E4・E5・G1）が替わる。
+  // ほかの処理を走らせ始めてから元の帯を選び直して、試すツールの対象を保つ（走らせる前に戻すと、分割はその帯を対象にしてしまう）。
   const active = SigK.tabs.activeId();
   await other.ready(SigK);
-  if (active !== null)
-    SigK.tabs.activate(active);
   SigK.tools.select(other.id);
   const running = SigK[other.api].run();
   await settle(shell);
   assert.equal(SigK.save.isBusy(), true, `${other.label}が走っている`);
+  if (active !== null)
+    SigK.tabs.activate(active);
   return { running };
 }
 
@@ -129,6 +131,8 @@ test('分割: PDF→画像（レンダラーの中で回す処理）が終わっ
   await settle(shell);
   assert.equal(gates.length, 1, '1 ページ目を書いている');
   assert.equal(SigK.save.isBusy(), true);
+  // 分割の対象は選んでいる帯なので、分けると決めた A の帯を選び直す（spec-2-5 確定事項G1・G5）。
+  SigK.tabs.activate(SigK.tabs.findByPath(A).id);
 
   SigK.tools.select('split');
   await settle(shell);

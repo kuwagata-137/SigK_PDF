@@ -222,7 +222,7 @@ test('保存ダイアログを開いている間も実行中と数え、やめ�
   assert.equal(shell.SigK.toolsWatermark.canRun(), true);
 });
 
-test('保存ダイアログをやめたら何もしない。中止は帯で伝える', async (t) => {
+test('保存ダイアログをやめたら何もしない。中止は通知バーで伝える', async (t) => {
   const shell = await createWatermarkShell(t, { savePathResults: [{ canceled: true }, { path: OUT }], taskResults: [{ canceled: true }] });
   await withSource(shell);
   assert.deepEqual(plain(await shell.SigK.toolsWatermark.run()), { canceled: true });
@@ -232,7 +232,7 @@ test('保存ダイアログをやめたら何もしない。中止は帯で伝�
   assert.equal(shell.SigK.tabs.list().some((tab) => tab.path === OUT), false);
 });
 
-test('ワーカーの失敗は文言をそのまま帯に出す', async (t) => {
+test('ワーカーの失敗は文言をそのまま通知バーに出す', async (t) => {
   const shell = await createWatermarkShell(t, { savePathResults: [{ path: OUT }], taskResults: [{ error: 'この PDF は内容が壊れているため保存できません。' }] });
   await withSource(shell);
   await shell.SigK.toolsWatermark.run();
@@ -257,7 +257,7 @@ test('透かしを選んでいるときのドロップは、PDF を帯で開い�
   assert.equal(bannerText(shell), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像を落としてください。');
 });
 
-test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、黄色の帯で知らせる', async (t) => {
+test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、黄色の通知バーで知らせる', async (t) => {
   const LOGO2 = 'C:\\work\\logo2.png';
   const shell = await createWatermarkShell(t, {
     watermarkImages: {
@@ -272,7 +272,7 @@ test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、�
 
   assert.equal(SigK.toolsWatermark.image().path, LOGO);
   assert.equal(bannerText(shell), SigK.toolsWatermark.NOTE_FIRST_IMAGE);
-  // 注意・お知らせは黄色の帯で出す（決定49）。
+  // 注意・お知らせは黄色の通知バーで出す（決定49）。
   assert.equal(byId(shell, 'view-banner').getAttribute('data-tone'), 'warn');
 });
 
