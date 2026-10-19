@@ -94,7 +94,8 @@
       return;
     el.scroll.focus?.({ preventScroll: true });
     const held = selection().range(edit().selection());
-    const transfer = held !== null && page >= held.from && page <= held.to && root.SigK.stripDrag !== undefined;
+    // 引けないとき（開いている途中・保存の途中・ツールの実行中。I21）は、今どおりなぞって範囲を選ぶ。
+    const transfer = held !== null && page >= held.from && page <= held.to && root.SigK.stripDrag !== undefined && root.SigK.stripInput?.isLocked() !== true;
     Object.assign(drag, { pressed: page, startX: event.clientX, startY: event.clientY, active: false, before: edit().selection(), transfer });
   }
 

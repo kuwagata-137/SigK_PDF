@@ -85,11 +85,14 @@
     }, AUTO_SCROLL.interval);
   }
 
-  // 引き始める。indices は枠の帯（tabId）の並びの位置。from は 'strip' か 'board'（✂ の盤。G4）。canvas はカーソルに付ける絵。
+  // 引き始める（帯からも ✂ の盤からも。G4）。indices は枠の帯（tabId）の並びの位置。canvas はカーソルに付ける絵。引けないとき（I21）は false。
   function begin({ tabId, indices, x, y, canvas = null, cells = [] }) {
+    if (root.SigK.stripInput.isLocked())
+      return false;
     Object.assign(drag, { pending: null, active: true, tabId, indices: [...indices], refusals: new Map() });
     view().start(el.doc, { count: indices.length, cells, canvas });
     update({ x, y });
+    return true;
   }
 
   function onPointerMove(event) {
@@ -127,6 +130,9 @@
     }
     drag.swallowClick = true;
     const { target, indices } = finish();
+    // 引いている途中で処理が走り始めたら（I21）、何も変えずにやめる。
+    if (root.SigK.stripInput.isLocked())
+      return;
     if (target?.kind === 'move')
       transfer().move(indices, target.index, { board: target.place !== undefined, box: target.box });
     else if (target?.kind === 'copy')

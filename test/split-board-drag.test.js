@@ -206,6 +206,45 @@ test('盤の中で動かしたあとの Ctrl+Z・Ctrl+Y は、並びと ✂ を�
   assert.deepEqual(cuts(shell), [2]);
 });
 
+// 保存などの処理を走らせたままにする（終わらないワーカー）。走っている間、帯と盤の押しは効かない（I21。点検の指摘 2）。
+function holdBusy(shell) {
+  shell.window.taskAPI.run = () => new Promise(() => {});
+  shell.SigK.save.runTask({ kind: 'copy-pages', label: 'ページの写しを用意' });
+  assert.equal(shell.SigK.save.isBusy(), true);
+}
+
+test('処理が走っている間は、盤の選んだ範囲から引いても引いて落とさない', async (t) => {
+  const shell = await createBoardShell(t);
+  const [, a] = ids(shell);
+  press(shell, 2);
+  press(shell, 3, { shift: true });
+  holdBusy(shell);
+  const start = centerOf(shell, 2);
+  pointer(shell, 'pointerdown', pageNode(shell, 2), start);
+  pointer(shell, 'pointermove', shell.document, { x: start.x + 8, y: start.y });
+  pointer(shell, 'pointermove', shell.document, before(shell, 0));
+  assert.equal(shell.SigK.stripDrag.isDragging(), false);
+  pointer(shell, 'pointerup', shell.document, before(shell, 0));
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), range12(0, 11));
+});
+
+test('引いている途中で処理が走り始めたら、離しても並べ替えない', async (t) => {
+  const shell = await createBoardShell(t);
+  const [, a] = ids(shell);
+  press(shell, 2);
+  const start = centerOf(shell, 2);
+  pointer(shell, 'pointerdown', pageNode(shell, 2), start);
+  pointer(shell, 'pointermove', shell.document, { x: start.x + 8, y: start.y });
+  assert.equal(shell.SigK.stripDrag.isDragging(), true);
+  holdBusy(shell);
+  pointer(shell, 'pointermove', shell.document, before(shell, 0));
+  pointer(shell, 'pointerup', shell.document, before(shell, 0));
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), range12(0, 11));
+  assert.equal(shell.SigK.stripDrag.isDragging(), false);
+});
+
 test('盤からほかの帯へ落とすと写し、枠と盤は引き始めた帯のまま', async (t) => {
   const shell = await createBoardShell(t, { taskResults: [{ ok: true, bytes: new Uint8Array(PDF), pages: 2, sizes: [A4, A4] }] });
   const [b, a] = ids(shell);
