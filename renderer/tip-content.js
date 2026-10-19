@@ -9,6 +9,7 @@
   //   値   … Entry か、(node) => Entry。関数は出す瞬間に呼ぶ（要素の data-tip-file や、今開いているファイルの様子で文を替えるため）。
   //
   // 鍵 text は組み込み。表に無い文（ファイル名とフルパス・色の名前など）を、要素ごとに text() で付ける。
+  // resolve が返す Entry と keys の配列は凍らせてある（呼び手が書き換えて、次に出す文まで変えてしまわないため）。読むだけにする。
 
   const TEXT_KEY = 'text';
   const table = new Map();
@@ -16,14 +17,22 @@
   // 鍵 text の中身は、要素の data-tip-name・data-tip-desc。説明が無いときは空の文字にする。
   table.set(TEXT_KEY, (node) => ({ name: node.dataset.tipName ?? '', desc: node.dataset.tipDesc ?? '' }));
 
+  // Entry と keys の配列を凍らせて、その Entry を返す（凍らせ済みでも構わない）。
+  function freezeEntry(entry) {
+    if (Array.isArray(entry.keys))
+      Object.freeze(entry.keys);
+    return Object.freeze(entry);
+  }
+
   // 文の表を足す。鍵がすでにあるときは、1 つも足さずに投げる（別のファイルの鍵とぶつかったのを黙って上書きしないため）。
+  // Entry の値は足すときに凍らせる。関数の値は、返した Entry を resolve が凍らせる。
   function add(entries) {
     const keys = Object.keys(entries);
     const dup = keys.find((key) => table.has(key));
     if (dup !== undefined)
       throw new Error(`説明の吹き出しの鍵が重なっています: ${dup}`);
     for (const key of keys)
-      table.set(key, entries[key]);
+      table.set(key, typeof entries[key] === 'function' ? entries[key] : freezeEntry(entries[key]));
   }
 
   // 要素の data-tip の鍵の Entry。知らない鍵・鍵が無いときは null。
@@ -32,7 +41,7 @@
     if (!key || !table.has(key))
       return null;
     const value = table.get(key);
-    return typeof value === 'function' ? value(node) : value;
+    return typeof value === 'function' ? freezeEntry(value(node)) : value;
   }
 
   // 表に無い文を要素に付ける（鍵 text）。desc が空なら data-tip-desc を消す（付け直しで前の説明を残さないため）。node を返す。

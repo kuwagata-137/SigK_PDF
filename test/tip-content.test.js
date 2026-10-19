@@ -12,7 +12,13 @@ require('../renderer/tip-content-tools.js');
 
 const { tipContent } = globalThis.SigK;
 const node = (key, extra = {}) => ({ dataset: { tip: key, ...extra } });
-const tableKeys = () => tipContent.keyList().filter((k) => k !== 'text');
+// 文の表の鍵。組み込みの text と、テストの中で足した鍵（test. で始める）は除く（テストの順が変わっても、鍵の集合が揺れないため）。
+const tableKeys = () => tipContent.keyList().filter((k) => k !== 'text' && !k.startsWith('test.'));
+// SigK.viewer を getState だけの物に差し替えて、ツールバーの［上書き保存］の文を引く（終わったら外す）。
+const barSaveWith = (state) => {
+  globalThis.SigK.viewer = { getState: () => state };
+  try { return tipContent.resolve(node('bar.save')); } finally { delete globalThis.SigK.viewer; }
+};
 
 const EXPECTED_KEYS = [
   'bar.open', 'bar.save', 'bar.saveAs', 'bar.undo', 'bar.redo', 'bar.pointerSelect', 'bar.pointerHand', 'bar.pagePrev', 'bar.pageNext',
@@ -54,9 +60,21 @@ test('キーの書き方: 「／」は配列、（）は keysNote、「—」は
   assert.equal('keys' in tipContent.resolve(node('edit.pen')), false);
   assert.equal('keysNote' in tipContent.resolve(node('bar.open')), false);
 });
+test('［元に戻す］と［拡大］の説明の文は、直した文のまま（「ツールモード」を続けない・2 文に収める）', () => {
+  assert.equal(tipContent.resolve(node('bar.undo')).desc,
+    '直前の変更を取り消して、1 つ前の状態に戻します。ツールモードでは、ページを引いて動かす・写す・分割の ✂ を、した順に戻します。');
+  assert.equal(tipContent.resolve(node('bar.zoomIn')).desc,
+    '表示を 1 段大きくします。いちばん大きいのは 400% で、Ctrl+0 で 100% に戻ります。');
+});
 test('帯のフロッピーの文は、帯のファイル名を入れた見本の文', () => {
   assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '会議資料.pdf' })), { name: '上書き保存',
     desc: 'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。元の中身は「会議資料.pdf.bak」として残ります。', keys: ['Ctrl+S'], keysNote: '選んでいる帯' });
+});
+test('帯のフロッピーは、ファイル名が空・無いときは「（）」を出さず、ファイル名を抜いた文にする', () => {
+  const noName = { name: '上書き保存', desc: 'この帯のファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。',
+    keys: ['Ctrl+S'], keysNote: '選んでいる帯' };
+  assert.deepEqual(tipContent.resolve(node('strip.save')), noName);
+  assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '' })), noName);
 });
 test('名前の無い帯のフロッピーは、見本の文のまま', () => {
   assert.deepEqual(tipContent.resolve(node('strip.saveAs')), { name: '名前を付けて保存',
@@ -65,15 +83,26 @@ test('名前の無い帯のフロッピーは、見本の文のまま', () => {
 test('ツールバーの［上書き保存］は、名前の無い帯（新しい帯）を映しているときだけ文を替える', () => {
   const named = { name: '上書き保存', desc: '開いているファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。', keys: ['Ctrl+S'] };
   const untitled = { name: '上書き保存', desc: 'このファイルはまだ保存先が決まっていないので、保存先と名前を聞いてから PDF のファイルにします。', keys: ['Ctrl+S'] };
-  const withViewer = (state) => {
-    globalThis.SigK.viewer = { getState: () => state };
-    try { return tipContent.resolve(node('bar.save')); } finally { delete globalThis.SigK.viewer; }
-  };
   assert.deepEqual(tipContent.resolve(node('bar.save')), named); // SigK.viewer が無いときは名前のある方
-  assert.deepEqual(withViewer({ file: { untitled: true } }), untitled);
-  assert.deepEqual(withViewer({ file: { untitled: false } }), named);
-  assert.deepEqual(withViewer({ file: null }), named);
-  assert.deepEqual(withViewer({}), named);
+  assert.deepEqual(barSaveWith({ file: { untitled: true } }), untitled);
+  assert.deepEqual(barSaveWith({ file: { untitled: false } }), named);
+  assert.deepEqual(barSaveWith({ file: null }), named);
+  assert.deepEqual(barSaveWith({}), named);
+});
+test('呼び手が表の文を書き換えられない（Entry と keys の配列が凍っている。bar.save の 2 つの文・関数の値・text も）', () => {
+  const textNode = { dataset: {} };
+  tipContent.text(textNode, 'a.pdf', 'C:\\x\\a.pdf');
+  const entries = tableKeys().map((key) => tipContent.resolve(node(key, { tipFile: 'a.pdf' })));
+  entries.push(barSaveWith({ file: { untitled: true } }), barSaveWith({ file: { untitled: false } }),
+    tipContent.resolve(node('strip.save')), tipContent.resolve(textNode));
+  for (const entry of entries) {
+    assert.ok(Object.isFrozen(entry), entry.name);
+    assert.ok(entry.keys === undefined || Object.isFrozen(entry.keys), entry.name);
+  }
+  const open = tipContent.resolve(node('bar.open'));
+  assert.throws(() => { open.name = '書き換え'; }, TypeError);
+  assert.throws(() => { open.keys.push('Ctrl+Q'); }, TypeError);
+  assert.deepEqual(tipContent.resolve(node('bar.open')).keys, ['Ctrl+O']); // 書き換えは通らなかった
 });
 test('text() は鍵と名前と説明を付け、説明が空なら説明の欄を消す。resolve はそれを出す', () => {
   const n = { dataset: {} };
@@ -91,6 +120,12 @@ test('知らない鍵・鍵の無い要素は null。同じ鍵を 2 度足すと
   assert.throws(() => tipContent.add({ 'bar.open': { name: 'x' } }), Error);
   assert.throws(() => tipContent.add({ 'text': { name: 'x' } }), Error);
   assert.equal(tipContent.resolve(node('bar.open')).name, '開く'); // 投げても、元の文は変わらない
+});
+test('add は重なる鍵を見つけたら 1 つも足さない（新しい鍵が先にあっても引けない）', () => {
+  assert.throws(() => tipContent.add({ 'test.atomic': { name: '新しい', desc: '足さない。' }, 'bar.open': { name: '重なり' } }), /bar\.open/);
+  assert.equal(tipContent.resolve(node('test.atomic')), null);
+  assert.equal(tipContent.keyList().includes('test.atomic'), false);
+  assert.equal(tipContent.resolve(node('bar.open')).name, '開く');
 });
 test('文に「注釈」（「注釈一覧」を除く）と「ツールチップ」を使わない', () => {
   const all = tableKeys().map((key) => {

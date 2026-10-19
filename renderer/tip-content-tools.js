@@ -6,11 +6,14 @@
   // キーの「／」は keys の配列、（）の補足は keysNote。キーの無いものは keys を持たない。ボタンの名前は全角の［］で書く。
 
   // 帯のフロッピー（J14）。帯のファイル名は、Task 5 が要素の data-tip-file に付ける。
+  // ファイル名が空・無いときは、「（）」を出さず、ファイル名を抜いた文にする（.bak の名前は見本の「名前.pdf.bak」）。
   function stripSave(node) {
-    const file = node.dataset.tipFile ?? '';
+    const file = node.dataset.tipFile;
+    const target = file ? `この帯のファイル（${file}）` : 'この帯のファイル';
+    const backup = file ? `${file}.bak` : '名前.pdf.bak';
     return {
       name: '上書き保存',
-      desc: `この帯のファイル（${file}）に、今の変更を書き込みます。元の中身は「${file}.bak」として残ります。`,
+      desc: `${target}に、今の変更を書き込みます。元の中身は「${backup}」として残ります。`,
       keys: ['Ctrl+S'],
       keysNote: '選んでいる帯',
     };
