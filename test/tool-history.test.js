@@ -129,7 +129,7 @@ test('✂ の盤の箱の末尾に落としたときの並べ替えと ✂ の�
   await shell.flush();
   shell.SigK.toolsSplitEdit.cut(1);
   await shell.flush();
-  assert.equal(shell.SigK.pageTransfer.move([2], 1, { board: true, boxEnd: true }), true);
+  assert.equal(shell.SigK.pageTransfer.move([2], 1, { board: true, box: 0 }), true);
   await shell.flush();
   assert.deepEqual(srcs(shell, A), [0, 2, 1]);
   assert.deepEqual(cuts(shell), [2]);

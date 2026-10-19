@@ -63,14 +63,15 @@
   }
 
   // 同じ帯の中で動かす。to は今の並びの、その位置の手前へ入れる 0..length。動かなければ何もせずに false。
-  // board は ✂ の盤の中で動かしたとき（G4）。盤の選択も動かしたページへ移し、箱の末尾に落としたとき（boxEnd）は、そのページを箱に入れるため ✂ を
-  // 落としたページの後ろへ動かす（盤の操作として積むので、Ctrl+Z は ✂ → 並びの順に戻り、✂ も元の位置へ戻る。起草者の判断 I-k）。
-  function move(indices, to, { board = false, boxEnd = false } = {}) {
+  // board は ✂ の盤の中で動かしたとき（G4）で、box は落とした先の箱の番号（strip-drop-target.js の boardGap）。
+  function move(indices, to, { board = false, box = null } = {}) {
     const tabId = tabs().activeId();
     const moved = root.SigK.pagePlan.movePages(viewer().getPlan(), indices, to);
     if (tabId === null || !moved.changed)
       return false;
-    // 盤の箱の末尾に落としたときの並べ替えと ✂ の動きは、ツールモードの記録で 1 つにまとめる（Ctrl+Z 1 回で戻る。I6）。
+    // 動かす前の盤（並びを変えると盤の ✂ はずらし方〔G8〕で動くので、その前に控える）。
+    const before = board ? root.SigK.toolsSplitEdit.board() : null;
+    // 盤の中で動かしたときの並べ替えと ✂ の置き直しは、ツールモードの記録で 1 つにまとめる（Ctrl+Z 1 回で戻る。I6）。
     const batch = root.SigK.toolHistory?.batch ?? ((fn) => fn());
     batch(() => {
       root.SigK.pageEdit.commit(moved.plan, { before: indices, after: moved.selection });
@@ -78,18 +79,20 @@
       // 動かしたページを選んだままにする（起草者の判断 I-g）。並びの参照は、帯が描き直しで比べるタブの今の並び。
       root.SigK.stripSelection.set(tabId, moved.selection, tabs().peek(tabId)?.plan ?? null);
       if (board)
-        followOnBoard(moved.selection, boxEnd);
+        followOnBoard(tabId, before, [...indices].sort((a, b) => a - b), moved.selection, box);
     });
     return true;
   }
 
-  function followOnBoard(selection, boxEnd) {
+  // 盤の中で動かしたとき（I20）。動かしたページは落とした先の箱に、ほかのページは元の箱に入るよう ✂ を置き直し、盤の選択も動かしたページへ移す。
+  // 前後の盤をツールモードの記録に控え、Ctrl+Z・Ctrl+Y では控えをそのまま当てる（tool-history.js の pin）。
+  function followOnBoard(tabId, before, from, selection, box) {
     const edit = root.SigK.toolsSplitEdit;
-    const first = selection[0];
-    const last = selection[selection.length - 1];
-    if (boxEnd)
-      edit.moveCut(first, last + 1);
-    edit.setSelection(root.SigK.splitSelection.dragTo(first, last));
+    if (before !== null && Number.isInteger(box)) {
+      edit.setCuts(root.SigK.splitBoard.cutsAfterMove(before, from, selection, box));
+      root.SigK.toolHistory?.pin(tabId, { before, after: edit.board() });
+    }
+    edit.setSelection(root.SigK.splitSelection.dragTo(selection[0], selection[selection.length - 1]));
   }
 
   // 写しを tabId の帯の at（並びの位置）へ差し込みとして入れる。枠の帯は替えない（I7）。

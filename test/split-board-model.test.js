@@ -123,3 +123,24 @@ test('5,000 ページを 1 ページずつにしても速く組める', () => {
   assert.equal(board.boxOf(each, 4321), 4321);
   assert.ok(Date.now() - started < 200, `${Date.now() - started}ms`);
 });
+
+test('setCuts は分け目をまとめて置き直し、範囲の外と重なりを捨てる。変わらなければ同じ盤', () => {
+  // setCuts が受けるのは 0 始まりの位置（盤の cuts と同じ）。
+  const start = withCuts(6, [3], [5]);
+  assert.deepEqual(board.setCuts(start, [5, 0, 3, 3, 6]), withCuts(6, [4, 6], [5]));
+  assert.equal(board.setCuts(start, [2]), start);
+});
+
+// 盤の中で動かしたあと（spec-2-5 I20）。動かしたページは落とした先の箱、ほかのページは元の箱に入る。from は動かす前の位置、to は動かしたあとの位置。
+// ここだけは位置（from・to・答え）を 0 始まりで書く（page-transfer.js が渡す位置と同じ）。
+test('cutsAfterMove は、ページごとの箱の番号が変わる所を新しい分け目にする', () => {
+  const twelve = withCuts(12, [5]);
+  // 3・4 ページ目（2・3）を箱 2 の末尾へ: [0,1,4..11,2,3]
+  assert.deepEqual(board.cutsAfterMove(twelve, [2, 3], [10, 11], 1), [2]);
+  // 4 ページ目（3）を箱 2 の 7 ページ目の前へ: [0,1,2,4,5,3,6..11]
+  assert.deepEqual(board.cutsAfterMove(twelve, [3], [5], 1), [3]);
+  // 4 ページ目を箱 1 の先頭へ: [3,0,1,2,4..11]
+  assert.deepEqual(board.cutsAfterMove(twelve, [3], [0], 0), [4]);
+  // 箱 1 の全部を箱 2 へ動かすと箱 1 が空になり、分け目は消える
+  assert.deepEqual(board.cutsAfterMove(withCuts(6, [3]), [0, 1], [4, 5], 1), []);
+});

@@ -10,7 +10,7 @@
   //
   // index は並びの位置（その位置の手前へ入れる 0..ページ数）。紙の真ん中より左なら前、右なら後ろ。見出しの上と紙の列の右の空きは末尾。
   // ✂ の盤を広げた帯（board）は、盤の中の位置で決める（boardGap。G4・起草者の判断 I-k）。指の下の箱の中のページとページの間で、箱の先頭と
-  // 末尾を含む。箱の末尾に落とすときは atBoxEnd（その箱に入れるため、✂ を落としたページの後ろへずらす。page-transfer.js）。
+  // 末尾を含む。落とした先の箱の番号を box で返す（動かしたページをその箱に入れる。page-transfer.js。I20）。
 
   // line は strip-layout.js の row（lefts・widths は紙の列の左端からの位置）、x は紙の列の左端からの位置（横のスクロールを足したもの）。
   function gapIndex(line, x) {
@@ -35,7 +35,7 @@
     return nearest;
   }
 
-  // 盤の上の落とす先（x・y は盤の器の座標）。{ index, box, atBoxEnd, place: { left, top, height } }（place は線の置き場所）か null。
+  // 盤の上の落とす先（x・y は盤の器の座標）。{ index, box, place: { left, top, height } }（place は線の置き場所）か null。
   function boardGap(placed, x, y) {
     const layout = root.SigK.splitLayout;
     const box = placed === null ? null : nearestBox(placed, x, y);
@@ -59,7 +59,7 @@
     }
     const edge = layout.pageRect(placed, Math.min(index, last));
     const left = index <= last ? edge.x - layout.CUT / 2 : edge.x + edge.width + layout.CUT / 2;
-    return { index, box: box.index, atBoxEnd: index === box.end + 1, place: { left, top: edge.y, height: edge.height } };
+    return { index, box: box.index, place: { left, top: edge.y, height: edge.height } };
   }
 
   function inside(box, x, y) {
@@ -75,7 +75,7 @@
         const gap = strip.placed === undefined ? null : boardGap(strip.placed, x - strip.canvasLeft, y - strip.canvasTop);
         if (gap === null)
           return { kind: 'none' };
-        return { kind: strip.tabId === sourceTabId ? 'move' : 'copy', tabId: strip.tabId, index: gap.index, atBoxEnd: gap.atBoxEnd, place: gap.place };
+        return { kind: strip.tabId === sourceTabId ? 'move' : 'copy', tabId: strip.tabId, index: gap.index, box: gap.box, place: gap.place };
       }
       const count = strip.line.lefts.length;
       const index = y < strip.pagesTop ? count : gapIndex(strip.line, x - strip.pagesLeft + strip.scrollLeft);

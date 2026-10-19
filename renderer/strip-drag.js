@@ -128,7 +128,7 @@
     drag.swallowClick = true;
     const { target, indices } = finish();
     if (target?.kind === 'move')
-      transfer().move(indices, target.index, { board: target.place !== undefined, boxEnd: target.atBoxEnd === true });
+      transfer().move(indices, target.index, { board: target.place !== undefined, box: target.box });
     else if (target?.kind === 'copy')
       transfer().copyTo(target.tabId, indices, target.index);
     else if (target?.kind === 'new')

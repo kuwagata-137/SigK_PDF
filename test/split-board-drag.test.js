@@ -138,6 +138,74 @@ test('箱の末尾に落としたページはその箱に入り、次の箱の�
   assert.deepEqual(cuts(shell), [4], '2 つ目の箱の先頭に入る');
 });
 
+// 4 ページ目と 5 ページ目の間に ✂（箱 1 = 1〜4 ページ目、箱 2 = 5〜12 ページ目）。✂ の直前のページを動かしても、動かしたページは落とした先の箱、
+// ほかのページは元の箱に入る（点検の指摘 1）。
+const range12 = (from, to) => Array.from({ length: to - from + 1 }, (_page, offset) => from + offset);
+
+test('✂ の直前のページを含めてほかの箱の末尾へ動かすと、その箱に入り、元の箱は残る', async (t) => {
+  const shell = await createBoardShell(t);
+  const [, a] = ids(shell);
+  shell.SigK.toolsSplitEdit.cut(4);
+  await shell.flush();
+  dragSelected(shell, 2, 3, after(shell, 11));
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), [0, 1, ...range12(4, 11), 2, 3]);
+  assert.deepEqual(cuts(shell), [2], '箱 1 = 1・2 ページ目、箱 2 = 5〜12・3・4 ページ目');
+});
+
+test('✂ の直前のページをほかの箱の途中へ動かしても、間のページは元の箱のまま', async (t) => {
+  const shell = await createBoardShell(t);
+  const [, a] = ids(shell);
+  shell.SigK.toolsSplitEdit.cut(4);
+  await shell.flush();
+  dragSelected(shell, 3, 3, before(shell, 6));
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), [0, 1, 2, 4, 5, 3, ...range12(6, 11)]);
+  assert.deepEqual(cuts(shell), [3], '箱 1 = 1〜3 ページ目、箱 2 = 5・6・4・7〜12 ページ目');
+});
+
+test('✂ の直前のページを同じ箱の先頭へ動かしても、✂ は動かない', async (t) => {
+  const shell = await createBoardShell(t);
+  const [, a] = ids(shell);
+  shell.SigK.toolsSplitEdit.cut(4);
+  await shell.flush();
+  dragSelected(shell, 3, 3, before(shell, 0));
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), [3, 0, 1, 2, ...range12(4, 11)]);
+  assert.deepEqual(cuts(shell), [4]);
+});
+
+test('盤の中で動かしたあとの Ctrl+Z・Ctrl+Y は、並びと ✂ をそのまま戻し・進める（点検の指摘 4）', async (t) => {
+  const shell = await createBoardShell(t);
+  const [, a] = ids(shell);
+  shell.SigK.toolsSplitEdit.cut(4);
+  await shell.flush();
+  dragSelected(shell, 11, 11, after(shell, 3));
+  await shell.flush();
+  assert.deepEqual(cuts(shell), [5]);
+  shell.SigK.toolHistory.undo();
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), range12(0, 11));
+  assert.deepEqual(cuts(shell), [4]);
+  shell.SigK.toolHistory.redo();
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), [0, 1, 2, 3, 11, ...range12(4, 10)]);
+  assert.deepEqual(cuts(shell), [5], '進めても ✂ が消えない');
+
+  // ✂ の直前のページを末尾へ動かした場合（並びのずらし方では ✂ が範囲の外へ出る）も、戻すと ✂ が戻る。
+  shell.SigK.toolHistory.undo();
+  await shell.flush();
+  dragSelected(shell, 2, 3, after(shell, 11));
+  await shell.flush();
+  shell.SigK.toolHistory.undo();
+  await shell.flush();
+  assert.deepEqual(srcs(shell, a), range12(0, 11));
+  assert.deepEqual(cuts(shell), [4]);
+  shell.SigK.toolHistory.redo();
+  await shell.flush();
+  assert.deepEqual(cuts(shell), [2]);
+});
+
 test('盤からほかの帯へ落とすと写し、枠と盤は引き始めた帯のまま', async (t) => {
   const shell = await createBoardShell(t, { taskResults: [{ ok: true, bytes: new Uint8Array(PDF), pages: 2, sizes: [A4, A4] }] });
   const [b, a] = ids(shell);

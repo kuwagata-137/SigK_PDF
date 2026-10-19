@@ -88,11 +88,24 @@
     return next(board, { cuts: [...board.cuts, at] });
   }
 
-  // 分け目を from から to へ動かす（✂ の盤で、箱の末尾に落としたページをその箱に入れる。spec-2-5 PR-4 の起草者の判断 I-k）。
-  function moveCut(board, from, to) {
-    if (!board.cuts.includes(from) || !isCutPosition(board, to))
-      return board;
-    return next(board, { cuts: [...board.cuts.filter((at) => at !== from), to] });
+  // 分け目をまとめて置き直す（✂ の盤の中でページを動かしたあと。spec-2-5 I20）。範囲の外は捨てる。
+  const setCuts = (board, cuts) => next(board, { cuts: (cuts ?? []).filter((at) => isCutPosition(board, at)) });
+
+  // 盤の中でページを動かしたあとの分け目（spec-2-5 I20）。動かしたページ（動かす前の位置 from、動かしたあとの位置 to。どちらも昇順）は箱 box に、
+  // ほかのページは元の箱に入れ、ページごとの箱の番号が変わる所を分け目にする。箱が空になれば、その分け目は消える。
+  function cutsAfterMove(board, from, to, box) {
+    const moving = new Set(from);
+    const landed = new Set(to);
+    const staying = [];
+    for (let page = 0; page < board.pageCount; page += 1) {
+      if (!moving.has(page))
+        staying.push(page);
+    }
+    let next = 0;
+    const owners = [];
+    for (let page = 0; page < board.pageCount; page += 1)
+      owners.push(landed.has(page) ? box : boxOf(board, staying[next++]));
+    return owners.flatMap((owner, page) => (page > 0 && owner !== owners[page - 1] ? [page] : []));
   }
 
   // その箱の頭の分け目を消す（確定事項C2）。最初の箱には頭の分け目が無い。
@@ -164,7 +177,7 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.splitBoard = {
     create, same, boxes, boxOf, parts, status,
-    cut, join, makeOne, setSkipped, moveCut,
+    cut, join, makeOne, setSkipped, setCuts, cutsAfterMove,
     splitEach, splitEvery, splitBefore, clearCuts,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

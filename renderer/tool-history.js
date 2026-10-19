@@ -54,8 +54,26 @@
     }
   }
 
+  // 盤の中で動かしたときの前後の盤 { before, after }（spec-2-5 I20）を、今の batch に控える。戻す・進めるときは、ほかの履歴を動かしたあとで
+  // この控えをそのまま当てる（並びのずらし方では ✂ が範囲の外へ出て戻らないことがあるため。split-board-store.js の put）。
+  function pin(tabId, boards) {
+    if (state.batch !== null)
+      state.batch.push({ kind: 'pin', tabId, boards });
+  }
+
+  function applyPin({ tabId, boards }, direction) {
+    const view = tabs().peek(tabId);
+    if (view === null || view.doc === undefined)
+      return;
+    const put = root.SigK.splitBoardStore.put(tabId, view, direction === 'undo' ? boards.before : boards.after);
+    if (put && splitting() && root.SigK.splitStrip?.hostId() === tabId)
+      root.SigK.toolsSplitView?.render();
+  }
+
   // 1 つの帯の 1 つの履歴を 1 つ戻す・進める。戻せたら true。
   function stepPart({ kind, tabId }, direction) {
+    if (kind === 'pin')
+      return false;
     const view = tabs().peek(tabId);
     if (view === null || view.doc === undefined)
       return false;
@@ -82,6 +100,7 @@
       const parts = direction === 'undo' ? [...entry.parts].reverse() : entry.parts;
       const moved = parts.map((part) => stepPart(part, direction)).some(Boolean);
       if (moved) {
+        parts.filter((part) => part.kind === 'pin').forEach((part) => applyPin(part, direction));
         to.push(entry);
         changed();
         return true;
@@ -106,7 +125,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolHistory = {
-    record, batch, clear,
+    record, batch, pin, clear,
     undo: () => step('undo'),
     redo: () => step('redo'),
     canUndo: () => canStep('undo'),
