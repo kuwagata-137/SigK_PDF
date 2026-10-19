@@ -176,6 +176,9 @@ test('写しを作っている途中に写す先が閉じられたら、どの�
   assert.equal(result.canceled, true);
   assert.deepEqual(planOf(shell, a).map((page) => page.src), [0, 1, 2]);
   assert.deepEqual(planOf(shell, c).map((page) => page.src), [0, 1, 2]);
+  // 進み具合の文（［中止］付き）を残さない。開いた写しの文書は畳む（点検の指摘 5）。
+  assert.equal(bannerText(shell), '写す先の帯が閉じられたので、ページを写すのをやめました。');
+  assert.equal(shell.SigK.pdfjs.documents.at(-1).destroyed, true);
 });
 
 test('写しを用意している間は通知バーに「ページの写しを用意しています」、中止したら「ページを写すのを中止しました。」', async (t) => {

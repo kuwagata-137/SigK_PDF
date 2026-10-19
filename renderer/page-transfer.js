@@ -114,8 +114,13 @@
     const built = await root.SigK.pageCopyBuild.build(indices);
     if (built.ok !== true)
       return report(built);
+    // 写しを作っている間に写す先が閉じられた・枠の帯が替わったら、どの帯にも入れず、開いた写しの文書を畳む（pdf.js 6 は loadingTask から畳む）。
     if (tabs().activeId() !== sourceId || targetRefusal(tabId) !== null) {
-      built.doc?.destroy?.();
+      built.doc?.loadingTask?.destroy?.();
+      if (targetRefusal(tabId) !== null)
+        banner().show('写す先の帯が閉じられたので、ページを写すのをやめました。', { tone: 'info' });
+      else
+        report({ canceled: true });
       return { canceled: true };
     }
     insertInto(tabId, built, at);
