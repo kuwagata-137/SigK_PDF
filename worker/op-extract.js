@@ -16,15 +16,17 @@
 //     op-pages.js が src の重複を弾くのは in-place で同じページ実体を2か所へ
 //     挿すからであり、こちらにその制約は無い。
 
-const { normalizeRotation } = require('./op-pages.js');
+const { normalizeRotation, isInsert } = require('./op-pages.js');
 const { applyCrop } = require('./page-box-rules.js');
 
-// 取り出す plan がこの文書に当てられる形かを見る。
-function validateSelection(plan, pageCount) {
+// 取り出す plan がこの文書に当てられる形かを見る。inserted は差し込んだページの実体（insert 番号で引く。写し〔spec-2-5 I5〕のときだけ渡る）。
+function validateSelection(plan, pageCount, inserted = []) {
   if (!Array.isArray(plan) || plan.length === 0)
     return { error: '抽出するページが選ばれていません。' };
 
   for (const entry of plan) {
+    if (isInsert(entry) && inserted[entry.insert] !== undefined)
+      continue;
     const src = entry?.src;
     if (!Number.isInteger(src) || src < 0 || src >= pageCount)
       return { error: 'ページの指定が元の文書と合わないので、もう一度開き直してください。' };
@@ -34,14 +36,29 @@ function validateSelection(plan, pageCount) {
 
 // plan の並びで新しい文書を組み立てる。source は変更しない。PDFName を渡せば、plan の crop を /CropBox に当てる
 // （spec-4b-6a 確定事項23。copyPages は受け継いだ箱をページへ写してから複製する）。
-async function extractPages(source, plan, { PDFDocument, PDFName }) {
+//
+// inserted を渡せば、plan の { insert } も複製する（帯のページの写し。spec-2-5 確定事項I5）。差し込んだページはページ木に無い実体なので、
+// 複製のあいだだけ source の末尾に足して番号で引き、終わったら外す（source のページ数は変えない）。
+async function extractPages(source, plan, { PDFDocument, PDFName, inserted = [] }) {
   const pageCount = source.getPageCount();
-  const check = validateSelection(plan, pageCount);
+  const check = validateSelection(plan, pageCount, inserted);
   if (check.ok !== true)
     return check;
 
+  const indices = plan.map((entry) => {
+    if (!isInsert(entry))
+      return entry.src;
+    source.addPage(inserted[entry.insert]);
+    return source.getPageCount() - 1;
+  });
   const doc = await PDFDocument.create();
-  const copied = await doc.copyPages(source, plan.map((entry) => entry.src));
+  let copied;
+  try {
+    copied = await doc.copyPages(source, indices);
+  } finally {
+    while (source.getPageCount() > pageCount)
+      source.removePage(source.getPageCount() - 1);
+  }
 
   const angles = copied.map((page, index) =>
     normalizeRotation(page.getRotation().angle + normalizeRotation(plan[index]?.rotate)));

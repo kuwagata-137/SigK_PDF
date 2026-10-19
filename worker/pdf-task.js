@@ -8,7 +8,7 @@
 //
 // pdf-lib は vendor から読む（pdf-io.js。配布物に node_modules は入っていない。docs/07 決定18）。
 // ツールモードの実行（結合・分割・変換）は tool-tasks.js にあり、runTask が kind で振り分ける
-// （spec-4-5 確定事項47）。ここに残るのは保存・抽出・差し込みの下見である。
+// （spec-4-5 確定事項47）。ここに残るのは保存・抽出・差し込みの下見と、帯のページの写し（op-copy.js へ渡すだけ。spec-2-5 I5）である。
 //
 // 本体（runSave）は process.parentPort に触れない。テストから直接呼べるように
 // するためで、メッセージの結線はファイルの末尾だけに閉じてある。
@@ -17,6 +17,7 @@ const fs = require('node:fs');
 
 const { applyForSave, applyForExtract } = require('./save-apply.js');
 const { buildPreview } = require('./op-insert.js');
+const { readSource, runCopy } = require('./op-copy.js');
 const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
 const { pruneOrphans } = require('./orphan-objects.js');
 const {
@@ -67,8 +68,9 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
 // 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null, mosaics = [], dropBackup = false,
-    expectSource = null } = spec ?? {};
-  if (typeof source !== 'string' || typeof target !== 'string')
+    expectSource = null, copies = {} } = spec ?? {};
+  // source が null なのは名前の無い帯（帯のページの写しでできた新しい帯）で、元の中身は copies[sourceCopy] のバイト列（spec-2-5 確定事項I4）。
+  if ((typeof source !== 'string' && source !== null) || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
   // モザイクのある保存・抽出は、元のファイルが開いたときのままかを読む前に確かめる。画像は開いたときの文書から描いたので、外で書き換わった
   // ファイルに当てると、ページの番号がずれて元の中身が残り得る（spec-4b-6b。コードの点検で足した）。
@@ -76,12 +78,10 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     return { error: SOURCE_CHANGED };
 
   advance('read');
-  let bytes;
-  try {
-    bytes = await fsLike.promises.readFile(source);
-  } catch (error) {
-    return { error: describeSourceReadFailure(error) };
-  }
+  const read = await readSource(spec, fsLike);
+  if (read.ok !== true)
+    return read;
+  const { bytes } = read;
 
   advance('load');
   let doc;
@@ -94,7 +94,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   advance('apply');
   const applied = kind === 'extract'
     ? await applyForExtract(doc, pages, annotations, mosaics)
-    : await applyForSave(doc, pages, inserts, fsLike, annotations, mosaics);
+    : await applyForSave(doc, pages, inserts, fsLike, annotations, mosaics, copies);
   if (applied.ok !== true)
     return applied;
   // モザイクで差し替えた古い中身を、ファイルに残さない（spec-4b-6b 確定事項22）。モザイクの無い保存の振る舞いは変えない。
@@ -102,7 +102,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     pruneOrphans(applied.doc, TOOLS);
   // 名前を付けて保存で開いているファイル自身を選んだときも、モザイクのある保存は上書き保存と同じく控えを残さない（決定64 ⑧。画面側で
   // 上書きとして扱うことの保険。コードの点検で直した）。
-  const dropOwnBackup = dropBackup || (applied.mosaics > 0 && kind === 'save' && samePath(source, target));
+  const dropOwnBackup = dropBackup || (applied.mosaics > 0 && kind === 'save' && source !== null && samePath(source, target));
 
   advance('save');
   let output;
@@ -143,6 +143,8 @@ async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   let result;
   if (spec?.kind === 'insert-preview')
     result = await runInsertPreview(spec, { fsLike });
+  else if (spec?.kind === 'copy-pages')
+    result = await runCopy(spec, { fsLike });
   else if (isToolKind(spec?.kind))
     result = await TOOL_TASKS[spec.kind](spec, { fsLike, advance: progress });
   else

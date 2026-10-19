@@ -33,12 +33,12 @@ const fontSource = createFontSource();
 // plan にモザイクがあるのに画像が来ていないページがあれば、何もせずに断る（元の中身のまま書かない）。
 const UNPAINTED = 'モザイクを入れたページの画像がそろっていないので、取りやめました。もう一度やり直してください。';
 
-async function applyForSave(doc, pages, inserts, fsLike, annotations, mosaics = []) {
+async function applyForSave(doc, pages, inserts, fsLike, annotations, mosaics = [], copies = {}) {
   if (unpaintedSources(pages, mosaics).length > 0)
     return { error: UNPAINTED };
   const labelsBefore = readLabels(doc);
-  // 差し込むページを先に組み立てる。
-  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, insertReader(fsLike));
+  // 差し込むページを先に組み立てる。帯から写したページ（{ copy }）は copies のバイト列から読む（spec-2-5 確定事項I5）。
+  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, { ...insertReader(fsLike), copies });
   if (prepared.ok !== true)
     return prepared;
 
@@ -80,4 +80,16 @@ async function applyForExtract(doc, pages, annotations, mosaics = []) {
   return { ok: true, doc: extracted.doc, pages: extracted.pages, pruned: { outlines: 0, names: 0 }, mosaics: mosaicked.count };
 }
 
-module.exports = { applyForSave, applyForExtract };
+// apply の段。帯のページの写しを作る（spec-2-5 確定事項I5。PR-4）。抽出と同じく新規文書へ複製するが、差し込んだページ（写しの写しを含む）も
+// 複製する。ページラベルは写さない（写した先の並びのラベルに従う）。モザイクは画面が断るので受けない（決定80 ㊵）。
+async function applyForCopy(doc, pages, inserts, reader, annotations) {
+  const prepared = await prepareInserts(doc, doc.getPages(), pages, inserts, TOOLS, reader);
+  if (prepared.ok !== true)
+    return prepared;
+  const annotated = await applyAnnotations(doc, annotations, TOOLS, { fontSource });
+  if (annotated.ok !== true)
+    return annotated;
+  return extractPages(doc, pages, { PDFDocument, PDFName: TOOLS.PDFName, inserted: prepared.pages });
+}
+
+module.exports = { applyForSave, applyForExtract, applyForCopy };
