@@ -25,9 +25,31 @@
     return node != null && node.contains(event.target) && !inside(node, event.relatedTarget);
   }
 
+  // 説明の吹き出しの属性（data-tip・data-tip-name・data-tip-desc・data-tip-file）。
+  const TIP_FIELDS = ['tip', 'tipName', 'tipDesc', 'tipFile'];
+
+  // 押した要素 pressed と、マウスで入った対象 node が同じ要素か（J11）。押すと描き直される要素（タブ・サムネイルの上のボタン・
+  // 「変換する画像」の帯の画像）は、押したあと新しいノードに替わる。pressed が文書から外れていて、説明の吹き出しの属性が
+  // どれも同じなら、同じ要素とみなす。pressed が文書にあるなら、同じノードのときだけ。
+  function samePressed(pressed, node) {
+    if (pressed == null || node == null)
+      return false;
+    if (pressed === node)
+      return true;
+    return !pressed.isConnected && TIP_FIELDS.every((field) => pressed.dataset[field] === node.dataset[field]);
+  }
+
+  // マウスで入った対象 node（無ければ null）から見た、押した要素（J11）。pressed が文書から外れている（描き直された）ときは、
+  // 同じ要素とみなせるなら node に差し替え、別の所へ入ったなら null（押した要素から出たことにする）。文書にあるなら pressed のまま。
+  function pressedAfter(pressed, node) {
+    if (pressed == null || pressed.isConnected)
+      return pressed ?? null;
+    return samePressed(pressed, node) ? node : null;
+  }
+
   // マウスで入った対象 node で待ち始めてよいか（J11）。ボタンを押したまま・タッチ・押した要素 pressed の上では待たない。
   function canHover(event, node, pressed) {
-    return event.buttons === 0 && event.pointerType !== 'touch' && node !== pressed;
+    return event.buttons === 0 && event.pointerType !== 'touch' && !samePressed(pressed, node);
   }
 
   // マウスで入った対象 node で、待たずに出すか。次のどちらかのときだけ（J8）。
@@ -47,5 +69,7 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.tipRules = Object.freeze({ REASON_OUT, SOURCE_POINTER, SOURCE_FOCUS, targetOf, inside, leaves, canHover, isQuick, stopsOnScroll });
+  SigK.tipRules = Object.freeze({
+    REASON_OUT, SOURCE_POINTER, SOURCE_FOCUS, targetOf, inside, leaves, samePressed, pressedAfter, canHover, isQuick, stopsOnScroll,
+  });
 })(typeof window !== 'undefined' ? window : globalThis);

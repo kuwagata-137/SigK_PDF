@@ -100,6 +100,8 @@
     if (state.current !== null && !state.current.isConnected)
       hideFor('gone');
     const node = rules.targetOf(event.target);
+    // 押した要素が描き直されていたら、同じ要素とみなせる新しいノードに差し替える（別の所へ入ったなら外す。J11）。
+    state.pressed = rules.pressedAfter(state.pressed, node);
     if (node === null || node === state.current || !rules.canHover(event, node, state.pressed))
       return;
     const quick = rules.isQuick({
