@@ -42,7 +42,7 @@
       button.className = 'swatch';
       button.dataset.color = color;
       button.style.background = color;
-      button.title = planner().COLOR_NAMES[color];
+      root.SigK.tipContent.text(button, planner().COLOR_NAMES[color]);
       button.setAttribute('aria-label', `色 ${planner().COLOR_NAMES[color]}`);
       button.addEventListener('click', () => tool().setColor(color));
       el.colors.append(button);

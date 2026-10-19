@@ -42,7 +42,7 @@ test('チップを押すと、見出し・テーマの色・濃淡 5 段・標�
   assert.deepEqual(grids.map((grid) => grid.querySelectorAll('.cell').length), [10, 50, 10]);
   assert.deepEqual(plain(SigK.annotationPalette.PALETTE_ROWS.flat()), [...pop.querySelectorAll('.cell')].map((cell) => cell.dataset.color));
   const on = [...pop.querySelectorAll('.cell.on')];
-  assert.deepEqual(on.map((cell) => [cell.dataset.color, cell.getAttribute('aria-pressed'), cell.title]), [['#ff0000', 'true', '#FF0000']]);
+  assert.deepEqual(on.map((cell) => [cell.dataset.color, cell.getAttribute('aria-pressed'), SigK.tipContent.resolve(cell).name]), [['#ff0000', 'true', '#FF0000']]);
   assert.equal(document.activeElement, on[0], '今の色へフォーカスを移す');
   assert.equal(chip.classList.contains('open'), true);
   assert.equal(chip.getAttribute('aria-expanded'), 'true');

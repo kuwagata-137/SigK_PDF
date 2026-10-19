@@ -9,7 +9,7 @@ const { JSDOM } = require('jsdom');
 
 // 説明の吹き出し（spec-2-5 J2・J3・J5・J16・J17）の対象が、index.html の要素と文の表（tip-content*.js）の鍵で結ばれていることを照らす。
 // 画面の要素に今までの小さな説明（title）が 1 つも残らないこと（決定80 ㊷）も、ここで見る。
-// JS が作る要素（帯・タブ・サムネイルの上のボタンなど）は、別のテストが見る。
+// JS が作る要素（帯・タブ・サムネイルの上のボタンなど）は、画面に出して test/tip-coverage-screen.test.js が見る。
 require('../renderer/tip-content.js');
 require('../renderer/tip-content-view.js');
 require('../renderer/tip-content-edit.js');
@@ -79,13 +79,24 @@ test('アイコンだけで aria-label が無かった 17 個に、名前の ari
     assert.equal(doc.querySelector(selector).getAttribute('aria-label'), label, selector);
 });
 
-test('今の aria-label は変えない（読み上げの名前と使い方の窓の文がずれるため）', () => {
+test('今の aria-label は変えない（読み上げの名前と使い方の窓の文がずれるため）。左のパネルの「＞」だけは説明の吹き出しの名前にそろえる', () => {
   const doc = loadDocument();
-  assert.equal(doc.getElementById('side-expand').getAttribute('aria-label'), 'サイドパネルを開く');
+  assert.equal(doc.getElementById('side-expand').getAttribute('aria-label'), 'パネルを開く');
   assert.equal(doc.getElementById('btn-help').getAttribute('aria-label'), '使い方');
   assert.equal(doc.getElementById('btn-fit-width').getAttribute('aria-label'), '幅に合わせる');
   assert.equal(doc.getElementById('btn-facing').getAttribute('aria-label'), '見開き表示');
   assert.equal(doc.getElementById('image-strip-clear').getAttribute('aria-label'), 'すべて外す');
+});
+
+// renderer の JS が要素に title を付けていないこと（決定80 ㊷）。窓の題（tabs.js の el.doc.title）は要素の説明ではないので除く。
+// JS が作る要素を画面に出して照らすのは test/tip-coverage-screen.test.js。
+test('renderer の JS は、要素に title を付けない（窓の題 doc.title は除く）', () => {
+  const RENDERER = path.resolve(__dirname, '..', 'renderer');
+  const bad = fs.readdirSync(RENDERER).filter((name) => name.endsWith('.js')).flatMap((file) => fs.readFileSync(path.join(RENDERER, file), 'utf8')
+    .split('\n')
+    .filter((line) => (/\.title\s*=[^=]/.test(line) && !/\bdoc\.title\s*=/.test(line)) || /setAttribute\(\s*'title'/.test(line))
+    .map((line) => `${file}: ${line.trim()}`));
+  assert.deepEqual(bad, []);
 });
 
 test('文字の無い data-tip の要素（アイコンだけ）は、どれも aria-label を持つ', () => {

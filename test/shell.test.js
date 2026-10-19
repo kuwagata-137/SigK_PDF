@@ -471,7 +471,7 @@ test('サイドパネルを閉じると閉じたパネルの細い欄が出て�
   assert.equal(expand.getAttribute('type'), 'button');
   assert.equal(expand.dataset.tip, 'side.expand');
   assert.equal(SigK.tipContent.resolve(expand).name, 'パネルを開く');
-  assert.equal(expand.getAttribute('aria-label'), 'サイドパネルを開く');
+  assert.equal(expand.getAttribute('aria-label'), 'パネルを開く', '読み上げの名前は説明の吹き出しの名前にそろえる');
   // 「＞」は閉じる「＜」と同じ大きさ・太さで描く。
   const svg = expand.querySelector('svg');
   assert.notEqual(svg, null, '「＞」が描かれていない');

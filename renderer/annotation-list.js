@@ -47,7 +47,8 @@
     node.type = 'button';
     node.className = `annot-row${row.readonly ? ' readonly' : ''}`;
     node.dataset.key = row.key;
-    node.title = `${row.label}（p.${row.page}）${row.title ? `: ${row.title}` : ''}`;
+    // 説明の吹き出しは（種類（p.N）, 本文の先頭行）。本文が無ければ説明なし（spec-2-5 J5）。
+    root.SigK.tipContent.text(node, `${row.label}（p.${row.page}）`, row.title ?? '');
     const page = doc.createElement('span');
     page.className = 'pg';
     page.textContent = `p.${row.page}`;

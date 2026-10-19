@@ -86,7 +86,8 @@ test('開くと文書内の注釈がページ順に並び、行はアイコン�
   const line = rows(shell)[0];
   assert.equal(line.querySelector('.ro').textContent, '表示のみ');
   assert.equal(line.querySelector('.tx').classList.contains('kind'), false);
-  assert.equal(line.title, '直線（p.1）: other line');
+  assert.deepEqual(plain(SigK.tipContent.resolve(line)), { name: '直線（p.1）', desc: 'other line' }, '説明の吹き出しは種類（p.N）と本文の先頭行');
+  assert.deepEqual(plain(SigK.tipContent.resolve(rows(shell)[1])), { name: 'ハイライト（p.1）', desc: '' }, '本文が無ければ説明なし');
   assert.equal(rows(shell)[1].querySelector('.tx').classList.contains('kind'), true, '本文が無ければ種類名を灰色で');
   assert.ok(line.querySelector('.ic svg') !== null);
   assert.equal(rows(shell)[2].querySelector('.ic').style.color, 'rgb(140, 233, 154)');

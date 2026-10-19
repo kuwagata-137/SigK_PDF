@@ -49,7 +49,8 @@
     const no = span('sb-no', digits(box.file));
     no.classList.toggle('even', box.file % 2 === 0);
     row.append(no, span('fname', name), span('p', rangeText(box.first, box.last)));
-    row.title = name;
+    // 説明の吹き出し（spec-2-5 J5）。
+    root.SigK.tipContent.text(row, name, '押すと、このファイルの箱へ移ります。');
     return row;
   }
 
@@ -85,7 +86,11 @@
   function renderOutput(plan, src) {
     const settings = split().settings();
     el.folder.textContent = settings.folder ?? '';
-    el.folder.title = settings.folder ?? '';
+    // 出力先のフォルダの説明の吹き出し（spec-2-5 J5）。フォルダが決まっていない間は付けない（空の欄に名前だけを出さない）。
+    if (settings.folder)
+      root.SigK.tipContent.text(el.folder, '出力先のフォルダ', settings.folder);
+    else
+      delete el.folder.dataset.tip;
     el.ruleRadios.seq.checked = settings.rule === 'seq';
     el.ruleRadios.pages.checked = settings.rule === 'pages';
     const first = (rule) => (plan.parts?.length > 0 ? root.SigK.splitPlan.outputNames(src.name, plan.parts, rule)[0] : '');

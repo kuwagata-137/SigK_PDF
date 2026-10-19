@@ -136,7 +136,8 @@
       const button = doc.createElement('button');
       button.type = 'button';
       button.dataset.style = lineStyle;
-      button.title = LINE_STYLE_LABELS[lineStyle];
+      // 説明の吹き出しは文の表の style.*（spec-2-5 J5）。
+      button.dataset.tip = `style.${lineStyle}`;
       button.setAttribute('aria-label', LINE_STYLE_LABELS[lineStyle]);
       if (root.SigK.icons?.has(LINE_STYLE_ICONS[lineStyle]))
         button.append(root.SigK.icons.create(doc, LINE_STYLE_ICONS[lineStyle], { size: 22 }));

@@ -44,6 +44,9 @@
     const name = el.doc.createElement('span');
     name.textContent = button.getAttribute('aria-label');
     row.append(name);
+    // 説明の吹き出しは、道具の段のボタンと同じ文（spec-2-5 J16）。
+    if (button.dataset.tip)
+      row.dataset.tip = button.dataset.tip;
     row.classList.toggle('active', button.classList.contains('active'));
     row.addEventListener('click', (event) => pick(button, { byMouse: event.detail > 0 }));
     return row;

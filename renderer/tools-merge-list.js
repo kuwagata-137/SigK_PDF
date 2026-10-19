@@ -37,7 +37,8 @@
 
   function applyRow(node, row, running) {
     const [box, no, name, pages, range, note, err] = node.children;
-    node.title = row.path ?? row.name;
+    // 説明の吹き出しは（ファイル名, フルパス）。名前の無い帯（新しい帯）はフルパスが無いので名前だけ（spec-2-5 J5）。
+    root.SigK.tipContent.text(node, row.name, row.path ?? '');
     node.classList.toggle('off', !row.checked);
     node.classList.toggle('blocked', row.blocked !== null);
     box.checked = row.checked;
