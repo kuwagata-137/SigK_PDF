@@ -12,7 +12,7 @@ const { applyForCopy } = require('./save-apply.js');
 const { normalizeRotation } = require('./op-pages.js');
 const { PDFDocument, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, insertReader } = require('./pdf-io.js');
 
-const NO_SOURCE = '保存する中身が見つからないので、もう一度やり直してください。';
+const NO_SOURCE = 'PDF の中身が見つからないので、もう一度やり直してください。';
 
 // 元の中身のバイト列。パスがあれば読み、無ければ（名前の無い帯）copies の鍵のバイト列。
 async function readSource({ source, sourceCopy, copies }, fsLike) {

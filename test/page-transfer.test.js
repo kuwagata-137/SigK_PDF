@@ -30,6 +30,17 @@ async function withStrips(t, { taskResults = [], paths = [A, B, C] } = {}) {
 }
 
 const ids = (shell) => shell.SigK.tabs.list().map((tab) => tab.id);
+
+// pdf.js と同じく、getDocument に渡したバイト列の中身を移して空にする（見落としやすい所 2。untitled-strip.test.js と同じ）。
+function detachOnOpen(SigK) {
+  const original = SigK.pdfjs.getDocument;
+  SigK.pdfjs.getDocument = (params) => {
+    const task = original(params);
+    if (params?.data?.buffer !== undefined)
+      structuredClone(params.data.buffer, { transfer: [params.data.buffer] });
+    return task;
+  };
+}
 const planOf = (shell, id) => structuredClone(shell.SigK.tabs.peek(id).plan);
 const bannerText = (shell) => shell.SigK.viewBanner.text();
 
@@ -71,6 +82,7 @@ test('ほかの帯へ写すと写した先だけが変わり、枠と元の選�
   const shell = await withStrips(t, { taskResults: [copied(2)] });
   const a = pickInFirst(shell);
   const [, b] = ids(shell);
+  detachOnOpen(shell.SigK);
 
   const result = await shell.SigK.pageTransfer.copyTo(b, [1, 2], 1);
   await shell.flush();
@@ -83,7 +95,7 @@ test('ほかの帯へ写すと写した先だけが変わり、枠と元の選�
   const target = shell.SigK.tabs.peek(b);
   assert.deepEqual(structuredClone(target.plan).map((page) => page.src ?? `i${page.insert}`), [0, 'i0', 'i1', 1, 2]);
   assert.equal(typeof target.inserts[0].copy, 'string');
-  assert.ok(target.inserts[0].bytes.length > 0, '保存に使うバイト列を持っている');
+  assert.ok(target.inserts[0].bytes.length > 0, '保存に使うバイト列を持っている（pdf.js に渡す前に写してある）');
   assert.deepEqual(planOf(shell, a).map((page) => page.src), [0, 1, 2], '元の帯は変わらない');
   assert.equal(shell.SigK.tabs.activeId(), a, '枠は引き始めた帯のまま');
   assert.deepEqual(structuredClone(shell.SigK.stripSelection.get(a)), [1, 2], '元の選択も残る');

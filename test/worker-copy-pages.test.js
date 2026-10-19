@@ -180,6 +180,6 @@ test('copies に鍵が無い差し込みは、写すことも保存すること�
     });
     assert.equal(saved.error, NOT_FOUND);
     const unnamed = await runSave({ source: null, sourceCopy: 'zz', copies: {}, target: ws.file('x.pdf'), pages: [{ src: 0, rotate: 0 }], makeBackup: false });
-    assert.equal(unnamed.error, '保存する中身が見つからないので、もう一度やり直してください。');
+    assert.equal(unnamed.error, 'PDF の中身が見つからないので、もう一度やり直してください。');
   } finally { ws.cleanup(); }
 });
