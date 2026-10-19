@@ -106,6 +106,7 @@ test('受け口へ落とすと「新しい PDF 1」「新しい PDF 2」がで�
   assert.equal(shell.SigK.tabs.isDirty(created.id), true);
   assert.equal(shell.SigK.viewer.getState().file.folder, 'C:\\work', '保存の窓の既定は引き始めた帯のフォルダ');
   assert.deepEqual(structuredClone(shell.SigK.stripSelection.get(a)), [1, 2], '引き始めた帯の選択は残る');
+  assert.equal(bannerText(shell), '2 ページで、新しい帯「新しい PDF 1」を作りました。', '進み具合の文を残さない');
 
   shell.SigK.tabs.activate(a);
   await shell.SigK.pageTransfer.toNewStrip([1]);
@@ -175,4 +176,18 @@ test('写しを作っている途中に写す先が閉じられたら、どの�
   assert.equal(result.canceled, true);
   assert.deepEqual(planOf(shell, a).map((page) => page.src), [0, 1, 2]);
   assert.deepEqual(planOf(shell, c).map((page) => page.src), [0, 1, 2]);
+});
+
+test('写しを用意している間は通知バーに「ページの写しを用意しています」、中止したら「ページを写すのを中止しました。」', async (t) => {
+  const shell = await withStrips(t);
+  pickInFirst(shell);
+  const [, b] = ids(shell);
+  let finish;
+  shell.window.taskAPI.run = () => new Promise((resolve) => { finish = () => resolve({ canceled: true }); });
+  const pending = shell.SigK.pageTransfer.copyTo(b, [1], 0);
+  await shell.flush();
+  assert.match(bannerText(shell), /^ページの写しを用意しています/);
+  finish();
+  assert.equal((await pending).canceled, true);
+  assert.equal(bannerText(shell), 'ページを写すのを中止しました。');
 });

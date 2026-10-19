@@ -53,8 +53,11 @@
     return { refused: text };
   }
 
+  // 写しを作れなかった・中止したことを知らせる（進み具合の文を残さない）。中止は自分で止めたので赤く塗らない（決定49）。
   function report(built) {
-    if (built.error !== undefined)
+    if (built.canceled === true)
+      banner().show('ページを写すのを中止しました。', { tone: 'info' });
+    else if (built.error !== undefined)
       banner().show(built.error);
     return built;
   }
@@ -140,7 +143,10 @@
     const opened = await tabs().openSource({
       ok: true, path: null, name: `新しい PDF ${untitled}`, size: built.bytes.length, mtimeMs: null, bytes: built.bytes, copy: built.copy, untitled: true, folder,
     });
-    return opened ? { ok: true, tabId: tabs().activeId() } : { error: '新しい帯を開けませんでした。' };
+    if (!opened)
+      return report({ error: '新しい帯を開けませんでした。' });
+    banner().show(`${indices.length} ページで、新しい帯「新しい PDF ${untitled}」を作りました。`, { autoHideMs: 2500, tone: 'info' });
+    return { ok: true, tabId: tabs().activeId() };
   }
 
   const SigK = (root.SigK = root.SigK || {});

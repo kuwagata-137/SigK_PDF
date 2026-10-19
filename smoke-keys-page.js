@@ -161,6 +161,10 @@ const stateScript = `(() => {
         selected: nodes.findIndex((node) => node.classList.contains('sel')),
         unsaved: nodes.map((node) => !node.querySelector('.unsaved').hidden),
         picked: nodes.map((node) => [...node.querySelectorAll('.strip-page')].flatMap((cell, index) => (cell.classList.contains('picked') ? [index] : []))),
+        // ページを引いて落とす（spec-2-5 第 I 章）。帯ごとのページ数・並び（差し込みは i）・ファイルのページの回転・読み戻した書き込みの数と、通知バー。
+        pages: SigK.tabs.list().map((tab) => { const view = SigK.tabs.peek(tab.id); return { name: tab.name, plan: (view?.plan ?? []).map((entry) => entry.src ?? 'i' + entry.insert),
+          rotations: (view?.basePages ?? []).map((base) => base.rotate ?? 0), imported: Object.values(view?.imported ?? {}).reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0) }; }),
+        banner: SigK.viewBanner.text(),
         canvases: document.querySelectorAll('#strips .strip-page canvas').length,
         drawn: thumbs?.drawn ?? null,
         drawing: thumbs?.pending ?? null,
@@ -180,6 +184,7 @@ const stateScript = `(() => {
       selection: SigK.splitSelection.range(SigK.toolsSplitEdit.selection()),
       current: SigK.splitBoardInput.current(),
       parts: SigK.toolsSplit.currentPlan().parts?.map((pages) => pages.length) ?? [],
+      cuts: SigK.toolsSplitEdit.board().cuts,
       canUndo: SigK.toolsSplitEdit.canUndo(),
       zoom: SigK.splitZoom.isOpen() ? SigK.splitZoom.current() : null,
     },

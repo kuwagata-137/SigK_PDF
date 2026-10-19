@@ -33,7 +33,8 @@
       pages,
       inserts: viewer().getInserts(),
       annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations(), { layoutOf: root.SigK.freeTextMetrics.layoutOfEntry }),
-      label: '写す',
+      // 通知バーは「<label>しています」と組む（save.js の showRunning）。
+      label: 'ページの写しを用意',
     });
     if (result?.canceled === true)
       return { canceled: true };

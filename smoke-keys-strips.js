@@ -15,6 +15,7 @@
 // PR-4（ページを引いて落とす。spec-2-5 第 I 章）:
 //   strip-drag:<n>:<p>:<m>:<q|end> … n 番目の帯の p 番目の紙を押して引き、m 番目の帯の q 番目の紙の前（end なら末尾）で離す
 //   strip-drag-new:<n>:<p>         … n 番目の帯の p 番目の紙を押して引き、受け口で離す（新しい帯）
+//   strip-hold:<n>:<p>:<m|new>:<q|end> … 上の 2 つと同じに引いて、離さずに止める（引いている途中の写真を撮るため）
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Input.dispatchMouseEvent の modifiers（Alt=1・Ctrl=2・Meta=4・Shift=8）。
@@ -74,13 +75,14 @@ function create({ numberOf }) {
 
   const stripPart = (ctx, n, inner, innerIndex, label) => centerOf(ctx, label, '#strips .strip', numberOf(n, '帯'), inner, innerIndex);
 
-  // from を押して、少しずつ動かして to で離す（引いて落とす。5px を超えてから引き始める）。
-  async function dragFromTo(ctx, from, to) {
+  // from を押して、少しずつ動かして to で離す（引いて落とす。5px を超えてから引き始める）。hold なら離さない。
+  async function dragFromTo(ctx, from, to, { hold = false } = {}) {
     await mouse(ctx, 'mouseMoved', from);
     await mouse(ctx, 'mousePressed', from, { buttons: 1 });
     for (let step = 1; step <= 6; step += 1)
       await mouse(ctx, 'mouseMoved', [Math.round(from[0] + (to[0] - from[0]) * step / 6), Math.round(from[1] + (to[1] - from[1]) * step / 6)], { buttons: 1 });
-    await mouse(ctx, 'mouseReleased', to);
+    if (!hold)
+      await mouse(ctx, 'mouseReleased', to);
   }
 
   return {
@@ -119,6 +121,13 @@ function create({ numberOf }) {
     'strip-drag-new': async (ctx, [n, p]) => {
       const from = await stripPart(ctx, n, '.strip-page', numberOf(p, '紙'), `${n} 番目の帯の ${p} 番目の紙`);
       await dragFromTo(ctx, from, await centerOf(ctx, '受け口', '#strip-drop', 0));
+    },
+    'strip-hold': async (ctx, [n, p, m, q]) => {
+      const from = await stripPart(ctx, n, '.strip-page', numberOf(p, '紙'), `${n} 番目の帯の ${p} 番目の紙`);
+      const to = m === 'new' ? await centerOf(ctx, '受け口', '#strip-drop', 0) : await ctx.js(gapScript(numberOf(m, '帯'), q));
+      if (to === null)
+        throw new Error(`${m} 番目の帯が無い`);
+      await dragFromTo(ctx, from, to, { hold: true });
     },
     'merge-check': async (ctx, [n]) => click(ctx, await centerOf(ctx, `結合の ${n} 番目の行`, '#merge-list .merge-pick', numberOf(n, '行'), '.cbox', 0)),
   };
