@@ -80,6 +80,8 @@ function create({ numberOf, spanOf }) {
       await click(ctx, point, { clickCount: 2 });
     },
     'split-move': async (ctx, [index, to, q]) => {
+      // 落とす先を測ると見える所までスクロールすることがあるので、先に測ってから押す所を測り、落とす先をもう一度測る。
+      await ctx.js(moveTargetScript(to, q));
       const start = await pointOf(ctx, index);
       const end = await ctx.js(moveTargetScript(to, q));
       if (end === null)
