@@ -12,10 +12,31 @@
 //   strip-page:<n>:<p>[:shift|ctrl]   … n 番目の帯の p 番目（0 始まり）の紙を押す（Shift・Ctrl を押しながら）
 //   strip-dbl:<n>:<p>            … n 番目の帯の p 番目の紙をダブルクリックする
 //   merge-check:<n>              … 右の欄の結合の n 番目の行のチェックボックスを押す
+// PR-4（ページを引いて落とす。spec-2-5 第 I 章）:
+//   strip-drag:<n>:<p>:<m>:<q|end> … n 番目の帯の p 番目の紙を押して引き、m 番目の帯の q 番目の紙の前（end なら末尾）で離す
+//   strip-drag-new:<n>:<p>         … n 番目の帯の p 番目の紙を押して引き、受け口で離す（新しい帯）
+//   strip-hold:<n>:<p>:<m|new>:<q|end> … 上の 2 つと同じに引いて、離さずに止める（引いている途中の写真を撮るため）
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Input.dispatchMouseEvent の modifiers（Alt=1・Ctrl=2・Meta=4・Shift=8）。
 const MODIFIERS = { shift: 8, ctrl: 2 };
+
+// m 番目の帯の q 番目の紙の左の間（q が 'end' なら最後の紙の右）の画面の座標。紙が無ければ帯の紙の列の左端。
+function gapScript(m, q) {
+  return `(() => {
+  const strip = document.querySelectorAll('#strips .strip')[${Number(m)}];
+  if (strip === undefined)
+    return null;
+  const cells = strip.querySelectorAll('.strip-page');
+  const pages = strip.querySelector('.strip-pages').getBoundingClientRect();
+  const end = ${JSON.stringify(String(q))} === 'end';
+  const cell = cells[end ? cells.length - 1 : ${Number.isInteger(Number(q)) ? Number(q) : 0}];
+  if (cell === undefined)
+    return [Math.round(pages.left + 8), Math.round(pages.top + pages.height / 2)];
+  const box = cell.getBoundingClientRect();
+  return [Math.round(end ? box.right + 6 : box.left - 6), Math.round(box.top + box.height / 2)];
+})()`;
+}
 
 // selector に当たる index 番目の要素（inner を渡せば、その中の innerIndex 番目の inner）の真ん中の画面の座標。無い・大きさが 0 なら null。
 function centerScript(selector, index = 0, inner = null, innerIndex = 0) {
@@ -54,6 +75,16 @@ function create({ numberOf }) {
 
   const stripPart = (ctx, n, inner, innerIndex, label) => centerOf(ctx, label, '#strips .strip', numberOf(n, '帯'), inner, innerIndex);
 
+  // from を押して、少しずつ動かして to で離す（引いて落とす。5px を超えてから引き始める）。hold なら離さない。
+  async function dragFromTo(ctx, from, to, { hold = false } = {}) {
+    await mouse(ctx, 'mouseMoved', from);
+    await mouse(ctx, 'mousePressed', from, { buttons: 1 });
+    for (let step = 1; step <= 6; step += 1)
+      await mouse(ctx, 'mouseMoved', [Math.round(from[0] + (to[0] - from[0]) * step / 6), Math.round(from[1] + (to[1] - from[1]) * step / 6)], { buttons: 1 });
+    if (!hold)
+      await mouse(ctx, 'mouseReleased', to);
+  }
+
   return {
     click: async (ctx, [id]) => click(ctx, await centerOf(ctx, `要素 ${id} `, `[id=${JSON.stringify(String(id ?? ''))}]`, 0)),
     'tab-x': async (ctx, [n]) => {
@@ -80,8 +111,26 @@ function create({ numberOf }) {
       await click(ctx, point);
       await click(ctx, point, { clickCount: 2 });
     },
+    'strip-drag': async (ctx, [n, p, m, q]) => {
+      const from = await stripPart(ctx, n, '.strip-page', numberOf(p, '紙'), `${n} 番目の帯の ${p} 番目の紙`);
+      const to = await ctx.js(gapScript(numberOf(m, '帯'), q));
+      if (to === null)
+        throw new Error(`${m} 番目の帯が無い`);
+      await dragFromTo(ctx, from, to);
+    },
+    'strip-drag-new': async (ctx, [n, p]) => {
+      const from = await stripPart(ctx, n, '.strip-page', numberOf(p, '紙'), `${n} 番目の帯の ${p} 番目の紙`);
+      await dragFromTo(ctx, from, await centerOf(ctx, '受け口', '#strip-drop', 0));
+    },
+    'strip-hold': async (ctx, [n, p, m, q]) => {
+      const from = await stripPart(ctx, n, '.strip-page', numberOf(p, '紙'), `${n} 番目の帯の ${p} 番目の紙`);
+      const to = m === 'new' ? await centerOf(ctx, '受け口', '#strip-drop', 0) : await ctx.js(gapScript(numberOf(m, '帯'), q));
+      if (to === null)
+        throw new Error(`${m} 番目の帯が無い`);
+      await dragFromTo(ctx, from, to, { hold: true });
+    },
     'merge-check': async (ctx, [n]) => click(ctx, await centerOf(ctx, `結合の ${n} 番目の行`, '#merge-list .merge-pick', numberOf(n, '行'), '.cbox', 0)),
   };
 }
 
-module.exports = { centerScript, create };
+module.exports = { centerScript, gapScript, create };

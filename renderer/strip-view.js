@@ -187,5 +187,8 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.strips = { init, sync, setShown, schedule, forget: drop, isShown: () => state.shown, rowNode, getState };
+  // 帯の紙の列の並べ方（strip-layout.js の row）。引いて落とす先の計算に使う（strip-drag.js。spec-2-5 確定事項I2〜I4）。
+  const lineOf = (tabId) => state.rows.get(tabId)?.line ?? null;
+
+  SigK.strips = { init, sync, setShown, schedule, forget: drop, isShown: () => state.shown, rowNode, lineOf, getState };
 })(typeof window !== 'undefined' ? window : globalThis);

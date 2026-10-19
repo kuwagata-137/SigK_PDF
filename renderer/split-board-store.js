@@ -81,6 +81,30 @@
       entry.history = next;
   }
 
+  // 今の盤をそのまま board に置き換える（ツールモードの Ctrl+Z・Ctrl+Y で、盤の中で動かす前後の控えを当てる。spec-2-5 I20。tool-history.js の pin）。
+  // 並びのずらし方（G8）では、✂ の直前のページを末尾へ動かすと ✂ が範囲の外へ出て戻らないため。ページ数が違えば何もしない。
+  function put(tabId, view, board) {
+    if (!entries.has(tabId) || board === null || board === undefined)
+      return false;
+    const { history: h } = entryFor(tabId, view);
+    if (h.entries[h.at]?.pageCount !== board.pageCount)
+      return false;
+    set(tabId, { ...h, entries: h.entries.map((entry, index) => (index === h.at ? board : entry)) });
+    return true;
+  }
+
+  // 盤の記録を 1 つ戻す・進める（ツールモードの記録で、盤を広げていない帯の分。spec-2-5 確定事項I6）。direction は 'undo'・'redo'。
+  function step(tabId, view, direction) {
+    if (!entries.has(tabId))
+      return false;
+    const { history: h } = entryFor(tabId, view);
+    const moved = direction === 'undo' ? history().undo(h) : history().redo(h);
+    if (moved === h)
+      return false;
+    set(tabId, moved);
+    return true;
+  }
+
   function forget(tabId) {
     entries.delete(tabId);
   }
@@ -96,7 +120,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.splitBoardStore = {
-    pageKeys, remap, entryFor, set, forget, prune,
+    pageKeys, remap, entryFor, set, put, step, forget, prune,
     ids: () => [...entries.keys()],
     clear: () => entries.clear(),
   };

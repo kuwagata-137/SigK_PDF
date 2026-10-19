@@ -27,9 +27,9 @@
     return view === null || view.doc === undefined ? null : { tabId: src.tabId, name: src.name, view };
   }
 
-  // 帯が替わったら、選択・まとめて分けるの誤り・今のページを外す。
+  // 帯が替わったら、選択・まとめて分けるの誤り・今のページを外す。写した先の帯を一時的に映している間（tabs.withActive）は替わったと見ない（I7）。
   function follow(tabId) {
-    if (tabId === state.tabId)
+    if (tabId === state.tabId || root.SigK.tabs?.isBorrowing?.() === true)
       return;
     state.tabId = tabId;
     state.selection = null;
@@ -74,12 +74,15 @@
       return false;
     }
     store().set(state.tabId, pushed);
+    root.SigK.toolHistory?.record('board', state.tabId);
     changed();
     return true;
   }
 
   const cut = (at) => !locked() && apply(model().cut(board(), at));
   const join = (boxIndex) => !locked() && apply(model().join(board(), boxIndex));
+  // 分け目をまとめて置き直す（盤の中でページを動かしたあと。page-transfer.js。spec-2-5 I20）。
+  const setCuts = (cuts) => !locked() && apply(model().setCuts(board(), cuts));
 
   // 選んだ範囲を 1 つのファイルにする（確定事項C5）。押したあとは選択を外す。
   function makeOne() {
@@ -180,7 +183,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsSplitEdit = {
-    board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
+    board, cut, join, setCuts, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
     skip: () => setSkipped(true),
     unskip: () => setSkipped(false),
     undo: () => step('undo'),

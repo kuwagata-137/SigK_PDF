@@ -8,13 +8,15 @@
   // click より先に来るので、押した瞬間に選び直すと Shift＋クリックが効かなくなる）。なぞり終えたときの click は 1 回捨てる。
   // 帯の画面の端に寄せている間は自動でスクロールする。✂ と［つなげる］の上ではなぞり始めない。
   //
+  // 選んでいる範囲の上で押して引くと、なぞらずに引いて落とす（spec-2-5 確定事項G4。strip-drag.js の begin へ渡す。PR-4 の起草者の判断 I-k）。
+  //
   // なぞる途中の Esc は、なぞる前の選択に戻して止める。document の keydown を Esc の振り分け（viewer-keys.js）より先に登録する
   // （app.js の init の順）ので、preventDefault を見て escape-order.js は何もしない。盤の上のキーは split-board-keys.js。
 
   const DRAG_THRESHOLD = 5;
   const AUTO_SCROLL = Object.freeze({ edge: 36, step: 18, interval: 30 });
 
-  const drag = { pressed: null, startX: 0, startY: 0, active: false, before: null, timer: 0, last: null, swallowClick: false };
+  const drag = { pressed: null, startX: 0, startY: 0, active: false, before: null, timer: 0, last: null, swallowClick: false, transfer: false };
   const state = { current: null };
   let el = null;
 
@@ -69,7 +71,7 @@
 
   function endDrag() {
     stopAutoScroll();
-    Object.assign(drag, { pressed: null, active: false, before: null, last: null });
+    Object.assign(drag, { pressed: null, active: false, before: null, last: null, transfer: false });
   }
 
   // なぞる途中の取りやめ。なぞり始めていれば、なぞる前の選択に戻す。
@@ -91,7 +93,21 @@
     if (page === null)
       return;
     el.scroll.focus?.({ preventScroll: true });
-    Object.assign(drag, { pressed: page, startX: event.clientX, startY: event.clientY, active: false, before: edit().selection() });
+    const held = selection().range(edit().selection());
+    // 引けないとき（開いている途中・保存の途中・ツールの実行中。I21）は、今どおりなぞって範囲を選ぶ。
+    const transfer = held !== null && page >= held.from && page <= held.to && root.SigK.stripDrag !== undefined && root.SigK.stripInput?.isLocked() !== true;
+    Object.assign(drag, { pressed: page, startX: event.clientX, startY: event.clientY, active: false, before: edit().selection(), transfer });
+  }
+
+  // 選んでいる範囲を、盤のある帯（＝枠の帯）のページとして引き始める。
+  function beginTransfer(event) {
+    const held = selection().range(edit().selection());
+    const tabId = root.SigK.tabs.activeId();
+    const indices = Array.from({ length: held.to - held.from + 1 }, (_value, offset) => held.from + offset);
+    const cells = indices.map((page) => el.canvas.querySelector(`.sb-page[data-page="${page}"]`)).filter(Boolean);
+    endDrag();
+    drag.swallowClick = true;
+    root.SigK.stripDrag.begin({ tabId, indices, x: event.clientX, y: event.clientY, cells, canvas: root.SigK.splitThumbs?.canvasOf(held.from) ?? null });
   }
 
   function onPointerMove(event) {
@@ -100,6 +116,10 @@
     if (!drag.active) {
       if (Math.abs(event.clientX - drag.startX) + Math.abs(event.clientY - drag.startY) < DRAG_THRESHOLD)
         return;
+      if (drag.transfer) {
+        beginTransfer(event);
+        return;
+      }
       drag.active = true;
     }
     drag.last = { clientX: event.clientX, clientY: event.clientY };

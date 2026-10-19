@@ -226,6 +226,9 @@
     return {
       kind: 'save',
       source,
+      // 名前の無い帯（source が null）の中身と、帯から写したページは、バイト列を鍵ごとに渡す（spec-2-5 確定事項I4・I5）。
+      sourceCopy: viewer().getState().file?.copy ?? null,
+      copies: viewer().getCopies(),
       pages: viewer().getPlan(),
       inserts: viewer().getInserts(),
       // 新しい形のテキストは画面で決めた行を添える（spec-4b-4a 確定事項I1）。
@@ -235,7 +238,7 @@
       expect,
       mosaics,
       dropBackup,
-      expectSource: mosaics.length > 0 ? signatureOf(viewer().getState().file) : null,
+      expectSource: mosaics.length > 0 && typeof source === 'string' ? signatureOf(viewer().getState().file) : null,
     };
   }
 
@@ -322,6 +325,9 @@
     const view = viewer().getState();
     if (!view.open)
       return { error: '文書が開かれていません。' };
+    // 名前の無い帯（新しい帯）は、上書きする先が無いので名前を付けて保存へ回す（spec-2-5 確定事項I4・D5）。
+    if (view.file?.untitled === true)
+      return saveAs();
     const blocked = warnIfUnsaveable();
     if (blocked !== null)
       return { error: blocked };
@@ -345,6 +351,14 @@
     });
   }
 
+  // 名前を付けて保存の窓の既定。名前の無い帯は、引き始めた帯のファイルと同じフォルダの「新しい PDF 1.pdf」（spec-2-5 PR-4 の起草者の判断 I-h）。
+  function defaultPathFor(file) {
+    if (file?.untitled !== true)
+      return file?.path;
+    const name = `${file.name}.pdf`;
+    return typeof file.folder === 'string' && file.folder !== '' ? `${file.folder}\\${name}` : name;
+  }
+
   // 名前を付けて保存（Ctrl+Shift+S・ツールバーの［名前を付けて保存］）。dirty でなくても押せる（確定事項24）。
   async function saveAsActive() {
     if (isBusy())
@@ -362,7 +376,7 @@
     if (blocked !== null)
       return { error: blocked };
 
-    const picked = await root.pdfAPI.pickSavePath({ defaultPath: view.file.path });
+    const picked = await root.pdfAPI.pickSavePath({ defaultPath: defaultPathFor(view.file) });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')

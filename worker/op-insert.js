@@ -12,10 +12,10 @@
 // だけを受け持つ。
 
 const { normalizeRotation, isInsert } = require('./op-pages.js');
-const { MAX_PIXELS, detectFormat, isSupported, describeFormat, isProgressiveJpeg } = require('./image-format.js');
+const { MAX_PIXELS } = require('./image-format.js');
 const { fitInside, placeImage } = require('./image-page.js');
-const { frameCount } = require('./image-decode.js');
 const { cleanInsertedPage } = require('./inserted-annotations.js');
+const { NOT_FOUND, loadSource, loadInsertSource } = require('./insert-source.js');
 
 const NO_SUCH_IMAGE_PAGE = '差し込む画像にそのページがありません。';
 
@@ -65,53 +65,6 @@ async function copyPdfPage(doc, source, pageIndex, tools) {
   return { ok: true, page };
 }
 
-// 画像のページ数。複数ページを持つのは TIFF だけ（spec-3-2 確定事項24）。
-function imageFrames(kind, bytes) {
-  if (kind === 'png' || kind === 'jpeg')
-    return 1;
-  return frameCount(kind, bytes);
-}
-
-// 差し込む元を1回だけ読む。同じファイルの複数ページを差し込むことがある。
-async function loadSource(path, cache, { readFile, PDFDocument }) {
-  if (cache.has(path))
-    return cache.get(path);
-
-  let bytes;
-  try {
-    bytes = await readFile(path);
-  } catch (error) {
-    cache.set(path, { error: '差し込むファイルを読めませんでした。' });
-    return cache.get(path);
-  }
-
-  const kind = detectFormat(bytes);
-  if (!isSupported(kind)) {
-    cache.set(path, { error: describeFormat(kind) });
-    return cache.get(path);
-  }
-  if (kind === 'jpeg' && isProgressiveJpeg(bytes)) {
-    cache.set(path, { error: 'この JPEG はプログレッシブ形式なので、挿入できません。' });
-    return cache.get(path);
-  }
-
-  let loaded;
-  if (kind === 'pdf') {
-    try {
-      loaded = { ok: true, kind, doc: await PDFDocument.load(bytes, { updateMetadata: false }) };
-    } catch (error) {
-      loaded = { error: '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。' };
-    }
-  } else {
-    const frames = imageFrames(kind, bytes);
-    loaded = frames === 0
-      ? { error: '画像を読み込めませんでした。ファイルが壊れている可能性があります。' }
-      : { ok: true, kind, bytes, frames };
-  }
-  cache.set(path, loaded);
-  return loaded;
-}
-
 // 画像の frame 番目のページを紙に載せる。複数ページの TIFF は spec.page で選ぶ（spec-3-2 確定事項26）。
 async function placeImagePage(doc, loaded, box, frame, tools) {
   const index = Number.isInteger(frame) ? frame : 0;
@@ -121,8 +74,8 @@ async function placeImagePage(doc, loaded, box, frame, tools) {
 }
 
 // plan の `{ insert }` を、insert 番号で引ける pdf-lib のページの配列に変える。
-// 差し込みが1つも無ければ何もしない（読み込みも起こさない）。
-async function prepareInserts(doc, original, plan, inserts, tools, { readFile }) {
+// 差し込みが1つも無ければ何もしない（読み込みも起こさない）。写し（{ copy }）は copies の鍵のバイト列から読む（spec-2-5 確定事項I5）。
+async function prepareInserts(doc, original, plan, inserts, tools, { readFile, copies = {} }) {
   const pages = [];
   if (!Array.isArray(plan))
     return { ok: true, pages };
@@ -134,10 +87,10 @@ async function prepareInserts(doc, original, plan, inserts, tools, { readFile })
       continue;
 
     const spec = inserts?.[entry.insert];
-    if (spec === undefined || typeof spec.path !== 'string')
-      return { error: '差し込むページが見つからないので、もう一度やり直してください。' };
+    if (spec === undefined)
+      return { error: NOT_FOUND };
 
-    const loaded = await loadSource(spec.path, cache, { readFile, PDFDocument: tools.PDFDocument });
+    const loaded = await loadInsertSource(spec, cache, { readFile, copies, PDFDocument: tools.PDFDocument });
     if (loaded.ok !== true)
       return loaded;
 
