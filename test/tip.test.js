@@ -141,6 +141,62 @@ test('キーで移ったフォーカスでは出し、マウスで押して当�
   assert.equal(SigK.tip.isShown(), false);
 });
 
+// ---- PR-5 の点検の直し: キーの印は、フォーカスを動かすキー（Tab・Shift+Tab・矢印）を押したときだけ立てる（J12） ----
+// Alt+Tab で戻ったとき・Ctrl+S や Ctrl+O の窓を閉じたあと・確認の窓を Esc や Enter で閉じたあとに、Chromium はフォーカスのある要素へ
+// focusin を出し直す。Windows ではボタンは押すとフォーカスを持つので、最後に押したボタンに説明の吹き出しが出ていた。
+
+const keyWith = (shell, init) => shell.document.body.dispatchEvent(new shell.window.KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+
+const FOCUS_KEY_CASES = [
+  ['Tab', { key: 'Tab' }, true],
+  ['Shift+Tab', { key: 'Tab', shiftKey: true }, true],
+  ...['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].map((name) => [name, { key: name }, true]),
+  ['Ctrl+S', { key: 's', ctrlKey: true }, false],
+  ['Ctrl+O', { key: 'o', ctrlKey: true }, false],
+  ['Esc', { key: 'Escape' }, false],
+  ['Enter', { key: 'Enter' }, false],
+  ['Alt', { key: 'Alt', altKey: true }, false],
+  // Ctrl+Tab はタブを替えるキーで、フォーカスは動かさない。
+  ['Ctrl+Tab', { key: 'Tab', ctrlKey: true }, false],
+];
+
+for (const [label, init, shows] of FOCUS_KEY_CASES) {
+  test(`${label} を押したあとのフォーカスでは、説明の吹き出しを${shows ? '出す' : '出さない'}（J12）`, async (t) => {
+    const shell = await withShell(t, 'annot');
+    const pen = tipped(shell, '.edit-tool[data-tool="pen"]', 'edit.pen');
+    keyWith(shell, init);
+    pen.focus();
+    await sleep(shell, 60);
+    assert.equal(shell.SigK.tip.isShown(), shows);
+  });
+}
+
+test('Alt を押して窓が非活性になり、戻ってフォーカスが当たり直しても出さない（Alt+Tab。J12）', async (t) => {
+  const shell = await withShell(t, 'annot');
+  const pen = tipped(shell, '.edit-tool[data-tool="pen"]', 'edit.pen');
+  keyWith(shell, { key: 'Alt', altKey: true });
+  shell.window.dispatchEvent(new shell.window.Event('blur'));
+  pen.focus();
+  await sleep(shell, 60);
+  assert.equal(shell.SigK.tip.isShown(), false);
+});
+
+test('Tab を押したあとでも、窓が非活性になったら、戻ったときのフォーカスでは出さない。また Tab で動けば出す（J12）', async (t) => {
+  const shell = await withShell(t, 'annot');
+  const { SigK, window } = shell;
+  const pen = tipped(shell, '.edit-tool[data-tool="pen"]', 'edit.pen');
+  key(shell, 'Tab');
+  window.dispatchEvent(new window.Event('blur'));
+  pen.focus();
+  await sleep(shell, 60);
+  assert.equal(SigK.tip.isShown(), false, '非活性になったらキーの印を外す');
+  pen.blur();
+  key(shell, 'Tab');
+  pen.focus();
+  await sleep(shell, 60);
+  assert.equal(SigK.tip.isShown(), true, 'Tab で動けば出す');
+});
+
 test('キーの無い要素は、キーの行を作らない', async (t) => {
   const shell = await withShell(t);
   over(shell, tipped(shell, '#btn-fit-width', 'bar.fitWidth'));

@@ -52,6 +52,16 @@
     return event.buttons === 0 && event.pointerType !== 'touch' && !samePressed(pressed, node);
   }
 
+  // フォーカスを動かすキー（Tab・Shift+Tab・矢印）。Ctrl・Alt・Meta と一緒のとき（タブを替える Ctrl+Tab など）は数えない。
+  const FOCUS_KEYS = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
+  // keydown の event が、フォーカスを動かすキーか（J12）。このキーのときだけ「最後の入力はキー」の印を立てる。
+  // ほかのキー（Ctrl+S・Ctrl+O・Esc・Enter・Alt など）で立てると、窓を閉じたあと・Alt+Tab で戻ったあとに Chromium がフォーカスのある
+  // ボタンへ出し直す focusin で、最後に押したボタンに説明の吹き出しが出てしまう（Windows ではボタンは押すとフォーカスを持つ）。
+  function movesFocus(event) {
+    return FOCUS_KEYS.has(event.key) && !event.ctrlKey && !event.altKey && !event.metaKey;
+  }
+
   // マウスで入った対象 node で、待たずに出すか。次のどちらかのときだけ（J8）。
   //   ・出ている要素 current の中の子の要素（タブの中の × など）へ入った（入れ子）
   //   ・出ていた説明の吹き出しを「対象から出た」理由で消してから graceMs 以内に入った（last は消した時刻と理由、now は今の時刻）
@@ -70,6 +80,6 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.tipRules = Object.freeze({
-    REASON_OUT, SOURCE_POINTER, SOURCE_FOCUS, targetOf, inside, leaves, samePressed, pressedAfter, canHover, isQuick, stopsOnScroll,
+    REASON_OUT, SOURCE_POINTER, SOURCE_FOCUS, targetOf, inside, leaves, samePressed, pressedAfter, canHover, movesFocus, isQuick, stopsOnScroll,
   });
 })(typeof window !== 'undefined' ? window : globalThis);
