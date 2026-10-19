@@ -62,7 +62,7 @@
     return node.querySelector('[data-tip-anchor]') ?? node;
   }
 
-  // 位置を付けて、出す側（'below'｜'above'）を返す。anchorRect は対象の矩形、viewport は窓の { width, height }。
+  // 位置を付けて、出す側（'below'｜'above'）を返す。anchorRect は対象の矩形、viewport は画面の { width, height }。
   // 測る前に左上へ寄せる（前の位置が右端だと、幅が縮んだまま測ってしまうため）。拡大表示では矩形が小数になるので、
   // left・top・矢印は丸めて付ける（文字がにじまないように）。
   function placeAt(tipEl, anchorRect, viewport) {

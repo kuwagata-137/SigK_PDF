@@ -5,7 +5,7 @@
   // 待たずに出すか・スクロールで止めるかなどの判定は tip-rules.js（どれも tip.js より先に読み込む）。
   //
   //   出す … [data-tip] の要素の上にカーソルを止めて DELAY_MS 待つ。Tab・矢印のキーでフォーカスが移ったときも待つ（J12）。
-  //   消す … 対象から出る・フォーカスが外れる・押す・キー・ホイール・スクロール・窓の大きさが変わる・アプリが非活性になる・
+  //   消す … 対象から出る・フォーカスが外れる・押す・キー・ホイール・スクロール・アプリの窓の大きさが変わる・アプリが非活性になる・
   //          窓（dialog）が開く・モードが変わる（shell.setMode から hide()。J10）。
   //
   // キーで消すときも preventDefault・stopPropagation は呼ばない（Esc のいつもの取りやめを止めない。決定80 ㊸・J6）。
@@ -19,7 +19,7 @@
     shown: false,
     timer: 0,
     pressed: null, // 押した要素。そこから出るまでは出し直さない（J11）
-    keyboard: false, // 最後の入力がフォーカスを動かすキーか（tipRules.movesFocus。ほかのキー・pointerdown・窓の blur で外す。J12）
+    keyboard: false, // 最後の入力がフォーカスを動かすキーか（tipRules.movesFocus。ほかのキー・pointerdown・アプリが非活性になると外す。J12）
     last: { at: -Infinity, reason: null }, // 出ていた説明の吹き出しを消した時刻と理由（J8）
     described: null, // aria-describedby を戻すための控え（tipView.link が返す { node, prev }）
   };

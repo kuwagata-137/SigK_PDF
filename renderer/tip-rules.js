@@ -15,7 +15,7 @@
     return typeof node?.closest === 'function' ? node.closest('[data-tip]') : null;
   }
 
-  // other が node の中（node 自身を含む）か。どちらかが無い（窓の外へ出た）ときは外。
+  // other が node の中（node 自身を含む）か。どちらかが無い（アプリの窓の外へ出た）ときは外。
   function inside(node, other) {
     return node != null && other != null && node.contains(other);
   }
@@ -56,8 +56,8 @@
   const FOCUS_KEYS = new Set(['Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
   // keydown の event が、フォーカスを動かすキーか（J12）。このキーのときだけ「最後の入力はキー」の印を立てる。
-  // ほかのキー（Ctrl+S・Ctrl+O・Esc・Enter・Alt など）で立てると、窓を閉じたあと・Alt+Tab で戻ったあとに Chromium がフォーカスのある
-  // ボタンへ出し直す focusin で、最後に押したボタンに説明の吹き出しが出てしまう（Windows ではボタンは押すとフォーカスを持つ）。
+  // ほかのキー（Ctrl+S・Ctrl+O・Esc・Enter・Alt など）では立てない。Ctrl+S・Ctrl+O で開いた窓や確認の窓を閉じたあと・Alt+Tab で戻ったあとに、
+  // Chromium はフォーカスのあるボタンへ focusin を出し直すので、それで最後に押したボタンに出さないため（Windows ではボタンは押すとフォーカスを持つ）。
   function movesFocus(event) {
     return FOCUS_KEYS.has(event.key) && !event.ctrlKey && !event.altKey && !event.metaKey;
   }
