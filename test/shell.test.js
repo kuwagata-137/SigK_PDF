@@ -297,17 +297,18 @@ test('ツールバーに元に戻す・やり直しが並ぶ（確定事項53）
 // 保存の 2 つは文字で明示する（spec-2-5 確定事項B4。決定80 ⑰㉑。見本 screenshots/strips1-view.png）。どちらも全部のモードに出す。
 // 押せる・押せない・押したときの処理は save.js の SAVE_BUTTONS が受け持つ（ツールモードでも使える。B6）。
 test('ツールバーの先頭に［開く］［上書き保存］［名前を付けて保存］が並び、文書が無ければ保存の 2 つは押せない', async (t) => {
-  const { document } = await withShell(t);
+  const { document, SigK } = await withShell(t);
   const save = document.getElementById('btn-save');
   const saveAs = document.getElementById('btn-save-as');
   const label = (node) => node.textContent.trim();
+  const tipOf = (node) => { const entry = SigK.tipContent.resolve(node); return [node.dataset.tip, entry.name, [...entry.keys]]; };
 
   assert.notEqual(saveAs, null, '［名前を付けて保存］が無い');
   assert.equal(label(save), '上書き保存');
-  assert.equal(save.getAttribute('title'), '上書き保存 (Ctrl+S)');
+  assert.deepEqual(tipOf(save), ['bar.save', '上書き保存', ['Ctrl+S']]);
   assert.equal(save.nextElementSibling, saveAs, '［名前を付けて保存］は［上書き保存］のすぐ右');
   assert.equal(label(saveAs), '名前を付けて保存');
-  assert.equal(saveAs.getAttribute('title'), '名前を付けて保存 (Ctrl+Shift+S)');
+  assert.deepEqual(tipOf(saveAs), ['bar.saveAs', '名前を付けて保存', ['Ctrl+Shift+S']]);
   assert.equal(saveAs.className, 'tb-btn');
   assert.equal(saveAs.querySelector('[data-icon="saveAs"] svg') !== null, true, '［名前を付けて保存］の絵が描かれていない');
   assert.equal(saveAs.nextElementSibling.className, 'tb-sep');
@@ -453,7 +454,7 @@ test('サイドパネルの開閉を覚える', async (t) => {
 // 閉じたままだった（2026-10-08 の直し。見本 screenshots/phase4b-7b-panel-strip.png）。閉じている間だけ、レールと表示域の
 // 間に閉じたパネルの細い欄を出し、その「＞」で開く。
 test('サイドパネルを閉じると閉じたパネルの細い欄が出て、その「＞」で開き、開いたことを覚える', async (t) => {
-  const { document, flush, uiCalls, savedUi } = await withShell(t);
+  const { document, SigK, flush, uiCalls, savedUi } = await withShell(t);
   await flush();
   const html = document.documentElement;
   const strip = document.getElementById('side-strip');
@@ -468,7 +469,8 @@ test('サイドパネルを閉じると閉じたパネルの細い欄が出て�
   assert.equal(expand.closest('#side-strip'), strip);
   assert.equal(expand.tagName, 'BUTTON');
   assert.equal(expand.getAttribute('type'), 'button');
-  assert.equal(expand.getAttribute('title'), 'サイドパネルを開く');
+  assert.equal(expand.dataset.tip, 'side.expand');
+  assert.equal(SigK.tipContent.resolve(expand).name, 'パネルを開く');
   assert.equal(expand.getAttribute('aria-label'), 'サイドパネルを開く');
   // 「＞」は閉じる「＜」と同じ大きさ・太さで描く。
   const svg = expand.querySelector('svg');

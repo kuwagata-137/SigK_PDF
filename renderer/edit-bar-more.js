@@ -42,7 +42,7 @@
     if (icon !== null)
       row.append(icon.cloneNode(true));
     const name = el.doc.createElement('span');
-    name.textContent = button.title;
+    name.textContent = button.getAttribute('aria-label');
     row.append(name);
     row.classList.toggle('active', button.classList.contains('active'));
     row.addEventListener('click', (event) => pick(button, { byMouse: event.detail > 0 }));

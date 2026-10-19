@@ -72,6 +72,7 @@
       const item = el.doc.createElement('div');
       item.className = 'tool-item';
       item.dataset.tool = tool.id;
+      item.dataset.tip = `tools.${tool.id}`;
       item.setAttribute('role', 'button');
       item.tabIndex = 0;
       if (root.SigK.icons?.has(tool.icon))

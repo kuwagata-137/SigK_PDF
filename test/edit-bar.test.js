@@ -21,7 +21,7 @@ function pressed(document) {
 }
 
 test('道具の段は、キーボードで押せるボタンに名前とアイコンを添え、段は道具の並びとして読み上げる', async (t) => {
-  const { document } = await withShell(t);
+  const { document, SigK } = await withShell(t);
   const bar = document.getElementById('edit-bar');
   assert.equal(bar.getAttribute('role'), 'toolbar');
   assert.equal(bar.getAttribute('aria-label'), '書き込みの道具');
@@ -31,9 +31,11 @@ test('道具の段は、キーボードで押せるボタンに名前とアイ�
   for (const button of bar.querySelectorAll('.edit-tool')) {
     assert.equal(button.tagName, 'BUTTON');
     assert.equal(button.type, 'button');
-    assert.equal(button.getAttribute('aria-label'), button.title);
-    assert.equal(button.nextElementSibling.textContent, button.title);
-    assert.ok(button.querySelector('svg') !== null, `${button.title} のアイコン`);
+    // 名前は説明の吹き出しの文の表（data-tip の鍵）から引く。今までの title は無い（spec-2-5 J3）。
+    const name = SigK.tipContent.resolve(button).name;
+    assert.equal(button.getAttribute('aria-label'), name);
+    assert.equal(button.nextElementSibling.textContent, name);
+    assert.ok(button.querySelector('svg') !== null, `${name} のアイコン`);
   }
 });
 
