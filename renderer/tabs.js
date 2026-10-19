@@ -73,6 +73,9 @@
       return root.SigK.viewer?.isDirty() === true;
     if (tab.session === null || tab.session === undefined)
       return false;
+    // 名前の無い帯（新しい帯）は、ファイルになるまでいつも保存していない（spec-2-5 確定事項I4。viewer.isDirty と同じ）。
+    if (tab.session.file?.untitled === true)
+      return true;
     // 保存したあとは「保存した並びと同じか」で決める（spec-1-6 確定事項27）。
     // 注釈の編集も同じ（spec-4-1 確定事項19）。
     const saved = tab.session.savedPlan
@@ -421,6 +424,28 @@
     return true;
   }
 
+  // 映すタブを一時的に id にして fn を同期で呼び、元のタブへ戻す（spec-2-5 確定事項I7）。ツールモードで、枠の帯（＝映しているタブ）を
+  // 替えずに、写した先の帯のページ編集を記録する・戻すのに使う。描き直し（帯・✂ の盤）は戻してから 1 回だけ。戻り値は fn の戻り値。
+  function withActive(id, fn) {
+    const tab = find(id);
+    if (tab === null)
+      return undefined;
+    if (id === state.activeId) {
+      const result = fn();
+      render();
+      return result;
+    }
+    const previous = stash();
+    restore(tab);
+    try {
+      return fn();
+    } finally {
+      stash();
+      restore(find(previous));
+      render();
+    }
+  }
+
   // 未保存があるときだけ確認を挟む（確定事項56）。
   //
   // 戻り値は boolean か Promise<boolean> になる。確認が要らない場合まで
@@ -570,6 +595,7 @@
     openViaDialog,
     runOpenCommand,
     activate,
+    withActive,
     closeTab,
     forceCloseTab,
     rename,

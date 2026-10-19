@@ -142,7 +142,8 @@
   // 呼び出し側（insert.js）が `{ insert: <番号>, rotate: 0 }` として並びへ入れる。
   //
   // entries は { path, page, size, doc } の並び。1つの PDF から複数ページを
-  // 差し込むと、同じ doc を指す控えが複数できる。
+  // 差し込むと、同じ doc を指す控えが複数できる。帯のページの写し（spec-2-5 確定事項I5）は path が null で、
+  // { copy: 鍵, bytes } を持つ（bytes は pdf.js に渡す前に写しておいたもの。保存のときワーカーへ渡す）。
   function addInserts(entries) {
     const first = state.inserts.length;
     state.inserts.push(...entries);
@@ -155,9 +156,22 @@
     return state.sizes.map((size) => ({ width: size.width, height: size.height }));
   }
 
-  // 保存のときワーカーへ渡す形。pdf.js の文書は渡さない（IPC を越えられない）。
+  // 保存のときワーカーへ渡す形。pdf.js の文書は渡さない（IPC を越えられない）。写しはバイト列も渡さず、鍵だけ（バイト列は getCopies）。
   function getInserts() {
-    return state.inserts.map(({ path, page, size }) => ({ path, page, size }));
+    return state.inserts.map(({ path, copy, page, size }) => (typeof copy === 'string' ? { copy, page, size } : { path, page, size }));
+  }
+
+  // 写しのバイト列を鍵ごとに 1 回（spec-2-5 確定事項I5）。今の並びにある差し込みの分と、名前の無い帯ならその中身。保存のときワーカーへ渡す。
+  function getCopies() {
+    const copies = {};
+    for (const page of state.plan) {
+      const entry = Number.isInteger(page?.insert) ? state.inserts[page.insert] : undefined;
+      if (typeof entry?.copy === 'string')
+        copies[entry.copy] = entry.bytes;
+    }
+    if (typeof state.file?.copy === 'string')
+      copies[state.file.copy] = state.file.bytes;
+    return copies;
   }
 
   // 元ファイルのページ数。plan が初期値と一致するか（＝未保存か）を
@@ -189,6 +203,9 @@
   function isDirty() {
     if (state.doc === null)
       return false;
+    // 名前の無い帯（新しい帯）は、ファイルになるまでいつも保存していない（spec-2-5 確定事項I4）。
+    if (state.file?.untitled === true)
+      return true;
     return !root.SigK.pagePlan.samePlan(state.plan, state.savedPlan)
       || !annotationState().sameAnnots(state.annots, state.savedAnnots);
   }
@@ -801,6 +818,8 @@
     const token = state.token;
     setMessage('読み込んでいます…');
 
+    // 名前の無い帯の中身は、保存のときワーカーへ渡すので、pdf.js が中身を移して空にする前に写しておく（spec-2-5 確定事項I4）。
+    const untitled = source.untitled === true ? { untitled: true, copy: source.copy, bytes: source.bytes.slice(), folder: source.folder ?? null } : {};
     try {
       const task = root.SigK.pdfjs.getDocument({ data: source.bytes });
       // パスワードを聞く口は getDocument() の**直後**に代入する（確定事項66）。
@@ -823,6 +842,7 @@
         // パスワードを聞いて開いた文書は保存できない（確定事項12・70）。
         // 閲覧・検索・印刷・ページ編集はできる。
         encrypted: encrypted.asked,
+        ...untitled,
       };
       state.basePages = sizes;
       // 開いた時点の plan は 0..N-1 の連番である（確定事項5）。編集していない
@@ -1014,6 +1034,7 @@
     openCanceled,
     addInserts,
     getInserts,
+    getCopies,
     getSizes,
     isDirty,
     markSaved,
