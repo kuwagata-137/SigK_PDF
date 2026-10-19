@@ -26,6 +26,19 @@
     return get(tabId);
   }
 
+  // 選んだページを置き換える（同じ帯で動かしたあと、動かしたページを選んだままにする。spec-2-5 PR-4 の起草者の判断 I-g）。
+  // plan はそのタブの今の並び（並びが変わったら外す控え）。
+  function set(tabId, indices, plan) {
+    byTab.set(tabId, { selection: [...indices], anchor: indices[0] ?? null, plan });
+    notify(tabId);
+    return get(tabId);
+  }
+
+  // 全部のページを選ぶ（ツールモードの Ctrl+A。spec-2-5 確定事項I9）。
+  function selectAll(tabId, count, plan) {
+    return set(tabId, Array.from({ length: count }, (_value, index) => index), plan);
+  }
+
   function clear(tabId) {
     if ((byTab.get(tabId)?.selection.length ?? 0) === 0)
       return false;
@@ -71,5 +84,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.stripSelection = { get, click, clear, forget, escape, onPlanChanged, onChange, hasAny };
+  SigK.stripSelection = { get, click, set, selectAll, clear, forget, escape, onPlanChanged, onChange, hasAny };
 })(typeof window !== 'undefined' ? window : globalThis);
