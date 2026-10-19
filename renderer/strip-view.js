@@ -49,6 +49,8 @@
     const failed = view === null || view.doc === undefined;
     rowParts().updateHead(row.node, {
       no: index + 1, name: tab.name, path: tab.path, pages: failed ? 0 : view.sizes.length, encrypted: view?.file?.encrypted === true,
+      // 名前の無い帯（新しい帯）は、フロッピーとファイル名の説明の吹き出しを替える（spec-2-5 J14）。
+      untitled: view?.file?.untitled === true,
       // 「変換する画像」の帯に枠があるときは、PDF の帯に枠を付けない（spec-2-5 確定事項H7）。
       failed, dirty: tabs.isDirty(tab.id), first: index === 0, last: index === count - 1, selected: tab.active && root.SigK.imageStrip?.hasFrame() !== true,
     });

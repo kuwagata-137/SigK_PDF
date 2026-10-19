@@ -1,6 +1,6 @@
 /* 説明の吹き出し（#tip。spec-2-5 J1・J9・J13。見本 _mockup_strips2.html の .tip の値）。DOM は tip-view.js、出す・消すは tip.js。
    最前面（popover="manual"）に出すので、popover の既定の枠・余白・地の色・中央寄せ（inset:0・margin:auto）を消す。
-   セレクターは #tip で始める（.tip だけだと、✂ の盤の .sb-cut .tip と取り違えるため）。
+   セレクターは #tip で始める（.tip だけだと、ほかの部品の同じ名前の class と取り違えるため。前は ✂ の盤に .sb-cut .tip があった）。
    長いファイルの場所（フルパス）も幅の上限の中で折り返すように、どこでも折り返せるようにする（overflow-wrap）。 */
 
 #tip{position:fixed; inset:auto; margin:0; border:0; z-index:1000; max-width:280px; background:#1c2430; color:#fff; border-radius:8px; padding:9px 12px 10px; box-shadow:0 8px 22px rgba(16,24,40,.28); font-size:12px; line-height:1.65; overflow:visible; overflow-wrap:anywhere; pointer-events:none}

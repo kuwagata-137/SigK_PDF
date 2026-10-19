@@ -49,8 +49,8 @@ const runButton = (shell) => shell.document.getElementById('convert-run');
 const bannerText = (shell) => shell.document.getElementById('view-banner').textContent;
 const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
 const exampleText = (shell) => shell.document.getElementById('convert-example').textContent;
-// 画像にカーソルを当てると出る説明（前の一覧の列「画素数・形式・この紙」を移した。spec-2-5 確定事項H5）。
-const titleOf = (shell, index) => rowNodes(shell)[index].title;
+// 画像にカーソルを当てると出る説明の吹き出しの説明（前の一覧の列「画素数・形式・この紙」を移した。spec-2-5 確定事項H5・J5）。
+const tipDescOf = (shell, index) => shell.SigK.tipContent.resolve(rowNodes(shell)[index]).desc;
 const noteText = (shell) => shell.document.getElementById('image-strip-note').textContent;
 const radio = (shell, name, value) => shell.document.querySelector(`input[name="convert-${name}"][value="${value}"]`);
 
@@ -84,8 +84,8 @@ test('受け口の［ファイルを選ぶ…］は PDF と画像を選べ、画
   assert.deepEqual(plain(SigK.tabs.list().map((tab) => tab.path)), [PDF]);
   assert.deepEqual(rows(shell).map((row) => [row.kind, row.width, row.height]), [['jpeg', 600, 900], ['png', 1200, 800]]);
   assert.equal(rowNodes(shell).length, 2);
-  assert.match(titleOf(shell, 0), /600×900・JPEG/);
-  assert.match(titleOf(shell, 1), /1200×800・PNG/);
+  assert.match(tipDescOf(shell, 0), /600×900・JPEG/);
+  assert.match(tipDescOf(shell, 1), /1200×800・PNG/);
   assert.equal(doc.getElementById('convert-state').hidden, true);
   assert.equal(SigK.toolsConvert.canRun(), true);
 });
@@ -361,7 +361,7 @@ test('用紙・向き・余白を変えると、画像の説明の「この紙�
   await SigK.toolsConvert.addPaths([A, B]);
 
   // 既定は A4・自動・標準。横長は横、縦長は縦。
-  const papers = () => [0, 1].map((index) => titleOf(shell, index).split('この紙: ')[1]);
+  const papers = () => [0, 1].map((index) => tipDescOf(shell, index).split('この紙: ')[1]);
   assert.deepEqual(papers(), ['A4 横', 'A4 縦']);
 
   pick(shell, 'orient', 'portrait');
@@ -388,7 +388,7 @@ test('「画像に合わせる」では向きと余白を押せなくし、紙�
   pick(shell, 'paper', 'image');
   assert.equal(radio(shell, 'orient', 'portrait').disabled, true);
   assert.equal(radio(shell, 'margin', 'none').disabled, true);
-  assert.deepEqual([0, 1].map((index) => titleOf(shell, index).split('この紙: ')[1]), ['1200×800 pt', '64×64 pt']);
+  assert.deepEqual([0, 1].map((index) => tipDescOf(shell, index).split('この紙: ')[1]), ['1200×800 pt', '64×64 pt']);
   assert.deepEqual(plain(SigK.toolsConvert.currentPlan().pages[1]), [{
     page: { width: 64, height: 64 },
     box: { x: 0, y: 0, width: 64, height: 64 },
@@ -725,8 +725,8 @@ test('TIFF の画像には「N ページ」の札と説明が付き、出力の�
   await SigK.toolsConvert.addPaths([SCAN, A]);
   assert.equal(rowNodes(shell)[0].querySelector('.img-pages').textContent, '3 ページ');
   assert.equal(rowNodes(shell)[1].querySelector('.img-pages'), null, '1ページなら札を出さない');
-  assert.match(titleOf(shell, 0), /1200×800・TIFF・3 ページ\nこの紙: A4 横/, '「この紙」は先頭ページ');
-  assert.match(titleOf(shell, 1), /1200×800・PNG\n/);
+  assert.match(tipDescOf(shell, 0), /1200×800・TIFF・3 ページ\nこの紙: A4 横/, '「この紙」は先頭ページ');
+  assert.match(tipDescOf(shell, 1), /1200×800・PNG\n/);
   assert.match(exampleText(shell), /scan\.pdf（4 ページ）/);
   assert.equal(plain(SigK.toolsConvert.currentPlan().totalPages), 4);
 

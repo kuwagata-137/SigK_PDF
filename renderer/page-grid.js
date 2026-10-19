@@ -129,12 +129,14 @@
 
     const tools = el.doc.createElement('div');
     tools.className = 'thumb-tools';
-    for (const [tool, icon, title] of THUMB_TOOLS) {
+    // 説明の吹き出しは文の表の thumb.*（spec-2-5 J16）。絵だけなので、読み上げの名前（aria-label）を付ける（J3）。
+    for (const [tool, icon, label] of THUMB_TOOLS) {
       const button = el.doc.createElement('button');
       button.type = 'button';
       button.className = 'thumb-tool';
       button.dataset.tool = tool;
-      button.title = title;
+      button.dataset.tip = `thumb.${tool}`;
+      button.setAttribute('aria-label', label);
       if (tool === 'delete')
         button.classList.add('danger');
       button.append(root.SigK.icons.create(el.doc, icon, { size: 16, strokeWidth: 1.9 }));

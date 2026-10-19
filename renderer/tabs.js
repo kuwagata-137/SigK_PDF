@@ -177,15 +177,20 @@
       classes.push('failed');
     node.className = classes.join(' ');
     node.dataset.tabId = String(tab.id);
-    node.title = tab.path ?? tab.name;
+    // 説明の吹き出し（spec-2-5 J5）は名前とフルパス。名前の無いタブ（新しい帯）はまだ場所が無いので、その旨を出す。
+    const untitled = peek(tab.id)?.file?.untitled === true;
+    root.SigK.tipContent.text(node, tab.name, untitled ? 'まだファイルになっていない新しい PDF です。' : tab.path ?? tab.name);
 
     const name = el.doc.createElement('span');
     name.className = 'name';
     name.textContent = tab.name;
 
+    // × と未保存の点は絵だけなので、読み上げの名前（aria-label）を付ける（J3）。
     const close = el.doc.createElement('span');
     close.className = 'x';
-    close.title = 'このタブを閉じる';
+    close.dataset.tip = 'tab.close';
+    close.setAttribute('role', 'button');
+    close.setAttribute('aria-label', 'タブを閉じる');
     close.replaceChildren(root.SigK.icons.create(el.doc, 'close', { size: 11, strokeWidth: 2 }));
 
     // 未保存の点（確定事項49）。CSS は Phase 0 からあったが、dirty になる
@@ -193,7 +198,9 @@
     if (isTabDirty(tab)) {
       const dot = el.doc.createElement('span');
       dot.className = 'dirty';
-      dot.title = '編集内容が保存されていません';
+      dot.dataset.tip = 'tab.dirty';
+      dot.setAttribute('role', 'img');
+      dot.setAttribute('aria-label', '保存していない変更あり');
       node.replaceChildren(dot, name, close);
       return node;
     }
