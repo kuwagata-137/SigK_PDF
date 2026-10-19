@@ -9,10 +9,14 @@
   //     .strip-pages（横にスクロール）> .strip-page[data-page](.picked) > .sheet（canvas）＋ .cap
   //     p.strip-note（開けなかった理由）
 
+  // フロッピーの名前。名前の無い帯（新しい帯）では名前を付けて保存になる（説明の吹き出しの strip.save・strip.saveAs の名前と同じ）。
+  const SAVE_LABEL = '上書き保存';
+  const SAVE_AS_LABEL = '名前を付けて保存';
+
   const BUTTONS = Object.freeze([
     { act: 'up', icon: 'chevronUp', label: '上へ' },
     { act: 'down', icon: 'chevronDown', label: '下へ' },
-    { act: 'save', icon: 'floppy', label: '上書き保存' },
+    { act: 'save', icon: 'floppy', label: SAVE_LABEL },
     { act: 'close', icon: 'close', label: '閉じる' },
   ]);
 
@@ -83,9 +87,10 @@
     setDisabled(head.querySelector('[data-act="up"]'), info.first);
     setDisabled(head.querySelector('[data-act="down"]'), info.last);
     // 開けなかった帯は保存できない（PR-2 の起草者の判断）。変更の無い帯は押しても何もしない。
-    // フロッピーの説明の吹き出しは帯のファイル名を文に入れ、名前の無い帯では名前を付けて保存の文にする（J14）。
+    // フロッピーの説明の吹き出しは帯のファイル名を文に入れ、名前の無い帯では名前を付けて保存の文にする（J14）。読み上げの名前もそろえる。
     const save = head.querySelector('[data-act="save"]');
     save.dataset.tip = info.untitled ? 'strip.saveAs' : 'strip.save';
+    save.setAttribute('aria-label', info.untitled ? SAVE_AS_LABEL : SAVE_LABEL);
     save.dataset.tipFile = info.name;
     setDisabled(save, info.failed);
   }
@@ -167,5 +172,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.stripRow = { BUTTONS, create, updateHead, syncPages, pagesOf, sheetAt, putCanvas, place, contentOf, sameContent, markPicked, showNote };
+  SigK.stripRow = { BUTTONS, UNTITLED_DESC, create, updateHead, syncPages, pagesOf, sheetAt, putCanvas, place, contentOf, sameContent, markPicked, showNote };
 })(typeof window !== 'undefined' ? window : globalThis);

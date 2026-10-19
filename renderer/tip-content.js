@@ -55,11 +55,20 @@
     return node;
   }
 
+  // 要素から説明の吹き出しを外す（data-tip・data-tip-name・data-tip-desc をまとめて消す）。node を返す。
+  // 出す文が無くなった要素に、前の名前と説明を残さないため（出力先のフォルダが空になったときなど）。
+  function clear(node) {
+    delete node.dataset.tip;
+    delete node.dataset.tipName;
+    delete node.dataset.tipDesc;
+    return node;
+  }
+
   // 足してある鍵の一覧（text を含む）。
   function keyList() {
     return [...table.keys()];
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.tipContent = { add, resolve, text, keyList };
+  SigK.tipContent = { add, resolve, text, clear, keyList };
 })(typeof window !== 'undefined' ? window : globalThis);

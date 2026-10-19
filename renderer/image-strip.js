@@ -56,17 +56,19 @@
   function itemOf(row, problem) {
     const item = node('div', 'img-item');
     item.dataset.id = row.id;
+    // 画像の名前。説明の吹き出し・× の読み上げ・名札で同じものを使う。
+    const name = row.name || row.path.split(/[\\/]/).pop();
     // 説明の吹き出しは、ファイル名と、フルパス・画素数・形式・この紙（spec-2-5 J5）。× は文の表の image.remove。
-    root.SigK.tipContent.text(item, row.name || row.path.split(/[\\/]/).pop(), notes().describe(row));
+    root.SigK.tipContent.text(item, name, notes().describe(row));
     item.classList.toggle('bad', problem !== null);
     const off = node('button', 'img-x');
     off.type = 'button';
     off.tabIndex = -1;
     off.dataset.tip = 'image.remove';
-    off.setAttribute('aria-label', `「${row.name}」を外す`);
+    off.setAttribute('aria-label', `「${name}」を外す`);
     if (root.SigK.icons?.has('close'))
       off.append(root.SigK.icons.create(el.doc, 'close', { size: 11, strokeWidth: 2.2 }));
-    item.append(thumbOf(row), off, node('span', 'cap', row.name));
+    item.append(thumbOf(row), off, node('span', 'cap', name));
     return item;
   }
 

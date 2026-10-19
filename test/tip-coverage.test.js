@@ -88,14 +88,39 @@ test('今の aria-label は変えない（読み上げの名前と使い方の�
   assert.equal(doc.getElementById('image-strip-clear').getAttribute('aria-label'), 'すべて外す');
 });
 
+// 要素に title を付ける書き方を、ソースの文字から拾う。窓の題（doc.title）と、=== などの比べは拾わない。
+// setAttribute はどの引用符でも拾う。Object.assign は、行をまたいで { title: … } を渡す形も拾う（「;」までの中に title: がある）。
+function titleSetters(source) {
+  const lines = source.split('\n')
+    .filter((line) => (/\.title\s*=[^=]/.test(line) && !/\bdoc\.title\s*=/.test(line)) || /setAttribute\(\s*['"`]title['"`]/.test(line));
+  const assigns = source.match(/Object\.assign\([^;]*?\btitle\s*:/g) ?? [];
+  return [...lines, ...assigns].map((text) => text.trim());
+}
+
+test('title を付ける書き方を拾う関数は、代入・setAttribute（どの引用符も）・Object.assign を拾い、窓の題と比べは拾わない', () => {
+  const source = [
+    "node.title = 'a';",
+    'node.setAttribute("title", name);',
+    "node.setAttribute('title', name);",
+    'Object.assign(button, {',
+    "  type: 'button',",
+    '  title: label,',
+    '});',
+    'el.doc.title = `${name} — SigK PDF`;',
+    'if (row.title === name)',
+    "const entry = { title: 'x' };",
+  ].join('\n');
+  assert.deepEqual(titleSetters(source), [
+    "node.title = 'a';", 'node.setAttribute("title", name);', "node.setAttribute('title', name);", "Object.assign(button, {\n  type: 'button',\n  title:",
+  ]);
+});
+
 // renderer の JS が要素に title を付けていないこと（決定80 ㊷）。窓の題（tabs.js の el.doc.title）は要素の説明ではないので除く。
 // JS が作る要素を画面に出して照らすのは test/tip-coverage-screen.test.js。
 test('renderer の JS は、要素に title を付けない（窓の題 doc.title は除く）', () => {
   const RENDERER = path.resolve(__dirname, '..', 'renderer');
-  const bad = fs.readdirSync(RENDERER).filter((name) => name.endsWith('.js')).flatMap((file) => fs.readFileSync(path.join(RENDERER, file), 'utf8')
-    .split('\n')
-    .filter((line) => (/\.title\s*=[^=]/.test(line) && !/\bdoc\.title\s*=/.test(line)) || /setAttribute\(\s*'title'/.test(line))
-    .map((line) => `${file}: ${line.trim()}`));
+  const bad = fs.readdirSync(RENDERER).filter((name) => name.endsWith('.js'))
+    .flatMap((file) => titleSetters(fs.readFileSync(path.join(RENDERER, file), 'utf8')).map((text) => `${file}: ${text}`));
   assert.deepEqual(bad, []);
 });
 

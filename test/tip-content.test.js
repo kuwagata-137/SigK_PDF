@@ -113,6 +113,18 @@ test('text() は鍵と名前と説明を付け、説明が空なら説明の欄�
   assert.equal('tipDesc' in n.dataset, false);
   assert.deepEqual(tipContent.resolve(n), { name: 'b.pdf', desc: '' });
 });
+
+test('clear() は鍵と名前と説明をまとめて消し、node を返す。消したあとは resolve が null', () => {
+  const n = { dataset: { other: 'x' } };
+  tipContent.text(n, 'a.pdf', 'C:\\x\\a.pdf');
+  assert.equal(tipContent.clear(n), n);
+  assert.deepEqual(n.dataset, { other: 'x' }, '説明の吹き出しのものだけを消す');
+  assert.equal(tipContent.resolve(n), null);
+  assert.equal(tipContent.clear(n), n, '付いていなくても投げない');
+  n.dataset.tip = 'bar.open';
+  tipContent.clear(n);
+  assert.equal('tip' in n.dataset, false, '文の表の鍵も消す');
+});
 test('知らない鍵・鍵の無い要素は null。同じ鍵を 2 度足すと投げる', () => {
   assert.equal(tipContent.resolve(node('nope')), null);
   assert.equal(tipContent.resolve({ dataset: {} }), null);

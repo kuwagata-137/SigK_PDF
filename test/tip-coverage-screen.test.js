@@ -127,10 +127,14 @@ async function walkEdit(shell, at) {
   await at('編集（注釈一覧）', ['#annot-rows .annot-row']);
 }
 
-test('どのモードとツールでも、画面の要素に title が無く、data-tip の要素はどれも説明を持つ', async (t) => {
+// 文字を打つ欄（J17。ページ番号・検索の欄・範囲の欄など）。説明の吹き出しを出さない。
+const TEXT_FIELDS = 'input:not([type]), input[type="text"], input[type="number"], input[type="search"], textarea, [contenteditable="true"]';
+
+test('どのモードとツールでも、画面の要素に title が無く、data-tip の要素はどれも説明を持ち、文字を打つ欄には出ない（J17）', async (t) => {
   const problems = await walk(t, ({ SigK, document }) => [
     ...[...document.body.querySelectorAll('[title]')].map((node) => `title が残る ${short(node)}`),
     ...[...document.querySelectorAll('[data-tip]')].filter((node) => !SigK.tipContent.resolve(node)?.name).map((node) => `名前を引けない ${short(node)}`),
+    ...[...document.querySelectorAll(TEXT_FIELDS)].filter((node) => SigK.tipRules.targetOf(node) !== null).map((node) => `文字を打つ欄に出る ${short(node)}`),
   ]);
   assert.deepEqual(problems, []);
 });
@@ -159,15 +163,22 @@ test('アイコンだけの data-tip の要素は aria-label を持つ', async (
     assert.ok([...seen].some((name) => name.split(' ').includes(className)), `${className} を見ていない`);
 });
 
-// 所ごとに控える要素。鍵 text の要素は { name, desc }、ほかは鍵（文の表の鍵）で控える。
+// 所ごとに控える要素。選ぶ式だけなら、鍵 text の要素は { name, desc }、ほかは鍵（文の表の鍵）で控える。
+// [選ぶ式, 読み方] なら、読み方で読んだ値を控える。
+const ariaLabel = (node) => node.getAttribute('aria-label');
 const FACTS = {
   '閲覧（文書なし）': { recent: '#view-recent .recent-item' },
   '閲覧（タブ 2 枚）': { tabs: '#tabbar .tab', close: '#tabbar .tab .x' },
-  'ページ編集（保存していない変更あり）': { thumb: '#thumbs .thumb[data-page="1"] .thumb-tool', dirty: '#tabbar .tab .dirty' },
+  'ページ編集（保存していない変更あり）': {
+    thumb: '#thumbs .thumb[data-page="1"] .thumb-tool', thumbLabel: ['#thumbs .thumb[data-page="1"] .thumb-tool', ariaLabel], dirty: '#tabbar .tab .dirty',
+  },
   '編集（四角）': { style: '#props-style button[data-style]' },
-  'ツール（merge）': { strip: '#strips .strip .strip-head .strip-btn', fname: '#strips .strip .fname', merge: '#merge-list .merge-pick' },
+  'ツール（merge）': { strip: '#strips .strip .strip-head .strip-btn', fname: '#strips .strip .fname', merge: '#merge-list .merge-pick .fname' },
   'ツール（split）': { file: '#split-files .sb-file', folder: '#split-folder', cut: '#split-board-canvas .sb-cut' },
-  'ツール（convert）': { image: '#image-strip .img-item', off: '#image-strip .img-x' },
+  'ツール（convert）': {
+    image: '#image-strip .img-item', off: '#image-strip .img-x',
+    names: ['#image-strip .img-item', (node) => [node.querySelector('.img-x').getAttribute('aria-label'), node.querySelector('.cap').textContent]],
+  },
   'ツール（toImage）': { folder: '#toimage-folder' },
   'ツール（watermark）': { color: '#wm-colors .swatch' },
 };
@@ -176,14 +187,19 @@ test('JS が作る要素の説明の吹き出しは、文の表の鍵か、フ�
   const seen = {};
   await walk(t, ({ SigK, document }, label) => {
     const tipOf = (node) => (node.dataset.tip === 'text' ? plain(SigK.tipContent.resolve(node)) : node.dataset.tip);
-    const facts = Object.entries(FACTS[label] ?? {}).map(([name, selector]) => [name, [...document.querySelectorAll(selector)].map(tipOf)]);
+    const facts = Object.entries(FACTS[label] ?? {}).map(([name, fact]) => {
+      const [selector, read] = Array.isArray(fact) ? fact : [fact, tipOf];
+      return [name, [...document.querySelectorAll(selector)].map(read)];
+    });
     seen[label] = Object.fromEntries(facts);
     return [];
   });
   const file = (name, desc) => ({ name, desc });
   assert.deepEqual(seen['閲覧（文書なし）'], { recent: [file('a.pdf', A)] });
   assert.deepEqual(seen['閲覧（タブ 2 枚）'], { tabs: [file('a.pdf', A), file('b.pdf', B)], close: ['tab.close', 'tab.close'] });
-  assert.deepEqual(seen['ページ編集（保存していない変更あり）'], { thumb: ['thumb.rotateLeft', 'thumb.rotateRight', 'thumb.delete'], dirty: ['tab.dirty'] });
+  assert.deepEqual(seen['ページ編集（保存していない変更あり）'], {
+    thumb: ['thumb.rotateLeft', 'thumb.rotateRight', 'thumb.delete'], thumbLabel: ['左に回す', '右に回す', 'このページを削除'], dirty: ['tab.dirty'],
+  }, 'サムネイルの上の 3 つの読み上げの名前は、説明の吹き出しの名前（J16 の呼び名）');
   assert.deepEqual(seen['編集（四角）'], { style: ['style.solid', 'style.dashed', 'style.cloudy'] });
   const buttons = ['strip.up', 'strip.down', 'strip.save', 'strip.close'];
   assert.deepEqual(seen['ツール（merge）'], { strip: [...buttons, ...buttons], fname: [file('a.pdf', A), file('b.pdf', B)], merge: [file('a.pdf', A), file('b.pdf', B)] });
@@ -194,6 +210,7 @@ test('JS が作る要素の説明の吹き出しは、文の表の鍵か、フ�
   assert.equal(image.name, 'p.png');
   assert.match(image.desc, /^C:\\photo\\p\.png\n1200×800・PNG\nこの紙: /);
   assert.deepEqual(seen['ツール（convert）'].off, ['image.remove']);
+  assert.deepEqual(seen['ツール（convert）'].names, [['「p.png」を外す', 'p.png']], '画像の名前は、説明の吹き出し・× の読み上げ・名札で同じ');
   assert.deepEqual(seen['ツール（toImage）'], { folder: [file('出力先のフォルダ', 'C:\\work')] });
   assert.deepEqual(seen['ツール（watermark）'], { color: ['灰', '赤', '青', '黒'].map((name) => file(name, '')) });
 });
@@ -240,18 +257,22 @@ test('名前の無い帯のフロッピーは名前を付けて保存の文、�
 
   assert.equal(floppy().dataset.tip, 'strip.saveAs');
   assert.equal(tip(floppy()).name, '名前を付けて保存');
+  assert.equal(floppy().getAttribute('aria-label'), '名前を付けて保存', '読み上げの名前も説明の吹き出しの名前にそろえる');
   assert.deepEqual(tip(head().querySelector('.fname')), { name: '新しい PDF 1', desc: 'まだファイルになっていない新しい帯です。' });
   assert.deepEqual(tip(tab()), { name: '新しい PDF 1', desc: 'まだファイルになっていない新しい PDF です。' });
-  assert.deepEqual(tip(document.querySelector(`#merge-list .merge-pick[data-tab-id="${id}"]`)), { name: '新しい PDF 1', desc: '' }, '結合の欄の行はフルパスが無いので名前だけ');
+  const mergeName = () => document.querySelector(`#merge-list .merge-pick[data-tab-id="${id}"] .fname`);
+  assert.deepEqual(tip(mergeName()), { name: '新しい PDF 1', desc: 'まだファイルになっていない新しい帯です。' }, '結合の欄のファイル名は帯と同じ説明');
 
   await SigK.save.saveActive();
   await settle(shell);
   assert.equal(SigK.tabs.isDirty(id), false, '保存すると普通の帯になる');
   assert.equal(floppy().dataset.tip, 'strip.save');
+  assert.equal(floppy().getAttribute('aria-label'), '上書き保存');
   assert.deepEqual(tip(floppy()), {
     name: '上書き保存', desc: 'この帯のファイル（新しい PDF 1.pdf）に、今の変更を書き込みます。元の中身は「新しい PDF 1.pdf.bak」として残ります。',
     keys: ['Ctrl+S'], keysNote: '選んでいる帯',
   });
   assert.deepEqual(tip(head().querySelector('.fname')), { name: '新しい PDF 1.pdf', desc: SAVED });
   assert.deepEqual(tip(tab()), { name: '新しい PDF 1.pdf', desc: SAVED });
+  assert.deepEqual(tip(mergeName()), { name: '新しい PDF 1.pdf', desc: SAVED });
 });

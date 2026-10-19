@@ -98,6 +98,19 @@ test('選んでいる帯が対象になり、ページ数・寸法・フォル�
   assert.equal(shell.pdfjs.documents.length, 1, 'タブの文書の寸法を使い、ファイルを開き直さない');
 });
 
+test('出力先のフォルダの説明の吹き出しはフォルダのパス。帯を閉じてフォルダが無くなると、名前と説明もまとめて外す（spec-2-5 J5）', async (t) => {
+  const shell = await createToImageShell(t);
+  const { document: doc, SigK } = shell;
+  const folder = doc.getElementById('toimage-folder');
+  assert.deepEqual(Object.keys(folder.dataset), [], '帯が無ければフォルダが無く、説明の吹き出しも付けない');
+  await openTab(shell, A);
+  assert.deepEqual(plain(SigK.tipContent.resolve(folder)), { name: '出力先のフォルダ', desc: 'C:\\work' });
+  await SigK.tabs.closeTab(SigK.tabs.activeId());
+  await shell.flush();
+  assert.equal(folder.textContent, '');
+  assert.deepEqual(Object.keys(folder.dataset), [], 'data-tip・data-tip-name・data-tip-desc を残さない');
+});
+
 test('帯を押して選び直すと対象が替わる', async (t) => {
   const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
