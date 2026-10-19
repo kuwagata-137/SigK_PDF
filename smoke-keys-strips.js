@@ -16,6 +16,9 @@
 //   strip-drag:<n>:<p>:<m>:<q|end> … n 番目の帯の p 番目の紙を押して引き、m 番目の帯の q 番目の紙の前（end なら末尾）で離す
 //   strip-drag-new:<n>:<p>         … n 番目の帯の p 番目の紙を押して引き、受け口で離す（新しい帯）
 //   strip-hold:<n>:<p>:<m|new>:<q|end> … 上の 2 つと同じに引いて、離さずに止める（引いている途中の写真を撮るため）
+// PR-5（説明の吹き出し。spec-2-5 第 J 章）。どちらも押さずに、カーソルを載せるだけ（mouseMoved だけを送る）:
+//   hover:<id>             … その id の要素の真ん中へカーソルを動かす
+//   strip-hover:<n>:<act>  … n 番目の帯の見出しのボタン（.strip-btn[data-act="<act>"]）の真ん中へカーソルを動かす
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // Input.dispatchMouseEvent の modifiers（Alt=1・Ctrl=2・Meta=4・Shift=8）。
@@ -72,6 +75,10 @@ function create({ numberOf }) {
     await mouse(ctx, 'mousePressed', point, { buttons: 1, clickCount, modifiers });
     await mouse(ctx, 'mouseReleased', point, { clickCount, modifiers });
   }
+
+  // カーソルを載せるだけ。button は none にする（left のままだと、Chromium は左ボタンを押したまま動かしたと受け取り、
+  // pointerover の buttons が 1 になって、説明の吹き出しが「押したまま」と見て待たない。spec-2-5 J11）。
+  const hover = (ctx, point) => mouse(ctx, 'mouseMoved', point, { button: 'none' });
 
   const stripPart = (ctx, n, inner, innerIndex, label) => centerOf(ctx, label, '#strips .strip', numberOf(n, '帯'), inner, innerIndex);
 
@@ -130,6 +137,8 @@ function create({ numberOf }) {
       await dragFromTo(ctx, from, to, { hold: true });
     },
     'merge-check': async (ctx, [n]) => click(ctx, await centerOf(ctx, `結合の ${n} 番目の行`, '#merge-list .merge-pick', numberOf(n, '行'), '.cbox', 0)),
+    hover: async (ctx, [id]) => hover(ctx, await centerOf(ctx, `要素 ${id} `, `[id=${JSON.stringify(String(id ?? ''))}]`, 0)),
+    'strip-hover': async (ctx, [n, act]) => hover(ctx, await stripPart(ctx, n, `.strip-btn[data-act="${String(act ?? '')}"]`, 0, `${n} 番目の帯の ${act} `)),
   };
 }
 

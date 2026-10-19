@@ -111,3 +111,15 @@ test('文書を開いていなくてもツールモードに入れる', async (t
   assert.equal(shell.SigK.viewer.getState().open, false);
   assert.equal(shell.document.getElementById('tools-view').hidden, false);
 });
+
+// ツールの一覧の行は、title の代わりに data-tip（鍵 tools.<ツールの id>）で説明の吹き出しを出す（spec-2-5 J2・J3）。
+test('ツールの一覧の行は、title が無く、ツールの id の鍵の data-tip で、名前を文の表から引ける', async (t) => {
+  const shell = await createShell();
+  t.after(() => shell.cleanup());
+  const { document: doc, SigK } = shell;
+  SigK.shell.setMode(doc, 'tools');
+  const items = [...doc.querySelectorAll('#tools-list .tool-item')];
+  assert.deepEqual(items.map((item) => item.dataset.tip), ['tools.merge', 'tools.split', 'tools.convert', 'tools.toImage', 'tools.watermark', 'tools.flatten']);
+  assert.deepEqual(items.map((item) => SigK.tipContent.resolve(item).name), ['結合', '分割', '画像→PDF', 'PDF→画像', '透かし', 'フラット化']);
+  assert.deepEqual(items.map((item) => item.hasAttribute('title')), items.map(() => false));
+});

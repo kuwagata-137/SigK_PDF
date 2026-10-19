@@ -82,15 +82,12 @@
 .sb-cut::before{content:''; position:absolute; top:3px; bottom:23px; left:50%; border-left:2px dashed transparent}
 .sb-cut:hover::before,.sb-cut:focus-visible::before{border-left-color:var(--primary)}
 .sb-cut:hover .s,.sb-cut:focus-visible .s{background:var(--primary); color:#fff; position:relative; z-index:1}
-.sb-cut .tip{display:none; position:absolute; left:50%; transform:translateX(-50%); background:#1c2430; color:#fff; font-size:11px; padding:3px 7px; border-radius:5px; white-space:nowrap; z-index:3}
-.sb-cut:hover .tip{display:block}
 /* 実行中（確定事項C12）。✂ と［つなげる］を押せない色にし、指を当てても光らせない。 */
 .sb-join[aria-disabled="true"]{opacity:.45; cursor:default}
 .sb-join[aria-disabled="true"]:hover{background:var(--surface)}
 .sb-cut[aria-disabled="true"]{opacity:.45; cursor:default}
 .sb-cut[aria-disabled="true"]:hover::before{border-left-color:transparent}
 .sb-cut[aria-disabled="true"]:hover .s{background:none; color:inherit}
-.sb-cut[aria-disabled="true"]:hover .tip{display:none}
 
 /* ── 右の欄 ── */
 .sb-card{position:relative; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:12px 14px 14px; flex:0 0 auto}

@@ -18,7 +18,7 @@
   // 選ぶ窓を開いている間は、もう一度押しても開かない。
   let picking = false;
 
-  // フォルダーを短く見せる（見本 screenshots/strips2-empty.png の「C:\Users\…\書類」）。元のパスは行の説明（title）に残す。
+  // フォルダーを短く見せる（見本 screenshots/strips2-empty.png の「C:\Users\…\書類」）。元のパスは行の説明の吹き出しに残す。
   function shortFolder(filePath) {
     const parts = String(filePath).split(/[\\/]/).slice(0, -1);
     return parts.length <= 3 ? parts.join('\\') : [parts[0], parts[1], '…', parts.at(-1)].join('\\');
@@ -29,7 +29,8 @@
     row.type = 'button';
     row.className = 'row';
     row.dataset.path = entry.path;
-    row.title = entry.path;
+    // 説明の吹き出しは（ファイル名, フルパス）（spec-2-5 J5）。
+    root.SigK.tipContent.text(row, entry.name, entry.path);
     const name = el.doc.createElement('span');
     name.className = 'n';
     name.textContent = entry.name;

@@ -46,7 +46,9 @@ test('ツールバーの右端（印刷の右）に「？」のボタンがあ�
   assert.equal(button.previousElementSibling.id, 'btn-print');
   assert.equal(button.nextElementSibling, null);
   assert.equal(button.className, 'tb-btn icon');
-  assert.equal(button.title, '使い方 (F1)');
+  assert.equal(button.dataset.tip, 'bar.help');
+  const entry = shell.SigK.tipContent.resolve(button);
+  assert.deepEqual([entry.name, [...entry.keys]], ['使い方', ['F1']]);
   assert.equal(button.getAttribute('aria-label'), '使い方');
   assert.equal(button.getAttribute('aria-disabled'), null);
   assert.ok(shell.SigK.icons.has('help'));

@@ -188,6 +188,10 @@ const stateScript = `(() => {
       canUndo: SigK.toolsSplitEdit.canUndo(),
       zoom: SigK.splitZoom.isOpen() ? SigK.splitZoom.current() : null,
     },
+    // 説明の吹き出し（spec-2-5 第 J 章）。出ているか・鍵（SigK.tip.getState）と、出ていれば名前・全文・出す側・最前面（popover）か・矩形。
+    tip: (() => { const el = document.getElementById('tip'); const on = el !== null && !el.hidden; const open = (() => { try { return el?.matches(':popover-open') ?? null; } catch { return null; } })();
+      return { ...(SigK.tip?.getState?.() ?? { shown: null, key: null }), name: on ? el.querySelector('.tip-name')?.textContent ?? null : null, text: on ? el.textContent : null, side: on ? el.dataset.side ?? null : null,
+        popover: on ? open : null, box: on ? ['left', 'top', 'width', 'height'].map((key) => Math.round(el.getBoundingClientRect()[key])) : null }; })(),
   };
 })()`;
 

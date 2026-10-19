@@ -106,7 +106,7 @@ test('線種のボタンで次に付ける線種を選び、押している印�
   SigK.annotate.setTool('shape');
   SigK.annotate.setShapeKind('circle');
   const button = (lineStyle) => document.querySelector(`#props-style button[data-style="${lineStyle}"]`);
-  assert.deepEqual([button('solid').getAttribute('aria-pressed'), button('solid').title], ['true', '実線']);
+  assert.deepEqual([button('solid').getAttribute('aria-pressed'), button('solid').dataset.tip, SigK.tipContent.resolve(button('solid')).name], ['true', 'style.solid', '実線']);
   button('cloudy').dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
   assert.equal(SigK.annotate.lineStyleOf('circle'), 'cloudy');
   assert.equal(button('cloudy').classList.contains('on'), true);

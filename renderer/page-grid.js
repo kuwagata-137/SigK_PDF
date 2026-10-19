@@ -113,8 +113,8 @@
   // 紙の上に出す小さなボタン（確定事項52。docs/04 4-2）。ページモードのときだけ
   // 置く。紙の幅が 100px 前後になるため、文字は入れずアイコンだけにする。
   const THUMB_TOOLS = [
-    ['rotateLeft', 'rotateLeft', '左に90度回す'],
-    ['rotateRight', 'rotateRight', '右に90度回す'],
+    ['rotateLeft', 'rotateLeft', '左に回す'],
+    ['rotateRight', 'rotateRight', '右に回す'],
     ['delete', 'trash', 'このページを削除'],
   ];
 
@@ -129,12 +129,14 @@
 
     const tools = el.doc.createElement('div');
     tools.className = 'thumb-tools';
-    for (const [tool, icon, title] of THUMB_TOOLS) {
+    // 説明の吹き出しは文の表の thumb.*（spec-2-5 J16）。絵だけなので、読み上げの名前（aria-label）を、説明の吹き出しと同じ名前で付ける（J3）。
+    for (const [tool, icon, label] of THUMB_TOOLS) {
       const button = el.doc.createElement('button');
       button.type = 'button';
       button.className = 'thumb-tool';
       button.dataset.tool = tool;
-      button.title = title;
+      button.dataset.tip = `thumb.${tool}`;
+      button.setAttribute('aria-label', label);
       if (tool === 'delete')
         button.classList.add('danger');
       button.append(root.SigK.icons.create(el.doc, icon, { size: 16, strokeWidth: 1.9 }));

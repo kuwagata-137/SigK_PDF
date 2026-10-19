@@ -5,15 +5,23 @@
   //
   //   .strip[data-tab-id](.sel)(.failed)
   //     .strip-head … .strip-no・.fname・.count・.unsaved・.spacer・button.strip-btn[data-act=up|down|save|close]
+  //       （ボタンとファイル名には説明の吹き出しの data-tip。spec-2-5 J2・J5・J14）
   //     .strip-pages（横にスクロール）> .strip-page[data-page](.picked) > .sheet（canvas）＋ .cap
   //     p.strip-note（開けなかった理由）
+
+  // フロッピーの名前。名前の無い帯（新しい帯）では名前を付けて保存になる（説明の吹き出しの strip.save・strip.saveAs の名前と同じ）。
+  const SAVE_LABEL = '上書き保存';
+  const SAVE_AS_LABEL = '名前を付けて保存';
 
   const BUTTONS = Object.freeze([
     { act: 'up', icon: 'chevronUp', label: '上へ' },
     { act: 'down', icon: 'chevronDown', label: '下へ' },
-    { act: 'save', icon: 'floppy', label: '上書き保存' },
+    { act: 'save', icon: 'floppy', label: SAVE_LABEL },
     { act: 'close', icon: 'close', label: '閉じる' },
   ]);
+
+  // 名前の無い帯（新しい帯）のファイル名の説明の吹き出し。まだ場所（フルパス）が無いので、その旨を出す。
+  const UNTITLED_DESC = 'まだファイルになっていない新しい帯です。';
 
   function span(doc, className, text = '') {
     const node = doc.createElement('span');
@@ -27,7 +35,7 @@
     node.type = 'button';
     node.className = 'strip-btn';
     node.dataset.act = act;
-    node.title = label;
+    node.dataset.tip = `strip.${act}`;
     node.setAttribute('aria-label', label);
     // 帯そのものと同じく、キーボードのフォーカスは当てない（PR-2 の起草者の判断。帯の操作はマウス）。
     node.tabIndex = -1;
@@ -62,7 +70,7 @@
       node.removeAttribute('aria-disabled');
   }
 
-  // info は { no, name, pages, encrypted, failed, dirty, first, last, selected }。
+  // info は { no, name, path, untitled, pages, encrypted, failed, dirty, first, last, selected }。
   function updateHead(node, info) {
     const head = node.firstElementChild;
     node.classList.toggle('sel', info.selected);
@@ -71,7 +79,7 @@
     head.querySelector('.strip-no').textContent = String(info.no);
     const name = head.querySelector('.fname');
     name.textContent = info.name;
-    name.title = info.path ?? info.name;
+    root.SigK.tipContent.text(name, info.name, info.untitled ? UNTITLED_DESC : info.path ?? info.name);
     const count = head.querySelector('.count');
     count.textContent = info.failed ? '' : `${info.pages} ページ${info.encrypted ? '・パスワード付き' : ''}`;
     count.hidden = info.failed;
@@ -79,7 +87,12 @@
     setDisabled(head.querySelector('[data-act="up"]'), info.first);
     setDisabled(head.querySelector('[data-act="down"]'), info.last);
     // 開けなかった帯は保存できない（PR-2 の起草者の判断）。変更の無い帯は押しても何もしない。
-    setDisabled(head.querySelector('[data-act="save"]'), info.failed);
+    // フロッピーの説明の吹き出しは帯のファイル名を文に入れ、名前の無い帯では名前を付けて保存の文にする（J14）。読み上げの名前もそろえる。
+    const save = head.querySelector('[data-act="save"]');
+    save.dataset.tip = info.untitled ? 'strip.saveAs' : 'strip.save';
+    save.setAttribute('aria-label', info.untitled ? SAVE_AS_LABEL : SAVE_LABEL);
+    save.dataset.tipFile = info.name;
+    setDisabled(save, info.failed);
   }
 
   // 紙のセルを sheets（strip-layout の row の sheets）の数と大きさにそろえる。描いた canvas は大きさが同じなら残す。
@@ -159,5 +172,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.stripRow = { BUTTONS, create, updateHead, syncPages, pagesOf, sheetAt, putCanvas, place, contentOf, sameContent, markPicked, showNote };
+  SigK.stripRow = { BUTTONS, UNTITLED_DESC, create, updateHead, syncPages, pagesOf, sheetAt, putCanvas, place, contentOf, sameContent, markPicked, showNote };
 })(typeof window !== 'undefined' ? window : globalThis);

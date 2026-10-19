@@ -96,7 +96,11 @@
     }
 
     el.folder.textContent = settings.folder ?? '';
-    el.folder.title = settings.folder ?? '';
+    // 出力先のフォルダの説明の吹き出し（spec-2-5 J5）。フォルダが決まっていない間は外す（空の欄に名前だけを出さない）。
+    if (settings.folder)
+      root.SigK.tipContent.text(el.folder, '出力先のフォルダ', settings.folder);
+    else
+      root.SigK.tipContent.clear(el.folder);
     renderExample(plan);
     el.summary.textContent = summaryFor(plan);
 

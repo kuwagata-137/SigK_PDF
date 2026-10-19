@@ -45,7 +45,7 @@ function pressedOf(shell) {
 }
 
 test('ツールバーの［元に戻す］［やり直し］の右に、区切りと［選択］［ハンド］の 1 組が並ぶ（K2）', async (t) => {
-  const { document } = await withShell(t, { open: false });
+  const { document, SigK } = await withShell(t, { open: false });
   const group = document.getElementById('pointer-mode');
 
   assert.notEqual(group, null, '1 組が無い');
@@ -56,16 +56,17 @@ test('ツールバーの［元に戻す］［やり直し］の右に、区切�
   assert.equal(group.previousElementSibling.previousElementSibling.id, 'btn-redo');
   assert.equal(group.nextElementSibling.className, 'tb-sep');
   assert.deepEqual([...group.children].map((el) => el.id), ['btn-pointer-select', 'btn-pointer-hand']);
-  for (const [id, icon, label, title] of [
-    ['btn-pointer-select', 'pointerSelect', '選択', '選択（紙の文字を選ぶ。左と右の同時押しで切り替え）'],
-    ['btn-pointer-hand', 'hand', 'ハンド', 'ハンド（紙を引いて表示を動かす。左と右の同時押しで切り替え）'],
+  for (const [id, icon, label, tip] of [
+    ['btn-pointer-select', 'pointerSelect', '選択', 'bar.pointerSelect'],
+    ['btn-pointer-hand', 'hand', 'ハンド', 'bar.pointerHand'],
   ]) {
     const node = document.getElementById(id);
     assert.equal(node.className.split(' ')[0], 'tb-btn', id);
     assert.equal(node.getAttribute('role'), 'button', id);
     assert.equal(node.textContent.trim(), label, id);
     assert.equal(node.getAttribute('aria-label'), label, id);
-    assert.equal(node.getAttribute('title'), title, id);
+    assert.equal(node.dataset.tip, tip, id);
+    assert.equal(SigK.tipContent.resolve(node).name, label, id);
     assert.notEqual(node.querySelector(`[data-icon="${icon}"] svg`), null, `${id} の絵が描かれていない`);
   }
 });

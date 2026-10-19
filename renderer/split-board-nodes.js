@@ -89,20 +89,20 @@
   }
 
   // index のページの前で切る ✂（確定事項C1）。キーでは押さない（確定事項G3。範囲を選んで［この範囲を 1 つのファイルにする］で同じことができる）。
+  // 説明は説明の吹き出し（文の表の split.cut）で出し、位置の基準は ✂ の丸（spec-2-5 J15。前の小さな黒い札はやめた）。
   function cut(doc, rect, cell, index) {
     const button = place(node(doc, 'button', 'sb-cut'), rect);
     button.type = 'button';
     button.tabIndex = -1;
     button.dataset.cut = String(index);
-    button.title = 'ここで分ける';
+    button.dataset.tip = 'split.cut';
     button.setAttribute('aria-label', 'ここで分ける');
     button.style.paddingTop = `${3 + cell.sheetHeight / 2 - 11}px`;
     const scissors = node(doc, 'span', 's');
+    scissors.dataset.tipAnchor = '';
     if (root.SigK.icons?.has('cut'))
       scissors.append(root.SigK.icons.create(doc, 'cut', { size: 15, strokeWidth: 1.9 }));
-    const tip = node(doc, 'span', 'tip', 'ここで分ける');
-    tip.style.top = `${3 + cell.sheetHeight / 2 + 16}px`;
-    button.append(scissors, tip);
+    button.append(scissors);
     return button;
   }
 

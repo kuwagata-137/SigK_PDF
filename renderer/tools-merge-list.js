@@ -37,7 +37,6 @@
 
   function applyRow(node, row, running) {
     const [box, no, name, pages, range, note, err] = node.children;
-    node.title = row.path ?? row.name;
     node.classList.toggle('off', !row.checked);
     node.classList.toggle('blocked', row.blocked !== null);
     box.checked = row.checked;
@@ -45,6 +44,9 @@
     box.setAttribute('aria-label', `「${row.name}」を結合に入れる`);
     no.textContent = String(row.no);
     name.textContent = row.name;
+    // 説明の吹き出しはファイル名にだけ付ける（行に付けると、範囲の欄の上でも出てしまう。J17）。（ファイル名, フルパス）で、
+    // 名前の無い帯（新しい帯）は帯の見出しと同じ説明（spec-2-5 J5）。
+    root.SigK.tipContent.text(name, row.name, typeof row.path === 'string' ? row.path : root.SigK.stripRow.UNTITLED_DESC);
     pages.textContent = row.pageCount === null ? '' : `${row.pageCount} p`;
     range.hidden = row.blocked !== null;
     range.disabled = !row.checked || running;

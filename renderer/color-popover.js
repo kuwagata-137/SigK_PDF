@@ -36,8 +36,10 @@
     cell.type = 'button';
     cell.dataset.color = color;
     cell.style.background = color;
-    cell.title = palette().labelOf(color);
-    cell.setAttribute('aria-label', cell.title);
+    // 説明の吹き出しは色の名前だけ（spec-2-5 J5）。読み上げの名前も同じ。
+    const label = palette().labelOf(color);
+    root.SigK.tipContent.text(cell, label);
+    cell.setAttribute('aria-label', label);
     cell.addEventListener('click', () => pick(color));
     return cell;
   }

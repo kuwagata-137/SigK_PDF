@@ -1,0 +1,14 @@
+/* 説明の吹き出し（#tip。spec-2-5 J1・J9・J13。見本 _mockup_strips2.html の .tip の値）。DOM は tip-view.js、出す・消すは tip.js。
+   最前面（popover="manual"）に出すので、popover の既定の枠・余白・地の色・中央寄せ（inset:0・margin:auto）を消す。
+   セレクターは #tip で始める（.tip だけだと、ほかの部品の同じ名前の class と取り違えるため。前は ✂ の盤に .sb-cut .tip があった）。
+   長いファイルの場所（フルパス）も幅の上限の中で折り返すように、どこでも折り返せるようにする（overflow-wrap）。 */
+
+#tip{position:fixed; inset:auto; margin:0; border:0; z-index:1000; max-width:280px; background:#1c2430; color:#fff; border-radius:8px; padding:9px 12px 10px; box-shadow:0 8px 22px rgba(16,24,40,.28); font-size:12px; line-height:1.65; overflow:visible; overflow-wrap:anywhere; pointer-events:none}
+#tip[hidden]{display:none}
+/* 矢印（12px の四角を 45° 回す）。--arrow は対象の中心を指す横の位置（tip-place.js の arrowX）。 */
+#tip::before{content:""; position:absolute; top:-6px; left:calc(var(--arrow, 24px) - 6px); width:12px; height:12px; background:#1c2430; transform:rotate(45deg)}
+#tip[data-side="above"]::before{top:auto; bottom:-6px}
+#tip .tip-name{display:block; font-size:12.5px; font-weight:700; margin-bottom:2px}
+#tip .tip-desc{display:block; white-space:pre-line}
+#tip .tip-keys{margin-top:5px; color:#b7c2d0; font-size:11.5px}
+#tip kbd{display:inline-block; font:inherit; color:#fff; border:1px solid #5d6878; border-radius:4px; padding:0 5px; margin:0 1px}

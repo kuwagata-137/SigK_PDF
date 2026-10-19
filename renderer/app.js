@@ -86,6 +86,7 @@
     root.SigK.log.install(win);
     fillIcons(doc);
     root.SigK.shell.init(doc);
+    root.SigK.tip.init(doc, win);
     // 通知バーはビューアが失敗を伝えるのに使う。先に用意しておく。
     root.SigK.viewBanner.init(doc, win);
     // サムネイルはビューアが文書を開いたときに差し替えられる。先に用意しておく。

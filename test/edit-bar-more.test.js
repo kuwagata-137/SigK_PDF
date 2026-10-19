@@ -54,6 +54,14 @@ test('「その他」を押すと隠した道具の一覧が開き、もう一�
   assert.equal(SigK.editBarMore.isOpen(), false);
 });
 
+test('一覧の行は、道具の段のボタンと同じ説明の吹き出しを出す（spec-2-5 J16）', async (t) => {
+  const { document, SigK } = await withHidden(t);
+  document.getElementById('edit-more').click();
+  const rows = [...document.querySelectorAll('#edit-more-menu .edit-more-row')];
+  assert.deepEqual(rows.map((row) => row.dataset.tip), ['edit.eraser', 'edit.note', 'edit.mosaic', 'edit.trim']);
+  assert.equal(SigK.tipContent.resolve(rows[0]).name, '消しゴム');
+});
+
 test('一覧の道具を押すとその道具を持ち、一覧は閉じて「その他」が青くなる。もう一度選ぶと離す', async (t) => {
   const { document, SigK } = await withHidden(t);
   const button = document.getElementById('edit-more');

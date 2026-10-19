@@ -12,7 +12,8 @@ test('道具の段のテキストの隣に「吹き出し」のボタンがあ�
   const { SigK, document } = shell;
   const button = document.querySelector('#edit-bar .edit-tool[data-tool="callout"]');
   assert.ok(button !== null);
-  assert.equal(button.getAttribute('title'), '吹き出し');
+  assert.equal(button.dataset.tip, 'edit.callout');
+  assert.equal(SigK.tipContent.resolve(button).name, '吹き出し');
   assert.equal(button.closest('.edit-item').previousElementSibling.querySelector('[data-tool]').dataset.tool, 'text');
   assert.ok(SigK.icons.has('callout'));
   button.click();

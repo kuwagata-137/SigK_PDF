@@ -17,7 +17,8 @@
     node.type = 'button';
     node.className = 'recent-item';
     node.dataset.path = entry.path;
-    node.title = entry.path;
+    // 説明の吹き出しは（ファイル名, フルパス）（spec-2-5 J5）。
+    root.SigK.tipContent.text(node, entry.name, entry.path);
 
     const name = el.doc.createElement('span');
     name.className = 'recent-name';

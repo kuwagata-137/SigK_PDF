@@ -111,7 +111,7 @@ test('帯が 1 本も無いときは大きな受け口に最近使ったファ�
   assert.equal(rows.length, 5);
   assert.equal(rows[0].querySelector('.p').textContent, 'C:\\work');
   assert.equal(rows[1].querySelector('.p').textContent, 'C:\\Users\\…\\書類', '深いフォルダーは途中を縮める（見本どおり）');
-  assert.equal(rows[1].title, 'C:\\Users\\taro\\Documents\\会議\\書類\\r1.pdf');
+  assert.deepEqual(structuredClone(SigK.tipContent.resolve(rows[1])), { name: 'r1.pdf', desc: 'C:\\Users\\taro\\Documents\\会議\\書類\\r1.pdf' }, '説明の吹き出しはファイル名とフルパス');
 
   rows[0].click();
   await flush();
