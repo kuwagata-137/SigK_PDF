@@ -70,12 +70,23 @@
     state.refusal = null;
   }
 
+  // 受け口の文の頭の印。新しい帯を作るときは「＋」、ふだんは開く印（見本 strips4-drag-new）。
+  function setZoneIcon(zone, name) {
+    const holder = zone.querySelector('.line [data-icon]');
+    const icons = root.SigK.icons;
+    if (holder === null || icons?.has(name) !== true)
+      return;
+    holder.dataset.icon = name;
+    holder.replaceChildren(icons.create(state.doc, name, { size: Number(holder.dataset.iconSize ?? 17) }));
+  }
+
   function setZone(on, count) {
     const zone = state.doc?.getElementById('strip-drop') ?? null;
     if (zone === null || state.zone === on)
       return;
     state.zone = on;
     zone.classList.toggle('hot', on);
+    setZoneIcon(zone, on ? 'plus' : 'open');
     if (on)
       state.doc.getElementById('strip-drop-text').textContent = `ここに落とすと、選んだ ${count} ページで新しい PDF の帯ができます`;
     else

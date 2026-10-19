@@ -118,11 +118,16 @@ test('引いている間、カーソルに絵と「N ページ」の札、落と
   assert.equal(lineOf(shell), null);
   assert.equal(document.getElementById('strip-drop').classList.contains('hot'), true);
   assert.equal(document.getElementById('strip-drop-text').textContent, 'ここに落とすと、選んだ 1 ページで新しい PDF の帯ができます');
+  const icon = () => document.querySelector('#strip-drop .line [data-icon]');
+  assert.equal(icon().dataset.icon, 'plus', '受け口の文の頭の印は「＋」（見本 strips4-drag-new）');
+  assert.ok(icon().querySelector('svg'));
 
   release(shell, 100, 650);
   assert.equal(document.querySelector('.strip-drag-ghost'), null);
   assert.equal(document.getElementById('strip-drop').classList.contains('hot'), false);
   assert.equal(document.getElementById('strip-drop-text').textContent, 'PDF をここへ落とすと、開いて帯に足します');
+  assert.equal(icon().dataset.icon, 'open');
+  assert.ok(icon().querySelector('svg'));
 });
 
 test('ほかの帯へ離すと写し、受け口へ離すと新しい帯を作る', async (t) => {
