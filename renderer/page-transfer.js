@@ -60,16 +60,29 @@
   }
 
   // 同じ帯の中で動かす。to は今の並びの、その位置の手前へ入れる 0..length。動かなければ何もせずに false。
-  function move(indices, to) {
+  // board は ✂ の盤の中で動かしたとき（G4）。盤の選択も動かしたページへ移し、箱の末尾に落としたとき（boxEnd）は、そのページを箱に入れるため ✂ を
+  // 落としたページの後ろへ動かす（盤の操作として積むので、Ctrl+Z は ✂ → 並びの順に戻り、✂ も元の位置へ戻る。起草者の判断 I-k）。
+  function move(indices, to, { board = false, boxEnd = false } = {}) {
     const tabId = tabs().activeId();
     const moved = root.SigK.pagePlan.movePages(viewer().getPlan(), indices, to);
     if (tabId === null || !moved.changed)
       return false;
     root.SigK.pageEdit.commit(moved.plan, { before: indices, after: moved.selection });
+    root.SigK.toolHistory?.record('pages', tabId);
     // 動かしたページを選んだままにする（起草者の判断 I-g）。並びの参照は、帯が描き直しで比べるタブの今の並び。
     root.SigK.stripSelection.set(tabId, moved.selection, tabs().peek(tabId)?.plan ?? null);
-    root.SigK.toolHistory?.record('pages', tabId);
+    if (board)
+      followOnBoard(moved.selection, boxEnd);
     return true;
+  }
+
+  function followOnBoard(selection, boxEnd) {
+    const edit = root.SigK.toolsSplitEdit;
+    const first = selection[0];
+    const last = selection[selection.length - 1];
+    if (boxEnd)
+      edit.moveCut(first, last + 1);
+    edit.setSelection(root.SigK.splitSelection.dragTo(first, last));
   }
 
   // 写しを tabId の帯の at（並びの位置）へ差し込みとして入れる。枠の帯は替えない（I7）。

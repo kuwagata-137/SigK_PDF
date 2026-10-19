@@ -88,6 +88,13 @@
     return next(board, { cuts: [...board.cuts, at] });
   }
 
+  // 分け目を from から to へ動かす（✂ の盤で、箱の末尾に落としたページをその箱に入れる。spec-2-5 PR-4 の起草者の判断 I-k）。
+  function moveCut(board, from, to) {
+    if (!board.cuts.includes(from) || !isCutPosition(board, to))
+      return board;
+    return next(board, { cuts: [...board.cuts.filter((at) => at !== from), to] });
+  }
+
   // その箱の頭の分け目を消す（確定事項C2）。最初の箱には頭の分け目が無い。
   function join(board, boxIndex) {
     if (!Number.isInteger(boxIndex) || boxIndex < 1 || boxIndex > board.cuts.length)
@@ -157,7 +164,7 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.splitBoard = {
     create, same, boxes, boxOf, parts, status,
-    cut, join, makeOne, setSkipped,
+    cut, join, makeOne, setSkipped, moveCut,
     splitEach, splitEvery, splitBefore, clearCuts,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

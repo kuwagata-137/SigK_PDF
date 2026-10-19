@@ -50,31 +50,12 @@
     return text === null ? null : `${text.split('。')[0]}。`;
   }
 
-  // 帯の箱・紙の列・受け口を測る（strip-drop-target.js へ渡す形）。
-  function measure() {
-    const hostId = root.SigK.splitStrip?.expanded() === true ? root.SigK.splitStrip.hostId() : null;
-    const rows = [...el.strips.querySelectorAll('.strip[data-tab-id]')].map((node) => {
-      const tabId = Number(node.dataset.tabId);
-      const box = node.getBoundingClientRect();
-      const pages = root.SigK.stripRow.pagesOf(node);
-      const pagesBox = pages.getBoundingClientRect();
-      return {
-        tabId, left: box.left, right: box.right, top: box.top, height: box.height, pagesTop: pagesBox.top, pagesLeft: pagesBox.left,
-        scrollLeft: pages.scrollLeft, line: strips().lineOf(tabId) ?? root.SigK.stripLayout.row([]), board: tabId === hostId,
-      };
-    });
-    const zone = el.zone.getBoundingClientRect();
-    return { strips: rows, zone: { left: zone.left, right: zone.right, top: zone.top, bottom: zone.bottom } };
-  }
-
   function update(point) {
     drag.point = point;
-    const target = root.SigK.stripDropTarget.resolve({ ...measure(), x: point.x, y: point.y, sourceTabId: drag.tabId });
+    const measure = root.SigK.stripDragMeasure;
+    const target = root.SigK.stripDropTarget.resolve({ ...measure.measure(el.doc, el.strips, el.zone), x: point.x, y: point.y, sourceTabId: drag.tabId });
     drag.target = { ...target, refused: refusalOf(target) };
-    const node = target.tabId === undefined ? null : strips().rowNode(target.tabId);
-    view().show(drag.target, {
-      count: drag.indices.length, point, pages: node === null ? null : root.SigK.stripRow.pagesOf(node), line: strips().lineOf(target.tabId) ?? null,
-    });
+    view().show(drag.target, { count: drag.indices.length, point, placement: measure.placementOf(el.doc, drag.target) });
     updateAutoScroll(point);
   }
 
@@ -90,7 +71,7 @@
     stopAutoScroll();
     const box = el.strips.getBoundingClientRect();
     const dy = root.SigK.pageGridRules.autoScrollStep({ y: point.y - box.top, viewportHeight: el.strips.clientHeight, edge: AUTO_SCROLL.edge, step: AUTO_SCROLL.step });
-    const node = drag.target?.tabId === undefined ? null : strips().rowNode(drag.target.tabId);
+    const node = drag.target?.tabId === undefined || drag.target.place !== undefined ? null : strips().rowNode(drag.target.tabId);
     const pages = node === null ? null : root.SigK.stripRow.pagesOf(node);
     const side = pages === null ? null : pages.getBoundingClientRect();
     const dx = side === null ? 0 : (point.x < side.left + AUTO_SCROLL.sideEdge ? -1 : point.x > side.right - AUTO_SCROLL.sideEdge ? 1 : 0) * AUTO_SCROLL.sideStep;
@@ -147,7 +128,7 @@
     drag.swallowClick = true;
     const { target, indices } = finish();
     if (target?.kind === 'move')
-      transfer().move(indices, target.index);
+      transfer().move(indices, target.index, { board: target.place !== undefined, boxEnd: target.atBoxEnd === true });
     else if (target?.kind === 'copy')
       transfer().copyTo(target.tabId, indices, target.index);
     else if (target?.kind === 'new')

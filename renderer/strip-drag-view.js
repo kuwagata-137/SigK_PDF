@@ -82,17 +82,21 @@
       root.SigK.stripDropZone?.refresh();
   }
 
-  function showLine(pages, line, index, text) {
-    if (state.line === null || state.line.parentNode !== pages) {
+  // placement は { container, left, top?, height? }（strip-drag-measure.js の placementOf）。帯の紙の列なら上下は CSS に任せ、盤なら紙の段の高さ。
+  function showLine({ container, left, top, height }, text) {
+    if (state.line === null || state.line.parentNode !== container) {
       hideLine();
       state.line = state.doc.createElement('div');
       state.line.className = 'strip-drop-line';
       const say = state.doc.createElement('span');
       say.className = 'say';
       state.line.append(say);
-      pages.append(state.line);
+      container.append(state.line);
     }
-    state.line.style.left = `${lineLeft(line, index)}px`;
+    state.line.style.left = `${left}px`;
+    state.line.style.top = top === undefined ? '' : `${top}px`;
+    state.line.style.height = height === undefined ? '' : `${height}px`;
+    state.line.style.bottom = height === undefined ? '' : 'auto';
     state.line.firstChild.textContent = text;
   }
 
@@ -107,16 +111,16 @@
     state.refusal.style.top = `${point.y + 22}px`;
   }
 
-  // target は strip-drop-target.js の答えに refused（断る理由の短い文か null）を足したもの。pages は落とす先の帯の紙の列、line はその row。
-  function show(target, { count, point, pages = null, line = null }) {
+  // target は strip-drop-target.js の答えに refused（断る理由の短い文か null）を足したもの。placement は線を置く器と位置（無ければ null）。
+  function show(target, { count, point, placement = null }) {
     if (state.ghost !== null) {
       state.ghost.style.left = `${point.x + 10}px`;
       state.ghost.style.top = `${point.y + 6}px`;
     }
     const refused = target.refused ?? null;
-    const lineable = (target.kind === 'move' || target.kind === 'copy') && refused === null && pages !== null && line !== null;
+    const lineable = (target.kind === 'move' || target.kind === 'copy') && refused === null && placement !== null;
     if (lineable)
-      showLine(pages, line, target.index, target.kind === 'move' ? `ここへ ${count} ページを動かします` : `ここに ${count} ページを写します`);
+      showLine(placement, target.kind === 'move' ? `ここへ ${count} ページを動かします` : `ここに ${count} ページを写します`);
     else
       hideLine();
     setZone(target.kind === 'new' && refused === null, count);

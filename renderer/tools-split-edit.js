@@ -80,6 +80,7 @@
 
   const cut = (at) => !locked() && apply(model().cut(board(), at));
   const join = (boxIndex) => !locked() && apply(model().join(board(), boxIndex));
+  const moveCut = (from, to) => !locked() && apply(model().moveCut(board(), from, to));
 
   // 選んだ範囲を 1 つのファイルにする（確定事項C5）。押したあとは選択を外す。
   function makeOne() {
@@ -180,7 +181,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsSplitEdit = {
-    board, cut, join, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
+    board, cut, join, moveCut, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
     skip: () => setSkipped(true),
     unskip: () => setSkipped(false),
     undo: () => step('undo'),
