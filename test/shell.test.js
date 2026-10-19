@@ -46,8 +46,8 @@ test('index.html が読み込むスタイルシートはすべて実在する', 
   const hrefs = [...document.querySelectorAll('link[rel="stylesheet"]')].map((el) => el.getAttribute('href'));
 
   // split-board.css は分割の盤（spec-2-2b）、strips.css・tool-pane.css はツールモードの帯の画面と右の欄（spec-2-5 第 D・E 章）、
-  // strip-drag.css は帯のページを引いて落とす間の見た目（spec-2-5 第 I 章）。
-  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css', 'renderer/strip-drag.css', 'renderer/tool-pane.css']);
+  // strip-drag.css は帯のページを引いて落とす間の見た目（spec-2-5 第 I 章）、tip.css は説明の吹き出し（spec-2-5 第 J 章）。
+  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css', 'renderer/strip-drag.css', 'renderer/tool-pane.css', 'renderer/tip.css']);
   for (const href of hrefs)
     assert.ok(fs.existsSync(path.join(ROOT, ...href.split('/'))), `${href} が無い`);
 });

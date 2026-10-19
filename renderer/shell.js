@@ -67,6 +67,8 @@
     if (!isValidMode(mode))
       return false;
 
+    // モードが変わると説明の吹き出しを消す（spec-2-5 J10）。
+    root.SigK.tip?.hide();
     doc.documentElement.setAttribute('data-mode', mode);
 
     for (const item of doc.querySelectorAll('.rail-item[data-mode]'))
