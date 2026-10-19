@@ -1,0 +1,25 @@
+/* 帯のページを引いて落とす（spec-2-5 第 I 章。見本 screenshots/strips4-drag-copy.png・strips4-drag-new.png。strip-drag-view.js）。 */
+
+.strip-pages{position:relative}
+.strip-page.dragging{opacity:.4}
+
+/* カーソルに付く絵。2 枚以上なら下にもう 1 枚の紙を重ね、右上に「N ページ」の札。 */
+.strip-drag-ghost{position:fixed; z-index:40; width:58px; height:82px; pointer-events:none}
+.strip-drag-ghost .sheet,
+.strip-drag-ghost .under{position:absolute; left:0; top:0; width:58px; height:82px; background:var(--page); border-radius:2px;
+  box-shadow:0 6px 16px rgba(16,24,40,.28), 0 0 0 1px rgba(16,24,40,.18)}
+.strip-drag-ghost .under{left:6px; top:-6px}
+.strip-drag-ghost .badge{position:absolute; left:46px; top:-8px; padding:1px 7px; border-radius:10px; background:var(--accent); color:#fff;
+  font-size:11px; font-weight:700; white-space:nowrap}
+
+/* 落とす先の縦の線と札（紙と紙の間）。 */
+.strip-drop-line{position:absolute; top:4px; bottom:20px; width:4px; margin-left:-2px; border-radius:2px; background:var(--accent); pointer-events:none; z-index:3}
+.strip-drop-line .say{position:absolute; top:-4px; left:8px; padding:2px 8px; border-radius:5px; background:var(--accent); color:#fff; font-size:11px; white-space:nowrap}
+
+/* 受け口に落とすと新しい帯ができる間。 */
+.drop-zone.hot{border-color:var(--accent); background:var(--select); color:var(--accent)}
+.drop-zone.hot .act,
+.drop-zone.hot .recent{display:none}
+
+/* 落とせない所の理由（カーソルのそば）。 */
+.strip-drag-refusal{position:fixed; z-index:41; max-width:320px; padding:4px 9px; border-radius:6px; background:var(--text); color:#fff; font-size:12px; pointer-events:none}

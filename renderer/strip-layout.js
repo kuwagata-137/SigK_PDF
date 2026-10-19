@@ -117,7 +117,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.stripLayout = {
-    SHEET_HEIGHT, SHEET_MAX_WIDTH, STRIP_HEIGHT, STRIP_GAP, COLUMN_PAD, PAGES_INSET, LIMIT, PARALLEL,
+    SHEET_HEIGHT, SHEET_MAX_WIDTH, STRIP_HEIGHT, STRIP_GAP, CELL_GAP, COLUMN_PAD, PAGES_INSET, LIMIT, PARALLEL,
     sheetOf, row, visibleCells, stripTop, tops, visibleStrips, drawOrder, moved,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
