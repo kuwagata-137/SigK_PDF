@@ -14,7 +14,7 @@
   const state = {
     win: null,
     el: null,
-    current: null, // 待っている・出している [data-tip] の要素
+    current: null, // 待っている・出している対象（[data-tip] の要素）
     source: null, // current で待ち始めたきっかけ（tipRules.SOURCE_POINTER か SOURCE_FOCUS）
     shown: false,
     timer: 0,
@@ -27,7 +27,8 @@
   // 判定（SigK.tipRules）。init で受け取る。
   let rules = null;
 
-  // 待つのをやめ、出ていれば消す。消したら真。reason は消した理由（tipRules.REASON_OUT のときだけ、続く対象で待たずに出す）。
+  // 待つのをやめ、出ていれば消す。消したら真。reason は消した理由。続く対象で待たずに出すのは、tipRules.REASON_OUT（対象から出た）で
+  // 消したときと、出ている対象の中の子の要素へ入ったとき（入れ子。どちらも tipRules.isQuick。入れ子は、ここで消す前に決める）。
   function hideFor(reason) {
     if (state.el === null)
       return false;
@@ -66,13 +67,13 @@
     }
   }
 
-  // 待ち終わった・待たずに出すとき。要素が文書に無い・hidden の中・今の要素でない・文が引けないなら出さない。
+  // 待ち終わった・待たずに出すとき。対象が文書に無い・hidden の中・待っている対象でない・文が引けない・名前が空なら出さない。
   function show(node) {
     state.timer = 0;
     if (node !== state.current || !node.isConnected || node.closest('[hidden]') !== null)
       return false;
     const entry = entryOf(node);
-    if (entry === null)
+    if (entry === null || !entry.name)
       return false;
     const view = root.SigK.tipView;
     view.render(state.el, entry);
@@ -85,7 +86,7 @@
     return true;
   }
 
-  // node を今の要素にして待ち始める。source は待ち始めたきっかけ。quick なら待たずに出す。
+  // node を対象にして待ち始める。source は待ち始めたきっかけ。quick なら待たずに出す。
   function begin(node, source, quick) {
     state.current = node;
     state.source = source;
@@ -96,7 +97,7 @@
   }
 
   function onPointerOver(event) {
-    // 出していた要素が文書から外れた（描き直された）ときは、その説明の吹き出しを残さない。
+    // 出していた対象が文書から外れた（描き直された）ときは、その説明の吹き出しを残さない。
     if (state.current !== null && !state.current.isConnected)
       hideFor('gone');
     const node = rules.targetOf(event.target);
@@ -104,9 +105,7 @@
     state.pressed = rules.pressedAfter(state.pressed, node);
     if (node === null || node === state.current || !rules.canHover(event, node, state.pressed))
       return;
-    const quick = rules.isQuick({
-      shown: state.shown, current: state.current, node, last: state.last, now: Date.now(), graceMs: api.GRACE_MS,
-    });
+    const quick = rules.isQuick({ ...state, node, now: Date.now(), graceMs: api.GRACE_MS });
     // 入れ子の子へ入った・キーのフォーカスで出していたものを替えるときの消し方。「対象から出た」には数えない。
     hideFor('switch');
     begin(node, rules.SOURCE_POINTER, quick);
@@ -179,7 +178,7 @@
     return true;
   }
 
-  // key は、出している要素の data-tip の鍵（出していなければ null）。
+  // key は、出している対象の data-tip の鍵（出していなければ null）。
   function getState() {
     const key = state.shown ? state.current.dataset.tip ?? null : null;
     return { shown: state.shown, key };

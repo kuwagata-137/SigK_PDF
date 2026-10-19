@@ -5,8 +5,9 @@ const assert = require('node:assert/strict');
 
 const { createShell, makeSource } = require('./harness.js');
 
-// 説明の吹き出しを消す（spec-2-5 J1・J6・J10・J11・J13。tip.js・tip-view.js）。出す方は tip.test.js。
-// この時点の index.html の要素はまだ title を持つので、テストの中で対象の要素に data-tip を付けてから流す。
+// 説明の吹き出しを消す（spec-2-5 J1・J6・J10・J11・J13。tip.js・tip-rules.js・tip-view.js）。出す方は tip.test.js。
+// index.html の要素はもう data-tip を持つ（鍵は tip-coverage.test.js が照らす）。ここでは、どの鍵の文を見ているかをテストの中で読めるように、
+// 対象の要素に data-tip を付け直してから流す（タブとサムネイルの上のボタンは、JS が付けた data-tip のまま使う）。
 // 待ち時間は小さくし（DELAY_MS 30・GRACE_MS 200）、待つのは window.setTimeout の実時間。
 
 const A = 'C:\\work\\a.pdf';

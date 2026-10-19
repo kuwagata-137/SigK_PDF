@@ -66,6 +66,10 @@ test('［元に戻す］と［拡大］の説明の文は、直した文のま�
   assert.equal(tipContent.resolve(node('bar.zoomIn')).desc,
     '表示を 1 段大きくします。いちばん大きいのは 400% で、Ctrl+0 で 100% に戻ります。');
 });
+test('左のパネルの「＜」の説明は、開き直す「＞」の場所を「閉じたパネルの細い欄」と呼ぶ（docs/04 第3章の呼び名。PR-5 の点検の直し）', () => {
+  assert.equal(tipContent.resolve(node('side.collapse')).desc,
+    '左のパネルを閉じて、ページの表示を広げます。閉じている間は、閉じたパネルの細い欄の「＞」で開きます。');
+});
 test('帯のフロッピーの文は、帯のファイル名を入れた見本の文', () => {
   assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '会議資料.pdf' })), { name: '上書き保存',
     desc: 'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。元の中身は「会議資料.pdf.bak」として残ります。', keys: ['Ctrl+S'], keysNote: '選んでいる帯' });

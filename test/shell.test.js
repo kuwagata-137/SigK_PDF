@@ -560,7 +560,7 @@ test('窓が 1100px より狭いときは、幅・全体・見開き・選択・
 
   // 絵だけになっても、読み上げでは見えている文字を含む名前で読める。
   const { document } = await withShell(t);
-  for (const [id, name] of [['btn-fit-width', '幅に合わせる'], ['btn-fit-page', '全体を表示'], ['btn-facing', '見開き表示']])
+  for (const [id, name] of [['btn-fit-width', '幅に合わせる'], ['btn-fit-page', '全体を表示'], ['btn-facing', '見開き']])
     assert.equal(document.getElementById(id).getAttribute('aria-label'), name, id);
 });
 

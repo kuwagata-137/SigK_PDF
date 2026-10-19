@@ -5,8 +5,9 @@ const assert = require('node:assert/strict');
 
 const { createShell, makeSource } = require('./harness.js');
 
-// 説明の吹き出しを出す（spec-2-5 J1・J7〜J9・J11・J12。tip.js・tip-view.js）。消す方は tip-hide.test.js。
-// この時点の index.html の要素はまだ title を持つので、テストの中で対象の要素に data-tip を付けてから流す。
+// 説明の吹き出しを出す（spec-2-5 J1・J7〜J9・J11・J12。tip.js・tip-rules.js・tip-view.js）。消す方は tip-hide.test.js。
+// index.html の要素はもう data-tip を持つ（鍵は tip-coverage.test.js が照らす）。ここでは、どの鍵の文を見ているかをテストの中で読めるように、
+// 対象の要素に data-tip を付け直してから流す（知らない鍵や、入れ子の子の要素に付けるなど、index.html に無い付け方も試す）。
 // 待ち時間は小さくし（DELAY_MS 30・GRACE_MS 200）、待つのは window.setTimeout の実時間（view-banner.test.js と同じ）。
 
 const A = 'C:\\work\\a.pdf';
@@ -282,4 +283,23 @@ test('文が引けない（知らない鍵・文の関数が投げる）とき�
   await sleep(shell, 60);
   assert.equal(SigK.tip.isShown(), false, '文の関数が投げる');
   assert.ok(shell.logs.some((entry) => entry.context?.source === 'tip' && /文の関数が壊れた/.test(entry.message)), 'ログに残す');
+});
+
+// ---- PR-5 の点検の直し: 名前の無い文は出さない ----
+
+test('名前が空の文（鍵 text の名前が空・文の関数が名前の無い文を返す）は出さない', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const save = document.getElementById('btn-save');
+  SigK.tipContent.text(save, '', '説明だけある');
+  over(shell, save);
+  await sleep(shell, 60);
+  assert.equal(SigK.tip.isShown(), false, '鍵 text の名前が空');
+  assert.equal(save.hasAttribute('aria-describedby'), false);
+  SigK.tipContent.add({ 'test.noName': () => ({ name: '', desc: '名前が無い' }) });
+  const saveAs = tipped(shell, '#btn-save-as', 'test.noName');
+  over(shell, saveAs);
+  await sleep(shell, 60);
+  assert.equal(SigK.tip.isShown(), false, '文の関数が名前の無い文を返す');
+  assert.equal(document.getElementById('tip').hidden, true);
 });

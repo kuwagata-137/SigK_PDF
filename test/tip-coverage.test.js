@@ -79,12 +79,12 @@ test('アイコンだけで aria-label が無かった 17 個に、名前の ari
     assert.equal(doc.querySelector(selector).getAttribute('aria-label'), label, selector);
 });
 
-test('今の aria-label は変えない（読み上げの名前と使い方の窓の文がずれるため）。左のパネルの「＞」だけは説明の吹き出しの名前にそろえる', () => {
+test('今の aria-label は変えない（読み上げの名前と使い方の窓の文がずれるため）。左のパネルの「＞」と［見開き］は説明の吹き出しの名前にそろえる', () => {
   const doc = loadDocument();
   assert.equal(doc.getElementById('side-expand').getAttribute('aria-label'), 'パネルを開く');
   assert.equal(doc.getElementById('btn-help').getAttribute('aria-label'), '使い方');
   assert.equal(doc.getElementById('btn-fit-width').getAttribute('aria-label'), '幅に合わせる');
-  assert.equal(doc.getElementById('btn-facing').getAttribute('aria-label'), '見開き表示');
+  assert.equal(doc.getElementById('btn-facing').getAttribute('aria-label'), '見開き');
   assert.equal(doc.getElementById('image-strip-clear').getAttribute('aria-label'), 'すべて外す');
 });
 
