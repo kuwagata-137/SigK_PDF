@@ -149,4 +149,11 @@ test('盤からほかの帯へ落とすと写し、枠と盤は引き始めた�
   assert.deepEqual(srcs(shell, a), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   assert.equal(shell.SigK.tabs.activeId(), a);
   assert.equal(shell.SigK.splitStrip.hostId(), a);
+  assert.deepEqual(range(shell), { from: 2, to: 3 }, '盤の選択も残る（I7）。続けて別の所へ引ける');
+
+  // 写した先の帯を Ctrl+Z で戻しても（その帯を一時的に映して戻す）、盤の選択は外さない。
+  shell.SigK.toolHistory.undo();
+  await shell.flush();
+  assert.deepEqual(srcs(shell, b), Array.from({ length: 12 }, (_page, index) => index));
+  assert.deepEqual(range(shell), { from: 2, to: 3 });
 });

@@ -20,6 +20,8 @@
     opening: 0,
     // パスで開いている途中の読み込み（パスの鍵 → Promise）。同じファイルを続けて開いてもタブを 2 枚にしない（openPath）。
     pending: new Map(),
+    // withActive でほかのタブを一時的に映している間の深さ。✂ の盤はこの間の映し替えを、帯が替わったとは受け取らない（選択を外さない）。
+    borrowing: 0,
   };
 
   let el = null;
@@ -435,6 +437,7 @@
       render();
       return result;
     }
+    state.borrowing += 1;
     const previous = stash();
     restore(tab);
     try {
@@ -442,6 +445,7 @@
     } finally {
       stash();
       restore(find(previous));
+      state.borrowing -= 1;
       render();
     }
   }
@@ -596,6 +600,7 @@
     runOpenCommand,
     activate,
     withActive,
+    isBorrowing: () => state.borrowing > 0,
     closeTab,
     forceCloseTab,
     rename,

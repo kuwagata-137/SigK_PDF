@@ -27,9 +27,9 @@
     return view === null || view.doc === undefined ? null : { tabId: src.tabId, name: src.name, view };
   }
 
-  // 帯が替わったら、選択・まとめて分けるの誤り・今のページを外す。
+  // 帯が替わったら、選択・まとめて分けるの誤り・今のページを外す。写した先の帯を一時的に映している間（tabs.withActive）は替わったと見ない（I7）。
   function follow(tabId) {
-    if (tabId === state.tabId)
+    if (tabId === state.tabId || root.SigK.tabs?.isBorrowing?.() === true)
       return;
     state.tabId = tabId;
     state.selection = null;

@@ -12,8 +12,9 @@
 //   mode・tool:<名前|none>・find・dialog:<info|print|help>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
 //   fit・scroll:<割合>（画面の口を呼ぶ。smoke-keys-page.js）
 //   wait:<ms> / state（様子を控える）/ memory（アプリ全体の実メモリを控える）
-//   split（分割の盤を出す）・split-cut:<ページ>・split-press:<ページ>[:shift]・split-drag:<a>-<b>・split-dblclick:<ページ>（smoke-keys-split.js）
-//   click:<id>・tab-x:<n>・chord（本物のマウスで要素を押す・タブの × を押す・左＋右。smoke-keys-strips.js）
+//   split（分割の盤を出す）・split-cut:<ページ>・split-press:<ページ>[:shift]・split-drag:<a>-<b>・split-dblclick:<ページ>・split-move:<ページ>:<先>（smoke-keys-split.js）
+//   click:<id>・tab-x:<n>・chord（本物のマウスで要素を押す・タブの × を押す・左＋右）・strip-page・strip-drag・strip-drag-new・strip-hold
+//   （帯のページを押す・引いて落とす。smoke-keys-strips.js）
 // 例: SIGK_SMOKE_KEYS=mode:annot,shape:square:0:100x700-300x600,find:text,dialog:info,esc,state,esc,state
 //
 // 数・範囲が読めない操作は、黙って 0 回にせず、止めて problems に書く。mode・facing は設定に残るので、起動確認の決まりどおり
