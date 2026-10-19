@@ -6,6 +6,7 @@
   // ←→ で今のページ、↑↓ で上下の段（箱をまたぐ）、Home・End で端、Shift を押していれば選択を広げ、Space で今のページを選び、
   // Enter で大きく見る（split-zoom.js）。PageUp・PageDown は帯の画面（盤が乗っている）をスクロールする。扱ったキーは盤の器で止め、裏のページビューの
   // ページ送り（viewer-keys.js の PAGE_KEYS）へ流さない。今のページは split-board-input.js が持つ（押したページも今のページになる）。
+  // 分割の画面の Ctrl+Z・Ctrl+Y（確定事項G1）は、ツールモードのした順の記録へ移した（strip-keys.js・tool-history.js。spec-2-5 確定事項I6）。
 
   const ROW_GAP = 12;
   const BOARD_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' ', 'Enter', 'PageUp', 'PageDown']);
@@ -74,23 +75,6 @@
     view().revealPage(next);
   }
 
-  // 分割の画面の Ctrl+Z・Ctrl+Y・Ctrl+Shift+Z（確定事項G1。viewer-keys.js の handleKey から）。盤の器にフォーカスが無くても、
-  // 分割の画面を出していれば取る。文字を打つ欄（N・ページ番号）の中では取らず、欄の素の取り消しに任せる。実行中は取るが何もしない。
-  function historyKey(event, doc) {
-    const keys = root.SigK.viewerKeys;
-    const direction = keys.historyStep(event);
-    if (direction === null || doc.documentElement.getAttribute('data-mode') !== 'tools' || root.SigK.tools?.selected() !== 'split')
-      return false;
-    if (keys.isTypingField(event.target))
-      return false;
-    event.preventDefault();
-    if (direction === 'undo')
-      edit().undo();
-    else
-      edit().redo();
-    return true;
-  }
-
   function init(doc, win) {
     if (win.__sigkSplitBoardKeysReady === true)
       return false;
@@ -104,5 +88,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.splitBoardKeys = { init, historyKey };
+  SigK.splitBoardKeys = { init };
 })(typeof window !== 'undefined' ? window : globalThis);

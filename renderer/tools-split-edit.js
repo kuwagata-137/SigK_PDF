@@ -74,6 +74,7 @@
       return false;
     }
     store().set(state.tabId, pushed);
+    root.SigK.toolHistory?.record('board', state.tabId);
     changed();
     return true;
   }

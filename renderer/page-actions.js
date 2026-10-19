@@ -113,10 +113,14 @@
     setEnabled(ACTION_IDS.extract, root.SigK.extract?.canExtract() === true);
     setEnabled(ACTION_IDS.insert, root.SigK.insert?.canInsert() === true);
     setEnabled(ACTION_IDS.remove, canDelete());
-    setEnabled(ACTION_IDS.undo, pageEdit().canUndo());
-    setEnabled(ACTION_IDS.redo, pageEdit().canRedo());
+    // ツールモードでは、した順の記録（分割なら盤）を戻す（spec-2-5 確定事項I6。キーと同じ相手）。
+    const history = inTools() ? root.SigK.toolHistory : pageEdit();
+    setEnabled(ACTION_IDS.undo, history?.canUndo() === true);
+    setEnabled(ACTION_IDS.redo, history?.canRedo() === true);
     return true;
   }
+
+  const inTools = () => root.SigK.tools?.isToolsMode() === true && root.SigK.toolHistory !== undefined;
 
   function bindClick(doc, id, handler) {
     const node = doc.getElementById(id);
@@ -137,8 +141,8 @@
     bindClick(doc, ACTION_IDS.extract, () => root.SigK.extract?.run());
     bindClick(doc, ACTION_IDS.insert, () => root.SigK.insert?.run());
     bindClick(doc, ACTION_IDS.remove, () => remove());
-    bindClick(doc, ACTION_IDS.undo, () => pageEdit().undo());
-    bindClick(doc, ACTION_IDS.redo, () => pageEdit().redo());
+    bindClick(doc, ACTION_IDS.undo, () => (inTools() ? root.SigK.toolHistory : pageEdit()).undo());
+    bindClick(doc, ACTION_IDS.redo, () => (inTools() ? root.SigK.toolHistory : pageEdit()).redo());
     syncActions();
     return true;
   }

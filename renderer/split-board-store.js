@@ -81,6 +81,18 @@
       entry.history = next;
   }
 
+  // 盤の記録を 1 つ戻す・進める（ツールモードの記録で、盤を広げていない帯の分。spec-2-5 確定事項I6）。direction は 'undo'・'redo'。
+  function step(tabId, view, direction) {
+    if (!entries.has(tabId))
+      return false;
+    const { history: h } = entryFor(tabId, view);
+    const moved = direction === 'undo' ? history().undo(h) : history().redo(h);
+    if (moved === h)
+      return false;
+    set(tabId, moved);
+    return true;
+  }
+
   function forget(tabId) {
     entries.delete(tabId);
   }
@@ -96,7 +108,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.splitBoardStore = {
-    pageKeys, remap, entryFor, set, forget, prune,
+    pageKeys, remap, entryFor, set, step, forget, prune,
     ids: () => [...entries.keys()],
     clear: () => entries.clear(),
   };

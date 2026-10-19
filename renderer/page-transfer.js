@@ -67,12 +67,16 @@
     const moved = root.SigK.pagePlan.movePages(viewer().getPlan(), indices, to);
     if (tabId === null || !moved.changed)
       return false;
-    root.SigK.pageEdit.commit(moved.plan, { before: indices, after: moved.selection });
-    root.SigK.toolHistory?.record('pages', tabId);
-    // 動かしたページを選んだままにする（起草者の判断 I-g）。並びの参照は、帯が描き直しで比べるタブの今の並び。
-    root.SigK.stripSelection.set(tabId, moved.selection, tabs().peek(tabId)?.plan ?? null);
-    if (board)
-      followOnBoard(moved.selection, boxEnd);
+    // 盤の箱の末尾に落としたときの並べ替えと ✂ の動きは、ツールモードの記録で 1 つにまとめる（Ctrl+Z 1 回で戻る。I6）。
+    const batch = root.SigK.toolHistory?.batch ?? ((fn) => fn());
+    batch(() => {
+      root.SigK.pageEdit.commit(moved.plan, { before: indices, after: moved.selection });
+      root.SigK.toolHistory?.record('pages', tabId);
+      // 動かしたページを選んだままにする（起草者の判断 I-g）。並びの参照は、帯が描き直しで比べるタブの今の並び。
+      root.SigK.stripSelection.set(tabId, moved.selection, tabs().peek(tabId)?.plan ?? null);
+      if (board)
+        followOnBoard(moved.selection, boxEnd);
+    });
     return true;
   }
 
