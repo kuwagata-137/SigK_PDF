@@ -44,6 +44,9 @@
   // タブで開いているファイルは、選ばれたあとで断る（確定事項96）。
   function defaultTargetFor(file) {
     const source = file?.path;
+    // 名前の無い帯（帯のページの写しでできた新しい帯。spec-2-5 I4）は、引き始めた帯のフォルダに「新しい PDF 1_抽出.pdf」。
+    if ((typeof source !== 'string' || source === '') && typeof file?.folder === 'string')
+      return `${file.folder}\\${String(file.name ?? '').replace(/\.pdf$/i, '')}_抽出.pdf`;
     if (typeof source !== 'string' || source === '')
       return undefined;
     return `${source.replace(/\.pdf$/i, '')}_抽出.pdf`;
@@ -98,6 +101,9 @@
       kind: 'extract',
       mosaics: mosaic.mosaics,
       source: view.file.path,
+      // 名前の無い帯の元の中身と、写しのバイト列（spec-2-5 I4・I5。保存と同じ。点検の指摘 3）。
+      sourceCopy: view.file.copy ?? null,
+      copies: viewer().getCopies(),
       target: picked.path,
       pages,
       // 選んだページに付いた注釈も一緒に出す（spec-4-1 確定事項21）。
@@ -107,7 +113,7 @@
       // ワーカーが読む前に照合する（spec-4b-6b。コードの点検で足した）。
       makeBackup: false,
       expect: null,
-      expectSource: mosaic.mosaics.length > 0 ? root.SigK.save.signatureOf(view.file) : null,
+      expectSource: mosaic.mosaics.length > 0 && typeof view.file.path === 'string' ? root.SigK.save.signatureOf(view.file) : null,
       label: '抽出',
     });
 

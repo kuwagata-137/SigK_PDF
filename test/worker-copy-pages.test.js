@@ -152,6 +152,20 @@ test('source が null なら sourceCopy のバイト列を元にして保存す�
   } finally { ws.cleanup(); }
 });
 
+test('名前の無い帯からの抽出も、sourceCopy のバイト列を元にする（点検の指摘 3）', async () => {
+  const ws = workspace();
+  try {
+    const source = ws.copyIn('three-pages.pdf');
+    const turned = await copyOfSecondPageTurned(source);
+    const target = ws.file('新しい PDF 1_抽出.pdf');
+    const extracted = await runSave({ kind: 'extract', source: null, sourceCopy: 'c1', copies: { c1: turned.bytes }, target, pages: [{ src: 0, rotate: 0 }], makeBackup: false });
+    assert.equal(extracted.ok, true, extracted.error);
+    const doc = await load(fs.readFileSync(target));
+    assert.equal(doc.getPageCount(), 1);
+    assert.equal(doc.getPage(0).getRotation().angle, 90);
+  } finally { ws.cleanup(); }
+});
+
 test('copies に鍵が無い差し込みは、写すことも保存することも断る', async () => {
   const ws = workspace();
   try {

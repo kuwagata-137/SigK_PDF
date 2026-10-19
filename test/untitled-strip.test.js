@@ -150,3 +150,27 @@ test('withActive は一時的に別のタブを映して記録し、元のタブ
   assert.equal(shell.SigK.tabs.isDirty(a), true, 'a に記録した');
   assert.equal(shell.SigK.tabs.isDirty(b), false);
 });
+
+test('名前の無い帯からページを抽出すると、元の中身はバイト列で渡り、既定の名前はそのフォルダの「新しい PDF 1_抽出.pdf」（点検の指摘 3）', async (t) => {
+  const OUT = 'C:\\work\\新しい PDF 1_抽出.pdf';
+  const shell = await withShell(t, {
+    savePathResults: [{ path: OUT }],
+    taskResults: [{ ok: true, path: OUT, backup: null, pages: 1, bytes: 900 }],
+  });
+  await openUntitled(shell);
+  shell.SigK.shell.setMode(shell.document, 'pages');
+  shell.SigK.pageGrid.setSelection([0]);
+  const promise = shell.SigK.extract.run();
+  await shell.flush();
+  shell.document.getElementById('confirm-extract-ok').click();
+  const result = await promise;
+
+  assert.equal(result.ok, true);
+  assert.equal(shell.savePathCalls[0].defaultPath, OUT);
+  const { spec } = shell.taskCalls[0];
+  assert.equal(spec.kind, 'extract');
+  assert.equal(spec.source, null);
+  assert.equal(spec.sourceCopy, 'c1');
+  assert.ok(spec.copies.c1.length > 0);
+  assert.equal(spec.expectSource, null, 'パスの無い帯は、元のファイルの書き換わりを照らさない');
+});
