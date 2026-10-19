@@ -150,6 +150,48 @@ test('キーの無い要素は、キーの行を作らない', async (t) => {
   assert.equal(shell.document.querySelector('#tip .tip-keys'), null);
 });
 
+// ---- 点検の直し（1 回目）: 既定の待ち時間・待たずに出す条件を J8 に合わせる ----
+
+test('待ち時間の既定は 0.5 秒、待たずに出す間は 0.3 秒（J1・J8）', async (t) => {
+  // withShell は値を小さくするので、書き換える前の値を読むために直に作る。
+  const shell = await createShell();
+  t.after(() => shell.cleanup());
+  assert.equal(shell.SigK.tip.DELAY_MS, 500);
+  assert.equal(shell.SigK.tip.GRACE_MS, 300);
+});
+
+test('出ている要素の中の子の要素（タブの中の × など）へ入ると、待たずに出す', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  const save = tipped(shell, '#btn-save', 'bar.save');
+  const icon = save.firstElementChild;
+  icon.dataset.tip = 'bar.saveAs';
+  over(shell, save);
+  await sleep(shell, 60);
+  out(shell, save, icon);
+  assert.equal(SigK.tip.isShown(), true, '中の子へ移るのは、対象から出たことにならない');
+  over(shell, icon);
+  assert.equal(SigK.tip.isShown(), true, '待たずに出す');
+  assert.equal(tipText(shell, '.tip-name'), '名前を付けて保存');
+  assert.equal(icon.getAttribute('aria-describedby'), 'tip');
+  assert.equal(save.hasAttribute('aria-describedby'), false);
+});
+
+test('キーのフォーカスで出ているときに、マウスで別の対象へ入ると、待ってから出す', async (t) => {
+  const shell = await withShell(t, 'annot');
+  const { SigK } = shell;
+  const pen = tipped(shell, '.edit-tool[data-tool="pen"]', 'edit.pen');
+  key(shell, 'Tab');
+  pen.focus();
+  await sleep(shell, 60);
+  assert.equal(tipText(shell, '.tip-name'), 'ペン', '前提: キーのフォーカスで出ている');
+  over(shell, tipped(shell, '#btn-save', 'bar.save'));
+  assert.equal(SigK.tip.isShown(), false, 'すぐには出さない');
+  await sleep(shell, 60);
+  assert.equal(SigK.tip.isShown(), true);
+  assert.equal(tipText(shell, '.tip-name'), '上書き保存');
+});
+
 // ---- 指示書の題に足したもの（controller の補足: 位置を丸める・文が引けないときは出さない） ----
 
 test('位置は data-tip-anchor の要素を基準に、left・top・矢印を丸めた px で付ける', async (t) => {

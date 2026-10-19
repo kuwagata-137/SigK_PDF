@@ -77,6 +77,20 @@
     return spot.side;
   }
 
+  // 対象 node の説明として tipEl をつなぐ（aria-describedby）。元の値を控えた { node, prev } を返す（unlink に渡すと元に戻す）。
+  function link(node, tipEl) {
+    const prev = node.getAttribute('aria-describedby');
+    node.setAttribute('aria-describedby', tipEl.id);
+    return { node, prev };
+  }
+
+  function unlink(linked) {
+    if (linked.prev === null)
+      linked.node.removeAttribute('aria-describedby');
+    else
+      linked.node.setAttribute('aria-describedby', linked.prev);
+  }
+
   // 出す。popover が使えるときは、いったん外してから出し直す（あとから開いた窓より前に出すため）。
   function open(tipEl) {
     tipEl.hidden = false;
@@ -94,5 +108,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.tipView = { create, render, anchorOf, placeAt, open, close };
+  SigK.tipView = { create, render, anchorOf, placeAt, link, unlink, open, close };
 })(typeof window !== 'undefined' ? window : globalThis);

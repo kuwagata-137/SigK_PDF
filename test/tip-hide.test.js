@@ -89,6 +89,39 @@ for (const [label, fire] of HIDE_CASES) {
   });
 }
 
+// ---- 点検の直し（1 回目） ----
+
+test('Esc 以外のキーでも消え、キーの働きは止めない（defaultPrevented は偽のまま）', async (t) => {
+  const shell = await withShell(t);
+  await shownOnSave(shell);
+  const event = new shell.window.KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+  shell.document.body.dispatchEvent(event);
+  assert.equal(shell.SigK.tip.isShown(), false);
+  assert.equal(event.defaultPrevented, false);
+});
+
+// フォーカスを当てると、Chromium は要素を見える所へ動かすスクロールを次の描画で起こす。それで待ちを止めると、キーでは出なくなる（J1）。
+test('キーで移ったフォーカスで始めた待ちは、スクロールで止めない。出ているものとマウスで始めた待ちは止める', async (t) => {
+  const shell = await withShell(t, 'annot');
+  const { SigK, document, window } = shell;
+  const scroll = () => document.getElementById('view').dispatchEvent(new window.Event('scroll'));
+  const pen = document.querySelector('.edit-tool[data-tool="pen"]');
+  pen.dataset.tip = 'edit.pen';
+  document.body.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+  pen.focus();
+  scroll();
+  await sleep(shell, 60);
+  assert.equal(SigK.tip.isShown(), true, 'キーのフォーカスの待ちは止めない');
+  scroll();
+  assert.equal(SigK.tip.isShown(), false, '出ているものは消す');
+  const save = document.getElementById('btn-save');
+  save.dataset.tip = 'bar.save';
+  over(shell, save);
+  scroll();
+  await sleep(shell, 60);
+  assert.equal(SigK.tip.isShown(), false, 'マウスで始めた待ちは止める');
+});
+
 test('窓が開くと消える', async (t) => {
   const shell = await withShell(t);
   await shownOnSave(shell);
