@@ -172,7 +172,7 @@ for (const [label, init, shows] of FOCUS_KEY_CASES) {
   });
 }
 
-test('Alt を押して窓が非活性になり、戻ってフォーカスが当たり直しても出さない（Alt+Tab。J12）', async (t) => {
+test('Alt を押してアプリが非活性になり、戻ってフォーカスが当たり直しても出さない（Alt+Tab。J12）', async (t) => {
   const shell = await withShell(t, 'annot');
   const pen = tipped(shell, '.edit-tool[data-tool="pen"]', 'edit.pen');
   keyWith(shell, { key: 'Alt', altKey: true });
@@ -182,7 +182,7 @@ test('Alt を押して窓が非活性になり、戻ってフォーカスが当�
   assert.equal(shell.SigK.tip.isShown(), false);
 });
 
-test('Tab を押したあとでも、窓が非活性になったら、戻ったときのフォーカスでは出さない。また Tab で動けば出す（J12）', async (t) => {
+test('Tab を押したあとでも、アプリが非活性になったら、戻ったときのフォーカスでは出さない。また Tab で動けば出す（J12）', async (t) => {
   const shell = await withShell(t, 'annot');
   const { SigK, window } = shell;
   const pen = tipped(shell, '.edit-tool[data-tool="pen"]', 'edit.pen');
