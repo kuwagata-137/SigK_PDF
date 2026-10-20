@@ -57,7 +57,8 @@
   // 出力フォルダーは、ユーザーが変えるまでは対象のフォルダー（確定事項15）。
   function settings() {
     const src = source();
-    const folder = state.folderTouched || typeof src?.path !== 'string' ? state.folder : dirOf(src.path);
+    // 最初の値は、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5。決定81 ⑨）。
+    const folder = state.folderTouched || typeof src?.path !== 'string' ? state.folder : root.SigK.preferences?.initialFolder(dirOf(src.path)) ?? dirOf(src.path);
     return { mode: state.mode, range: state.range, format: state.format, dpi: state.dpi, folder };
   }
 

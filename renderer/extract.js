@@ -82,8 +82,10 @@
     if (await root.SigK.confirmExtract.ask({ count: pages.length, mosaicCount }) !== true)
       return { canceled: true };
 
+    // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
+    const defaultPath = defaultTargetFor(view.file);
     const picked = await root.pdfAPI.pickSavePath({
-      defaultPath: defaultTargetFor(view.file),
+      defaultPath: root.SigK.preferences?.initialPath(defaultPath) ?? defaultPath,
       title: 'ページを抽出',
     });
     if (picked?.canceled === true)

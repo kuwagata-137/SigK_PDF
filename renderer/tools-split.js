@@ -41,12 +41,13 @@
 
   // ---- 対象（spec-2-5 G1・G12） ----
 
-  // 出力のフォルダーは、ユーザーが変えるまで対象の帯のフォルダーに追従する（spec-2-2 確定事項14）。
+  // 出力のフォルダーは、ユーザーが変えるまで対象の帯のフォルダーに追従する（spec-2-2 確定事項14）。最初の値は設定の窓の
+  // 「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5。決定81 ⑨）。
   const field = root.SigK.stripTarget.create({
     encryptedError: '分割できません',
     onChange: (src) => {
       if (!state.folderTouched && typeof src?.path === 'string')
-        state.folder = dirOf(src.path);
+        state.folder = root.SigK.preferences?.initialFolder(dirOf(src.path)) ?? dirOf(src.path);
     },
   });
 
