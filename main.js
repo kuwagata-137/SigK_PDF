@@ -1701,6 +1701,7 @@ function installSmokeCheck(win, mode) {
       let print = null;
       let pages = null;
       let save = null;
+      let sourceChanged = null;
       let merge = null;
       let split = null;
       let convert = null;
@@ -1798,6 +1799,9 @@ function installSmokeCheck(win, mode) {
           fs.copyFileSync(path.resolve(saveSource), savePath);
           save = await win.webContents.executeJavaScript(saveScript(savePath));
         }
+        // 書き換えられたファイルの上書き保存のメモリの山（spec-6-1 タスク C の C4。smoke-source-changed.js）。
+        if (process.env.SIGK_SMOKE_SOURCE_CHANGED && saveSource !== undefined)
+          sourceChanged = await require('./smoke-source-changed.js').run({ app, win, source: path.resolve(saveSource), target: path.resolve(process.env.SIGK_SMOKE_SOURCE_CHANGED) });
         if (process.env.SIGK_SMOKE_MERGE) {
           const inputs = process.env.SIGK_SMOKE_MERGE.split(';').map((value) => path.resolve(value.trim())).filter((value) => value !== '');
           const target = process.env.SIGK_SMOKE_MERGE_OUT
@@ -2016,6 +2020,7 @@ function installSmokeCheck(win, mode) {
         print,
         pages,
         save,
+        sourceChanged,
         merge,
         split,
         convert,
