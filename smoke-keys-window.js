@@ -4,9 +4,14 @@
 // Alt+Tab でアプリに戻ったときに説明の吹き出しが出ないか（spec-2-5 J12 の改訂）を、窓を出した起動確認で確かめるために足した
 // （docs/07 決定81 ③）。本物の Alt+Tab のキーは送らない（ユーザーのほかの窓を切り替えてしまうため）。
 //
-//   blur-window  … ページへ focusin の控えを仕掛けてから、窓のフォーカスを外す（BrowserWindow.blur()）
-//   focus-window … 窓のフォーカスを戻す（focus()。Windows が前に出すのを止めて戻らなければ minimize() → restore()）。
+//   blur-window  … ページへ focusin の控えを仕掛けてから、窓のフォーカスを外す（BrowserWindow.blur()。外れなければ止める）
+//   focus-window … 窓のフォーカスを戻す（最小化していれば restore()、でなければ focus()。戻らなければ minimize() → restore()）。
 //                  戻ったあとに出た focusin の相手・活性の要素・document.hasFocus() を控える
+//
+// Windows は、後ろにいるアプリが窓の活性を切り替えることを制限している。2026-10-20 の実測では、blur() が 2 回目から効かず、
+// 最小化（minimize()）でも外れないことがあり、外れたと報告されてもページに blur が届かないこともあった（spec-6-1 タスク A）。
+// 黙って次へ進まないよう、外れない・戻らないときは止めて problems に書く。控えの結果は、ページに blur が届いたか（説明の吹き出しが
+// 消えたか）とあわせて読む。
 //
 // どちらも控えを ctx.states に { at, window: {...} } で足す。窓を隠した起動確認（SIGK_SMOKE_HIDDEN）では、活性になる・ならないが
 // 本物と違うので使わない。
@@ -39,7 +44,9 @@ function create() {
       await ctx.js(ARM_SCRIPT);
       ctx.win.blur();
       await wait(SETTLE_MS);
-      ctx.states.push({ at: step.index, window: { op: 'blur', focused: ctx.win.isFocused() } });
+      if (ctx.win.isFocused())
+        throw new Error('アプリの窓のフォーカスが外れない（blur()）');
+      ctx.states.push({ at: step.index, window: { op: 'blur', focused: false } });
     },
     'focus-window': async (ctx, args, step) => {
       let via = 'focus';

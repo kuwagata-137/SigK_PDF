@@ -10,8 +10,9 @@ const assert = require('node:assert/strict');
 const { run, OP_NAMES } = require('../smoke-keys.js');
 
 // BrowserWindow の代わり。呼んだメソッドを控える。focusWorks が偽なら、focus() を呼んでも活性に戻らない
-// （Windows が、後ろにいるアプリが自分の窓を前に出すことを制限している場合）。restore() は活性に戻す。
-function fakeWindow({ focusWorks = true, page = { hasFocus: true, active: 'act-rotate-right', focusIns: ['act-rotate-right'] } } = {}) {
+// （Windows が、後ろにいるアプリが自分の窓を前に出すことを制限している場合）。blurWorks が偽なら、blur() を呼んでも外れない
+// （2026-10-20 の実測で 2 回目から起きた）。restore() は活性に戻す。
+function fakeWindow({ focusWorks = true, blurWorks = true, page = { hasFocus: true, active: 'act-rotate-right', focusIns: ['act-rotate-right'] } } = {}) {
   const calls = [];
   const scripts = [];
   let focused = true;
@@ -19,9 +20,9 @@ function fakeWindow({ focusWorks = true, page = { hasFocus: true, active: 'act-r
   return {
     calls,
     scripts,
-    blur: () => { calls.push('blur'); focused = false; },
+    blur: () => { calls.push('blur'); if (blurWorks) focused = false; },
     focus: () => { calls.push('focus'); if (focusWorks) focused = true; },
-    minimize: () => { calls.push('minimize'); },
+    minimize: () => { calls.push('minimize'); focused = false; },
     restore: () => { calls.push('restore'); focused = true; },
     isFocused: () => focused,
     webContents: {
@@ -49,6 +50,14 @@ test('blur-window は focusin の控えを仕掛けてから窓のフォーカ�
   assert.match(win.scripts[0], /__sigkSmokeFocusIns/, '外す前に、ページへ focusin の控えを仕掛ける');
   assert.match(win.scripts[0], /addEventListener\('focusin'/);
   assert.deepEqual(report.states, [{ at: 0, window: { op: 'blur', focused: false } }]);
+});
+
+test('blur() で外れなければ、止めて problems に書く（外れたことにして次の操作へ進まない）', async () => {
+  const win = fakeWindow({ blurWorks: false });
+  const report = await run(win, 'blur-window,state');
+  assert.match(report.problems[0], /blur-window: アプリの窓のフォーカスが外れない/);
+  assert.deepEqual(win.calls, ['blur']);
+  assert.deepEqual(report.applied, []);
 });
 
 test('focus-window は focus() で戻し、戻った後の focusin・活性の要素・hasFocus を控える', async () => {
