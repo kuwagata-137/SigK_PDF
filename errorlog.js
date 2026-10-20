@@ -8,7 +8,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const LEVELS = new Set(['error', 'warn', 'info']);
+// 出どころ。main はメインの処理、renderer は画面、worker は PDF を書くワーカー（spec-6-1 タスク B）。
+const PROCS = new Set(['main', 'renderer', 'worker']);
+// message・stack・context（JSON にした長さ）の上限。
 const MESSAGE_LIMIT = 4000;
+const VERSION_LIMIT = 40;
 const DEFAULT_MAX_BYTES = 512 * 1024;
 
 function toMessage(value) {
@@ -51,13 +55,28 @@ function formatEntry(input, now = new Date()) {
   const level = LEVELS.has(source.level) ? source.level : 'error';
   const message = toMessage(source.message ?? source).slice(0, MESSAGE_LIMIT);
 
-  const entry = { ts: now.toISOString(), level, message };
+  const entry = { ts: now.toISOString(), level };
+  if (PROCS.has(source.proc))
+    entry.proc = source.proc;
+  if (typeof source.version === 'string' && source.version !== '')
+    entry.version = source.version.slice(0, VERSION_LIMIT);
+  entry.message = message;
   if (typeof source.stack === 'string' && source.stack !== '')
     entry.stack = source.stack.slice(0, MESSAGE_LIMIT);
-  const context = safeContext(source.context);
+  const context = boundedContext(safeContext(source.context));
   if (context !== undefined)
     entry.context = context;
   return entry;
+}
+
+// JSON にして上限を超える context は、切った JSON の文字列に置き換える（1 行が大きくなりすぎないように）。
+function boundedContext(context) {
+  if (context === undefined)
+    return undefined;
+  const text = JSON.stringify(context);
+  if (text.length <= MESSAGE_LIMIT)
+    return context;
+  return { truncated: true, text: text.slice(0, MESSAGE_LIMIT) };
 }
 
 // 上限を超えたら、末尾から maxBytes/2 に収まる分の完全な行だけを残す。

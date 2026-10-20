@@ -19,6 +19,7 @@ const {
 } = require('./security-policy.js');
 const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
+const { createErrorCapture, watchWebContents, watchChildren } = require('./error-capture.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
 const imageThumbnail = require('./image-thumbnail.js');
@@ -66,6 +67,8 @@ const PAGE_BOXES_TIMEOUT_MS = 20000;
 let pageBoxesSerial = 0;
 
 let errorLog = null;
+// 記録の受け口（spec-6-1 タスク B）。errorLog ができる前（app ready の前）の分はためておく。
+const errorCapture = createErrorCapture({ version: app.getVersion() });
 let settings = null;
 let fileIo = null;
 let imageIo = null;
@@ -88,11 +91,7 @@ const launchBatcher = createLaunchBatcher();
 let allowClose = false;
 
 function logError(entry) {
-  if (errorLog === null) {
-    console.error(entry);
-    return;
-  }
-  errorLog.append(entry);
+  errorCapture.record(entry);
 }
 
 // app:// の応答を組み立てる。
@@ -170,6 +169,8 @@ function createMainWindow({ hidden = false } = {}) {
   });
   if (hidden)
     win.webContents.setFrameRate(60);
+  // 画面の処理が止まった・応答しない・preload の失敗を記録する（spec-6-1 タスク B）。
+  watchWebContents(win.webContents, logError);
 
   win.once('ready-to-show', () => {
     if (hidden)
@@ -366,7 +367,7 @@ function registerIpc() {
     platform: process.platform,
   }));
 
-  ipcMain.handle('log:error', (_event, entry) => ({ ok: errorLog.append(entry) }));
+  ipcMain.handle('log:error', (_event, entry) => ({ ok: errorCapture.fromRenderer(entry) }));
 
   // レンダラーが購読を始めた合図（確定事項77）。溜めていた要求をここで流す。
   ipcMain.on('shell:ready', () => {
@@ -2010,6 +2011,8 @@ function start() {
   startupMarks.ready = Date.now();
   const userData = app.getPath('userData');
   errorLog = createErrorLog({ dir: path.join(userData, 'logs') });
+  errorCapture.attach(errorLog);
+  watchChildren(app, logError);
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
   fileIo = createFileIo({ dialog, onError: logError });
