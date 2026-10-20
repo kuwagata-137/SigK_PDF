@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const { applyWatermark } = require('./op-watermark.js');
 const { flattenDocument } = require('./op-flatten.js');
 const { createFontSource } = require('./font-embed.js');
+const { failure } = require('./task-failure.js');
 const { writeDocument } = require('../pdf-write.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
@@ -31,13 +32,13 @@ async function openSource(source, { fsLike, advance = () => {} }) {
   try {
     bytes = await fsLike.promises.readFile(source);
   } catch (error) {
-    return { error: describeSourceReadFailure(error) };
+    return failure(describeSourceReadFailure(error), error);
   }
   advance('load');
   try {
     return { doc: await PDFDocument.load(bytes, LOAD_OPTIONS) };
   } catch (error) {
-    return { error: describeLoadFailure(error) };
+    return failure(describeLoadFailure(error), error);
   }
 }
 
@@ -60,7 +61,7 @@ async function runRewrite(spec, apply, { fsLike = fs, advance = () => {} } = {})
   try {
     output = await opened.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return { error: '書き出す内容を組み立てられませんでした。' };
+    return failure('書き出す内容を組み立てられませんでした。', error);
   }
 
   advance('write');

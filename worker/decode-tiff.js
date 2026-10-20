@@ -16,6 +16,7 @@ const zlib = require('node:zlib');
 const { loadCommonJs } = require('./vendor-loader.js');
 const { readTiffDirectory, checkTiffSupport } = require('./tiff-directory.js');
 
+const { failure } = require('./task-failure.js');
 const BROKEN = '画像を読み込めませんでした。ファイルが壊れている可能性があります。';
 const NO_SUCH_PAGE = '差し込む画像にそのページがありません。';
 
@@ -136,7 +137,7 @@ function decodeTiff(bytes, { frame = 0 } = {}) {
   try {
     loadUtif().decodeImage(arrayBufferOf(bytes), img);
   } catch (error) {
-    return { error: BROKEN };
+    return failure(BROKEN, error);
   }
   if (!(img.data instanceof Uint8Array) || !(img.width > 0) || !(img.height > 0))
     return { error: BROKEN };

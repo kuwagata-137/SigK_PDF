@@ -19,6 +19,7 @@ const { runPageBoxes } = require('./page-boxes-task.js');
 const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
 const { PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure } = require('./pdf-io.js');
 
+const { failure } = require('./task-failure.js');
 // 複数の入力を1つへ結合する（spec-2-1 確定事項22・29〜34）。
 //
 // 5段の名前は保存と同じだが、入力が複数あるので read と apply はファイル単位で
@@ -44,7 +45,7 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
     try {
       bytes.push(await fsLike.promises.readFile(input.path));
     } catch (error) {
-      return { error: `「${nameOf(input)}」${describeSourceReadFailure(error)}` };
+      return failure(`「${nameOf(input)}」${describeSourceReadFailure(error)}`, error);
     }
     advance('read', index + 1, inputs.length);
   }
@@ -72,7 +73,7 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     output = await merged.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return { error: '結合した内容を組み立てられませんでした。' };
+    return failure('結合した内容を組み立てられませんでした。', error);
   }
 
   advance('write');
@@ -118,7 +119,7 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     bytes = await fsLike.promises.readFile(source);
   } catch (error) {
-    return { error: describeSourceReadFailure(error) };
+    return failure(describeSourceReadFailure(error), error);
   }
 
   advance('load');
@@ -126,7 +127,7 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     doc = await PDFDocument.load(bytes, LOAD_OPTIONS);
   } catch (error) {
-    return { error: describeLoadFailure(error) };
+    return failure(describeLoadFailure(error), error);
   }
 
   advance('apply');
@@ -139,7 +140,7 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
       try {
         output = await out.save(SAVE_OPTIONS);
       } catch (error) {
-        return { error: `${index + 1} / ${parts.length} 本目の内容を組み立てられませんでした。` };
+        return failure(`${index + 1} / ${parts.length} 本目の内容を組み立てられませんでした。`, error);
       }
       const written = await writeDocument(targets[index], Buffer.from(output), { makeBackup: false, expect: null, fsLike });
       if (written.ok !== true)

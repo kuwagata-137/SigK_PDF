@@ -168,6 +168,53 @@ test('ワーカーが黙って落ちたら、人が読める文言にしてロ�
   assert.match(logged[0].message, /異常終了/);
 });
 
+test('異常終了の記録に、ワーカーの出どころと終わりのコードを残す（spec-6-1 タスク B）', async () => {
+  const logged = [];
+  const { utilityProcess } = fakeUtilityProcess((child, message) => {
+    if (message?.type === 'run')
+      child.emit('exit', 3221225477);
+  });
+  const runner = createTaskRunner({ utilityProcess, workerPath: 'w.js', onError: (e) => logged.push(e) });
+  await runner.run('t1', { kind: 'merge', source: 'a.pdf', target: 'a.pdf' }, {});
+  assert.equal(logged[0].proc, 'worker');
+  assert.equal(logged[0].context.exitCode, 3221225477);
+  assert.equal(logged[0].context.kind, 'merge');
+});
+
+test('ワーカーが失敗の中身（detail）を返したら記録に残し、画面へ返す結果からは外す（spec-6-1 タスク B）', async () => {
+  const logged = [];
+  const detail = { name: 'Error', message: 'Failed to parse', stack: 'Error: Failed to parse\n    at load (x.js:1:1)' };
+  const { utilityProcess } = fakeUtilityProcess(politeWorker({ error: 'この PDF は内容が壊れているため保存できません。', detail, ms: 5 }));
+  const runner = createTaskRunner({ utilityProcess, workerPath: 'w.js', onError: (e) => logged.push(e) });
+  const result = await runner.run('t1', { kind: 'save', source: 'a.pdf', target: 'b.pdf' }, {});
+
+  assert.deepEqual(result, { error: 'この PDF は内容が壊れているため保存できません。', ms: 5 });
+  assert.deepEqual(logged, [{
+    level: 'warn',
+    proc: 'worker',
+    message: 'ワーカーの処理が失敗しました: この PDF は内容が壊れているため保存できません。',
+    stack: detail.stack,
+    context: { taskId: 't1', kind: 'save', source: 'a.pdf', name: 'Error', error: 'Failed to parse' },
+  }]);
+});
+
+test('どこでも握られなかった例外（detail.unexpected）は、level を error で記録する', async () => {
+  const logged = [];
+  const detail = { name: 'TypeError', message: 'x is undefined', unexpected: true };
+  const { utilityProcess } = fakeUtilityProcess(politeWorker({ error: '保存中に予期しない問題が起きましたが、元のファイルは変更していません。', detail }));
+  const runner = createTaskRunner({ utilityProcess, workerPath: 'w.js', onError: (e) => logged.push(e) });
+  await runner.run('t1', { source: 'a.pdf' }, {});
+  assert.equal(logged[0].level, 'error');
+});
+
+test('detail の無い失敗（書けない・設定が読めないなど、例外を握っていないもの）は記録しない', async () => {
+  const logged = [];
+  const { utilityProcess } = fakeUtilityProcess(politeWorker({ error: '透かしの設定が読めません。' }));
+  const runner = createTaskRunner({ utilityProcess, workerPath: 'w.js', onError: (e) => logged.push(e) });
+  await runner.run('t1', { kind: 'watermark', source: 'a.pdf' }, {});
+  assert.deepEqual(logged, []);
+});
+
 test('ワーカーを起動できなければ、その旨を返す', async () => {
   const logged = [];
   const { utilityProcess } = fakeUtilityProcess(() => {}, { forkThrows: true });

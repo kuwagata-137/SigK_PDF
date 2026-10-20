@@ -12,6 +12,7 @@ const { applyForCopy } = require('./save-apply.js');
 const { normalizeRotation } = require('./op-pages.js');
 const { PDFDocument, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, insertReader } = require('./pdf-io.js');
 
+const { failure } = require('./task-failure.js');
 const NO_SOURCE = 'PDF の中身が見つからないので、もう一度やり直してください。';
 
 // 元の中身のバイト列。パスがあれば読み、無ければ（名前の無い帯）copies の鍵のバイト列。
@@ -20,7 +21,7 @@ async function readSource({ source, sourceCopy, copies }, fsLike) {
     try {
       return { ok: true, bytes: await fsLike.promises.readFile(source) };
     } catch (error) {
-      return { error: describeSourceReadFailure(error) };
+      return failure(describeSourceReadFailure(error), error);
     }
   }
   const bytes = typeof sourceCopy === 'string' ? copies?.[sourceCopy] : undefined;
@@ -45,7 +46,7 @@ async function runCopy(spec, { fsLike } = {}) {
   try {
     doc = await PDFDocument.load(read.bytes, LOAD_OPTIONS);
   } catch (error) {
-    return { error: describeLoadFailure(error) };
+    return failure(describeLoadFailure(error), error);
   }
 
   const applied = await applyForCopy(doc, pages, inserts, { ...insertReader(fsLike), copies }, annotations);
@@ -56,7 +57,7 @@ async function runCopy(spec, { fsLike } = {}) {
   try {
     bytes = await applied.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return { error: '写すページを組み立てられませんでした。' };
+    return failure('写すページを組み立てられませんでした。', error);
   }
   return { ok: true, bytes, pages: applied.pages, sizes: applied.doc.getPages().map(viewedSize) };
 }

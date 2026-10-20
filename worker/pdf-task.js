@@ -26,6 +26,7 @@ const {
 } = require('./pdf-io.js');
 const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./tool-tasks.js');
 
+const { failure } = require('./task-failure.js');
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
 const SOURCE_CHANGED = '開いたあとで元のファイルが別のアプリで変更されたので、モザイクを入れたページを書き出せません。元のファイルは変更していません。'
   + '開き直してから、もう一度モザイクを入れてください。';
@@ -52,7 +53,7 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
   try {
     built = await buildPreview(sourcePath, base, TOOLS, insertReader(fsLike));
   } catch (error) {
-    return { error: '差し込むページを組み立てられませんでした。' };
+    return failure('差し込むページを組み立てられませんでした。', error);
   }
   if (built.ok !== true)
     return built;
@@ -88,7 +89,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     doc = await PDFDocument.load(bytes, LOAD_OPTIONS);
   } catch (error) {
-    return { error: describeLoadFailure(error) };
+    return failure(describeLoadFailure(error), error);
   }
 
   advance('apply');
@@ -109,7 +110,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     output = await applied.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return { error: '保存する内容を組み立てられませんでした。' };
+    return failure('保存する内容を組み立てられませんでした。', error);
   }
 
   advance('write');
@@ -165,7 +166,7 @@ if (process.parentPort !== undefined && process.parentPort !== null) {
     try {
       result = await runTask(message.spec, { send });
     } catch (error) {
-      result = { error: '保存中に予期しない問題が起きましたが、元のファイルは変更していません。' };
+      result = failure('保存中に予期しない問題が起きましたが、元のファイルは変更していません。', error, { unexpected: true });
     }
     send({ type: 'done', taskId: message.taskId, result });
   });

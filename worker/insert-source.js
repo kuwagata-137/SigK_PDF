@@ -9,6 +9,7 @@
 const { detectFormat, isSupported, describeFormat, isProgressiveJpeg } = require('./image-format.js');
 const { frameCount } = require('./image-decode.js');
 
+const { failure } = require('./task-failure.js');
 const NOT_FOUND = '差し込むページが見つからないので、もう一度やり直してください。';
 
 // 画像のページ数。複数ページを持つのは TIFF だけ（spec-3-2 確定事項24）。
@@ -30,7 +31,7 @@ async function loadBytes(bytes, PDFDocument) {
     try {
       return { ok: true, kind, doc: await PDFDocument.load(bytes, { updateMetadata: false }) };
     } catch (error) {
-      return { error: '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。' };
+      return failure('内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。', error);
     }
   }
   const frames = imageFrames(kind, bytes);
@@ -48,7 +49,7 @@ async function loadSource(path, cache, { readFile, PDFDocument }) {
   try {
     bytes = await readFile(path);
   } catch (error) {
-    cache.set(path, { error: '差し込むファイルを読めませんでした。' });
+    cache.set(path, failure('差し込むファイルを読めませんでした。', error));
     return cache.get(path);
   }
   cache.set(path, await loadBytes(bytes, PDFDocument));

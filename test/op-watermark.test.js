@@ -179,8 +179,10 @@ test('JPEG の透かしも埋められ、BMP は PNG か JPEG を選ぶよう、
 test('画像を読めなければ断る', async () => {
   const mark = { type: 'image', image: 'missing.png', opacity: 0.3, angle: 0, size: 'medium', position: 'center' };
   const readFile = async () => { throw Object.assign(new Error('nope'), { code: 'ENOENT' }); };
-  assert.deepEqual(await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile }),
-    { error: '透かしの画像を読めませんでした。' });
+  const result = await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile });
+  assert.equal(result.error, '透かしの画像を読めませんでした。');
+  // 握った例外の中身は、エラーの記録に残すために添える（spec-6-1 タスク B。task-runner.js が画面へ返す前に外す）。
+  assert.equal(result.detail.message, 'nope');
 });
 
 test('対象ページが空・範囲外・重複・昇順でなければ、何も書かずに断る', async () => {
