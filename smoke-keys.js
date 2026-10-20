@@ -15,6 +15,7 @@
 //   split（分割の盤を出す）・split-cut:<ページ>・split-press:<ページ>[:shift]・split-drag:<a>-<b>・split-dblclick:<ページ>・split-move:<ページ>:<先>（smoke-keys-split.js）
 //   click:<id>・tab-x:<n>・chord（本物のマウスで要素を押す・タブの × を押す・左＋右）・strip-page・strip-drag・strip-drag-new・strip-hold
 //   （帯のページを押す・引いて落とす）・hover:<id>・strip-hover:<n>:<act>（カーソルを載せるだけ。説明の吹き出し。smoke-keys-strips.js）
+//   blur-window・focus-window（アプリの窓のフォーカスを外す・戻す。窓を出した起動確認だけで使う。smoke-keys-window.js）
 // 例: SIGK_SMOKE_KEYS=mode:annot,shape:square:0:100x700-300x600,find:text,dialog:info,esc,state,esc,state
 //
 // 数・範囲が読めない操作は、黙って 0 回にせず、止めて problems に書く。mode・facing は設定に残るので、起動確認の決まりどおり
@@ -155,7 +156,8 @@ const OPS = {
 };
 
 // 分割の盤を本物のマウスで押す操作（spec-2-2b 確定事項K3）と、タブの ×・要素を押す・左＋右（spec-2-5 の起動確認）。
-Object.assign(OPS, require('./smoke-keys-split.js').create({ numberOf, spanOf }), require('./smoke-keys-strips.js').create({ numberOf }));
+Object.assign(OPS, require('./smoke-keys-split.js').create({ numberOf, spanOf }), require('./smoke-keys-strips.js').create({ numberOf }),
+  require('./smoke-keys-window.js').create());
 
 // 1 つの操作を流す。
 async function runStep(ctx, step, index) {
@@ -173,7 +175,7 @@ async function runStep(ctx, step, index) {
 // 操作列を流し、控えた様子を返す。失敗した操作は、その操作の名前を添えて problems に書き、そこで止める。
 async function run(win, spec) {
   const steps = parseSpec(spec);
-  const ctx = { dbg: win.webContents.debugger, js: (code) => win.webContents.executeJavaScript(code), last: null, states: [] };
+  const ctx = { win, dbg: win.webContents.debugger, js: (code) => win.webContents.executeJavaScript(code), last: null, states: [] };
   const applied = [];
   const problems = [];
   let current = '(attach)';
