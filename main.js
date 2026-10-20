@@ -21,6 +21,7 @@ const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = 
 const { createErrorLog } = require('./errorlog.js');
 const { createErrorCapture, watchWebContents, watchChildren } = require('./error-capture.js');
 const { openLogFolder } = require('./log-folder.js');
+const { handleRendererGone, runCrashCheck } = require('./renderer-gone.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
 const imageThumbnail = require('./image-thumbnail.js');
@@ -90,9 +91,22 @@ const pendingLaunch = [];
 const launchBatcher = createLaunchBatcher();
 // 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
 let allowClose = false;
+// アプリを終えている途中（before-quit のあと）。画面の処理が止まっても確認の窓を出さない。
+let quitting = false;
+// 画面の処理が止まったときにしたこと（renderer-gone.js。起動確認 SIGK_SMOKE_CRASH が読む）。
+let rendererGoneOutcome = null;
 
 function logError(entry) {
   errorCapture.record(entry);
+}
+
+// 画面の処理が止まったとき（spec-6-1 タスク B の B2）。保存していない変更の数は止まった画面のものなので 0 に戻す
+// （開き直した画面で閉じるときに、もう無い変更を聞かないため）。
+function onRendererGone(win) {
+  dirtyTabCount = 0;
+  rendererGoneOutcome = null;
+  handleRendererGone({ win, dialog, app, logError, smoke: process.env.SIGK_SMOKE === '1', quitting })
+    .then((outcome) => { rendererGoneOutcome = outcome; });
 }
 
 // app:// の応答を組み立てる。
@@ -171,7 +185,7 @@ function createMainWindow({ hidden = false } = {}) {
   if (hidden)
     win.webContents.setFrameRate(60);
   // 画面の処理が止まった・応答しない・preload の失敗を記録する（spec-6-1 タスク B）。
-  watchWebContents(win.webContents, logError);
+  watchWebContents(win.webContents, logError, () => onRendererGone(win));
 
   win.once('ready-to-show', () => {
     if (hidden)
@@ -1694,6 +1708,14 @@ function installSmokeCheck(win, mode) {
       const memoryAtRest = perfPath === undefined ? null : snapshotMemory();
       let memoryAfterOpen = null;
       let memoryAfterEdit = null;
+      // SIGK_SMOKE_CRASH=1 は画面の処理をわざと止め、記録に残ることと、確認の窓を出す道を通ったことだけを確かめて終わる（spec-6-1 タスク B）。
+      if (process.env.SIGK_SMOKE_CRASH === '1') {
+        const crash = await runCrashCheck({ win, readLog: () => errorLog.readAll(), outcome: () => rendererGoneOutcome });
+        console.log(JSON.stringify({ crash, problems }));
+        allowClose = true;
+        win.close();
+        return;
+      }
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
         if (process.env.SIGK_SMOKE_THROW === '1')
@@ -2050,7 +2072,10 @@ function start() {
 app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
 // 保存中は終了を塞いである（確定事項9）ので普通は起きないが、万一残っていたら
 // ワーカーを落として書きかけの一時ファイルも片づける。元ファイルは無傷である。
-app.on('before-quit', () => taskRunner?.cancelAll());
+app.on('before-quit', () => {
+  quitting = true;
+  taskRunner?.cancelAll();
+});
 
 app.on('window-all-closed', () => app.quit());
 

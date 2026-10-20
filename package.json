@@ -46,6 +46,7 @@
       "errorlog.js",
       "error-capture.js",
       "log-folder.js",
+      "renderer-gone.js",
       "file-io.js",
       "image-io.js",
       "image-thumbnail.js",
