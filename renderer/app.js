@@ -24,7 +24,8 @@
         return null;
       root.SigK.shell.setStatus(doc, { version: `${info.name} ${info.version}` });
       return info;
-    } catch {
+    } catch (error) {
+      root.SigK.log?.warn('app', 'アプリの版を読めませんでした', error);
       return null;
     }
   }
@@ -73,7 +74,8 @@
       root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);
       root.SigK.annotateNote?.applyAuthor(result.ui.annotAuthor);
       return result.ui;
-    } catch {
+    } catch (error) {
+      root.SigK.log?.warn('app', '前回の画面の設定を読めませんでした', error);
       return null;
     }
   }

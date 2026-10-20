@@ -168,7 +168,7 @@
           if (result?.ok === true && typeof result.ui?.annotAuthor === 'string')
             applyAuthor(result.ui.annotAuthor);
         })
-        .catch(() => {});
+        .catch((error) => root.SigK.log?.warn('annotate-note', 'ノートの作成者を覚えられませんでした', error));
     }
     return true;
   }

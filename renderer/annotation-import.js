@@ -29,7 +29,9 @@
         const page = await doc.getPage(number);
         views[number - 1] = page.view;
         annotations = typeof page.getAnnotations === 'function' ? await page.getAnnotations() : [];
-      } catch {
+      } catch (error) {
+        // 読めないページは書き込みが無いものとして先へ進む。理由は記録に残す（spec-6-1 タスク B）。
+        root.SigK.log?.warn('annotation-import', `${number} ページ目の書き込みを読めませんでした`, error, { page: number });
         annotations = [];
       }
       if (!isAlive())

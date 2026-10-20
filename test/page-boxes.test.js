@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 require('../renderer/page-crop.js');
 require('../renderer/page-boxes.js');
 const boxes = globalThis.SigK.pageBoxes;
+const { captureLogs } = require('./log-capture.js');
 
 // 紙全体の大きさ（MediaBox）を読む口（spec-4b-6a 確定事項9・10）。ワーカーの口（pdfAPI.readBoxes）は偽物に差し替える。
 // 読んだ結果はファイルのパス・大きさ・更新時刻を鍵に持つので、テストごとに別のファイルを使う。
@@ -62,4 +63,14 @@ test('読めなかった・口が投げた・パスが無いときは null で�
   assert.equal(await boxes.load(null), null);
   assert.equal(await boxes.load({ path: '' }), null);
   assert.equal(boxes.statusOf(null), 'none');
+});
+
+test('口が投げたときは、warn を記録に残す（spec-6-1 タスク B）', async (t) => {
+  const logs = captureLogs(t);
+  answers.push(() => { throw new Error('IPC が切れた'); });
+  assert.equal(await boxes.load(fileOf('thrown-logged')), null);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].message, '紙全体の大きさを読めませんでした');
+  assert.deepEqual(logs[0].context, { source: 'page-boxes', error: 'IPC が切れた' });
 });

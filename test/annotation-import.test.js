@@ -20,6 +20,7 @@ require('../renderer/annotation-details.js');
 require('../renderer/annotation-import.js');
 
 const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
+const { captureLogs } = require('./log-capture.js');
 
 // ファイルにある注釈を集める層（spec-4-1 確定事項17・18、spec-4-4 確定事項20、spec-4b-1a 確定事項25〜30）。
 // 前半は偽の文書と偽の viewer・annotationAPI で流れを見て、後半は足場で「続けて開いても前のタブへ届く」を見る。
@@ -97,6 +98,22 @@ test('importDocument は getAnnotations が投げても止まらない', async (
   };
   const imported = await imp.importDocument(doc, { file: FILE });
   assert.deepEqual(Object.keys(imported), ['1']);
+});
+
+test('getAnnotations が投げたページは、書き込みを空にして、warn を記録に残す（spec-6-1 タスク B）', async (t) => {
+  stubs(t);
+  const logs = captureLogs(t);
+  const doc = {
+    numPages: 2,
+    annotationStorage: { setValue: () => {} },
+    getPage: async (number) => ({ getAnnotations: async () => { if (number === 2) throw new Error('壊れている'); return []; } }),
+  };
+  await imp.importDocument(doc, { file: FILE });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].level, 'warn');
+  assert.equal(logs[0].message, '2 ページ目の書き込みを読めませんでした');
+  assert.deepEqual(logs[0].context, { source: 'annotation-import', page: 2, error: '壊れている' });
 });
 
 test('importDocument はノートに noView を付け、表示のみには付けない', async (t) => {

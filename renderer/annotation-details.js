@@ -154,7 +154,9 @@
       let answer;
       try {
         answer = await api().readDetails(spec);
-      } catch {
+      } catch (error) {
+        // 読めないときは表示のみにして先へ進む。理由は記録に残す（spec-6-1 タスク B）。
+        root.SigK.log?.warn('annotation-details', '書き込みの詳しい中身を読めませんでした', error, { refs: refs.length });
         answer = { ok: false, reason: 'unreadable' };
       }
       const unread = Array.isArray(answer?.unread) ? answer.unread.filter((id) => typeof id === 'string') : [];
@@ -164,6 +166,7 @@
       last = { called: true, refs: refs.length, answered: result.ok ? Object.keys(result.details).length : 0, ms: Date.now() - started, reason: result.ok ? null : result.reason };
       return result;
     });
+    // 待ち行列の鎖だけを、失敗しても次の呼び出しへ進めるようにつなぐ（失敗は run を受け取った呼び出し元へ返っている）。
     queue = run.catch(() => {});
     return run;
   }

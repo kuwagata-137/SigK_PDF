@@ -13,6 +13,8 @@ require('../renderer/free-text-layout.js');
 require('../renderer/imported-text-details.js');
 require('../renderer/annotation-details.js');
 
+const { captureLogs } = require('./log-capture.js');
+
 // 注釈の辞書の読み戻しを当てる層（spec-4b-1a 確定事項25〜27、spec-4b-1b 確定事項36〜39）。純関数と、口を 1 本ずつ呼ぶ順番待ちを見る。
 // 読み込みの流れの中での使われ方は annotation-import.test.js が見る。
 
@@ -207,6 +209,16 @@ test('requestDetails は断られた答えと、口が投げたときを reason 
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'timeout', called: true });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: false, reason: 'unreadable', called: true });
   assert.deepEqual(await details.requestDetails(FILE, ['1R']), { ok: true, details: {}, unread: [], called: true });
+});
+
+test('requestDetails は口が投げたとき、warn を記録に残す（spec-6-1 タスク B）', async (t) => {
+  const logs = captureLogs(t);
+  withApi(t, async () => { throw new Error('IPC が切れた'); });
+  assert.equal((await details.requestDetails(FILE, ['1R'])).reason, 'unreadable');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].message, '書き込みの詳しい中身を読めませんでした');
+  assert.deepEqual(logs[0].context, { source: 'annotation-details', refs: 1, error: 'IPC が切れた' });
 });
 
 test('applyDetails は多角形を、口が答えなければ表示のみ（Polygon・PolyLine）にし、答えがあれば塗りと不透明度を当てる（spec-4b-5a 確定事項40）', () => {

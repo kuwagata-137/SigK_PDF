@@ -54,6 +54,7 @@
     const task = read?.error === undefined ? root.SigK.pdfjs.getDocument({ data: read.bytes }) : null;
     if (task !== null)
       task.onPassword = (answer) => answer(new Error('パスワード付きの PDF は扱えません'));
+    // 開けない（パスワード付き・壊れている）ときはプレビューを出さないだけ。理由は実行したときにワーカーの失敗として記録に残る。
     const doc = task === null ? null : await task.promise.catch(() => null);
     if (ticket !== state.ticket) {
       await task?.destroy?.();

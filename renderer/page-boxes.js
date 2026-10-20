@@ -24,7 +24,9 @@
     try {
       const result = await api.readBoxes({ source: file.path, expect: { size: file.size, mtimeMs: file.mtimeMs } });
       return result?.ok === true && Array.isArray(result.boxes) ? result.boxes : null;
-    } catch {
+    } catch (error) {
+      // 読めなければ紙全体は分からないまま（切り取りの外は描かない）。理由は記録に残す（spec-6-1 タスク B）。
+      root.SigK.log?.warn('page-boxes', '紙全体の大きさを読めませんでした', error);
       return null;
     }
   }
