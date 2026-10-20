@@ -174,6 +174,15 @@ test('既定のアプリの入口を、メニューと同じ名前で案内す�
   assert.match(joined('basics'), /「プログラムから開く」から選ぶこともできます/);
 });
 
+test('うまく動かないときの記録の入口を、メニューと同じ名前で案内する（spec-6-1 タスク B。決定81 ⑧）', () => {
+  const mainJs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
+  assert.match(mainJs, /label: 'エラーの記録のフォルダを開く'/);
+  const block = sectionOf('basics').blocks.find((b) => b.h === 'うまく動かないとき');
+  assert.notEqual(block, undefined, '「画面とモード」に「うまく動かないとき」が無い');
+  assert.match(block.items.join(' '), /メニュー「ヘルプ」→「エラーの記録のフォルダを開く」を押すと/);
+  assert.match(block.items.join(' '), /外へは送りません/);
+});
+
 // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K。2026-10-14）。閲覧の節に節を立て、マウスの表と Esc の順にも閲覧・ページ編集を書く。
 test('閲覧の節に［選択］［ハンド］の節があり、マウスの表と Esc の順が閲覧・ページ編集のハンドを含む', () => {
   const block = sectionOf('view').blocks.find((b) => b.h === '選択とハンド');

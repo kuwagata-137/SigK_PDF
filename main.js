@@ -20,6 +20,7 @@ const {
 const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
 const { createErrorCapture, watchWebContents, watchChildren } = require('./error-capture.js');
+const { openLogFolder } = require('./log-folder.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
 const imageThumbnail = require('./image-thumbnail.js');
@@ -278,9 +279,14 @@ function requestDefaultAppsSettings() {
   openDefaultAppsSettings({ shell, appName: app.getName(), logError });
 }
 
+// メニュー「ヘルプ」→「エラーの記録のフォルダを開く」（spec-6-1 タスク B。決定81 ⑧）。
+function requestLogFolder() {
+  openLogFolder({ dir: path.dirname(errorLog.filePath), shell, logError });
+}
+
 // メニュー「ヘルプ」の並び（spec-5-2 確定事項C1）と、アプリのアイコンを読めるか。起動確認の報告に載せる（確定事項E1）。
 // 配布物では app.asar の中のアイコンを読む。並びが違う・読めないときは problems に積む。
-const HELP_MENU_ORDER = ['使い方', '既定のアプリの設定…', '-', 'バージョン情報'];
+const HELP_MENU_ORDER = ['使い方', '既定のアプリの設定…', 'エラーの記録のフォルダを開く', '-', 'バージョン情報'];
 function readAppShellState(problems) {
   const helpMenu = Menu.getApplicationMenu()?.items.find((item) => item.label === 'ヘルプ');
   const labels = helpMenu?.submenu?.items.map((item) => (item.type === 'separator' ? '-' : item.label)) ?? null;
@@ -337,6 +343,7 @@ function buildAppMenu() {
         // F1 は画面の側（viewer-keys.js）で受ける 1 本にする（spec-4b-7b 確定事項A2）。ここはキーを表示するだけで登録しない。
         { label: '使い方', accelerator: 'F1', registerAccelerator: false, click: requestHelp },
         { label: '既定のアプリの設定…', click: requestDefaultAppsSettings },
+        { label: 'エラーの記録のフォルダを開く', click: requestLogFolder },
         { type: 'separator' },
         { label: 'バージョン情報', click: showAboutDialog },
       ],

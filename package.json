@@ -45,6 +45,7 @@
       "annotation-text-settings.js",
       "errorlog.js",
       "error-capture.js",
+      "log-folder.js",
       "file-io.js",
       "image-io.js",
       "image-thumbnail.js",

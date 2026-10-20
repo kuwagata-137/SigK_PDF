@@ -17,9 +17,9 @@ function helpMenuOrder() {
   return [...block.matchAll(/\{ (?:label: '([^']+)'|type: 'separator')/g)].map((m) => m[1] ?? '-');
 }
 
-test('メニュー「ヘルプ」は 使い方・既定のアプリの設定…・区切り・バージョン情報 の順で、起動確認が見張る並びと同じ', () => {
+test('メニュー「ヘルプ」は 使い方・既定のアプリの設定…・エラーの記録のフォルダを開く・区切り・バージョン情報 の順で、起動確認が見張る並びと同じ', () => {
   const order = helpMenuOrder();
-  assert.deepEqual(order, ['使い方', '既定のアプリの設定…', '-', 'バージョン情報']);
+  assert.deepEqual(order, ['使い方', '既定のアプリの設定…', 'エラーの記録のフォルダを開く', '-', 'バージョン情報']);
   const watched = /const HELP_MENU_ORDER = (\[[^\]]+\]);/.exec(MAIN)[1];
   assert.deepEqual(JSON.parse(watched.replace(/'/g, '"')), order);
 });
@@ -30,6 +30,12 @@ test('「既定のアプリの設定…」を押すと、製品名を渡して d
   assert.match(MAIN, /const \{ openDefaultAppsSettings \} = require\('\.\/default-apps-link\.js'\);/);
   // shell は Electron のもの（起動確認の中の同じ名前の変数ではない）。
   assert.match(MAIN, /^const \{[^}]*\bshell\b[^}]*\} = require\('electron'\);/m);
+});
+
+test('「エラーの記録のフォルダを開く」を押すと、記録のフォルダを渡して log-folder.js の openLogFolder を呼ぶ（spec-6-1 タスク B。決定81 ⑧）', () => {
+  assert.match(MAIN, /\{ label: 'エラーの記録のフォルダを開く', click: requestLogFolder \}/);
+  assert.match(MAIN, /function requestLogFolder\(\) \{\n {2}openLogFolder\(\{ dir: path\.dirname\(errorLog\.filePath\), shell, logError \}\);\n\}/);
+  assert.match(MAIN, /const \{ openLogFolder \} = require\('\.\/log-folder\.js'\);/);
 });
 
 test('窓とバージョン情報に、assets/icon.ico を使う', () => {
