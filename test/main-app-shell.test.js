@@ -66,3 +66,12 @@ test('起動確認の報告に appShell を載せる', () => {
   assert.match(MAIN, /const appShell = readAppShellState\(problems\);/);
   assert.match(MAIN, /\n {8}appShell,\n/);
 });
+
+// 設定の窓の値（spec-6-1 タスク E の確定事項E-4・E-6）。main.js は Electron なしでは読めないので文字で見る。
+test('設定の窓の値の受け口（preferences:get・set）と、書き出しに成功したときに最後に書き出したフォルダを覚える配線がある', () => {
+  assert.match(MAIN, /ipcMain\.handle\('preferences:get', \(\) => \(\{ ok: true, \.\.\.preferences\.snapshot\(\) \}\)\);/);
+  assert.match(MAIN, /ipcMain\.handle\('preferences:set', \(_event, patch\) => \(\{ ok: true, \.\.\.preferences\.set\(patch\) \}\)\);/);
+  assert.match(MAIN, /preferences\.rememberOutput\(spec, result\);/, 'ワーカーの書き出し');
+  assert.match(MAIN, /if \(result\?\.ok === true\)\n {6}preferences\.rememberWritten\(target\);/, 'PDF→画像の画像の書き込み');
+  assert.match(MAIN, /preferences = createPreferencesHost\(\{ settings, notify: \(snapshot\) => mainWindow\?\.webContents\.send\('preferences:changed', snapshot\) \}\);/);
+});

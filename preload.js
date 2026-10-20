@@ -137,6 +137,15 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   setUi: (patch) => ipcRenderer.invoke('settings:setUi', patch),
 });
 
+// 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。get・set は { ok, preferences, available: { last, fixed } } を返す。
+// onChanged は、メインが「最後に書き出したフォルダ」を覚えたときなどに同じ形で呼ばれる。
+contextBridge.exposeInMainWorld('preferencesAPI', {
+  available: true,
+  get: () => ipcRenderer.invoke('preferences:get'),
+  set: (patch) => ipcRenderer.invoke('preferences:set', patch),
+  onChanged: (callback) => ipcRenderer.on('preferences:changed', (_event, snapshot) => callback(snapshot)),
+});
+
 // 未保存の編集を持ったまま終了しようとしたときの往復（spec-1-5 確定事項56）。
 // 確認のダイアログはアプリ内の <dialog> なので、レンダラーでしか出せない。
 // メイン側は「未保存があるか」だけを持ち、無ければ従来どおり素通りで閉じる。

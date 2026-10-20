@@ -21,6 +21,7 @@ const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = 
 const { createErrorLog } = require('./errorlog.js');
 const { createErrorCapture, watchWebContents, watchChildren } = require('./error-capture.js');
 const { openLogFolder } = require('./log-folder.js');
+const { createPreferencesHost } = require('./preferences.js');
 const { handleRendererGone, runCrashCheck } = require('./renderer-gone.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
@@ -72,6 +73,8 @@ let errorLog = null;
 // 記録の受け口（spec-6-1 タスク B）。errorLog ができる前（app ready の前）の分はためておく。
 const errorCapture = createErrorCapture({ version: app.getVersion() });
 let settings = null;
+// 設定の窓の値（spec-6-1 タスク E）。settings.json の preferences の欄をこの口で読み書きする。
+let preferences = null;
 let fileIo = null;
 let imageIo = null;
 let taskRunner = null;
@@ -439,7 +442,13 @@ function registerIpc() {
   ipcMain.handle('pdf:pickWatermarkImage', (_event, options = {}) => imageIo.pickWatermark(mainWindow, options));
   ipcMain.handle('pdf:readWatermarkImage', (_event, filePath) => imageIo.readWatermark(filePath));
   // PDF→画像（spec-3-3 確定事項19）。レンダラーが描いた 1 ページぶんを書く。
-  ipcMain.handle('image:write', (_event, target, bytes) => imageIo.write(target, bytes));
+  // 書けたら「最後に書き出したフォルダ」として覚える（spec-6-1 確定事項E-6）。
+  ipcMain.handle('image:write', async (_event, target, bytes) => {
+    const result = await imageIo.write(target, bytes);
+    if (result?.ok === true)
+      preferences.rememberWritten(target);
+    return result;
+  });
   // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。画像の拡張子の絶対パスだけ受け、data URL で返す。
   ipcMain.handle('image:thumbnail', (_event, filePath) => imageThumbnail.createThumbnail(filePath, { nativeImageLike: nativeImage }));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
@@ -454,12 +463,17 @@ function registerIpc() {
   // ワーカーへの委譲（spec-1-6 確定事項1〜10）。進捗は要求元の webContents へ
   // 返す。タスク1本につきプロセスを1つ立てて、終わったら落とすのは
   // task-runner.js の仕事である。
-  ipcMain.handle('task:run', (event, taskId, spec) => taskRunner.run(taskId, spec, {
-    onProgress: (progress) => {
-      if (!event.sender.isDestroyed())
-        event.sender.send('task:progress', progress);
-    },
-  }));
+  ipcMain.handle('task:run', async (event, taskId, spec) => {
+    const result = await taskRunner.run(taskId, spec, {
+      onProgress: (progress) => {
+        if (!event.sender.isDestroyed())
+          event.sender.send('task:progress', progress);
+      },
+    });
+    // 書き出しに成功したら、行き先のフォルダを「最後に書き出したフォルダ」として覚える（spec-6-1 確定事項E-6）。
+    preferences.rememberOutput(spec, result);
+    return result;
+  });
   ipcMain.handle('task:cancel', (_event, taskId) => taskRunner.cancel(taskId));
 
   // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。保存や透かしと同じワーカーで読むが、通知バーも「実行中」の
@@ -500,6 +514,9 @@ function registerIpc() {
   // ノートの作成者が空なら OS のユーザー名で埋めて渡す（spec-4-4 確定事項39）。
   const uiForRenderer = () => fillAuthor(pickUi(settings.get()), osUserName());
   ipcMain.handle('settings:getUi', () => ({ ok: true, ui: uiForRenderer() }));
+  // 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。set は差分を受け、確かめた全体と今あるフォルダを返す。
+  ipcMain.handle('preferences:get', () => ({ ok: true, ...preferences.snapshot() }));
+  ipcMain.handle('preferences:set', (_event, patch) => ({ ok: true, ...preferences.set(patch) }));
   ipcMain.handle('settings:setUi', (_event, patch) => {
     settings.set(mergeUi(pickUi(settings.get()), patch));
     settings.save();
@@ -2069,6 +2086,7 @@ function start() {
   watchChildren(app, logError);
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
+  preferences = createPreferencesHost({ settings, notify: (snapshot) => mainWindow?.webContents.send('preferences:changed', snapshot) });
   fileIo = createFileIo({ dialog, onError: logError });
   imageIo = createImageIo({ dialog, onError: logError });
   // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。

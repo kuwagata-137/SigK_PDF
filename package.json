@@ -42,6 +42,7 @@
       "security-policy.js",
       "settings.js",
       "annotation-settings.js",
+      "preferences.js",
       "annotation-text-settings.js",
       "errorlog.js",
       "error-capture.js",
