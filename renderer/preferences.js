@@ -16,6 +16,9 @@
   });
 
   const state = { snapshot: null, listeners: [] };
+  // 起動したときの読み込みが済んだら（読めなくても）解ける。覚えた値を当てる部品（tool-memory.js）が待つ。
+  let markReady = () => {};
+  const readyPromise = new Promise((resolve) => { markReady = resolve; });
 
   const api = () => (root.preferencesAPI?.available === true ? root.preferencesAPI : null);
 
@@ -82,17 +85,20 @@
       return false;
     win.__sigkPreferencesReady = true;
     const target = api();
-    if (target === null)
+    if (target === null) {
+      markReady();
       return false;
+    }
     target.onChanged?.((snapshot) => accept({ ok: true, ...snapshot }));
     try {
       accept(await target.get());
     } catch (error) {
       root.SigK.log?.warn('preferences', '設定を読めませんでした', error);
     }
+    markReady();
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.preferences = { DEFAULTS, init, current, set, initialFolder, initialPath, subscribe };
+  SigK.preferences = { DEFAULTS, init, ready: () => readyPromise, current, set, initialFolder, initialPath, subscribe };
 })(typeof window !== 'undefined' ? window : globalThis);

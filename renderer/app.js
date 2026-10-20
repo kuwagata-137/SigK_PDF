@@ -142,6 +142,8 @@
     root.SigK.confirmMosaic.init(doc, win);
     root.SigK.toolsFlatten.init(doc, win);
     root.SigK.toolsFlattenView.init(doc, win);
+    // ツールで選んだ値と最後のツールを覚える（spec-6-1 タスク E）。設定を読めてから当てる（待たない）。
+    root.SigK.toolMemory?.init(doc, win);
     // パスワードの入力は viewer.open() の途中から呼ばれる。先に用意しておく。
     root.SigK.passwordPrompt.init(doc, win);
     // 保存は、未保存の確認（3択の「保存」）からも呼ばれる。確認より先に用意する。

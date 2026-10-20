@@ -57,6 +57,8 @@
     if (el === null || !TOOLS.some((tool) => tool.id === id))
       return false;
     state.selected = id;
+    // 最後に使ったツールとして覚える（spec-6-1 確定事項E-8）。
+    root.SigK.toolMemory?.toolSelected(id);
     for (const item of el.list.querySelectorAll('.tool-item'))
       item.classList.toggle('active', item.dataset.tool === id);
     // 真ん中に帯・右の欄に設定を出す（spec-2-5 第 D・E 章）。
