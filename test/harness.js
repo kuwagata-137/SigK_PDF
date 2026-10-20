@@ -224,7 +224,9 @@ function createPdfjsStub({
 
   // pdf.js 6 の PDFDocumentProxy には destroy() が無い（spec-3-3 事前調査 B）。畳むのは
   // loadingTask.destroy() で、本物と同じく document.loadingTask から辿れるようにしておく。
-  function createDocument(task) {
+  function createDocument(task, data) {
+    // 本物の getData() は、開いたときに渡したバイト列をそのまま返す（spec-6-1 タスク C）。渡された値はここで写しておく。
+    const opened = data instanceof Uint8Array || ArrayBuffer.isView(data) ? Uint8Array.from(data) : new Uint8Array();
     const document = {
       id: documents.length,
       numPages: sizes.length,
@@ -233,6 +235,11 @@ function createPdfjsStub({
       annotationStorage: createAnnotationStorage(),
       async getMetadata() {
         return { info, metadata: null };
+      },
+      async getData() {
+        if (document.destroyed)
+          throw new Error('文書は畳まれています');
+        return Uint8Array.from(opened);
       },
       async getPage(number) {
         const size = sizes[number - 1];
@@ -304,7 +311,7 @@ function createPdfjsStub({
     get document() {
       return documents.at(-1) ?? null;
     },
-    getDocument: () => {
+    getDocument: ({ data } = {}) => {
       // 本物の getDocument() は loadingTask を返す。onPassword は**戻ってきた
       // あとで**代入されるので、聞くのは1ティック後にする（確定事項66）。
       const task = { onPassword: null, destroyed: false };
@@ -320,7 +327,7 @@ function createPdfjsStub({
         return task;
       }
       if (password === null) {
-        task.promise = Promise.resolve(createDocument(task));
+        task.promise = Promise.resolve(createDocument(task, data));
         return task;
       }
 
@@ -343,7 +350,7 @@ function createPdfjsStub({
             }
             passwordAttempts.push(value);
             if (value === password)
-              resolve(createDocument(task));
+              resolve(createDocument(task, data));
             else
               askAgain();
           }, passwordAttempts.length === 0 ? 1 : 2);

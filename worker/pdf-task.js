@@ -17,8 +17,8 @@ const fs = require('node:fs');
 
 const { applyForSave, applyForExtract } = require('./save-apply.js');
 const { buildPreview } = require('./op-insert.js');
-const { readSource, runCopy } = require('./op-copy.js');
-const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
+const { readSource, sourceChanged, runCopy } = require('./op-copy.js');
+const { writeDocument } = require('../pdf-write.js');
 const { pruneOrphans } = require('./orphan-objects.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
@@ -28,8 +28,6 @@ const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./to
 
 const { failure } = require('./task-failure.js');
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
-const SOURCE_CHANGED = '開いたあとで元のファイルが別のアプリで変更されたので、モザイクを入れたページを書き出せません。元のファイルは変更していません。'
-  + '開き直してから、もう一度モザイクを入れてください。';
 
 // Windows のパスとして同じファイルか（大文字小文字と区切りの字をそろえる。recent-documents.js の pathKey と同じ比べ方）。
 function samePath(a, b) {
@@ -69,14 +67,14 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
 // 読み・書き・進捗・後始末はすべて同じ経路を通る。
 async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   const { kind = 'save', source, pages, inserts = [], annotations = {}, target, makeBackup = false, expect = null, mosaics = [], dropBackup = false,
-    expectSource = null, copies = {} } = spec ?? {};
+    copies = {} } = spec ?? {};
   // source が null なのは名前の無い帯（帯のページの写しでできた新しい帯）で、元の中身は copies[sourceCopy] のバイト列（spec-2-5 確定事項I4）。
   if ((typeof source !== 'string' && source !== null) || typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
-  // モザイクのある保存・抽出は、元のファイルが開いたときのままかを読む前に確かめる。画像は開いたときの文書から描いたので、外で書き換わった
-  // ファイルに当てると、ページの番号がずれて元の中身が残り得る（spec-4b-6b。コードの点検で足した）。
-  if (Array.isArray(mosaics) && mosaics.length > 0 && expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
-    return { error: SOURCE_CHANGED };
+  // 元のファイルが開いたときのままかを、読む前に確かめる（spec-6-1 確定事項C-2）。並び・書き込みの削除の参照・モザイクの画像は開いたときの
+  // 中身を前提にしているので、書き換えられた中身には当てない。何もせずに知らせ、画面が開いたときの中身でやり直す（renderer/opened-source.js）。
+  if (await sourceChanged(spec, fsLike))
+    return { sourceChanged: true };
 
   advance('read');
   const read = await readSource(spec, fsLike);

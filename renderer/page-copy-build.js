@@ -25,10 +25,12 @@
     if (pages.length === 0)
       return { error: '写すページが選ばれていません。' };
 
-    const result = await root.SigK.save.runTask({
+    // ほかのアプリで書き換えられていたら、開いたときの中身で写し直す（spec-6-1 タスク C。保存と同じ。opened-source.js）。
+    const result = await root.SigK.openedSource.run({
       kind: 'copy-pages',
       source: view.file.path ?? null,
       sourceCopy: view.file.copy ?? null,
+      expectSource: typeof view.file.path === 'string' ? root.SigK.save.signatureOf(view.file) : null,
       copies: viewer().getCopies(),
       pages,
       inserts: viewer().getInserts(),

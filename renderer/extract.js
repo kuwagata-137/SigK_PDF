@@ -97,7 +97,8 @@
     if (mosaic.ok !== true)
       return mosaic;
 
-    const result = await root.SigK.save.runTask({
+    // ほかのアプリで書き換えられていたら、聞かずに開いたときの中身で作り直す（spec-6-1 確定事項C-3・C-4。opened-source.js）。
+    const result = await root.SigK.openedSource.run({
       kind: 'extract',
       mosaics: mosaic.mosaics,
       source: view.file.path,
@@ -109,11 +110,11 @@
       // 選んだページに付いた注釈も一緒に出す（spec-4-1 確定事項21）。
       // 新しい形のテキストは画面で決めた行を添える（spec-4b-4a 確定事項I1）。
       annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations(), { layoutOf: root.SigK.freeTextMetrics.layoutOfEntry }),
-      // 元ファイルを触らないので、退避も外部変更の照合も要らない（確定事項18・21）。モザイクがあれば、元のファイルが開いたときのままかを
-      // ワーカーが読む前に照合する（spec-4b-6b。コードの点検で足した）。
+      // 元ファイルを触らないので、退避も行き先の照合も要らない（確定事項18・21）。元のファイルが開いたときのままかは、ワーカーが読む前に
+      // 照らす（spec-6-1 確定事項C-2）。
       makeBackup: false,
       expect: null,
-      expectSource: mosaic.mosaics.length > 0 && typeof view.file.path === 'string' ? root.SigK.save.signatureOf(view.file) : null,
+      expectSource: typeof view.file.path === 'string' ? root.SigK.save.signatureOf(view.file) : null,
       label: '抽出',
     });
 
