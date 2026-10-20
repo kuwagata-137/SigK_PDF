@@ -20,6 +20,7 @@ const { buildPreview } = require('./op-insert.js');
 const { readSource, sourceChanged, runCopy } = require('./op-copy.js');
 const { writeDocument, readSignature } = require('../pdf-write.js');
 const { insertsChanged } = require('./insert-source.js');
+const { MAX_PDF_BYTES } = require('../file-io.js');
 const { pruneOrphans } = require('./orphan-objects.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
@@ -50,6 +51,9 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
 
   // 差し込む元の印は読む前に取る（読んだあとに取ると、間の書き換えを見落とす）。保存のときにワーカーが照らす（spec-6-1 確定事項C-8）。
   const signature = await readSignature(sourcePath, { fsLike });
+  // 開くときと同じ大きさの上限と文（spec-6-1 確定事項D-6）。
+  if (signature !== null && signature.size > MAX_PDF_BYTES)
+    return { error: `${Math.floor(MAX_PDF_BYTES / 1024 / 1024)}MB までに対応していますが、ファイルが大きすぎます。` };
   let built;
   try {
     built = await buildPreview(sourcePath, base, TOOLS, insertReader(fsLike));

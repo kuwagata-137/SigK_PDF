@@ -9,6 +9,7 @@
 const { detectFormat, isSupported, describeFormat, isProgressiveJpeg } = require('./image-format.js');
 const { frameCount } = require('./image-decode.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
+const { pdfLib } = require('./pdf-io.js');
 
 const { failure } = require('./task-failure.js');
 const NOT_FOUND = '差し込むページが見つからないので、もう一度やり直してください。';
@@ -20,6 +21,24 @@ function imageFrames(kind, bytes) {
   return frameCount(kind, bytes);
 }
 
+// ページの木に、辞書でないページ（壊れたページ）が混ざっているか。pdf-lib は黙って飛ばすので、そのまま差し込むと、ページが欠けたことに
+// 気づけない（決定81 ⑬ で、1 ページだけ壊れた PDF を開かないことにしたのと同じ考え。spec-6-1 確定事項D-8）。
+function hasBrokenPage(doc) {
+  const { PDFArray, PDFDict, PDFName } = pdfLib;
+  const walk = (node, depth) => {
+    const kids = node.lookup(PDFName.of('Kids'));
+    if (!(kids instanceof PDFArray) || depth > 64)
+      return false;
+    for (let index = 0; index < kids.size(); index += 1) {
+      const kid = kids.lookup(index);
+      if (!(kid instanceof PDFDict) || walk(kid, depth + 1))
+        return true;
+    }
+    return false;
+  };
+  return walk(doc.catalog.Pages(), 0);
+}
+
 // 読んだバイト列を、差し込める形（PDF なら pdf-lib の文書、画像ならフレームの数）にする。
 async function loadBytes(bytes, PDFDocument) {
   const kind = detectFormat(bytes);
@@ -29,11 +48,13 @@ async function loadBytes(bytes, PDFDocument) {
     return { error: 'この JPEG はプログレッシブ形式なので、挿入できません。' };
 
   if (kind === 'pdf') {
+    let doc;
     try {
-      return { ok: true, kind, doc: await PDFDocument.load(bytes, { updateMetadata: false }) };
+      doc = await PDFDocument.load(bytes, { updateMetadata: false });
     } catch (error) {
       return failure('内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。', error);
     }
+    return hasBrokenPage(doc) ? { error: '差し込む PDF に壊れたページがあるので、差し込めませんでした。' } : { ok: true, kind, doc };
   }
   const frames = imageFrames(kind, bytes);
   return frames === 0
