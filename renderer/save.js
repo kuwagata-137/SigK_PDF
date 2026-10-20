@@ -341,8 +341,9 @@
     return writeTo({
       source: view.file.path,
       target: view.file.path,
-      // 上書きのときだけ .bak を作る（確定事項18・20）。モザイクを含むときは作らず、前の控えも消す（決定64 ⑧）。
-      makeBackup: !mosaicked,
+      // 上書きのときだけ .bak を作る（確定事項18・20）。モザイクを含むときは作らず、前の控えも消す（決定64 ⑧）。設定の窓で「控えの
+      // ファイルを作る」を外していたら作らない（前からある控えは消さない。spec-6-1 確定事項E-9）。
+      makeBackup: !mosaicked && root.SigK.preferences?.current().makeBackup !== false,
       dropBackup: mosaicked,
       mosaics: mosaic.mosaics,
       name: view.file.name,

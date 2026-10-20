@@ -134,3 +134,16 @@ test('Esc（窓の cancel の合図）は書かずに閉じる', async (t) => {
   assert.equal(isOpen(shell), false);
   assert.deepEqual(shell.preferencesCalls, []);
 });
+
+// 確定事項E-9。控えのファイルを作らない設定のときは、上書き保存で .bak を作らない（前からある控えは消さない＝dropBackup は立てない）。
+test('「上書き保存の前に控えのファイルを作る」を外していたら、上書き保存で控えを作らない（前の控えも消さない）', async (t) => {
+  const { makeSource } = require('./harness.js');
+  const A = 'C:\\work\\a.pdf';
+  const shell = await withShell(t, { preferences: { makeBackup: false }, files: { [A]: makeSource({ path: A }) }, taskResults: [{ ok: true, path: A }] });
+  await shell.SigK.tabs.openPath(A);
+  await shell.flush();
+  shell.SigK.viewer.applyPlan(shell.SigK.pagePlan.rotatePages(shell.SigK.viewer.getPlan(), [0], 90));
+  await shell.SigK.save.saveActive();
+  assert.equal(shell.taskCalls[0].spec.makeBackup, false);
+  assert.equal(shell.taskCalls[0].spec.dropBackup, false);
+});
