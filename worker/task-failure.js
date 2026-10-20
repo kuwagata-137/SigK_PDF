@@ -35,4 +35,9 @@ function failure(message, error, { unexpected = false } = {}) {
   return { error: message, detail };
 }
 
-module.exports = { STACK_LINES, errorDetail, failure };
+// 下の段の失敗 result を上へ渡す（文は message に替えてよい）。detail があれば落とさない。
+function passFailure(result, message = result?.error) {
+  return result?.detail === undefined ? { error: message } : { error: message, detail: result.detail };
+}
+
+module.exports = { STACK_LINES, errorDetail, failure, passFailure };

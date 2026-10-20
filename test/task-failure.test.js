@@ -6,7 +6,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { failure, errorDetail, STACK_LINES } = require('../worker/task-failure.js');
+const { failure, passFailure, errorDetail, STACK_LINES } = require('../worker/task-failure.js');
 
 test('failure は画面に出す文と、例外の名前・中身・stack の先頭を返す', () => {
   const error = new TypeError('読めない');
@@ -32,6 +32,37 @@ test('Error でないもの（pdf-lib の embedPng は素の文字列を投げ�
 test('ワーカーの最後の受け口まで来た例外には unexpected の印を付ける（記録の level を error にする）', () => {
   assert.equal(failure('x', new Error('y'), { unexpected: true }).detail.unexpected, true);
   assert.equal('unexpected' in failure('x', new Error('y')).detail, false);
+});
+
+test('passFailure は下の段の失敗を上へ渡し、detail を落とさない（文は替えてよい）', () => {
+  const detail = { name: 'Error', message: 'boom' };
+  assert.deepEqual(passFailure({ error: 'a', detail, extra: 1 }), { error: 'a', detail });
+  assert.deepEqual(passFailure({ error: 'a', detail }, 'b'), { error: 'b', detail });
+  assert.deepEqual(passFailure({ error: 'a' }), { error: 'a' });
+});
+
+test('decodeImage は壊れた GIF の例外の中身を、上へ渡す結果に残す（今までは image-decode.js で落としていた）', () => {
+  const { decodeImage } = require('../worker/image-decode.js');
+  const decoded = decodeImage('gif', Buffer.from('NOT-A-GIF-0000000000'));
+  assert.equal(decoded.error, '画像を読み込めませんでした。ファイルが壊れている可能性があります。');
+  assert.equal(typeof decoded.detail?.message, 'string');
+});
+
+test('runPageBoxes は読めないファイルの理由を detail で添える', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { runPageBoxes } = require('../worker/page-boxes-task.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigk-boxes-'));
+  try {
+    const broken = path.join(dir, 'broken.pdf');
+    fs.writeFileSync(broken, 'PDF ではない');
+    const stat = fs.statSync(broken);
+    const result = await runPageBoxes({ source: broken, expect: { size: stat.size, mtimeMs: Math.round(stat.mtimeMs) } });
+    assert.deepEqual([result.ok, result.reason, typeof result.detail.message], [false, 'unreadable', 'string']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('例外が無ければ detail を付けない', () => {

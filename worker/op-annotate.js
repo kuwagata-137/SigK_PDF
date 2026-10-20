@@ -26,6 +26,7 @@ const { embedBundledFont, FONT_ERROR } = require('./font-embed.js');
 const { parseRef, annotsOf, removeAnnotations } = require('./annotation-remove.js');
 const { timestamp, kindFields, popupDict } = require('./annotation-fields.js');
 
+const { passFailure } = require('./task-failure.js');
 function formStream(context, content, bbox, extra) {
   return context.register(context.stream(content, { Type: 'XObject', Subtype: 'Form', FormType: 1, BBox: bbox, ...extra }));
 }
@@ -138,7 +139,7 @@ async function fontsFor(doc, add, fontSource) {
       continue;
     const embedded = await embedBundledFont(doc, fontSource, { bold });
     if (embedded.error !== undefined)
-      return { error: embedded.error };
+      return passFailure(embedded);
     fonts[bold ? 'bold' : 'regular'] = embedded;
   }
   return { fonts };

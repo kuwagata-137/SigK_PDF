@@ -207,6 +207,16 @@ test('どこでも握られなかった例外（detail.unexpected）は、level 
   assert.equal(logged[0].level, 'error');
 });
 
+test('理由（reason）で返す口の失敗も、detail があれば理由を添えて記録する（書き込みの詳しい中身・紙全体の大きさ）', async () => {
+  const logged = [];
+  const detail = { name: 'Error', message: 'Failed to parse' };
+  const { utilityProcess } = fakeUtilityProcess(politeWorker({ ok: false, reason: 'unreadable', detail }));
+  const runner = createTaskRunner({ utilityProcess, workerPath: 'w.js', onError: (e) => logged.push(e) });
+  const result = await runner.run('t1', { kind: 'annotation-details', source: 'a.pdf' }, {});
+  assert.deepEqual(result, { ok: false, reason: 'unreadable' });
+  assert.equal(logged[0].message, 'ワーカーの処理が失敗しました: unreadable');
+});
+
 test('detail の無い失敗（書けない・設定が読めないなど、例外を握っていないもの）は記録しない', async () => {
   const logged = [];
   const { utilityProcess } = fakeUtilityProcess(politeWorker({ error: '透かしの設定が読めません。' }));

@@ -25,7 +25,7 @@ const { imageSize, MAX_PIXELS } = require('./image-format.js');
 const { decodeImage } = require('./image-decode.js');
 const { embedPixels } = require('./pixel-image.js');
 
-const { failure } = require('./task-failure.js');
+const { failure, passFailure } = require('./task-failure.js');
 const PDF_LIB_KINDS = new Set(['png', 'jpeg']);
 
 // 箱に内接させる。allowUpscale が偽なら拡大はしない。
@@ -56,7 +56,7 @@ async function embedDecoded(doc, kind, bytes, frame, tools) {
     return { error: '画像を埋め込む道具が揃っていません。' };
   const decoded = decodeImage(kind, bytes, { frame });
   if (decoded.ok !== true)
-    return { error: decoded.error };
+    return passFailure(decoded);
   return embedPixels(doc, decoded.pixels, tools);
 }
 

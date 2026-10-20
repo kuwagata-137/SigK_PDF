@@ -107,7 +107,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
         onError({
           level: detail.unexpected === true ? 'error' : 'warn',
           proc: 'worker',
-          message: `ワーカーの処理が失敗しました: ${rest.error}`,
+          message: `ワーカーの処理が失敗しました: ${rest.error ?? rest.reason}`,
           stack: detail.stack,
           context: { taskId, kind: spec?.kind, source: spec?.source, name: detail.name, error: detail.message },
         });

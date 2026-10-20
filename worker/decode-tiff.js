@@ -16,7 +16,7 @@ const zlib = require('node:zlib');
 const { loadCommonJs } = require('./vendor-loader.js');
 const { readTiffDirectory, checkTiffSupport } = require('./tiff-directory.js');
 
-const { failure } = require('./task-failure.js');
+const { failure, passFailure } = require('./task-failure.js');
 const BROKEN = '画像を読み込めませんでした。ファイルが壊れている可能性があります。';
 const NO_SUCH_PAGE = '差し込む画像にそのページがありません。';
 
@@ -122,7 +122,7 @@ function frameCountOf(bytes) {
 function decodeTiff(bytes, { frame = 0 } = {}) {
   const read = readTiffDirectory(bytes);
   if (read.ok !== true)
-    return { error: read.error };
+    return passFailure(read);
   const ifd = read.pages[frame];
   if (ifd === undefined)
     return { error: NO_SUCH_PAGE };
