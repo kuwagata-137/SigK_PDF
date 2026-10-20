@@ -74,6 +74,9 @@ test('上書き保存で元が書き換えられていたら確認の窓を出�
   const saving = shell.SigK.save.saveActive();
   await shell.flush();
   assert.equal(shell.SigK.confirmOverwrite.isOpen(), true);
+  // 「書き換え」にそろえた文（確定事項C-10）。
+  assert.equal(shell.document.getElementById('confirm-overwrite-text').textContent,
+    'a.pdf は、開いたあとでほかのアプリで書き換えられているので、上書きすると、書き換えられた内容は失われます。');
   shell.document.getElementById('confirm-overwrite-ok').click();
   assert.equal((await saving).ok, true);
   assert.equal(shell.taskCalls.length, 2);

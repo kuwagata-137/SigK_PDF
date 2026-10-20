@@ -43,9 +43,10 @@
     if (pending !== null)
       return pending.promise;
 
+    // 「書き換え」はほかのアプリの手による変更。ツールの止めたときの文とそろえた（spec-6-1 タスク C）。
     el.text.textContent = name === null || name === undefined
-      ? 'このファイルは、開いたあとで変更されているので、上書きすると、その変更は失われます。'
-      : `${name} は、開いたあとで変更されているので、上書きすると、その変更は失われます。`;
+      ? 'このファイルは、開いたあとでほかのアプリで書き換えられているので、上書きすると、書き換えられた内容は失われます。'
+      : `${name} は、開いたあとでほかのアプリで書き換えられているので、上書きすると、書き換えられた内容は失われます。`;
 
     pending = Promise.withResolvers();
     if (typeof el.dialog.showModal === 'function')
