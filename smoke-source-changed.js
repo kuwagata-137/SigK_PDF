@@ -83,4 +83,4 @@ async function run({ app, win, source, target }) {
   return report;
 }
 
-module.exports = { SAMPLE_MS, run };
+module.exports = { SAMPLE_MS, EDIT, startSampler, measureSave, run };

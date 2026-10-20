@@ -79,6 +79,7 @@
       "smoke-keys-window.js",
       "smoke-source-changed.js",
       "smoke-abnormal.js",
+      "smoke-measure.js",
       "smoke-drop.js",
       "worker/**",
       "index.html",

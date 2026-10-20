@@ -1703,6 +1703,7 @@ function installSmokeCheck(win, mode) {
       let save = null;
       let sourceChanged = null;
       let abnormal = null;
+      let measure = null;
       let merge = null;
       let split = null;
       let convert = null;
@@ -1806,6 +1807,10 @@ function installSmokeCheck(win, mode) {
         // 異常な PDF を本物の pdf.js で開いたときの様子（spec-6-1 タスク D の D2。smoke-abnormal.js）。
         if (process.env.SIGK_SMOKE_ABNORMAL)
           abnormal = await require('./smoke-abnormal.js').run({ win, paths: process.env.SIGK_SMOKE_ABNORMAL.split(';').filter(Boolean).map((p) => path.resolve(p)), zoom: process.env.SIGK_SMOKE_ABNORMAL_ZOOM });
+        // 大きな PDF をタブで何本も開いたときの時間とメモリ（spec-6-1 タスク D の D5。smoke-measure.js。窓を出さない）。
+        if (process.env.SIGK_SMOKE_MEASURE)
+          measure = await require('./smoke-measure.js').run({ app, win, paths: process.env.SIGK_SMOKE_MEASURE.split(';').filter(Boolean).map((p) => path.resolve(p)),
+            save: process.env.SIGK_SMOKE_MEASURE_SAVE === '1', minFreeMb: Number(process.env.SIGK_SMOKE_MEASURE_MIN_FREE_MB ?? 1500) });
         if (process.env.SIGK_SMOKE_MERGE) {
           const inputs = process.env.SIGK_SMOKE_MERGE.split(';').map((value) => path.resolve(value.trim())).filter((value) => value !== '');
           const target = process.env.SIGK_SMOKE_MERGE_OUT
@@ -2026,6 +2031,7 @@ function installSmokeCheck(win, mode) {
         save,
         sourceChanged,
         abnormal,
+        measure,
         merge,
         split,
         convert,
