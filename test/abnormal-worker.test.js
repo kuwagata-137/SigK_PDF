@@ -75,3 +75,56 @@ test('差し込む元にも、開くときと同じ大きさの上限がある�
   assert.equal(result.error, '200MB までに対応していますが、ファイルが大きすぎます。');
   assert.equal(reads, 0);
 });
+
+// ---- 点検の直し（2026-10-20。I-1・I-2）。ページの木の形を変えた PDF を、その場で組む ----
+const { assemble } = require('./fixtures/abnormal.js');
+
+const latin1 = (text) => Buffer.from(text, 'latin1');
+const insertOf = (bytes) => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sigk-tree-')), 'tree.pdf');
+  fs.writeFileSync(file, bytes);
+  return runTask({ kind: 'insert-preview', path: file, base: null }, { send: () => {} });
+};
+const PAGE = (number, extra = '/Type /Page ') => latin1(`${number} 0 obj\n<< ${extra}/Parent 2 0 R /MediaBox [0 0 595 842] >>\nendobj\n`);
+const BROKEN_PAGES = '差し込む PDF に壊れたページがあるので、差し込めませんでした。';
+
+test('ページの木が自分を指していても止まらずに、壊れたページとして断る（I-1）', async () => {
+  const bytes = assemble([
+    latin1('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'),
+    latin1('2 0 obj\n<< /Type /Pages /Kids [3 0 R 2 0 R 2 0 R] /Count 3 >>\nendobj\n'),
+    PAGE(3),
+  ]);
+  const started = Date.now();
+  const result = await insertOf(bytes);
+  assert.ok(Date.now() - started < 5000, '止まらずに返る');
+  assert.notEqual(result.ok, true);
+});
+
+test('/Type の無いページ（pdf-lib が黙って飛ばす）が混ざっていたら、差し込まずに断る（I-2）', async () => {
+  const bytes = assemble([
+    latin1('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'),
+    latin1('2 0 obj\n<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>\nendobj\n'),
+    PAGE(3), PAGE(4, ''), PAGE(5),
+  ]);
+  assert.equal((await insertOf(bytes)).error, BROKEN_PAGES);
+});
+
+test('入れ子のページの木（/Kids が間接参照の配列・寸法を親から継承）は、正しく 3 ページとして差し込める', async () => {
+  const bytes = assemble([
+    latin1('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'),
+    latin1('2 0 obj\n<< /Type /Pages /Kids 6 0 R /Count 3 /MediaBox [0 0 595 842] >>\nendobj\n'),
+    latin1('3 0 obj\n<< /Type /Pages /Parent 2 0 R /Kids [4 0 R 5 0 R] /Count 2 >>\nendobj\n'),
+    latin1('4 0 obj\n<< /Type /Page /Parent 3 0 R >>\nendobj\n'),
+    latin1('5 0 obj\n<< /Type /Page /Parent 3 0 R >>\nendobj\n'),
+    latin1('6 0 obj\n[3 0 R 7 0 R]\nendobj\n'),
+    latin1('7 0 obj\n<< /Type /Page /Parent 2 0 R >>\nendobj\n'),
+  ]);
+  const result = await insertOf(bytes);
+  assert.equal(result.ok, true, result.error);
+  assert.equal(result.pages.length, 3);
+});
+
+test('見出しだけの PDF を差し込むと、読めない文で断る（壊れたページの見分けの中で例外にしない。M-3）', async () => {
+  const result = await runTask({ kind: 'insert-preview', path: fixturePath('header-only.pdf'), base: null }, { send: () => {} });
+  assert.equal(result.error, INSERT_UNREADABLE);
+});

@@ -30,18 +30,23 @@
   // 塊① の時点でパスワード付きは開けない（spec-1-1 確定事項15）ため、ここに
   // 出るのは「パスワード無しで開ける暗号化」だけである。
   function describeEncryption(info) {
-    const filter = info?.EncryptFilterName;
-    if (typeof filter === 'string' && filter.length > 0)
-      return `あり（${filter}）`;
-    return 'なし';
+    return hasEncryptFilter(info) ? `あり（${info.EncryptFilterName}）` : 'なし';
   }
 
-  // pdf.js の文書が暗号化されているか（describeEncryption と同じ判定）。所有者パスワードだけの PDF は、開くときに聞かれないが
+  // 文書情報に暗号の印（EncryptFilterName）があるか。文書情報の窓の「暗号化」と、保存できない文書の判定の両方が使う。
+  function hasEncryptFilter(info) {
+    const filter = info?.EncryptFilterName;
+    return typeof filter === 'string' && filter.length > 0;
+  }
+
+  // pdf.js の文書が暗号化されているか（describeEncryption と同じ判定）。所有者のパスワードだけの PDF は、開くときに聞かれないが
   // 暗号化されていて、保存の部品（pdf-lib）が書けない（spec-6-1 確定事項D-3）。文書情報を読めなければ false（開くのは止めない）。
   async function isEncryptedDocument(doc) {
     try {
-      return describeEncryption((await doc.getMetadata())?.info) !== 'なし';
-    } catch {
+      return hasEncryptFilter((await doc.getMetadata())?.info);
+    } catch (error) {
+      // 開くのは止めない（保存はワーカーが暗号を見て断る）。読めなかった理由は記録に残す（spec-6-1 タスク D の点検の直し）。
+      root.SigK.log?.warn('doc-info', '文書情報を読めなかったので、暗号の有無を確かめられませんでした', error);
       return false;
     }
   }

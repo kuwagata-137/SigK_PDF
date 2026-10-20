@@ -2,7 +2,7 @@
 
 // 異常な PDF を開いたときの画面側（spec-6-1 タスク D）。本物の pdf.js での様子は起動確認 SIGK_SMOKE_ABNORMAL（smoke-abnormal.js）が見る。
 //
-// D3: 所有者パスワードだけの PDF は、開くときにパスワードを聞かれないが暗号化されている。保存の部品（pdf-lib）は暗号を書けないので、
+// D3: 所有者のパスワードだけの PDF は、開くときにパスワードを聞かれないが暗号化されている。保存の部品（pdf-lib）は暗号を書けないので、
 // パスワード付きと同じ扱い（読む・検索・印刷・ページ編集はできる、保存とツールは事前に断る）にする。暗号の有無は pdf.js の文書情報の
 // EncryptFilterName（文書情報の窓の「暗号化」と同じ判定）で見る。
 
@@ -117,4 +117,35 @@ test('ページを読めない PDF は、文書全体を開かずに、失敗し
   const logged = shell.logs.find((entry) => entry.context?.source === 'viewer');
   assert.match(logged?.message ?? '', /Page dictionary kid reference/, '記録には pdf.js の元の文を残す');
   assert.equal(logged.context.page, 2);
+  assert.equal(logged.context.cause, 'UnknownErrorException', '元の例外の名前も残す（点検の直し）');
+  // 開けなかった文書は畳む（pdf.js の側に残さない。点検の直し I-3）。
+  assert.equal(pdfjs.documents.at(-1).destroyed, true);
+});
+
+// D9（点検の直し）。表示と印刷の canvas が、大きな紙でも画素の上限に収まるか。
+test('A0 を 400% で映すと、pdf.js に頼む倍率を上限まで下げる（表示）', async (t) => {
+  const pdfjs = createPdfjsStub({ sizes: [{ width: 2384, height: 3370 }] });
+  const shell = await openWith(t, {}, { pdfjs });
+  pdfjs.viewportCalls.length = 0;
+  shell.SigK.viewer.setZoom(4);
+  await shell.flush();
+  await shell.flush();
+  const full = 4 * (96 / 72);
+  const scales = pdfjs.viewportCalls.filter((call) => call.page === 1).map((call) => call.scale);
+  assert.ok(scales.includes(full), '先に倍率どおりの寸法を見る');
+  const capped = scales.find((scale) => scale < full * 0.99);
+  assert.ok(capped !== undefined, `上限で下げた倍率が無い: ${scales.join(', ')}`);
+  const pixels = (2384 * capped) * (3370 * capped);
+  assert.ok(pixels <= shell.SigK.pageImage.MAX_CANVAS_PIXELS * 1.001, `${Math.round(pixels / 1e6)}M 画素`);
+});
+
+test('とても大きな紙を印刷するときも、1 ページの画像を画素の上限に収める（印刷）', async (t) => {
+  const pdfjs = createPdfjsStub({ sizes: [{ width: 14400, height: 14400 }] });
+  const shell = await openWith(t, {}, { pdfjs });
+  shell.SigK.print.open();
+  const result = await shell.SigK.print.prepare({ mode: 'all' });
+  assert.equal(result.ok, true);
+  const { width, height } = result.images[0];
+  assert.ok(width * height <= shell.SigK.pageImage.MAX_CANVAS_PIXELS * 1.001, `${width}×${height}`);
+  assert.ok(width > 10000, '上限いっぱいまでは描く');
 });

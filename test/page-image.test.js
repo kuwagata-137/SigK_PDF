@@ -205,7 +205,7 @@ test('exportPage は 2D コンテキストが無ければ bytes を null で返�
 // 1 枚の canvas の画素の上限（spec-6-1 確定事項D-9）。Chromium は面積が大きすぎる canvas を描かない（A0 を 400%・画面の倍率 1.5 で白いまま）。
 test('cappedScale は、画素の数が上限を超えるときだけ、面積が上限に収まるよう倍率を下げる', () => {
   const max = images.MAX_CANVAS_PIXELS;
-  assert.equal(max, 2 ** 26);
+  assert.equal(max, 2 ** 27);
   assert.equal(images.cappedScale(2, 1000, 1000), 2, '上限より小さければそのまま');
   const scale = images.cappedScale(4, 19072, 26960);
   assert.ok(Math.abs(19072 * 26960 * (scale / 4) ** 2 - max) < max * 1e-9, '面積がちょうど上限になる');

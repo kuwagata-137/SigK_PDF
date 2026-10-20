@@ -827,77 +827,98 @@
     // 名前の無い帯の中身は、保存のときワーカーへ渡すので、pdf.js が中身を移して空にする前に写しておく（spec-2-5 確定事項I4）。
     const untitled = source.untitled === true ? { untitled: true, copy: source.copy, bytes: source.bytes.slice(), folder: source.folder ?? null } : {};
     try {
-      const task = root.SigK.pdfjs.getDocument({ data: source.bytes });
-      // パスワードを聞く口は getDocument() の**直後**に代入する（確定事項66）。
-      // await してからでは、pdf.js が先に呼びに来て取りこぼす。
-      const encrypted = attachPasswordPrompt(task, source);
-      const doc = await task.promise;
-      const sizes = await collectSizes(doc);
-      // 所有者パスワードだけの暗号化も、聞いて開いたものと同じく保存できない（spec-6-1 確定事項D-3）。
-      const locked = encrypted.asked || (await root.SigK.docInfo?.isEncryptedDocument(doc)) === true;
+      const loaded = await loadDocument(source);
       if (token !== state.token) {
-        releaseDocument(doc);
+        releaseDocument(loaded.doc);
         return false;
       }
-
-      state.doc = doc;
-      state.file = {
-        path: source.path,
-        name: source.name,
-        size: source.size,
-        // 保存の直前に外部での書き換えを見分けるための控え（確定事項21）。
-        mtimeMs: source.mtimeMs ?? null,
-        // パスワードを聞いて開いた文書と、所有者パスワードだけの文書は保存できない（確定事項12・70。spec-6-1 確定事項D-3）。
-        // 閲覧・検索・印刷・ページ編集はできる。
-        encrypted: locked,
-        ...untitled,
-      };
-      state.basePages = sizes;
-      // 開いた時点の plan は 0..N-1 の連番である（確定事項5）。編集していない
-      // 状態も plan で表し、特別扱いを作らない。
-      state.plan = root.SigK.pagePlan.createPlan(sizes.length);
-      // 開いた直後は、ファイルの中身と画面の並びが一致している。
-      state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
-      state.annots = annotationState().createAnnots();
-      state.savedAnnots = annotationState().createAnnots();
-      state.imported = {};
-      state.inserts = [];
-      state.sizes = sizesFromPlan(state.plan);
-      state.current = 0;
-      // 履歴は文書ごとに作り直す。前の文書の世代が残っていると、Ctrl+Z で
-      // 別の文書の並びへ戻ってしまう（確定事項11）。
-      root.SigK.pageEdit?.reset(state.plan, state.annots);
-
-      buildPages();
-      setDocumentOpen(true);
-      root.SigK.thumbnails?.setDocument({
-        doc, sizes: state.sizes, plan: state.plan, inserts: state.inserts, current: 0, scrollTop: 0,
-      });
-      // ここで一度置いておく。applyFit の中の setZoom は倍率が変わったときしか
-      // 配置し直さないため、2つ目の文書が1つ目と同じ倍率になると（同じ紙の
-      // 大きさなら普通に起こる）ページの位置と寸法が空のまま残ってしまう。
-      applyLayout();
-      // 用紙サイズを知らなくても読める幅で出す（spec-1-1 確定事項8）。
-      applyFit('width');
-      el.view.scrollTop = 0;
-      root.SigK.shell.setStatus(el.doc, {
-        file: source.name,
-        // doc.numPages ではなく、いま映している並びの長さを出す。編集すると
-        // ここが動く（確定事項46）。
-        pages: `${state.sizes.length} ページ`,
-        size: root.SigK.shell.formatFileSize(source.size),
-      });
-      syncDirty();
-      controls()?.syncAll(el.doc, getState());
-      // ファイルにある注釈を集める（spec-4-1 確定事項17）。待たない。別のタブへ移っても、閉じられない限り
-      // そのタブへ届く（spec-4b-1a 確定事項29）。ファイルの控えは口が照合に使う（確定事項22）。
-      root.SigK.annotate?.importDocument(doc, { file: { ...state.file }, isAlive: () => isLive(doc) });
+      showOpened(loaded, source, untitled);
       return true;
     } catch (error) {
       setMessage(describeOpenFailure(error));
-      report(error, { path: source?.path, ...(Number.isInteger(error?.page) ? { page: error.page } : {}) });
+      // ページの番号を添えた失敗（決定81 ⑬）は、元の例外の名前も残す（点検の直し）。
+      report(error, { path: source?.path, ...(Number.isInteger(error?.page) ? { page: error.page, cause: error.cause?.name ?? null } : {}) });
       return false;
     }
+  }
+
+  // pdf.js で読み、全ページの寸法と暗号の有無を集める。{ doc, sizes, locked }。失敗したら、読んだ文書か読み込みの途中を畳んでから投げる
+  // （畳まないと pdf.js の側に文書が残る。spec-3-3 確定事項25。spec-6-1 タスク D の点検の直し I-3）。
+  async function loadDocument(source) {
+    const task = root.SigK.pdfjs.getDocument({ data: source.bytes });
+    // パスワードを聞く口は getDocument() の**直後**に代入する（確定事項66）。
+    // await してからでは、pdf.js が先に呼びに来て取りこぼす。
+    const encrypted = attachPasswordPrompt(task, source);
+    let doc = null;
+    try {
+      doc = await task.promise;
+      const sizes = await collectSizes(doc);
+      // 所有者のパスワードだけの暗号化も、聞いて開いたものと同じく保存できない（spec-6-1 確定事項D-3）。
+      const locked = encrypted.asked || (await root.SigK.docInfo?.isEncryptedDocument(doc)) === true;
+      return { doc, sizes, locked };
+    } catch (error) {
+      if (doc !== null)
+        releaseDocument(doc);
+      else
+        task.destroy?.();
+      throw error;
+    }
+  }
+
+  // 読んだ文書を映す（状態を作り直し、ページ・サムネイル・状態の欄を組む）。
+  function showOpened({ doc, sizes, locked }, source, untitled) {
+    state.doc = doc;
+    state.file = {
+      path: source.path,
+      name: source.name,
+      size: source.size,
+      // 保存の直前に外部での書き換えを見分けるための控え（確定事項21）。
+      mtimeMs: source.mtimeMs ?? null,
+      // パスワードを聞いて開いた文書と、所有者のパスワードだけの文書は保存できない（確定事項12・70。spec-6-1 確定事項D-3）。
+      // 閲覧・検索・印刷・ページ編集はできる。
+      encrypted: locked,
+      ...untitled,
+    };
+    state.basePages = sizes;
+    // 開いた時点の plan は 0..N-1 の連番である（確定事項5）。編集していない
+    // 状態も plan で表し、特別扱いを作らない。
+    state.plan = root.SigK.pagePlan.createPlan(sizes.length);
+    // 開いた直後は、ファイルの中身と画面の並びが一致している。
+    state.savedPlan = root.SigK.pagePlan.clonePlan(state.plan);
+    state.annots = annotationState().createAnnots();
+    state.savedAnnots = annotationState().createAnnots();
+    state.imported = {};
+    state.inserts = [];
+    state.sizes = sizesFromPlan(state.plan);
+    state.current = 0;
+    // 履歴は文書ごとに作り直す。前の文書の世代が残っていると、Ctrl+Z で
+    // 別の文書の並びへ戻ってしまう（確定事項11）。
+    root.SigK.pageEdit?.reset(state.plan, state.annots);
+
+    buildPages();
+    setDocumentOpen(true);
+    root.SigK.thumbnails?.setDocument({
+      doc, sizes: state.sizes, plan: state.plan, inserts: state.inserts, current: 0, scrollTop: 0,
+    });
+    // ここで一度置いておく。applyFit の中の setZoom は倍率が変わったときしか
+    // 配置し直さないため、2つ目の文書が1つ目と同じ倍率になると（同じ紙の
+    // 大きさなら普通に起こる）ページの位置と寸法が空のまま残ってしまう。
+    applyLayout();
+    // 用紙サイズを知らなくても読める幅で出す（spec-1-1 確定事項8）。
+    applyFit('width');
+    el.view.scrollTop = 0;
+    root.SigK.shell.setStatus(el.doc, {
+      file: source.name,
+      // doc.numPages ではなく、いま映している並びの長さを出す。編集すると
+      // ここが動く（確定事項46）。
+      pages: `${state.sizes.length} ページ`,
+      size: root.SigK.shell.formatFileSize(source.size),
+    });
+    syncDirty();
+    controls()?.syncAll(el.doc, getState());
+    // ファイルにある注釈を集める（spec-4-1 確定事項17）。待たない。別のタブへ移っても、閉じられない限り
+    // そのタブへ届く（spec-4b-1a 確定事項29）。ファイルの控えは口が照合に使う（確定事項22）。
+    root.SigK.annotate?.importDocument(doc, { file: { ...state.file }, isAlive: () => isLive(doc) });
   }
 
   // 保存に成功したら保存先を開き直す（spec-4-1 確定事項20。spec-1-6 確定事項27〜29 を改めた）。
@@ -917,12 +938,18 @@
     if (source?.error !== undefined || state.doc !== before)
       return false;
 
-    let doc;
+    // 失敗したら、読んだ文書か読み込みの途中を畳む（pdf.js の側に残さない。spec-6-1 タスク D の点検の直し I-3）。
+    const task = root.SigK.pdfjs.getDocument({ data: source.bytes });
+    let doc = null;
     let sizes;
     try {
-      doc = await root.SigK.pdfjs.getDocument({ data: source.bytes }).promise;
+      doc = await task.promise;
       sizes = await collectSizes(doc);
     } catch (error) {
+      if (doc !== null)
+        releaseDocument(doc);
+      else
+        task.destroy?.();
       report(error, { path: filePath, reopen: true });
       return false;
     }

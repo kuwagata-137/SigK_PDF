@@ -160,7 +160,7 @@ const HANDMADE = {
   'styled.pdf': () => buildStyledPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
   'page-boxes.pdf': () => buildPageBoxesPdf(),
   'rotated-shapes.pdf': () => buildRotatedShapesPdf(),
-  // 異常な PDF 6 種（空・見出しだけ・中身が PDF でない・所有者パスワードだけ・AES-128・1 ページだけ壊れた。spec-6-1 タスク D）。abnormal.js に。
+  // 異常な PDF 6 種（空・見出しだけ・中身が PDF でない・所有者のパスワードだけ・AES-128・1 ページだけ壊れた。spec-6-1 タスク D）。abnormal.js に。
   ...ABNORMAL,
 };
 

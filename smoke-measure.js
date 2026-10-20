@@ -9,6 +9,7 @@
 // （ユーザーのパソコン全体が遅くなるのを避ける）。1 分より長く返事が無い（固まった）ら hung を立てる。
 
 const os = require('node:os');
+const path = require('node:path');
 
 const { EDIT, measureSave } = require('./smoke-source-changed.js');
 
@@ -41,8 +42,16 @@ function withHangGuard(promise, limit = HANG_MS) {
   return Promise.race([promise, new Promise((resolve) => { timer = setTimeout(() => resolve({ hung: true }), limit); })]).finally(() => clearTimeout(timer));
 }
 
+// 一時フォルダの下のファイルか（上書き保存してよい写しか。付則C: 開発中のテストでユーザーの実ファイルを入力に使わない）。
+function isTemporary(filePath) {
+  const key = (value) => path.resolve(value).toLowerCase();
+  return key(filePath).startsWith(key(os.tmpdir()) + path.sep);
+}
+
 async function run({ app, win, paths, save = false, minFreeMb = 1500 }) {
   const report = { baseline: snapshot(app), opens: [], stopped: null };
+  // 下限が数でないなら既定に戻す（安全装置が黙って効かなくならないように。空の文字は main.js が既定に戻す。点検の直し）。0 は安全装置なし。
+  minFreeMb = Number.isFinite(minFreeMb) && minFreeMb >= 0 ? minFreeMb : 1500;
   for (const [index, filePath] of paths.entries()) {
     if (mb(os.freemem()) < minFreeMb) {
       report.stopped = `パソコンの空きメモリが ${minFreeMb}MB を切ったので、${index + 1} 本目から開かなかった`;
@@ -58,7 +67,10 @@ async function run({ app, win, paths, save = false, minFreeMb = 1500 }) {
     if (result.failed !== undefined || result.hung === true)
       break;
   }
-  if (save && report.stopped === null && report.opens.every((entry) => entry.opened === true)) {
+  // 上書き保存するのは最後のファイルで、一時フォルダの下の写しのときだけ（台本 run-smoke-measure.sh は写しを作って渡す）。
+  if (save && !isTemporary(paths.at(-1) ?? '')) {
+    report.save = { skipped: '最後のファイルが一時フォルダの下に無いので、上書き保存しなかった' };
+  } else if (save && report.stopped === null && report.opens.every((entry) => entry.opened === true)) {
     await win.webContents.executeJavaScript(EDIT);
     report.save = await withHangGuard(measureSave(app, win));
     report.afterSave = snapshot(app);
@@ -66,4 +78,4 @@ async function run({ app, win, paths, save = false, minFreeMb = 1500 }) {
   return report;
 }
 
-module.exports = { HANG_MS, run, withHangGuard };
+module.exports = { HANG_MS, isTemporary, run, withHangGuard };

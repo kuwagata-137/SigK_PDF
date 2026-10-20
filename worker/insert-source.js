@@ -21,22 +21,41 @@ function imageFrames(kind, bytes) {
   return frameCount(kind, bytes);
 }
 
-// ページの木に、辞書でないページ（壊れたページ）が混ざっているか。pdf-lib は黙って飛ばすので、そのまま差し込むと、ページが欠けたことに
-// 気づけない（決定81 ⑬ で、1 ページだけ壊れた PDF を開かないことにしたのと同じ考え。spec-6-1 確定事項D-8）。
-function hasBrokenPage(doc) {
+const UNREADABLE = '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。';
+const BROKEN_PAGE = '差し込む PDF に壊れたページがあるので、差し込めませんでした。';
+
+// ページの木の中の、pdf-lib が黙って飛ばすページ（壊れたページ）の見分け（spec-6-1 確定事項D-8。点検の直し I-1・I-2）。壊れていれば理由の文、
+// 無ければ null。そのまま差し込むと、ページが欠けたことに気づけない（決定81 ⑬ で、1 ページだけ壊れた PDF を開かないことにしたのと同じ考え）。
+// 葉（/Kids の無い辞書。ページ）を数えて pdf-lib のページ数と比べるので、辞書でない値・/Type の無い辞書など、pdf-lib が飛ばす形をどれも拾う。
+// 一度通った辞書にまた来たら（木が自分を指している）壊れているとみなす（pdf.js も循環で止める）。
+function brokenPageReason(doc) {
   const { PDFArray, PDFDict, PDFName } = pdfLib;
+  const seen = new Set();
+  let leaves = 0;
   const walk = (node, depth) => {
+    if (seen.has(node) || depth > 64)
+      return 'ページの木が自分を指しているか、深すぎる';
+    seen.add(node);
     const kids = node.lookup(PDFName.of('Kids'));
-    if (!(kids instanceof PDFArray) || depth > 64)
-      return false;
+    if (kids === undefined) {
+      leaves += 1;
+      return null;
+    }
+    if (!(kids instanceof PDFArray))
+      return '/Kids が配列でない';
     for (let index = 0; index < kids.size(); index += 1) {
       const kid = kids.lookup(index);
-      if (!(kid instanceof PDFDict) || walk(kid, depth + 1))
-        return true;
+      const reason = kid instanceof PDFDict ? walk(kid, depth + 1) : `/Kids の ${index + 1} 番目が辞書でない`;
+      if (reason !== null)
+        return reason;
     }
-    return false;
+    return null;
   };
-  return walk(doc.catalog.Pages(), 0);
+  const reason = walk(doc.catalog.Pages(), 0);
+  if (reason !== null)
+    return reason;
+  const count = doc.getPageCount();
+  return count === leaves ? null : `ページの木の葉 ${leaves} 枚と、pdf-lib が数えたページ ${count} 枚が違う`;
 }
 
 // 読んだバイト列を、差し込める形（PDF なら pdf-lib の文書、画像ならフレームの数）にする。
@@ -52,9 +71,16 @@ async function loadBytes(bytes, PDFDocument) {
     try {
       doc = await PDFDocument.load(bytes, { updateMetadata: false });
     } catch (error) {
-      return failure('内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。', error);
+      return failure(UNREADABLE, error);
     }
-    return hasBrokenPage(doc) ? { error: '差し込む PDF に壊れたページがあるので、差し込めませんでした。' } : { ok: true, kind, doc };
+    // 見出しだけの PDF などはカタログが無く、見分けの中で例外になる。読めないものとして断る（点検の直し M-3）。断った理由は記録に残す。
+    let reason;
+    try {
+      reason = brokenPageReason(doc);
+    } catch (error) {
+      return failure(UNREADABLE, error);
+    }
+    return reason === null ? { ok: true, kind, doc } : failure(BROKEN_PAGE, new Error(reason));
   }
   const frames = imageFrames(kind, bytes);
   return frames === 0

@@ -17,11 +17,16 @@ const OPEN_ONE = (filePath, zoom) => `(async () => {
   SigK.shell.setMode(document, 'view');
   let asked = 0;
   const watch = setInterval(() => {
-    if (SigK.passwordPrompt.isOpen() && asked < 3) {
-      asked += 1;
-      document.getElementById('password-prompt-input').value = 'user1';
-      document.getElementById('password-prompt-ok').click();
+    if (!SigK.passwordPrompt.isOpen())
+      return;
+    // 3 回入れても開かなければ取りやめる（窓が開いたまま止まらないように）。
+    if (asked >= 3) {
+      document.getElementById('password-prompt-cancel').click();
+      return;
     }
+    asked += 1;
+    document.getElementById('password-prompt-input').value = 'user1';
+    document.getElementById('password-prompt-ok').click();
   }, 50);
   const before = SigK.tabs.list().length;
   const opened = await SigK.tabs.openPath(${JSON.stringify(filePath)});
@@ -54,6 +59,8 @@ const OPEN_ONE = (filePath, zoom) => `(async () => {
       drawn = String(error?.message ?? error);
     }
     report.zoomed = { zoom: zoom.zoom, dpr: zoom.dpr, width: canvas?.width ?? null, height: canvas?.height ?? null, drawn };
+    // 差し替えた画面の倍率を戻す（あとの検体と、あとの起動確認の口に残さない）。
+    delete window.devicePixelRatio;
     SigK.viewer.setZoom(1);
     await wait(500);
   }

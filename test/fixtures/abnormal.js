@@ -5,7 +5,7 @@
 //   empty.pdf          … 0 バイト。
 //   header-only.pdf    … PDF の見出し（%PDF-1.7）の 1 行だけ。
 //   not-a-pdf.pdf      … 拡張子は .pdf だが、中身はただの文字。
-//   owner-only.pdf     … 所有者パスワード（owner1）だけの暗号化（RC4 40bit。ユーザーのパスワードは空なので、開くときは聞かれない）。
+//   owner-only.pdf     … 所有者のパスワード（owner1）だけの暗号化（RC4 40bit。ユーザーのパスワードは空なので、開くときは聞かれない）。
 //   aes-128.pdf        … AES-128 の暗号化（/V 4 /R 4・/CFM /AESV2。ユーザー user1 ／所有者 owner1）。
 //   one-bad-page.pdf   … 3 ページのうち 2 ページ目のページの辞書だけが壊れている（辞書でない値に置き換えた）。
 //
@@ -136,4 +136,4 @@ const ABNORMAL = {
   'one-bad-page.pdf': () => buildOneBadPagePdf(),
 };
 
-module.exports = { ABNORMAL, buildAesPdf, buildOneBadPagePdf, aesObjectKey };
+module.exports = { ABNORMAL, assemble, buildAesPdf, buildOneBadPagePdf, aesObjectKey };

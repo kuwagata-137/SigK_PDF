@@ -28,6 +28,17 @@
     return rotation === undefined ? page.getViewport({ scale }) : page.getViewport({ scale, rotation });
   }
 
+  // 1 枚の canvas の画素の上限（spec-6-1 確定事項D-9）。Chromium は面積が約 2 億 6,800 万画素を超える canvas を描かない（A0 を 400%・
+  // 画面の倍率 1.5 で白いまま。起動確認で確かめた）。その半分にして、超える分は倍率を下げて描き、CSS で紙の大きさへ広げる（少しにじむ）。
+  // A4 を 400% で、描くときの画面の倍率の上限 3（viewer-layout.js の MAX_CANVAS_SCALE）で描く鮮明さ（約 1 億 2,800 万画素）は変えない。
+  const MAX_CANVAS_PIXELS = 2 ** 27;
+
+  // 幅 width・高さ height（倍率 scale で描いたときの画素）が上限を超えるなら、面積が上限に収まる倍率に下げる。
+  function cappedScale(scale, width, height, max = MAX_CANVAS_PIXELS) {
+    const area = width * height;
+    return area > max ? scale * Math.sqrt(max / area) : scale;
+  }
+
   // 描く。戻り値は { canvas, width, height }。canvas は 2D コンテキストが無い
   // 環境では null で、そのときも寸法は入っている。
   //
@@ -37,17 +48,6 @@
   // overlay の前に塗る（spec-4b-6b 確定事項7。書き込みはモザイクの上）。
   // software は CPU で描く canvas にする（willReadFrequently）。GPU で描く小さな canvas に 2 枚分を交互に描くと、字の形が一部しか
   // 描かれないことがある（Chromium の中の不具合。2026-10-15 の計画外の直し）ので、同時に何枚も描く帯・盤の紙（plan-page-image.js）が使う。
-  // 1 枚の canvas の画素の上限（spec-6-1 確定事項D-9）。Chromium は面積が約 2 億 6,800 万画素を超える canvas を描かない（A0 を 400%・
-  // 画面の倍率 1.5 で白いまま。起動確認で確かめた）。その 4 分の 1 にして、超える分は倍率を下げて描き、CSS で紙の大きさへ広げる（少しにじむ）。
-  // A4 を 400%・画面の倍率 2 で描く鮮明さ（約 4,300 万画素）は変えない。1 枚あたり約 268MB まで。
-  const MAX_CANVAS_PIXELS = 2 ** 26;
-
-  // 幅 width・高さ height（倍率 scale で描いたときの画素）が上限を超えるなら、面積が上限に収まる倍率に下げる。
-  function cappedScale(scale, width, height, max = MAX_CANVAS_PIXELS) {
-    const area = width * height;
-    return area > max ? scale * Math.sqrt(max / area) : scale;
-  }
-
   // maxPixels は印刷が渡す（表示は page-render.js が同じ上限で下げる）。PDF→画像は指定した解像度どおりに書き出すので渡さない（4,000 万画素を超えたら断る）。
   async function renderToCanvas(doc, page, { scale, rotation, box = null, annotationMode, overlay = null, mosaic = null, software = false, maxPixels = Infinity }) {
     let viewport = viewportFor(page, { scale, rotation, box });

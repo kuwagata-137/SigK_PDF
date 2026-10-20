@@ -37,3 +37,14 @@ test('返事が時間の上限より長く無ければ、固まった印を返�
   assert.deepEqual(await withHangGuard(new Promise(() => {}), 20), { hung: true });
   assert.equal(await withHangGuard(Promise.resolve('ok'), 20), 'ok');
 });
+
+test('上書き保存は、最後のファイルが一時フォルダの下の写しのときだけ（ユーザーの実ファイルを上書きしない。付則C）', async () => {
+  const os = require('node:os');
+  const path = require('node:path');
+  const { isTemporary } = require('../smoke-measure.js');
+  assert.equal(isTemporary(path.join(os.tmpdir(), 'copy', 'big.pdf')), true);
+  assert.equal(isTemporary(path.join(os.homedir(), 'Documents', 'big.pdf')), false);
+  const win = { webContents: { executeJavaScript: async () => ({ opened: true, ms: 1, pages: 1 }) } };
+  const report = await run({ app, win, paths: [path.join(os.homedir(), 'Documents', 'big.pdf')], save: true, minFreeMb: 0 });
+  assert.match(report.save.skipped, /一時フォルダの下に無い/);
+});
