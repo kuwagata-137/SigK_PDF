@@ -1805,7 +1805,7 @@ function installSmokeCheck(win, mode) {
           sourceChanged = await require('./smoke-source-changed.js').run({ app, win, source: path.resolve(saveSource), target: path.resolve(process.env.SIGK_SMOKE_SOURCE_CHANGED) });
         // 異常な PDF を本物の pdf.js で開いたときの様子（spec-6-1 タスク D の D2。smoke-abnormal.js）。
         if (process.env.SIGK_SMOKE_ABNORMAL)
-          abnormal = await require('./smoke-abnormal.js').run({ win, paths: process.env.SIGK_SMOKE_ABNORMAL.split(';').filter(Boolean).map((p) => path.resolve(p)) });
+          abnormal = await require('./smoke-abnormal.js').run({ win, paths: process.env.SIGK_SMOKE_ABNORMAL.split(';').filter(Boolean).map((p) => path.resolve(p)), zoom: process.env.SIGK_SMOKE_ABNORMAL_ZOOM });
         if (process.env.SIGK_SMOKE_MERGE) {
           const inputs = process.env.SIGK_SMOKE_MERGE.split(';').map((value) => path.resolve(value.trim())).filter((value) => value !== '');
           const target = process.env.SIGK_SMOKE_MERGE_OUT

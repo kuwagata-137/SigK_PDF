@@ -201,3 +201,20 @@ test('exportPage は 2D コンテキストが無ければ bytes を null で返�
   assert.deepEqual({ width: result.width, height: result.height }, { width: 595, height: 842 });
   assert.equal(page.cleanups, 1);
 });
+
+// 1 枚の canvas の画素の上限（spec-6-1 確定事項D-9）。Chromium は面積が大きすぎる canvas を描かない（A0 を 400%・画面の倍率 1.5 で白いまま）。
+test('cappedScale は、画素の数が上限を超えるときだけ、面積が上限に収まるよう倍率を下げる', () => {
+  const max = images.MAX_CANVAS_PIXELS;
+  assert.equal(max, 2 ** 26);
+  assert.equal(images.cappedScale(2, 1000, 1000), 2, '上限より小さければそのまま');
+  const scale = images.cappedScale(4, 19072, 26960);
+  assert.ok(Math.abs(19072 * 26960 * (scale / 4) ** 2 - max) < max * 1e-9, '面積がちょうど上限になる');
+});
+
+test('renderToCanvas は maxPixels を渡されたときだけ、大きすぎる紙の倍率を下げて描く（印刷。PDF→画像は渡さない）', async () => {
+  const A0 = { width: 2384, height: 3370 };
+  const capped = await images.renderToCanvas(makeDocWithoutCanvas(), makePage({ size: A0 }), { scale: 12, maxPixels: images.MAX_CANVAS_PIXELS });
+  assert.ok(capped.width * capped.height <= images.MAX_CANVAS_PIXELS * 1.001, `${capped.width}×${capped.height}`);
+  const exact = await images.renderToCanvas(makeDocWithoutCanvas(), makePage({ size: A0 }), { scale: 12 });
+  assert.deepEqual({ width: exact.width, height: exact.height }, { width: 28608, height: 40440 }, '渡さなければ倍率どおり');
+});

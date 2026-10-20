@@ -56,7 +56,11 @@
     // 作れるので、絵が出せない環境（jsdom）でも組み立てて確かめられる。
     async function drawCanvas({ entry, page, index }) {
       const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
-      const viewport = viewportAt(index, page, scale);
+      let viewport = viewportAt(index, page, scale);
+      // 大きな紙を高い倍率で描くと、canvas が Chromium の上限を超えて白いままになるので、画素の数を上限に収める（spec-6-1 確定事項D-9）。
+      const capped = root.SigK.pageImage?.cappedScale(scale, viewport.width, viewport.height) ?? scale;
+      if (capped !== scale)
+        viewport = viewportAt(index, page, capped);
       if (!canDrawCanvas())
         return null;
 

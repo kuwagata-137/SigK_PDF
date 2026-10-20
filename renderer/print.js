@@ -140,6 +140,8 @@
     const src = entry?.src;
     const drawn = await images.renderToCanvas(el.doc, page, {
       scale: PRINT_SCALE,
+      // 大きな紙でも canvas が Chromium の上限を超えないように（spec-6-1 確定事項D-9）。
+      maxPixels: images.MAX_CANVAS_PIXELS,
       rotation: viewer().viewportRotation(number, page),
       // 切った範囲で刷る（spec-4b-6a 確定事項25）。
       box: entry?.crop ?? null,
