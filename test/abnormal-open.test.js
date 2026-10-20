@@ -56,6 +56,42 @@ test('暗号の印が無い・空の文字・文書情報を読めないとき�
   assert.equal(shell.SigK.viewer.getState().file.encrypted, false);
 });
 
+// D7（計画 P6）。タブの上限はファイルを読む前に判定する（今は 200MB まで読んでから断っていた）。使用中のファイルは最近使ったファイルから消さない。
+test('タブが上限まで開いていたら、ファイルを読まず、［開く］の窓も出さずに断る（D7）', async (t) => {
+  const files = {};
+  for (let index = 0; index < 21; index += 1)
+    files[`C:\\work\\${index}.pdf`] = makeSource({ path: `C:\\work\\${index}.pdf` });
+  const shell = await createShell({ files });
+  t.after(() => shell.cleanup());
+  const { SigK } = shell;
+  for (let index = 0; index < SigK.tabs.MAX_TABS; index += 1)
+    await SigK.tabs.openPath(`C:\\work\\${index}.pdf`);
+  const reads = [];
+  const read = shell.window.pdfAPI.read;
+  shell.window.pdfAPI.read = async (filePath) => { reads.push(filePath); return read(filePath); };
+  let dialogs = 0;
+  shell.window.pdfAPI.open = async () => { dialogs += 1; return { canceled: true }; };
+  assert.equal(await SigK.tabs.openPath('C:\\work\\20.pdf'), false);
+  assert.equal(await SigK.tabs.openViaDialog(), false);
+  assert.deepEqual(reads, [], '読む前に断る');
+  assert.equal(dialogs, 0, '窓を出す前に断る');
+  assert.match(SigK.viewBanner.text(), /タブが多すぎるので/);
+  assert.equal(await SigK.tabs.openPath('C:\\work\\3.pdf'), true, '開いているファイルへは、上限でも切り替えられる');
+});
+
+test('ほかのプログラムが使っていて読めなかったファイルは、最近使ったファイルから消さない。見つからないファイルは今のとおり消す（D7）', async (t) => {
+  const shell = await createShell({ files: {
+    [A]: { error: 'ファイルが他のプログラムで使われています。', code: 'EBUSY' },
+    'C:\\work\\gone.pdf': { error: 'ファイルが見つかりません。', code: 'ENOENT' },
+  } });
+  t.after(() => shell.cleanup());
+  assert.equal(await shell.SigK.tabs.openPath(A), false);
+  assert.equal(shell.recentCalls.some((call) => call.kind === 'remove' && call.path === A), false);
+  assert.equal(shell.SigK.viewer.getMessage(), 'ファイルが他のプログラムで使われています。');
+  assert.equal(await shell.SigK.tabs.openPath('C:\\work\\gone.pdf'), false);
+  assert.equal(shell.recentCalls.some((call) => call.kind === 'remove' && call.path === 'C:\\work\\gone.pdf'), true);
+});
+
 // D4（決定81 ⑬）。1 ページだけ壊れた PDF は、今のとおり文書全体を開かず、どのページで失敗したかを出す。
 test('ページを読めない PDF は、文書全体を開かずに、失敗したページの番号を出す（決定81 ⑬）', async (t) => {
   const pdfjs = createPdfjsStub();

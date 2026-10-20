@@ -82,7 +82,8 @@ async function readPdf(filePath, { fsLike = fs, maxBytes = MAX_PDF_BYTES, onErro
     };
   } catch (error) {
     onError({ message: 'PDF を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });
-    return { error: describeReadFailure(error) };
+    // code は、画面が「ほかのプログラムが使っている（EBUSY）なら最近使ったファイルから消さない」を見分けるのに使う（spec-6-1 確定事項D-7）。
+    return { error: describeReadFailure(error), code: error?.code ?? null };
   }
 }
 
