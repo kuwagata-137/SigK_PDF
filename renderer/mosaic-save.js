@@ -145,5 +145,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.mosaicSave = { DPI, MAX_PIXELS, MAX_SIDE, prepare, renderPage, scaleFor };
+  SigK.mosaicSave = { DPI, MAX_PIXELS, MAX_SIDE, prepare, renderPage, scaleFor, showChanged };
 })(typeof window !== 'undefined' ? window : globalThis);

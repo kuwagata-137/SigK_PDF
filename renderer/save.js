@@ -437,5 +437,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, runTask, runLocal, saveActive, saveAsActive, signatureOf, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
+  SigK.save = { init, isBusy, holding, runTask, runLocal, saveActive, saveAsActive, signatureOf, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
 })(typeof window !== 'undefined' ? window : globalThis);

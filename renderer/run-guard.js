@@ -33,6 +33,9 @@
       if (expect === null || typeof tab.path !== 'string')
         continue;
       const now = await root.pdfAPI?.stat?.(tab.path);
+      // 読めなかった理由（無い・権限が無い・ネットワークのドライブが切れた など）は、止める文とは別に記録に残す（点検の直し M-4）。
+      if (now?.ok !== true)
+        root.SigK.log?.warn('run-guard', '帯のファイルの大きさと更新時刻を読めませんでした', undefined, { path: tab.path, problem: now?.error ?? null });
       if (now?.ok !== true || now.size !== expect.size || now.mtimeMs !== expect.mtimeMs)
         return tab.name;
     }

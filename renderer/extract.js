@@ -52,9 +52,15 @@
     return `${source.replace(/\.pdf$/i, '')}_抽出.pdf`;
   }
 
+  // 確認・保存の窓・ワーカーの間は、保存の枠を押さえる（名前を付けて保存と同じ。spec-6-1 タスク C の点検の直し I-1。窓の間にエクスプローラーから
+  // 開いたファイルのタブが前に出て、別のタブの中身で抽出しないため。launch.js は枠が空くまで開くのを待つ）。
   async function run() {
     if (root.SigK.save?.isBusy() === true)
       return { error: 'いま保存しています。' };
+    return root.SigK.save.holding(extractHeld);
+  }
+
+  async function extractHeld() {
     // 入力中のテキストは確定してから抽出する（spec-4-2 確定事項8）。
     root.SigK.annotate?.finishEditing();
 
@@ -96,6 +102,9 @@
     const mosaic = await root.SigK.mosaicSave?.prepare({ mode: 'extract', indices, plan }) ?? { ok: true, mosaics: [] };
     if (mosaic.ok !== true)
       return mosaic;
+    // 窓の間に映しているタブが替わっていたら、別のタブの中身で作らずに取りやめる（モザイクの確かめと同じ文。点検の直し I-1）。
+    if (viewer().getState().file !== view.file)
+      return root.SigK.mosaicSave.showChanged('extract');
 
     // ほかのアプリで書き換えられていたら、聞かずに開いたときの中身で作り直す（spec-6-1 確定事項C-3・C-4。opened-source.js）。
     const result = await root.SigK.openedSource.run({

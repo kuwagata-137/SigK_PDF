@@ -142,8 +142,20 @@ test('差し込んだファイルが書き換えられていたら、保存は�
 test('並びに無い差し込みと、写し（copy）の差し込みは照らさない', async (t) => {
   const { dir, file, inserts } = await changedAfterInserting(t);
   const target = path.join(dir, 'b.pdf');
-  const result = await runSave({ kind: 'save', source: file, target, pages: [{ src: 0, rotate: 0 }], inserts });
+  // 写しには、照らせば食い違う印（expect）をわざと付けておく。写しは照らさないので通る。
+  const copy = { copy: 'copy-1', page: 0, size: { width: 595, height: 842 }, expect: { size: 1, mtimeMs: 1 } };
+  const result = await runSave({ kind: 'save', source: file, target, pages: [{ src: 0, rotate: 0 }, { insert: 1, rotate: 0 }], inserts: [...inserts, copy],
+    copies: { 'copy-1': new Uint8Array(fs.readFileSync(fixturePath('one-page.pdf'))) } });
   assert.equal(result.ok, true, result.error);
+  assert.equal(await pageCount(target), 2);
+});
+
+test('写しの鍵と開いたときの印を両方渡されたら、照らさずに写しを読む', async (t) => {
+  const { dir, file, opened, openedBytes } = await changedAfterOpening(t);
+  const target = path.join(dir, 'b.pdf');
+  const result = await runSave({ kind: 'save', source: file, target, pages: reordered, sourceCopy: 'opened', copies: { opened: openedBytes }, expectSource: opened });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(await pageCount(target), 3);
 });
 
 test('帯のページを写すときも、差し込んだファイルが書き換えられていれば止める', async (t) => {
@@ -163,6 +175,11 @@ test('結合は、入力のどれかがタブで開いたときから書き換�
   assert.equal(fs.existsSync(target), false);
   const fresh = await runMerge({ inputs: [inputs[0], { ...inputs[1], expect: await readSignature(file) }], target });
   assert.equal(fresh.ok, true, fresh.error);
+  // 入力のファイルが無くなっていたら（印を読めない）、書き換えとは言わずに読みに行き、読めない文で止める。
+  fs.rmSync(file);
+  const gone = await runMerge({ inputs, target });
+  assert.equal(gone.sourceChanged, undefined);
+  assert.match(gone.error ?? '', /「a\.pdf」/);
 });
 
 test('透かしとフラット化は、元がタブで開いたときから書き換えられていたら、読む前に止める', async (t) => {

@@ -131,3 +131,40 @@ test('分割: 書き換えられていたら止める（文をほかのツール
   assert.equal(result.error, changedText('a.pdf', '分割'));
   assert.equal(bannerText(shell), changedText('a.pdf', '分割'));
 });
+
+// ---- 点検の直し（2026-10-20。M-4 と足りなかったテスト 6） ----
+
+test('印を読めなかったときは、止める文とは別に、読めなかった理由を記録に残す（M-4）', async (t) => {
+  const shell = await createToolShell(t, 'merge');
+  await openTabs(shell, A);
+  delete shell.files[A];
+  await shell.SigK.runGuard.confirmUnsaved([shell.SigK.tabs.activeId()], { verb: '結合' });
+  await shell.flush();
+  const entry = shell.logs.find((log) => log.context?.source === 'run-guard');
+  assert.equal(entry?.level, 'warn');
+  assert.equal(entry.context.path, A);
+  assert.equal(entry.context.problem, 'ファイルが見つかりません。');
+});
+
+test('保存していない帯で［保存せずに実行］を選んでも、書き換えられていたら止める', async (t) => {
+  const shell = await createToolShell(t, 'merge');
+  await openTabs(shell, A);
+  shell.SigK.pageEdit.rotate(90, [0]);
+  rewriteOutside(shell, A);
+  const guarding = shell.SigK.runGuard.confirmUnsaved([shell.SigK.tabs.activeId()], { verb: '結合' });
+  await shell.flush();
+  shell.document.getElementById('confirm-unsaved-run-run').click();
+  assert.deepEqual(plain(await guarding), { go: false, saved: false, error: changedText('a.pdf', '結合') });
+});
+
+test('［上書き保存してから実行］を選んだら、保存して開き直したあとの印で照らすので通る', async (t) => {
+  const shell = await createToolShell(t, 'merge', { taskResults: [{ ok: true, path: A, backup: null, signature: { size: 9999, mtimeMs: 9999 } }] });
+  await openTabs(shell, A);
+  shell.SigK.pageEdit.rotate(90, [0]);
+  // 保存の 1 回目のワーカーは成功を返す（偽のワーカーは照らさない）。開き直しは書き換えたあとのファイルを読む。
+  rewriteOutside(shell, A);
+  const guarding = shell.SigK.runGuard.confirmUnsaved([shell.SigK.tabs.activeId()], { verb: '結合' });
+  await shell.flush();
+  shell.document.getElementById('confirm-unsaved-run-save').click();
+  assert.deepEqual(plain(await guarding), { go: true, saved: true });
+});

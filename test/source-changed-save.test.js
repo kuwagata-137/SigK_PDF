@@ -209,3 +209,107 @@ test('差し込みと元の両方が書き換えられていて上書きなら�
   assert.deepEqual(Array.from(second.copies[second.inserts[0].copy]), [7, 7, 7]);
   assert.deepEqual(Array.from(second.copies.opened), OPENED_BYTES);
 });
+
+// ---- 点検の直し（2026-10-20。I-1・M-1〜M-3 と足りなかったテスト） ----
+
+test('抽出は、保存の窓を開いている間も保存の枠を押さえる（エクスプローラーから開いたファイルを待たせる。I-1）', async (t) => {
+  const shell = await withOpenDocument(t, { taskResults: [{ ok: true, path: OUT, pages: 1 }] });
+  let busyDuringDialog = null;
+  shell.window.pdfAPI.pickSavePath = async () => { busyDuringDialog = shell.SigK.save.isBusy(); return { path: OUT }; };
+  shell.SigK.pageGrid.setSelection([1]);
+  const running = shell.SigK.extract.run();
+  await shell.flush();
+  shell.document.getElementById('confirm-extract-ok').click();
+  assert.equal((await running).ok, true);
+  assert.equal(busyDuringDialog, true);
+  assert.equal(shell.SigK.save.isBusy(), false, '終わったら放す');
+});
+
+test('抽出の保存の窓の間に映しているタブが替わったら、ワーカーへ渡さずに取りやめる（I-1）', async (t) => {
+  const shell = await withOpenDocument(t, { files: { [A]: makeSource({ path: A, name: 'a.pdf', size: 1024, mtimeMs: 1000 }), [B]: makeSource({ path: B, name: 'b.pdf' }) } });
+  shell.window.pdfAPI.pickSavePath = async () => { await shell.SigK.tabs.openPath(B); return { path: OUT }; };
+  shell.SigK.pageGrid.setSelection([1]);
+  const running = shell.SigK.extract.run();
+  await shell.flush();
+  shell.document.getElementById('confirm-extract-ok').click();
+  const result = await running;
+  assert.equal(result.changed, true);
+  assert.equal(shell.taskCalls.length, 0);
+  assert.equal(shell.SigK.viewBanner.text(), '抽出の確認や画像にしている間に、ページかタブが変わったので、抽出を取りやめました。もう一度抽出してください。');
+});
+
+test('1 回目とやり直しの間（開いたときの中身を読む間）も保存の枠を押さえる（M-1）', async (t) => {
+  const shell = await withOpenDocument(t, { taskResults: [{ sourceChanged: true }, { ok: true, bytes: new Uint8Array([9]), pages: 1, sizes: [{ width: 595, height: 842 }] }] });
+  let busyWhileReading = null;
+  shell.SigK.viewer.peek().doc.getData = async () => { busyWhileReading = shell.SigK.save.isBusy(); return new Uint8Array([1]); };
+  assert.equal((await shell.SigK.pageCopyBuild.build([0], { open: false })).ok, true);
+  assert.equal(busyWhileReading, true);
+  assert.equal(shell.SigK.save.isBusy(), false);
+});
+
+test('差し込みだけが書き換えられていたやり直しは行き先の照合を残し、やり直しで元が書き換えられていたら、そこで確認の窓を出す（M-2）', async (t) => {
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: INS }], taskResults: [inserted(), { insertChanged: true }, { changed: true, current: { size: 9, mtimeMs: 9 } }, okResult()] });
+  await shell.SigK.insert.run();
+  await shell.flush();
+  const saving = shell.SigK.save.saveActive();
+  await shell.flush();
+  assert.equal(shell.SigK.confirmOverwrite.isOpen(), true);
+  assert.deepEqual(plain(shell.taskCalls[2].spec.expect), OPENED, '聞いていないので、行き先の照合は外さない');
+  shell.document.getElementById('confirm-overwrite-ok').click();
+  assert.equal((await saving).ok, true);
+  assert.equal(shell.taskCalls.length, 4);
+  assert.equal(shell.taskCalls[3].spec.expect, null);
+  assert.equal(shell.taskCalls[3].spec.inserts[0].copy, shell.taskCalls[2].spec.inserts[0].copy);
+});
+
+test('読み出せなかったときの文は、読み出せなかった方で選ぶ（M-3）', async (t) => {
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: INS }], taskResults: [inserted(), { insertChanged: true }, { insertChanged: true }] });
+  await shell.SigK.insert.run();
+  await shell.flush();
+  // 差し込みだけが書き換えられていて、元の文書を読み出せない → 元の文。
+  shell.SigK.viewer.peek().doc.getData = async () => { throw new Error('読めない'); };
+  assert.equal((await shell.SigK.save.saveActive()).error, UNREADABLE);
+  // 差し込みの下見の文書を読み出せない → 差し込みの文。
+  shell.SigK.viewer.peek().doc.getData = async () => new Uint8Array([1]);
+  shell.SigK.viewer.peek().inserts[0].doc.getData = async () => { throw new Error('読めない'); };
+  assert.equal((await shell.SigK.save.saveActive()).error,
+    '差し込んだあとで差し込んだファイルがほかのアプリで書き換えられていて、差し込んだときの中身も読み出せなかったので、保存できませんでした。元のファイルは変更していません。');
+});
+
+test('写し（copy）と、同じ下見の文書の 2 ページと、並びに無い差し込みが混ざっていても、写しにするのは並びにあるファイルの差し込みだけで、下見の文書は 1 回だけ読む', async (t) => {
+  const two = inserted({ pages: [{ width: 595, height: 842 }, { width: 595, height: 842 }] });
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: INS }, { path: 'C:\\work\\gone.pdf' }], taskResults: [two, inserted({ bytes: new Uint8Array([8]) }), { insertChanged: true }, okResult()] });
+  const { SigK } = shell;
+  await SigK.insert.run();
+  await shell.flush();
+  await SigK.insert.run();
+  await shell.flush();
+  // 2 回目に差し込んだページ（並びの末尾）を並びから外す（控えには残る）。
+  SigK.viewer.applyPlan(SigK.viewer.getPlan().filter((page) => page.insert !== 2));
+  const copyNumber = SigK.viewer.addInserts([{ path: null, copy: 'copy-1', bytes: new Uint8Array([5]), page: 0, size: { width: 595, height: 842 }, doc: SigK.viewer.peek().inserts[0].doc }])[0];
+  SigK.viewer.applyPlan([...SigK.viewer.getPlan(), { insert: copyNumber, rotate: 0 }]);
+  let reads = 0;
+  const shared = SigK.viewer.peek().inserts[0].doc;
+  const original = shared.getData.bind(shared);
+  shared.getData = async () => { reads += 1; return original(); };
+  assert.equal((await SigK.save.saveActive()).ok, true);
+  const second = shell.taskCalls.at(-1).spec;
+  assert.equal(reads, 1, '同じ下見の文書は 1 回だけ読む');
+  assert.equal(second.inserts[0].copy, second.inserts[1].copy, '同じ下見の 2 ページは同じ鍵');
+  assert.equal(second.inserts[2].path, 'C:\\work\\gone.pdf', '並びに無い差し込みは写しにしない');
+  assert.deepEqual(plain(second.inserts[3]), { copy: 'copy-1', page: 0, size: { width: 595, height: 842 } }, '写しはそのまま');
+  assert.deepEqual(Array.from(second.copies['copy-1']), [5]);
+});
+
+test('名前の無い帯で差し込みだけが書き換えられていたら、元の写しの鍵はそのままで、差し込みだけを写しにする', async (t) => {
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: INS }], savePathResults: [{ path: B }], taskResults: [inserted(), { insertChanged: true }, okResult({ path: B })] });
+  await shell.SigK.tabs.openSource({ ok: true, path: null, name: '新しい PDF 1', bytes: new Uint8Array(OPENED_BYTES), copy: 'c1', untitled: true, folder: 'C:\\work' });
+  await shell.flush();
+  await shell.SigK.insert.run();
+  await shell.flush();
+  assert.equal((await shell.SigK.save.saveActive()).ok, true);
+  const second = shell.taskCalls.at(-1).spec;
+  assert.equal(second.sourceCopy, 'c1');
+  assert.equal(second.copies.opened, undefined);
+  assert.equal(typeof second.inserts[0].copy, 'string');
+});

@@ -26,6 +26,15 @@
     return isSourceChanged(result) || result?.insertChanged === true;
   }
 
+  // pdf.js の文書のバイト列を読む。読めなければ、どちら（元 'source' か差し込み 'insert'）が読めなかったかを添えて投げる（文を選ぶため。点検の直し M-3）。
+  async function readData(doc, part) {
+    try {
+      return await doc.getData();
+    } catch (error) {
+      throw Object.assign(new Error('開いたとき・差し込んだときの中身を読み出せませんでした'), { part, cause: error });
+    }
+  }
+
   // 並びにあるファイルの差し込みを、下見の文書のバイト列の写しに替える。1 つの文書（同じ下見の複数ページ）は 1 回だけ読む。
   async function snapshotInserts(spec, entries, copies) {
     const used = new Set((spec.pages ?? []).filter((page) => Number.isInteger(page?.insert)).map((page) => page.insert));
@@ -39,7 +48,7 @@
       }
       if (!keys.has(doc)) {
         const key = `${KEY}-insert-${keys.size + 1}`;
-        copies[key] = await doc.getData();
+        copies[key] = await readData(doc, 'insert');
         keys.set(doc, key);
       }
       inserts.push({ copy: keys.get(doc), page: insert.page, size: insert.size });
@@ -48,11 +57,12 @@
   }
 
   // 書き換えられていた分を写しにした spec。パスのある元は開いたときの中身に、ファイルの差し込みは差し込んだときの中身に替える。
-  async function snapshotSpec(spec, session) {
+  // 行き先の照合（expect）は、確認の窓で了承を得たとき（asked）だけ外す（点検の直し M-2）。
+  async function snapshotSpec(spec, session, asked) {
     const copies = { ...spec.copies };
-    const redo = { ...spec, copies, expect: null, expectSource: null };
+    const redo = { ...spec, copies, expect: asked ? null : spec.expect ?? null, expectSource: null };
     if (typeof spec.source === 'string') {
-      copies[KEY] = await session.doc.getData();
+      copies[KEY] = await readData(session.doc, 'source');
       redo.sourceCopy = KEY;
     }
     redo.inserts = await snapshotInserts(spec, session.inserts, copies);
@@ -60,24 +70,35 @@
   }
 
   // spec を回し、書き換えられていたら、開いたとき・差し込んだときの中身でもう一度回す。元のファイル（か行き先）が書き換えられていたときは、
-  // その前に ask() を呼び、true でなければ { declined: true }。読む文書は回す前に控える（確認の窓の間に別のタブへ移っても、回したタブから読む）。
-  // spec は label を含めて save.runTask へ渡す形。
-  async function run(spec, { ask = async () => true } = {}) {
+  // その前に ask() を呼び、true でなければ { declined: true }。差し込みだけのやり直しで元が書き換えられていたら（{ changed }）、そこで聞く。
+  // 読む文書は回す前に控える（確認の窓の間に別のタブへ移っても、回したタブから読む）。spec は label を含めて save.runTask へ渡す形。
+  // 1 回目からやり直しまで保存の枠を押さえる（間にほかの保存・抽出・写すを入れない。点検の直し M-1）。
+  function run(spec, { ask = async () => true } = {}) {
+    return root.SigK.save.holding(() => runHeld(spec, ask));
+  }
+
+  async function runHeld(spec, ask) {
     const peeked = root.SigK.viewer.peek();
     const session = { doc: peeked?.doc ?? null, inserts: [...(peeked?.inserts ?? [])] };
     const result = await root.SigK.save.runTask(spec);
     if (!isChanged(result))
       return result;
-    if (isSourceChanged(result) && (await ask()) !== true)
+    const asked = isSourceChanged(result);
+    if (asked && (await ask()) !== true)
       return { declined: true };
     let redo;
     try {
-      redo = await snapshotSpec(spec, session);
+      redo = await snapshotSpec(spec, session, asked);
     } catch (error) {
-      root.SigK.log?.warn('opened-source', '開いたとき・差し込んだときの中身を読み出せませんでした', error, { label: spec.label });
-      return { error: unreadable(spec.label, { insert: !isSourceChanged(result) }) };
+      root.SigK.log?.warn('opened-source', error.message, error.cause ?? error, { label: spec.label, part: error.part });
+      return { error: unreadable(spec.label, { insert: error.part === 'insert' }) };
     }
-    return root.SigK.save.runTask(redo);
+    const next = await root.SigK.save.runTask(redo);
+    if (asked || !isSourceChanged(next))
+      return next;
+    if ((await ask()) !== true)
+      return { declined: true };
+    return root.SigK.save.runTask({ ...redo, expect: null });
   }
 
   const SigK = (root.SigK = root.SigK || {});
