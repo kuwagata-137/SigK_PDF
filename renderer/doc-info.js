@@ -36,6 +36,16 @@
     return 'なし';
   }
 
+  // pdf.js の文書が暗号化されているか（describeEncryption と同じ判定）。所有者パスワードだけの PDF は、開くときに聞かれないが
+  // 暗号化されていて、保存の部品（pdf-lib）が書けない（spec-6-1 確定事項D-3）。文書情報を読めなければ false（開くのは止めない）。
+  async function isEncryptedDocument(doc) {
+    try {
+      return describeEncryption((await doc.getMetadata())?.info) !== 'なし';
+    } catch {
+      return false;
+    }
+  }
+
   // 取れない項目は UNKNOWN のまま出す。それらしい値で埋めない（確定事項12）。
   function buildRows({ file, pageCount, info } = {}) {
     const meta = info ?? {};
@@ -140,5 +150,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.docInfo = { UNKNOWN, formatPdfDate, describeEncryption, buildRows, renderRows, open, close, init };
+  SigK.docInfo = { UNKNOWN, formatPdfDate, describeEncryption, isEncryptedDocument, buildRows, renderRows, open, close, init };
 })(typeof window !== 'undefined' ? window : globalThis);

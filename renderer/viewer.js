@@ -828,6 +828,8 @@
       const encrypted = attachPasswordPrompt(task, source);
       const doc = await task.promise;
       const sizes = await collectSizes(doc);
+      // 所有者パスワードだけの暗号化も、聞いて開いたものと同じく保存できない（spec-6-1 確定事項D-3）。
+      const locked = encrypted.asked || (await root.SigK.docInfo?.isEncryptedDocument(doc)) === true;
       if (token !== state.token) {
         releaseDocument(doc);
         return false;
@@ -840,9 +842,9 @@
         size: source.size,
         // 保存の直前に外部での書き換えを見分けるための控え（確定事項21）。
         mtimeMs: source.mtimeMs ?? null,
-        // パスワードを聞いて開いた文書は保存できない（確定事項12・70）。
+        // パスワードを聞いて開いた文書と、所有者パスワードだけの文書は保存できない（確定事項12・70。spec-6-1 確定事項D-3）。
         // 閲覧・検索・印刷・ページ編集はできる。
-        encrypted: encrypted.asked,
+        encrypted: locked,
         ...untitled,
       };
       state.basePages = sizes;
