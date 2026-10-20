@@ -26,7 +26,7 @@ const { failure } = require('./task-failure.js');
 // 刻む（advance(phase, done, total)）。load は apply の中で1本ずつ行い、複製し
 // 終えた入力から手放す（op-merge.js）。「load」の段は入り口の合図だけを送る。
 //
-// 入力は読むだけなので、退避（.bak）も外部変更の照合も要らない。出力先が入力の
+// 入力は読むだけなので、退避（.bak）も出力先の照合も要らない。出力先が入力の
 // 1つと同じ経路はレンダラーが先に断る（確定事項24）。ここは黙って書く。
 async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
   const { inputs, target } = spec ?? {};
@@ -38,6 +38,11 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
     return { error: '結合するファイルの場所が分かりません。' };
 
   const nameOf = (input) => input.name ?? path.basename(input.path);
+  // 帯のファイルが、タブで開いたときから書き換えられていたら読む前に止める（決定81 ⑫。spec-6-1 確定事項C-9）。止めたときの文は画面が組む。
+  for (const input of inputs) {
+    if (input.expect !== null && input.expect !== undefined && !signaturesMatch(input.expect, await readSignature(input.path, { fsLike })))
+      return { sourceChanged: true, name: nameOf(input) };
+  }
 
   advance('read', 0, inputs.length);
   const bytes = [];
@@ -110,9 +115,10 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
     return { error: '分割するページがありません。' };
   if (parts.some((part) => typeof part?.target !== 'string'))
     return { error: '出力先が決まっていません。' };
-  // 画面が読んだあとで書き換わっていたら、見ているサムネイルと違う中身を分けないよう止める（spec-2-2b 確定事項H4）。
+  // 画面が読んだあとで書き換わっていたら、見ているサムネイルと違う中身を分けないよう止める（spec-2-2b 確定事項H4）。止めたときの文は
+  // 画面が組む（決定81 ⑫。spec-6-1 確定事項C-9。ほかのツールと同じ）。
   if (expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
-    return { error: '分割する PDF が書き換えられていたので、分割を止めました。' };
+    return { sourceChanged: true };
 
   advance('read');
   let bytes;

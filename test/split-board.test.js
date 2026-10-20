@@ -271,7 +271,8 @@ test('実行の前にファイルが書き換わっていたら止める（spec-
   edit(shell).cut(1);
   shell.files[A] = makeSource({ path: A, mtimeMs: 5 });
   const result = await shell.SigK.toolsSplit.run();
-  assert.equal(result.error, '「a.pdf」が書き換えられていたので、分割を止めました。タブを閉じて開き直してから、もう一度実行してください。');
+  // 文はほかのツールとそろえた（決定81 ⑫。spec-6-1 確定事項C-9）。
+  assert.equal(result.error, '「a.pdf」がほかのアプリで書き換えられていたので、分割を止めました。タブを閉じて開き直してから、もう一度実行してください。');
   assert.equal(shell.SigK.viewBanner.text(), result.error);
   assert.equal(shell.taskCalls.length, 0);
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]], '盤はそのまま');

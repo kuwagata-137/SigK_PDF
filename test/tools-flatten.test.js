@@ -220,7 +220,7 @@ test('実行は保存ダイアログ → 確認（既定はキャンセル）→
   const result = await running;
   await settle(shell);
   assert.equal(result.ok, true);
-  assert.deepEqual(plain(shell.taskCalls[1].spec), { kind: 'flatten', source: A, target: OUT, kinds: ['markup', 'text', 'shape', 'other'], pages: [1, 2] });
+  assert.deepEqual(plain(shell.taskCalls[1].spec), { kind: 'flatten', source: A, target: OUT, kinds: ['markup', 'text', 'shape', 'other'], expectSource: { size: 2048, mtimeMs: 1000 }, pages: [1, 2] });
   assert.equal(shell.SigK.tabs.list().some((tab) => tab.path === OUT), true);
   assert.equal(shell.SigK.viewBanner.text(), '書き込み 5 件を焼き込みました');
 });
@@ -232,7 +232,7 @@ test('［すべて］のページなら pages は渡さない（ワーカーが�
   await settle(shell);
   byId(shell, 'confirm-flatten-ok').click();
   await running;
-  assert.deepEqual(plain(shell.taskCalls[1].spec), { kind: 'flatten', source: A, target: OUT, kinds: ['markup', 'text', 'shape', 'note', 'other'] });
+  assert.deepEqual(plain(shell.taskCalls[1].spec), { kind: 'flatten', source: A, target: OUT, kinds: ['markup', 'text', 'shape', 'note', 'other'], expectSource: { size: 2048, mtimeMs: 1000 } });
 });
 
 test('保存ダイアログと確認の間も実行中と数え、キャンセルすれば下ろす（spec-5-1 確定事項12）', async (t) => {

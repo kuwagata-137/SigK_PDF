@@ -123,6 +123,8 @@ test('分割は「分割」の節で説明し、ツールのボタン名は画�
   for (const id of ['tools', 'split', 'escape'])
     assert.doesNotMatch(joined(id), /開いているタブから選ぶ/, id);
   assert.match(tools, /分割・PDF→画像・透かし・フラット化は、選んでいる帯（枠の色が付いた帯）の PDF に使います/);
+  // どのツールも、帯の PDF がほかのアプリで書き換えられていたら止める（決定81 ⑫。spec-6-1 確定事項C-9）。
+  assert.match(tools, /ほかのアプリで書き換えられていたら、［実行…］を押しても何も書き出さずに止めて知らせます/);
   assert.doesNotMatch(tools, /まとめて追加/);
   // 分割は選んでいる帯を ✂ の盤に広げ、切った位置は帯ごとに覚える（G1・G5）。書き換わっていたら止める（G11）。
   assert.match(split, /選んでいる帯が ✂ の盤/);

@@ -187,6 +187,8 @@ test('実行は保存ダイアログで出力先を決め、spec をワーカー
   assert.deepEqual(plain(shell.taskCalls[0].spec), {
     kind: 'watermark', source: A, pages: [0, 1, 2], target: OUT,
     mark: { type: 'text', text: '社外秘', color: '#808080', opacity: 0.3, angle: 45, size: 'medium', position: 'center' },
+    // タブで開いたときの印。ワーカーが読む前に照らす（決定81 ⑫。spec-6-1 確定事項C-9）。
+    expectSource: { size: 2048, mtimeMs: 1 },
   });
   assert.equal(shell.SigK.tabs.list().some((tab) => tab.path === OUT), true);
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools', 'ツールモードのまま（決定80）');

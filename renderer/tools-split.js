@@ -143,12 +143,14 @@
     view()?.render();
     try {
       const tabId = source().tabId;
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（spec-2-5 G11。決定81 ⑫ でほかのツールと同じ口にした）。
       const guard = await root.SigK.runGuard.confirmUnsaved([tabId], {
         canRunUnsaved: (id) => matchesFile(tabs().peek(id)),
         runNote: NOTE_ORDER,
+        verb: '分割',
       });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       return await root.SigK.splitRun.execute();
     } finally {
       state.running = false;

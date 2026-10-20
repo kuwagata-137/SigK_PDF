@@ -14,6 +14,8 @@
 
   // 通知バーの文言「画像にしています」「画像にするのを中止しました」の頭（確定事項17・20）。
   const LABEL = '画像に';
+  // 止めたときの文の動作の名前（「画像にするのを中止しました」と同じ言い方。決定81 ⑫）。
+  const VERB = '画像にするの';
 
   const state = {
     mode: 'all', range: '',
@@ -162,11 +164,14 @@
 
   // ---- 実行（確定事項17〜24） ----
 
-  // 文書を読み直して開く（確定事項22）。映しているタブの文書は使わない。
-  async function openDocument(filePath) {
+  // 文書を読み直して開く（確定事項22）。映しているタブの文書は使わない。読み直した中身の印がタブで開いたときと違えば、描かずに
+  // { changed: true }（確かめのあと・フォルダの選び直しの間の書き換え。決定81 ⑫。spec-6-1 確定事項C-9）。
+  async function openDocument(filePath, expect) {
     const read = await root.pdfAPI.read(filePath);
     if (read?.error !== undefined)
       return { error: read.error };
+    if (expect !== null && (read.size !== expect.size || read.mtimeMs !== expect.mtimeMs))
+      return { changed: true };
     const task = root.SigK.pdfjs.getDocument({ data: read.bytes });
     task.onPassword = (update) => update(new Error('パスワード付きの PDF は扱えません'));
     try {
@@ -179,7 +184,9 @@
 
   // 1 ページずつ描いて書く。中止の旗は次のページの前で見る（確定事項20）。
   async function exportPages({ plan, targets, src, frame }) {
-    const opened = await openDocument(src.path);
+    const opened = await openDocument(src.path, root.SigK.runGuard.expectOf(src.tabId));
+    if (opened.changed === true)
+      return { error: root.SigK.runGuard.changedText(src.name, VERB), written: 0 };
     if (opened.error !== undefined)
       return { error: `「${src.name}」${opened.error}。`, written: 0 };
 
@@ -224,9 +231,10 @@
     state.running = true;
     view()?.render();
     try {
-      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId]);
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（決定81 ⑫）。
+      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId], { verb: VERB });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       // 上書き保存したら、ファイルの中身（ページ数・寸法）が変わっている。計画を組み直して確かめる。
       const replanned = currentPlan();
       if (replanned.ready !== true) {

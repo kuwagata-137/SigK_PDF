@@ -13,7 +13,8 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { PDFDocument } = require('pdf-lib');
-const { runSave, runTask } = require('../worker/pdf-task.js');
+const { runSave, runTask, runMerge } = require('../worker/pdf-task.js');
+const { runWatermark, runFlatten } = require('../worker/rewrite-task.js');
 const { readSignature } = require('../pdf-write.js');
 const { NO_SOURCE, runCopy } = require('../worker/op-copy.js');
 const { fixturePath } = require('./fixtures/build.js');
@@ -149,4 +150,27 @@ test('帯のページを写すときも、差し込んだファイルが書き�
   const { file, inserts } = await changedAfterInserting(t);
   const result = await runCopy({ kind: 'copy-pages', source: file, pages: [{ insert: 0, rotate: 0 }], inserts }, { fsLike: fs });
   assert.deepEqual(result, { insertChanged: true });
+});
+
+// ツール（決定81 ⑫。確定事項C-9）。ワーカーは読む前に照らし、止めたときの文は画面が組む。
+test('結合は、入力のどれかがタブで開いたときから書き換えられていたら、読む前に止めて、その入力の名前を返す', async (t) => {
+  const { dir, file, opened } = await changedAfterOpening(t);
+  const other = path.join(dir, 'b.pdf');
+  fs.copyFileSync(fixturePath('three-pages.pdf'), other);
+  const target = path.join(dir, 'out.pdf');
+  const inputs = [{ path: other, name: 'b.pdf', expect: await readSignature(other) }, { path: file, name: 'a.pdf', expect: opened }];
+  assert.deepEqual(await runMerge({ inputs, target }), { sourceChanged: true, name: 'a.pdf' });
+  assert.equal(fs.existsSync(target), false);
+  const fresh = await runMerge({ inputs: [inputs[0], { ...inputs[1], expect: await readSignature(file) }], target });
+  assert.equal(fresh.ok, true, fresh.error);
+});
+
+test('透かしとフラット化は、元がタブで開いたときから書き換えられていたら、読む前に止める', async (t) => {
+  const { dir, file, opened } = await changedAfterOpening(t);
+  const target = path.join(dir, 'out.pdf');
+  const watermarked = await runWatermark({ kind: 'watermark', source: file, target, pages: [0], type: 'text', text: '社外秘', expectSource: opened });
+  assert.deepEqual(watermarked, { sourceChanged: true });
+  const flattened = await runFlatten({ kind: 'flatten', source: file, target, kinds: ['markup'], expectSource: opened });
+  assert.deepEqual(flattened, { sourceChanged: true });
+  assert.equal(fs.existsSync(target), false);
 });

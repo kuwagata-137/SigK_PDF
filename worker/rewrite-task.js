@@ -4,7 +4,7 @@
 // tool-tasks.js の表 TOOL_TASKS から呼ばれる。
 //
 // 5 段の名前は保存と同じ（read → load → apply → save → write）。入力は読むだけなので、
-// 退避（.bak）も外部変更の照合も要らない。入力と同じ出力先・タブで開いている出力先は
+// 退避（.bak）も出力先の照合も要らない。入力がタブで開いたときから書き換えられていたら、読む前に止める（決定81 ⑫）。入力と同じ出力先・タブで開いている出力先は
 // レンダラーが先に断る（確定事項41・42）。書きかけの一時ファイルの後始末は task-runner.js が
 // spec.target で行う。
 
@@ -14,7 +14,7 @@ const { applyWatermark } = require('./op-watermark.js');
 const { flattenDocument } = require('./op-flatten.js');
 const { createFontSource } = require('./font-embed.js');
 const { failure } = require('./task-failure.js');
-const { writeDocument } = require('../pdf-write.js');
+const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
   describeLoadFailure, describeSourceReadFailure, insertReader,
@@ -44,9 +44,12 @@ async function openSource(source, { fsLike, advance = () => {} }) {
 
 // apply(doc, { fsLike }) は { ok, ...結果 } か { error } を返す。結果の欄は戻り値にそのまま載る。
 async function runRewrite(spec, apply, { fsLike = fs, advance = () => {} } = {}) {
-  const { source, target } = spec ?? {};
+  const { source, target, expectSource = null } = spec ?? {};
   if (typeof source === 'string' && typeof target !== 'string')
     return { error: '保存先が決まっていません。' };
+  // 止めたときの文は画面が組む（spec-6-1 確定事項C-9）。
+  if (typeof source === 'string' && expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
+    return { sourceChanged: true };
   const opened = await openSource(source, { fsLike, advance });
   if (opened.error !== undefined)
     return opened;

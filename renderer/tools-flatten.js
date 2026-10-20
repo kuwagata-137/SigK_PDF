@@ -97,9 +97,10 @@
     state.running = true;
     view()?.render();
     try {
-      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId]);
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（決定81 ⑫）。
+      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId], { verb: RUN_LABEL });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       // 上書き保存したら、ファイルの中身が変わっている。数え直しを待ってから確かめる（spec-2-5 確定事項F。PR-2 の起草者の判断）。
       if (guard.saved) {
         target.sync();
@@ -127,12 +128,14 @@
     const agreed = await root.SigK.confirmFlatten.ask({ count: chosen.tally.baked, name: baseName(output.target), notes: chosen.tally.notes });
     if (!agreed)
       return { canceled: true };
-    const spec = { kind: 'flatten', label: RUN_LABEL, source: src.path, target: output.target, kinds: picks.current().kinds };
+    // ワーカーも読む前に、タブで開いたときの印を照らす（保存ダイアログと確認の窓の間の書き換え。spec-6-1 確定事項C-9）。
+    const spec = { kind: 'flatten', label: RUN_LABEL, source: src.path, target: output.target, kinds: picks.current().kinds, expectSource: root.SigK.runGuard.expectOf(src.tabId) };
     if (chosen.pages !== null)
       spec.pages = chosen.pages;
     const result = await root.SigK.save.runTask(spec);
     return root.SigK.rewriteOutput.finish(result, output.target, {
       canceled: 'フラット化を中止しました。',
+      changed: { name: src.name, verb: RUN_LABEL },
       failed: 'フラット化できませんでした。',
       done: `書き込み ${result?.baked ?? chosen.tally.baked} 件を焼き込みました`,
     });

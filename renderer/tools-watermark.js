@@ -9,6 +9,8 @@
   // ファイルを読み直して書く。設定は覚えない（論点6。アプリを閉じるまでは画面の値が残る）。
 
   const SAVE_TITLE = '透かしを入れた PDF を保存';
+  // 止めたときの文の動作の名前（「透かしの追加を中止しました」と同じ言い方。決定81 ⑫）。
+  const VERB = '透かしの追加';
   const NOTE_FIRST_IMAGE = '1つ目の画像だけを使いました。';
 
   const planner = () => root.SigK.watermarkPlan;
@@ -127,9 +129,10 @@
     state.running = true;
     view()?.render();
     try {
-      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId]);
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（決定81 ⑫）。
+      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId], { verb: VERB });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       // 上書き保存したら、ファイルの中身（ページ数）が変わっている。計画を組み直して確かめ、プレビューも読み直す。
       if (guard.saved) {
         target.sync();
@@ -154,9 +157,11 @@
     if (chosen.target === undefined)
       return chosen;
 
-    const result = await root.SigK.save.runTask({ ...planned.spec, target: chosen.target });
+    // ワーカーも読む前に、タブで開いたときの印を照らす（保存ダイアログの間の書き換え。spec-6-1 確定事項C-9）。
+    const result = await root.SigK.save.runTask({ ...planned.spec, target: chosen.target, expectSource: root.SigK.runGuard.expectOf(src.tabId) });
     return root.SigK.rewriteOutput.finish(result, chosen.target, {
       canceled: '透かしの追加を中止しました。',
+      changed: { name: src.name, verb: VERB },
       failed: '透かしを入れられませんでした。',
       done: `${planned.pages.length} ページに透かしを入れました`,
     });

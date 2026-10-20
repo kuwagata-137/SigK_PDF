@@ -167,9 +167,10 @@
     state.running = true;
     view()?.render();
     try {
-      const guard = await root.SigK.runGuard.confirmUnsaved(inputs().map((row) => row.tabId));
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（決定81 ⑫）。
+      const guard = await root.SigK.runGuard.confirmUnsaved(inputs().map((row) => row.tabId), { verb: '結合' });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       // 上書き保存したら、ファイルの中身（ページ数）が変わっている。範囲を確かめ直す。
       const chosen = inputs();
       if (chosen.length === 0 || chosen.some((row) => row.error !== null)) {
@@ -201,13 +202,17 @@
     const result = await root.SigK.save.runTask({
       kind: 'merge',
       label: '結合',
-      inputs: chosen.map((row) => ({ path: row.path, name: row.name, pages: row.pages })),
+      // ワーカーも読む前に、タブで開いたときの印を照らす（保存ダイアログの間の書き換え。spec-6-1 確定事項C-9）。
+      inputs: chosen.map((row) => ({ path: row.path, name: row.name, pages: row.pages, expect: root.SigK.runGuard.expectOf(row.tabId) })),
       target,
     });
     return finish(result, target, chosen.length);
   }
 
   async function finish(result, target, count) {
+    const changed = root.SigK.runGuard.changedResult(result, result?.name ?? '', '結合');
+    if (changed !== null)
+      return changed;
     if (result?.canceled === true) {
       banner().show('結合を中止しました。', { tone: 'info' });   // 自分で止めたので赤く塗らない（決定49）
       return result;

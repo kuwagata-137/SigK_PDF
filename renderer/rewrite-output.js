@@ -44,7 +44,11 @@
   }
 
   // 書いたあとの後始末。messages は { canceled, failed, done }（通知バーの文言）。
-  async function finish(result, target, { canceled, failed, done }) {
+  // changed は、ワーカーが読む前に帯のファイルの書き換えに気づいた（{ sourceChanged }）ときの { name, verb }（決定81 ⑫。spec-6-1 確定事項C-9）。
+  async function finish(result, target, { canceled, failed, done, changed = null }) {
+    const refused = changed === null ? null : root.SigK.runGuard.changedResult(result, changed.name, changed.verb);
+    if (refused !== null)
+      return refused;
     if (result?.canceled === true) {
       // 自分で止めたので赤く塗らない（決定49）。
       banner().show(canceled, { tone: 'info' });

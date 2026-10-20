@@ -243,7 +243,8 @@ test('expectSource の大きさと更新日時が違えば、書かずに止め�
     const target = ws.file('three-pages_001.pdf');
     const spec = { kind: 'split', source, parts: [{ pages: [0], target }], targets: [target] };
     const stale = await runSplit({ ...spec, expectSource: { size: stat.size + 1, mtimeMs: Math.round(stat.mtimeMs) } });
-    assert.equal(stale.error, '分割する PDF が書き換えられていたので、分割を止めました。');
+    // 止めたときの文は画面が組む（決定81 ⑫。spec-6-1 確定事項C-9）。
+    assert.deepEqual(stale, { sourceChanged: true });
     assert.equal(fs.existsSync(target), false);
     const fresh = await runSplit({ ...spec, expectSource: { size: stat.size, mtimeMs: Math.round(stat.mtimeMs) } });
     assert.equal(fresh.ok, true);

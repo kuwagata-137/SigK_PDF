@@ -159,7 +159,8 @@ test('実行はチェックした帯を帯の順に範囲つきでワーカー�
   assert.deepEqual(plain(shell.savePathCalls[0]), { defaultPath: OUT, title: '結合した PDF を保存' });
   assert.deepEqual(plain(shell.taskCalls[0].spec), {
     kind: 'merge',
-    inputs: [{ path: A, name: 'a.pdf', pages: null }, { path: C, name: 'c.pdf', pages: [1, 2] }],
+    // expect はタブで開いたときの印。ワーカーが読む前に照らす（決定81 ⑫。spec-6-1 確定事項C-9）。
+    inputs: [{ path: A, name: 'a.pdf', pages: null, expect: { size: 2048, mtimeMs: 1 } }, { path: C, name: 'c.pdf', pages: [1, 2], expect: { size: 2048, mtimeMs: 1 } }],
     target: OUT,
   });
   assert.equal(SigK.tabs.count(), 4);

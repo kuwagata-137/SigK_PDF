@@ -9,15 +9,6 @@
   const banner = () => root.SigK.viewBanner;
   const split = () => root.SigK.toolsSplit;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
-  const sameSignature = (a, b) => a !== null && b !== null && a.size === b.size && a.mtimeMs === b.mtimeMs;
-
-  // タブが開いたあとで、ファイルがほかのアプリで書き換えられたか（spec-2-5 G11）。照らせなければ変わったとみなす。
-  async function isChanged(src, expect) {
-    if (expect === null)
-      return false;
-    const now = await root.pdfAPI?.stat?.(src.path);
-    return now?.ok !== true || !sameSignature(expect, { size: now.size, mtimeMs: now.mtimeMs });
-  }
 
   async function countExisting(targets) {
     const api = root.pdfAPI;
@@ -62,10 +53,8 @@
   async function execute() {
     const src = split().source();
     const peeked = root.SigK.tabs.peek(src.tabId);
-    // ワーカーで照らす控えは、照らす前に取っておく（spec-2-2b 確定事項H4。点検 R1）。
+    // ほかのアプリの書き換えは、実行の前の確かめ（run-guard.js）が照らした（spec-2-5 G11。決定81 ⑫）。ワーカーも読む前に照らす（確定事項H4）。
     const expectSource = root.SigK.save.signatureOf(peeked?.file);
-    if (await isChanged(src, expectSource))
-      return refuse(`「${src.name}」が書き換えられていたので、分割を止めました。タブを閉じて開き直してから、もう一度実行してください。`);
     // 盤の位置はファイルのページと同じでなければならない（並び・削除・差し込みを保存していない帯は、確認の窓で止めている。G7）。
     if (!split().matchesFile(peeked))
       return refuse(split().NOTE_ORDER);
@@ -94,7 +83,7 @@
       // ワーカーも読む前に照らす（確定事項H4）。
       expectSource,
     });
-    return finish(result, targets);
+    return finish(result, targets, src.name);
   }
 
   // 中止までに書き終えた本数。出力先の有無で数えると、上書きする前から
@@ -104,7 +93,11 @@
     return progress?.phase === 'write' && Number.isInteger(progress.done) ? progress.done : 0;
   }
 
-  function finish(result, targets) {
+  function finish(result, targets, name) {
+    // ワーカーが読む前に書き換えに気づいた（実行の前の確かめのあとの書き換え。決定81 ⑫）。
+    const changed = root.SigK.runGuard.changedResult(result, name, '分割');
+    if (changed !== null)
+      return changed;
     if (result?.canceled === true) {
       const written = writtenBeforeCancel();
       // 自分で止めたので赤く塗らない（決定49）。
