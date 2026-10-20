@@ -55,3 +55,30 @@ test('暗号の印が無い・空の文字・文書情報を読めないとき�
   assert.equal(shell.SigK.viewer.getState().open, true);
   assert.equal(shell.SigK.viewer.getState().file.encrypted, false);
 });
+
+// D4（決定81 ⑬）。1 ページだけ壊れた PDF は、今のとおり文書全体を開かず、どのページで失敗したかを出す。
+test('ページを読めない PDF は、文書全体を開かずに、失敗したページの番号を出す（決定81 ⑬）', async (t) => {
+  const pdfjs = createPdfjsStub();
+  const shell = await createShell({ files: { [A]: makeSource({ path: A }) }, pdfjs });
+  t.after(() => shell.cleanup());
+  const getDocument = pdfjs.getDocument;
+  pdfjs.getDocument = (params) => {
+    const task = getDocument(params);
+    task.promise = task.promise.then((doc) => {
+      const getPage = doc.getPage;
+      return Object.assign(doc, { getPage: async (number) => {
+        if (number === 2)
+          throw Object.assign(new Error('Page dictionary kid reference points to wrong type of object.'), { name: 'UnknownErrorException' });
+        return getPage(number);
+      } });
+    });
+    return task;
+  };
+  assert.equal(await shell.SigK.tabs.openPath(A), false);
+  await shell.flush();
+  assert.equal(shell.SigK.viewer.getMessage(), '2 ページ目が壊れているので、この PDF を開けませんでした。');
+  assert.equal(shell.SigK.tabs.list().length, 1, '開けなくてもタブは作る（理由を見せるため。spec-1-2 確定事項19）');
+  const logged = shell.logs.find((entry) => entry.context?.source === 'viewer');
+  assert.match(logged?.message ?? '', /Page dictionary kid reference/, '記録には pdf.js の元の文を残す');
+  assert.equal(logged.context.page, 2);
+});

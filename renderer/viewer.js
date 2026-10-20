@@ -749,7 +749,10 @@
   async function collectSizes(doc) {
     const sizes = [];
     for (let number = 1; number <= doc.numPages; number += 1) {
-      const page = await doc.getPage(number);
+      // 読めないページがあれば、どのページかを添えて投げる（文書全体は開かない。決定81 ⑬。spec-6-1 確定事項D-4）。
+      const page = await doc.getPage(number).catch((error) => {
+        throw Object.assign(new Error(error?.message ?? String(error), { cause: error }), { name: 'BrokenPageError', page: number });
+      });
       const viewport = page.getViewport({ scale: 1 });
       // rotate と userUnit は、切った範囲の寸法を作るのに要る（spec-4b-6a 確定事項7）。
       sizes.push({ width: viewport.width, height: viewport.height, view: Array.isArray(page.view) ? [...page.view] : null,
@@ -765,6 +768,8 @@
       return 'パスワードが違うため、この PDF を開けませんでした。';
     if (error?.name === 'InvalidPDFException')
       return 'PDF として読めませんでした。ファイルが壊れている可能性があります。';
+    if (error?.name === 'BrokenPageError')
+      return `${error.page} ページ目が壊れているので、この PDF を開けませんでした。`;
     return 'この PDF を開けませんでした。';
   }
 
@@ -890,7 +895,7 @@
       return true;
     } catch (error) {
       setMessage(describeOpenFailure(error));
-      report(error, { path: source?.path });
+      report(error, { path: source?.path, ...(Number.isInteger(error?.page) ? { page: error.page } : {}) });
       return false;
     }
   }
