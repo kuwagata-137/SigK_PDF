@@ -294,6 +294,11 @@ function requestDocInfo() {
   mainWindow?.webContents.send('pdf:docInfoRequest');
 }
 
+// メニュー「ファイル」→「設定…」（spec-6-1 タスク E の確定事項E-1）。開くかどうかは画面が決める（ほかの窓が開いていれば開かない）。
+function requestSettings() {
+  mainWindow?.webContents.send('preferences:openRequest');
+}
+
 // メニュー「ヘルプ」→「使い方」（spec-4b-7b 確定事項A4）。開くかどうかは画面が決める（窓が開いていれば開かない）。
 function requestHelp() {
   mainWindow?.webContents.send('pdf:helpRequest');
@@ -359,6 +364,7 @@ function buildAppMenu() {
         { label: '名前を付けて保存…', accelerator: 'CmdOrCtrl+Shift+S', click: () => requestSave('saveAs') },
         { type: 'separator' },
         { label: '文書情報…', accelerator: 'CmdOrCtrl+I', click: requestDocInfo },
+        { label: '設定…', accelerator: 'CmdOrCtrl+,', click: requestSettings },
         { type: 'separator' },
         { label: '終了', role: 'quit' },
       ],
@@ -517,6 +523,7 @@ function registerIpc() {
   // 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。set は差分を受け、確かめた全体と今あるフォルダを返す。
   ipcMain.handle('preferences:get', () => ({ ok: true, ...preferences.snapshot() }));
   ipcMain.handle('preferences:set', (_event, patch) => ({ ok: true, ...preferences.set(patch) }));
+  ipcMain.handle('preferences:openDefaultApps', () => requestDefaultAppsSettings());
   ipcMain.handle('settings:setUi', (_event, patch) => {
     settings.set(mergeUi(pickUi(settings.get()), patch));
     settings.save();

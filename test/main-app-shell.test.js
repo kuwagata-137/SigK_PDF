@@ -75,3 +75,9 @@ test('設定の窓の値の受け口（preferences:get・set）と、書き出�
   assert.match(MAIN, /if \(result\?\.ok === true\)\n {6}preferences\.rememberWritten\(target\);/, 'PDF→画像の画像の書き込み');
   assert.match(MAIN, /preferences = createPreferencesHost\(\{ settings, notify: \(snapshot\) => mainWindow\?\.webContents\.send\('preferences:changed', snapshot\) \}\);/);
 });
+
+test('メニュー「ファイル」の「文書情報…」の下に「設定…」（Ctrl＋,）があり、押すと画面へ合図を送る（spec-6-1 確定事項E-1）', () => {
+  assert.match(MAIN, /\{ label: '文書情報…', accelerator: 'CmdOrCtrl\+I', click: requestDocInfo \},\n {8}\{ label: '設定…', accelerator: 'CmdOrCtrl\+,', click: requestSettings \},/);
+  assert.match(MAIN, /function requestSettings\(\) \{\n {2}mainWindow\?\.webContents\.send\('preferences:openRequest'\);\n\}/);
+  assert.match(MAIN, /ipcMain\.handle\('preferences:openDefaultApps', \(\) => requestDefaultAppsSettings\(\)\);/, '窓の［Windows の設定を開く］は、メニューの「既定のアプリの設定…」と同じ所');
+});

@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="renderer/strip-drag.css">
 <link rel="stylesheet" href="renderer/tool-pane.css">
 <link rel="stylesheet" href="renderer/tip.css">
+<link rel="stylesheet" href="renderer/settings-dialog.css">
 <style>
 :root{
   --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
@@ -78,6 +79,8 @@ body{
     <div class="spacer"></div>
     <div class="tb-btn icon" id="btn-find" data-icon="search" data-tip="bar.find" aria-label="検索" aria-disabled="true"></div>
     <div class="tb-btn icon" id="btn-print" data-icon="print" data-tip="bar.print" aria-label="印刷" aria-disabled="true"></div>
+    <!-- 設定の窓を開く（spec-6-1 タスク E の確定事項E-1。見本 screenshots/phase6-mock-settings-entry.png）。どのモードでも、文書が無くても押せる。 -->
+    <div class="tb-btn icon" id="btn-settings" data-icon="settings" data-tip="bar.settings" aria-label="設定"></div>
     <!-- 使い方の窓を開く（spec-4b-7b 確定事項A1。見本 screenshots/phase4b-7b-button.png）。文書が無くても押せる。 -->
     <div class="tb-btn icon" id="btn-help" data-icon="help" data-tip="bar.help" aria-label="使い方"></div>
   </div>
@@ -651,6 +654,43 @@ body{
     <dl id="doc-info-body"></dl>
   </dialog>
 
+  <!-- 設定の窓（spec-6-1 タスク E の確定事項E-1〜E-3。見本 screenshots/phase6-mock-settings-window.png）。開く・欄へ写す・書くは
+       settings-dialog.js。足は肯定の［OK］を左に置く。 -->
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <div class="dlg-head">
+      <span id="settings-title">設定</span>
+      <button type="button" class="dlg-x" id="settings-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" data-tip="dialog.close" aria-label="閉じる"></button>
+    </div>
+    <div class="dlg-body settings-body">
+      <section class="settings-sec">
+        <p class="dlg-label">ファイルを書き出すときの、最初のフォルダ</p>
+        <label class="print-choice"><input type="radio" name="settings-folder" value="source">元のファイルと同じフォルダ</label>
+        <label class="print-choice"><input type="radio" name="settings-folder" value="last">最後に書き出したフォルダ</label>
+        <label class="print-choice settings-fixed"><input type="radio" name="settings-folder" value="fixed">決めたフォルダ<span class="settings-path empty" id="settings-fixed-path">まだ決めていません</span><button type="button" class="dlg-btn settings-small" id="settings-fixed-change">変更…</button></label>
+        <p class="settings-note">保存の窓が最初に開くフォルダと、分割・画像→PDF・PDF→画像の右の欄の「フォルダ」の最初の値です。「元のファイルと同じフォルダ」は、結合では 1 本目の PDF、画像→PDF では 1 枚目の画像、新しい帯では写す前の帯の PDF のフォルダです。選んだフォルダが無くなっていたときは、元のファイルと同じフォルダにします。</p>
+      </section>
+      <section class="settings-sec">
+        <p class="dlg-label">上書き保存</p>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-backup">上書き保存の前に、元のファイルの控えのファイル（&lt;名前&gt;.pdf.bak）を作る</label>
+        <p class="settings-note">作らないにしても、前からある控えのファイルは消しません。</p>
+      </section>
+      <section class="settings-sec">
+        <p class="dlg-label">ツール</p>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-tool-values">ツールで選んだ値を覚えて、次に起動したときも使う</label>
+        <p class="settings-note">透かし（種類・文字・色・不透明度・角度・大きさ・位置）、PDF→画像（形式・解像度）、画像→PDF（用紙・向き・余白・まとめ方）、分割（ファイル名の付け方）、フラット化（焼き込む書き込みの種類）。ページの範囲と透かしの画像のファイルは覚えません。</p>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-last-tool">最後に使ったツールを覚えて、次にツールモードを開いたときに選んでおく</label>
+      </section>
+      <section class="settings-sec">
+        <p class="dlg-label">既定のアプリ</p>
+        <div class="settings-row"><span>PDF をダブルクリックしたときに開くアプリは、Windows の設定で選びます。</span><button type="button" class="dlg-btn settings-small" id="settings-default-apps">Windows の設定を開く</button></div>
+      </section>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn primary" id="settings-ok">OK</button>
+      <button type="button" class="dlg-btn" id="settings-cancel">キャンセル</button>
+    </div>
+  </dialog>
+
   <!-- 使い方の窓（spec-4b-7b 確定事項B。見本 screenshots/phase4b-7b-help-nav.png）。題・目次・本文は help-dialog.js が
        help-content.js の中身から組む。 -->
   <!-- 分割の盤のページを大きく見る窓（spec-2-2b 第 E 章。見本 screenshots/phase2-2b-06-zoom.png）。中身は split-zoom.js。 -->
@@ -1082,6 +1122,8 @@ body{
 <script src="renderer/annotation-index.js"></script>
 <script src="renderer/annotation-list.js"></script>
 <script src="renderer/doc-info.js"></script>
+<script src="renderer/preferences.js"></script>
+<script src="renderer/settings-dialog.js"></script>
 <script src="renderer/help-content-edit.js"></script>
 <script src="renderer/help-content-tools.js"></script>
 <script src="renderer/help-content.js"></script>

@@ -15,6 +15,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const { JSDOM } = require('jsdom');
+const { mergePreferences, applyPreferencesPatch } = require('../preferences.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const INDEX_PATH = path.join(ROOT, 'index.html');
@@ -442,6 +443,9 @@ async function createShell({
   boxesResults = [],
   // pdfAPI.pickSavePath() が返すものの並び。
   savePathResults = [],
+  // 設定の窓の値（spec-6-1 タスク E）と、今あるフォルダ（最後に書き出したフォルダ・決めたフォルダのうち、ここにあるものだけが使える）。
+  preferences = {},
+  existingFolders = [],
   // pdfAPI.pickInsertSource() が返すものの並び（spec-1-6 確定事項53）。
   insertSourceResults = [],
   // pdfAPI.pickMergeSources() が返すものの並びと、pdfAPI.exists() が「ある」と
@@ -484,6 +488,16 @@ async function createShell({
   const helpRequestHandlers = [];
   const recentCalls = [];
   const uiCalls = [];
+  const preferencesCalls = [];
+  const preferencesChangedHandlers = [];
+  const settingsRequestHandlers = [];
+  const defaultAppsCalls = [];
+  let savedPreferences = mergePreferences(preferences);
+  const preferencesSnapshot = () => {
+    const folder = savedPreferences.outputFolder;
+    const exists = (value) => (value !== null && existingFolders.includes(value) ? value : null);
+    return { ok: true, preferences: structuredClone(savedPreferences), available: { last: exists(folder.last), fixed: exists(folder.fixed) } };
+  };
   const printCalls = [];
   const closeRequestHandlers = [];
   // メインへ知らせた未保存のタブ数と、確認の答え（spec-1-5 確定事項56）。
@@ -659,6 +673,22 @@ async function createShell({
         return typeof next === 'function' ? next(spec) : (next ?? { ok: true, details: {} });
       },
     };
+    // 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。中身の確かめはメインと同じ preferences.js を使う。
+    window.preferencesAPI = {
+      available: true,
+      get: async () => preferencesSnapshot(),
+      set: async (patch) => {
+        preferencesCalls.push(structuredClone(patch ?? {}));
+        savedPreferences = applyPreferencesPatch(savedPreferences, patch);
+        return preferencesSnapshot();
+      },
+      onChanged: (callback) => preferencesChangedHandlers.push(callback),
+      onOpenRequest: (callback) => settingsRequestHandlers.push(callback),
+      openDefaultApps: async () => {
+        defaultAppsCalls.push(true);
+        return { ok: true };
+      },
+    };
     window.settingsAPI = {
       available: true,
       // 返すのは呼ばれた時点の値（メインは届いた順に答える）。起動要求を流す場面では、答えが
@@ -780,6 +810,18 @@ async function createShell({
     recentList: () => recentList,
     // 覚えた見た目と、そこへ届いた patch の並び。
     uiCalls,
+    preferencesCalls,
+    defaultAppsCalls,
+    existingFolders,
+    savedPreferences: () => structuredClone(savedPreferences),
+    // メインが「最後に書き出したフォルダ」を覚えたときなどの知らせ（preferences:changed）の代わり。
+    firePreferencesChanged: (patch = {}) => {
+      savedPreferences = applyPreferencesPatch(savedPreferences, patch);
+      const { ok: _ok, ...snapshot } = preferencesSnapshot();
+      preferencesChangedHandlers.forEach((handler) => handler(snapshot));
+    },
+    // メニュー「ファイル」→「設定…」の合図の代わり。
+    fireSettingsRequest: () => settingsRequestHandlers.forEach((handler) => handler()),
     // printAPI.print() に届いたオプションの並び。
     printCalls,
     // taskAPI.run() に届いた { taskId, spec } の並び（spec-1-6）。

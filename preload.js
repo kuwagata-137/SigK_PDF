@@ -144,6 +144,12 @@ contextBridge.exposeInMainWorld('preferencesAPI', {
   get: () => ipcRenderer.invoke('preferences:get'),
   set: (patch) => ipcRenderer.invoke('preferences:set', patch),
   onChanged: (callback) => ipcRenderer.on('preferences:changed', (_event, snapshot) => callback(snapshot)),
+  // メニュー「ファイル」→「設定…」（Ctrl＋,）から届く合図と、窓の［Windows の設定を開く］（メニュー「ヘルプ」の「既定のアプリの設定…」と同じ所）。
+  onOpenRequest: (callback) => {
+    ipcRenderer.removeAllListeners('preferences:openRequest');
+    ipcRenderer.on('preferences:openRequest', () => callback());
+  },
+  openDefaultApps: () => ipcRenderer.invoke('preferences:openDefaultApps'),
 });
 
 // 未保存の編集を持ったまま終了しようとしたときの往復（spec-1-5 確定事項56）。

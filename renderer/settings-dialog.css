@@ -1,0 +1,22 @@
+/* 設定の窓（spec-6-1 タスク E。見本 screenshots/phase6-mock-settings-window.png）。枠と見出し・足は印刷の窓・文書情報の窓と同じ。 */
+#settings-dialog{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(560px, 92vw);
+}
+#settings-dialog::backdrop{background:rgba(16,24,40,.34)}
+.settings-body{padding:14px 18px 6px}
+.settings-sec{margin:0 0 14px}
+.settings-sec + .settings-sec{border-top:1px solid var(--border); padding-top:12px}
+.settings-check{height:auto; min-height:26px; align-items:flex-start; padding:4px 0}
+.settings-check input{margin-top:3px}
+.settings-note{margin:2px 0 4px 21px; color:var(--muted); font-size:11.5px; line-height:1.6}
+.settings-fixed{gap:7px}
+.settings-path{
+  display:inline-block; width:210px; height:24px; line-height:24px; margin-left:8px; padding:0 8px;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  border:1px solid var(--border-strong); border-radius:6px; background:var(--surface-2); font-size:12px;
+}
+.settings-path.empty{color:var(--muted)}
+.dlg-btn.settings-small{height:26px; min-width:0; padding:0 10px; font-size:12px; white-space:nowrap; flex:0 0 auto}
+.settings-row{display:flex; align-items:center; justify-content:space-between; gap:12px; line-height:1.6}

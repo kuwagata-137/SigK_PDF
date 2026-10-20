@@ -180,6 +180,9 @@
     root.SigK.viewPan.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
+    // 設定の窓の値の写しを読み、窓を結ぶ（spec-6-1 タスク E）。写しは待たない（読めるまでは既定で動く）。
+    root.SigK.preferences?.init(doc, win);
+    root.SigK.settingsDialog?.init(doc, win);
     root.SigK.helpDialog.init(doc, win);
     root.SigK.tabs.init(doc, win);
     root.SigK.recentPanel.init(doc, win);
