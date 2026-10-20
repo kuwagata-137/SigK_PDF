@@ -18,7 +18,8 @@ const fs = require('node:fs');
 const { applyForSave, applyForExtract } = require('./save-apply.js');
 const { buildPreview } = require('./op-insert.js');
 const { readSource, sourceChanged, runCopy } = require('./op-copy.js');
-const { writeDocument } = require('../pdf-write.js');
+const { writeDocument, readSignature } = require('../pdf-write.js');
+const { insertsChanged } = require('./insert-source.js');
 const { pruneOrphans } = require('./orphan-objects.js');
 const {
   PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS,
@@ -47,6 +48,8 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
   if (typeof sourcePath !== 'string')
     return { error: '差し込むファイルが決まっていません。' };
 
+  // 差し込む元の印は読む前に取る（読んだあとに取ると、間の書き換えを見落とす）。保存のときにワーカーが照らす（spec-6-1 確定事項C-8）。
+  const signature = await readSignature(sourcePath, { fsLike });
   let built;
   try {
     built = await buildPreview(sourcePath, base, TOOLS, insertReader(fsLike));
@@ -57,7 +60,7 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
     return built;
 
   const bytes = await built.doc.save(SAVE_OPTIONS);
-  return { ok: true, bytes, pages: built.sizes, kind: built.kind };
+  return { ok: true, bytes, pages: built.sizes, kind: built.kind, signature };
 }
 
 // 5段を回す。advance(phase) は段の入り口ごとに1回だけ呼ぶ。
@@ -75,6 +78,9 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   // 中身を前提にしているので、書き換えられた中身には当てない。何もせずに知らせ、画面が開いたときの中身でやり直す（renderer/opened-source.js）。
   if (await sourceChanged(spec, fsLike))
     return { sourceChanged: true };
+  // 差し込んだファイルも同じ（確定事項C-8。画面が差し込んだときの中身でやり直す）。
+  if (kind === 'save' && await insertsChanged(pages, inserts, fsLike))
+    return { insertChanged: true };
 
   advance('read');
   const read = await readSource(spec, fsLike);

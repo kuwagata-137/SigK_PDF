@@ -11,6 +11,7 @@
 
 const { applyForCopy } = require('./save-apply.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
+const { insertsChanged } = require('./insert-source.js');
 const { normalizeRotation } = require('./op-pages.js');
 const { PDFDocument, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, insertReader } = require('./pdf-io.js');
 
@@ -54,6 +55,8 @@ async function runCopy(spec, { fsLike } = {}) {
   // 書き換えられていたら写さず、画面が開いたときの中身でやり直す（spec-6-1 タスク C。保存と同じ）。
   if (await sourceChanged(spec ?? {}, fsLike))
     return { sourceChanged: true };
+  if (await insertsChanged(pages, inserts, fsLike))
+    return { insertChanged: true };
   const read = await readSource(spec ?? {}, fsLike);
   if (read.ok !== true)
     return read;

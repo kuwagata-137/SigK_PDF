@@ -157,8 +157,9 @@
   }
 
   // 保存のときワーカーへ渡す形。pdf.js の文書は渡さない（IPC を越えられない）。写しはバイト列も渡さず、鍵だけ（バイト列は getCopies）。
+  // ファイルの差し込みは、差し込んだときの元の印（expect）も渡す（spec-6-1 確定事項C-8）。
   function getInserts() {
-    return state.inserts.map(({ path, copy, page, size }) => (typeof copy === 'string' ? { copy, page, size } : { path, page, size }));
+    return state.inserts.map(({ path, copy, page, size, expect = null }) => (typeof copy === 'string' ? { copy, page, size } : { path, page, size, expect }));
   }
 
   // 写しのバイト列を鍵ごとに 1 回（spec-2-5 確定事項I5）。今の並びにある差し込みの分と、名前の無い帯ならその中身。保存のときワーカーへ渡す。

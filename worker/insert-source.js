@@ -8,6 +8,7 @@
 
 const { detectFormat, isSupported, describeFormat, isProgressiveJpeg } = require('./image-format.js');
 const { frameCount } = require('./image-decode.js');
+const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
 const { failure } = require('./task-failure.js');
 const NOT_FOUND = '差し込むページが見つからないので、もう一度やり直してください。';
@@ -72,4 +73,17 @@ async function loadInsertSource(spec, cache, { readFile, copies, PDFDocument }) 
   return loadSource(spec.path, cache, { readFile, PDFDocument });
 }
 
-module.exports = { NOT_FOUND, loadSource, loadInsertSource };
+// 並びにある差し込み（{ path }）の元のファイルが、差し込んだときから書き換えられているか（spec-6-1 確定事項C-8）。読む前に呼ぶ。差し込んだときの
+// 印（expect）を持たないもの・写し（{ copy }）・今の印を読めないもの（無くなったファイル。読みに行って断る）は照らさない。
+async function insertsChanged(plan, inserts, fsLike) {
+  for (const entry of Array.isArray(plan) ? plan : []) {
+    const spec = Number.isInteger(entry?.insert) ? inserts?.[entry.insert] : undefined;
+    if (typeof spec?.path !== 'string' || spec.expect === null || spec.expect === undefined)
+      continue;
+    if (!signaturesMatch(spec.expect, await readSignature(spec.path, { fsLike })))
+      return true;
+  }
+  return false;
+}
+
+module.exports = { NOT_FOUND, loadSource, loadInsertSource, insertsChanged };

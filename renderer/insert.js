@@ -100,11 +100,13 @@
 
     // 1つの PDF から複数ページ来ることがある。控えはページごとに作り、
     // pdf.js の文書は共有する（畳むのは viewer が実体ごとに1回だけ行う）。
+    // 差し込んだときの元の印も控える。保存のときにワーカーが照らす（spec-6-1 確定事項C-8）。
     const numbers = viewer().addInserts(built.pages.map((size, index) => ({
       path: picked.path,
       page: index,
       size,
       doc,
+      expect: built.signature ?? null,
     })));
 
     const plan = viewer().getPlan();

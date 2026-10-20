@@ -13,7 +13,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const { PDFDocument } = require('pdf-lib');
-const { runSave } = require('../worker/pdf-task.js');
+const { runSave, runTask } = require('../worker/pdf-task.js');
 const { readSignature } = require('../pdf-write.js');
 const { NO_SOURCE, runCopy } = require('../worker/op-copy.js');
 const { fixturePath } = require('./fixtures/build.js');
@@ -107,4 +107,46 @@ test('帯のページを写すときも、元が書き換えられていれば�
   const redone = await runCopy({ ...spec, sourceCopy: 'opened', copies: { opened: openedBytes }, expectSource: null }, { fsLike: fs });
   assert.equal(redone.ok, true, redone.error);
   assert.equal(redone.sizes.length, 1);
+});
+
+// 差し込み（spec-6-1 確定事項C-8）。差し込んだときの元の印（inserts[].expect）を照らし、書き換えられていたら insertChanged を返す。
+async function changedAfterInserting(t) {
+  const base = await changedAfterOpening(t);
+  const insertFile = path.join(base.dir, 'ins.pdf');
+  fs.copyFileSync(fixturePath('one-page.pdf'), insertFile);
+  const inserted = await readSignature(insertFile);
+  fs.copyFileSync(fixturePath('three-pages.pdf'), insertFile);
+  const inserts = [{ path: insertFile, page: 0, size: { width: 595, height: 842 }, expect: inserted }];
+  return { ...base, insertFile, inserts };
+}
+
+test('差し込みの下見は、読む前に取った差し込む元の印を返す', async (t) => {
+  const { insertFile } = await changedAfterInserting(t);
+  const built = await runTask({ kind: 'insert-preview', path: insertFile, base: null });
+  assert.equal(built.ok, true, built.error);
+  assert.deepEqual(built.signature, await readSignature(insertFile));
+});
+
+test('差し込んだファイルが書き換えられていたら、保存は読む前に止めて insertChanged を返す。印が同じなら今のとおり読む', async (t) => {
+  const { dir, file, inserts } = await changedAfterInserting(t);
+  const target = path.join(dir, 'b.pdf');
+  const spec = { kind: 'save', source: file, target, pages: [{ src: 0, rotate: 0 }, { insert: 0, rotate: 0 }], inserts };
+  assert.deepEqual(await runSave(spec), { insertChanged: true });
+  assert.equal(fs.existsSync(target), false);
+  const same = await runSave({ ...spec, inserts: [{ ...inserts[0], expect: await readSignature(inserts[0].path) }] });
+  assert.equal(same.ok, true, same.error);
+  assert.equal(await pageCount(target), 2);
+});
+
+test('並びに無い差し込みと、写し（copy）の差し込みは照らさない', async (t) => {
+  const { dir, file, inserts } = await changedAfterInserting(t);
+  const target = path.join(dir, 'b.pdf');
+  const result = await runSave({ kind: 'save', source: file, target, pages: [{ src: 0, rotate: 0 }], inserts });
+  assert.equal(result.ok, true, result.error);
+});
+
+test('帯のページを写すときも、差し込んだファイルが書き換えられていれば止める', async (t) => {
+  const { file, inserts } = await changedAfterInserting(t);
+  const result = await runCopy({ kind: 'copy-pages', source: file, pages: [{ insert: 0, rotate: 0 }], inserts }, { fsLike: fs });
+  assert.deepEqual(result, { insertChanged: true });
 });

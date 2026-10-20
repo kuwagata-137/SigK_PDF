@@ -1,41 +1,83 @@
 (function (root) {
   'use strict';
 
-  // 開いたあとでほかのアプリが元のファイルを書き換えたときの、保存・名前を付けて保存・抽出・帯のページを写すの元（spec-6-1 タスク C。決定81 ①）。
+  // 開いたあとでほかのアプリがファイルを書き換えたときの、保存・名前を付けて保存・抽出・帯のページを写すの元（spec-6-1 タスク C。決定81 ①）。
   //
-  // ワーカーは書き出すたびに元のファイルをディスクから読み直す。画面の並び・書き込みの削除の参照・モザイクの画像は開いたときの中身を
-  // 前提にしているので、ワーカーは読む前に元の印（大きさと更新時刻）を照らし、書き換えられていたら何もせず { sourceChanged: true } を返す
-  // （行き先の照合に食い違ったときは { changed: true }）。そのときだけ、pdf.js が持っている開いたときのバイト列（getData()）を鍵 'opened' の
-  // 写しで渡してやり直す（確定事項C-3）。ふだんは今のとおりディスクから読み、バイト列を送らない（決定81 ⑩の答えの選択肢に書いたとおり）。
+  // ワーカーは書き出すたびに、元のファイルと差し込んだファイルをディスクから読み直す。画面の並び・書き込みの削除の参照・モザイクの画像は
+  // 開いたときの中身を、差し込んだページは差し込んだときの中身を前提にしているので、ワーカーは読む前に印（大きさと更新時刻）を照らし、
+  // 書き換えられていたら何もせず知らせる（元は { sourceChanged }、行き先の照合の食い違いは { changed }、差し込んだファイルは { insertChanged }）。
+  // そのときだけ、pdf.js が持っているバイト列（getData()。元は開いた文書、差し込みは下見の文書）を写しにしてやり直す（確定事項C-3・C-8）。
+  // ふだんは今のとおりディスクから読み、バイト列を送らない（決定81 ⑩の答えの選択肢に書いたとおり）。
 
   const KEY = 'opened';
 
-  function unreadable(label) {
-    return `開いたあとで元のファイルがほかのアプリで書き換えられていて、開いたときの中身も読み出せなかったので、${label}できませんでした。元のファイルは変更していません。`;
+  function unreadable(label, { insert = false } = {}) {
+    return insert
+      ? `差し込んだあとで差し込んだファイルがほかのアプリで書き換えられていて、差し込んだときの中身も読み出せなかったので、${label}できませんでした。元のファイルは変更していません。`
+      : `開いたあとで元のファイルがほかのアプリで書き換えられていて、開いたときの中身も読み出せなかったので、${label}できませんでした。元のファイルは変更していません。`;
   }
 
-  // ワーカーが書き換えを知らせたか。
-  function isChanged(result) {
+  // 元のファイル（か行き先）が書き換えられていたか。差し込んだファイルだけのときは含めない（確認の窓を出すかを分ける）。
+  function isSourceChanged(result) {
     return result?.sourceChanged === true || result?.changed === true;
   }
 
-  // spec を回し、書き換えられていたら ask() が true を返したときだけ、開いたときの中身でもう一度回す。ask() が true でなければ { declined: true }。
-  // 読む文書は回す前に控える（確認の窓の間に別のタブへ移っても、回したタブの文書から読む）。spec は label を含めて save.runTask へ渡す形。
+  function isChanged(result) {
+    return isSourceChanged(result) || result?.insertChanged === true;
+  }
+
+  // 並びにあるファイルの差し込みを、下見の文書のバイト列の写しに替える。1 つの文書（同じ下見の複数ページ）は 1 回だけ読む。
+  async function snapshotInserts(spec, entries, copies) {
+    const used = new Set((spec.pages ?? []).filter((page) => Number.isInteger(page?.insert)).map((page) => page.insert));
+    const keys = new Map();
+    const inserts = [];
+    for (const [index, insert] of (spec.inserts ?? []).entries()) {
+      const doc = entries[index]?.doc;
+      if (!used.has(index) || typeof insert?.path !== 'string' || doc === undefined || doc === null) {
+        inserts.push(insert);
+        continue;
+      }
+      if (!keys.has(doc)) {
+        const key = `${KEY}-insert-${keys.size + 1}`;
+        copies[key] = await doc.getData();
+        keys.set(doc, key);
+      }
+      inserts.push({ copy: keys.get(doc), page: insert.page, size: insert.size });
+    }
+    return inserts;
+  }
+
+  // 書き換えられていた分を写しにした spec。パスのある元は開いたときの中身に、ファイルの差し込みは差し込んだときの中身に替える。
+  async function snapshotSpec(spec, session) {
+    const copies = { ...spec.copies };
+    const redo = { ...spec, copies, expect: null, expectSource: null };
+    if (typeof spec.source === 'string') {
+      copies[KEY] = await session.doc.getData();
+      redo.sourceCopy = KEY;
+    }
+    redo.inserts = await snapshotInserts(spec, session.inserts, copies);
+    return redo;
+  }
+
+  // spec を回し、書き換えられていたら、開いたとき・差し込んだときの中身でもう一度回す。元のファイル（か行き先）が書き換えられていたときは、
+  // その前に ask() を呼び、true でなければ { declined: true }。読む文書は回す前に控える（確認の窓の間に別のタブへ移っても、回したタブから読む）。
+  // spec は label を含めて save.runTask へ渡す形。
   async function run(spec, { ask = async () => true } = {}) {
-    const doc = root.SigK.viewer.peek()?.doc ?? null;
+    const peeked = root.SigK.viewer.peek();
+    const session = { doc: peeked?.doc ?? null, inserts: [...(peeked?.inserts ?? [])] };
     const result = await root.SigK.save.runTask(spec);
     if (!isChanged(result))
       return result;
-    if ((await ask()) !== true)
+    if (isSourceChanged(result) && (await ask()) !== true)
       return { declined: true };
-    let bytes;
+    let redo;
     try {
-      bytes = await doc.getData();
+      redo = await snapshotSpec(spec, session);
     } catch (error) {
-      root.SigK.log?.warn('opened-source', '開いたときの中身を読み出せませんでした', error, { label: spec.label });
-      return { error: unreadable(spec.label) };
+      root.SigK.log?.warn('opened-source', '開いたとき・差し込んだときの中身を読み出せませんでした', error, { label: spec.label });
+      return { error: unreadable(spec.label, { insert: !isSourceChanged(result) }) };
     }
-    return root.SigK.save.runTask({ ...spec, sourceCopy: KEY, copies: { ...spec.copies, [KEY]: bytes }, expect: null, expectSource: null });
+    return root.SigK.save.runTask(redo);
   }
 
   const SigK = (root.SigK = root.SigK || {});

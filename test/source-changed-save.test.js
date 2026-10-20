@@ -170,3 +170,39 @@ test('帯のページを写すときも、開いたときの元の印を渡し�
   assert.deepEqual(plain(shell.taskCalls[0].spec.expectSource), OPENED);
   assert.deepEqual(openedOf(shell.taskCalls[1].spec), { sourceCopy: 'opened', bytes: OPENED_BYTES, expect: null, expectSource: null });
 });
+
+// 差し込み（確定事項C-8）。下見の結果の印を控えて保存のときに渡し、書き換えられていたら下見の文書のバイト列を写しにしてやり直す。
+const INS = 'C:\\work\\ins.pdf';
+const inserted = (over = {}) => ({ ok: true, bytes: new Uint8Array([7, 7, 7]), pages: [{ width: 595, height: 842 }], kind: 'pdf', signature: { size: 50, mtimeMs: 500 }, ...over });
+
+test('差し込んだファイルの印を控えて保存のときに渡し、書き換えられていたら、上書きでも聞かずに差し込んだときの中身でやり直す', async (t) => {
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: INS }], taskResults: [inserted(), { insertChanged: true }, okResult()] });
+  assert.equal((await shell.SigK.insert.run()).ok, true);
+  await shell.flush();
+  const saving = shell.SigK.save.saveActive();
+  await shell.flush();
+  assert.equal(shell.SigK.confirmOverwrite.isOpen(), false, '元のファイルへの書き換えではないので聞かない');
+  assert.equal((await saving).ok, true);
+  assert.deepEqual(plain(shell.taskCalls[1].spec.inserts[0].expect), { size: 50, mtimeMs: 500 });
+  const second = shell.taskCalls[2].spec;
+  const insert = second.inserts[0];
+  assert.equal(insert.path, undefined, 'ディスクから読み直さない');
+  assert.equal(insert.page, 0);
+  assert.deepEqual(Array.from(second.copies[insert.copy]), [7, 7, 7]);
+  assert.equal(second.sourceCopy, 'opened', '元も開いたときの中身から作る（中身は同じ）');
+});
+
+test('差し込みと元の両方が書き換えられていて上書きなら、確認の窓を 1 回だけ出してから、両方を控えた中身でやり直す', async (t) => {
+  const shell = await withOpenDocument(t, { insertSourceResults: [{ path: INS }], taskResults: [inserted(), { sourceChanged: true }, okResult()] });
+  await shell.SigK.insert.run();
+  await shell.flush();
+  const saving = shell.SigK.save.saveActive();
+  await shell.flush();
+  assert.equal(shell.SigK.confirmOverwrite.isOpen(), true);
+  shell.document.getElementById('confirm-overwrite-ok').click();
+  assert.equal((await saving).ok, true);
+  assert.equal(shell.taskCalls.length, 3);
+  const second = shell.taskCalls[2].spec;
+  assert.deepEqual(Array.from(second.copies[second.inserts[0].copy]), [7, 7, 7]);
+  assert.deepEqual(Array.from(second.copies.opened), OPENED_BYTES);
+});
