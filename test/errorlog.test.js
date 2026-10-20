@@ -20,6 +20,13 @@ test('formatEntry は ISO 8601 の時刻と既定の level を付ける', () => 
   assert.equal(entry.message, '失敗しました');
 });
 
+test('formatEntry は中身に時刻（ts。ためておいた分）があればそれを使い、読めない時刻なら今の時刻にする', () => {
+  const now = new Date('2026-10-20T09:00:00.000Z');
+  assert.equal(formatEntry({ message: 'x', ts: '2026-10-20T01:02:03.000Z' }, now).ts, '2026-10-20T01:02:03.000Z');
+  assert.equal(formatEntry({ message: 'x', ts: 'きのう' }, now).ts, '2026-10-20T09:00:00.000Z');
+  assert.equal(formatEntry({ message: 'x', ts: 42 }, now).ts, '2026-10-20T09:00:00.000Z');
+});
+
 test('formatEntry は知らない level を error に寄せる', () => {
   assert.equal(formatEntry({ level: 'warn', message: 'x' }).level, 'warn');
   assert.equal(formatEntry({ level: 'info', message: 'x' }).level, 'info');

@@ -100,20 +100,22 @@ test('importDocument は getAnnotations が投げても止まらない', async (
   assert.deepEqual(Object.keys(imported), ['1']);
 });
 
-test('getAnnotations が投げたページは、書き込みを空にして、warn を記録に残す（spec-6-1 タスク B）', async (t) => {
+test('getAnnotations が投げたページは、書き込みを空にして、1 文書につき 1 行の warn を記録に残す（spec-6-1 タスク B）', async (t) => {
   stubs(t);
   const logs = captureLogs(t);
   const doc = {
-    numPages: 2,
+    numPages: 30,
     annotationStorage: { setValue: () => {} },
-    getPage: async (number) => ({ getAnnotations: async () => { if (number === 2) throw new Error('壊れている'); return []; } }),
+    getPage: async (number) => ({ getAnnotations: async () => { if (number >= 3) throw new Error(`壊れている ${number}`); return []; } }),
   };
   await imp.importDocument(doc, { file: FILE });
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(logs.length, 1);
+  assert.equal(logs.length, 1, 'ページごとに並べない（壊れた大きな PDF で、記録の上限から古い行を押し出さないため）');
   assert.equal(logs[0].level, 'warn');
-  assert.equal(logs[0].message, '2 ページ目の書き込みを読めませんでした');
-  assert.deepEqual(logs[0].context, { source: 'annotation-import', page: 2, error: '壊れている' });
+  assert.equal(logs[0].message, '28 ページの書き込みを読めませんでした');
+  assert.deepEqual(logs[0].context, {
+    source: 'annotation-import', pages: Array.from({ length: 20 }, (_, index) => index + 3), count: 28, error: '壊れている 3',
+  });
 });
 
 test('importDocument はノートに noView を付け、表示のみには付けない', async (t) => {

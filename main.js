@@ -101,9 +101,11 @@ function logError(entry) {
 }
 
 // 画面の処理が止まったとき（spec-6-1 タスク B の B2）。保存していない変更の数は止まった画面のものなので 0 に戻す
-// （開き直した画面で閉じるときに、もう無い変更を聞かないため）。
+// （開き直した画面で閉じるときに、もう無い変更を聞かないため）。起動の要求の受け取りの印も戻し、開き直した画面が
+// shell:ready を送るまで、エクスプローラーから開いたファイルをためておく（確定事項77。点検の直し）。
 function onRendererGone(win) {
   dirtyTabCount = 0;
+  launchReady = false;
   rendererGoneOutcome = null;
   handleRendererGone({ win, dialog, app, logError, smoke: process.env.SIGK_SMOKE === '1', quitting })
     .then((outcome) => { rendererGoneOutcome = outcome; });
@@ -197,6 +199,11 @@ function createMainWindow({ hidden = false } = {}) {
     startupMarks.shown = Date.now();
   });
 
+  // Windows のログオフ・シャットダウンでは before-quit が来ない（Electron の仕様）。画面の処理が先に落とされても確認の窓を出さない（点検の直し）。
+  win.on('session-end', () => {
+    quitting = true;
+  });
+
   win.on('close', (event) => {
     // 未保存があれば、閉じる前にレンダラーへ確認を頼む（確定事項56）。
     // 確認のダイアログはアプリ内の <dialog> なので、レンダラーでしか出せない。
@@ -206,6 +213,8 @@ function createMainWindow({ hidden = false } = {}) {
     const canAsk = !win.webContents.isDestroyed() && !win.webContents.isCrashed();
     if (!allowClose && dirtyTabCount > 0 && canAsk) {
       event.preventDefault();
+      // 確認で取りやめられたらアプリは終わらないので、「終えている途中」の印を戻す（了承されれば app.quit でまた立つ。点検の直し）。
+      quitting = false;
       win.webContents.send('app:closeRequest');
       return;
     }

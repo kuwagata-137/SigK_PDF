@@ -55,7 +55,9 @@ function formatEntry(input, now = new Date()) {
   const level = LEVELS.has(source.level) ? source.level : 'error';
   const message = toMessage(source.message ?? source).slice(0, MESSAGE_LIMIT);
 
-  const entry = { ts: now.toISOString(), level };
+  // 中身に時刻があれば使う（記録の準備ができる前にためておいた分。error-capture.js）。読めなければ今の時刻。
+  const ts = typeof source.ts === 'string' && !Number.isNaN(Date.parse(source.ts)) ? source.ts : now.toISOString();
+  const entry = { ts, level };
   if (PROCS.has(source.proc))
     entry.proc = source.proc;
   if (typeof source.version === 'string' && source.version !== '')

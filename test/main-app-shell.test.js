@@ -38,6 +38,23 @@ test('「エラーの記録のフォルダを開く」を押すと、記録の�
   assert.match(MAIN, /const \{ openLogFolder \} = require\('\.\/log-folder\.js'\);/);
 });
 
+// 画面の処理が止まったときと、終了まわりの状態（spec-6-1 タスク B の B2 と点検の直し）。main.js は Electron なしでは読めないので文字で見る。
+test('画面の処理が止まったら、保存していない変更の数と起動の要求の受け取りの印を戻してから、renderer-gone.js へ渡す', () => {
+  const body = /function onRendererGone\(win\) \{([\s\S]*?)\n\}/.exec(MAIN)?.[1] ?? '';
+  assert.match(body, /dirtyTabCount = 0;/);
+  assert.match(body, /launchReady = false;/, '開き直した画面が shell:ready を送るまで、エクスプローラーから開いたファイルをためておく（確定事項77）');
+  assert.match(body, /handleRendererGone\(\{ win, dialog, app, logError, smoke: process\.env\.SIGK_SMOKE === '1', quitting \}\)/);
+  assert.match(MAIN, /watchWebContents\(win\.webContents, logError, \(\) => onRendererGone\(win\)\);/);
+});
+
+test('「終えている途中」の印は before-quit と Windows の終わり（session-end）で立て、閉じる前の確認へ回したときは戻す', () => {
+  assert.match(MAIN, /app\.on\('before-quit', \(\) => \{\n {2}quitting = true;/);
+  assert.match(MAIN, /win\.on\('session-end', \(\) => \{\n {4}quitting = true;\n {2}\}\);/);
+  const closeBlock = /if \(!allowClose && dirtyTabCount > 0 && canAsk\) \{([\s\S]*?)\n {4}\}/.exec(MAIN)?.[1] ?? '';
+  assert.match(closeBlock, /quitting = false;/, '確認で取りやめられたら終わらないので、印を戻す');
+  assert.match(closeBlock, /event\.preventDefault\(\);/);
+});
+
 test('窓とバージョン情報に、assets/icon.ico を使う', () => {
   assert.match(MAIN, /const APP_ICON_PATH = path\.join\(ROOT_DIR, 'assets', 'icon\.ico'\);/);
   assert.match(MAIN, /new BrowserWindow\(\{[\s\S]*?\n {4}icon: APP_ICON_PATH,\n[\s\S]*?\}\);/);

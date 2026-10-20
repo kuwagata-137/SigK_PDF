@@ -106,7 +106,7 @@ function procOf(entry) {
 }
 
 // version は app.getVersion()。fallback は、記録の準備ができる前に中身を見せる口（既定は console.error）。
-function createErrorCapture({ version, fallback = (entry) => console.error(entry) } = {}) {
+function createErrorCapture({ version, fallback = (entry) => console.error(entry), now = () => new Date() } = {}) {
   let log = null;
   const pending = [];
 
@@ -118,6 +118,8 @@ function createErrorCapture({ version, fallback = (entry) => console.error(entry
   function record(input, proc) {
     const entry = stamp(input, proc ?? procOf(toEntry(input)));
     if (log === null) {
+      // ためておく分は、起きた時刻を持たせる（attach で書くときの時刻にしない）。
+      entry.ts = now().toISOString();
       fallback(entry);
       if (pending.length < PENDING_LIMIT)
         pending.push(entry);

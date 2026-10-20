@@ -58,6 +58,16 @@ test('記録の準備ができる前の分はためておき、attach で古い�
   assert.equal(capture.pendingCount(), 0);
 });
 
+test('ためておいた分は、起きた時刻（ts）を持ったまま書く（attach した時刻にしない。点検の直し）', () => {
+  const capture = createErrorCapture({ version: '1.0.0', fallback: () => {}, now: () => new Date('2026-10-20T01:02:03.000Z') });
+  capture.record({ message: '準備の前' });
+  const log = fakeLog();
+  capture.attach(log);
+  assert.equal(log.lines[0].ts, '2026-10-20T01:02:03.000Z');
+  capture.record({ message: '準備のあと' });
+  assert.equal('ts' in log.lines[1], false, '準備のあとは errorlog.js が書くときの時刻を付ける');
+});
+
 test(`ためておくのは ${PENDING_LIMIT} 件まで（それより後は console に出すだけ）`, () => {
   const capture = createErrorCapture({ version: '1.0.0', fallback: () => {} });
   for (let index = 0; index < PENDING_LIMIT + 5; index += 1)
