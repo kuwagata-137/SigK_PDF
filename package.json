@@ -1,7 +1,7 @@
 {
   "name": "sigk-pdf",
   "productName": "SigK PDF",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "PDF の閲覧・ページ操作・結合・分割・変換・注釈を1つの画面で行う Windows デスクトップアプリ",
   "author": "kuwagata-137",
   "license": "MIT",
