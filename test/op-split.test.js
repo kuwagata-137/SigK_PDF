@@ -204,7 +204,7 @@ test('途中の書き出しに失敗したら、そこで止めて書き終え�
   try {
     const source = ws.copyIn('three-pages.pdf');
     const ok = ws.file('a.pdf');
-    // 2本目の出力先をフォルダーにして、rename を失敗させる。
+    // 2本目の出力先をフォルダにして、rename を失敗させる。
     const blocked = ws.file('b.pdf');
     fs.mkdirSync(blocked);
     const never = ws.file('c.pdf');

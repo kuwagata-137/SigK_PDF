@@ -50,7 +50,7 @@
     return found;
   }
 
-  // 3 択は 1 回だけ出し、「別名で保存」はフォルダーを選び直してもう一度確かめる。タブで開いている出力先は 3 択より前に断る
+  // 3 択は 1 回だけ出し、「別名で保存」はフォルダを選び直してもう一度確かめる。タブで開いている出力先は 3 択より前に断る
   // （確定事項38）。戻り値は { targets } / { canceled } / { error }（分割の resolveTargets と同じ）。
   async function resolveTargets(targets) {
     const refused = root.SigK.outputTarget.refusalForFolder(targets);

@@ -18,7 +18,7 @@
   // 選ぶ窓を開いている間は、もう一度押しても開かない。
   let picking = false;
 
-  // フォルダーを短く見せる（見本 screenshots/strips2-empty.png の「C:\Users\…\書類」）。元のパスは行の説明の吹き出しに残す。
+  // フォルダを短く見せる（見本 screenshots/strips2-empty.png の「C:\Users\…\書類」）。元のパスは行の説明の吹き出しに残す。
   function shortFolder(filePath) {
     const parts = String(filePath).split(/[\\/]/).slice(0, -1);
     return parts.length <= 3 ? parts.join('\\') : [parts[0], parts[1], '…', parts.at(-1)].join('\\');

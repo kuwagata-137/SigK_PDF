@@ -90,7 +90,7 @@ test('帯が無いときは対象が無く、右の欄に状態の文を出し�
   assert.equal(doc.getElementById('split-summary').textContent, '');
 });
 
-test('帯を開くとその帯が対象になり、フォルダーが埋まる。分け目を入れると実行できる。PDF を開き直さない', async (t) => {
+test('帯を開くとその帯が対象になり、フォルダが埋まる。分け目を入れると実行できる。PDF を開き直さない', async (t) => {
   const shell = await createSplitShell(t);
   const { document: doc, SigK } = shell;
   await SigK.tabs.openPath(A);
@@ -139,7 +139,7 @@ test('帯を選び替えると盤はその帯へ移り、前の帯の盤は覚�
   await shell.flush();
   const settings = SigK.toolsSplit.settings();
   assert.equal(settings.rule, 'pages');
-  assert.equal(settings.folder, OUT_DIR, 'ユーザーが変えたフォルダーは対象に追従しない');
+  assert.equal(settings.folder, OUT_DIR, 'ユーザーが変えたフォルダは対象に追従しない');
   assert.equal(SigK.toolsSplit.currentPlan().reason, 'untouched', '初めての帯は分け目なし');
   SigK.toolsSplitEdit.cut(1);
   assert.deepEqual(plain(SigK.toolsSplit.currentPlan().targets), targetsFor(OUT_DIR, ['b_p1.pdf', 'b_p2-3.pdf']));
@@ -210,7 +210,7 @@ test('実行はワーカーへ source・parts・targets を渡し、終わると
   assert.equal(shell.recentCalls.length, recentBefore, '分けたファイルは最近使ったファイルに足さない');
 });
 
-test('同名があれば3択を1回だけ出す。上書きは全件、中止は何もしない、別名はフォルダーを選び直す', async (t) => {
+test('同名があれば3択を1回だけ出す。上書きは全件、中止は何もしない、別名はフォルダを選び直す', async (t) => {
   const shell = await createSplitShell(t, {
     existingPaths: [A_TARGETS[0], A_TARGETS[2]],
     taskResults: [{ ok: true, written: 3, targets: A_TARGETS }, { ok: true, written: 3, targets: targetsFor(OUT_DIR, ['a_001.pdf', 'a_002.pdf', 'a_003.pdf']) }],
@@ -236,7 +236,7 @@ test('同名があれば3択を1回だけ出す。上書きは全件、中止は
   assert.deepEqual(plain(await pending), { canceled: true });
   assert.equal(shell.taskCalls.length, 1);
 
-  // 別名で保存はフォルダーを選び直し、そこに同名が無ければ進む。
+  // 別名で保存はフォルダを選び直し、そこに同名が無ければ進む。
   pending = SigK.toolsSplit.run();
   await shell.flush();
   doc.getElementById('confirm-replace-rename').click();
@@ -265,7 +265,7 @@ test('出力先のどれかがタブで開いていれば、同名の3択を出�
   assert.equal(bannerText(shell), result.error);
 });
 
-test('「別名で保存」で選び直したフォルダーの出力先がタブで開いていても断る', async (t) => {
+test('「別名で保存」で選び直したフォルダの出力先がタブで開いていても断る', async (t) => {
   const outTargets = targetsFor(OUT_DIR, ['a_001.pdf', 'a_002.pdf', 'a_003.pdf']);
   const shell = await createSplitShell(t, {
     files: { [A]: makeSource({ path: A }), [outTargets[0]]: makeSource({ path: outTargets[0] }) },

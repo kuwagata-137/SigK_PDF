@@ -240,7 +240,7 @@ test('実行した後に一覧を変えれば、実行済みではなくなる',
   }
 });
 
-test('用紙・向き・余白・出力のしかた・出力フォルダーを変えても、実行済みのまま（spec-5-1 確定事項18）', async (t) => {
+test('用紙・向き・余白・出力のしかた・出力フォルダを変えても、実行済みのまま（spec-5-1 確定事項18）', async (t) => {
   const shell = await createExecutedShell(t);
   const { SigK } = shell;
   assert.equal(SigK.toolsConvert.setPaper('a3'), true);
@@ -404,7 +404,7 @@ test('「画像に合わせる」では向きと余白を押せなくし、紙�
 
 // ---- 出力（確定事項18〜21） ----
 
-test('「画像ごと」ではフォルダーの欄が出て、既定は先頭画像の場所。変えたら追従しない', async (t) => {
+test('「画像ごと」ではフォルダの欄が出て、既定は先頭画像の場所。変えたら追従しない', async (t) => {
   const shell = await createConvertShell(t, { folderResults: [{ path: OTHER_DIR }] });
   const { SigK, document: doc } = shell;
   await SigK.toolsConvert.addPaths([A, B]);
@@ -419,7 +419,7 @@ test('「画像ごと」ではフォルダーの欄が出て、既定は先頭�
   assert.equal(SigK.toolsConvert.settings().folder, OTHER_DIR);
   assert.deepEqual(plain(SigK.toolsConvert.currentPlan().targets), [`${OTHER_DIR}\\a.pdf`, `${OTHER_DIR}\\b.pdf`]);
 
-  // 画像を足し直しても、選んだフォルダーのままにする。
+  // 画像を足し直しても、選んだフォルダのままにする。
   await SigK.toolsConvert.addPaths([C]);
   assert.equal(SigK.toolsConvert.settings().folder, OTHER_DIR);
 });
@@ -620,7 +620,7 @@ test('「画像ごと」で同名があれば3択を1回だけ出す', async (t)
   assert.deepEqual(plain(await pending), { canceled: true });
   assert.equal(shell.taskCalls.length, 1);
 
-  // 別名で保存はフォルダーを選び直し、そこに同名が無ければ進む。
+  // 別名で保存はフォルダを選び直し、そこに同名が無ければ進む。
   pending = SigK.toolsConvert.run();
   await shell.flush();
   doc.getElementById('confirm-replace-rename').click();

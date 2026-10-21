@@ -24,7 +24,7 @@
   }
 
   // 戻り値は { targets } / { canceled } / { error }。3択は1回だけ出し、「別名で保存」は
-  // フォルダーを選び直してもう一度確かめる。タブで開いている出力先は3択より前に断る
+  // フォルダを選び直してもう一度確かめる。タブで開いている出力先は3択より前に断る
   // （spec-2-2 確定事項42）。3択のあとで見ると、置き換えてよいかを聞いておいて断ることになる。
   async function resolveTargets(targets) {
     const refused = root.SigK.outputTarget.refusalForFolder(targets);

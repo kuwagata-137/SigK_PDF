@@ -27,7 +27,7 @@
     return typeof text === 'string' ? text.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim() : '';
   }
 
-  // 元と同じフォルダーの <元の名前>_透かし.pdf（確定事項40。結合の既定名と同じ作り方）。
+  // 元と同じフォルダの <元の名前>_透かし.pdf（確定事項40。結合の既定名と同じ作り方）。
   function defaultTarget(sourcePath) {
     if (typeof sourcePath !== 'string' || sourcePath === '')
       return undefined;

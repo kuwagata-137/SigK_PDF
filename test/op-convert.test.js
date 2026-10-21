@@ -250,7 +250,7 @@ test('画像ごと: 書けない出力先で止まり、書き終えた分は残
   const ws = workspace();
   try {
     const first = { path: ws.copyIn('image-wide.png'), name: 'image-wide.png', layout: layoutFor(A4), target: ws.file('first.pdf') };
-    // 2本目の出力先を「フォルダー」にして書けなくする。
+    // 2本目の出力先を「フォルダ」にして書けなくする。
     fs.mkdirSync(ws.file('second.pdf'));
     const second = { path: ws.copyIn('image-tall.png'), name: 'image-tall.png', layout: layoutFor(A4), target: ws.file('second.pdf') };
     const third = { path: ws.copyIn('image-small.png'), name: 'image-small.png', layout: layoutFor(A4), target: ws.file('third.pdf') };

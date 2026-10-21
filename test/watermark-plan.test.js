@@ -33,7 +33,7 @@ test('normalizeText はワーカーと同じく 1 行に整える（制御文字
     assert.equal(plan.normalizeText(text), workerNormalize(text), JSON.stringify(text));
 });
 
-test('defaultTarget は元と同じフォルダーの <元の名前>_透かし.pdf', () => {
+test('defaultTarget は元と同じフォルダの <元の名前>_透かし.pdf', () => {
   assert.equal(plan.defaultTarget(A), 'C:\\work\\見積書_透かし.pdf');
   assert.equal(plan.defaultTarget('C:\\work\\a.PDF'), 'C:\\work\\a_透かし.pdf');
   assert.equal(plan.defaultTarget(''), undefined);

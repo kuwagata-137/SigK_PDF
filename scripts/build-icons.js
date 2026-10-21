@@ -33,7 +33,7 @@ const MIN_INK_RATIO = 0.3;
 const SETTLE_MS = 800;
 const LIMIT_MS = 60000;
 
-// 画面の倍率や色の管理で画素が変わらないようにする。設定やキャッシュは一時フォルダーへ（%APPDATA%\Electron に作らない）。
+// 画面の倍率や色の管理で画素が変わらないようにする。設定やキャッシュは一時フォルダへ（%APPDATA%\Electron に作らない）。
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
 app.disableHardwareAcceleration();

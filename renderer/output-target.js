@@ -35,8 +35,8 @@
     return openTab(target) === null ? null : OPEN_IN_TAB;
   }
 
-  // フォルダーへ何本も書く経路（分割・画像→PDF の画像ごと）。同名の 3 択より前に呼ぶ。
-  // 名前は規則で決まるので、変えてもらうのはフォルダーである。開いている最初の 1 本を名指しする。
+  // フォルダへ何本も書く経路（分割・画像→PDF の画像ごと）。同名の 3 択より前に呼ぶ。
+  // 名前は規則で決まるので、変えてもらうのはフォルダである。開いている最初の 1 本を名指しする。
   function refusalForFolder(targets) {
     const open = (targets ?? []).find((target) => openTab(target) !== null);
     if (open === undefined)

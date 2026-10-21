@@ -43,7 +43,7 @@ test('pickMergeSources は複数を返す', async () => {
   assert.equal(calls[0].title, '結合する PDF を選ぶ');
 });
 
-test('pickFolder はフォルダーだけを選ばせ、{ path } か { canceled } を返す', async () => {
+test('pickFolder はフォルダだけを選ばせ、{ path } か { canceled } を返す', async () => {
   const calls = [];
   const dialogLike = {
     showOpenDialog: async (options) => {
@@ -68,7 +68,7 @@ test('どれも親の有無で呼び分ける', async () => {
   assert.deepEqual(seen, [1, 2, 1, 2]);
 });
 
-test('createFileIo はフォルダー選択も出せる', async () => {
+test('createFileIo はフォルダ選択も出せる', async () => {
   const dialog = { showOpenDialog: async (options) => ({ canceled: false, filePaths: [options.properties.includes('openDirectory') ? DIR : IN_A] }) };
   const io = createFileIo({ dialog });
   assert.deepEqual(await io.pickFolder(null, { defaultPath: 'C:/in' }), { path: DIR });

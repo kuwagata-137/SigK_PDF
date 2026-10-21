@@ -439,7 +439,7 @@ function registerIpc() {
   ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
   ipcMain.handle('pdf:pickOpenSources', (_event, options = {}) => fileIo.pickOpenSources(mainWindow, options));
   ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
-  // 出力フォルダーの選択（spec-2-2 確定事項14）。
+  // 出力フォルダの選択（spec-2-2 確定事項14）。
   ipcMain.handle('pdf:pickFolder', (_event, options = {}) => fileIo.pickFolder(mainWindow, options));
   // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
   ipcMain.handle('pdf:pickConvertSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
@@ -1280,7 +1280,7 @@ function installSmokeCheck(win, mode) {
 
   // SIGK_SMOKE_MERGE=<a.pdf>;<b.pdf> を付けると、結合の経路を丸ごと1回通す
   // （spec-2-1 の完了判定10）。出力先は SIGK_SMOKE_MERGE_OUT（省略時は
-  // 先頭の入力と同じフォルダーの _結合.pdf）。
+  // 先頭の入力と同じフォルダの _結合.pdf）。
   //
   // 保存ダイアログは OS のもので自動では押せない（saveScript と同じ事情）ので、
   // 画面の「実行」は押さず、同じ spec を SigK.save.runTask へ直接渡す。
@@ -1589,7 +1589,7 @@ function installSmokeCheck(win, mode) {
   // SIGK_SMOKE_TO_IMAGE=<pdf> を付けると、PDF→画像の経路を丸ごと1回通す
   // （spec-3-3 の完了判定4〜7・10）。ページは SIGK_SMOKE_TO_IMAGE_PAGES（範囲の記法。
   // 省略時はすべて）、形式は _FORMAT（png / jpeg）、解像度は _DPI（72 / 150 / 300）、
-  // 出力先は _OUT（省略時は一時フォルダー）。分割と同じ2段構えで、まず画面を組んで
+  // 出力先は _OUT（省略時は一時フォルダ）。分割と同じ2段構えで、まず画面を組んで
   // 計画（出力先）をメインへ返し、メインが同名確認の下ごしらえをしてから走らせる。
   // 描くのはレンダラーなので、経路は画面の「実行」（toolsToImage.run）そのままである。
   const toImageSetupScript = (source, settings) => `(async () => {
@@ -1851,7 +1851,7 @@ function installSmokeCheck(win, mode) {
         if (process.env.SIGK_SMOKE_SPLIT) {
           // 分割の台本は smoke-split.js（spec-2-2b 確定事項K1）。操作の列は SIGK_SMOKE_SPLIT_OPS。
           const source = path.resolve(process.env.SIGK_SMOKE_SPLIT);
-          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          // 省略時は一時フォルダへ。fixtures の隣に出力を散らかさない。
           const outDir = process.env.SIGK_SMOKE_SPLIT_OUT
             ? path.resolve(process.env.SIGK_SMOKE_SPLIT_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-split');
@@ -1876,7 +1876,7 @@ function installSmokeCheck(win, mode) {
           }
         }
         if (process.env.SIGK_SMOKE_CONVERT) {
-          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          // 省略時は一時フォルダへ。fixtures の隣に出力を散らかさない。
           const outDir = process.env.SIGK_SMOKE_CONVERT_OUT
             ? path.resolve(process.env.SIGK_SMOKE_CONVERT_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-convert');
@@ -1910,7 +1910,7 @@ function installSmokeCheck(win, mode) {
         }
         if (process.env.SIGK_SMOKE_TO_IMAGE) {
           const source = path.resolve(process.env.SIGK_SMOKE_TO_IMAGE);
-          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          // 省略時は一時フォルダへ。fixtures の隣に出力を散らかさない。
           const outDir = process.env.SIGK_SMOKE_TO_IMAGE_OUT
             ? path.resolve(process.env.SIGK_SMOKE_TO_IMAGE_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-to-image');
@@ -1941,7 +1941,7 @@ function installSmokeCheck(win, mode) {
           toImage.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
         }
         // 透かし・フラット化（spec-4-5 確定事項48・49。操作列と出力は smoke-rewrite.js の頭に）。
-        // 出力の省略時は一時フォルダーへ。前回の出力は先に消す（書けたことを取り違えない）。
+        // 出力の省略時は一時フォルダへ。前回の出力は先に消す（書けたことを取り違えない）。
         if (process.env.SIGK_SMOKE_WATERMARK) {
           const source = path.resolve(process.env.SIGK_SMOKE_WATERMARK);
           const target = process.env.SIGK_SMOKE_WATERMARK_OUT

@@ -71,7 +71,7 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
   // 大きさと更新日時だけを読む（spec-2-2b 確定事項D7）。{ ok, size, mtimeMs } / { error }。
   stat: (filePath) => ipcRenderer.invoke('pdf:stat', filePath),
-  // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
+  // 出力フォルダを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
   pickFolder: (options) => ipcRenderer.invoke('pdf:pickFolder', options),
   // 画像→PDF の受け口で、PDF と変換する画像をまとめて選ばせる（spec-2-5 確定事項H10）。{ paths } / { canceled }。
   pickConvertSources: (options) => ipcRenderer.invoke('pdf:pickConvertSources', options),

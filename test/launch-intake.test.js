@@ -31,10 +31,10 @@ test('大文字と小文字、全角と半角は区別せずに並べる', () =>
     ['契約.pdf', '見積 2.pdf', '見積 10.pdf']);
 });
 
-test('比べるのはファイル名で、同じ名前ならフォルダーを含めたパスで決める', () => {
+test('比べるのはファイル名で、同じ名前ならフォルダを含めたパスで決める', () => {
   const b = 'C:\\a\\b.pdf';
   const a = 'C:\\z\\a.pdf';
-  assert.equal(intake.compareNames(a, b) < 0, true, 'フォルダーより名前が先');
+  assert.equal(intake.compareNames(a, b) < 0, true, 'フォルダより名前が先');
   assert.equal(intake.compareNames('C:\\z\\a.pdf', 'C:\\y\\a.pdf') > 0, true);
   assert.equal(intake.compareNames(at('a.pdf'), at('a.pdf')), 0);
 });

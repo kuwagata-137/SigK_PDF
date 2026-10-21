@@ -79,14 +79,14 @@ test('readPdf は上限を超えるファイルを読まない', async () => {
   assert.equal(MAX_PDF_BYTES, 200 * 1024 * 1024);
 });
 
-test('readPdf はフォルダーを断る', async () => {
+test('readPdf はフォルダを断る', async () => {
   const dir = path.join(__dirname, 'fixtures');
-  // 拡張子だけ .pdf のフォルダーを作って確かめる。
+  // 拡張子だけ .pdf のフォルダを作って確かめる。
   const fake = path.join(dir, 'folder.pdf');
   fs.mkdirSync(fake, { recursive: true });
   try {
     const result = await readPdf(fake);
-    assert.ok(result.error, 'フォルダーを読んではいけない');
+    assert.ok(result.error, 'フォルダを読んではいけない');
   } finally {
     fs.rmSync(fake, { recursive: true, force: true });
   }

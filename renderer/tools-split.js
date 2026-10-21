@@ -32,7 +32,7 @@
     return at < 0 ? '' : filePath.slice(0, at);
   }
 
-  // フォルダーの区切りに合わせてつなぐ。ダイアログが返すのは Windows の「\」だが、
+  // フォルダの区切りに合わせてつなぐ。ダイアログが返すのは Windows の「\」だが、
   // テストや将来の環境で「/」が来ても壊さない。
   function joinPath(folder, name) {
     const sep = folder.includes('/') && !folder.includes('\\') ? '/' : '\\';
@@ -41,8 +41,8 @@
 
   // ---- 対象（spec-2-5 G1・G12） ----
 
-  // 出力のフォルダーは、ユーザーが変えるまで対象の帯のフォルダーに追従する（spec-2-2 確定事項14）。state.folder は、変えるまでは
-  // 帯のフォルダー、変えたあとは選んだフォルダー。
+  // 出力のフォルダは、ユーザーが変えるまで対象の帯のフォルダに追従する（spec-2-2 確定事項14）。state.folder は、変えるまでは
+  // 帯のフォルダ、変えたあとは選んだフォルダ。
   const field = root.SigK.stripTarget.create({
     encryptedError: '分割できません',
     onChange: (src) => {
@@ -51,7 +51,7 @@
     },
   });
 
-  // 今の出力のフォルダー。変えるまでは、使うたびに設定の窓の「ファイルを書き出すときの、最初のフォルダ」で決め直す
+  // 今の出力のフォルダ。変えるまでは、使うたびに設定の窓の「ファイルを書き出すときの、最初のフォルダ」で決め直す
   // （spec-6-1 確定事項E-5。決定81 ⑨。設定を変えたあとも従うように。点検の直し I-3）。
   function folderNow() {
     if (state.folderTouched || state.folder === null)
@@ -144,7 +144,7 @@
     return !state.running && root.SigK.save?.isBusy() !== true && currentPlan().ready === true;
   }
 
-  // 保存していない帯の確かめ・同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
+  // 保存していない帯の確かめ・同名の 3 択・フォルダの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '分割できる状態ではありません。' };

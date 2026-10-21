@@ -591,7 +591,7 @@ async function createShell({
         const file = files[filePath];
         return file?.ok === true ? { ok: true, size: file.size, mtimeMs: file.mtimeMs } : { error: 'ファイルが見つかりません。' };
       },
-      // 出力フォルダーの選択（spec-2-2 確定事項14）。
+      // 出力フォルダの選択（spec-2-2 確定事項14）。
       pickFolder: async (options) => {
         folderCalls.push(structuredClone(options ?? {}));
         return folderResults.shift() ?? { canceled: true };

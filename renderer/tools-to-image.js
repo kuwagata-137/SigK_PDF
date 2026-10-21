@@ -39,7 +39,7 @@
     return at < 0 ? '' : filePath.slice(0, at);
   }
 
-  // フォルダーの区切りに合わせてつなぐ（分割と同じ）。
+  // フォルダの区切りに合わせてつなぐ（分割と同じ）。
   function joinPath(folder, name) {
     const sep = folder.includes('/') && !folder.includes('\\') ? '/' : '\\';
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
@@ -54,7 +54,7 @@
   });
 
   const source = () => target.source();
-  // 出力フォルダーは、ユーザーが変えるまでは対象のフォルダー（確定事項15）。
+  // 出力フォルダは、ユーザーが変えるまでは対象のフォルダ（確定事項15）。
   function settings() {
     const src = source();
     // 最初の値は、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5。決定81 ⑨）。
@@ -146,7 +146,7 @@
   }
 
   // 戻り値は { targets } / { canceled }。3択は1回だけ出し、「別名で保存」は
-  // フォルダーを選び直してもう一度確かめる（分割と同じ）。
+  // フォルダを選び直してもう一度確かめる（分割と同じ）。
   async function resolveTargets(targets) {
     const found = await countExisting(targets);
     if (found.length === 0)
@@ -225,7 +225,7 @@
     }
   }
 
-  // 保存していない帯の確かめ・同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
+  // 保存していない帯の確かめ・同名の 3 択・フォルダの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '画像にできる状態ではありません。' };

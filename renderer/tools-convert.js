@@ -25,7 +25,7 @@
     return at < 0 ? '' : filePath.slice(0, at);
   }
 
-  // フォルダーの区切りに合わせてつなぐ（tools-split.js と同じ）。
+  // フォルダの区切りに合わせてつなぐ（tools-split.js と同じ）。
   function joinPath(folder, name) {
     const sep = folder.includes('/') && !folder.includes('\\') ? '/' : '\\';
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
@@ -33,7 +33,7 @@
 
   const rows = () => state.rows.map((row) => ({ ...row }));
   const find = (id) => state.rows.find((row) => row.id === id) ?? null;
-  // 今の出力フォルダー。state.folder は、変えるまでは 1 枚目の画像のフォルダー、変えたあとは選んだフォルダー。変えるまでは、使うたびに
+  // 今の出力フォルダ。state.folder は、変えるまでは 1 枚目の画像のフォルダ、変えたあとは選んだフォルダ。変えるまでは、使うたびに
   // 設定の窓の「ファイルを書き出すときの、最初のフォルダ」で決め直す（spec-6-1 確定事項E-5。決定81 ⑨。点検の直し I-3）。
   function folderNow() {
     if (state.folderTouched || state.folder === null)

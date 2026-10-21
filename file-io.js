@@ -169,7 +169,7 @@ function pickOpenSources(options) {
 // 分割・PDF→画像の対象を 1 本選ぶ窓（pickSplitSource・pickToolSource）は、対象が選んでいる帯になったので無くした
 // （PDF→画像は spec-2-5 確定事項E4〔PR-2〕、分割は G14〔PR-3〕。帯の受け口の［ファイルを選ぶ…］で開いてから帯を選ぶ）。
 
-// 出力フォルダーを選ばせる（spec-2-2 確定事項14）。フィルターは付けない。
+// 出力フォルダを選ばせる（spec-2-2 確定事項14）。フィルターは付けない。
 async function pickFolder({ dialogLike, parentWindow = null, defaultPath = undefined, title = '出力先のフォルダを選ぶ' }) {
   const options = { title, properties: ['openDirectory', 'createDirectory'], defaultPath };
   const result = parentWindow === null
