@@ -67,6 +67,15 @@ test('フラット化: 「覚える」を外していたら、帯が替わった
   assert.deepEqual([...SigK.toolsFlatten.choices().kinds].sort(), ['markup', 'note', 'other', 'shape', 'text']);
 });
 
+// 点検の直し M-3。settings.json を手で書き換えた値で、透かしの文字を「[object Object]」や入力欄の上限（50 字）を越える文字にしない。
+test('覚えた透かしの文字が文字列でない・50 字を越えるときは当てない（既定の文字のまま）', async (t) => {
+  for (const text of [{ a: 1 }, 'あ'.repeat(51)]) {
+    const shell = await withShell(t, { preferences: { toolValues: { watermark: { text, color: '#d92c2c' } } } });
+    assert.equal(shell.SigK.toolsWatermark.settings().text, '社外秘');
+    assert.equal(shell.SigK.toolsWatermark.settings().color, '#d92c2c', 'ほかの値は当てる');
+  }
+});
+
 test('「ツールで選んだ値を覚える」を外していたら、覚えた値を当てない', async (t) => {
   const shell = await withShell(t, { preferences: { toolValues: REMEMBERED, rememberToolValues: false } });
   assert.equal(shell.SigK.toolsWatermark.settings().text, '社外秘');

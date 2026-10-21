@@ -14,6 +14,9 @@
 
   const pick = (values, keys) => Object.fromEntries(keys.filter((key) => values?.[key] !== undefined).map((key) => [key, values[key]]));
   const call = (tool, name, value) => (value === undefined ? undefined : tool?.[name]?.(value));
+  // 覚えた透かしの文字は、文字列で入力欄の上限（watermark-plan.js の MAX_TEXT_LENGTH）以内のときだけ当てる。settings.json を手で
+  // 書き換えた値で、透かしを「[object Object]」や実行できない長さにしない（点検の直し M-3）。ほかの値は各ツールの設定の口が確かめる。
+  const rememberedText = (text) => (typeof text === 'string' && text.length <= (root.SigK.watermarkPlan?.MAX_TEXT_LENGTH ?? 0) ? text : undefined);
 
   // ツールの id → { read(): 覚える値, apply(values): 当てる }。
   const TOOLS = {
@@ -21,8 +24,9 @@
       read: () => pick(root.SigK.toolsWatermark?.settings(), ['type', 'text', 'color', 'opacity', 'angle', 'size', 'position']),
       apply: (values) => {
         const tool = root.SigK.toolsWatermark;
+        const checked = { ...values, text: rememberedText(values.text) };
         for (const [key, name] of [['type', 'setType'], ['text', 'setText'], ['color', 'setColor'], ['opacity', 'setOpacity'], ['angle', 'setAngle'], ['size', 'setSize'], ['position', 'setPosition']])
-          call(tool, name, values[key]);
+          call(tool, name, checked[key]);
       },
     },
     toImage: {
