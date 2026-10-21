@@ -263,7 +263,7 @@ SOFTWARE.
 - ライセンス: MIT
 - 配布元: https://github.com/Hopding/fontkit
 
-フォントの埋め込みに用いる。`vendor/fontkit.umd.min.js` として同梱する。パッケージにライセンスファイルが含まれていないため、`package.json` の `license` 欄（MIT）に基づき、下に MIT ライセンスの本文を掲げる。
+フォントの埋め込みに用いる。`vendor/fontkit.umd.min.js` として同梱する。パッケージにライセンスファイルが含まれていないため、`package.json` の `license` 欄（MIT）に基づき、下に MIT ライセンスの本文を掲げる。作者は Andrew Dillon（`package.json` の author）で、元の fontkit の作者は Devon Govett（同 contributors）。作ったときに取り込まれた部品は「fontkit に取り込まれている部品」の節に掲げる。
 
 ```
 MIT License
@@ -1760,6 +1760,160 @@ Public License instead of this License.
       of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
+```
+
+## 同梱するもの（fontkit に取り込まれている部品）
+
+`vendor/fontkit.umd.min.js`（@pdf-lib/fontkit 1.1.1 の配布用のファイル）には、作ったときに次の部品が取り込まれている。縮めたファイルでは
+著作権の表示が消えているので、作ったときの設定と部品の控え（https://github.com/Hopding/fontkit の rollup.config.js と yarn.lock）と、
+各部品の公開の置き場所（https://unpkg.com/）の package.json・LICENSE から書き写した（2026-10-21）。控えから辿れる部品を全部載せているので、
+縮めたファイルに入っていないものを含むことがある。
+
+| 部品 | 版 | 著作権の行（MIT の部品） |
+|---|---|---|
+| fontkit（元の作り。@pdf-lib/fontkit はこれを写したもの） | 1.8 系 | LICENSE のファイルは無い。package.json の作者: Devon Govett <devongovett@gmail.com> |
+| @pdf-lib/brotli | 0.0.0 | LICENSE のファイルは無い。package.json の作者: Andrew Dillon <andrew.dillon.j@gmail.com>（中の展開のコードは Google の Apache-2.0。下に掲げる） |
+| @pdf-lib/restructure | 0.0.1 | LICENSE のファイルは無い。package.json の作者: Andrew Dillon <andrew.dillon.j@gmail.com>（元の restructure の作者は Devon Govett） |
+| @pdf-lib/unicode-properties | 0.0.1 | Copyright 2018 |
+| base64-arraybuffer | 0.1.5 | Copyright (c) 2012 Niklas von Hertzen |
+| base64-js | 1.3.1（1.3.0 も） | Copyright (c) 2014 Jameson Little |
+| buffer | 5.6.0 | Copyright (c) Feross Aboukhadijeh, and other contributors. |
+| clone | 1.0.4 | Copyright © 2011-2015 Paul Vorbach <paul@vorba.ch> |
+| deep-equal | 1.1.1 | Copyright (c) 2012, 2013, 2014 James Halliday <mail@substack.net>, 2009 Thomas Robinson <280north.com> |
+| define-properties | 1.1.3 | Copyright (C) 2015 Jordan Harband |
+| dfa | 1.2.0 | LICENSE のファイルは無い。package.json の作者: Devon Govett <devongovett@gmail.com> |
+| es-abstract | 1.17.5 | Copyright (C) 2015 Jordan Harband |
+| es-to-primitive | 1.2.1 | Copyright (c) 2015 Jordan Harband |
+| function-bind | 1.1.1 | Copyright (c) 2013 Raynos. |
+| has | 1.0.3 | Copyright (c) 2013 Thiago de Arruda |
+| has-symbols | 1.0.1 | Copyright (c) 2016 Jordan Harband |
+| iconv-lite | 0.4.24 | Copyright (c) 2011 Alexander Shtuchkin |
+| is-arguments | 1.0.4 | Copyright (c) 2014 Jordan Harband |
+| is-callable | 1.1.5 | Copyright (c) 2015 Jordan Harband |
+| is-date-object | 1.0.2 | Copyright (c) 2015 Jordan Harband |
+| is-regex | 1.0.5 | Copyright (c) 2014 Jordan Harband |
+| is-symbol | 1.0.3 | Copyright (c) 2015 Jordan Harband |
+| object-inspect | 1.7.0 | Copyright (c) 2013 James Halliday |
+| object-is | 1.1.2 | Copyright (c) 2014 Jordan Harband |
+| object-keys | 1.1.1 | Copyright (C) 2013 Jordan Harband |
+| object.assign | 4.1.0 | Copyright (c) 2014 Jordan Harband |
+| pako | 0.2.9（1.0.11 は上の節） | Copyright (C) 2014-2016 by Vitaly Puzrin |
+| regexp.prototype.flags | 1.3.0 | Copyright (C) 2014 Jordan Harband |
+| safer-buffer | 2.1.2 | Copyright (c) 2018 Nikita Skovoroda <chalkerx@gmail.com> |
+| string.prototype.trimend | 1.0.1 | Copyright (c) 2017 Khaled Al-Ansari |
+| string.prototype.trimleft | 2.1.2 | Copyright (c) 2015 Jordan Harband |
+| string.prototype.trimright | 2.1.2 | Copyright (c) 2015 Jordan Harband |
+| string.prototype.trimstart | 1.0.1 | Copyright (c) 2017 Khaled Al-Ansari |
+| tiny-inflate | 1.0.3（1.0.2 も） | Copyright (c) 2015-present Devon Govett |
+| unicode-trie | 0.3.1 | LICENSE のファイルは無い。package.json の作者: Devon Govett <devongovett@gmail.com> |
+
+上の MIT の部品の許諾文（共通）:
+
+```
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### inherits 2.0.4（2.0.3 も）
+
+- ライセンス: ISC
+
+```
+The ISC License
+
+Copyright (c) Isaac Z. Schlueter
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+```
+
+### ieee754 1.1.13
+
+- ライセンス: BSD-3-Clause
+
+```
+Copyright 2008 Fair Oaks Labs, Inc.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### rollup-plugin-node-builtins 2.1.2（Node の部品の代わり。string_decoder など）
+
+- ライセンス: ISC（package.json の license。LICENSE のファイルは無い）。中の string_decoder は Node.js（Joyent）の MIT
+
+```
+Copyright Joyent, Inc. and other Node contributors.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+### brotli の展開（@pdf-lib/brotli の中。Google）
+
+- ライセンス: Apache-2.0（全文は、この告知の pdfjs-dist の節にある）
+
+```
+Copyright 2013 Google Inc. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 ```
 
 ## 同梱するもの（フォント）

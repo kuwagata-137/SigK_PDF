@@ -46,3 +46,17 @@ test('GPL の書体 Liberation Sans は、ユーザーの確認（docs/07 決定
   assert.match(SCRIPT, /license: 'GPL-2\.0（書体の例外つき）'/);
   assert.match(SCRIPT, /決定82/);
 });
+
+// docs/06 4-1。fontkit の縮めたファイルには、作ったときに取り込まれた部品が著作権の表示を消された形で入っている（PR-6b の点検）。
+test('fontkit に取り込まれている部品の告知の材料がそろい、台本がその節を組み立てる', () => {
+  const { MIT_PACKAGES, MIT_TEXT, OTHER_PARTS } = require('../scripts/notices-fontkit.js');
+  for (const entry of MIT_PACKAGES) {
+    assert.ok(entry.name && entry.version && entry.copyright, `材料が欠けている: ${JSON.stringify(entry)}`);
+  }
+  // 縮める前のファイルで取り込まれていることを確かめた主な部品。
+  for (const name of ['buffer', 'base64-js', 'iconv-lite', 'safer-buffer', 'deep-equal', 'dfa', 'tiny-inflate', 'unicode-trie', '@pdf-lib/brotli', '@pdf-lib/restructure'])
+    assert.ok(MIT_PACKAGES.some((entry) => entry.name === name), `${name} が載っていない`);
+  assert.match(MIT_TEXT, /^Permission is hereby granted, free of charge/);
+  assert.deepEqual(OTHER_PARTS.map((entry) => entry.license.split('（')[0]), ['ISC', 'BSD-3-Clause', 'ISC', 'Apache-2.0']);
+  assert.match(SCRIPT, /## 同梱するもの（fontkit に取り込まれている部品）/);
+});

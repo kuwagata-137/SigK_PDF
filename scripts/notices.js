@@ -6,6 +6,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const fontkitBundle = require('./notices-fontkit.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT = path.join(ROOT, 'THIRD-PARTY-NOTICES.md');
@@ -35,7 +36,8 @@ const BUNDLED = [
     license: null,
     note: 'フォントの埋め込みに用いる。`vendor/fontkit.umd.min.js` として同梱する。'
       + 'パッケージにライセンスファイルが含まれていないため、`package.json` の `license` 欄'
-      + '（MIT）に基づき、下に MIT ライセンスの本文を掲げる。',
+      + '（MIT）に基づき、下に MIT ライセンスの本文を掲げる。作者は Andrew Dillon（`package.json` の author）で、'
+      + '元の fontkit の作者は Devon Govett（同 contributors）。作ったときに取り込まれた部品は「fontkit に取り込まれている部品」の節に掲げる。',
     fallbackLicense: 'MIT',
     fallbackCopyright: 'Copyright (c) 2020 Andrew Dillon',
   },
@@ -275,6 +277,20 @@ function build() {
     '```',
   ].join('\n'));
 
+  // fontkit の縮めたファイルに取り込まれている部品（材料は notices-fontkit.js。PR-6b の点検）。
+  const fontkitSection = [
+    '| 部品 | 版 | 著作権の行（MIT の部品） |',
+    '|---|---|---|',
+    ...fontkitBundle.MIT_PACKAGES.map((entry) => `| ${entry.name} | ${entry.version} | ${entry.copyright} |`),
+    '',
+    '上の MIT の部品の許諾文（共通）:',
+    '',
+    '```',
+    fontkitBundle.MIT_TEXT,
+    '```',
+    ...fontkitBundle.OTHER_PARTS.flatMap((entry) => ['', `### ${entry.name}`, '', `- ライセンス: ${entry.license}`, '', '```', entry.text, '```']),
+  ].join('\n');
+
   const assetSections = BUNDLED_ASSETS.map((entry) => [
     `### ${entry.name}`,
     '',
@@ -323,6 +339,15 @@ ${sections.join('\n\n')}
 上のパッケージの中に同居しており、著作権者と条項が異なるものである。
 
 ${componentSections.join('\n\n')}
+
+## 同梱するもの（fontkit に取り込まれている部品）
+
+\`vendor/fontkit.umd.min.js\`（@pdf-lib/fontkit 1.1.1 の配布用のファイル）には、作ったときに次の部品が取り込まれている。縮めたファイルでは
+著作権の表示が消えているので、作ったときの設定と部品の控え（https://github.com/Hopding/fontkit の rollup.config.js と yarn.lock）と、
+各部品の公開の置き場所（https://unpkg.com/）の package.json・LICENSE から書き写した（2026-10-21）。控えから辿れる部品を全部載せているので、
+縮めたファイルに入っていないものを含むことがある。
+
+${fontkitSection}
 
 ## 同梱するもの（フォント）
 
