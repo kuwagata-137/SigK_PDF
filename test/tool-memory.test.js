@@ -37,6 +37,36 @@ test('起動したとき、覚えた値を各ツールに当てる（ページ�
   assert.deepEqual([...SigK.toolsFlatten.choices().kinds].sort(), ['markup', 'note']);
 });
 
+// 点検の直し I-1。帯が替わったときに種類を戻す先は、全部ではなく覚えた種類（spec-2-5 確定事項E5-5 の改訂）。
+test('フラット化: PDF を開いて帯が対象になっても覚えた種類のままで、右の欄を押しても全部で上書きしない', async (t) => {
+  const A = 'C:\\work\\a.pdf';
+  const { makeSource } = require('./harness.js');
+  const shell = await withShell(t, { preferences: { toolValues: { flatten: { kinds: ['markup', 'note'] } } }, files: { [A]: makeSource({ path: A }) } });
+  const { SigK, document } = shell;
+  SigK.shell.setMode(document, 'tools');
+  SigK.tools.select('flatten');
+  await SigK.tabs.openPath(A);
+  for (let index = 0; index < 4; index += 1)
+    await shell.flush();
+  assert.deepEqual([...SigK.toolsFlatten.choices().kinds].sort(), ['markup', 'note']);
+  document.getElementById('tool-pane').dispatchEvent(new shell.window.Event('click', { bubbles: true }));
+  await SigK.toolMemory.savePending();
+  assert.equal(shell.preferencesCalls.some((call) => call.toolValues?.flatten !== undefined), false);
+});
+
+test('フラット化: 「覚える」を外していたら、帯が替わったときの種類は全部に戻す（前のまま）', async (t) => {
+  const A = 'C:\\work\\a.pdf';
+  const { makeSource } = require('./harness.js');
+  const shell = await withShell(t, { preferences: { toolValues: { flatten: { kinds: ['markup'] } }, rememberToolValues: false }, files: { [A]: makeSource({ path: A }) } });
+  const { SigK, document } = shell;
+  SigK.shell.setMode(document, 'tools');
+  SigK.tools.select('flatten');
+  await SigK.tabs.openPath(A);
+  for (let index = 0; index < 4; index += 1)
+    await shell.flush();
+  assert.deepEqual([...SigK.toolsFlatten.choices().kinds].sort(), ['markup', 'note', 'other', 'shape', 'text']);
+});
+
 test('「ツールで選んだ値を覚える」を外していたら、覚えた値を当てない', async (t) => {
   const shell = await withShell(t, { preferences: { toolValues: REMEMBERED, rememberToolValues: false } });
   assert.equal(shell.SigK.toolsWatermark.settings().text, '社外秘');

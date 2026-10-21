@@ -17,7 +17,7 @@
   const choice = () => root.SigK.flattenChoice;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
 
-  // owner は選び方の持ち主（帯）。帯を替えたら選び方を全部チェック・［すべて］に戻す（spec-2-5 確定事項E5-5）。
+  // owner は選び方の持ち主（帯）。帯を替えたら種類を覚えた種類（無ければ全部）・ページを［すべて］に戻す（spec-2-5 確定事項E5-5）。
   const state = { running: false, owner: null };
   const picks = root.SigK.flattenChoice.createChoices();
   const counts = root.SigK.flattenCensus.create({ onDone: () => view()?.render() });
@@ -28,12 +28,19 @@
 
   // ---- 対象 ----
 
+  // 帯が替わったときに戻す種類。設定の窓で「ツールで選んだ値を覚える」なら覚えた種類、外していれば全部（spec-6-1 確定事項E-7）。
+  function rememberedKinds() {
+    const values = root.SigK.preferences?.current();
+    const kinds = values?.rememberToolValues === true ? values.toolValues?.flatten?.kinds : undefined;
+    return Array.isArray(kinds) ? kinds : choice().KEYS;
+  }
+
   // 対象の帯が替わったか、同じ帯を保存して読み直した。帯が替わったときだけ選び方を戻し、どちらも数える相手を決め直す。
   function onTargetChanged(src) {
     const owner = src === null ? null : `${src.tabId}|${src.path}`;
     if (owner !== state.owner) {
       state.owner = owner;
-      picks.reset();
+      picks.reset(rememberedKinds());
     }
     counts.setTarget(src);
   }

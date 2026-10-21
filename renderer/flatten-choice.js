@@ -59,12 +59,13 @@
   }
 
   // 選び方の控え（チェックした種類・［すべて］［範囲］・範囲の欄の文字）。既定は全部チェック・［すべて］。
+  // reset の kinds は戻す先の種類（覚えた種類。spec-6-1 確定事項E-7）。知らない種類は捨てる。
   function createChoices() {
     const state = { kinds: new Set(KEYS), mode: 'all', range: '' };
     return {
       state,
-      reset() {
-        state.kinds = new Set(KEYS);
+      reset(kinds = KEYS) {
+        state.kinds = new Set(KEYS.filter((key) => kinds.includes(key)));
         state.mode = 'all';
         state.range = '';
       },
