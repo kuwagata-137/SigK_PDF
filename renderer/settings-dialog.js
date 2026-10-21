@@ -44,9 +44,16 @@
     el.lastTool.checked = values.rememberLastTool;
   }
 
+  // 起動してすぐ、設定を読み終える前に開こうとしたら、読み終えてから開く（既定の値で欄を埋めて［OK］で覚えていた値を消さない。
+  // ブランチ全体の点検の直し I-2）。戻り値は、今開いたか。
   function open() {
     if (el === null || isOpen())
       return false;
+    if (preferences().isReady?.() === false) {
+      // 待つ間にほかの窓が開いていたら、重ねて開かない。
+      preferences().ready().then(() => openUnlessDialog(el.doc));
+      return false;
+    }
     fill(preferences().current());
     if (typeof el.dialog.showModal === 'function')
       el.dialog.showModal();

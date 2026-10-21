@@ -446,6 +446,8 @@ async function createShell({
   // 設定の窓の値（spec-6-1 タスク E）と、今あるフォルダ（最後に書き出したフォルダ・決めたフォルダのうち、ここにあるものだけが使える）。
   preferences = {},
   existingFolders = [],
+  // true なら、preferencesAPI.get の返事を releasePreferences() まで止めておく（起動してすぐ、設定を読み終える前の場面）。
+  holdPreferences = false,
   // pdfAPI.pickInsertSource() が返すものの並び（spec-1-6 確定事項53）。
   insertSourceResults = [],
   // pdfAPI.pickMergeSources() が返すものの並びと、pdfAPI.exists() が「ある」と
@@ -493,6 +495,8 @@ async function createShell({
   const settingsRequestHandlers = [];
   const defaultAppsCalls = [];
   let savedPreferences = mergePreferences(preferences);
+  let releasePreferences = () => {};
+  const preferencesGate = holdPreferences ? new Promise((resolve) => { releasePreferences = resolve; }) : null;
   const preferencesSnapshot = () => {
     const folder = savedPreferences.outputFolder;
     const exists = (value) => (value !== null && existingFolders.includes(value) ? value : null);
@@ -676,7 +680,11 @@ async function createShell({
     // 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。中身の確かめはメインと同じ preferences.js を使う。
     window.preferencesAPI = {
       available: true,
-      get: async () => preferencesSnapshot(),
+      get: async () => {
+        if (preferencesGate !== null)
+          await preferencesGate;
+        return preferencesSnapshot();
+      },
       set: async (patch) => {
         preferencesCalls.push(structuredClone(patch ?? {}));
         savedPreferences = applyPreferencesPatch(savedPreferences, patch);
@@ -814,6 +822,8 @@ async function createShell({
     defaultAppsCalls,
     existingFolders,
     savedPreferences: () => structuredClone(savedPreferences),
+    // holdPreferences で止めていた preferencesAPI.get の返事を出す。
+    releasePreferences: () => releasePreferences(),
     // メインが「最後に書き出したフォルダ」を覚えたときなどの知らせ（preferences:changed）の代わり。
     firePreferencesChanged: (patch = {}) => {
       savedPreferences = applyPreferencesPatch(savedPreferences, patch);

@@ -17,12 +17,17 @@
     lastTool: null,
   });
 
-  const state = { snapshot: null, listeners: [] };
+  const state = { snapshot: null, listeners: [], ready: false };
   // 最初のフォルダを左右する部分（決め方と、今あるフォルダ）。替わったときだけ subscribe の相手を呼ぶ。
   const foldersKey = (snapshot) => JSON.stringify([snapshot?.preferences?.outputFolder?.mode, snapshot?.available]);
-  // 起動したときの読み込みが済んだら（読めなくても）解ける。覚えた値を当てる部品（tool-memory.js）が待つ。
+  // 起動したときの読み込みが済んだら（読めなくても）解ける。覚えた値を当てる部品（tool-memory.js）と設定の窓が待つ。
   let markReady = () => {};
-  const readyPromise = new Promise((resolve) => { markReady = resolve; });
+  const readyPromise = new Promise((resolve) => {
+    markReady = () => {
+      state.ready = true;
+      resolve();
+    };
+  });
 
   const api = () => (root.preferencesAPI?.available === true ? root.preferencesAPI : null);
 
@@ -128,5 +133,7 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.preferences = { DEFAULTS, init, ready: () => readyPromise, current, set, refresh, initialFolder, initialPath, resolvePath, subscribe };
+  SigK.preferences = {
+    DEFAULTS, init, ready: () => readyPromise, isReady: () => state.ready, current, set, refresh, initialFolder, initialPath, resolvePath, subscribe,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

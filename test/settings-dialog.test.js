@@ -61,6 +61,23 @@ test('決めたフォルダの欄は吹き出しでパスの全体を出し、�
   assert.equal(byId(empty, 'settings-fixed-path').dataset.tip, undefined, 'まだ決めていないときは吹き出しを出さない');
 });
 
+// ブランチ全体の点検の直し I-2。起動してすぐ、メインの返事（最大 1.5 秒）より前に開くと、既定の値で欄を埋め、［OK］で覚えていた値を消していた。
+test('設定を読み終える前に開こうとしたら、読み終えてから覚えている値で開く（［OK］で既定の値を書かない）', async (t) => {
+  const shell = await withShell(t, { holdPreferences: true, preferences: { outputFolder: { mode: 'fixed', fixed: D_OUT }, makeBackup: false } });
+  assert.equal(shell.SigK.settingsDialog.open(), false, 'まだ開かない');
+  assert.equal(isOpen(shell), false);
+  shell.releasePreferences();
+  await shell.flush();
+  await shell.flush();
+  assert.equal(isOpen(shell), true, '読み終えたら開く');
+  assert.equal(checkedMode(shell), 'fixed');
+  assert.equal(byId(shell, 'settings-fixed-path').textContent, D_OUT);
+  assert.equal(byId(shell, 'settings-backup').checked, false);
+  await shell.SigK.settingsDialog.confirm();
+  assert.deepEqual(shell.preferencesCalls[0].outputFolder, { mode: 'fixed', fixed: D_OUT });
+  assert.equal(shell.preferencesCalls[0].makeBackup, false);
+});
+
 test('［OK］で欄の値を書いて閉じる', async (t) => {
   const shell = await withShell(t);
   shell.SigK.settingsDialog.open();
