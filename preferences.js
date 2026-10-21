@@ -90,7 +90,7 @@ function outputFolderOf(spec) {
 }
 
 // メインが持つ口。settings は settings.js の createSettingsStore の戻り値。isDirectory(folder) はフォルダが今あるか（Promise<boolean>）。
-// notify(snapshot) は画面へ知らせる（preferences:changed）。logError(entry) はエラーの記録（error-log.js）。
+// notify(snapshot) は画面へ知らせる（preferences:changed）。logError(entry) はエラーの記録（errorlog.js）。
 //
 // フォルダが今あるかは、時間の上限つきの非同期で確かめる（ネットワークのフォルダが届かないときにメインの処理を止めない。点検の直し I-5）。
 // 確かめは 1 本の列に並べ、頼まれた順に返す（遅れた古い値が、あとの新しい値を画面で上書きしないように）。

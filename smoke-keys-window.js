@@ -5,7 +5,7 @@
 // （docs/07 決定81 ③）。本物の Alt+Tab のキーは送らない（ユーザーのほかの窓を切り替えてしまうため）。
 //
 //   blur-window  … ページへ focusin の控えを仕掛けてから、窓のフォーカスを外す（BrowserWindow.blur()。外れなければ止める）
-//   focus-window … 窓のフォーカスを戻す（最小化していれば restore()、でなければ focus()。戻らなければ minimize() → restore()）。
+//   focus-window … 窓のフォーカスを戻す（まず focus()。戻らなければ minimize() → restore()）。
 //                  戻ったあとに出た focusin の相手・活性の要素・document.hasFocus() を控える
 //
 // Windows は、後ろにいるアプリが窓の活性を切り替えることを制限している。2026-10-20 の実測では、blur() が 2 回目から効かず、

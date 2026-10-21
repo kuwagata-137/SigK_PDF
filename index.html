@@ -667,11 +667,11 @@ body{
         <label class="print-choice"><input type="radio" name="settings-folder" value="source">元のファイルと同じフォルダ</label>
         <label class="print-choice"><input type="radio" name="settings-folder" value="last">最後に書き出したフォルダ</label>
         <div class="settings-fixed"><label class="print-choice"><input type="radio" name="settings-folder" value="fixed">決めたフォルダ</label><span class="settings-path-row"><span class="settings-path empty" id="settings-fixed-path">まだ決めていません</span><button type="button" class="dlg-btn settings-small" id="settings-fixed-change">変更…</button></span></div>
-        <p class="settings-note">保存の窓が最初に開くフォルダと、分割・画像→PDF・PDF→画像の右の欄の「フォルダ」の最初の値です。「元のファイルと同じフォルダ」は、結合では 1 本目の PDF、画像→PDF では 1 枚目の画像、新しい帯では写す前の帯の PDF のフォルダです。選んだフォルダが無くなっていたときは、元のファイルと同じフォルダにします。</p>
+        <p class="settings-note">保存の窓が最初に開くフォルダと、分割・画像→PDF・PDF→画像の右の欄の「フォルダ」の最初の値です。「元のファイルと同じフォルダ」は、結合では 1 本目の PDF、画像→PDF では 1 枚目の画像、新しい帯では写す前の帯の PDF のフォルダです。「最後に書き出したフォルダ」か「決めたフォルダ」が無くなっていたときは、元のファイルと同じフォルダにします。</p>
       </section>
       <section class="settings-sec">
         <p class="dlg-label">上書き保存</p>
-        <label class="print-choice settings-check"><input type="checkbox" id="settings-backup">上書き保存の前に、元のファイルの控えのファイル（&lt;名前&gt;.pdf.bak）を作る</label>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-backup">上書き保存の前に、元のファイルの控えのファイル（名前.pdf.bak）を作る</label>
         <p class="settings-note">作らないにしても、前からある控えのファイルは消しません。</p>
       </section>
       <section class="settings-sec">
