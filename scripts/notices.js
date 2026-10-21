@@ -54,11 +54,8 @@ const BUNDLED = [
     license: 'node_modules/@pdf-lib/upng/LICENSE',
     note: '`vendor/pdf-lib.min.js` に取り込まれている。',
   },
-  {
-    pkg: 'tslib',
-    license: 'node_modules/tslib/LICENSE.txt',
-    note: '`vendor/pdf-lib.min.js` に取り込まれている。',
-  },
+  // tslib は、ここには載せない。pdf-lib.min.js に入っているのは node_modules の tslib（0BSD）ではなく、pdf-lib を作ったときの
+  // TypeScript の補助のコードで、Microsoft の Apache-2.0 の見出しが付いている。次節の構成部品に掲げる（PR-6b の G1 で見つけた）。
   {
     pkg: 'utif',
     license: 'node_modules/utif/LICENSE',
@@ -110,7 +107,24 @@ const BUNDLED_COMPONENTS = [
       + 'ここに pdf.js のライセンス全文を掲げる（spec-3-2 事前調査 A・G）。',
     files: ['node_modules/pdfjs-dist/LICENSE'],
   },
+  {
+    name: 'TypeScript の補助のコード（tslib。pdf-lib に取り込まれている）',
+    license: 'Apache-2.0',
+    note: '`vendor/pdf-lib.min.js`（pdf-lib の `dist/pdf-lib.min.js`）の先頭に、Microsoft の著作権表示と Apache-2.0 の見出しが付いた'
+      + ' TypeScript の補助のコード（`__extends`・`__awaiter` など）が取り込まれている。node_modules の `tslib`（0BSD）とは別物なので、'
+      + '同梱しているファイルの見出しをそのまま掲げ、続けて Apache-2.0 の全文を掲げる。',
+    notices: ['node_modules/pdf-lib/dist/pdf-lib.min.js'],
+    files: ['node_modules/pdfjs-dist/LICENSE'],
+  },
 ];
+
+// ファイルの先頭の「/*! … */」の見出し（縮めても残すと決められた著作権表示）を取り出す。見出しが無ければ止める（黙って落とさない）。
+function leadingNotice(file) {
+  const found = /\/\*![\s\S]*?\*\//.exec(fs.readFileSync(path.join(ROOT, file), 'utf8'));
+  if (found === null)
+    throw new Error(`${file} の先頭に /*! … */ の見出しがありません`);
+  return found[0];
+}
 
 // パッケージではなく資産として同梱するもの。ライセンス全文はリポジトリに置いた実物から読む。
 // Noto Sans JP を同梱すると決めたのは spec-4-2 確定事項31・32（docs/07 決定35）、Bold を足したのは spec-4b-4a（docs/07 決定57 ①）である。
@@ -231,7 +245,10 @@ function build() {
     entry.note,
     '',
     '```',
-    entry.files.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8').trimEnd()).join(SEPARATOR),
+    [
+      ...(entry.notices ?? []).map(leadingNotice),
+      ...entry.files.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8').trimEnd()),
+    ].join(SEPARATOR),
     '```',
   ].join('\n'));
 
