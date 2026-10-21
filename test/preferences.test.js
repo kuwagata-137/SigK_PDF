@@ -152,3 +152,21 @@ test('isExistingDirectory: 今あるフォルダは true、無いフォルダ・
   const hung = () => new Promise(() => {});
   assert.equal(await isExistingDirectory(__dirname, { timeoutMs: 20, stat: hung }), false, '届かないネットワークのフォルダの代わり（返事の無い stat）');
 });
+
+// ブランチ全体の点検の直し M-2。上限で答えを打ち切っても裏の stat は止まらないので、届かないフォルダへ確かめを頼むたびに stat が積み上がり、
+// ほかのファイルの読み書き（同じ Node の作業の列）を待たせうる。同じフォルダの stat が走っている間は、新しく始めずにその答えを待つ。
+test('isExistingDirectory: 同じフォルダの確かめが走っている間は、stat を新しく始めない（終われば次は始める）', async () => {
+  let calls = 0;
+  let finish = null;
+  const slow = () => {
+    calls += 1;
+    return new Promise((resolve) => { finish = () => resolve({ isDirectory: () => true }); });
+  };
+  assert.equal(await isExistingDirectory('N:\\share', { timeoutMs: 10, stat: slow }), false);
+  assert.equal(await isExistingDirectory('N:\\share', { timeoutMs: 10, stat: slow }), false);
+  assert.equal(calls, 1, '1 本目が走っている間は 2 本目を始めない');
+  finish();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(await isExistingDirectory('N:\\share', { timeoutMs: 50, stat: slow }), false);
+  assert.equal(calls, 2, '終わったら次は新しく始める');
+});

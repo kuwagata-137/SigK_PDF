@@ -145,12 +145,29 @@ function createPreferencesHost({ settings, isDirectory = isExistingDirectory, no
   return { snapshot, set, rememberWritten, rememberOutput };
 }
 
+// 走っている stat（stat の関数ごと・フォルダごとに 1 本）。上限で答えを打ち切っても裏の stat は止まらないので、届かないフォルダへ確かめを
+// 頼むたびに stat が積み上がると、ほかのファイルの読み書き（同じ Node の作業の列）を待たせうる。走っている間は新しく始めず、その答えを待つ
+// （ブランチ全体の点検の直し M-2）。
+const statsInFlight = new WeakMap();
+
+function sharedStat(stat, folder) {
+  let byFolder = statsInFlight.get(stat);
+  if (byFolder === undefined) {
+    byFolder = new Map();
+    statsInFlight.set(stat, byFolder);
+  }
+  if (!byFolder.has(folder)) {
+    const check = Promise.resolve().then(() => stat(folder)).then((stats) => stats.isDirectory(), () => false);
+    byFolder.set(folder, check.finally(() => byFolder.delete(folder)));
+  }
+  return byFolder.get(folder);
+}
+
 // フォルダが今あるか（createPreferencesHost の isDirectory の既定）。timeoutMs までに分からなければ「無い」とする。stat はテストで差し替える。
 function isExistingDirectory(folder, { timeoutMs = FOLDER_CHECK_TIMEOUT_MS, stat = fs.promises.stat } = {}) {
   let timer = null;
   const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeoutMs); });
-  const check = Promise.resolve().then(() => stat(folder)).then((stats) => stats.isDirectory(), () => false);
-  return Promise.race([check, timeout]).finally(() => clearTimeout(timer));
+  return Promise.race([sharedStat(stat, folder), timeout]).finally(() => clearTimeout(timer));
 }
 
 module.exports = {
