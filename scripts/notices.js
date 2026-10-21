@@ -6,6 +6,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const fontkitBundle = require('./notices-fontkit.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT = path.join(ROOT, 'THIRD-PARTY-NOTICES.md');
@@ -23,7 +24,7 @@ const BUNDLED = [
     license: 'node_modules/pdfjs-dist/LICENSE',
     note: 'PDF の描画に用いる。`vendor/pdf.mjs`・`vendor/pdf.worker.mjs`・`vendor/cmaps/`・'
       + '`vendor/standard_fonts/`・`vendor/wasm/`・`vendor/iccs/` として同梱する。'
-      + 'このうち `vendor/wasm/` と `vendor/iccs/` は出自の異なるコードを含むため、次節に個別に掲げる。',
+      + 'このうち `vendor/wasm/`・`vendor/iccs/`・`vendor/cmaps/`・`vendor/standard_fonts/` は出自の異なるものを含むため、次節に個別に掲げる。',
   },
   {
     pkg: 'pdf-lib',
@@ -35,30 +36,30 @@ const BUNDLED = [
     license: null,
     note: 'フォントの埋め込みに用いる。`vendor/fontkit.umd.min.js` として同梱する。'
       + 'パッケージにライセンスファイルが含まれていないため、`package.json` の `license` 欄'
-      + '（MIT）に基づき、下に MIT ライセンスの本文を掲げる。',
+      + '（MIT）に基づき、下に MIT ライセンスの本文を掲げる。作者は Andrew Dillon（`package.json` の author）で、'
+      + '元の fontkit の作者は Devon Govett（同 contributors）。作ったときに取り込まれた部品は「fontkit に取り込まれている部品」の節に掲げる。',
     fallbackLicense: 'MIT',
     fallbackCopyright: 'Copyright (c) 2020 Andrew Dillon',
   },
   {
     pkg: 'pako',
     license: 'node_modules/pako/LICENSE',
-    note: '`vendor/pdf-lib.min.js` に取り込まれている。',
+    note: '`vendor/pdf-lib.min.js` と `vendor/fontkit.umd.min.js` に取り込まれている。',
   },
   {
     pkg: '@pdf-lib/standard-fonts',
     license: 'node_modules/@pdf-lib/standard-fonts/LICENSE.md',
-    note: '`vendor/pdf-lib.min.js` に取り込まれている。',
+    note: '`vendor/pdf-lib.min.js` に取り込まれている。中の標準の 14 書体の寸法の資料は Adobe の書体の寸法の資料（AFM）から作られていて、'
+      + '資料の中に Adobe の著作権表示（例「Copyright (c) 1985, 1987, 1989, 1990, 1997 Adobe Systems Incorporated.  All Rights Reserved.」）が'
+      + 'そのまま残っている（PR-6b の点検で確かめた）。',
   },
   {
     pkg: '@pdf-lib/upng',
     license: 'node_modules/@pdf-lib/upng/LICENSE',
     note: '`vendor/pdf-lib.min.js` に取り込まれている。',
   },
-  {
-    pkg: 'tslib',
-    license: 'node_modules/tslib/LICENSE.txt',
-    note: '`vendor/pdf-lib.min.js` に取り込まれている。',
-  },
+  // tslib は、ここには載せない。pdf-lib.min.js に入っているのは node_modules の tslib（今の版は 0BSD）ではなく、pdf-lib を作ったときの
+  // TypeScript の補助のコード（tslib の古い版。Apache-2.0 だった頃の見出しが付いている）。次節の構成部品に掲げる（PR-6b の G1 で見つけた）。
   {
     pkg: 'utif',
     license: 'node_modules/utif/LICENSE',
@@ -103,6 +104,28 @@ const BUNDLED_COMPONENTS = [
     files: ['node_modules/pdfjs-dist/iccs/LICENSE'],
   },
   {
+    name: 'CMap（文字の対応表）',
+    license: 'BSD-3-Clause',
+    note: '日本語などの PDF の文字コードを文字に移すときに用いる。`vendor/cmaps/` として同梱する（PR-6b の点検で載せ漏れに気づいた）。',
+    files: ['node_modules/pdfjs-dist/cmaps/LICENSE'],
+  },
+  {
+    name: 'Foxit の標準の書体（PDFium）',
+    license: 'BSD-3-Clause',
+    note: 'PDF に埋め込まれていない標準の書体（Times・Courier・Symbol・Dingbats など）の文字を描くときに用いる。'
+      + '`vendor/standard_fonts/Foxit*.pfb` として同梱する（PR-6b の点検で載せ漏れに気づいた）。',
+    files: ['node_modules/pdfjs-dist/standard_fonts/LICENSE_FOXIT'],
+  },
+  {
+    name: 'Liberation Sans 1.07.4（pdf.js の標準の書体）',
+    license: 'GPL-2.0（書体の例外つき）',
+    note: 'PDF に埋め込まれていない Helvetica などの英字を描くときに用いる。`vendor/standard_fonts/LiberationSans-*.ttf`（4 本）として、'
+      + '手を入れずに同梱する。書体の例外により、この書体で描いた・埋め込んだ文書は GPL にならない。SigK PDF が書き出す PDF には'
+      + 'この書体を埋め込まない（画面の表示・印刷・PDF→画像・モザイクの画像で描くのに使うだけ）。同梱はユーザーが確認した（docs/07 決定82）。'
+      + '書体のファイルそのものと、下の許諾文（Red Hat の許諾文と GNU GPL v2 の全文）を同梱する。',
+    files: ['node_modules/pdfjs-dist/standard_fonts/LICENSE_LIBERATION'],
+  },
+  {
     name: 'JPEG デコーダー（utif 内蔵・pdf.js 由来）',
     license: 'Apache-2.0',
     note: '`vendor/utif.js` の冒頭に取り込まれている JPEG デコーダーは pdf.js のものを圧縮した'
@@ -110,7 +133,25 @@ const BUNDLED_COMPONENTS = [
       + 'ここに pdf.js のライセンス全文を掲げる（spec-3-2 事前調査 A・G）。',
     files: ['node_modules/pdfjs-dist/LICENSE'],
   },
+  {
+    name: 'TypeScript の補助のコード（tslib。pdf-lib に取り込まれている）',
+    license: 'Apache-2.0',
+    note: '`vendor/pdf-lib.min.js`（pdf-lib の `dist/pdf-lib.min.js`）の先頭に、Microsoft の著作権表示と Apache-2.0 の見出しが付いた'
+      + ' TypeScript の補助のコード（`__extends`・`__awaiter` など。tslib の古い版で、Apache-2.0 だった頃のもの）が取り込まれている。今の `tslib`（0BSD）とはライセンスが違うので、'
+      + '同梱しているファイルの見出しをそのまま掲げ、続けて Apache-2.0 の全文を掲げる。',
+    notices: ['node_modules/pdf-lib/dist/pdf-lib.min.js'],
+    files: ['node_modules/pdfjs-dist/LICENSE'],
+  },
 ];
+
+// ファイルの先頭（4KB まで）の「/*! … */」の見出し（縮めても残すと決められた著作権表示）を取り出す。見出しが無ければ止める（黙って落とさない）。
+const NOTICE_HEAD_BYTES = 4096;
+function leadingNotice(file) {
+  const found = /\/\*![\s\S]*?\*\//.exec(fs.readFileSync(path.join(ROOT, file), 'utf8').slice(0, NOTICE_HEAD_BYTES));
+  if (found === null)
+    throw new Error(`${file} の先頭に /*! … */ の見出しがありません`);
+  return found[0];
+}
 
 // パッケージではなく資産として同梱するもの。ライセンス全文はリポジトリに置いた実物から読む。
 // Noto Sans JP を同梱すると決めたのは spec-4-2 確定事項31・32（docs/07 決定35）、Bold を足したのは spec-4b-4a（docs/07 決定57 ①）である。
@@ -231,9 +272,26 @@ function build() {
     entry.note,
     '',
     '```',
-    entry.files.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8').trimEnd()).join(SEPARATOR),
+    [
+      ...(entry.notices ?? []).map(leadingNotice),
+      ...entry.files.map((file) => fs.readFileSync(path.join(ROOT, file), 'utf8').trimEnd()),
+    ].join(SEPARATOR),
     '```',
   ].join('\n'));
+
+  // fontkit の縮めたファイルに取り込まれている部品（材料は notices-fontkit.js。PR-6b の点検）。
+  const fontkitSection = [
+    '| 部品 | 版 | 著作権の行（MIT の部品） |',
+    '|---|---|---|',
+    ...fontkitBundle.MIT_PACKAGES.map((entry) => `| ${entry.name} | ${entry.version} | ${entry.copyright} |`),
+    '',
+    '上の MIT の部品の許諾文（共通）:',
+    '',
+    '```',
+    fontkitBundle.MIT_TEXT,
+    '```',
+    ...fontkitBundle.OTHER_PARTS.flatMap((entry) => ['', `### ${entry.name}`, '', `- ライセンス: ${entry.license}`, '', '```', entry.text, '```']),
+  ].join('\n');
 
   const assetSections = BUNDLED_ASSETS.map((entry) => [
     `### ${entry.name}`,
@@ -284,6 +342,15 @@ ${sections.join('\n\n')}
 
 ${componentSections.join('\n\n')}
 
+## 同梱するもの（fontkit に取り込まれている部品）
+
+\`vendor/fontkit.umd.min.js\`（@pdf-lib/fontkit 1.1.1 の配布用のファイル）には、作ったときに次の部品が取り込まれている。縮めたファイルでは
+著作権の表示が消えているので、作ったときの設定と部品の控え（https://github.com/Hopding/fontkit の rollup.config.js と yarn.lock）と、
+各部品の公開の置き場所（https://unpkg.com/）の package.json・LICENSE から書き写した（2026-10-21）。控えから辿れる部品を全部載せているので、
+縮めたファイルに入っていないものを含むことがある。
+
+${fontkitSection}
+
 ## 同梱するもの（フォント）
 
 パッケージではなく資産として配布物に入るものである。
@@ -307,12 +374,15 @@ ${devList.join('\n')}
 ## コピーレフト系ライセンスの確認
 
 ${copyleft.length === 0
-    ? '`node_modules` を走査し、GPL・AGPL のパッケージが含まれていないことを確認している。'
+    ? '`node_modules` を走査し、`package.json` の `license` が GPL・AGPL のパッケージは含まれていないことを確認している。'
     : `**確認が必要である。**次のパッケージが該当した。\n\n${copyleft.map((line) => `- ${line}`).join('\n')}`}
+
+パッケージの中に入っている資料は、パッケージの \`license\` とは別に許諾を持つことがある。pdfjs-dist の中の
+Liberation Sans は GNU GPL v2（書体の例外つき）で、ユーザーの確認を得て同梱している（上の構成部品の節。\`docs/07\` 決定82）。
 
 ## SigK PDF 自体のライセンス
 
-MIT License。全文は \`LICENSE\` を参照のこと。
+MIT License。全文は \`LICENSE\`（インストールしたフォルダでは \`LICENSE.txt\`）を参照のこと。
 `;
 
   fs.writeFileSync(OUTPUT, body, 'utf8');

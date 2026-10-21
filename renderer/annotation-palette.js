@@ -4,7 +4,7 @@
   // 書き込みの色のパレット（spec-4b-1b 確定事項10〜13。docs/07 決定47 ②）。DOM に触れない。
   //
   // 値と濃淡の作り方は CheckListMaker の画像エディタ（MIT。index.html、eef4a35）と同じで、出所は THIRD-PARTY-NOTICES.md と
-  // docs/06 2-1 に書いた。テーマの色 10 の下に濃淡 5 段、その下に標準の色 10 を並べ、7 段 × 10 列になる。
+  // docs/06 2-1・第4章の「一部を複製したもの」に書いた。著作権: Copyright (c) 2026 CheckListMaker contributors。コードとコメントは写していない。テーマの色 10 の下に濃淡 5 段、その下に標準の色 10 を並べ、7 段 × 10 列になる。
   // 色は小文字の #rrggbb で持ち、画面では大文字で見せる（確定事項13）。
 
   const THEME_COLORS = Object.freeze(['#ffffff', '#000000', '#e7e6e6', '#44546a', '#4472c4', '#ed7d31', '#a5a5a5', '#ffc000', '#5b9bd5', '#70ad47']);
