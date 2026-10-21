@@ -97,6 +97,16 @@
         "to": "pdf-file.ico"
       }
     ],
+    "extraFiles": [
+      {
+        "from": "THIRD-PARTY-NOTICES.md",
+        "to": "THIRD-PARTY-NOTICES.md"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      }
+    ],
     "win": {
       "target": [
         "nsis"
