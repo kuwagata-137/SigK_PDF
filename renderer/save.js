@@ -377,7 +377,13 @@
 
     // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
     const defaultPath = defaultPathFor(view.file);
-    const picked = await root.pdfAPI.pickSavePath({ defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath });
+    const initialPath = await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath;
+    // 聞き直しの返事を待つ間（窓を出さない待ち）にタブが替わっていたら、別のタブの中身を書かずに取りやめる（ブランチ全体の点検の直し I-1）。
+    if (viewer().getState().file !== view.file) {
+      banner().show('保存の窓を出す前にタブが替わったので、名前を付けて保存を取りやめました。もう一度押してください。', { tone: 'warn' });
+      return { changed: true };
+    }
+    const picked = await root.pdfAPI.pickSavePath({ defaultPath: initialPath });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')

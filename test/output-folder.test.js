@@ -112,6 +112,33 @@ test('分割・画像→PDF の右の欄の「フォルダ」は、設定の窓�
   assert.equal(convert.SigK.toolsConvert.settings().folder, OUT);
 });
 
+// ブランチ全体の点検の直し I-1。聞き直しの返事を待つ間（窓を出さない待ち）にタブを替えると、元のタブの名前の保存の窓で、
+// 替えた先のタブの中身を書いていた。保存の窓を出す前に、映しているタブが替わっていたら取りやめる（抽出と同じ考え）。
+test('名前を付けて保存: 最初のフォルダを聞き直す間にタブを替えたら、保存の窓を出さずに取りやめ、何も書かない', async (t) => {
+  const shell = await withShell(t, { savePathResults: [{ path: 'C:\\work\\out.pdf' }] });
+  await openTabs(shell, A);
+  const tabA = shell.SigK.tabs.activeId();
+  await openTabs(shell, B);
+  const tabB = shell.SigK.tabs.activeId();
+  shell.SigK.tabs.activate(tabA);
+  await shell.flush();
+  const api = shell.window.preferencesAPI;
+  const realGet = api.get;
+  let release = null;
+  const gate = new Promise((resolve) => { release = resolve; });
+  api.get = async () => { await gate; return realGet(); };
+  const saving = shell.SigK.save.saveAsActive();
+  await shell.flush();
+  shell.SigK.tabs.activate(tabB);
+  await shell.flush();
+  release();
+  const result = await saving;
+  assert.equal(result.changed, true);
+  assert.equal(shell.savePathCalls.length, 0, '保存の窓を出さない');
+  assert.equal(shell.taskCalls.length, 0, '何も書かない');
+  assert.match(shell.document.getElementById('view-banner')?.textContent ?? '', /タブが替わったので、名前を付けて保存を取りやめました/);
+});
+
 // 点検の直し I-6。フォルダが今あるかは、保存の窓を出す前と、ツールを選んだときに、メインに聞き直す。
 test('決めたフォルダが起動したあとで無くなったら、保存の窓は元のファイルと同じフォルダで開き、ツールを選び直すと右の欄も戻る', async (t) => {
   // existingFolders は harness がそのまま使う配列なので、FIXED のものを空にしないよう新しく渡す。
