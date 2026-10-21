@@ -69,6 +69,67 @@ test('結合・透かし・フラット化の保存の窓も、決めたフォ�
   tools(watermark, 'watermark');
   await watermark.SigK.toolsWatermark.run();
   assert.equal(watermark.savePathCalls[0].defaultPath, `${OUT}\\a_透かし.pdf`);
+
+  // フラット化は数え終えてから実行できる（数えの結果は 1 ページに書き込み 1 件）。
+  const census = { ok: true, baked: 1, kept: 0, notes: 0, bake: { markup: 1, text: 0, shape: 0, note: 0, other: 0 }, keep: { functional: 0, noAppearance: 0, hidden: 0 } };
+  const flatten = await withShell(t, { ...FIXED, taskResults: [{ ...census, pages: [census] }] });
+  tools(flatten, 'flatten');
+  await openTabs(flatten, A);
+  for (let index = 0; index < 4; index += 1)
+    await flatten.flush();
+  await flatten.SigK.toolsFlatten.run();
+  assert.equal(flatten.savePathCalls[0].defaultPath, `${OUT}\\a_フラット化.pdf`);
+});
+
+// 点検の直し I-2。「1 つの PDF にまとめる」では右の欄に「フォルダ」の行が無く、保存の窓だけが行き先を決める。
+test('画像→PDF を「1 つの PDF にまとめる」で書き出す保存の窓も、決めたフォルダで開く', async (t) => {
+  const IMG = 'C:\\img\\a.png';
+  const shell = await withShell(t, { ...FIXED, imageInfos: { [IMG]: { kind: 'png', width: 100, height: 100 } } });
+  tools(shell, 'convert');
+  await shell.SigK.toolsConvert.addPaths([IMG]);
+  await shell.flush();
+  await shell.SigK.toolsConvert.run();
+  assert.equal(shell.savePathCalls[0].defaultPath.startsWith(`${OUT}\\`), true, shell.savePathCalls[0].defaultPath);
+});
+
+// 点検の直し I-3。［変更…］で選ぶまでは、右の欄の「フォルダ」は描くたびに設定の窓の決め方で決め直す。
+test('分割・画像→PDF の右の欄の「フォルダ」は、設定の窓で決め方を変えたら、次に描くときに従い直す', async (t) => {
+  const split = await withShell(t, { existingFolders: [OUT] });
+  tools(split, 'split');
+  await openTabs(split, A);
+  assert.equal(split.SigK.toolsSplit.settings().folder, 'C:\\work');
+  await split.SigK.preferences.set({ outputFolder: { mode: 'fixed', fixed: OUT } });
+  assert.equal(split.SigK.toolsSplit.settings().folder, OUT);
+  assert.equal(split.SigK.toolsSplit.currentPlan().folder, OUT);
+
+  const IMG = 'C:\\img\\a.png';
+  const convert = await withShell(t, { existingFolders: [OUT], imageInfos: { [IMG]: { kind: 'png', width: 100, height: 100 } } });
+  tools(convert, 'convert');
+  await convert.SigK.toolsConvert.addPaths([IMG]);
+  await convert.flush();
+  assert.equal(convert.SigK.toolsConvert.settings().folder, 'C:\\img');
+  convert.firePreferencesChanged({ outputFolder: { mode: 'last', last: OUT } });
+  assert.equal(convert.SigK.toolsConvert.settings().folder, OUT);
+});
+
+// 点検の直し I-6。フォルダが今あるかは、保存の窓を出す前と、ツールを選んだときに、メインに聞き直す。
+test('決めたフォルダが起動したあとで無くなったら、保存の窓は元のファイルと同じフォルダで開き、ツールを選び直すと右の欄も戻る', async (t) => {
+  // existingFolders は harness がそのまま使う配列なので、FIXED のものを空にしないよう新しく渡す。
+  const shell = await withShell(t, { ...FIXED, existingFolders: [OUT] });
+  await openTabs(shell, A);
+  shell.existingFolders.splice(0);
+  await shell.SigK.save.saveAsActive();
+  assert.equal(shell.savePathCalls[0].defaultPath, A);
+
+  const split = await withShell(t, { ...FIXED, existingFolders: [OUT] });
+  tools(split, 'split');
+  await openTabs(split, A);
+  assert.equal(split.SigK.toolsSplit.settings().folder, OUT);
+  split.existingFolders.splice(0);
+  split.SigK.tools.select('merge');
+  split.SigK.tools.select('split');
+  await split.flush();
+  assert.equal(split.SigK.toolsSplit.settings().folder, 'C:\\work');
 });
 
 test('分割・PDF→画像の右の欄の「フォルダ」の最初の値は決めたフォルダ。［変更…］で変えた値は上書きしない', async (t) => {

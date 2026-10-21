@@ -31,7 +31,7 @@
     if (typeof api?.pickSavePath !== 'function')
       return { error: '保存先を選べません。' };
     // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。透かしとフラット化。
-    const picked = await api.pickSavePath({ defaultPath: root.SigK.preferences?.initialPath(defaultPath) ?? defaultPath, title });
+    const picked = await api.pickSavePath({ defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath, title });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')

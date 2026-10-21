@@ -187,7 +187,7 @@
   async function runChosen(chosen) {
     // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
     const defaultPath = defaultTargetFor(chosen[0].path);
-    const picked = await root.pdfAPI.pickSavePath({ defaultPath: root.SigK.preferences?.initialPath(defaultPath) ?? defaultPath, title: '結合した PDF を保存' });
+    const picked = await root.pdfAPI.pickSavePath({ defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath, title: '結合した PDF を保存' });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')

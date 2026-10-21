@@ -105,6 +105,13 @@ test('最後に使ったツールを覚え、起動したときに選んでお�
   assert.equal(next.SigK.tools.selected(), 'toImage');
 });
 
+// 点検の直し M-2。前回のモードを戻すとき（tools.refresh）に今のツールを出し直すのは、ユーザーが選んだとは数えない。
+test('前回のモードがツールのまま起動しても、最後に使ったツールを選んでおく', async (t) => {
+  const shell = await withShell(t, { ui: { mode: 'tools', pageLayout: 'single', viewPointer: 'select', sidePanel: { open: true, width: 240 } }, preferences: { lastTool: 'toImage' } });
+  assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
+  assert.equal(shell.SigK.tools.selected(), 'toImage');
+});
+
 test('右クリックの「PDF を分割」から起きたときは、最後のツールより、そちらを先にする', async (t) => {
   const A = 'C:\\work\\a.pdf';
   const { makeSource } = require('./harness.js');

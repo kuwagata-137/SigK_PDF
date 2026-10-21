@@ -41,15 +41,23 @@
 
   // ---- 対象（spec-2-5 G1・G12） ----
 
-  // 出力のフォルダーは、ユーザーが変えるまで対象の帯のフォルダーに追従する（spec-2-2 確定事項14）。最初の値は設定の窓の
-  // 「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5。決定81 ⑨）。
+  // 出力のフォルダーは、ユーザーが変えるまで対象の帯のフォルダーに追従する（spec-2-2 確定事項14）。state.folder は、変えるまでは
+  // 帯のフォルダー、変えたあとは選んだフォルダー。
   const field = root.SigK.stripTarget.create({
     encryptedError: '分割できません',
     onChange: (src) => {
       if (!state.folderTouched && typeof src?.path === 'string')
-        state.folder = root.SigK.preferences?.initialFolder(dirOf(src.path)) ?? dirOf(src.path);
+        state.folder = dirOf(src.path);
     },
   });
+
+  // 今の出力のフォルダー。変えるまでは、使うたびに設定の窓の「ファイルを書き出すときの、最初のフォルダ」で決め直す
+  // （spec-6-1 確定事項E-5。決定81 ⑨。設定を変えたあとも従うように。点検の直し I-3）。
+  function folderNow() {
+    if (state.folderTouched || state.folder === null)
+      return state.folder;
+    return root.SigK.preferences?.initialFolder(state.folder) ?? state.folder;
+  }
 
   const source = () => field.source();
   const isReady = (src) => src !== null && src.blocked === null;
@@ -110,13 +118,13 @@
     const api = root.pdfAPI;
     if (typeof api?.pickFolder !== 'function')
       return false;
-    const picked = await api.pickFolder({ defaultPath: state.folder ?? undefined });
+    const picked = await api.pickFolder({ defaultPath: folderNow() ?? undefined });
     if (picked?.canceled === true || typeof picked?.path !== 'string')
       return false;
     return setFolder(picked.path);
   }
 
-  const settings = () => ({ folder: state.folder, rule: state.rule });
+  const settings = () => ({ folder: folderNow(), rule: state.rule });
 
   // いまの盤から計画を組む。対象が使えなければ reason は 'no-source'。ほかの reason は盤の status（確定事項B5）。
   // parts は盤の位置（帯の今の並びの位置）。ファイルのページへの読み替えは実行のとき（split-run.js）。
@@ -128,7 +136,7 @@
     const status = root.SigK.splitBoard.status(board);
     const parts = root.SigK.splitBoard.parts(board);
     const names = root.SigK.splitPlan.outputNames(src.name, parts, state.rule);
-    const folder = state.folder ?? dirOf(src.path);
+    const folder = folderNow() ?? dirOf(src.path);
     return { ready: status.ready, reason: status.reason, files: status.files, parts, names, folder, targets: names.map((name) => joinPath(folder, name)) };
   }
 

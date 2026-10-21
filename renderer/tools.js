@@ -10,8 +10,8 @@
   // 一覧に載せるのは動くツールだけである。塊① の結合、塊② の分割（spec-2-2
   // 確定事項39）、塊④ の画像→PDF（spec-3-1 確定事項34）、塊⑥ の PDF→画像
   // （spec-3-3 確定事項28）、Phase 4 塊⑤ の透かしとフラット化（spec-4-5 確定事項1）。ツールモードに入った
-  // 時点では結合を選んだ状態にする（確定事項1・3。最後に使ったツールは覚えない。
-  // 覚えるかどうかは Phase 6 の設定画面で決める）。
+  // 時点では結合を選んだ状態にする（確定事項1・3）。設定の窓で「最後に使ったツールを覚える」にしていれば、
+  // 起動したときに最後に使ったツールを選んでおく（spec-6-1 確定事項E-8。tool-memory.js）。
   //
   // 文書を開いていなくてもツールモードには入れる（確定事項7）。結合も分割も変換も
   // 開いている文書を必要としない。
@@ -53,12 +53,17 @@
     return true;
   }
 
-  function select(id) {
+  // remember: false は、モードが変わったときに今のツールを出し直すだけの呼び出し（refresh）。ユーザーが選んだとは数えない
+  // （起動したときに最後に使ったツールを選んでおく妨げにしない。点検の直し M-2）。
+  function select(id, { remember = true } = {}) {
     if (el === null || !TOOLS.some((tool) => tool.id === id))
       return false;
     state.selected = id;
     // 最後に使ったツールとして覚える（spec-6-1 確定事項E-8）。
-    root.SigK.toolMemory?.toolSelected(id);
+    if (remember)
+      root.SigK.toolMemory?.toolSelected(id);
+    // 右の欄の「フォルダ」が無くなったフォルダを指したままにならないように、フォルダが今あるかを聞き直す（点検の直し I-6）。
+    root.SigK.preferences?.refresh();
     for (const item of el.list.querySelectorAll('.tool-item'))
       item.classList.toggle('active', item.dataset.tool === id);
     // 真ん中に帯・右の欄に設定を出す（spec-2-5 第 D・E 章）。
@@ -112,7 +117,7 @@
     if (placeholder !== null)
       placeholder.hidden = active || listShown || el.doc.getElementById('thumbs')?.hidden === false;
     if (active)
-      select(state.selected);
+      select(state.selected, { remember: false });
     else
       root.SigK.toolPane?.show(null);
     root.SigK.save?.syncButtons();
@@ -131,6 +136,8 @@
     el = { doc, win, list, view };
     renderList();
     refresh();
+    // 最初のフォルダが替わりうるとき（設定の窓の［OK］・最後に書き出したフォルダ・フォルダが無くなった）に、右の欄の「フォルダ」を描き直す。
+    root.SigK.preferences?.subscribe(() => renderShown());
     return true;
   }
 

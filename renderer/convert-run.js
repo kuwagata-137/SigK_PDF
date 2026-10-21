@@ -76,7 +76,9 @@
   }
 
   async function runSingle() {
-    const picked = await root.pdfAPI.pickSavePath({ defaultPath: defaultSingleTarget(), title: '変換した PDF を保存' });
+    // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5。点検の直し I-2）。
+    const defaultPath = defaultSingleTarget();
+    const picked = await root.pdfAPI.pickSavePath({ defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath, title: '変換した PDF を保存' });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
