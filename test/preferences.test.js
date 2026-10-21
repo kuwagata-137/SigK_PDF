@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  PREFERENCE_DEFAULTS, mergePreferences, applyPreferencesPatch, outputFolderOf, createPreferencesHost,
+  PREFERENCE_DEFAULTS, mergePreferences, applyPreferencesPatch, outputFolderOf, createPreferencesHost, isExistingDirectory,
 } = require('../preferences.js');
 const { DEFAULTS, mergeDefaults } = require('../settings.js');
 
@@ -82,34 +82,73 @@ function fakeSettings(initial = {}) {
   return { get: () => current, set: (patch) => { current = mergeDefaults({ ...current, ...patch }); return current; }, save: () => { saves += 1; return true; }, saves: () => saves };
 }
 
-test('createPreferencesHost: snapshot は値と、今あるフォルダ（最後に書き出したフォルダ・決めたフォルダ）を返す', () => {
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+test('createPreferencesHost: snapshot は値と、今あるフォルダ（最後に書き出したフォルダ・決めたフォルダ）を返す', async () => {
   const settings = fakeSettings({ preferences: { outputFolder: { mode: 'last', fixed: 'D:\\gone', last: 'C:\\work' } } });
-  const host = createPreferencesHost({ settings, isDirectory: (folder) => folder === 'C:\\work' });
-  assert.deepEqual(host.snapshot().available, { last: 'C:\\work', fixed: null });
-  assert.equal(host.snapshot().preferences.outputFolder.mode, 'last');
+  const host = createPreferencesHost({ settings, isDirectory: async (folder) => folder === 'C:\\work' });
+  const snapshot = await host.snapshot();
+  assert.deepEqual(snapshot.available, { last: 'C:\\work', fixed: null });
+  assert.equal(snapshot.preferences.outputFolder.mode, 'last');
 });
 
-test('createPreferencesHost: set は差分を当てて書き、確かめた全体を返す', () => {
+test('createPreferencesHost: set は差分を当てて書き、確かめた全体を返す', async () => {
   const settings = fakeSettings();
-  const host = createPreferencesHost({ settings, isDirectory: () => true });
-  const snapshot = host.set({ makeBackup: false, outputFolder: { mode: 'fixed', fixed: 'D:\\out' } });
+  const host = createPreferencesHost({ settings, isDirectory: async () => true });
+  const snapshot = await host.set({ makeBackup: false, outputFolder: { mode: 'fixed', fixed: 'D:\\out' } });
   assert.equal(snapshot.preferences.makeBackup, false);
   assert.equal(settings.get().preferences.outputFolder.fixed, 'D:\\out');
   assert.equal(settings.saves(), 1);
 });
 
-test('createPreferencesHost: 書き出しに成功したら、行き先のフォルダを「最後に書き出したフォルダ」として覚え、画面へ知らせる', () => {
+test('createPreferencesHost: 書き出しに成功したら、行き先のフォルダを「最後に書き出したフォルダ」として覚え、画面へ知らせる', async () => {
   const settings = fakeSettings();
   const notified = [];
-  const host = createPreferencesHost({ settings, isDirectory: () => true, notify: (snapshot) => notified.push(snapshot) });
+  const host = createPreferencesHost({ settings, isDirectory: async () => true, notify: (snapshot) => notified.push(snapshot) });
   host.rememberOutput({ kind: 'merge', target: 'D:\\out\\m.pdf' }, { ok: true });
-  assert.equal(settings.get().preferences.outputFolder.last, 'D:\\out');
+  assert.equal(settings.get().preferences.outputFolder.last, 'D:\\out', '書くのは待たない（すぐ書く）');
+  await flush();
   assert.equal(notified.length, 1);
+  assert.equal(notified[0].available.last, 'D:\\out');
   host.rememberOutput({ kind: 'merge', target: 'D:\\out\\m2.pdf' }, { ok: true });
+  await flush();
   assert.equal(notified.length, 1, '同じフォルダなら書かず、知らせない');
   host.rememberOutput({ kind: 'merge', target: 'E:\\x\\m.pdf' }, { error: '書けない' });
   assert.equal(settings.get().preferences.outputFolder.last, 'D:\\out', '失敗は覚えない');
   host.rememberWritten('F:\\images\\a_001.png');
   assert.equal(settings.get().preferences.outputFolder.last, 'F:\\images', 'PDF→画像の画像の書き込みも覚える');
   assert.equal(settings.saves(), 2);
+});
+
+// 点検の直し I-5。フォルダの確かめが遅くても、頼んだ順に返す（遅れた古い値が新しい値のあとに届かない）。
+test('createPreferencesHost: 確かめは頼んだ順に返す。前の確かめが遅くても、あとの返事が先に来ない', async () => {
+  const settings = fakeSettings({ preferences: { outputFolder: { mode: 'fixed', fixed: 'N:\\slow' } } });
+  let release = null;
+  const isDirectory = (folder) => (folder === 'N:\\slow' ? new Promise((resolve) => { release = () => resolve(true); }) : Promise.resolve(true));
+  const host = createPreferencesHost({ settings, isDirectory });
+  const order = [];
+  const first = host.snapshot().then((snapshot) => order.push(['first', snapshot.preferences.outputFolder.fixed]));
+  await flush();
+  const second = host.set({ outputFolder: { fixed: 'D:\\out' } }).then((snapshot) => order.push(['second', snapshot.preferences.outputFolder.fixed]));
+  await flush();
+  assert.deepEqual(order, [], '前の確かめが済むまで、あとの返事も出さない');
+  release();
+  await Promise.all([first, second]);
+  assert.deepEqual(order, [['first', 'N:\\slow'], ['second', 'D:\\out']]);
+});
+
+test('createPreferencesHost: 覚える処理が失敗しても投げず、エラーの記録に書く（書き出しの結果を画面へ返すのを妨げない）', () => {
+  const logged = [];
+  const settings = { get: () => ({ preferences: {} }), set: () => { throw new Error('書けない'); }, save: () => true };
+  const host = createPreferencesHost({ settings, isDirectory: async () => true, logError: (entry) => logged.push(entry) });
+  assert.equal(host.rememberOutput({ kind: 'merge', target: 'D:\\out\\m.pdf' }, { ok: true }), false);
+  assert.equal(logged.length, 1);
+});
+
+test('isExistingDirectory: 今あるフォルダは true、無いフォルダ・ファイルは false、上限までに分からなければ false', async () => {
+  assert.equal(await isExistingDirectory(__dirname), true);
+  assert.equal(await isExistingDirectory(`${__dirname}-無いフォルダ`), false);
+  assert.equal(await isExistingDirectory(__filename), false);
+  const hung = () => new Promise(() => {});
+  assert.equal(await isExistingDirectory(__dirname, { timeoutMs: 20, stat: hung }), false, '届かないネットワークのフォルダの代わり（返事の無い stat）');
 });

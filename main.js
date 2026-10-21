@@ -521,8 +521,8 @@ function registerIpc() {
   const uiForRenderer = () => fillAuthor(pickUi(settings.get()), osUserName());
   ipcMain.handle('settings:getUi', () => ({ ok: true, ui: uiForRenderer() }));
   // 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。set は差分を受け、確かめた全体と今あるフォルダを返す。
-  ipcMain.handle('preferences:get', () => ({ ok: true, ...preferences.snapshot() }));
-  ipcMain.handle('preferences:set', (_event, patch) => ({ ok: true, ...preferences.set(patch) }));
+  ipcMain.handle('preferences:get', async () => ({ ok: true, ...(await preferences.snapshot()) }));
+  ipcMain.handle('preferences:set', async (_event, patch) => ({ ok: true, ...(await preferences.set(patch)) }));
   ipcMain.handle('preferences:openDefaultApps', () => requestDefaultAppsSettings());
   ipcMain.handle('settings:setUi', (_event, patch) => {
     settings.set(mergeUi(pickUi(settings.get()), patch));
@@ -2093,7 +2093,7 @@ function start() {
   watchChildren(app, logError);
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
-  preferences = createPreferencesHost({ settings, notify: (snapshot) => mainWindow?.webContents.send('preferences:changed', snapshot) });
+  preferences = createPreferencesHost({ settings, logError, notify: (snapshot) => mainWindow?.webContents.send('preferences:changed', snapshot) });
   fileIo = createFileIo({ dialog, onError: logError });
   imageIo = createImageIo({ dialog, onError: logError });
   // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。

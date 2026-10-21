@@ -69,11 +69,12 @@ test('起動確認の報告に appShell を載せる', () => {
 
 // 設定の窓の値（spec-6-1 タスク E の確定事項E-4・E-6）。main.js は Electron なしでは読めないので文字で見る。
 test('設定の窓の値の受け口（preferences:get・set）と、書き出しに成功したときに最後に書き出したフォルダを覚える配線がある', () => {
-  assert.match(MAIN, /ipcMain\.handle\('preferences:get', \(\) => \(\{ ok: true, \.\.\.preferences\.snapshot\(\) \}\)\);/);
-  assert.match(MAIN, /ipcMain\.handle\('preferences:set', \(_event, patch\) => \(\{ ok: true, \.\.\.preferences\.set\(patch\) \}\)\);/);
+  // フォルダが今あるかの確かめは非同期（点検の直し I-5）なので、受け口は待ってから返す。
+  assert.match(MAIN, /ipcMain\.handle\('preferences:get', async \(\) => \(\{ ok: true, \.\.\.\(await preferences\.snapshot\(\)\) \}\)\);/);
+  assert.match(MAIN, /ipcMain\.handle\('preferences:set', async \(_event, patch\) => \(\{ ok: true, \.\.\.\(await preferences\.set\(patch\)\) \}\)\);/);
   assert.match(MAIN, /preferences\.rememberOutput\(spec, result\);/, 'ワーカーの書き出し');
-  assert.match(MAIN, /if \(result\?\.ok === true\)\n {6}preferences\.rememberWritten\(target\);/, 'PDF→画像の画像の書き込み');
-  assert.match(MAIN, /preferences = createPreferencesHost\(\{ settings, notify: \(snapshot\) => mainWindow\?\.webContents\.send\('preferences:changed', snapshot\) \}\);/);
+  assert.match(MAIN, /if \(result\?\.ok === true\)\r?\n {6}preferences\.rememberWritten\(target\);/, 'PDF→画像の画像の書き込み');
+  assert.match(MAIN, /preferences = createPreferencesHost\(\{ settings, logError, notify: \(snapshot\) => mainWindow\?\.webContents\.send\('preferences:changed', snapshot\) \}\);/);
 });
 
 test('メニュー「ファイル」の「文書情報…」の下に「設定…」（Ctrl＋,）があり、押すと画面へ合図を送る（spec-6-1 確定事項E-1）', () => {

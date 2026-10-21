@@ -14,6 +14,8 @@ const TOOL_IDS = ['merge', 'split', 'convert', 'toImage', 'watermark', 'flatten'
 const PATH_MAX = 1024;
 // 1 つのツールの覚える値の上限（JSON にした字数）。設定のファイルを膨らませない。
 const TOOL_VALUES_MAX = 4000;
+// フォルダが今あるかを確かめるのを待つ上限（ミリ秒）。届かないネットワークのフォルダは「無い」とする。
+const FOLDER_CHECK_TIMEOUT_MS = 1500;
 
 const PREFERENCE_DEFAULTS = Object.freeze({
   outputFolder: Object.freeze({ mode: 'source', fixed: null, last: null }),
@@ -87,30 +89,52 @@ function outputFolderOf(spec) {
   return typeof target === 'string' && target.length > 0 ? path.win32.dirname(target) : null;
 }
 
-// メインが持つ口。settings は settings.js の createSettingsStore の戻り値。isDirectory(folder) はフォルダが今あるか。
-// notify(snapshot) は画面へ知らせる（preferences:changed）。
-function createPreferencesHost({ settings, isDirectory = isExistingDirectory, notify = () => {} }) {
+// メインが持つ口。settings は settings.js の createSettingsStore の戻り値。isDirectory(folder) はフォルダが今あるか（Promise<boolean>）。
+// notify(snapshot) は画面へ知らせる（preferences:changed）。logError(entry) はエラーの記録（error-log.js）。
+//
+// フォルダが今あるかは、時間の上限つきの非同期で確かめる（ネットワークのフォルダが届かないときにメインの処理を止めない。点検の直し I-5）。
+// 確かめは 1 本の列に並べ、頼まれた順に返す（遅れた古い値が、あとの新しい値を画面で上書きしないように）。
+function createPreferencesHost({ settings, isDirectory = isExistingDirectory, notify = () => {}, logError = () => {} }) {
   const current = () => mergePreferences(settings.get().preferences);
+  let queue = Promise.resolve();
+
+  async function build() {
+    const preferences = current();
+    const exists = async (folder) => (folder !== null && await isDirectory(folder) ? folder : null);
+    const [last, fixed] = await Promise.all([exists(preferences.outputFolder.last), exists(preferences.outputFolder.fixed)]);
+    return { preferences, available: { last, fixed } };
+  }
 
   function snapshot() {
-    const preferences = current();
-    const exists = (folder) => (folder !== null && isDirectory(folder) ? folder : null);
-    return { preferences, available: { last: exists(preferences.outputFolder.last), fixed: exists(preferences.outputFolder.fixed) } };
+    const next = queue.then(build);
+    queue = next.catch(() => {});
+    return next;
+  }
+
+  function write(patch) {
+    settings.set({ preferences: applyPreferencesPatch(current(), patch) });
+    settings.save();
   }
 
   function set(patch) {
-    settings.set({ preferences: applyPreferencesPatch(current(), patch) });
-    settings.save();
+    write(patch);
     return snapshot();
   }
 
   // 書いたファイルのフォルダを「最後に書き出したフォルダ」として覚える（確定事項E-6）。同じなら書かない。
+  // 書き出しの結果を画面へ返すのを妨げないよう、知らせは待たず、失敗は記録に書くだけにする（点検の直し M-4）。
   function rememberWritten(filePath) {
-    const folder = typeof filePath === 'string' && filePath.length > 0 ? path.win32.dirname(filePath) : null;
-    if (folder === null || current().outputFolder.last === folder)
+    try {
+      const folder = typeof filePath === 'string' && filePath.length > 0 ? path.win32.dirname(filePath) : null;
+      if (folder === null || current().outputFolder.last === folder)
+        return false;
+      write({ outputFolder: { last: folder } });
+      snapshot().then(notify).catch((error) => logError({ message: '最後に書き出したフォルダを画面へ知らせられませんでした', stack: error?.stack }));
+      return true;
+    } catch (error) {
+      logError({ message: '最後に書き出したフォルダを覚えられませんでした', stack: error?.stack });
       return false;
-    notify(set({ outputFolder: { last: folder } }));
-    return true;
+    }
   }
 
   function rememberOutput(spec, result) {
@@ -121,16 +145,15 @@ function createPreferencesHost({ settings, isDirectory = isExistingDirectory, no
   return { snapshot, set, rememberWritten, rememberOutput };
 }
 
-// フォルダが今あるか（createPreferencesHost の isDirectory の既定）。
-function isExistingDirectory(folder) {
-  try {
-    return fs.statSync(folder).isDirectory();
-  } catch {
-    return false;
-  }
+// フォルダが今あるか（createPreferencesHost の isDirectory の既定）。timeoutMs までに分からなければ「無い」とする。stat はテストで差し替える。
+function isExistingDirectory(folder, { timeoutMs = FOLDER_CHECK_TIMEOUT_MS, stat = fs.promises.stat } = {}) {
+  let timer = null;
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeoutMs); });
+  const check = Promise.resolve().then(() => stat(folder)).then((stats) => stats.isDirectory(), () => false);
+  return Promise.race([check, timeout]).finally(() => clearTimeout(timer));
 }
 
 module.exports = {
-  FOLDER_MODES, TOOL_IDS, TOOL_VALUES_MAX, PREFERENCE_DEFAULTS,
+  FOLDER_MODES, TOOL_IDS, TOOL_VALUES_MAX, FOLDER_CHECK_TIMEOUT_MS, PREFERENCE_DEFAULTS,
   mergePreferences, applyPreferencesPatch, outputFolderOf, createPreferencesHost, isExistingDirectory,
 };
