@@ -113,6 +113,15 @@ const BUNDLED_COMPONENTS = [
     files: ['node_modules/pdfjs-dist/standard_fonts/LICENSE_FOXIT'],
   },
   {
+    name: 'Liberation Sans 1.07.4（pdf.js の標準の書体）',
+    license: 'GPL-2.0（書体の例外つき）',
+    note: 'PDF に埋め込まれていない Helvetica などの英字を描くときに用いる。`vendor/standard_fonts/LiberationSans-*.ttf`（4 本）として、'
+      + '手を入れずに同梱する。書体の例外により、この書体で描いた・埋め込んだ文書は GPL にならない。SigK PDF が書き出す PDF には'
+      + 'この書体を埋め込まない（画面の表示・印刷・PDF→画像・モザイクの画像で描くのに使うだけ）。同梱はユーザーが確認した（docs/07 決定82）。'
+      + '書体のファイルそのものと、下の許諾文（Red Hat の許諾文と GNU GPL v2 の全文）を同梱する。',
+    files: ['node_modules/pdfjs-dist/standard_fonts/LICENSE_LIBERATION'],
+  },
+  {
     name: 'JPEG デコーダー（utif 内蔵・pdf.js 由来）',
     license: 'Apache-2.0',
     note: '`vendor/utif.js` の冒頭に取り込まれている JPEG デコーダーは pdf.js のものを圧縮した'
@@ -338,8 +347,11 @@ ${devList.join('\n')}
 ## コピーレフト系ライセンスの確認
 
 ${copyleft.length === 0
-    ? '`node_modules` を走査し、GPL・AGPL のパッケージが含まれていないことを確認している。'
+    ? '`node_modules` を走査し、`package.json` の `license` が GPL・AGPL のパッケージは含まれていないことを確認している。'
     : `**確認が必要である。**次のパッケージが該当した。\n\n${copyleft.map((line) => `- ${line}`).join('\n')}`}
+
+パッケージの中に入っている資料は、パッケージの \`license\` とは別に許諾を持つことがある。pdfjs-dist の中の
+Liberation Sans は GNU GPL v2（書体の例外つき）で、ユーザーの確認を得て同梱している（上の構成部品の節。\`docs/07\` 決定82）。
 
 ## SigK PDF 自体のライセンス
 
