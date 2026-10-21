@@ -11,8 +11,9 @@
 .settings-check{height:auto; min-height:26px; align-items:flex-start; padding:4px 0}
 .settings-check input{margin-top:3px}
 .settings-note{margin:2px 0 4px 21px; color:var(--muted); font-size:11.5px; line-height:1.6}
-.settings-fixed{gap:7px}
-/* 決めたフォルダの欄と［変更…］は 1 つの入れ物に入れ、欄のすぐ右にボタンを置く（見本のとおり）。 */
+/* 決めたフォルダの行。選択肢の label には丸と「決めたフォルダ」だけを入れ、欄と［変更…］は label の外の 1 つの入れ物に入れて、
+   label のすぐ右に置く（見本のとおり。label の中にボタンを入れない。点検の直し M-12）。 */
+.settings-fixed{display:flex; align-items:center}
 .settings-path-row{display:inline-flex; align-items:center; gap:6px; margin-left:8px}
 .settings-path{
   display:inline-block; width:210px; height:24px; line-height:24px; padding:0 8px; text-align:left;
@@ -22,3 +23,6 @@
 .settings-path.empty{color:var(--muted)}
 .dlg-btn.settings-small{height:26px; min-width:0; padding:0 10px; font-size:12px; white-space:nowrap; flex:0 0 auto}
 .settings-row{display:flex; align-items:center; justify-content:space-between; gap:12px; line-height:1.6}
+/* フォーカスは選択肢の行ごと枠で囲む（見本のとおり。点検の直し M-14）。丸・四角そのものの枠は出さない。 */
+#settings-dialog .print-choice input:focus-visible{outline:none}
+#settings-dialog .print-choice:has(input:focus-visible){outline:2px solid var(--primary); outline-offset:1px; border-radius:6px}

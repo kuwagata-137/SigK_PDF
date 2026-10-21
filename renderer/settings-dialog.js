@@ -23,9 +23,14 @@
     return folderInputs().find((input) => input.checked)?.value ?? 'source';
   }
 
+  // 欄は幅で切れるので、右の欄の「フォルダ」と同じく吹き出しでパスの全体を出す（点検の直し M-11）。
   function renderFixed() {
     el.fixedPath.textContent = state.fixed ?? 'まだ決めていません';
     el.fixedPath.classList.toggle('empty', state.fixed === null);
+    if (state.fixed === null)
+      root.SigK.tipContent?.clear(el.fixedPath);
+    else
+      root.SigK.tipContent?.text(el.fixedPath, '決めたフォルダ', state.fixed);
   }
 
   // 今の値を欄へ写す。

@@ -44,6 +44,23 @@ test('覚えている値（最後に書き出したフォルダ・控えのフ�
   assert.equal(shell.document.activeElement, shell.document.querySelector('input[name="settings-folder"][value="fixed"]'));
 });
 
+// 点検の直し M-11・M-12。欄は幅で切れるので、右の欄の「フォルダ」と同じく吹き出しでパスの全体を出す。
+// ［変更…］は label の外に置く（「決めたフォルダ」の選択肢の読み上げの名前にパスとボタンの名前が混ざらないように）。
+test('決めたフォルダの欄は吹き出しでパスの全体を出し、［変更…］と欄は選択肢の label の外にある', async (t) => {
+  const shell = await withShell(t, { preferences: { outputFolder: { mode: 'fixed', fixed: D_OUT } } });
+  shell.SigK.settingsDialog.open();
+  const path = byId(shell, 'settings-fixed-path');
+  assert.equal(path.dataset.tip, 'text');
+  assert.equal(shell.SigK.tipContent.resolve(path).desc, D_OUT);
+  const radio = shell.document.querySelector('input[name="settings-folder"][value="fixed"]');
+  assert.equal(radio.closest('label').textContent, '決めたフォルダ');
+  assert.equal(byId(shell, 'settings-fixed-change').closest('label'), null);
+  shell.SigK.settingsDialog.close();
+  const empty = await withShell(t);
+  empty.SigK.settingsDialog.open();
+  assert.equal(byId(empty, 'settings-fixed-path').dataset.tip, undefined, 'まだ決めていないときは吹き出しを出さない');
+});
+
 test('［OK］で欄の値を書いて閉じる', async (t) => {
   const shell = await withShell(t);
   shell.SigK.settingsDialog.open();
