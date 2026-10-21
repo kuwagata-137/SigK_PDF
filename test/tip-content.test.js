@@ -22,7 +22,7 @@ const barSaveWith = (state) => {
 
 const EXPECTED_KEYS = [
   'bar.open', 'bar.save', 'bar.saveAs', 'bar.undo', 'bar.redo', 'bar.pointerSelect', 'bar.pointerHand', 'bar.pagePrev', 'bar.pageNext',
-  'bar.zoomOut', 'bar.zoomIn', 'bar.fitWidth', 'bar.fitPage', 'bar.facing', 'bar.find', 'bar.print', 'bar.help',
+  'bar.zoomOut', 'bar.zoomIn', 'bar.fitWidth', 'bar.fitPage', 'bar.facing', 'bar.find', 'bar.print', 'bar.settings', 'bar.help',
   'mode.view', 'mode.pages', 'mode.annot', 'mode.tools', 'tab.add', 'tab.close', 'tab.dirty', 'side.collapse', 'side.expand',
   'find.case', 'find.prev', 'find.next', 'find.close', 'status.file', 'dialog.close', 'zoom.close', 'zoom.prev', 'zoom.next',
   'edit.select', 'edit.hand', 'edit.highlight', 'edit.underline', 'edit.strikeout', 'edit.text', 'edit.callout',
@@ -34,9 +34,10 @@ const EXPECTED_KEYS = [
   'thumb.rotateLeft', 'thumb.rotateRight', 'thumb.delete',
 ];
 
-test('文の表の鍵が、計画の表の 84 個と過不足なく一致する（組み込みの text を除く）', () => {
+// 歯車のボタン（bar.settings）は spec-6-1 タスク E で足した。
+test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と過不足なく一致する（組み込みの text を除く）', () => {
   assert.deepEqual([...tableKeys()].sort(), [...EXPECTED_KEYS].sort());
-  assert.equal(EXPECTED_KEYS.length, 84);
+  assert.equal(EXPECTED_KEYS.length, 85);
 });
 test('どの鍵にも名前と説明があり、説明は「。」で終わる 100 字以内の文', () => {
   for (const key of tableKeys()) {

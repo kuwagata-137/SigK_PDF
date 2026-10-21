@@ -27,7 +27,7 @@ function joined(id) {
 }
 
 const KEY_NAMES = new Set(['Ctrl', 'Shift', 'Esc', 'Enter', 'Delete', 'Backspace', 'Tab', 'PageUp', 'PageDown', 'Home', 'End',
-  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'W', 'Y', 'Z', '0', '+', '-', 'Space', '←', '→', '↑', '↓']);
+  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'W', 'Y', 'Z', '0', '+', '-', ',', 'Space', '←', '→', '↑', '↓']);
 
 test('目次は 5 つのグループと 14 の節で、グループの順に並ぶ', () => {
   assert.equal(content.TITLE, 'SigK PDF の使い方');
@@ -172,8 +172,11 @@ test('Esc の例は、持っている道具と選んでいる書き込みを書�
 test('既定のアプリの入口を、メニューと同じ名前で案内する（spec-5-2 確定事項C3）', () => {
   const mainJs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
   assert.match(mainJs, /label: '既定のアプリの設定…'/);
-  assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」で Windows の設定を開き、SigK PDF を選びます/);
-  assert.match(joined('basics'), /「プログラムから開く」から選ぶこともできます/);
+  assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」か、設定の窓の［Windows の設定を開く］で Windows の設定を開き、SigK PDF を選びます/);
+  // 一覧の SigK PDF を押すだけでは 1 回しか開かないので、ガイドと同じ手順で案内する（spec-6-1 タスク E の E9。docs/07 の積み残し）。
+  assert.match(joined('basics'), /「プログラムから開く」→「別のプログラムを選択」を押し、SigK PDF を選んで［常に使う］を押しても、既定にできます/);
+  // 設定の窓の開き方（spec-6-1 確定事項E-1）。
+  assert.match(joined('basics'), /メニュー「ファイル」→「設定…」か \[Ctrl\]\+\[,\]、ツールバーの右の端の歯車のボタンで、設定の窓を開きます/);
 });
 
 test('うまく動かないときの記録の入口を、メニューと同じ名前で案内する（spec-6-1 タスク B。決定81 ⑧）', () => {

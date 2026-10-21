@@ -40,10 +40,11 @@ const marked = (shell) => [...dialog(shell).querySelectorAll('.help-item[aria-cu
 
 // ---- 部品（確定事項A1・B1・E） ----
 
-test('ツールバーの右端（印刷の右）に「？」のボタンがあり、文書が無くても押せる', async (t) => {
+test('ツールバーの右端（歯車の右。spec-6-1 確定事項E-1）に「？」のボタンがあり、文書が無くても押せる', async (t) => {
   const shell = await withShell(t, { open: false });
   const button = shell.document.getElementById('btn-help');
-  assert.equal(button.previousElementSibling.id, 'btn-print');
+  assert.equal(button.previousElementSibling.id, 'btn-settings');
+  assert.equal(button.previousElementSibling.previousElementSibling.id, 'btn-print');
   assert.equal(button.nextElementSibling, null);
   assert.equal(button.className, 'tb-btn icon');
   assert.equal(button.dataset.tip, 'bar.help');
