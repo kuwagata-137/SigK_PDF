@@ -325,7 +325,7 @@ THE SOFTWARE.
 - ライセンス: MIT
 - 配布元: https://github.com/Hopding/standard-fonts
 
-`vendor/pdf-lib.min.js` に取り込まれている。
+`vendor/pdf-lib.min.js` に取り込まれている。中の標準の 14 書体の寸法の資料は Adobe の書体の寸法の資料（AFM）から作られていて、資料の中に Adobe の著作権表示（例「Copyright (c) 1985, 1987, 1989, 1990, 1997 Adobe Systems Incorporated.  All Rights Reserved.」）がそのまま残っている（PR-6b の点検で確かめた）。
 
 ```
 MIT License

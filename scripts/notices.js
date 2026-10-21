@@ -49,7 +49,9 @@ const BUNDLED = [
   {
     pkg: '@pdf-lib/standard-fonts',
     license: 'node_modules/@pdf-lib/standard-fonts/LICENSE.md',
-    note: '`vendor/pdf-lib.min.js` に取り込まれている。',
+    note: '`vendor/pdf-lib.min.js` に取り込まれている。中の標準の 14 書体の寸法の資料は Adobe の書体の寸法の資料（AFM）から作られていて、'
+      + '資料の中に Adobe の著作権表示（例「Copyright (c) 1985, 1987, 1989, 1990, 1997 Adobe Systems Incorporated.  All Rights Reserved.」）が'
+      + 'そのまま残っている（PR-6b の点検で確かめた）。',
   },
   {
     pkg: '@pdf-lib/upng',
