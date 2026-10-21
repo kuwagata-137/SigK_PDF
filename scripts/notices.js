@@ -23,7 +23,7 @@ const BUNDLED = [
     license: 'node_modules/pdfjs-dist/LICENSE',
     note: 'PDF の描画に用いる。`vendor/pdf.mjs`・`vendor/pdf.worker.mjs`・`vendor/cmaps/`・'
       + '`vendor/standard_fonts/`・`vendor/wasm/`・`vendor/iccs/` として同梱する。'
-      + 'このうち `vendor/wasm/` と `vendor/iccs/` は出自の異なるコードを含むため、次節に個別に掲げる。',
+      + 'このうち `vendor/wasm/`・`vendor/iccs/`・`vendor/cmaps/`・`vendor/standard_fonts/` は出自の異なるものを含むため、次節に個別に掲げる。',
   },
   {
     pkg: 'pdf-lib',
@@ -42,7 +42,7 @@ const BUNDLED = [
   {
     pkg: 'pako',
     license: 'node_modules/pako/LICENSE',
-    note: '`vendor/pdf-lib.min.js` に取り込まれている。',
+    note: '`vendor/pdf-lib.min.js` と `vendor/fontkit.umd.min.js` に取り込まれている。',
   },
   {
     pkg: '@pdf-lib/standard-fonts',
@@ -54,8 +54,8 @@ const BUNDLED = [
     license: 'node_modules/@pdf-lib/upng/LICENSE',
     note: '`vendor/pdf-lib.min.js` に取り込まれている。',
   },
-  // tslib は、ここには載せない。pdf-lib.min.js に入っているのは node_modules の tslib（0BSD）ではなく、pdf-lib を作ったときの
-  // TypeScript の補助のコードで、Microsoft の Apache-2.0 の見出しが付いている。次節の構成部品に掲げる（PR-6b の G1 で見つけた）。
+  // tslib は、ここには載せない。pdf-lib.min.js に入っているのは node_modules の tslib（今の版は 0BSD）ではなく、pdf-lib を作ったときの
+  // TypeScript の補助のコード（tslib の古い版。Apache-2.0 だった頃の見出しが付いている）。次節の構成部品に掲げる（PR-6b の G1 で見つけた）。
   {
     pkg: 'utif',
     license: 'node_modules/utif/LICENSE',
@@ -100,6 +100,19 @@ const BUNDLED_COMPONENTS = [
     files: ['node_modules/pdfjs-dist/iccs/LICENSE'],
   },
   {
+    name: 'CMap（文字の対応表）',
+    license: 'BSD-3-Clause',
+    note: '日本語などの PDF の文字コードを文字に移すときに用いる。`vendor/cmaps/` として同梱する（PR-6b の点検で載せ漏れに気づいた）。',
+    files: ['node_modules/pdfjs-dist/cmaps/LICENSE'],
+  },
+  {
+    name: 'Foxit の標準の書体（PDFium）',
+    license: 'BSD-3-Clause',
+    note: 'PDF に埋め込まれていない標準の書体（Times・Courier・Symbol・Dingbats など）の文字を描くときに用いる。'
+      + '`vendor/standard_fonts/Foxit*.pfb` として同梱する（PR-6b の点検で載せ漏れに気づいた）。',
+    files: ['node_modules/pdfjs-dist/standard_fonts/LICENSE_FOXIT'],
+  },
+  {
     name: 'JPEG デコーダー（utif 内蔵・pdf.js 由来）',
     license: 'Apache-2.0',
     note: '`vendor/utif.js` の冒頭に取り込まれている JPEG デコーダーは pdf.js のものを圧縮した'
@@ -111,16 +124,17 @@ const BUNDLED_COMPONENTS = [
     name: 'TypeScript の補助のコード（tslib。pdf-lib に取り込まれている）',
     license: 'Apache-2.0',
     note: '`vendor/pdf-lib.min.js`（pdf-lib の `dist/pdf-lib.min.js`）の先頭に、Microsoft の著作権表示と Apache-2.0 の見出しが付いた'
-      + ' TypeScript の補助のコード（`__extends`・`__awaiter` など）が取り込まれている。node_modules の `tslib`（0BSD）とは別物なので、'
+      + ' TypeScript の補助のコード（`__extends`・`__awaiter` など。tslib の古い版で、Apache-2.0 だった頃のもの）が取り込まれている。今の `tslib`（0BSD）とはライセンスが違うので、'
       + '同梱しているファイルの見出しをそのまま掲げ、続けて Apache-2.0 の全文を掲げる。',
     notices: ['node_modules/pdf-lib/dist/pdf-lib.min.js'],
     files: ['node_modules/pdfjs-dist/LICENSE'],
   },
 ];
 
-// ファイルの先頭の「/*! … */」の見出し（縮めても残すと決められた著作権表示）を取り出す。見出しが無ければ止める（黙って落とさない）。
+// ファイルの先頭（4KB まで）の「/*! … */」の見出し（縮めても残すと決められた著作権表示）を取り出す。見出しが無ければ止める（黙って落とさない）。
+const NOTICE_HEAD_BYTES = 4096;
 function leadingNotice(file) {
-  const found = /\/\*![\s\S]*?\*\//.exec(fs.readFileSync(path.join(ROOT, file), 'utf8'));
+  const found = /\/\*![\s\S]*?\*\//.exec(fs.readFileSync(path.join(ROOT, file), 'utf8').slice(0, NOTICE_HEAD_BYTES));
   if (found === null)
     throw new Error(`${file} の先頭に /*! … */ の見出しがありません`);
   return found[0];
@@ -329,7 +343,7 @@ ${copyleft.length === 0
 
 ## SigK PDF 自体のライセンス
 
-MIT License。全文は \`LICENSE\` を参照のこと。
+MIT License。全文は \`LICENSE\`（インストールしたフォルダでは \`LICENSE.txt\`）を参照のこと。
 `;
 
   fs.writeFileSync(OUTPUT, body, 'utf8');

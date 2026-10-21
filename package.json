@@ -87,8 +87,6 @@
       "renderer/**",
       "assets/**",
       "vendor/**",
-      "LICENSE",
-      "THIRD-PARTY-NOTICES.md",
       "package.json"
     ],
     "extraResources": [

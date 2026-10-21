@@ -45,7 +45,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - ライセンス: Apache-2.0
 - 配布元: https://mozilla.github.io/pdf.js/
 
-PDF の描画に用いる。`vendor/pdf.mjs`・`vendor/pdf.worker.mjs`・`vendor/cmaps/`・`vendor/standard_fonts/`・`vendor/wasm/`・`vendor/iccs/` として同梱する。このうち `vendor/wasm/` と `vendor/iccs/` は出自の異なるコードを含むため、次節に個別に掲げる。
+PDF の描画に用いる。`vendor/pdf.mjs`・`vendor/pdf.worker.mjs`・`vendor/cmaps/`・`vendor/standard_fonts/`・`vendor/wasm/`・`vendor/iccs/` として同梱する。このうち `vendor/wasm/`・`vendor/iccs/`・`vendor/cmaps/`・`vendor/standard_fonts/` は出自の異なるものを含むため、次節に個別に掲げる。
 
 ```
 
@@ -294,7 +294,7 @@ SOFTWARE.
 - ライセンス: (MIT AND Zlib)
 - 配布元: https://github.com/nodeca/pako
 
-`vendor/pdf-lib.min.js` に取り込まれている。
+`vendor/pdf-lib.min.js` と `vendor/fontkit.umd.min.js` に取り込まれている。
 
 ```
 (The MIT License)
@@ -920,6 +920,87 @@ For more information, please see
 http://creativecommons.org/publicdomain/zero/1.0/
 ```
 
+### CMap（文字の対応表）
+
+- ライセンス: BSD-3-Clause
+
+日本語などの PDF の文字コードを文字に移すときに用いる。`vendor/cmaps/` として同梱する（PR-6b の点検で載せ漏れに気づいた）。
+
+```
+%%Copyright: -----------------------------------------------------------
+%%Copyright: Copyright 1990-2009 Adobe Systems Incorporated.
+%%Copyright: All rights reserved.
+%%Copyright:
+%%Copyright: Redistribution and use in source and binary forms, with or
+%%Copyright: without modification, are permitted provided that the
+%%Copyright: following conditions are met:
+%%Copyright:
+%%Copyright: Redistributions of source code must retain the above
+%%Copyright: copyright notice, this list of conditions and the following
+%%Copyright: disclaimer.
+%%Copyright:
+%%Copyright: Redistributions in binary form must reproduce the above
+%%Copyright: copyright notice, this list of conditions and the following
+%%Copyright: disclaimer in the documentation and/or other materials
+%%Copyright: provided with the distribution. 
+%%Copyright:
+%%Copyright: Neither the name of Adobe Systems Incorporated nor the names
+%%Copyright: of its contributors may be used to endorse or promote
+%%Copyright: products derived from this software without specific prior
+%%Copyright: written permission. 
+%%Copyright:
+%%Copyright: THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+%%Copyright: CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+%%Copyright: INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+%%Copyright: MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+%%Copyright: DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+%%Copyright: CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+%%Copyright: SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+%%Copyright: NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+%%Copyright: LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+%%Copyright: HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+%%Copyright: CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+%%Copyright: OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+%%Copyright: SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+%%Copyright: -----------------------------------------------------------
+```
+
+### Foxit の標準の書体（PDFium）
+
+- ライセンス: BSD-3-Clause
+
+PDF に埋め込まれていない標準の書体（Times・Courier・Symbol・Dingbats など）の文字を描くときに用いる。`vendor/standard_fonts/Foxit*.pfb` として同梱する（PR-6b の点検で載せ漏れに気づいた）。
+
+```
+// Copyright 2014 PDFium Authors. All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//    * Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following disclaimer
+// in the documentation and/or other materials provided with the
+// distribution.
+//    * Neither the name of Google Inc. nor the names of its
+// contributors may be used to endorse or promote products derived from
+// this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
 ### JPEG デコーダー（utif 内蔵・pdf.js 由来）
 
 - ライセンス: Apache-2.0
@@ -1110,7 +1191,7 @@ http://creativecommons.org/publicdomain/zero/1.0/
 
 - ライセンス: Apache-2.0
 
-`vendor/pdf-lib.min.js`（pdf-lib の `dist/pdf-lib.min.js`）の先頭に、Microsoft の著作権表示と Apache-2.0 の見出しが付いた TypeScript の補助のコード（`__extends`・`__awaiter` など）が取り込まれている。node_modules の `tslib`（0BSD）とは別物なので、同梱しているファイルの見出しをそのまま掲げ、続けて Apache-2.0 の全文を掲げる。
+`vendor/pdf-lib.min.js`（pdf-lib の `dist/pdf-lib.min.js`）の先頭に、Microsoft の著作権表示と Apache-2.0 の見出しが付いた TypeScript の補助のコード（`__extends`・`__awaiter` など。tslib の古い版で、Apache-2.0 だった頃のもの）が取り込まれている。今の `tslib`（0BSD）とはライセンスが違うので、同梱しているファイルの見出しをそのまま掲げ、続けて Apache-2.0 の全文を掲げる。
 
 ```
 /*! *****************************************************************************
@@ -1464,4 +1545,4 @@ SOFTWARE.
 
 ## SigK PDF 自体のライセンス
 
-MIT License。全文は `LICENSE` を参照のこと。
+MIT License。全文は `LICENSE`（インストールしたフォルダでは `LICENSE.txt`）を参照のこと。

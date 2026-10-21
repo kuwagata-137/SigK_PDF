@@ -130,8 +130,9 @@ test('ワーカーが実行時に読む vendor・assets のファイルが配布
 
 // docs/06 4-4「ライセンス全文がリリース物に含まれている（インストール後のフォルダに THIRD-PARTY-NOTICES.md があること）」。
 // build.files に入れたものは resources/app.asar の中に入り、インストールしたフォルダからは見えない（PR-6b の G2 で見つけた）。
-// Electron の LICENSE.electron.txt・LICENSES.chromium.html と同じく、インストール先の直下にも置く（extraFiles）。
-test('第三者ソフトウェアの告知と SigK PDF 自体のライセンスを、インストール先のフォルダの直下にも置く', () => {
+// Electron の LICENSE.electron.txt・LICENSES.chromium.html と同じく、インストール先の直下に置く（extraFiles。electron-builder は
+// extraFiles に書いたファイルを app.asar から外すので、build.files には書かない）。
+test('第三者ソフトウェアの告知と SigK PDF 自体のライセンスを、インストール先のフォルダの直下に置く', () => {
   const extra = (pkg.build.extraFiles ?? []).map((entry) => (typeof entry === 'string' ? { from: entry, to: entry } : entry));
   const placed = (from) => extra.find((entry) => entry.from === from)?.to ?? null;
   assert.equal(placed('THIRD-PARTY-NOTICES.md'), 'THIRD-PARTY-NOTICES.md');
