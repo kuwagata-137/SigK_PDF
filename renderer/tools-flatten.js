@@ -129,6 +129,8 @@
   async function runConfirmed() {
     const src = source();
     const chosen = selection();
+    // 種類は保存の窓より前に控える（窓の前の待ちの間に帯が替わると、種類が覚えた種類に戻るため。ブランチ全体の点検の直し I-1 の続き）。
+    const kinds = picks.current().kinds;
     const output = await root.SigK.rewriteOutput.chooseTarget({ sourcePath: src.path, defaultPath: defaultTarget(src.path), title: SAVE_TITLE });
     if (output.target === undefined)
       return output;
@@ -136,7 +138,7 @@
     if (!agreed)
       return { canceled: true };
     // ワーカーも読む前に、タブで開いたときの印を照らす（保存ダイアログと確認の窓の間の書き換え。spec-6-1 確定事項C-9）。
-    const spec = { kind: 'flatten', label: RUN_LABEL, source: src.path, target: output.target, kinds: picks.current().kinds, expectSource: root.SigK.runGuard.expectOf(src.tabId) };
+    const spec = { kind: 'flatten', label: RUN_LABEL, source: src.path, target: output.target, kinds, expectSource: root.SigK.runGuard.expectOf(src.tabId) };
     if (chosen.pages !== null)
       spec.pages = chosen.pages;
     const result = await root.SigK.save.runTask(spec);
