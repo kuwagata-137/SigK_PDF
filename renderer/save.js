@@ -220,8 +220,8 @@
   // 保存でワーカーへ渡す形（docs/02 2-3）。差し込みの控えも一緒に渡す
   // （確定事項65。plan の { insert } がこの配列の番号を指す）。注釈は
   // 「ファイルとの差分」{ add, remove } で渡す（spec-4-1 確定事項22）。モザイクのページの画像と、前の控えを消すかも渡す
-  // （spec-4b-6b 確定事項20・23。mosaic-save.js）。モザイクがあれば、開いたときの元のファイルの印（expectSource）も渡し、ワーカーが
-  // 読む前に照合する（画像は開いたときの文書から描いたので、外で書き換わったファイルには当てない。コードの点検で足した）。
+  // （spec-4b-6b 確定事項20・23。mosaic-save.js）。パスのある文書は開いたときの元のファイルの印（expectSource）も渡し、ワーカーが
+  // 読む前に照らす（spec-6-1 確定事項C-2。書き換えられていたら opened-source.js が開いたときの中身でやり直す）。
   function saveSpec({ source, target, makeBackup, expect, mosaics = [], dropBackup = false }) {
     return {
       kind: 'save',
@@ -238,7 +238,7 @@
       expect,
       mosaics,
       dropBackup,
-      expectSource: mosaics.length > 0 && typeof source === 'string' ? signatureOf(viewer().getState().file) : null,
+      expectSource: typeof source === 'string' ? signatureOf(viewer().getState().file) : null,
     };
   }
 
@@ -256,23 +256,21 @@
     return null;
   }
 
-  // 保存の1往復。外部で書き換えられていたら聞き直す（確定事項21）。
+  // 保存の1往復。ほかのアプリで書き換えられていたら、開いたときの中身で書き直す（spec-6-1 タスク C。opened-source.js）。
   async function writeTo({ source, target, makeBackup, name, label = '保存', mosaics = [], dropBackup = false }) {
     const file = viewer().getState().file;
     // 保存するタブと中身は、ここで控える（聞き直しの窓の間に別のタブへ移っても、同じものを書いて、同じタブを開き直す。点検の直し）。
     const tabId = activeTab()?.id ?? null;
-    const spec = saveSpec({ source, target, makeBackup, expect: signatureOf(file), mosaics, dropBackup });
-    let result = await runTask({ ...spec, label });
-
-    if (result?.changed === true) {
-      const ok = await root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
-      if (!ok) {
-        // 自分で「やめる」を選んだので赤く塗らない（決定49）。
-        banner().show('保存を取りやめました。', { tone: 'info' });
-        return { canceled: true };
-      }
-      // 了承されたので、照合を外してもう一度回す。
-      result = await runTask({ ...spec, expect: null, label });
+    // 行き先の照合は元のファイルへ書くときだけ（確定事項21。spec-6-1 確定事項C-1。別のファイルは OS の保存の窓が置き換えを聞いている）。
+    // 元へ書くときは、ほかのアプリの書き換えが消えるので、開いたときの中身で書き直す前に聞く（C-4）。
+    const self = typeof source === 'string' && pathKey(source) === pathKey(target);
+    const spec = saveSpec({ source, target, makeBackup, expect: self ? signatureOf(file) : null, mosaics, dropBackup });
+    const ask = async () => !self || root.SigK.confirmOverwrite.ask({ name: file?.name ?? null });
+    const result = await root.SigK.openedSource.run({ ...spec, label }, { ask });
+    if (result?.declined === true) {
+      // 自分で「やめる」を選んだので赤く塗らない（決定49）。
+      banner().show('保存を取りやめました。', { tone: 'info' });
+      return { canceled: true };
     }
 
     if (result?.canceled === true) {
@@ -343,8 +341,9 @@
     return writeTo({
       source: view.file.path,
       target: view.file.path,
-      // 上書きのときだけ .bak を作る（確定事項18・20）。モザイクを含むときは作らず、前の控えも消す（決定64 ⑧）。
-      makeBackup: !mosaicked,
+      // 上書きのときだけ .bak を作る（確定事項18・20）。モザイクを含むときは作らず、前の控えも消す（決定64 ⑧）。設定の窓で「控えの
+      // ファイルを作る」を外していたら作らない（前からある控えは消さない。spec-6-1 確定事項E-9）。
+      makeBackup: !mosaicked && root.SigK.preferences?.current().makeBackup !== false,
       dropBackup: mosaicked,
       mosaics: mosaic.mosaics,
       name: view.file.name,
@@ -376,7 +375,15 @@
     if (blocked !== null)
       return { error: blocked };
 
-    const picked = await root.pdfAPI.pickSavePath({ defaultPath: defaultPathFor(view.file) });
+    // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
+    const defaultPath = defaultPathFor(view.file);
+    const initialPath = await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath;
+    // 聞き直しの返事を待つ間（窓を出さない待ち）にタブが替わっていたら、別のタブの中身を書かずに取りやめる（ブランチ全体の点検の直し I-1）。
+    if (viewer().getState().file !== view.file) {
+      banner().show('保存の窓を出す前にタブが替わったので、名前を付けて保存を取りやめました。もう一度押してください。', { tone: 'warn' });
+      return { changed: true };
+    }
+    const picked = await root.pdfAPI.pickSavePath({ defaultPath: initialPath });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
@@ -439,5 +446,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, runTask, runLocal, saveActive, saveAsActive, signatureOf, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
+  SigK.save = { init, isBusy, holding, runTask, runLocal, saveActive, saveAsActive, signatureOf, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
 })(typeof window !== 'undefined' ? window : globalThis);

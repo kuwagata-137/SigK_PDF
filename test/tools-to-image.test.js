@@ -80,7 +80,7 @@ test('帯が無ければ対象は無く、状態の文を出して実行は押�
   assert.equal(doc.getElementById('toimage-use-open'), null, '［開いているタブから選ぶ］は無い（確定事項E6）');
 });
 
-test('選んでいる帯が対象になり、ページ数・寸法・フォルダー・出力の例が埋まる。文書は読み直さない', async (t) => {
+test('選んでいる帯が対象になり、ページ数・寸法・フォルダ・出力の例が埋まる。文書は読み直さない', async (t) => {
   const shell = await createToImageShell(t);
   const { document: doc, SigK } = shell;
   await openTab(shell, A);
@@ -134,7 +134,7 @@ test('PDF→画像を選んでいるときに PDF を 2 つ落とすと、帯が
   assert.equal(bannerText(shell), '');
 });
 
-test('対象を替えてもページ・形式・解像度・フォルダーの設定は残る', async (t) => {
+test('対象を替えてもページ・形式・解像度・フォルダの設定は残る', async (t) => {
   const shell = await createToImageShell(t, { folderResults: [{ path: OUT_DIR }] });
   const { SigK } = shell;
   await openTab(shell, A);
@@ -304,7 +304,7 @@ test('同名の 3 択を出している間も実行中と数え、中止すれ�
   assert.equal(SigK.toolsToImage.canRun(), true);
 });
 
-test('同名があれば3択を1回だけ出す。上書きは全件、中止は何もしない、別名はフォルダーを選び直す', async (t) => {
+test('同名があれば3択を1回だけ出す。上書きは全件、中止は何もしない、別名はフォルダを選び直す', async (t) => {
   const shell = await createToImageShell(t, {
     existingPaths: [A_TARGETS[0], A_TARGETS[2]],
     folderResults: [{ path: OUT_DIR }],
@@ -328,7 +328,7 @@ test('同名があれば3択を1回だけ出す。上書きは全件、中止は
   assert.deepEqual(plain(await pending), { canceled: true });
   assert.equal(shell.imageWrites.length, 3);
 
-  // 別名で保存はフォルダーを選び直し、そこに同名が無ければ進む。
+  // 別名で保存はフォルダを選び直し、そこに同名が無ければ進む。
   pending = SigK.toolsToImage.run();
   await shell.flush();
   doc.getElementById('confirm-replace-rename').click();

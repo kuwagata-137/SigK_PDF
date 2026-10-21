@@ -24,7 +24,8 @@
         return null;
       root.SigK.shell.setStatus(doc, { version: `${info.name} ${info.version}` });
       return info;
-    } catch {
+    } catch (error) {
+      root.SigK.log?.warn('app', 'アプリの版を読めませんでした', error);
       return null;
     }
   }
@@ -73,7 +74,8 @@
       root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);
       root.SigK.annotateNote?.applyAuthor(result.ui.annotAuthor);
       return result.ui;
-    } catch {
+    } catch (error) {
+      root.SigK.log?.warn('app', '前回の画面の設定を読めませんでした', error);
       return null;
     }
   }
@@ -140,6 +142,8 @@
     root.SigK.confirmMosaic.init(doc, win);
     root.SigK.toolsFlatten.init(doc, win);
     root.SigK.toolsFlattenView.init(doc, win);
+    // ツールで選んだ値と最後のツールを覚える（spec-6-1 タスク E）。設定を読めてから当てる（待たない）。
+    root.SigK.toolMemory?.init(doc, win);
     // パスワードの入力は viewer.open() の途中から呼ばれる。先に用意しておく。
     root.SigK.passwordPrompt.init(doc, win);
     // 保存は、未保存の確認（3択の「保存」）からも呼ばれる。確認より先に用意する。
@@ -178,6 +182,9 @@
     root.SigK.viewPan.init(doc, win);
     // タブは開く経路の入口であり、ドロップ・履歴・ツールバーの結線より先に要る。
     root.SigK.docInfo.init(doc, win);
+    // 設定の窓の値の写しを読み、窓を結ぶ（spec-6-1 タスク E）。写しは待たない（読めるまでは既定で動く）。
+    root.SigK.preferences?.init(doc, win);
+    root.SigK.settingsDialog?.init(doc, win);
     root.SigK.helpDialog.init(doc, win);
     root.SigK.tabs.init(doc, win);
     root.SigK.recentPanel.init(doc, win);

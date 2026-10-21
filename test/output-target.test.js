@@ -46,7 +46,7 @@ test('1 本の出力先: source を渡すと元のファイルそのものも断
   assert.equal(SAME_AS_SOURCE, '出力先に元のファイルと同じファイルは選べません。');
 });
 
-test('フォルダーへの出力: 開いている最初の 1 本を名指しして断る', async (t) => {
+test('フォルダへの出力: 開いている最初の 1 本を名指しして断る', async (t) => {
   const { SigK } = await withTabs(t);
   const { refusalForFolder } = SigK.outputTarget;
 

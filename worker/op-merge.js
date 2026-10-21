@@ -20,6 +20,7 @@
 const { readLabels, writeLabels } = require('./op-page-labels.js');
 const { cleanInsertedPage } = require('./op-insert.js');
 
+const { failure } = require('./task-failure.js');
 // 選んだページ番号（0 始まり）がその文書に収まっているか。null は全ページ。
 function resolvePages(pages, pageCount) {
   if (pages === null || pages === undefined)
@@ -55,7 +56,7 @@ async function mergeDocuments(entries, tools, { describeLoadFailure = () => '読
     try {
       source = await entry.load();
     } catch (error) {
-      return { error: withName(entry.name, describeLoadFailure(error)) };
+      return failure(withName(entry.name, describeLoadFailure(error)), error);
     }
 
     const selected = resolvePages(entry.pages, source.getPageCount());

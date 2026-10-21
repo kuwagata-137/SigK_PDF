@@ -15,6 +15,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const { JSDOM } = require('jsdom');
+const { mergePreferences, applyPreferencesPatch } = require('../preferences.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const INDEX_PATH = path.join(ROOT, 'index.html');
@@ -224,7 +225,9 @@ function createPdfjsStub({
 
   // pdf.js 6 の PDFDocumentProxy には destroy() が無い（spec-3-3 事前調査 B）。畳むのは
   // loadingTask.destroy() で、本物と同じく document.loadingTask から辿れるようにしておく。
-  function createDocument(task) {
+  function createDocument(task, data) {
+    // 本物の getData() は、開いたときに渡したバイト列をそのまま返す（spec-6-1 タスク C）。渡された値はここで写しておく。
+    const opened = data instanceof Uint8Array || ArrayBuffer.isView(data) ? Uint8Array.from(data) : new Uint8Array();
     const document = {
       id: documents.length,
       numPages: sizes.length,
@@ -233,6 +236,11 @@ function createPdfjsStub({
       annotationStorage: createAnnotationStorage(),
       async getMetadata() {
         return { info, metadata: null };
+      },
+      async getData() {
+        if (document.destroyed)
+          throw new Error('文書は畳まれています');
+        return Uint8Array.from(opened);
       },
       async getPage(number) {
         const size = sizes[number - 1];
@@ -304,7 +312,7 @@ function createPdfjsStub({
     get document() {
       return documents.at(-1) ?? null;
     },
-    getDocument: () => {
+    getDocument: ({ data } = {}) => {
       // 本物の getDocument() は loadingTask を返す。onPassword は**戻ってきた
       // あとで**代入されるので、聞くのは1ティック後にする（確定事項66）。
       const task = { onPassword: null, destroyed: false };
@@ -320,7 +328,7 @@ function createPdfjsStub({
         return task;
       }
       if (password === null) {
-        task.promise = Promise.resolve(createDocument(task));
+        task.promise = Promise.resolve(createDocument(task, data));
         return task;
       }
 
@@ -343,7 +351,7 @@ function createPdfjsStub({
             }
             passwordAttempts.push(value);
             if (value === password)
-              resolve(createDocument(task));
+              resolve(createDocument(task, data));
             else
               askAgain();
           }, passwordAttempts.length === 0 ? 1 : 2);
@@ -435,6 +443,11 @@ async function createShell({
   boxesResults = [],
   // pdfAPI.pickSavePath() が返すものの並び。
   savePathResults = [],
+  // 設定の窓の値（spec-6-1 タスク E）と、今あるフォルダ（最後に書き出したフォルダ・決めたフォルダのうち、ここにあるものだけが使える）。
+  preferences = {},
+  existingFolders = [],
+  // true なら、preferencesAPI.get の返事を releasePreferences() まで止めておく（起動してすぐ、設定を読み終える前の場面）。
+  holdPreferences = false,
   // pdfAPI.pickInsertSource() が返すものの並び（spec-1-6 確定事項53）。
   insertSourceResults = [],
   // pdfAPI.pickMergeSources() が返すものの並びと、pdfAPI.exists() が「ある」と
@@ -477,6 +490,18 @@ async function createShell({
   const helpRequestHandlers = [];
   const recentCalls = [];
   const uiCalls = [];
+  const preferencesCalls = [];
+  const preferencesChangedHandlers = [];
+  const settingsRequestHandlers = [];
+  const defaultAppsCalls = [];
+  let savedPreferences = mergePreferences(preferences);
+  let releasePreferences = () => {};
+  const preferencesGate = holdPreferences ? new Promise((resolve) => { releasePreferences = resolve; }) : null;
+  const preferencesSnapshot = () => {
+    const folder = savedPreferences.outputFolder;
+    const exists = (value) => (value !== null && existingFolders.includes(value) ? value : null);
+    return { ok: true, preferences: structuredClone(savedPreferences), available: { last: exists(folder.last), fixed: exists(folder.fixed) } };
+  };
   const printCalls = [];
   const closeRequestHandlers = [];
   // メインへ知らせた未保存のタブ数と、確認の答え（spec-1-5 確定事項56）。
@@ -570,7 +595,7 @@ async function createShell({
         const file = files[filePath];
         return file?.ok === true ? { ok: true, size: file.size, mtimeMs: file.mtimeMs } : { error: 'ファイルが見つかりません。' };
       },
-      // 出力フォルダーの選択（spec-2-2 確定事項14）。
+      // 出力フォルダの選択（spec-2-2 確定事項14）。
       pickFolder: async (options) => {
         folderCalls.push(structuredClone(options ?? {}));
         return folderResults.shift() ?? { canceled: true };
@@ -650,6 +675,26 @@ async function createShell({
         detailsCalls.push(structuredClone(spec ?? {}));
         const next = detailsResults.shift();
         return typeof next === 'function' ? next(spec) : (next ?? { ok: true, details: {} });
+      },
+    };
+    // 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。中身の確かめはメインと同じ preferences.js を使う。
+    window.preferencesAPI = {
+      available: true,
+      get: async () => {
+        if (preferencesGate !== null)
+          await preferencesGate;
+        return preferencesSnapshot();
+      },
+      set: async (patch) => {
+        preferencesCalls.push(structuredClone(patch ?? {}));
+        savedPreferences = applyPreferencesPatch(savedPreferences, patch);
+        return preferencesSnapshot();
+      },
+      onChanged: (callback) => preferencesChangedHandlers.push(callback),
+      onOpenRequest: (callback) => settingsRequestHandlers.push(callback),
+      openDefaultApps: async () => {
+        defaultAppsCalls.push(true);
+        return { ok: true };
       },
     };
     window.settingsAPI = {
@@ -773,6 +818,20 @@ async function createShell({
     recentList: () => recentList,
     // 覚えた見た目と、そこへ届いた patch の並び。
     uiCalls,
+    preferencesCalls,
+    defaultAppsCalls,
+    existingFolders,
+    savedPreferences: () => structuredClone(savedPreferences),
+    // holdPreferences で止めていた preferencesAPI.get の返事を出す。
+    releasePreferences: () => releasePreferences(),
+    // メインが「最後に書き出したフォルダ」を覚えたときなどの知らせ（preferences:changed）の代わり。
+    firePreferencesChanged: (patch = {}) => {
+      savedPreferences = applyPreferencesPatch(savedPreferences, patch);
+      const { ok: _ok, ...snapshot } = preferencesSnapshot();
+      preferencesChangedHandlers.forEach((handler) => handler(snapshot));
+    },
+    // メニュー「ファイル」→「設定…」の合図の代わり。
+    fireSettingsRequest: () => settingsRequestHandlers.forEach((handler) => handler()),
     // printAPI.print() に届いたオプションの並び。
     printCalls,
     // taskAPI.run() に届いた { taskId, spec } の並び（spec-1-6）。

@@ -27,7 +27,7 @@ function joined(id) {
 }
 
 const KEY_NAMES = new Set(['Ctrl', 'Shift', 'Esc', 'Enter', 'Delete', 'Backspace', 'Tab', 'PageUp', 'PageDown', 'Home', 'End',
-  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'W', 'Y', 'Z', '0', '+', '-', 'Space', '←', '→', '↑', '↓']);
+  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'W', 'Y', 'Z', '0', '+', '-', ',', 'Space', '←', '→', '↑', '↓']);
 
 test('目次は 5 つのグループと 14 の節で、グループの順に並ぶ', () => {
   assert.equal(content.TITLE, 'SigK PDF の使い方');
@@ -123,6 +123,8 @@ test('分割は「分割」の節で説明し、ツールのボタン名は画�
   for (const id of ['tools', 'split', 'escape'])
     assert.doesNotMatch(joined(id), /開いているタブから選ぶ/, id);
   assert.match(tools, /分割・PDF→画像・透かし・フラット化は、選んでいる帯（枠の色が付いた帯）の PDF に使います/);
+  // どのツールも、帯の PDF がほかのアプリで書き換えられていたら止める（決定81 ⑫。spec-6-1 確定事項C-9）。
+  assert.match(tools, /ほかのアプリで書き換えられていたら、［実行…］を押しても何も書き出さずに止めて知らせます/);
   assert.doesNotMatch(tools, /まとめて追加/);
   // 分割は選んでいる帯を ✂ の盤に広げ、切った位置は帯ごとに覚える（G1・G5）。書き換わっていたら止める（G11）。
   assert.match(split, /選んでいる帯が ✂ の盤/);
@@ -170,8 +172,20 @@ test('Esc の例は、持っている道具と選んでいる書き込みを書�
 test('既定のアプリの入口を、メニューと同じ名前で案内する（spec-5-2 確定事項C3）', () => {
   const mainJs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
   assert.match(mainJs, /label: '既定のアプリの設定…'/);
-  assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」で Windows の設定を開き、SigK PDF を選びます/);
-  assert.match(joined('basics'), /「プログラムから開く」から選ぶこともできます/);
+  assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」か、設定の窓の［Windows の設定を開く］で Windows の設定を開き、SigK PDF を選びます/);
+  // 一覧の SigK PDF を押すだけでは 1 回しか開かないので、ガイドと同じ手順で案内する（spec-6-1 タスク E の E9。docs/07 の積み残し）。
+  assert.match(joined('basics'), /「プログラムから開く」→「別のプログラムを選択」を押し、SigK PDF を選んで［常に使う］を押しても、既定にできます/);
+  // 設定の窓の開き方（spec-6-1 確定事項E-1）。
+  assert.match(joined('basics'), /メニュー「ファイル」→「設定…」か \[Ctrl\]\+\[,\]、ツールバーの右の端の歯車のボタンで、設定の窓を開きます/);
+});
+
+test('うまく動かないときの記録の入口を、メニューと同じ名前で案内する（spec-6-1 タスク B。決定81 ⑧）', () => {
+  const mainJs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
+  assert.match(mainJs, /label: 'エラーの記録のフォルダを開く'/);
+  const block = sectionOf('basics').blocks.find((b) => b.h === 'うまく動かないとき');
+  assert.notEqual(block, undefined, '「画面とモード」に「うまく動かないとき」が無い');
+  assert.match(block.items.join(' '), /メニュー「ヘルプ」→「エラーの記録のフォルダを開く」を押すと/);
+  assert.match(block.items.join(' '), /外へは送りません/);
 });
 
 // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K。2026-10-14）。閲覧の節に節を立て、マウスの表と Esc の順にも閲覧・ページ編集を書く。

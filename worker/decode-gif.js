@@ -8,6 +8,7 @@
 
 const path = require('node:path');
 
+const { failure } = require('./task-failure.js');
 const { GifReader } = require(path.join(__dirname, '..', 'vendor', 'omggif.js'));
 
 const BROKEN = '画像を読み込めませんでした。ファイルが壊れている可能性があります。';
@@ -18,7 +19,7 @@ function decodeGif(bytes) {
   try {
     reader = new GifReader(bytes);
   } catch (error) {
-    return { error: BROKEN };
+    return failure(BROKEN, error);
   }
   if (reader.numFrames() === 0)
     return { error: BROKEN };
@@ -30,7 +31,7 @@ function decodeGif(bytes) {
   try {
     reader.decodeAndBlitFrameRGBA(0, rgba);
   } catch (error) {
-    return { error: BROKEN };
+    return failure(BROKEN, error);
   }
   const rgb = new Uint8Array(width * height * 3);
   for (let from = 0, to = 0; from < rgba.length; from += 4, to += 3) {

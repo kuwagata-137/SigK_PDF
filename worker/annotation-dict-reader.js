@@ -21,6 +21,7 @@ const { blendOf } = require('./appearance-blend.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
 const { freeTextRotationOf } = require('./free-text-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
+const { errorDetail } = require('./task-failure.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
 // 回転を読む種類（spec-4b-2 確定事項34。FreeText は spec-4b-4b 確定事項H1。多角形の Polygon・PolyLine は spec-4b-5a 確定事項40）。
@@ -151,8 +152,9 @@ async function runAnnotationDetails(spec, { fsLike = fs } = {}) {
     const bytes = await fsLike.promises.readFile(request.source);
     const doc = await PDFDocument.load(bytes, { ...LOAD_OPTIONS, ignoreEncryption: true });
     return { ok: true, ...collectDetails(doc, request.refs) };
-  } catch {
-    return { ok: false, reason: 'unreadable' };
+  } catch (error) {
+    // 読めなかった理由は detail で添える（task-runner.js が記録してから外す。spec-6-1 タスク B の点検の直し）。
+    return { ok: false, reason: 'unreadable', detail: errorDetail(error) };
   }
 }
 

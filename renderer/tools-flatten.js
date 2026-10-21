@@ -17,7 +17,7 @@
   const choice = () => root.SigK.flattenChoice;
   const baseName = (filePath) => root.SigK.toolSource.baseName(filePath);
 
-  // owner は選び方の持ち主（帯）。帯を替えたら選び方を全部チェック・［すべて］に戻す（spec-2-5 確定事項E5-5）。
+  // owner は選び方の持ち主（帯）。帯を替えたら種類を覚えた種類（無ければ全部）・ページを［すべて］に戻す（spec-2-5 確定事項E5-5）。
   const state = { running: false, owner: null };
   const picks = root.SigK.flattenChoice.createChoices();
   const counts = root.SigK.flattenCensus.create({ onDone: () => view()?.render() });
@@ -28,12 +28,19 @@
 
   // ---- 対象 ----
 
+  // 帯が替わったときに戻す種類。設定の窓で「ツールで選んだ値を覚える」なら覚えた種類、外していれば全部（spec-6-1 確定事項E-7）。
+  function rememberedKinds() {
+    const values = root.SigK.preferences?.current();
+    const kinds = values?.rememberToolValues === true ? values.toolValues?.flatten?.kinds : undefined;
+    return Array.isArray(kinds) ? kinds : choice().KEYS;
+  }
+
   // 対象の帯が替わったか、同じ帯を保存して読み直した。帯が替わったときだけ選び方を戻し、どちらも数える相手を決め直す。
   function onTargetChanged(src) {
     const owner = src === null ? null : `${src.tabId}|${src.path}`;
     if (owner !== state.owner) {
       state.owner = owner;
-      picks.reset();
+      picks.reset(rememberedKinds());
     }
     counts.setTarget(src);
   }
@@ -97,9 +104,10 @@
     state.running = true;
     view()?.render();
     try {
-      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId]);
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（決定81 ⑫）。
+      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId], { verb: RUN_LABEL });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       // 上書き保存したら、ファイルの中身が変わっている。数え直しを待ってから確かめる（spec-2-5 確定事項F。PR-2 の起草者の判断）。
       if (guard.saved) {
         target.sync();
@@ -121,18 +129,22 @@
   async function runConfirmed() {
     const src = source();
     const chosen = selection();
+    // 種類は保存の窓より前に控える（窓の前の待ちの間に帯が替わると、種類が覚えた種類に戻るため。ブランチ全体の点検の直し I-1 の続き）。
+    const kinds = picks.current().kinds;
     const output = await root.SigK.rewriteOutput.chooseTarget({ sourcePath: src.path, defaultPath: defaultTarget(src.path), title: SAVE_TITLE });
     if (output.target === undefined)
       return output;
     const agreed = await root.SigK.confirmFlatten.ask({ count: chosen.tally.baked, name: baseName(output.target), notes: chosen.tally.notes });
     if (!agreed)
       return { canceled: true };
-    const spec = { kind: 'flatten', label: RUN_LABEL, source: src.path, target: output.target, kinds: picks.current().kinds };
+    // ワーカーも読む前に、タブで開いたときの印を照らす（保存ダイアログと確認の窓の間の書き換え。spec-6-1 確定事項C-9）。
+    const spec = { kind: 'flatten', label: RUN_LABEL, source: src.path, target: output.target, kinds, expectSource: root.SigK.runGuard.expectOf(src.tabId) };
     if (chosen.pages !== null)
       spec.pages = chosen.pages;
     const result = await root.SigK.save.runTask(spec);
     return root.SigK.rewriteOutput.finish(result, output.target, {
       canceled: 'フラット化を中止しました。',
+      changed: { name: src.name, verb: RUN_LABEL },
       failed: 'フラット化できませんでした。',
       done: `書き込み ${result?.baked ?? chosen.tally.baked} 件を焼き込みました`,
     });

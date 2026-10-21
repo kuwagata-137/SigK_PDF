@@ -117,7 +117,7 @@ test('TIFF は IFD が末尾にあるので全体を読み直し、ページ数�
   assert.equal(counts.whole, 1, 'BMP は先頭で足りる');
 });
 
-test('上限・無い・フォルダー・権限は読む前に断る', async () => {
+test('上限・無い・フォルダ・権限は読む前に断る', async () => {
   const big = { bytes: Buffer.alloc(8) };
   const { fsLike } = fsFor({ [IN_A]: big, 'C:/in/dir': { dir: true } });
   assert.match((await inspectImage(IN_A, { fsLike, maxBytes: 4 })).error, /0MB までに対応していますが、ファイルが大きすぎます/);
@@ -203,7 +203,7 @@ test('readWatermarkImage は PNG・JPEG 以外とプログレッシブの JPEG �
   assert.equal(WATERMARK_KIND_ERROR, 'PNG か JPEG の画像を選んでください。');
 });
 
-test('readWatermarkImage は無い・フォルダー・大きすぎるものを読む前に断る', async () => {
+test('readWatermarkImage は無い・フォルダ・大きすぎるものを読む前に断る', async () => {
   const { fsLike } = fsFor({ 'C:/in/dir': { dir: true }, [IN_A]: { bytes: makePng({ width: 4, height: 4 }) } });
   assert.match((await readWatermarkImage('C:/in/none.png', { fsLike })).error, /見つかりません/);
   assert.equal((await readWatermarkImage('C:/in/dir', { fsLike })).error, 'ファイルではありません。');

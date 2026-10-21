@@ -8,7 +8,10 @@
 
 const { detectFormat, isSupported, describeFormat, isProgressiveJpeg } = require('./image-format.js');
 const { frameCount } = require('./image-decode.js');
+const { readSignature, signaturesMatch } = require('../pdf-write.js');
+const { pdfLib } = require('./pdf-io.js');
 
+const { failure } = require('./task-failure.js');
 const NOT_FOUND = '差し込むページが見つからないので、もう一度やり直してください。';
 
 // 画像のページ数。複数ページを持つのは TIFF だけ（spec-3-2 確定事項24）。
@@ -16,6 +19,43 @@ function imageFrames(kind, bytes) {
   if (kind === 'png' || kind === 'jpeg')
     return 1;
   return frameCount(kind, bytes);
+}
+
+const UNREADABLE = '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。';
+const BROKEN_PAGE = '差し込む PDF に壊れたページがあるので、差し込めませんでした。';
+
+// ページの木の中の、pdf-lib が黙って飛ばすページ（壊れたページ）の見分け（spec-6-1 確定事項D-8。点検の直し I-1・I-2）。壊れていれば理由の文、
+// 無ければ null。そのまま差し込むと、ページが欠けたことに気づけない（決定81 ⑬ で、1 ページだけ壊れた PDF を開かないことにしたのと同じ考え）。
+// 葉（/Kids の無い辞書。ページ）を数えて pdf-lib のページ数と比べるので、辞書でない値・/Type の無い辞書など、pdf-lib が飛ばす形をどれも拾う。
+// 一度通った辞書にまた来たら（木が自分を指している）壊れているとみなす（pdf.js も循環で止める）。
+function brokenPageReason(doc) {
+  const { PDFArray, PDFDict, PDFName } = pdfLib;
+  const seen = new Set();
+  let leaves = 0;
+  const walk = (node, depth) => {
+    if (seen.has(node) || depth > 64)
+      return 'ページの木が自分を指しているか、深すぎる';
+    seen.add(node);
+    const kids = node.lookup(PDFName.of('Kids'));
+    if (kids === undefined) {
+      leaves += 1;
+      return null;
+    }
+    if (!(kids instanceof PDFArray))
+      return '/Kids が配列でない';
+    for (let index = 0; index < kids.size(); index += 1) {
+      const kid = kids.lookup(index);
+      const reason = kid instanceof PDFDict ? walk(kid, depth + 1) : `/Kids の ${index + 1} 番目が辞書でない`;
+      if (reason !== null)
+        return reason;
+    }
+    return null;
+  };
+  const reason = walk(doc.catalog.Pages(), 0);
+  if (reason !== null)
+    return reason;
+  const count = doc.getPageCount();
+  return count === leaves ? null : `ページの木の葉 ${leaves} 枚と、pdf-lib が数えたページ ${count} 枚が違う`;
 }
 
 // 読んだバイト列を、差し込める形（PDF なら pdf-lib の文書、画像ならフレームの数）にする。
@@ -27,11 +67,20 @@ async function loadBytes(bytes, PDFDocument) {
     return { error: 'この JPEG はプログレッシブ形式なので、挿入できません。' };
 
   if (kind === 'pdf') {
+    let doc;
     try {
-      return { ok: true, kind, doc: await PDFDocument.load(bytes, { updateMetadata: false }) };
+      doc = await PDFDocument.load(bytes, { updateMetadata: false });
     } catch (error) {
-      return { error: '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。' };
+      return failure(UNREADABLE, error);
     }
+    // 見出しだけの PDF などはカタログが無く、見分けの中で例外になる。読めないものとして断る（点検の直し M-3）。断った理由は記録に残す。
+    let reason;
+    try {
+      reason = brokenPageReason(doc);
+    } catch (error) {
+      return failure(UNREADABLE, error);
+    }
+    return reason === null ? { ok: true, kind, doc } : failure(BROKEN_PAGE, new Error(reason));
   }
   const frames = imageFrames(kind, bytes);
   return frames === 0
@@ -48,7 +97,7 @@ async function loadSource(path, cache, { readFile, PDFDocument }) {
   try {
     bytes = await readFile(path);
   } catch (error) {
-    cache.set(path, { error: '差し込むファイルを読めませんでした。' });
+    cache.set(path, failure('差し込むファイルを読めませんでした。', error));
     return cache.get(path);
   }
   cache.set(path, await loadBytes(bytes, PDFDocument));
@@ -71,4 +120,17 @@ async function loadInsertSource(spec, cache, { readFile, copies, PDFDocument }) 
   return loadSource(spec.path, cache, { readFile, PDFDocument });
 }
 
-module.exports = { NOT_FOUND, loadSource, loadInsertSource };
+// 並びにある差し込み（{ path }）の元のファイルが、差し込んだときから書き換えられているか（spec-6-1 確定事項C-8）。読む前に呼ぶ。差し込んだときの
+// 印（expect）を持たないもの・写し（{ copy }）・今の印を読めないもの（無くなったファイル。読みに行って断る）は照らさない。
+async function insertsChanged(plan, inserts, fsLike) {
+  for (const entry of Array.isArray(plan) ? plan : []) {
+    const spec = Number.isInteger(entry?.insert) ? inserts?.[entry.insert] : undefined;
+    if (typeof spec?.path !== 'string' || spec.expect === null || spec.expect === undefined)
+      continue;
+    if (!signaturesMatch(spec.expect, await readSignature(spec.path, { fsLike })))
+      return true;
+  }
+  return false;
+}
+
+module.exports = { NOT_FOUND, loadSource, loadInsertSource, insertsChanged };

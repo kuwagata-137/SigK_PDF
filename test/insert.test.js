@@ -160,10 +160,10 @@ test('1つの PDF から複数ページ差し込める', async (t) => {
 
   assert.deepEqual(plain(shell.SigK.viewer.getPlan()).slice(0, 2),
     [{ insert: 0, rotate: 0 }, { insert: 1, rotate: 0 }]);
-  // 控えは1ページに1つ。文書は共有する。
+  // 控えは1ページに1つ。文書は共有する。差し込んだときの元の印（expect）は、この下見の結果が持っていないので null（spec-6-1 確定事項C-8）。
   assert.deepEqual(plain(shell.SigK.viewer.getInserts()), [
-    { path: 'C:\\work\\b.pdf', page: 0, size: { width: 100, height: 200 } },
-    { path: 'C:\\work\\b.pdf', page: 1, size: { width: 100, height: 200 } },
+    { path: 'C:\\work\\b.pdf', page: 0, size: { width: 100, height: 200 }, expect: null },
+    { path: 'C:\\work\\b.pdf', page: 1, size: { width: 100, height: 200 }, expect: null },
   ]);
   assert.equal((await shell.SigK.viewer.getPage(2)).pageNumber, 2, '2枚目は同じ文書の2ページ目');
 });
@@ -220,7 +220,7 @@ test('保存では、控えも一緒にワーカーへ渡す', async (t) => {
   assert.equal(spec.kind, 'save');
   assert.deepEqual(spec.pages.at(-1), { insert: 0, rotate: 0 });
   // 紙の大きさは挿入した時点で決まっている（確定事項95）。
-  assert.deepEqual(spec.inserts, [{ path: PHOTO, page: 0, size: { width: 100, height: 200 } }]);
+  assert.deepEqual(spec.inserts, [{ path: PHOTO, page: 0, size: { width: 100, height: 200 }, expect: null }]);
 });
 
 test('差し込んだページを回しても、差し込んだ文書から引かれたまま保存へ渡る', async (t) => {

@@ -274,6 +274,14 @@
     }
   }
 
+  // タブが上限まで開いていたら断る（true）。ファイルを読む前・［開く］の窓を出す前に呼ぶ（spec-6-1 確定事項D-7。前は読んでから断っていた）。
+  function refuseCrowded() {
+    if (state.list.length < MAX_TABS)
+      return false;
+    messageFor(`${MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
+    return true;
+  }
+
   async function forgetRecent(filePath) {
     const api = root.recentAPI;
     if (!api || api.available !== true || typeof filePath !== 'string')
@@ -300,10 +308,8 @@
       return true;
     }
 
-    if (state.list.length >= MAX_TABS) {
-      messageFor(`${MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
+    if (refuseCrowded())
       return false;
-    }
 
     const previous = stash();
     let opened;
@@ -366,6 +372,8 @@
     const pending = key === null ? undefined : state.pending.get(key);
     if (pending !== undefined)
       return pending;
+    if (refuseCrowded())
+      return false;
     const job = readAndOpen(api, filePath, call);
     if (key === null)
       return job;
@@ -380,8 +388,10 @@
   async function readAndOpen(api, filePath, call) {
     const result = await api.read(filePath);
     if (result?.error !== undefined) {
-      // 消えた・動かされたファイルを履歴に残しても押すたびに失敗する（確定事項10）。
-      await forgetRecent(filePath);
+      // 消えた・動かされたファイルを履歴に残しても押すたびに失敗する（確定事項10）。ほかのプログラムが使っているだけ（EBUSY）なら、
+      // すぐ解けることが多いので残す（spec-6-1 確定事項D-7）。
+      if (result.code !== 'EBUSY')
+        await forgetRecent(filePath);
       messageFor(result.error);
       root.SigK.recentPanel?.refresh();
       return false;
@@ -395,6 +405,8 @@
       messageFor('ファイルを開く機能が使えません。');
       return false;
     }
+    if (refuseCrowded())
+      return false;
     const result = await api.open();
     if (result?.canceled === true) {
       if (call !== null)

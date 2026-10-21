@@ -56,8 +56,19 @@ test('readPdf は無いファイルで例外を投げず error を返す', async
   });
 
   assert.match(result.error, /見つかりません/);
+  assert.equal(result.code, 'ENOENT');
   assert.equal(logged.length, 1);
   assert.equal(logged[0].context.code, 'ENOENT');
+});
+
+// 画面が「使用中なら最近使ったファイルから消さない」を見分けるため、失敗の種類も返す（spec-6-1 確定事項D-7）。
+test('readPdf はほかのプログラムが使っているファイルで、使用中の文と code: EBUSY を返す', async () => {
+  const fsLike = { promises: {
+    stat: async () => ({ isFile: () => true, size: 10, mtimeMs: 1 }),
+    readFile: async () => { throw Object.assign(new Error('busy'), { code: 'EBUSY' }); },
+  } };
+  const result = await readPdf(THREE_PAGES, { fsLike });
+  assert.deepEqual(result, { error: 'ファイルが他のプログラムで使われています。', code: 'EBUSY' });
 });
 
 // 黙って数十秒固まるより、理由を出して断る（spec-1-1 確定事項14）。
@@ -68,14 +79,14 @@ test('readPdf は上限を超えるファイルを読まない', async () => {
   assert.equal(MAX_PDF_BYTES, 200 * 1024 * 1024);
 });
 
-test('readPdf はフォルダーを断る', async () => {
+test('readPdf はフォルダを断る', async () => {
   const dir = path.join(__dirname, 'fixtures');
-  // 拡張子だけ .pdf のフォルダーを作って確かめる。
+  // 拡張子だけ .pdf のフォルダを作って確かめる。
   const fake = path.join(dir, 'folder.pdf');
   fs.mkdirSync(fake, { recursive: true });
   try {
     const result = await readPdf(fake);
-    assert.ok(result.error, 'フォルダーを読んではいけない');
+    assert.ok(result.error, 'フォルダを読んではいけない');
   } finally {
     fs.rmSync(fake, { recursive: true, force: true });
   }

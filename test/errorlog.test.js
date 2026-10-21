@@ -20,6 +20,13 @@ test('formatEntry は ISO 8601 の時刻と既定の level を付ける', () => 
   assert.equal(entry.message, '失敗しました');
 });
 
+test('formatEntry は中身に時刻（ts。ためておいた分）があればそれを使い、読めない時刻なら今の時刻にする', () => {
+  const now = new Date('2026-10-20T09:00:00.000Z');
+  assert.equal(formatEntry({ message: 'x', ts: '2026-10-20T01:02:03.000Z' }, now).ts, '2026-10-20T01:02:03.000Z');
+  assert.equal(formatEntry({ message: 'x', ts: 'きのう' }, now).ts, '2026-10-20T09:00:00.000Z');
+  assert.equal(formatEntry({ message: 'x', ts: 42 }, now).ts, '2026-10-20T09:00:00.000Z');
+});
+
 test('formatEntry は知らない level を error に寄せる', () => {
   assert.equal(formatEntry({ level: 'warn', message: 'x' }).level, 'warn');
   assert.equal(formatEntry({ level: 'info', message: 'x' }).level, 'info');
@@ -54,6 +61,30 @@ test('formatEntry は関数を含む context でも落ちない', () => {
   const entry = formatEntry({ message: 'x', context: { cb: function handler() {} } });
 
   assert.equal(entry.context.cb, '[Function handler]');
+});
+
+test('formatEntry は出どころ（main・renderer・worker）と版を、level の次に残す（spec-6-1 タスク B）', () => {
+  const entry = formatEntry({ message: 'x', proc: 'worker', version: '1.0.0' }, new Date('2026-10-20T00:00:00.000Z'));
+
+  assert.deepEqual(Object.keys(entry), ['ts', 'level', 'proc', 'version', 'message']);
+  assert.equal(entry.proc, 'worker');
+  assert.equal(entry.version, '1.0.0');
+});
+
+test('formatEntry は知らない出どころと、文字列でない版を捨て、長すぎる版を切る', () => {
+  const entry = formatEntry({ message: 'x', proc: 'gpu', version: 42 });
+  assert.equal('proc' in entry, false);
+  assert.equal('version' in entry, false);
+  assert.equal(formatEntry({ message: 'x', version: '9'.repeat(100) }).version.length, 40);
+});
+
+test('formatEntry は大きすぎる context を、切った JSON の文字列に置き換える（message と同じ 4,000 字）', () => {
+  const entry = formatEntry({ message: 'x', context: { blob: 'あ'.repeat(9000) } });
+
+  assert.equal(entry.context.truncated, true);
+  assert.equal(entry.context.text.length, 4000);
+  assert.ok(entry.context.text.startsWith('{"blob":"あ'));
+  assert.deepEqual(formatEntry({ message: 'x', context: { small: 1 } }).context, { small: 1 }, '小さい context はそのまま');
 });
 
 test('append した行はすべて JSONL として読み戻せる', () => {

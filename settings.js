@@ -14,6 +14,7 @@ const {
   ANNOT_SHAPE_KINDS, ANNOT_AUTHOR_MAX,
   pickAnnotAuthor, pickAnnotSettings, mergeAnnotUi,
 } = require('./annotation-settings.js');
+const { PREFERENCE_DEFAULTS, mergePreferences } = require('./preferences.js');
 
 const DEFAULTS = {
   version: 1,
@@ -31,6 +32,8 @@ const DEFAULTS = {
   // annotation-settings.js が持つ。
   ...structuredClone(ANNOT_DEFAULTS),
   recent: [],
+  // 設定の窓の値（spec-6-1 タスク E）。中身の確かめは preferences.js が持つ。
+  preferences: structuredClone(PREFERENCE_DEFAULTS),
 };
 
 // ツールレールの4つのモード。renderer/shell.js の MODES と同じ並びであること。
@@ -92,6 +95,7 @@ function mergeDefaults(raw) {
     ...pickAnnotSettings(raw),
     // 履歴の正規化（重複排除・10件で打ち切り）は recent-documents.js が持つ。
     recent: normalizeList(raw.recent),
+    preferences: mergePreferences(raw.preferences),
   };
 }
 

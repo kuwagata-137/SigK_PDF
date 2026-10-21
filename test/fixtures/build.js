@@ -19,6 +19,7 @@ const { buildFormatImages } = require('./build-images.js');
 const { buildAnnotatedPdf, buildSigkAnnotatedPdf, buildStyledPdf } = require('./annotations.js');
 const { buildPageBoxesPdf } = require('./page-boxes.js');
 const { buildRotatedShapesPdf } = require('./rotated-shapes.js');
+const { ABNORMAL } = require('./abnormal.js');
 
 const OUTPUT_DIR = __dirname;
 
@@ -159,6 +160,8 @@ const HANDMADE = {
   'styled.pdf': () => buildStyledPdf(fs.readFileSync(fixturePath('three-pages.pdf'))),
   'page-boxes.pdf': () => buildPageBoxesPdf(),
   'rotated-shapes.pdf': () => buildRotatedShapesPdf(),
+  // 異常な PDF 6 種（空・見出しだけ・中身が PDF でない・所有者のパスワードだけ・AES-128・1 ページだけ壊れた。spec-6-1 タスク D）。abnormal.js に。
+  ...ABNORMAL,
 };
 
 async function build() {

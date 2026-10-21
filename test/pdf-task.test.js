@@ -20,7 +20,7 @@ function workspace() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigk-worker-'));
   return {
     dir,
-    // fixture を作業用フォルダーへ複製する。fixture そのものは書き換えない。
+    // fixture を作業用フォルダへ複製する。fixture そのものは書き換えない。
     copyIn: (name, as = name) => {
       const to = path.join(dir, as);
       fs.copyFileSync(fixturePath(name), to);

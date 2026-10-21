@@ -35,7 +35,8 @@
     const api = root.settingsAPI;
     if (!api || api.available !== true)
       return false;
-    api.setUi(patch)?.catch?.(() => {});
+    // 書けなかった中身はメイン（settings.js の save）が記録する。ここでは IPC そのものが失敗したときだけ記録する（spec-6-1 タスク B）。
+    api.setUi(patch)?.catch?.((error) => root.SigK.log?.warn('shell', '画面の設定を覚えられませんでした', error));
     return true;
   }
 

@@ -14,6 +14,8 @@
 
   // 通知バーの文言「画像にしています」「画像にするのを中止しました」の頭（確定事項17・20）。
   const LABEL = '画像に';
+  // 止めたときの文の動作の名前（「画像にするのを中止しました」と同じ言い方。決定81 ⑫）。
+  const VERB = '画像にするの';
 
   const state = {
     mode: 'all', range: '',
@@ -37,7 +39,7 @@
     return at < 0 ? '' : filePath.slice(0, at);
   }
 
-  // フォルダーの区切りに合わせてつなぐ（分割と同じ）。
+  // フォルダの区切りに合わせてつなぐ（分割と同じ）。
   function joinPath(folder, name) {
     const sep = folder.includes('/') && !folder.includes('\\') ? '/' : '\\';
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
@@ -52,10 +54,11 @@
   });
 
   const source = () => target.source();
-  // 出力フォルダーは、ユーザーが変えるまでは対象のフォルダー（確定事項15）。
+  // 出力フォルダは、ユーザーが変えるまでは対象のフォルダ（確定事項15）。
   function settings() {
     const src = source();
-    const folder = state.folderTouched || typeof src?.path !== 'string' ? state.folder : dirOf(src.path);
+    // 最初の値は、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5。決定81 ⑨）。
+    const folder = state.folderTouched || typeof src?.path !== 'string' ? state.folder : root.SigK.preferences?.initialFolder(dirOf(src.path)) ?? dirOf(src.path);
     return { mode: state.mode, range: state.range, format: state.format, dpi: state.dpi, folder };
   }
 
@@ -143,7 +146,7 @@
   }
 
   // 戻り値は { targets } / { canceled }。3択は1回だけ出し、「別名で保存」は
-  // フォルダーを選び直してもう一度確かめる（分割と同じ）。
+  // フォルダを選び直してもう一度確かめる（分割と同じ）。
   async function resolveTargets(targets) {
     const found = await countExisting(targets);
     if (found.length === 0)
@@ -162,11 +165,14 @@
 
   // ---- 実行（確定事項17〜24） ----
 
-  // 文書を読み直して開く（確定事項22）。映しているタブの文書は使わない。
-  async function openDocument(filePath) {
+  // 文書を読み直して開く（確定事項22）。映しているタブの文書は使わない。読み直した中身の印がタブで開いたときと違えば、描かずに
+  // { changed: true }（確かめのあと・フォルダの選び直しの間の書き換え。決定81 ⑫。spec-6-1 確定事項C-9）。
+  async function openDocument(filePath, expect) {
     const read = await root.pdfAPI.read(filePath);
     if (read?.error !== undefined)
       return { error: read.error };
+    if (expect !== null && (read.size !== expect.size || read.mtimeMs !== expect.mtimeMs))
+      return { changed: true };
     const task = root.SigK.pdfjs.getDocument({ data: read.bytes });
     task.onPassword = (update) => update(new Error('パスワード付きの PDF は扱えません'));
     try {
@@ -179,7 +185,9 @@
 
   // 1 ページずつ描いて書く。中止の旗は次のページの前で見る（確定事項20）。
   async function exportPages({ plan, targets, src, frame }) {
-    const opened = await openDocument(src.path);
+    const opened = await openDocument(src.path, root.SigK.runGuard.expectOf(src.tabId));
+    if (opened.changed === true)
+      return { error: root.SigK.runGuard.changedText(src.name, VERB), written: 0 };
     if (opened.error !== undefined)
       return { error: `「${src.name}」${opened.error}。`, written: 0 };
 
@@ -217,16 +225,17 @@
     }
   }
 
-  // 保存していない帯の確かめ・同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
+  // 保存していない帯の確かめ・同名の 3 択・フォルダの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '画像にできる状態ではありません。' };
     state.running = true;
     view()?.render();
     try {
-      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId]);
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（決定81 ⑫）。
+      const guard = await root.SigK.runGuard.confirmUnsaved([source().tabId], { verb: VERB });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       // 上書き保存したら、ファイルの中身（ページ数・寸法）が変わっている。計画を組み直して確かめる。
       const replanned = currentPlan();
       if (replanned.ready !== true) {

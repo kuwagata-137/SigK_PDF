@@ -148,20 +148,25 @@ test('名前を付けて保存で開いているファイル自身（区切り�
   assert.equal(scan(fs.readFileSync(file), ['SECRET-ONE'])['SECRET-ONE'], 0);
 });
 
-test('モザイクがあるとき、元のファイルが開いたときの印と違えば、保存も抽出も読む前に断る', async (t) => {
+// spec-6-1 タスク C で改めた（確定事項C-5）。前は断りの文で止めていた。今は何もせずに sourceChanged を返し、画面が開いたときの中身でやり直す。
+test('モザイクがあるとき、元のファイルが開いたときの印と違えば、保存も抽出も読む前に止めて知らせ、開いたときの中身なら作れる', async (t) => {
   const ws = workspace(t);
   const file = await seed(ws);
   const opened = await readSignature(file);
+  const openedBytes = new Uint8Array(fs.readFileSync(file));
   fs.appendFileSync(file, '\n% changed elsewhere\n');
   const before = fs.readFileSync(file);
   const pages = [{ src: 0, rotate: 0 }, { src: 1, rotate: 0 }];
   const saved = await runSave({ kind: 'save', source: file, target: file, pages, mosaics: [{ ...MOSAIC, bytes: pngBytes() }], dropBackup: true, expect: null, expectSource: opened });
-  assert.match(saved.error ?? '', /開いたあとで元のファイルが別のアプリで変更された/);
+  assert.deepEqual(saved, { sourceChanged: true });
   assert.deepEqual(fs.readFileSync(file), before);
   const target = ws.file('extract.pdf');
   const extracted = await runSave({ kind: 'extract', source: file, target, pages: [pages[0]], mosaics: [{ ...MOSAIC, bytes: pngBytes() }], expectSource: opened });
-  assert.match(extracted.error ?? '', /開いたあとで元のファイルが別のアプリで変更された/);
+  assert.deepEqual(extracted, { sourceChanged: true });
   assert.equal(fs.existsSync(target), false);
+  const redone = await runSave({ kind: 'extract', source: file, target, pages: [pages[0]], mosaics: [{ ...MOSAIC, bytes: pngBytes() }], sourceCopy: 'opened', copies: { opened: openedBytes } });
+  assert.equal(redone.ok, true, redone.error);
+  assert.equal(scan(fs.readFileSync(target), ['SECRET-ONE'])['SECRET-ONE'], 0, '開いたときの中身から作っても、モザイクの下の文字は残らない');
   const same = await runSave({ kind: 'save', source: file, target, pages, mosaics: [{ ...MOSAIC, bytes: pngBytes() }], expectSource: await readSignature(file) });
   assert.equal(same.ok, true, '同じ印なら通る');
 });

@@ -2,7 +2,7 @@
 
 // 元ファイルを壊さずに置き換える層のテスト（spec-1-6 確定事項15〜21）。
 //
-// 実際のディスクに書く。一時フォルダーを毎回作って捨てるので、ユーザーの
+// 実際のディスクに書く。一時フォルダを毎回作って捨てるので、ユーザーの
 // ファイルには一切触れない（.claude/CLAUDE.md 付則C）。
 // 失敗の経路だけは、その場では起こせないので fs を差し替えて作る。
 
@@ -169,7 +169,7 @@ test('.bak を作れなかったら保存そのものを中止する', async () 
       fsLike: failingFs('copyFile', 'EACCES'),
     });
     assert.equal(result.phase, 'backup');
-    assert.match(result.error, /バックアップ/);
+    assert.match(result.error, /控えのファイル（.bak）を作れなかった/);
     assert.equal(fs.readFileSync(target, 'utf8'), 'OLD', '元ファイルを触っていない');
     assert.equal(fs.existsSync(tempPathFor(target)), false);
   } finally { ws.cleanup(); }

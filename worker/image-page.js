@@ -25,6 +25,7 @@ const { imageSize, MAX_PIXELS } = require('./image-format.js');
 const { decodeImage } = require('./image-decode.js');
 const { embedPixels } = require('./pixel-image.js');
 
+const { failure, passFailure } = require('./task-failure.js');
 const PDF_LIB_KINDS = new Set(['png', 'jpeg']);
 
 // 箱に内接させる。allowUpscale が偽なら拡大はしない。
@@ -45,7 +46,7 @@ async function embedWithPdfLib(doc, kind, bytes) {
   } catch (error) {
     // embedPng は素の文字列を、embedJpg は Error を投げる（実測 H）。
     // message で分岐してはいけないので、型を選ばずに握って文言を差し替える。
-    return { error: '画像を読み込めませんでした。ファイルが壊れている可能性があります。' };
+    return failure('画像を読み込めませんでした。ファイルが壊れている可能性があります。', error);
   }
 }
 
@@ -55,7 +56,7 @@ async function embedDecoded(doc, kind, bytes, frame, tools) {
     return { error: '画像を埋め込む道具が揃っていません。' };
   const decoded = decodeImage(kind, bytes, { frame });
   if (decoded.ok !== true)
-    return { error: decoded.error };
+    return passFailure(decoded);
   return embedPixels(doc, decoded.pixels, tools);
 }
 

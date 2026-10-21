@@ -4,7 +4,7 @@
   // 透かしの設定の検査と、ワーカーへ渡す spec の組み立て（spec-4-5 確定事項3〜6・25・40）。
   // DOM に触れない純関数。状態は tools-watermark.js が持つ。
   //
-  // 色・不透明度のプリセットと既定値は論点6（覚えない。既定は「社外秘」・灰・30%・斜め・中央・中）。
+  // 色・不透明度のプリセットと既定値は論点6（既定は「社外秘」・灰・30%・斜め・中央・中。覚えるかは設定の窓で選ぶ。spec-6-1 確定事項E-7）。
   // 色と並びは自前で決めたもので、他社製品の意匠を写していない（docs/06）。文字の整え方と上限は
   // ワーカー（worker/op-watermark.js の normalizeText・MAX_TEXT_LENGTH）と同じで、一致はテストで見張る。
 
@@ -27,7 +27,7 @@
     return typeof text === 'string' ? text.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim() : '';
   }
 
-  // 元と同じフォルダーの <元の名前>_透かし.pdf（確定事項40。結合の既定名と同じ作り方）。
+  // 元と同じフォルダの <元の名前>_透かし.pdf（確定事項40。結合の既定名と同じ作り方）。
   function defaultTarget(sourcePath) {
     if (typeof sourcePath !== 'string' || sourcePath === '')
       return undefined;

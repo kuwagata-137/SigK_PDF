@@ -12,6 +12,7 @@ const { decodeBmp } = require('./decode-bmp.js');
 const { decodeGif } = require('./decode-gif.js');
 const { decodeTiff, frameCountOf } = require('./decode-tiff.js');
 
+const { passFailure } = require('./task-failure.js');
 const DECODERS = {
   bmp: (bytes) => decodeBmp(bytes),
   gif: (bytes) => decodeGif(bytes),
@@ -26,7 +27,7 @@ function decodeImage(kind, bytes, { frame = 0 } = {}) {
     return { error: '差し込む画像にそのページがありません。' };
   const decoded = decode(bytes, frame);
   if (decoded.ok !== true)
-    return { error: decoded.error };
+    return passFailure(decoded);
   const { ok, ...pixels } = decoded;
   return { ok: true, pixels };
 }

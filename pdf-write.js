@@ -9,7 +9,7 @@
 //
 // 設計の要点は3つ。
 //
-//   1. 保存先と**同じフォルダー**に一時ファイルを作り、rename で置き換える。
+//   1. 保存先と**同じフォルダ**に一時ファイルを作り、rename で置き換える。
 //      os.tmpdir() を使わないのは、ユーザーのファイルが別ドライブにあると
 //      rename がドライブを跨げないためである（実測C）。
 //   2. rename が EPERM で失敗しても、**直接上書きへ切り替えない**（確定事項17）。
@@ -64,7 +64,7 @@ function describeWriteFailure(error, phase) {
   if (phase === 'replace' && (code === 'EPERM' || code === 'EACCES' || code === 'EBUSY'))
     return 'ファイルが他のプログラムで使われているので、閉じてからもう一度お試しください。';
   if (phase === 'backup')
-    return 'バックアップ（.bak）を作れなかったため、保存を中止しました。';
+    return '控えのファイル（.bak）を作れなかったため、保存を中止しました。';
   switch (code) {
     case 'EACCES':
     case 'EPERM':
@@ -74,7 +74,7 @@ function describeWriteFailure(error, phase) {
     case 'ENOSPC':
       return 'ディスクの空き容量が足りません。';
     case 'ENOENT':
-      return '保存先のフォルダーが見つかりません。';
+      return '保存先のフォルダが見つかりません。';
     default:
       return 'ファイルを保存できませんでした。';
   }

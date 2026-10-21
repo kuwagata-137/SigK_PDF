@@ -19,13 +19,14 @@ const { runPageBoxes } = require('./page-boxes-task.js');
 const { writeDocument, readSignature, signaturesMatch } = require('../pdf-write.js');
 const { PDFDocument, TOOLS, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure } = require('./pdf-io.js');
 
+const { failure } = require('./task-failure.js');
 // 複数の入力を1つへ結合する（spec-2-1 確定事項22・29〜34）。
 //
 // 5段の名前は保存と同じだが、入力が複数あるので read と apply はファイル単位で
 // 刻む（advance(phase, done, total)）。load は apply の中で1本ずつ行い、複製し
 // 終えた入力から手放す（op-merge.js）。「load」の段は入り口の合図だけを送る。
 //
-// 入力は読むだけなので、退避（.bak）も外部変更の照合も要らない。出力先が入力の
+// 入力は読むだけなので、退避（.bak）も出力先の照合も要らない。出力先が入力の
 // 1つと同じ経路はレンダラーが先に断る（確定事項24）。ここは黙って書く。
 async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
   const { inputs, target } = spec ?? {};
@@ -37,6 +38,11 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
     return { error: '結合するファイルの場所が分かりません。' };
 
   const nameOf = (input) => input.name ?? path.basename(input.path);
+  // 帯のファイルが、タブで開いたときから書き換えられていたら読む前に止める（決定81 ⑫。spec-6-1 確定事項C-9）。止めたときの文は画面が組む。
+  for (const input of inputs) {
+    if (input.expect !== null && input.expect !== undefined && !signaturesMatch(input.expect, await readSignature(input.path, { fsLike })))
+      return { sourceChanged: true, name: nameOf(input) };
+  }
 
   advance('read', 0, inputs.length);
   const bytes = [];
@@ -44,7 +50,7 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
     try {
       bytes.push(await fsLike.promises.readFile(input.path));
     } catch (error) {
-      return { error: `「${nameOf(input)}」${describeSourceReadFailure(error)}` };
+      return failure(`「${nameOf(input)}」${describeSourceReadFailure(error)}`, error);
     }
     advance('read', index + 1, inputs.length);
   }
@@ -72,7 +78,7 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     output = await merged.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return { error: '結合した内容を組み立てられませんでした。' };
+    return failure('結合した内容を組み立てられませんでした。', error);
   }
 
   advance('write');
@@ -109,16 +115,17 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
     return { error: '分割するページがありません。' };
   if (parts.some((part) => typeof part?.target !== 'string'))
     return { error: '出力先が決まっていません。' };
-  // 画面が読んだあとで書き換わっていたら、見ているサムネイルと違う中身を分けないよう止める（spec-2-2b 確定事項H4）。
+  // 画面が読んだあとで書き換わっていたら、見ているサムネイルと違う中身を分けないよう止める（spec-2-2b 確定事項H4）。止めたときの文は
+  // 画面が組む（決定81 ⑫。spec-6-1 確定事項C-9。ほかのツールと同じ）。
   if (expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
-    return { error: '分割する PDF が書き換えられていたので、分割を止めました。' };
+    return { sourceChanged: true };
 
   advance('read');
   let bytes;
   try {
     bytes = await fsLike.promises.readFile(source);
   } catch (error) {
-    return { error: describeSourceReadFailure(error) };
+    return failure(describeSourceReadFailure(error), error);
   }
 
   advance('load');
@@ -126,7 +133,7 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     doc = await PDFDocument.load(bytes, LOAD_OPTIONS);
   } catch (error) {
-    return { error: describeLoadFailure(error) };
+    return failure(describeLoadFailure(error), error);
   }
 
   advance('apply');
@@ -139,7 +146,7 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
       try {
         output = await out.save(SAVE_OPTIONS);
       } catch (error) {
-        return { error: `${index + 1} / ${parts.length} 本目の内容を組み立てられませんでした。` };
+        return failure(`${index + 1} / ${parts.length} 本目の内容を組み立てられませんでした。`, error);
       }
       const written = await writeDocument(targets[index], Buffer.from(output), { makeBackup: false, expect: null, fsLike });
       if (written.ok !== true)

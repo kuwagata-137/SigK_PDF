@@ -9,6 +9,7 @@ const fs = require('node:fs');
 
 const { PDFDocument, LOAD_OPTIONS } = require('./pdf-io.js');
 const { mediaBoxesOf } = require('./page-box-rules.js');
+const { errorDetail } = require('./task-failure.js');
 const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
 function requestOf(spec) {
@@ -32,8 +33,9 @@ async function runPageBoxes(spec, { fsLike = fs } = {}) {
     const bytes = await fsLike.promises.readFile(request.source);
     const doc = await PDFDocument.load(bytes, { ...LOAD_OPTIONS, ignoreEncryption: true });
     return { ok: true, boxes: mediaBoxesOf(doc) };
-  } catch {
-    return { ok: false, reason: 'unreadable' };
+  } catch (error) {
+    // 読めなかった理由は detail で添える（task-runner.js が記録してから外す。spec-6-1 タスク B の点検の直し）。
+    return { ok: false, reason: 'unreadable', detail: errorDetail(error) };
   }
 }
 

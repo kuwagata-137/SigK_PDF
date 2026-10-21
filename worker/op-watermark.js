@@ -16,6 +16,7 @@ const { parseColor } = require('./annotation-appearance.js');
 const { detectFormat, isProgressiveJpeg } = require('./image-format.js');
 const { embedImage } = require('./image-page.js');
 
+const { failure } = require('./task-failure.js');
 const WATERMARK_NAME = 'SigKWM';
 const MAX_TEXT_LENGTH = 50;
 const WATERMARK_FONT_ERROR = '日本語フォントを読めなかったため、文字の透かしを入れられません。';
@@ -64,8 +65,8 @@ async function imageForm(doc, mark, TOOLS, readFile) {
   let bytes;
   try {
     bytes = await readFile(mark.image);
-  } catch {
-    return { error: '透かしの画像を読めませんでした。' };
+  } catch (error) {
+    return failure('透かしの画像を読めませんでした。', error);
   }
   const kind = detectFormat(bytes);
   if (!IMAGE_KINDS.has(kind))

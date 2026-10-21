@@ -30,7 +30,8 @@
     const api = root.pdfAPI;
     if (typeof api?.pickSavePath !== 'function')
       return { error: '保存先を選べません。' };
-    const picked = await api.pickSavePath({ defaultPath, title });
+    // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。透かしとフラット化。
+    const picked = await api.pickSavePath({ defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath, title });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
@@ -44,7 +45,11 @@
   }
 
   // 書いたあとの後始末。messages は { canceled, failed, done }（通知バーの文言）。
-  async function finish(result, target, { canceled, failed, done }) {
+  // changed は、ワーカーが読む前に帯のファイルの書き換えに気づいた（{ sourceChanged }）ときの { name, verb }（決定81 ⑫。spec-6-1 確定事項C-9）。
+  async function finish(result, target, { canceled, failed, done, changed = null }) {
+    const refused = changed === null ? null : root.SigK.runGuard.changedResult(result, changed.name, changed.verb);
+    if (refused !== null)
+      return refused;
     if (result?.canceled === true) {
       // 自分で止めたので赤く塗らない（決定49）。
       banner().show(canceled, { tone: 'info' });

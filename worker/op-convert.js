@@ -30,6 +30,7 @@
 const { inspectImageBytes } = require('./image-format.js');
 const { embedImage, drawImagePage } = require('./image-page.js');
 
+const { failure, passFailure } = require('./task-failure.js');
 function withName(name, message) {
   return typeof name === 'string' && name !== '' ? `「${name}」${message}` : message;
 }
@@ -41,11 +42,11 @@ async function loadImage(path, { readFile }) {
   try {
     bytes = await readFile(path);
   } catch (error) {
-    return { error: '画像を読めませんでした。移動または削除された可能性があります。' };
+    return failure('画像を読めませんでした。移動または削除された可能性があります。', error);
   }
   const inspected = inspectImageBytes(bytes);
   if (inspected.ok !== true)
-    return { error: inspected.error };
+    return passFailure(inspected);
   return { ok: true, kind: inspected.kind, bytes, pages: inspected.pages };
 }
 

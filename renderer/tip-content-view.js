@@ -5,17 +5,28 @@
   // （spec-2-5 J1・J2・J5・J14）。計画の文の表のとおり。データだけで、DOM に触れない。1 行 1 鍵。
   // キーの「／」は keys の配列、（）の補足は keysNote。キーの無いものは keys を持たない。ボタンの名前は全角の［］で書く。
 
-  const SAVE_NAMED = { name: '上書き保存', desc: '開いているファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。', keys: ['Ctrl+S'] };
   const SAVE_UNTITLED = { name: '上書き保存', desc: 'このファイルはまだ保存先が決まっていないので、保存先と名前を聞いてから PDF のファイルにします。', keys: ['Ctrl+S'] };
+
+  // 上書き保存の文の 2 文目（控えのファイル）。backup は控えのファイルの名前。設定の窓で「上書き保存の前に、元のファイルの控えのファイルを
+  // 作る」を外していたら、作らない文にする（spec-6-1 確定事項E-9。点検の直し I-4）。設定が無い（文の表だけのテストなど）ときは作る文。
+  // 帯のフロッピー（tip-content-tools.js）も使う。
+  function backupSentence(backup) {
+    return root.SigK?.preferences?.current?.().makeBackup === false
+      ? `設定の窓で外しているので、控えのファイル（${backup}）は作りません。`
+      : `元の中身は「${backup}」として残ります。`;
+  }
 
   // ツールバーの［上書き保存］（J14）。名前の無い帯（新しい帯）を映しているときだけ、保存先と名前を聞く文にする。
   // SigK.viewer が無い（文の表だけを読み込んだテストなど）ときは、名前のある方の文。
   function saveEntry() {
     const untitled = root.SigK?.viewer?.getState?.()?.file?.untitled === true;
-    return untitled ? SAVE_UNTITLED : SAVE_NAMED;
+    if (untitled)
+      return SAVE_UNTITLED;
+    return { name: '上書き保存', desc: `開いているファイルに、今の変更を書き込みます。${backupSentence('名前.pdf.bak')}`, keys: ['Ctrl+S'] };
   }
 
   const SigK = (root.SigK = root.SigK || {});
+  SigK.tipSaveText = { backupSentence };
   SigK.tipContent.add({
     'bar.open': { name: '開く', desc: 'PDF を選んで、タブで開きます。窓へ PDF を落としても開けます。', keys: ['Ctrl+O'] },
     'bar.save': saveEntry,
@@ -33,6 +44,7 @@
     'bar.facing': { name: '見開き', desc: '2 ページずつ並べて表示します（1-2・3-4 の組）。もう一度押すと、1 ページずつに戻ります。' },
     'bar.find': { name: '検索', desc: '検索バーを開いて、文書の中の文字を探します。', keys: ['Ctrl+F'] },
     'bar.print': { name: '印刷', desc: '印刷の窓を開きます。すべてのページ・今のページ・指定したページから選べます。', keys: ['Ctrl+P'] },
+    'bar.settings': { name: '設定', desc: '設定の窓を開きます。書き出すときの最初のフォルダ、上書き保存の前に控えのファイルを作るか、ツールで選んだ値と最後に使ったツールを覚えるかを選びます。', keys: ['Ctrl+,'] },
     'bar.help': { name: '使い方', desc: '使い方の窓を開きます。今のモードの節から出ます。', keys: ['F1'] },
     'mode.view': { name: '閲覧', desc: 'ページを読む・探す・印刷するモードです。書き込みは見えますが、選べません。' },
     'mode.pages': { name: 'ページ編集', desc: 'ページを並べ替える・回す・消す・別のファイルに抜き出す・差し込むモードです。' },

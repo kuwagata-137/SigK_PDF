@@ -16,6 +16,7 @@ const { loadImage, convertToSingle, convertToEach } = require('./op-convert.js')
 const { writeDocument } = require('../pdf-write.js');
 const { TOOLS, SAVE_OPTIONS, insertReader } = require('./pdf-io.js');
 
+const { failure } = require('./task-failure.js');
 function convertEntries(images, reader) {
   return images.map((image) => ({
     name: image.name ?? path.basename(image.path),
@@ -41,7 +42,7 @@ async function runConvertSingle(spec, entries, { fsLike, advance }) {
   try {
     output = await converted.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return { error: '変換した内容を組み立てられませんでした。' };
+    return failure('変換した内容を組み立てられませんでした。', error);
   }
 
   advance('write');
@@ -69,7 +70,7 @@ async function runConvertEach(spec, entries, { fsLike, advance }) {
       try {
         output = await doc.save(SAVE_OPTIONS);
       } catch (error) {
-        return { error: `${index + 1} / ${entries.length} 本目の内容を組み立てられませんでした。` };
+        return failure(`${index + 1} / ${entries.length} 本目の内容を組み立てられませんでした。`, error);
       }
       const written = await writeDocument(targets[index], Buffer.from(output.buffer, output.byteOffset, output.byteLength), { makeBackup: false, expect: null, fsLike });
       if (written.ok !== true)

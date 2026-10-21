@@ -6,7 +6,7 @@
 // 結果を組む部分は smoke-annotate-report.js にある。
 //
 // SIGK_SMOKE_ANNOTATE=<操作列> を付けると、注釈の経路を通す（spec-4-1 の完了判定）。
-// 文書は SIGK_SMOKE_ANNOTATE_OUT（省略時は一時フォルダー）へ複製してタブで開く
+// 文書は SIGK_SMOKE_ANNOTATE_OUT（省略時は一時フォルダ）へ複製してタブで開く
 // （保存して開き直す経路まで通すため）。元は SIGK_SMOKE_PDF。
 //
 // 操作はカンマ区切りで、次のものを受ける。

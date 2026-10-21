@@ -39,7 +39,7 @@
       && selection().length > 0;
   }
 
-  // 既定の出力名は `<元の名前>_抽出.pdf`（確定事項49）。同じフォルダーを既定にし、
+  // 既定の出力名は `<元の名前>_抽出.pdf`（確定事項49）。同じフォルダを既定にし、
   // 同名の確認は OS のダイアログに委ねる（確定事項22 と同じ）。元のファイル自身と
   // タブで開いているファイルは、選ばれたあとで断る（確定事項96）。
   function defaultTargetFor(file) {
@@ -52,9 +52,15 @@
     return `${source.replace(/\.pdf$/i, '')}_抽出.pdf`;
   }
 
+  // 確認・保存の窓・ワーカーの間は、保存の枠を押さえる（名前を付けて保存と同じ。spec-6-1 タスク C の点検の直し I-1。窓の間にエクスプローラーから
+  // 開いたファイルのタブが前に出て、別のタブの中身で抽出しないため。launch.js は枠が空くまで開くのを待つ）。
   async function run() {
     if (root.SigK.save?.isBusy() === true)
       return { error: 'いま保存しています。' };
+    return root.SigK.save.holding(extractHeld);
+  }
+
+  async function extractHeld() {
     // 入力中のテキストは確定してから抽出する（spec-4-2 確定事項8）。
     root.SigK.annotate?.finishEditing();
 
@@ -76,8 +82,47 @@
     if (await root.SigK.confirmExtract.ask({ count: pages.length, mosaicCount }) !== true)
       return { canceled: true };
 
+    const chosen = await chooseTarget(view.file);
+    if (chosen.target === undefined)
+      return chosen;
+
+    // モザイクが無くても通す（確認と保存先のダイアログの間に置かれたモザイクも、plan の食い違いとして取りやめる）。
+    const mosaic = await root.SigK.mosaicSave?.prepare({ mode: 'extract', indices, plan }) ?? { ok: true, mosaics: [] };
+    if (mosaic.ok !== true)
+      return mosaic;
+    // 窓の間に映しているタブが替わっていたら、別のタブの中身で作らずに取りやめる（モザイクの確かめと同じ文。点検の直し I-1）。
+    if (viewer().getState().file !== view.file)
+      return root.SigK.mosaicSave.showChanged('extract');
+
+    // ほかのアプリで書き換えられていたら、聞かずに開いたときの中身で作り直す（spec-6-1 確定事項C-3・C-4。opened-source.js）。
+    const result = await root.SigK.openedSource.run({
+      kind: 'extract',
+      mosaics: mosaic.mosaics,
+      source: view.file.path,
+      // 名前の無い帯の元の中身と、写しのバイト列（spec-2-5 I4・I5。保存と同じ。点検の指摘 3）。
+      sourceCopy: view.file.copy ?? null,
+      copies: viewer().getCopies(),
+      target: chosen.target,
+      pages,
+      // 選んだページに付いた注釈も一緒に出す（spec-4-1 確定事項21）。
+      // 新しい形のテキストは画面で決めた行を添える（spec-4b-4a 確定事項I1）。
+      annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations(), { layoutOf: root.SigK.freeTextMetrics.layoutOfEntry }),
+      // 元ファイルを触らないので、退避も行き先の照合も要らない（確定事項18・21）。元のファイルが開いたときのままかは、ワーカーが読む前に
+      // 照らす（spec-6-1 確定事項C-2）。
+      makeBackup: false,
+      expect: null,
+      expectSource: typeof view.file.path === 'string' ? root.SigK.save.signatureOf(view.file) : null,
+      label: '抽出',
+    });
+    return report(result);
+  }
+
+  // 保存の窓で行き先を決める。戻り値は { target } / { canceled } / { error }（断った理由は通知バーにも出す）。
+  async function chooseTarget(file) {
+    // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
+    const defaultPath = defaultTargetFor(file);
     const picked = await root.pdfAPI.pickSavePath({
-      defaultPath: defaultTargetFor(view.file),
+      defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath,
       title: 'ページを抽出',
     });
     if (picked?.canceled === true)
@@ -86,37 +131,16 @@
       return { error: picked?.error ?? '保存先を決められませんでした。' };
     // 元のファイル自身と、タブで開いているファイルへは書かない（確定事項96）。元へ書くと
     // 選んだページだけに置き換わり（.bak も作らない）、ほかのタブは古い内容のまま残る。
-    const refused = root.SigK.outputTarget.refusalFor(picked.path, { source: view.file.path });
+    const refused = root.SigK.outputTarget.refusalFor(picked.path, { source: file.path });
     if (refused !== null) {
       banner().show(refused);
       return { error: refused };
     }
+    return { target: picked.path };
+  }
 
-    // モザイクが無くても通す（確認と保存先のダイアログの間に置かれたモザイクも、plan の食い違いとして取りやめる）。
-    const mosaic = await root.SigK.mosaicSave?.prepare({ mode: 'extract', indices, plan }) ?? { ok: true, mosaics: [] };
-    if (mosaic.ok !== true)
-      return mosaic;
-
-    const result = await root.SigK.save.runTask({
-      kind: 'extract',
-      mosaics: mosaic.mosaics,
-      source: view.file.path,
-      // 名前の無い帯の元の中身と、写しのバイト列（spec-2-5 I4・I5。保存と同じ。点検の指摘 3）。
-      sourceCopy: view.file.copy ?? null,
-      copies: viewer().getCopies(),
-      target: picked.path,
-      pages,
-      // 選んだページに付いた注釈も一緒に出す（spec-4-1 確定事項21）。
-      // 新しい形のテキストは画面で決めた行を添える（spec-4b-4a 確定事項I1）。
-      annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations(), { layoutOf: root.SigK.freeTextMetrics.layoutOfEntry }),
-      // 元ファイルを触らないので、退避も外部変更の照合も要らない（確定事項18・21）。モザイクがあれば、元のファイルが開いたときのままかを
-      // ワーカーが読む前に照合する（spec-4b-6b。コードの点検で足した）。
-      makeBackup: false,
-      expect: null,
-      expectSource: mosaic.mosaics.length > 0 && typeof view.file.path === 'string' ? root.SigK.save.signatureOf(view.file) : null,
-      label: '抽出',
-    });
-
+  // 結果を通知バーに出して、そのまま返す。
+  function report(result) {
     if (result?.canceled === true) {
       // 自分で止めたので赤く塗らない（決定49）。
       banner().show('抽出を中止しました。', { tone: 'info' });
@@ -126,7 +150,6 @@
       banner().show(result?.error ?? '抽出できませんでした。');
       return result ?? { error: '抽出できませんでした。' };
     }
-
     // 成功は失敗ではないので赤く塗らない（決定48）。通知バーの既定の色は失敗の赤である。
     banner().show(`${result.pages} ページを抽出しました。`, { autoHideMs: 2500, tone: 'info' });
     return result;

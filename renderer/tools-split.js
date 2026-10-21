@@ -32,7 +32,7 @@
     return at < 0 ? '' : filePath.slice(0, at);
   }
 
-  // フォルダーの区切りに合わせてつなぐ。ダイアログが返すのは Windows の「\」だが、
+  // フォルダの区切りに合わせてつなぐ。ダイアログが返すのは Windows の「\」だが、
   // テストや将来の環境で「/」が来ても壊さない。
   function joinPath(folder, name) {
     const sep = folder.includes('/') && !folder.includes('\\') ? '/' : '\\';
@@ -41,7 +41,8 @@
 
   // ---- 対象（spec-2-5 G1・G12） ----
 
-  // 出力のフォルダーは、ユーザーが変えるまで対象の帯のフォルダーに追従する（spec-2-2 確定事項14）。
+  // 出力のフォルダは、ユーザーが変えるまで対象の帯のフォルダに追従する（spec-2-2 確定事項14）。state.folder は、変えるまでは
+  // 帯のフォルダ、変えたあとは選んだフォルダ。
   const field = root.SigK.stripTarget.create({
     encryptedError: '分割できません',
     onChange: (src) => {
@@ -49,6 +50,14 @@
         state.folder = dirOf(src.path);
     },
   });
+
+  // 今の出力のフォルダ。変えるまでは、使うたびに設定の窓の「ファイルを書き出すときの、最初のフォルダ」で決め直す
+  // （spec-6-1 確定事項E-5。決定81 ⑨。設定を変えたあとも従うように。点検の直し I-3）。
+  function folderNow() {
+    if (state.folderTouched || state.folder === null)
+      return state.folder;
+    return root.SigK.preferences?.initialFolder(state.folder) ?? state.folder;
+  }
 
   const source = () => field.source();
   const isReady = (src) => src !== null && src.blocked === null;
@@ -109,13 +118,13 @@
     const api = root.pdfAPI;
     if (typeof api?.pickFolder !== 'function')
       return false;
-    const picked = await api.pickFolder({ defaultPath: state.folder ?? undefined });
+    const picked = await api.pickFolder({ defaultPath: folderNow() ?? undefined });
     if (picked?.canceled === true || typeof picked?.path !== 'string')
       return false;
     return setFolder(picked.path);
   }
 
-  const settings = () => ({ folder: state.folder, rule: state.rule });
+  const settings = () => ({ folder: folderNow(), rule: state.rule });
 
   // いまの盤から計画を組む。対象が使えなければ reason は 'no-source'。ほかの reason は盤の status（確定事項B5）。
   // parts は盤の位置（帯の今の並びの位置）。ファイルのページへの読み替えは実行のとき（split-run.js）。
@@ -127,7 +136,7 @@
     const status = root.SigK.splitBoard.status(board);
     const parts = root.SigK.splitBoard.parts(board);
     const names = root.SigK.splitPlan.outputNames(src.name, parts, state.rule);
-    const folder = state.folder ?? dirOf(src.path);
+    const folder = folderNow() ?? dirOf(src.path);
     return { ready: status.ready, reason: status.reason, files: status.files, parts, names, folder, targets: names.map((name) => joinPath(folder, name)) };
   }
 
@@ -135,7 +144,7 @@
     return !state.running && root.SigK.save?.isBusy() !== true && currentPlan().ready === true;
   }
 
-  // 保存していない帯の確かめ・同名の 3 択・フォルダーの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
+  // 保存していない帯の確かめ・同名の 3 択・フォルダの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
       return { error: '分割できる状態ではありません。' };
@@ -143,12 +152,14 @@
     view()?.render();
     try {
       const tabId = source().tabId;
+      // 帯のファイルがほかのアプリで書き換えられていたら止める（spec-2-5 G11。決定81 ⑫ でほかのツールと同じ口にした）。
       const guard = await root.SigK.runGuard.confirmUnsaved([tabId], {
         canRunUnsaved: (id) => matchesFile(tabs().peek(id)),
         runNote: NOTE_ORDER,
+        verb: '分割',
       });
       if (!guard.go)
-        return { canceled: true };
+        return guard.error === undefined ? { canceled: true } : { error: guard.error };
       return await root.SigK.splitRun.execute();
     } finally {
       state.running = false;

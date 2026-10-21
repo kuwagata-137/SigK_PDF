@@ -106,9 +106,13 @@ test('読めないファイルは unreadable、崩れた spec は invalid を返
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const broken = path.join(dir, 'broken.pdf');
   fs.writeFileSync(broken, 'PDF ではない');
-  assert.deepEqual(await runAnnotationDetails({ source: broken, expect: expectOf(broken), refs: ['12R'] }), { ok: false, reason: 'unreadable' });
+  // 読めなかった理由は、エラーの記録に残すために detail で添える（spec-6-1 タスク B の点検の直し。task-runner.js が画面へ返す前に外す）。
+  const unreadable = await runAnnotationDetails({ source: broken, expect: expectOf(broken), refs: ['12R'] });
+  assert.deepEqual([unreadable.ok, unreadable.reason, typeof unreadable.detail.message], [false, 'unreadable', 'string']);
   const missing = path.join(dir, 'missing.pdf');
-  assert.deepEqual(await runAnnotationDetails({ source: missing, expect: { size: 1, mtimeMs: 1 }, refs: ['12R'] }), { ok: false, reason: 'unreadable' });
+  const gone = await runAnnotationDetails({ source: missing, expect: { size: 1, mtimeMs: 1 }, refs: ['12R'] });
+  assert.deepEqual([gone.ok, gone.reason], [false, 'unreadable']);
+  assert.match(gone.detail.message, /ENOENT/);
   assert.deepEqual(await runAnnotationDetails({ source: broken, refs: ['12R'] }), { ok: false, reason: 'invalid' });
 });
 

@@ -16,6 +16,7 @@ const path = require('node:path');
 
 const { toBytes } = require('../file-io.js');
 
+const { failure, passFailure } = require('./task-failure.js');
 const FONT_PATH = path.join(__dirname, '..', 'assets', 'fonts', 'NotoSansJP-Regular.ttf');
 const BOLD_FONT_PATH = path.join(__dirname, '..', 'assets', 'fonts', 'NotoSansJP-Bold.ttf');
 const FONTKIT_PATH = path.join(__dirname, '..', 'vendor', 'fontkit.umd.min.js');
@@ -82,8 +83,8 @@ function createFontSource({ fsLike = fs, fontkit = null, fontPath = FONT_PATH, b
     try {
       const kit = paddedFontkit(fontkit ?? require(FONTKIT_PATH));
       loaded = { ok: true, fontkit: kit, bytes: toBytes(fsLike.readFileSync(fontPath)) };
-    } catch {
-      loaded = { ok: false, error: FONT_ERROR };
+    } catch (error) {
+      loaded = { ok: false, ...failure(FONT_ERROR, error) };
     }
     return loaded;
   }
@@ -95,8 +96,8 @@ function createFontSource({ fsLike = fs, fontkit = null, fontPath = FONT_PATH, b
       return base;
     try {
       bold = { ok: true, fontkit: base.fontkit, bytes: toBytes(fsLike.readFileSync(boldPath)) };
-    } catch {
-      bold = { ok: false, error: FONT_ERROR };
+    } catch (error) {
+      bold = { ok: false, ...failure(FONT_ERROR, error) };
     }
     return bold;
   }
@@ -117,7 +118,7 @@ function measureOf(font, name = DA_FONT_NAME) {
 async function embedBundledFont(doc, fontSource, { random = Math.random, bold = false } = {}) {
   const loaded = bold ? fontSource.loadBold() : fontSource.load();
   if (!loaded.ok)
-    return { error: loaded.error };
+    return passFailure(loaded);
   doc.registerFontkit(loaded.fontkit);
   const baseName = bold ? BOLD_BASE_NAME : FONT_BASE_NAME;
   const font = await doc.embedFont(loaded.bytes, { subset: true, customName: `${subsetTag(random)}+${baseName}`, features: FEATURES });

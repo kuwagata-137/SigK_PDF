@@ -57,7 +57,8 @@
         state.rows.splice(batch === null ? state.rows.length : intake().insertAt(state.rows, batch, row.path), 0, row);
       if (added.length === 0)
         return [];
-      // 出力フォルダーの既定は先頭画像の場所。ユーザーが変えたあとは追従しない（確定事項20）。
+      // 出力フォルダの既定は先頭画像の場所。ユーザーが変えたあとは追従しない（確定事項20）。設定の窓の「ファイルを書き出すときの、
+      // 最初のフォルダ」は、使うときに tools-convert.js の folderNow が当てる（spec-6-1 確定事項E-5）。
       if (!state.folderTouched)
         state.folder = host.dirOf(state.rows[0].path);
       host.changed({ rowsChanged: true });

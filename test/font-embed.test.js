@@ -129,7 +129,11 @@ test('createFontSource はフォントを一度だけ読み、読めなければ
   assert.equal(reads, 1);
 
   const missing = createFontSource({ fsLike: { readFileSync: () => { throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); } }, fontkit });
-  assert.deepEqual(missing.load(), { ok: false, error: FONT_ERROR });
+  const failed = missing.load();
+  assert.equal(failed.ok, false);
+  assert.equal(failed.error, FONT_ERROR);
+  // 握った例外の中身は、エラーの記録に残すために添える（spec-6-1 タスク B の点検の直し）。
+  assert.equal(failed.detail.message, 'ENOENT');
   assert.equal(FONT_ERROR, '日本語フォントを読めなかったため、テキストの書き込みを保存できません。');
 });
 
@@ -152,10 +156,13 @@ test('embedBundledFont はサブセットのフォントと「文字を知る口
   assert.deepEqual(await baseFontsOf(await doc.save({ addDefaultPage: false })), ['/AAAAAA+NotoSansJP-Regular']);
 });
 
-test('embedBundledFont が読めないときは error だけを返し、文書に触らない', async () => {
+test('embedBundledFont が読めないときは error と、記録に残す例外の中身（detail）だけを返し、文書に触らない', async () => {
   const doc = await PDFDocument.create();
   const source = createFontSource({ fsLike: { readFileSync: () => { throw new Error('EACCES'); } }, fontkit });
-  assert.deepEqual(await embedBundledFont(doc, source), { error: FONT_ERROR });
+  const result = await embedBundledFont(doc, source);
+  assert.deepEqual(Object.keys(result), ['error', 'detail']);
+  assert.equal(result.error, FONT_ERROR);
+  assert.equal(result.detail.message, 'EACCES');
   assert.equal(doc.fonts.length, 0);
 });
 
@@ -220,7 +227,8 @@ test('createFontSource は太字の書体を要るときだけ一度読み、読
   assert.deepEqual(reads, ['NotoSansJP-Regular.ttf', 'NotoSansJP-Bold.ttf']);
   const missing = createFontSource({ fsLike: { readFileSync: (file) => { if (file.endsWith('Bold.ttf')) throw new Error('ENOENT'); return fs.readFileSync(file); } }, fontkit });
   assert.equal(missing.load().ok, true);
-  assert.deepEqual(missing.loadBold(), { ok: false, error: FONT_ERROR });
+  const failed = missing.loadBold();
+  assert.deepEqual([failed.ok, failed.error, failed.detail.message], [false, FONT_ERROR, 'ENOENT']);
 });
 
 test('埋めた書体は合字を作らない（office は 6 字のグリフ。画面の font-variant-ligatures: none と並びをそろえる）', async () => {

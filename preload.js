@@ -1,8 +1,7 @@
 'use strict';
 
-// sandbox: true のため Node の API は使えない。ipcRenderer の橋渡しだけを担う。
-// 実際に動く API だけを公開する。中身のない口を先に並べない。
-// taskAPI・shellAPI は、それぞれの機能を作るフェーズで足す。
+// sandbox: true のため Node の API は使えない（自分のほかのファイルも require できないので、分けずにここへ並べる）。
+// ipcRenderer の橋渡しだけを担う。実際に動く API だけを公開する。中身のない口を先に並べない。
 
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
@@ -26,10 +25,8 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   // { ok: true, boxes: [[x1, y1, x2, y2] | null, ...] } / { ok: false, reason: 'invalid' | 'changed' | 'unreadable' | 'timeout' }
   readBoxes: (spec) => ipcRenderer.invoke('pdf:readBoxes', spec),
 
-  // ドロップされた File から実際のパスを取る（spec-1-2 確定事項6）。
-  // File.path は Electron 32 で削除されたため、webUtils が唯一の経路である。
-  // sandbox: true の preload でも webUtils は使える（Renderer 名前空間）。
-  // ドロップ由来でない File には '' が返る。例外は握って null にし、
+  // ドロップされた File から実際のパスを取る（spec-1-2 確定事項6）。File.path は Electron 32 で削除されたため、webUtils が唯一の経路
+  // （sandbox: true の preload でも使える）。ドロップ由来でない File には '' が返る。例外は握って null にし、
   // 呼び出し側が「パスが取れなかった」1本の分岐で扱えるようにする。
   pathForFile: (file) => {
     try {
@@ -71,7 +68,7 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   exists: (filePath) => ipcRenderer.invoke('pdf:exists', filePath),
   // 大きさと更新日時だけを読む（spec-2-2b 確定事項D7）。{ ok, size, mtimeMs } / { error }。
   stat: (filePath) => ipcRenderer.invoke('pdf:stat', filePath),
-  // 出力フォルダーを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
+  // 出力フォルダを選ばせる（spec-2-2 確定事項14）。{ path } / { canceled }。
   pickFolder: (options) => ipcRenderer.invoke('pdf:pickFolder', options),
   // 画像→PDF の受け口で、PDF と変換する画像をまとめて選ばせる（spec-2-5 確定事項H10）。{ paths } / { canceled }。
   pickConvertSources: (options) => ipcRenderer.invoke('pdf:pickConvertSources', options),
@@ -84,21 +81,17 @@ contextBridge.exposeInMainWorld('pdfAPI', {
   // { ok, kind, width, height, name, size, bytes } / { error, kind? }。
   readWatermarkImage: (filePath) => ipcRenderer.invoke('pdf:readWatermarkImage', filePath),
 
-  // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。
-  // レンダラーの keydown には頼らない。viewer-controls.js の handleKey が
-  // ctrlKey で早期 return するためで、accelerator で受けるほうが確実である
-  // （確定事項39）。mode は 'save' か 'saveAs'。
+  // メニューの「保存」「名前を付けて保存…」（Ctrl+S / Ctrl+Shift+S）から届く合図。レンダラーの keydown には頼らない。
+  // viewer-controls.js の handleKey が ctrlKey で早期 return するためで、accelerator で受けるほうが確実である（確定事項39）。
+  // mode は 'save' か 'saveAs'。
   onSaveRequest: (callback) => {
     ipcRenderer.removeAllListeners('pdf:saveRequest');
     ipcRenderer.on('pdf:saveRequest', (_event, mode) => callback(mode));
   },
 });
 
-// 重い処理をワーカーへ出す口（spec-1-6 確定事項1〜10）。
-//
-// taskId はレンダラーが決める。run() が終わるのを待たずに cancel() を押せる
-// ようにするためで、メイン側が採番すると「まだ id を知らないのに中止したい」
-// が起こる。
+// 重い処理をワーカーへ出す口（spec-1-6 確定事項1〜10）。taskId はレンダラーが決める。run() が終わるのを待たずに cancel() を
+// 押せるようにするためで、メイン側が採番すると「まだ id を知らないのに中止したい」が起こる。
 contextBridge.exposeInMainWorld('taskAPI', {
   available: true,
   // { ok, ... } / { canceled: true } / { changed: true, current } / { error }
@@ -112,9 +105,7 @@ contextBridge.exposeInMainWorld('taskAPI', {
 });
 
 // エクスプローラーからの起動要求（docs/03 第3章・spec-1-6 確定事項77・80）。
-//
-// **onLaunch を呼んでから ready() を送ること。**購読を始める前にメインが送ると
-// 取りこぼす。メイン側は ready を受けるまで要求を溜めている。
+// **onLaunch を呼んでから ready() を送ること。**購読を始める前にメインが送ると取りこぼす。メイン側は ready を受けるまで要求を溜めている。
 contextBridge.exposeInMainWorld('shellAPI', {
   available: true,
   // { intent: 'open'|'merge'|'split'|'toPdf', paths: string[], batch: { id, first } }
@@ -128,13 +119,27 @@ contextBridge.exposeInMainWorld('shellAPI', {
   showInFolder: (filePath) => ipcRenderer.invoke('shell:showInFolder', filePath),
 });
 
-// 画面の見た目を覚える（spec-1-3 確定事項31〜35）。覚えるのはモードと
-// サイドパネルの開閉・幅の3つだけで、サムネイルのスクロール位置のような
-// タブごとの一時的な状態は settings.json に置かない。
+// 画面の見た目を覚える（spec-1-3 確定事項31〜35）。覚えるのはモードとサイドパネルの開閉・幅の3つだけで、
+// サムネイルのスクロール位置のようなタブごとの一時的な状態は settings.json に置かない。
 contextBridge.exposeInMainWorld('settingsAPI', {
   available: true,
   getUi: () => ipcRenderer.invoke('settings:getUi'),
   setUi: (patch) => ipcRenderer.invoke('settings:setUi', patch),
+});
+
+// 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。get・set は { ok, preferences, available: { last, fixed } } を返す。
+// onChanged は、メインが「最後に書き出したフォルダ」を覚えたときなどに同じ形で呼ばれる。
+contextBridge.exposeInMainWorld('preferencesAPI', {
+  available: true,
+  get: () => ipcRenderer.invoke('preferences:get'),
+  set: (patch) => ipcRenderer.invoke('preferences:set', patch),
+  onChanged: (callback) => ipcRenderer.on('preferences:changed', (_event, snapshot) => callback(snapshot)),
+  // メニュー「ファイル」→「設定…」（Ctrl＋,）から届く合図と、窓の［Windows の設定を開く］（メニュー「ヘルプ」の「既定のアプリの設定…」と同じ所）。
+  onOpenRequest: (callback) => {
+    ipcRenderer.removeAllListeners('preferences:openRequest');
+    ipcRenderer.on('preferences:openRequest', () => callback());
+  },
+  openDefaultApps: () => ipcRenderer.invoke('preferences:openDefaultApps'),
 });
 
 // 未保存の編集を持ったまま終了しようとしたときの往復（spec-1-5 確定事項56）。
@@ -153,19 +158,14 @@ contextBridge.exposeInMainWorld('appCloseAPI', {
   confirm: (ok) => ipcRenderer.invoke('app:closeConfirm', ok),
 });
 
-// 印刷（spec-1-4 確定事項30）。レンダラーが印刷用のコンテナへ画像を並べてから
-// ここを呼ぶ。実際に紙へ送るのはメイン側の webContents.print() で、
-// silent を false にすると OS の印刷ダイアログが出る。
-// レンダラーの window.print() を使わないのは、オプションを渡せず結果
-// （成功・取り消し・失敗）も受け取れないためである（確定事項29）。
+// 印刷（spec-1-4 確定事項30）。レンダラーが印刷用のコンテナへ画像を並べてからここを呼ぶ。実際に紙へ送るのはメイン側の
+// webContents.print() で、silent を false にすると OS の印刷ダイアログが出る。レンダラーの window.print() を使わないのは、
+// オプションを渡せず結果（成功・取り消し・失敗）も受け取れないためである（確定事項29）。
 contextBridge.exposeInMainWorld('printAPI', {
   available: true,
   print: (options) => ipcRenderer.invoke('print:run', options),
 });
 
-// PDF→画像の書き出し（spec-3-3 確定事項19）。描くのはレンダラー（pdf.js の canvas）で、
-// ここは 1 ページぶんのバイト列をファイルに書くだけである。ほかのツールと向きが
-// 逆になる理由は worker/op-convert.js の頭にある。
 // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。pdf.js が返さない欄（/CA・/IC・/BE・/RD など）を、
 // 開いたファイルの注釈についてワーカーで読む。通知バーも「実行中」の表示も出さない。
 contextBridge.exposeInMainWorld('annotationAPI', {
@@ -175,6 +175,8 @@ contextBridge.exposeInMainWorld('annotationAPI', {
   readDetails: (spec) => ipcRenderer.invoke('annotation:readDetails', spec),
 });
 
+// PDF→画像の書き出し（spec-3-3 確定事項19）。描くのはレンダラー（pdf.js の canvas）で、ここは 1 ページぶんのバイト列をファイルに
+// 書くだけである。ほかのツールと向きが逆になる理由は worker/op-convert.js の頭にある。
 contextBridge.exposeInMainWorld('imageAPI', {
   available: true,
   // { ok, path, bytes } / { error }

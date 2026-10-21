@@ -24,6 +24,8 @@ const ORDER = {
   'confirm-discard': [['confirm-discard-save', '保存'], ['confirm-discard-discard', '保存しない'], ['confirm-discard-cancel', 'キャンセル']],
   // 保存していない帯をツールで使う前の確認（spec-2-5 確定事項F2。決定80 ㉜。［やめる］を［キャンセル］に改めた）。
   'confirm-unsaved-run': [['confirm-unsaved-run-save', '上書き保存してから実行'], ['confirm-unsaved-run-run', '保存せずに実行'], ['confirm-unsaved-run-cancel', 'キャンセル']],
+  // 設定の窓（spec-6-1 タスク E の確定事項E-3）。確認の窓ではないが、足の並びは同じ決まり。
+  'settings-dialog': [['settings-ok', 'OK'], ['settings-cancel', 'キャンセル']],
 };
 
 async function withShell(t) {
@@ -40,7 +42,7 @@ function firstFocusable(dialog) {
   return dialog.querySelector('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
 }
 
-test('9 つの確認の窓は、肯定のボタンを左に、取りやめのボタンを右に並べる', async (t) => {
+test('9 つの確認の窓と設定の窓は、肯定のボタンを左に、取りやめのボタンを右に並べる', async (t) => {
   const shell = await withShell(t);
   for (const [id, buttons] of Object.entries(ORDER))
     assert.deepEqual(footOf(shell, id), buttons, id);

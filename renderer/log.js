@@ -50,6 +50,18 @@
     return Promise.resolve(api.error(entry)).catch(() => ({ ok: false }));
   }
 
+  // 失敗を握って先へ進む所（読めなければ空にする・既定へ戻すなど）から、level warn の 1 行を残す（spec-6-1 タスク B の B6）。
+  // source は出どころのファイルの名前、message は何が起きたか（人が読む文）、error は握った例外（無くてよい）。
+  function warn(source, message, error, context = {}) {
+    const entry = { level: 'warn', message: String(message), context: { source, ...context } };
+    if (error !== undefined) {
+      entry.context.error = toText(error?.message ?? error);
+      if (typeof error?.stack === 'string')
+        entry.stack = error.stack;
+    }
+    return report(entry);
+  }
+
   function install(win) {
     if (win.__sigkLogInstalled === true)
       return false;
@@ -65,5 +77,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.log = { formatClientError, report, install };
+  SigK.log = { formatClientError, report, warn, install };
 })(typeof window !== 'undefined' ? window : globalThis);

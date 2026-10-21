@@ -99,6 +99,21 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
         }, timeoutMs);
       }
 
+      // ワーカーが握った例外の中身（worker/task-failure.js の detail）は記録に書き、画面へ返す結果からは外す（spec-6-1 タスク B）。
+      function withoutDetail(result) {
+        if (result?.detail === undefined)
+          return result;
+        const { detail, ...rest } = result;
+        onError({
+          level: detail.unexpected === true ? 'error' : 'warn',
+          proc: 'worker',
+          message: `ワーカーの処理が失敗しました: ${rest.error ?? rest.reason}`,
+          stack: detail.stack,
+          context: { taskId, kind: spec?.kind, source: spec?.source, name: detail.name, error: detail.message },
+        });
+        return rest;
+      }
+
       async function settle(result) {
         if (entry.settled)
           return;
@@ -126,19 +141,19 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
           return;
         }
         if (message?.type === 'done')
-          settle(message.result ?? { error: 'ワーカーから結果が返りませんでした。' });
+          settle(withoutDetail(message.result ?? { error: 'ワーカーから結果が返りませんでした。' }));
       });
 
       // 子が落ちたとき。settle の中で kill() を呼ぶので、正常に終わった直後にも
       // ここへ来る。settled を先に見ないと、済んだタスクのぶんまでログに残る。
-      child.on('exit', () => {
+      child.on('exit', (exitCode) => {
         if (entry.settled)
           return;
         if (entry.canceled) {
           settle(entry.timedOut ? { canceled: true, timedOut: true } : { canceled: true });
           return;
         }
-        onError({ message: 'ワーカーが異常終了しました', context: { taskId, source: spec?.source } });
+        onError({ proc: 'worker', message: 'ワーカーが異常終了しました', context: { taskId, kind: spec?.kind, source: spec?.source, exitCode } });
         settle({ error: '保存中に問題が起きたため中止しましたが、元のファイルは変更していません。' });
       });
     });

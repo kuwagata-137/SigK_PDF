@@ -96,7 +96,8 @@ test('名前を付けて保存で開いているファイル自身を選ぶと�
   assert.equal(spec(shell).dropBackup, true);
 });
 
-test('モザイクがあれば開いたときの元のファイルの印を渡し、無ければ渡さない', async (t) => {
+// spec-6-1 タスク C で改めた（確定事項C-2）。前はモザイクがあるときだけ渡していた。
+test('開いたときの元のファイルの印は、モザイクがあってもなくても渡す', async (t) => {
   const shell = await withMosaic(t, { taskResults: [okResult(), okResult()] });
   stubImages(t, shell);
   await confirmAndWait(shell, shell.SigK.save.saveActive());
@@ -104,7 +105,7 @@ test('モザイクがあれば開いたときの元のファイルの印を渡�
   const { SigK } = shell;
   SigK.viewer.applyPlan(SigK.pagePlan.rotatePages(SigK.viewer.getPlan(), [0], 90));
   await SigK.save.saveActive();
-  assert.equal(spec(shell).expectSource, null);
+  assert.ok(spec(shell).expectSource !== null, 'モザイクが無くても渡す');
 });
 
 test('scaleFor は細長い紙の 1 辺も 16,384 画素に収める', async (t) => {

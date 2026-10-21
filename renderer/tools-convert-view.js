@@ -85,7 +85,7 @@
     el.fitNote.textContent = settings.paper === 'image'
       ? '画像の画素数をそのまま紙の大きさにします。余白は付きません。'
       : '画像は余白の内側に、縦横比を保って収まる大きさに合わせます。';
-    // フォルダーの欄は「画像ごと」のときだけ出す（まとめるときの保存先は OS の保存ダイアログが決めるため。確定事項19・20）。
+    // フォルダの欄は「画像ごと」のときだけ出す（まとめるときの保存先は OS の保存ダイアログが決めるため。確定事項19・20）。
     const each = settings.output === 'each';
     el.folderKey.hidden = !each;
     el.folderRow.hidden = !each;

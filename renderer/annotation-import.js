@@ -19,17 +19,29 @@
     return root.SigK.annotationDetails;
   }
 
+  // 読めなかったページを、1 文書につき 1 行の記録にする（壊れた大きな PDF で、ページごとの行が記録の上限から古い行を押し出さないように）。
+  const UNREAD_PAGES_SHOWN = 20;
+  function reportUnread(unread) {
+    if (unread.length === 0)
+      return;
+    const pages = unread.slice(0, UNREAD_PAGES_SHOWN).map((item) => item.page);
+    root.SigK.log?.warn('annotation-import', `${unread.length} ページの書き込みを読めませんでした`, unread[0].error, { pages, count: unread.length });
+  }
+
   // 全ページから集める。views はページ番号（0 始まり）→ pdf.js の page.view（[x1 y1 x2 y2]。CropBox）。途中で文書が閉じられたら null。
   async function collect(doc, isAlive) {
     const imported = {};
     const views = {};
+    const unread = [];
     for (let number = 1; number <= doc.numPages; number += 1) {
       let annotations;
       try {
         const page = await doc.getPage(number);
         views[number - 1] = page.view;
         annotations = typeof page.getAnnotations === 'function' ? await page.getAnnotations() : [];
-      } catch {
+      } catch (error) {
+        // 読めないページは書き込みが無いものとして先へ進む。理由は最後にまとめて記録に残す（spec-6-1 タスク B）。
+        unread.push({ page: number, error });
         annotations = [];
       }
       if (!isAlive())
@@ -38,6 +50,7 @@
       if (entries.length > 0)
         imported[number - 1] = entries;
     }
+    reportUnread(unread);
     return { imported, views };
   }
 

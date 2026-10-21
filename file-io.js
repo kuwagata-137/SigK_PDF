@@ -44,7 +44,7 @@ function describeReadFailure(error) {
     case 'EBUSY':
       return 'ファイルが他のプログラムで使われています。';
     case 'EISDIR':
-      return 'フォルダーは開けません。';
+      return 'フォルダは開けません。';
     default:
       return 'ファイルを読めませんでした。';
   }
@@ -82,7 +82,8 @@ async function readPdf(filePath, { fsLike = fs, maxBytes = MAX_PDF_BYTES, onErro
     };
   } catch (error) {
     onError({ message: 'PDF を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });
-    return { error: describeReadFailure(error) };
+    // code は、画面が「ほかのプログラムが使っている（EBUSY）なら最近使ったファイルから消さない」を見分けるのに使う（spec-6-1 確定事項D-7）。
+    return { error: describeReadFailure(error), code: error?.code ?? null };
   }
 }
 
@@ -168,8 +169,8 @@ function pickOpenSources(options) {
 // 分割・PDF→画像の対象を 1 本選ぶ窓（pickSplitSource・pickToolSource）は、対象が選んでいる帯になったので無くした
 // （PDF→画像は spec-2-5 確定事項E4〔PR-2〕、分割は G14〔PR-3〕。帯の受け口の［ファイルを選ぶ…］で開いてから帯を選ぶ）。
 
-// 出力フォルダーを選ばせる（spec-2-2 確定事項14）。フィルターは付けない。
-async function pickFolder({ dialogLike, parentWindow = null, defaultPath = undefined, title = '出力フォルダーを選ぶ' }) {
+// 出力フォルダを選ばせる（spec-2-2 確定事項14）。フィルターは付けない。
+async function pickFolder({ dialogLike, parentWindow = null, defaultPath = undefined, title = '出力先のフォルダを選ぶ' }) {
   const options = { title, properties: ['openDirectory', 'createDirectory'], defaultPath };
   const result = parentWindow === null
     ? await dialogLike.showOpenDialog(options)
@@ -241,8 +242,9 @@ function createFileIo({ dialog, onError = () => {} }) {
       pickMergeSources({ dialogLike: dialog, parentWindow, defaultPath }),
     pickOpenSources: (parentWindow = null, { defaultPath } = {}) =>
       pickOpenSources({ dialogLike: dialog, parentWindow, defaultPath }),
-    pickFolder: (parentWindow = null, { defaultPath } = {}) =>
-      pickFolder({ dialogLike: dialog, parentWindow, defaultPath }),
+    // 題は画面が決める（設定の窓の［変更…］の「決めたフォルダを選ぶ」）。無い・空なら pickFolder の既定。
+    pickFolder: (parentWindow = null, { defaultPath, title } = {}) =>
+      pickFolder({ dialogLike: dialog, parentWindow, defaultPath, ...(typeof title === 'string' && title !== '' ? { title } : {}) }),
     exists: (filePath) => exists(filePath),
   };
 }

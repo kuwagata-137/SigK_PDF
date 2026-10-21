@@ -25,7 +25,7 @@
     return at < 0 ? '' : filePath.slice(0, at);
   }
 
-  // フォルダーの区切りに合わせてつなぐ（tools-split.js と同じ）。
+  // フォルダの区切りに合わせてつなぐ（tools-split.js と同じ）。
   function joinPath(folder, name) {
     const sep = folder.includes('/') && !folder.includes('\\') ? '/' : '\\';
     return folder.endsWith(sep) ? `${folder}${name}` : `${folder}${sep}${name}`;
@@ -33,7 +33,15 @@
 
   const rows = () => state.rows.map((row) => ({ ...row }));
   const find = (id) => state.rows.find((row) => row.id === id) ?? null;
-  const settings = () => ({ paper: state.paper, orientation: state.orientation, margin: state.margin, output: state.output, folder: state.folder });
+  // 今の出力フォルダ。state.folder は、変えるまでは 1 枚目の画像のフォルダ、変えたあとは選んだフォルダ。変えるまでは、使うたびに
+  // 設定の窓の「ファイルを書き出すときの、最初のフォルダ」で決め直す（spec-6-1 確定事項E-5。決定81 ⑨。点検の直し I-3）。
+  function folderNow() {
+    if (state.folderTouched || state.folder === null)
+      return state.folder;
+    return root.SigK.preferences?.initialFolder(state.folder) ?? state.folder;
+  }
+
+  const settings = () => ({ paper: state.paper, orientation: state.orientation, margin: state.margin, output: state.output, folder: folderNow() });
 
   function redraw() {
     root.SigK.imageStrip?.render();
@@ -106,7 +114,7 @@
     const api = root.pdfAPI;
     if (typeof api?.pickFolder !== 'function')
       return false;
-    const picked = await api.pickFolder({ defaultPath: state.folder ?? undefined });
+    const picked = await api.pickFolder({ defaultPath: folderNow() ?? undefined });
     return picked?.canceled !== true && typeof picked?.path === 'string' && setFolder(picked.path);
   }
 
@@ -116,7 +124,7 @@
     const planned = plan().planConvert(state.rows, settings());
     if (planned.ready !== true)
       return planned;
-    const folder = state.folder ?? (state.rows.length > 0 ? dirOf(state.rows[0].path) : '');
+    const folder = folderNow() ?? (state.rows.length > 0 ? dirOf(state.rows[0].path) : '');
     return { ...planned, folder, targets: planned.names.map((name) => joinPath(folder, name)) };
   }
 

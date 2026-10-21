@@ -19,6 +19,10 @@ const {
 } = require('./security-policy.js');
 const { createSettingsStore, clampWindowBounds, pickUi, mergeUi, fillAuthor } = require('./settings.js');
 const { createErrorLog } = require('./errorlog.js');
+const { createErrorCapture, watchWebContents, watchChildren } = require('./error-capture.js');
+const { openLogFolder } = require('./log-folder.js');
+const { createPreferencesHost } = require('./preferences.js');
+const { handleRendererGone, runCrashCheck } = require('./renderer-gone.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
 const imageThumbnail = require('./image-thumbnail.js');
@@ -66,7 +70,11 @@ const PAGE_BOXES_TIMEOUT_MS = 20000;
 let pageBoxesSerial = 0;
 
 let errorLog = null;
+// 記録の受け口（spec-6-1 タスク B）。errorLog ができる前（app ready の前）の分はためておく。
+const errorCapture = createErrorCapture({ version: app.getVersion() });
 let settings = null;
+// 設定の窓の値（spec-6-1 タスク E）。settings.json の preferences の欄をこの口で読み書きする。
+let preferences = null;
 let fileIo = null;
 let imageIo = null;
 let taskRunner = null;
@@ -86,13 +94,27 @@ const pendingLaunch = [];
 const launchBatcher = createLaunchBatcher();
 // 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
 let allowClose = false;
+// アプリを終えている途中（before-quit のあと）。画面の処理が止まっても確認の窓を出さない。
+let quitting = false;
+// 画面の処理が止まったときにしたこと（renderer-gone.js。起動確認 SIGK_SMOKE_CRASH が読む）。
+let rendererGoneOutcome = null;
 
 function logError(entry) {
-  if (errorLog === null) {
-    console.error(entry);
-    return;
-  }
-  errorLog.append(entry);
+  errorCapture.record(entry);
+}
+
+// 画面の処理が止まったとき（spec-6-1 タスク B の B2）。保存していない変更の数は止まった画面のものなので 0 に戻す
+// （開き直した画面で閉じるときに、もう無い変更を聞かないため）。起動の要求の受け取りの印も戻し、開き直した画面が
+// shell:ready を送るまで、エクスプローラーから開いたファイルをためておく（確定事項77。点検の直し）。
+// 走っているワーカー（止まった画面が頼んだ保存など）は、アプリを終えるときと同じく止める（元のファイルは変わらない。開き直した画面の
+// 保存と番号がぶつかったり、同じファイルへ同時に書いたりしないため。ブランチ全体の点検の直し M-3）。
+function onRendererGone(win) {
+  dirtyTabCount = 0;
+  launchReady = false;
+  taskRunner?.cancelAll();
+  rendererGoneOutcome = null;
+  handleRendererGone({ win, dialog, app, logError, smoke: process.env.SIGK_SMOKE === '1', quitting })
+    .then((outcome) => { rendererGoneOutcome = outcome; });
 }
 
 // app:// の応答を組み立てる。
@@ -170,6 +192,8 @@ function createMainWindow({ hidden = false } = {}) {
   });
   if (hidden)
     win.webContents.setFrameRate(60);
+  // 画面の処理が止まった・応答しない・preload の失敗を記録する（spec-6-1 タスク B）。
+  watchWebContents(win.webContents, logError, () => onRendererGone(win));
 
   win.once('ready-to-show', () => {
     if (hidden)
@@ -181,6 +205,11 @@ function createMainWindow({ hidden = false } = {}) {
     startupMarks.shown = Date.now();
   });
 
+  // Windows のログオフ・シャットダウンでは before-quit が来ない（Electron の仕様）。画面の処理が先に落とされても確認の窓を出さない（点検の直し）。
+  win.on('session-end', () => {
+    quitting = true;
+  });
+
   win.on('close', (event) => {
     // 未保存があれば、閉じる前にレンダラーへ確認を頼む（確定事項56）。
     // 確認のダイアログはアプリ内の <dialog> なので、レンダラーでしか出せない。
@@ -190,6 +219,8 @@ function createMainWindow({ hidden = false } = {}) {
     const canAsk = !win.webContents.isDestroyed() && !win.webContents.isCrashed();
     if (!allowClose && dirtyTabCount > 0 && canAsk) {
       event.preventDefault();
+      // 確認で取りやめられたらアプリは終わらないので、「終えている途中」の印を戻す（了承されれば app.quit でまた立つ。点検の直し）。
+      quitting = false;
       win.webContents.send('app:closeRequest');
       return;
     }
@@ -266,6 +297,11 @@ function requestDocInfo() {
   mainWindow?.webContents.send('pdf:docInfoRequest');
 }
 
+// メニュー「ファイル」→「設定…」（spec-6-1 タスク E の確定事項E-1）。開くかどうかは画面が決める（ほかの窓が開いていれば開かない）。
+function requestSettings() {
+  mainWindow?.webContents.send('preferences:openRequest');
+}
+
 // メニュー「ヘルプ」→「使い方」（spec-4b-7b 確定事項A4）。開くかどうかは画面が決める（窓が開いていれば開かない）。
 function requestHelp() {
   mainWindow?.webContents.send('pdf:helpRequest');
@@ -277,9 +313,14 @@ function requestDefaultAppsSettings() {
   openDefaultAppsSettings({ shell, appName: app.getName(), logError });
 }
 
+// メニュー「ヘルプ」→「エラーの記録のフォルダを開く」（spec-6-1 タスク B。決定81 ⑧）。
+function requestLogFolder() {
+  openLogFolder({ dir: path.dirname(errorLog.filePath), shell, logError });
+}
+
 // メニュー「ヘルプ」の並び（spec-5-2 確定事項C1）と、アプリのアイコンを読めるか。起動確認の報告に載せる（確定事項E1）。
 // 配布物では app.asar の中のアイコンを読む。並びが違う・読めないときは problems に積む。
-const HELP_MENU_ORDER = ['使い方', '既定のアプリの設定…', '-', 'バージョン情報'];
+const HELP_MENU_ORDER = ['使い方', '既定のアプリの設定…', 'エラーの記録のフォルダを開く', '-', 'バージョン情報'];
 function readAppShellState(problems) {
   const helpMenu = Menu.getApplicationMenu()?.items.find((item) => item.label === 'ヘルプ');
   const labels = helpMenu?.submenu?.items.map((item) => (item.type === 'separator' ? '-' : item.label)) ?? null;
@@ -326,6 +367,7 @@ function buildAppMenu() {
         { label: '名前を付けて保存…', accelerator: 'CmdOrCtrl+Shift+S', click: () => requestSave('saveAs') },
         { type: 'separator' },
         { label: '文書情報…', accelerator: 'CmdOrCtrl+I', click: requestDocInfo },
+        { label: '設定…', accelerator: 'CmdOrCtrl+,', click: requestSettings },
         { type: 'separator' },
         { label: '終了', role: 'quit' },
       ],
@@ -336,6 +378,7 @@ function buildAppMenu() {
         // F1 は画面の側（viewer-keys.js）で受ける 1 本にする（spec-4b-7b 確定事項A2）。ここはキーを表示するだけで登録しない。
         { label: '使い方', accelerator: 'F1', registerAccelerator: false, click: requestHelp },
         { label: '既定のアプリの設定…', click: requestDefaultAppsSettings },
+        { label: 'エラーの記録のフォルダを開く', click: requestLogFolder },
         { type: 'separator' },
         { label: 'バージョン情報', click: showAboutDialog },
       ],
@@ -366,7 +409,7 @@ function registerIpc() {
     platform: process.platform,
   }));
 
-  ipcMain.handle('log:error', (_event, entry) => ({ ok: errorLog.append(entry) }));
+  ipcMain.handle('log:error', (_event, entry) => ({ ok: errorCapture.fromRenderer(entry) }));
 
   // レンダラーが購読を始めた合図（確定事項77）。溜めていた要求をここで流す。
   ipcMain.on('shell:ready', () => {
@@ -399,7 +442,7 @@ function registerIpc() {
   ipcMain.handle('pdf:pickMergeSources', (_event, options = {}) => fileIo.pickMergeSources(mainWindow, options));
   ipcMain.handle('pdf:pickOpenSources', (_event, options = {}) => fileIo.pickOpenSources(mainWindow, options));
   ipcMain.handle('pdf:exists', (_event, filePath) => fileIo.exists(filePath));
-  // 出力フォルダーの選択（spec-2-2 確定事項14）。
+  // 出力フォルダの選択（spec-2-2 確定事項14）。
   ipcMain.handle('pdf:pickFolder', (_event, options = {}) => fileIo.pickFolder(mainWindow, options));
   // 変換の入力の複数選択と、画像の形式・画素数の読み取り（spec-3-1 確定事項2・4）。
   ipcMain.handle('pdf:pickConvertSources', (_event, options = {}) => imageIo.pickSources(mainWindow, options));
@@ -408,7 +451,13 @@ function registerIpc() {
   ipcMain.handle('pdf:pickWatermarkImage', (_event, options = {}) => imageIo.pickWatermark(mainWindow, options));
   ipcMain.handle('pdf:readWatermarkImage', (_event, filePath) => imageIo.readWatermark(filePath));
   // PDF→画像（spec-3-3 確定事項19）。レンダラーが描いた 1 ページぶんを書く。
-  ipcMain.handle('image:write', (_event, target, bytes) => imageIo.write(target, bytes));
+  // 書けたら「最後に書き出したフォルダ」として覚える（spec-6-1 確定事項E-6）。
+  ipcMain.handle('image:write', async (_event, target, bytes) => {
+    const result = await imageIo.write(target, bytes);
+    if (result?.ok === true)
+      preferences.rememberWritten(target);
+    return result;
+  });
   // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。画像の拡張子の絶対パスだけ受け、data URL で返す。
   ipcMain.handle('image:thumbnail', (_event, filePath) => imageThumbnail.createThumbnail(filePath, { nativeImageLike: nativeImage }));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
@@ -423,12 +472,17 @@ function registerIpc() {
   // ワーカーへの委譲（spec-1-6 確定事項1〜10）。進捗は要求元の webContents へ
   // 返す。タスク1本につきプロセスを1つ立てて、終わったら落とすのは
   // task-runner.js の仕事である。
-  ipcMain.handle('task:run', (event, taskId, spec) => taskRunner.run(taskId, spec, {
-    onProgress: (progress) => {
-      if (!event.sender.isDestroyed())
-        event.sender.send('task:progress', progress);
-    },
-  }));
+  ipcMain.handle('task:run', async (event, taskId, spec) => {
+    const result = await taskRunner.run(taskId, spec, {
+      onProgress: (progress) => {
+        if (!event.sender.isDestroyed())
+          event.sender.send('task:progress', progress);
+      },
+    });
+    // 書き出しに成功したら、行き先のフォルダを「最後に書き出したフォルダ」として覚える（spec-6-1 確定事項E-6）。
+    preferences.rememberOutput(spec, result);
+    return result;
+  });
   ipcMain.handle('task:cancel', (_event, taskId) => taskRunner.cancel(taskId));
 
   // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。保存や透かしと同じワーカーで読むが、通知バーも「実行中」の
@@ -469,6 +523,10 @@ function registerIpc() {
   // ノートの作成者が空なら OS のユーザー名で埋めて渡す（spec-4-4 確定事項39）。
   const uiForRenderer = () => fillAuthor(pickUi(settings.get()), osUserName());
   ipcMain.handle('settings:getUi', () => ({ ok: true, ui: uiForRenderer() }));
+  // 設定の窓の値（spec-6-1 タスク E の確定事項E-4）。set は差分を受け、確かめた全体と今あるフォルダを返す。
+  ipcMain.handle('preferences:get', async () => ({ ok: true, ...(await preferences.snapshot()) }));
+  ipcMain.handle('preferences:set', async (_event, patch) => ({ ok: true, ...(await preferences.set(patch)) }));
+  ipcMain.handle('preferences:openDefaultApps', () => requestDefaultAppsSettings());
   ipcMain.handle('settings:setUi', (_event, patch) => {
     settings.set(mergeUi(pickUi(settings.get()), patch));
     settings.save();
@@ -1225,7 +1283,7 @@ function installSmokeCheck(win, mode) {
 
   // SIGK_SMOKE_MERGE=<a.pdf>;<b.pdf> を付けると、結合の経路を丸ごと1回通す
   // （spec-2-1 の完了判定10）。出力先は SIGK_SMOKE_MERGE_OUT（省略時は
-  // 先頭の入力と同じフォルダーの _結合.pdf）。
+  // 先頭の入力と同じフォルダの _結合.pdf）。
   //
   // 保存ダイアログは OS のもので自動では押せない（saveScript と同じ事情）ので、
   // 画面の「実行」は押さず、同じ spec を SigK.save.runTask へ直接渡す。
@@ -1534,7 +1592,7 @@ function installSmokeCheck(win, mode) {
   // SIGK_SMOKE_TO_IMAGE=<pdf> を付けると、PDF→画像の経路を丸ごと1回通す
   // （spec-3-3 の完了判定4〜7・10）。ページは SIGK_SMOKE_TO_IMAGE_PAGES（範囲の記法。
   // 省略時はすべて）、形式は _FORMAT（png / jpeg）、解像度は _DPI（72 / 150 / 300）、
-  // 出力先は _OUT（省略時は一時フォルダー）。分割と同じ2段構えで、まず画面を組んで
+  // 出力先は _OUT（省略時は一時フォルダ）。分割と同じ2段構えで、まず画面を組んで
   // 計画（出力先）をメインへ返し、メインが同名確認の下ごしらえをしてから走らせる。
   // 描くのはレンダラーなので、経路は画面の「実行」（toolsToImage.run）そのままである。
   const toImageSetupScript = (source, settings) => `(async () => {
@@ -1670,6 +1728,9 @@ function installSmokeCheck(win, mode) {
       let print = null;
       let pages = null;
       let save = null;
+      let sourceChanged = null;
+      let abnormal = null;
+      let measure = null;
       let merge = null;
       let split = null;
       let convert = null;
@@ -1686,6 +1747,14 @@ function installSmokeCheck(win, mode) {
       const memoryAtRest = perfPath === undefined ? null : snapshotMemory();
       let memoryAfterOpen = null;
       let memoryAfterEdit = null;
+      // SIGK_SMOKE_CRASH=1 は画面の処理をわざと止め、記録に残ることと、確認の窓を出す道を通ったことだけを確かめて終わる（spec-6-1 タスク B）。
+      if (process.env.SIGK_SMOKE_CRASH === '1') {
+        const crash = await runCrashCheck({ win, readLog: () => errorLog.readAll(), outcome: () => rendererGoneOutcome });
+        console.log(JSON.stringify({ crash, problems }));
+        allowClose = true;
+        win.close();
+        return;
+      }
       try {
         // SIGK_SMOKE_THROW=1 のときだけ、例外がレンダラーからログへ届くかを確かめる。
         if (process.env.SIGK_SMOKE_THROW === '1')
@@ -1759,6 +1828,16 @@ function installSmokeCheck(win, mode) {
           fs.copyFileSync(path.resolve(saveSource), savePath);
           save = await win.webContents.executeJavaScript(saveScript(savePath));
         }
+        // 書き換えられたファイルの上書き保存のメモリの山（spec-6-1 タスク C の C4。smoke-source-changed.js）。
+        if (process.env.SIGK_SMOKE_SOURCE_CHANGED && saveSource !== undefined)
+          sourceChanged = await require('./smoke-source-changed.js').run({ app, win, source: path.resolve(saveSource), target: path.resolve(process.env.SIGK_SMOKE_SOURCE_CHANGED) });
+        // 異常な PDF を本物の pdf.js で開いたときの様子（spec-6-1 タスク D の D2。smoke-abnormal.js）。
+        if (process.env.SIGK_SMOKE_ABNORMAL)
+          abnormal = await require('./smoke-abnormal.js').run({ win, paths: process.env.SIGK_SMOKE_ABNORMAL.split(';').map((p) => p.trim()).filter(Boolean).map((p) => path.resolve(p)), zoom: process.env.SIGK_SMOKE_ABNORMAL_ZOOM });
+        // 大きな PDF をタブで何本も開いたときの時間とメモリ（spec-6-1 タスク D の D5。smoke-measure.js。窓を出さない）。
+        if (process.env.SIGK_SMOKE_MEASURE)
+          measure = await require('./smoke-measure.js').run({ app, win, paths: process.env.SIGK_SMOKE_MEASURE.split(';').map((p) => p.trim()).filter(Boolean).map((p) => path.resolve(p)),
+            save: process.env.SIGK_SMOKE_MEASURE_SAVE === '1', minFreeMb: Number(process.env.SIGK_SMOKE_MEASURE_MIN_FREE_MB || 1500) });
         if (process.env.SIGK_SMOKE_MERGE) {
           const inputs = process.env.SIGK_SMOKE_MERGE.split(';').map((value) => path.resolve(value.trim())).filter((value) => value !== '');
           const target = process.env.SIGK_SMOKE_MERGE_OUT
@@ -1775,7 +1854,7 @@ function installSmokeCheck(win, mode) {
         if (process.env.SIGK_SMOKE_SPLIT) {
           // 分割の台本は smoke-split.js（spec-2-2b 確定事項K1）。操作の列は SIGK_SMOKE_SPLIT_OPS。
           const source = path.resolve(process.env.SIGK_SMOKE_SPLIT);
-          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          // 省略時は一時フォルダへ。fixtures の隣に出力を散らかさない。
           const outDir = process.env.SIGK_SMOKE_SPLIT_OUT
             ? path.resolve(process.env.SIGK_SMOKE_SPLIT_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-split');
@@ -1800,7 +1879,7 @@ function installSmokeCheck(win, mode) {
           }
         }
         if (process.env.SIGK_SMOKE_CONVERT) {
-          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          // 省略時は一時フォルダへ。fixtures の隣に出力を散らかさない。
           const outDir = process.env.SIGK_SMOKE_CONVERT_OUT
             ? path.resolve(process.env.SIGK_SMOKE_CONVERT_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-convert');
@@ -1834,7 +1913,7 @@ function installSmokeCheck(win, mode) {
         }
         if (process.env.SIGK_SMOKE_TO_IMAGE) {
           const source = path.resolve(process.env.SIGK_SMOKE_TO_IMAGE);
-          // 省略時は一時フォルダーへ。fixtures の隣に出力を散らかさない。
+          // 省略時は一時フォルダへ。fixtures の隣に出力を散らかさない。
           const outDir = process.env.SIGK_SMOKE_TO_IMAGE_OUT
             ? path.resolve(process.env.SIGK_SMOKE_TO_IMAGE_OUT)
             : path.join(app.getPath('temp'), 'sigk-smoke-to-image');
@@ -1865,7 +1944,7 @@ function installSmokeCheck(win, mode) {
           toImage.tempLeft = setup.targets.some((target) => fs.existsSync(require('./pdf-write.js').tempPathFor(target)));
         }
         // 透かし・フラット化（spec-4-5 確定事項48・49。操作列と出力は smoke-rewrite.js の頭に）。
-        // 出力の省略時は一時フォルダーへ。前回の出力は先に消す（書けたことを取り違えない）。
+        // 出力の省略時は一時フォルダへ。前回の出力は先に消す（書けたことを取り違えない）。
         if (process.env.SIGK_SMOKE_WATERMARK) {
           const source = path.resolve(process.env.SIGK_SMOKE_WATERMARK);
           const target = process.env.SIGK_SMOKE_WATERMARK_OUT
@@ -1977,6 +2056,9 @@ function installSmokeCheck(win, mode) {
         print,
         pages,
         save,
+        sourceChanged,
+        abnormal,
+        measure,
         merge,
         split,
         convert,
@@ -2010,8 +2092,11 @@ function start() {
   startupMarks.ready = Date.now();
   const userData = app.getPath('userData');
   errorLog = createErrorLog({ dir: path.join(userData, 'logs') });
+  errorCapture.attach(errorLog);
+  watchChildren(app, logError);
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
+  preferences = createPreferencesHost({ settings, logError, notify: (snapshot) => mainWindow?.webContents.send('preferences:changed', snapshot) });
   fileIo = createFileIo({ dialog, onError: logError });
   imageIo = createImageIo({ dialog, onError: logError });
   // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。
@@ -2040,7 +2125,10 @@ function start() {
 app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
 // 保存中は終了を塞いである（確定事項9）ので普通は起きないが、万一残っていたら
 // ワーカーを落として書きかけの一時ファイルも片づける。元ファイルは無傷である。
-app.on('before-quit', () => taskRunner?.cancelAll());
+app.on('before-quit', () => {
+  quitting = true;
+  taskRunner?.cancelAll();
+});
 
 app.on('window-all-closed', () => app.quit());
 
