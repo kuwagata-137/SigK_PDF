@@ -324,3 +324,6 @@ PR-5 で直した J12 の改訂（`docs/spec-2-5-file-strips.md` 第 J 章）は
 | M-6 | docs/02 のファイルの木に smoke-abnormal.js・smoke-measure.js・renderer/settings-dialog.css が無い | 足した | `7579933` |
 | M-7 | ガイドの「1 本開くごとにメモリを 400MB ほど」が測った値（370〜560MB）と違う | 測った値にした | `7579933` |
 | M-8 | 新しいテストのファイル `test/source-changed-save.test.js` が 315 行 | 直していない（このリポジトリのテストは前から 200 行を超えるものが多い。テスト以外の新しいファイルはどれも 200 行以内） | — |
+- 直したあと: 全テスト 3,397 件 fail 0（`npm test`・`TZ=UTC npm test`。`main` = `9669f4a` のときは 3,211 件）。起動確認（窓を出さない）は、ふつう・設定の窓（写真を撮り直した）・
+  画面の処理をわざと止める（`SIGK_SMOKE_CRASH`。記録に 1 行・確認の窓を出す道を通った）・異常な PDF 4 種類（`SIGK_SMOKE_ABNORMAL`。所有者のパスワードだけ・1 ページだけ壊れた・0 バイト・AES-128）のどれも problems なし。
+- 消したもの: このセッションで作った見本の使い捨ての HTML（`_mockup_phase6.html`・`_mockup_phase6e.html`。git の対象外。台本 `gen-mock2.js` で作り直せる）。
