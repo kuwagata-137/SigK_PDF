@@ -64,7 +64,7 @@ function describeWriteFailure(error, phase) {
   if (phase === 'replace' && (code === 'EPERM' || code === 'EACCES' || code === 'EBUSY'))
     return 'ファイルが他のプログラムで使われているので、閉じてからもう一度お試しください。';
   if (phase === 'backup')
-    return 'バックアップ（.bak）を作れなかったため、保存を中止しました。';
+    return '控えのファイル（.bak）を作れなかったため、保存を中止しました。';
   switch (code) {
     case 'EACCES':
     case 'EPERM':
@@ -74,7 +74,7 @@ function describeWriteFailure(error, phase) {
     case 'ENOSPC':
       return 'ディスクの空き容量が足りません。';
     case 'ENOENT':
-      return '保存先のフォルダーが見つかりません。';
+      return '保存先のフォルダが見つかりません。';
     default:
       return 'ファイルを保存できませんでした。';
   }

@@ -169,7 +169,7 @@ test('.bak を作れなかったら保存そのものを中止する', async () 
       fsLike: failingFs('copyFile', 'EACCES'),
     });
     assert.equal(result.phase, 'backup');
-    assert.match(result.error, /バックアップ/);
+    assert.match(result.error, /控えのファイル（.bak）を作れなかった/);
     assert.equal(fs.readFileSync(target, 'utf8'), 'OLD', '元ファイルを触っていない');
     assert.equal(fs.existsSync(tempPathFor(target)), false);
   } finally { ws.cleanup(); }
