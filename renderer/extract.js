@@ -82,23 +82,9 @@
     if (await root.SigK.confirmExtract.ask({ count: pages.length, mosaicCount }) !== true)
       return { canceled: true };
 
-    // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
-    const defaultPath = defaultTargetFor(view.file);
-    const picked = await root.pdfAPI.pickSavePath({
-      defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath,
-      title: 'ページを抽出',
-    });
-    if (picked?.canceled === true)
-      return { canceled: true };
-    if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
-    // 元のファイル自身と、タブで開いているファイルへは書かない（確定事項96）。元へ書くと
-    // 選んだページだけに置き換わり（.bak も作らない）、ほかのタブは古い内容のまま残る。
-    const refused = root.SigK.outputTarget.refusalFor(picked.path, { source: view.file.path });
-    if (refused !== null) {
-      banner().show(refused);
-      return { error: refused };
-    }
+    const chosen = await chooseTarget(view.file);
+    if (chosen.target === undefined)
+      return chosen;
 
     // モザイクが無くても通す（確認と保存先のダイアログの間に置かれたモザイクも、plan の食い違いとして取りやめる）。
     const mosaic = await root.SigK.mosaicSave?.prepare({ mode: 'extract', indices, plan }) ?? { ok: true, mosaics: [] };
@@ -116,7 +102,7 @@
       // 名前の無い帯の元の中身と、写しのバイト列（spec-2-5 I4・I5。保存と同じ。点検の指摘 3）。
       sourceCopy: view.file.copy ?? null,
       copies: viewer().getCopies(),
-      target: picked.path,
+      target: chosen.target,
       pages,
       // 選んだページに付いた注釈も一緒に出す（spec-4-1 確定事項21）。
       // 新しい形のテキストは画面で決めた行を添える（spec-4b-4a 確定事項I1）。
@@ -128,7 +114,33 @@
       expectSource: typeof view.file.path === 'string' ? root.SigK.save.signatureOf(view.file) : null,
       label: '抽出',
     });
+    return report(result);
+  }
 
+  // 保存の窓で行き先を決める。戻り値は { target } / { canceled } / { error }（断った理由は通知バーにも出す）。
+  async function chooseTarget(file) {
+    // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
+    const defaultPath = defaultTargetFor(file);
+    const picked = await root.pdfAPI.pickSavePath({
+      defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath,
+      title: 'ページを抽出',
+    });
+    if (picked?.canceled === true)
+      return { canceled: true };
+    if (typeof picked?.path !== 'string')
+      return { error: picked?.error ?? '保存先を決められませんでした。' };
+    // 元のファイル自身と、タブで開いているファイルへは書かない（確定事項96）。元へ書くと
+    // 選んだページだけに置き換わり（.bak も作らない）、ほかのタブは古い内容のまま残る。
+    const refused = root.SigK.outputTarget.refusalFor(picked.path, { source: file.path });
+    if (refused !== null) {
+      banner().show(refused);
+      return { error: refused };
+    }
+    return { target: picked.path };
+  }
+
+  // 結果を通知バーに出して、そのまま返す。
+  function report(result) {
     if (result?.canceled === true) {
       // 自分で止めたので赤く塗らない（決定49）。
       banner().show('抽出を中止しました。', { tone: 'info' });
@@ -138,7 +150,6 @@
       banner().show(result?.error ?? '抽出できませんでした。');
       return result ?? { error: '抽出できませんでした。' };
     }
-
     // 成功は失敗ではないので赤く塗らない（決定48）。通知バーの既定の色は失敗の赤である。
     banner().show(`${result.pages} ページを抽出しました。`, { autoHideMs: 2500, tone: 'info' });
     return result;
