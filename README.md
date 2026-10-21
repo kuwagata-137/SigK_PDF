@@ -157,6 +157,16 @@ Electron ＋ 素の HTML / CSS / JavaScript。ビルドステップを置かな�
 | [`docs/spec-4b-1a-edit-mode.md`](docs/spec-4b-1a-edit-mode.md) | Phase 4B 塊①-a 編集モードの組み替えと読み戻しの口 |
 | [`docs/spec-4b-1b-annotation-style.md`](docs/spec-4b-1b-annotation-style.md) | Phase 4B 塊①-b 書き込みの見た目の設定 |
 | [`docs/spec-4b-2-transform.md`](docs/spec-4b-2-transform.md) | Phase 4B 塊② 書き込みの大きさと向き |
+| [`docs/spec-4b-3a-selection.md`](docs/spec-4b-3a-selection.md) | Phase 4B 塊③-a 書き込みの選択と複数選択 |
+| [`docs/spec-4b-3b-hand.md`](docs/spec-4b-3b-hand.md) | Phase 4B 塊③-b ハンドと右ボタン |
+| [`docs/spec-4b-4a-text-format.md`](docs/spec-4b-4a-text-format.md) | Phase 4B 塊④-a テキストの書式 |
+| [`docs/spec-4b-4b-rotate-callout.md`](docs/spec-4b-4b-rotate-callout.md) | Phase 4B 塊④-b テキストの回転と吹き出し |
+| [`docs/spec-4b-5a-shapes.md`](docs/spec-4b-5a-shapes.md) | Phase 4B 塊⑤-a 図形の追加（×印・多角形・塗った三角の矢印・線の始点合わせ） |
+| [`docs/spec-4b-5b-marker-eraser.md`](docs/spec-4b-5b-marker-eraser.md) | Phase 4B 塊⑤-b マーカーと消しゴム（道具の段の「その他」を含む） |
+| [`docs/spec-4b-6a-trim.md`](docs/spec-4b-6a-trim.md) | Phase 4B 塊⑥-a トリミング |
+| [`docs/spec-4b-6b-mosaic.md`](docs/spec-4b-6b-mosaic.md) | Phase 4B 塊⑥-b モザイク |
+| [`docs/spec-4b-7a-escape-zoom.md`](docs/spec-4b-7a-escape-zoom.md) | Phase 4B 塊⑦-a Esc が効く順番の仕上げと表示倍率の下限 10% |
+| [`docs/spec-4b-7b-help.md`](docs/spec-4b-7b-help.md) | Phase 4B 塊⑦-b 使い方の窓（ヘルプ画面） |
 | [`docs/spec-5-1-context-menu.md`](docs/spec-5-1-context-menu.md) | Phase 5 塊① 右クリックメニュー |
 | [`docs/spec-5-2-open-with-icon.md`](docs/spec-5-2-open-with-icon.md) | Phase 5 塊② 「プログラムから開く」・既定のアプリ・アイコン |
 | [`docs/spec-5-3-device-check.md`](docs/spec-5-3-device-check.md) | Phase 5 塊③ 実機での確かめ（結果と「あなたの画面で見る項目」の手順書）と使い方ガイド |
