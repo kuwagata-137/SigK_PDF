@@ -94,6 +94,20 @@ test('ツールバーの［上書き保存］は、名前の無い帯（新し�
   assert.deepEqual(barSaveWith({ file: null }), named);
   assert.deepEqual(barSaveWith({}), named);
 });
+// 点検の直し I-4。設定の窓で「上書き保存の前に、元のファイルの控えのファイルを作る」を外していたら、.bak が残るとは言わない。
+test('設定の窓で控えのファイルを外していたら、ツールバーの［上書き保存］と帯のフロッピーは「作りません」の文にする', () => {
+  globalThis.SigK.preferences = { current: () => ({ makeBackup: false }) };
+  try {
+    assert.equal(tipContent.resolve(node('bar.save')).desc,
+      '開いているファイルに、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（名前.pdf.bak）は作りません。');
+    assert.equal(tipContent.resolve(node('strip.save', { tipFile: '会議資料.pdf' })).desc,
+      'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（会議資料.pdf.bak）は作りません。');
+    assert.equal(barSaveWith({ file: { untitled: true } }).desc, 'このファイルはまだ保存先が決まっていないので、保存先と名前を聞いてから PDF のファイルにします。');
+  } finally {
+    delete globalThis.SigK.preferences;
+  }
+});
+
 test('呼び手が表の文を書き換えられない（Entry と keys の配列が凍っている。bar.save の 2 つの文・関数の値・text も）', () => {
   const textNode = { dataset: {} };
   tipContent.text(textNode, 'a.pdf', 'C:\\x\\a.pdf');

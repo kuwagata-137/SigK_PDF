@@ -7,13 +7,14 @@
 
   // 帯のフロッピー（J14）。帯のファイル名は、Task 5 が要素の data-tip-file に付ける。
   // ファイル名が空・無いときは、「（）」を出さず、ファイル名を抜いた文にする（.bak の名前は見本の「名前.pdf.bak」）。
+  // 2 文目（控えのファイル）は、ツールバーの［上書き保存］と同じく設定の窓に合わせる（tip-content-view.js の backupSentence）。
   function stripSave(node) {
     const file = node.dataset.tipFile;
     const target = file ? `この帯のファイル（${file}）` : 'この帯のファイル';
     const backup = file ? `${file}.bak` : '名前.pdf.bak';
     return {
       name: '上書き保存',
-      desc: `${target}に、今の変更を書き込みます。元の中身は「${backup}」として残ります。`,
+      desc: `${target}に、今の変更を書き込みます。${root.SigK.tipSaveText.backupSentence(backup)}`,
       keys: ['Ctrl+S'],
       keysNote: '選んでいる帯',
     };
