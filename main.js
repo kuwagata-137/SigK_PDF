@@ -106,9 +106,12 @@ function logError(entry) {
 // 画面の処理が止まったとき（spec-6-1 タスク B の B2）。保存していない変更の数は止まった画面のものなので 0 に戻す
 // （開き直した画面で閉じるときに、もう無い変更を聞かないため）。起動の要求の受け取りの印も戻し、開き直した画面が
 // shell:ready を送るまで、エクスプローラーから開いたファイルをためておく（確定事項77。点検の直し）。
+// 走っているワーカー（止まった画面が頼んだ保存など）は、アプリを終えるときと同じく止める（元のファイルは変わらない。開き直した画面の
+// 保存と番号がぶつかったり、同じファイルへ同時に書いたりしないため。ブランチ全体の点検の直し M-3）。
 function onRendererGone(win) {
   dirtyTabCount = 0;
   launchReady = false;
+  taskRunner?.cancelAll();
   rendererGoneOutcome = null;
   handleRendererGone({ win, dialog, app, logError, smoke: process.env.SIGK_SMOKE === '1', quitting })
     .then((outcome) => { rendererGoneOutcome = outcome; });

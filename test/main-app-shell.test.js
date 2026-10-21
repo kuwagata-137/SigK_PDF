@@ -43,6 +43,8 @@ test('画面の処理が止まったら、保存していない変更の数と�
   const body = /function onRendererGone\(win\) \{([\s\S]*?)\n\}/.exec(MAIN)?.[1] ?? '';
   assert.match(body, /dirtyTabCount = 0;/);
   assert.match(body, /launchReady = false;/, '開き直した画面が shell:ready を送るまで、エクスプローラーから開いたファイルをためておく（確定事項77）');
+  // ブランチ全体の点検の直し M-3。止まった画面の保存は、開き直した画面と番号がぶつかりうるので、アプリを終えるときと同じく止める。
+  assert.match(body, /taskRunner\?\.cancelAll\(\);/, '走っているワーカーを止める');
   assert.match(body, /handleRendererGone\(\{ win, dialog, app, logError, smoke: process\.env\.SIGK_SMOKE === '1', quitting \}\)/);
   assert.match(MAIN, /watchWebContents\(win\.webContents, logError, \(\) => onRendererGone\(win\)\);/);
 });
