@@ -10,10 +10,9 @@
   //     #image-strip-note（画像ごとの注意。名前と理由）
   //
   // 状態（画像の並び・用紙）は tools-convert.js が持ち、ここは描いて、押されたらあちらの関数を呼ぶ。並べ替えは image-strip-drag.js、
-  // サムネイルは image-thumbs.js、注意と説明の文は image-strip-notes.js。
+  // サムネイルは image-thumbs.js、注意と説明の文は image-strip-notes.js、紙の倍率（docs/07 決定83）は image-strip-zoom.js。
   // 枠（.sel）は、画像を足した・この帯を押したときに付け、PDF の帯を押したら外す（H7）。
 
-  const ITEM_STEP = 116;   // .img-item の幅 104px ＋ 間 12px（strips.css）
   const PREFETCH = 2;
 
   const state = { selected: false, shown: false };
@@ -115,12 +114,10 @@
     }).observe(el.items);
   }
 
-  // 見えている画像（左右に 2 枚の先読み）のサムネイルを頼む。幅が分からない（隠れている・テスト）ときは 8 枚分と見る。
+  // 見えている画像（左右に 2 枚の先読み。数え方は image-strip-zoom.js）のサムネイルを頼む。
   function requestThumbs() {
     const rows = convert().rows();
-    const width = el.items.clientWidth || ITEM_STEP * 8;
-    const first = Math.max(0, Math.floor(el.items.scrollLeft / ITEM_STEP) - PREFETCH);
-    const last = Math.min(rows.length, Math.ceil((el.items.scrollLeft + width) / ITEM_STEP) + PREFETCH);
+    const { first, last } = root.SigK.imageStripZoom.visible(el.items, rows.length, PREFETCH);
     thumbs().want(rows.slice(first, last).map((row) => row.path));
   }
 
@@ -190,7 +187,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.imageStrip = {
-    ITEM_STEP, init, render, isShown,
+    init, render, isShown,
     select: () => setSelected(true),
     deselect: () => setSelected(false),
     // PDF の帯に枠を付けないとき（画像の帯に枠がある間。H7）。

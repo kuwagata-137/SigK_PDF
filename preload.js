@@ -182,7 +182,8 @@ contextBridge.exposeInMainWorld('imageAPI', {
   // { ok, path, bytes } / { error }
   write: (target, bytes) => ipcRenderer.invoke('image:write', target, bytes),
   // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。{ ok, url, width, height } / { error }
-  thumbnail: (filePath) => ipcRenderer.invoke('image:thumbnail', filePath),
+  // size は長い辺の px（ツールモードの紙の倍率で大きくする。docs/07 決定83）。メインが 208px 刻み・上限 624px に収める。
+  thumbnail: (filePath, size) => ipcRenderer.invoke('image:thumbnail', filePath, size),
 });
 
 // 最近使ったファイル（spec-1-2 確定事項8〜10）。実体は settings.json にあり、

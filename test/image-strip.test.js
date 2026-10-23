@@ -171,7 +171,7 @@ async function createWideShell(t) {
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('convert');
   // jsdom は幅を数えないので、画像を並べる所の幅を差し替える（はじめは 4 枚分）。
-  const strip = { width: shell.SigK.imageStrip.ITEM_STEP * 4 };
+  const strip = { width: shell.SigK.imageStripZoom.itemStep() * 4 };
   Object.defineProperty(shell.document.getElementById('image-strip-items'), 'clientWidth', { configurable: true, get: () => strip.width });
   return { shell, strip };
 }
@@ -185,10 +185,34 @@ test('窓を広げて帯の幅が変わったら、新しく見えた画像の�
   await shell.flush();
   assert.deepEqual([...requested(shell)].sort(), imageNo(0, 6), '4 枚分の幅と先読みの 2 枚');
 
-  strip.width = shell.SigK.imageStrip.ITEM_STEP * 10;
+  strip.width = shell.SigK.imageStripZoom.itemStep() * 10;
   shell.window.dispatchEvent(new shell.window.Event('resize'));
   await shell.flush();
   assert.deepEqual([...requested(shell)].sort(), imageNo(0, 12));
+});
+
+// ツールモードの紙の倍率（docs/07 決定83）。画像の枠も倍率どおりに大きくなり（CSS の --paper-zoom）、足りなくなった縮小は大きく頼み直す。
+test('紙の倍率を上げると画像の枠の間隔が広がり、画素比 2 で足りなくなった縮小を大きく頼み直す（届くまでは前のものを使う）', async (t) => {
+  const { shell } = await createWideShell(t);
+  shell.window.devicePixelRatio = 2;
+  await shell.SigK.toolsConvert.addPaths(MANY.slice(0, 2));
+  await shell.flush();
+  assert.deepEqual(structuredClone(shell.thumbnailSizes), [208, 208]);
+  assert.equal(shell.SigK.imageStripZoom.itemStep(), 116);
+  assert.equal(shell.document.documentElement.style.getPropertyValue('--paper-zoom'), '1');
+
+  shell.SigK.toolsZoom.set(2);
+  assert.equal(shell.document.documentElement.style.getPropertyValue('--paper-zoom'), '2');
+  assert.equal(shell.SigK.imageStripZoom.itemStep(), 220);
+  assert.ok(shell.SigK.imageThumbs.get(MANY[0])?.url !== undefined, '大きいものが届く前に前の縮小を捨てた');
+  await shell.flush();
+  assert.deepEqual(structuredClone(shell.thumbnailSizes), [208, 208, 416, 416]);
+  assert.equal(shell.SigK.imageThumbs.get(MANY[0]).px, 416);
+
+  // 下げても、大きいものを持っていれば頼み直さない。
+  shell.SigK.toolsZoom.set(1);
+  await shell.flush();
+  assert.equal(shell.thumbnailSizes.length, 4);
 });
 
 test('左のツールの一覧を閉じて帯の幅だけが広がったときも、画像を並べる所の大きさの変化で頼む（ResizeObserver）', async (t) => {
@@ -202,7 +226,7 @@ test('左のツールの一覧を閉じて帯の幅だけが広がったとき�
   await shell.flush();
   assert.deepEqual(watchers.map((entry) => entry.target.id), ['image-strip-items'], '画像の帯を初めて出したときに 1 つだけ見張る');
 
-  strip.width = shell.SigK.imageStrip.ITEM_STEP * 10;
+  strip.width = shell.SigK.imageStripZoom.itemStep() * 10;
   for (const { callback } of watchers)
     callback([]);
   await shell.flush();

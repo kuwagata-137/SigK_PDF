@@ -527,6 +527,8 @@ async function createShell({
   const imageWrites = [];
   // imageAPI.thumbnail() に届いたパスの並び（spec-2-5 確定事項H5）。
   const thumbnailCalls = [];
+  // そのとき頼んだ大きさ（長い辺 px。ツールモードの紙の倍率で変わる。docs/07 決定83）。thumbnailCalls と同じ順。
+  const thumbnailSizes = [];
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
   const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
@@ -764,8 +766,9 @@ async function createShell({
         imageWrites.push({ target, bytes });
         return imageWriteResults.shift() ?? { ok: true, path: target, bytes: bytes?.length ?? 0 };
       },
-      thumbnail: async (filePath) => {
+      thumbnail: async (filePath, size) => {
         thumbnailCalls.push(filePath);
+        thumbnailSizes.push(size ?? null);
         return imageThumbnails[filePath] ?? { ok: true, url: 'data:image/png;base64,AAAA', width: 192, height: 128 };
       },
     };
@@ -860,6 +863,7 @@ async function createShell({
     imageWriteResults,
     // imageAPI.thumbnail() に届いたパス（spec-2-5 確定事項H5）。
     thumbnailCalls,
+    thumbnailSizes,
     // pdfAPI.pickWatermarkImage() に届いたオプションと、readWatermarkImage が返す画像（spec-4-5）。
     watermarkImageCalls,
     watermarkImages,

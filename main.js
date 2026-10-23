@@ -459,7 +459,7 @@ function registerIpc() {
     return result;
   });
   // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。画像の拡張子の絶対パスだけ受け、data URL で返す。
-  ipcMain.handle('image:thumbnail', (_event, filePath) => imageThumbnail.createThumbnail(filePath, { nativeImageLike: nativeImage }));
+  ipcMain.handle('image:thumbnail', (_event, filePath, size) => imageThumbnail.createThumbnail(filePath, { nativeImageLike: nativeImage, size: imageThumbnail.thumbSize(size) }));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
   // 任意のパスでエクスプローラーを開かせないよう、実在するファイルに限る。
   ipcMain.handle('shell:showInFolder', (_event, filePath) => {

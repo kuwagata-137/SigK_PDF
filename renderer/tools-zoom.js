@@ -37,6 +37,11 @@
     root.SigK.viewerControls?.syncAll(el.doc, root.SigK.viewer.getState());
   }
 
+  // CSS で寸法を掛ける所（「変換する画像」の帯の枠。strips.css）のために、倍率を html の --paper-zoom に置く。
+  function setCssZoom() {
+    el?.doc.documentElement.style.setProperty('--paper-zoom', String(state.zoom));
+  }
+
   // anchor（{ clientX, clientY }）の下の紙を動かさずに倍率を変える。渡さなければ帯の画面の左上を動かさない。
   function set(zoom, { anchor = null } = {}) {
     const next = clamp(Number(zoom));
@@ -45,6 +50,7 @@
     const held = root.SigK.stripZoom?.capture(anchor) ?? null;
     const previous = state.zoom;
     state.zoom = next;
+    setCssZoom();
     for (const listener of listeners)
       listener(next, previous);
     root.SigK.stripZoom?.restore(held);
@@ -87,6 +93,7 @@
       return false;
     win.__sigkToolsZoomReady = true;
     el = { doc, win };
+    setCssZoom();
     // 既定のスクロールを止めるので、passive にしない。
     doc.getElementById('strips')?.addEventListener('wheel', onWheel, { passive: false });
     return true;
