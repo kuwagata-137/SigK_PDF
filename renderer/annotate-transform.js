@@ -164,14 +164,16 @@
     return true;
   }
 
-  // マウスを動かしたとき、つまみの上ならそのカーソルを出す（確定事項24）。
-  function hover(event) {
+  // マウスを動かしたとき、つまみの上ならそのカーソルを出す（確定事項24）。つまみの外では fallback（押せば書き込みを掴む所の
+  // move。決定84 ①）を出す。
+  function hover(event, fallback = null) {
     if (drag !== null)
       return;
-    setCursor(handleUnder(event)?.handle.cursor ?? null);
+    setCursor(handleUnder(event)?.handle.cursor ?? fallback);
   }
 
-  // つまみの上のカーソルを外す（引いていないとき）。ハンドはつまみを見ないので、持ち替えたときに残さない（spec-4b-3b 確定事項A4）。
+  // つまみの上のカーソルを外す（引いていないとき）。つまみを見ない道具（消しゴム・モザイク・トリミング）へ持ち替えたときと、
+  // 編集モードの外で残さない（決定84）。
   function clearCursor() {
     if (drag === null)
       setCursor(null);
@@ -186,5 +188,7 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateTransform = { init, begin, move, end, cancel, hover, clearCursor, commit, isDragging: () => drag !== null };
+  SigK.annotateTransform = {
+    init, begin, move, end, cancel, hover, clearCursor, commit, isDragging: () => drag !== null, isOnHandle: (event) => handleUnder(event) !== null,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

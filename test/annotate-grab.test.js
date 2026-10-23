@@ -197,13 +197,15 @@ test('「選択」の道具なら、選んでいない書き込みを押して�
   assert.equal(SigK.annotate.getSelected(), a);
 });
 
-test('道具なしのときは、選んでいない書き込みを押して引いても動かない（今までどおり 2 段）', async (t) => {
+// 2026-10-23 改訂（決定84 ④）: 前は道具なしでは動かず、先に選んでからもう一度引く 2 段だった。道具ごとの表は annotate-press.test.js。
+test('道具なしのときも、選んでいない書き込みをドラッグするとそのまま 1 段で動く（決定84 ④）', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
   const a = drawSquare(shell, [100, 700], [200, 600]);
   const scale = viewport(shell).scale;
   dragPx(shell, px(shell, [150, 700]), [20 * scale, 0]);
-  near(rectOf(shell, a), [100, 600, 200, 700]);
+  near(rectOf(shell, a), [120, 600, 220, 700]);
+  assert.equal(SigK.annotate.getSelected(), a);
 });
 
 test('回ったページでも、Shift は画面の横・縦でそろう（確定事項F5）', async (t) => {

@@ -10,7 +10,8 @@
   const { TOOLS, MARKUP_TOOLS, DEFAULT_FONT_SIZE, isFontSize } = root.SigK.annotationPresets;
 
   // 書き込みを描かない道具（spec-4b-3a 確定事項C3、spec-4b-3b 確定事項A2、spec-4b-5b 確定事項18、spec-4b-6a 確定事項11、spec-4b-6b 確定事項10）。
-  // 色の既定を持つ描く道具（TOOLS）とは別に持つ。「選択」は紙のどこから引いても範囲選択になり、「ハンド」は紙のどこを引いても表示が動き、
+  // 色の既定を持つ描く道具（TOOLS）とは別に持つ。「選択」は紙のどこから引いても範囲選択になり、「ハンド」は紙を引くと表示が動き
+  // （動かせる書き込みの上では選んで動かす。決定84 ③）、
   // 「消しゴム」は紙の上をなぞると消し、「モザイク」は紙の上を引いた範囲を隠し、「トリミング」は紙の上を引いて残す範囲を囲む。
   const POINTER_TOOLS = Object.freeze(['select', 'hand', 'eraser', 'mosaic', 'trim']);
 

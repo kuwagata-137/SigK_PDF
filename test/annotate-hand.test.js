@@ -5,8 +5,9 @@ const assert = require('node:assert/strict');
 
 const { createShell, makeSource, DEFAULT_VIEWPORT } = require('./harness.js');
 
-// 「ハンド」の道具（spec-4b-3b 確定事項A）。段の「選択」の隣にあり、持っている間は #view のどこを左で押して引いても表示が動く。
-// 左ボタンでは書き込みを見ない（当たり・つまみ・ダブルクリック）。jsdom はスクロール量を丸めないので、引いた差がそのまま出る。
+// 「ハンド」の道具（spec-4b-3b 確定事項A）。段の「選択」の隣にあり、持っている間は #view を左でドラッグすると表示が動く。
+// 動かせる書き込みの線の上と、選んだ書き込みのつまみだけは「選択」の道具と同じに選んで動かす（決定84 ②③。塗っていない四角・丸の
+// 内側は表示が動く）。ダブルクリックは見ない。jsdom はスクロール量を丸めないので、引いた差がそのまま出る。
 
 const A = 'C:\\work\\a.pdf';
 
@@ -117,7 +118,7 @@ test('ハンドは紙の外の灰色の所からも引ける。スクロール�
   assert.deepEqual(scrollOf(shell), [0, 50]);
 });
 
-test('ハンドで書き込みの上を押して引いても、書き込みは動かず、選択も変わらない（確定事項A4）', async (t) => {
+test('ハンドで塗っていない四角の内側をドラッグすると、書き込みは動かず表示が動き、クリックしても選択は変わらない（決定84 ②・確定事項A3）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
   const a = drawSquare(shell, [100, 700], [200, 600]);
@@ -126,12 +127,15 @@ test('ハンドで書き込みの上を押して引いても、書き込みは�
   const before = rectOf();
   SigK.annotate.select(b);
   SigK.annotate.setTool('hand');
-  mouse(shell, 'mousedown', pageNode(shell), px(shell, [150, 650]));
-  mouse(shell, 'mousemove', document.body, px(shell, [180, 640]));
-  mouse(shell, 'mouseup', pageNode(shell), px(shell, [180, 640]));
+  view(shell).scrollTop = 400;
+  const down = mouse(shell, 'mousedown', pageNode(shell), px(shell, [150, 650]));
+  assert.equal(document.documentElement.hasAttribute('data-panning'), true);
+  mouse(shell, 'mousemove', document.body, [down.clientX, down.clientY - 30]);
+  mouse(shell, 'mouseup', pageNode(shell), [down.clientX, down.clientY - 30]);
   assert.deepEqual(rectOf(), before);
+  assert.deepEqual(scrollOf(shell), [0, 430]);
   assert.deepEqual([...SigK.annotate.getSelection()], [b]);
-  // 押して離すだけでも選ばない・外さない。
+  // クリックだけでも選ばない・外さない。
   mouse(shell, 'mousedown', pageNode(shell), px(shell, [150, 650]));
   mouse(shell, 'mouseup', pageNode(shell), px(shell, [150, 650]));
   mouse(shell, 'mousedown', pageNode(shell), px(shell, [500, 300]));
@@ -140,7 +144,56 @@ test('ハンドで書き込みの上を押して引いても、書き込みは�
   assert.equal(SigK.viewer.getAnnotations().added.length, 2);
 });
 
-test('ハンドのとき、選んでいる四角の角のつまみを押して引いても大きさは変わらず、表示が動く（確定事項A4）', async (t) => {
+test('ハンドで書き込みの線をドラッグすると、その書き込みを選んで動かし、表示は動かない（決定84 ③）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  const rectOf = () => [...SigK.viewer.getAnnotations().added.find((entry) => entry.id === a).rect];
+  SigK.annotate.setTool('hand');
+  const scale = SigK.viewer.getTextLayer(0).viewport.scale;
+  const at = px(shell, [125, 700]);
+  mouse(shell, 'mousedown', pageNode(shell), at);
+  assert.equal(document.documentElement.hasAttribute('data-panning'), false);
+  mouse(shell, 'mousemove', document.body, [at[0] + 20 * scale, at[1]]);
+  mouse(shell, 'mouseup', pageNode(shell), [at[0] + 20 * scale, at[1]]);
+  rectOf().forEach((value, index) => assert.ok(Math.abs(value - [120, 600, 220, 700][index]) <= 0.05, `${rectOf()}`));
+  assert.deepEqual(scrollOf(shell), [0, 0]);
+  assert.equal(SigK.annotate.getSelected(), a);
+  assert.equal(SigK.annotate.getTool(), 'hand', '道具はハンドのまま');
+});
+
+test('ハンドで書き込みの線をクリックすると、その書き込みを選ぶ（決定84 ③）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  SigK.annotate.setTool('hand');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [125, 700]));
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [125, 700]));
+  assert.equal(SigK.annotate.getSelected(), a);
+  assert.equal(SigK.viewer.getAnnotations().added.length, 1);
+});
+
+test('ハンドで Ctrl を押しながら書き込みの線をクリックすると、「選択」の道具と同じく足す・外すを切り替える。内側では切り替えない（決定84 ③）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, window } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  const b = drawSquare(shell, [300, 700], [400, 600]);
+  SigK.annotate.select(a);
+  SigK.annotate.setTool('hand');
+  const ctrlClick = (point) => {
+    const [x, y] = px(shell, point);
+    for (const type of ['mousedown', 'mouseup'])
+      pageNode(shell).dispatchEvent(new window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons: type === 'mouseup' ? 0 : 1, ctrlKey: true }));
+  };
+  ctrlClick([325, 700]);
+  assert.deepEqual([...SigK.annotate.getSelection()], [a, b]);
+  ctrlClick([350, 650]);
+  assert.deepEqual([...SigK.annotate.getSelection()], [a, b], '塗っていない四角の内側は表示を引くだけ');
+  ctrlClick([325, 700]);
+  assert.deepEqual([...SigK.annotate.getSelection()], [a]);
+});
+
+test('ハンドのとき、選んでいる四角の角のつまみをドラッグすると大きさが変わり、表示は動かない（決定84 ③）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
   const a = drawSquare(shell, [100, 700], [200, 600]);
@@ -148,14 +201,14 @@ test('ハンドのとき、選んでいる四角の角のつまみを押して�
   const before = rectOf();
   SigK.annotate.select(a);
   SigK.annotate.setTool('hand');
-  // 左上の角のつまみ（道具なしなら大きさが変わる所）。
-  const corner = SigK.annotationFrame.shown().shape.handles.find((handle) => handle.id === 'x1y1').at;
-  mouse(shell, 'mousedown', pageNode(shell), corner);
-  mouse(shell, 'mousemove', document.body, [corner[0] - 40, corner[1] - 40]);
-  mouse(shell, 'mouseup', pageNode(shell), [corner[0] - 40, corner[1] - 40]);
-  assert.deepEqual(rectOf(), before);
-  assert.deepEqual(scrollOf(shell), [40, 40]);
-  assert.equal(document.documentElement.hasAttribute('data-transform-cursor'), false);
+  const corner = SigK.annotationFrame.shown().shape.handles.find((handle) => handle.id === 'x1y1');
+  mouse(shell, 'mousedown', pageNode(shell), corner.at);
+  mouse(shell, 'mousemove', document.body, [corner.at[0] - 40, corner.at[1] - 40]);
+  assert.equal(document.documentElement.getAttribute('data-transform-cursor'), corner.cursor);
+  mouse(shell, 'mouseup', pageNode(shell), [corner.at[0] - 40, corner.at[1] - 40]);
+  assert.notDeepEqual(rectOf(), before);
+  assert.deepEqual(scrollOf(shell), [0, 0]);
+  assert.equal(SigK.annotate.getSelected(), a);
 });
 
 test('ハンドのとき、書き込みをダブルクリックしても直し始めない（確定事項A4）', async (t) => {

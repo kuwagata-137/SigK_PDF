@@ -122,8 +122,8 @@
   }
 
   // 点（.pdf-page 基準の CSS px）に当たる注釈（annotation-hit.js。上に描いたものが優先）。
-  function hitTest(index, point) {
-    return root.SigK.annotationHit.hitTest(index, point);
+  function hitTest(index, point, options) {
+    return root.SigK.annotationHit.hitTest(index, point, options);
   }
 
   // 選んでいる書き込みを全部消して 1 世代（確定事項H1）。

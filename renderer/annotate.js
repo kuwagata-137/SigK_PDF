@@ -166,7 +166,7 @@
     selectKeys: (keys) => selection().selectKeys(keys),
     toggleKey: (key) => selection().toggleKey(key),
     addKey: (key) => selection().addKey(key),
-    hitTest: (index, point) => selection().hitTest(index, point),
+    hitTest: (index, point, options) => selection().hitTest(index, point, options),
     remove: () => selection().remove(),
     escape: () => root.SigK.annotateCancel.escape(),
     abortGestures: () => root.SigK.annotateCancel.abortGestures(),
