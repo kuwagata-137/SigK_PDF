@@ -67,7 +67,7 @@ test('道具の段の多角形で、クリックした所に頂点を置き、�
   assert.match(document.getElementById('props-hint').textContent, /クリックで頂点を置きます/);
   click(shell, [100, 700]);
   assert.equal(SigK.annotatePolygon.isDrawing(), true);
-  assert.match(document.getElementById('props-hint').textContent, /始点を押すと閉じます/);
+  assert.match(document.getElementById('props-hint').textContent, /始点をクリックすると閉じます/);
   click(shell, [200, 700]);
   click(shell, [180, 600]);
   moveTo(shell, [120, 620]);

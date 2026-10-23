@@ -174,7 +174,7 @@ test('既定のアプリの入口を、メニューと同じ名前で案内す�
   assert.match(mainJs, /label: '既定のアプリの設定…'/);
   assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」か、設定の窓の［Windows の設定を開く］で Windows の設定を開き、SigK PDF を選びます/);
   // 一覧の SigK PDF を押すだけでは 1 回しか開かないので、ガイドと同じ手順で案内する（spec-6-1 タスク E の E9。docs/07 の積み残し）。
-  assert.match(joined('basics'), /「プログラムから開く」→「別のプログラムを選択」を押し、SigK PDF を選んで［常に使う］を押しても、既定にできます/);
+  assert.match(joined('basics'), /「プログラムから開く」→「別のプログラムを選択」をクリックし、SigK PDF を選んで［常に使う］を押しても、既定にできます/);
   // 設定の窓の開き方（spec-6-1 確定事項E-1）。
   assert.match(joined('basics'), /メニュー「ファイル」→「設定…」か \[Ctrl\]\+\[,\]、ツールバーの右の端の歯車のボタンで、設定の窓を開きます/);
 });
@@ -184,7 +184,7 @@ test('うまく動かないときの記録の入口を、メニューと同じ�
   assert.match(mainJs, /label: 'エラーの記録のフォルダを開く'/);
   const block = sectionOf('basics').blocks.find((b) => b.h === 'うまく動かないとき');
   assert.notEqual(block, undefined, '「画面とモード」に「うまく動かないとき」が無い');
-  assert.match(block.items.join(' '), /メニュー「ヘルプ」→「エラーの記録のフォルダを開く」を押すと/);
+  assert.match(block.items.join(' '), /メニュー「ヘルプ」→「エラーの記録のフォルダを開く」をクリックすると/);
   assert.match(block.items.join(' '), /外へは送りません/);
 });
 

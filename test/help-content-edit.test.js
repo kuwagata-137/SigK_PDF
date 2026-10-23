@@ -25,7 +25,7 @@ test('図形の節は、描くときと、あとで端を動かすときの Shif
   const text = joined('shapes');
   assert.match(text, /四角・丸は正方形・正円に/);
   assert.match(text, /直線・矢印と、多角形の次の辺は、45° 刻みの向きになります/);
-  assert.match(text, /描くときの 45° 刻みとは違い、端が押した所から横か縦にだけ動きます/);
+  assert.match(text, /描くときの 45° 刻みとは違い、端がドラッグを始めた所から横か縦にだけ動きます/);
   // 線そのものが水平・垂直にそろう、とは書かない。
   assert.doesNotMatch(text, /水平・垂直になります/);
 });
