@@ -122,8 +122,8 @@ const STEPS = `
         const base = pageNode(index).getBoundingClientRect();
         grab = [base.left + box.x + box.width / 2, base.top + box.y + box.height / 2];
       } else {
-        // 図形は線の上（矩形・楕円は箱の内側でよい。直線・矢印・ペンは最初の点）を掴む。
-        const at = entry.paths ? entry.paths[0][0] : [(entry.rect[0] + entry.rect[2]) / 2, (entry.rect[1] + entry.rect[3]) / 2];
+        // 図形は線の上（四角・丸も線の上。直線・矢印・ペンは最初の点）を掴む（grabPointOf。決定84 ②）。
+        const at = grabPointOf(entry);
         grab = screenPoint(index, at[0], at[1]);
       }
       const [ox, oy] = viewportOf(index).convertToPdfPoint(grab[0] - pageNode(index).getBoundingClientRect().left, grab[1] - pageNode(index).getBoundingClientRect().top);

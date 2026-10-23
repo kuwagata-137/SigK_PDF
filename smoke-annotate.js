@@ -97,6 +97,19 @@ const annotateScript = (target, spec) => `(async () => {
     return [base.left + cx, base.top + cy];
   };
   const mouse = (type, target, x, y) => target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+  // 図形を掴む紙の点 pt。直線・矢印・ペン・多角形は最初の点、四角・丸は線の上（上の辺の左から 4 分の 1。図形の道具とハンドでは
+  // 塗っていない内側を掴めないため。決定84 ②。つまみの四隅と辺の中点は外す）、ほかは箱の真ん中。回したものは箱の中心まわりに回す。
+  const grabPointOf = (entry) => {
+    if (entry.paths)
+      return entry.paths[0][0];
+    const [x1, y1, x2, y2] = entry.rect;
+    const center = [(x1 + x2) / 2, (y1 + y2) / 2];
+    if (entry.kind !== 'square' && entry.kind !== 'circle')
+      return center;
+    const half = SigK.shapeOutline.drawWidthOf(entry.rect, entry.lineWidth) / 2;
+    const local = entry.kind === 'square' ? [x1 + (x2 - x1) / 4, y2 - half] : [center[0] + ((x2 - x1) / 2 - half) / 2, center[1] + ((y2 - y1) / 2 - half) * Math.sqrt(3) / 2];
+    return SigK.shapeRotation.rotatePoint(local, center, SigK.shapeRotation.angleOf(entry));
+  };
   const editorNode = () => document.querySelector('textarea.free-text-editor');
   // 入力欄に打って Esc で確定する（IME は通さない。文字は value に置く）。
   const typeAndCommit = async (body, { commit = true } = {}) => {
