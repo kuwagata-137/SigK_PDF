@@ -55,9 +55,48 @@
     return x >= x1 && x <= x2 && y >= y1 && y <= y2;
   }
 
+  // 塗っていない四角・丸。outline の当たりでは線の上だけを当てる（決定84 ②）。
+  function isHollowBox(entry) {
+    return (entry.kind === 'square' || entry.kind === 'circle') && root.SigK.shapeStyle.fillOf(entry) === null;
+  }
+
+  // 四角・丸の線の帯の幅（pt）。描いた線の幅で、雲形は弧の直径に線の幅を足したもの（shape-figure.js と同じ箱の内側に描く）。
+  function bandOf(entry) {
+    const style = root.SigK.shapeStyle;
+    const width = root.SigK.shapeOutline.drawWidthOf(entry.rect, entry.lineWidth);
+    if (style.lineStyleOf(entry) !== 'cloudy')
+      return width;
+    const cloud = root.SigK.cloudGeometry.cloudOf({ kind: entry.kind, box: entry.rect, intensity: style.cloudIntensityOf(entry), lineWidth: entry.lineWidth });
+    return cloud === null ? width : 2 * cloud.radius + cloud.drawWidth;
+  }
+
+  // 点が箱の中か。丸は箱に内接する楕円の中で見る。つぶれた箱には中が無い。
+  function insideBox([x, y], [x1, y1, x2, y2], kind) {
+    if (x2 <= x1 || y2 <= y1)
+      return false;
+    if (kind === 'square')
+      return x >= x1 && x <= x2 && y >= y1 && y <= y2;
+    const dx = (2 * x - x1 - x2) / (x2 - x1);
+    const dy = (2 * y - y1 - y2) / (y2 - y1);
+    return dx * dx + dy * dy <= 1;
+  }
+
+  // 塗っていない四角・丸の線の帯に点が当たるか。帯は線の幅に表示の HIT_SLACK px を内と外に足したもの。回したものは
+  // 回す前の座標へ戻して見る（決定84 ②）。
+  function hitsHollowBox(entry, pdfPoint, scale) {
+    const rotation = root.SigK.shapeRotation;
+    const point = rotation.isRotated(entry) ? rotation.toLocal(pdfPoint, entry.rect, rotation.angleOf(entry)) : pdfPoint;
+    const slack = HIT_SLACK / (scale > 0 ? scale : 1);
+    const inset = bandOf(entry) + slack;
+    const [x1, y1, x2, y2] = entry.rect;
+    return insideBox(point, [x1 - slack, y1 - slack, x2 + slack, y2 + slack], entry.kind)
+      && !insideBox(point, [x1 + inset, y1 + inset, x2 - inset, y2 - inset], entry.kind);
+  }
+
   // 1 つの注釈に点が当たるか。直線・矢印・ペンは線からの距離、ノートは画面の箱（表示の点で見る。
   // spec-4-4 確定事項13）、表示のみは当てない、回した四角・丸は回した箱、それ以外は四角（spec-4-3 確定事項12）。
-  function hits(entry, pdfPoint, viewport, point) {
+  // outline なら塗っていない四角・丸は線の上だけ（「図形」と「ハンド」の道具。決定84 ②）。
+  function hits(entry, pdfPoint, viewport, point, { outline = false } = {}) {
     if (entry.readonly === true)
       return false;
     if (annotationState().isNoteKind(entry.kind))
@@ -72,6 +111,8 @@
     // 多角形は辺からの距離と、閉じて塗ったものは中（spec-4b-5a 確定事項24）。
     if (entry.kind === 'polygon')
       return root.SigK.polygonGeometry.hits(entry, pdfPoint, hitTolerance(entry.lineWidth, viewport.scale ?? 1));
+    if (outline && isHollowBox(entry))
+      return hitsHollowBox(entry, pdfPoint, viewport.scale ?? 1);
     if (root.SigK.shapeRotation?.isRotated(entry) === true)
       return hitsTurnedBox(entry, pdfPoint);
     if (!annotationState().isPathKind(entry.kind))
@@ -80,8 +121,8 @@
     return hitsPath(entry.paths, pdfPoint, tolerance, { arrow: entry.kind === 'arrow', lineWidth: entry.lineWidth, closed: root.SigK.arrowHead.isClosed(entry) });
   }
 
-  // 点（.pdf-page 基準の CSS px）に当たる注釈。上に描いたもの（後ろ）が優先。
-  function hitTest(index, point) {
+  // 点（.pdf-page 基準の CSS px）に当たる注釈。上に描いたもの（後ろ）が優先。options は hits と同じ（outline）。
+  function hitTest(index, point, options = {}) {
     const view = root.SigK.viewer;
     const viewport = root.SigK.freeTextEditor?.pageOf(index)?.viewport ?? view?.getTextLayer(index)?.viewport;
     const src = view?.getPlan()[index]?.src;
@@ -90,7 +131,7 @@
     const pdfPoint = viewport.convertToPdfPoint(point[0], point[1]);
     const entries = annotationState().annotsOnPage(view.getAnnotations(), view.getImported(), src);
     for (let position = entries.length - 1; position >= 0; position -= 1) {
-      if (hits(entries[position], pdfPoint, viewport, point))
+      if (hits(entries[position], pdfPoint, viewport, point, options))
         return root.SigK.annotationLayer.keyOf(entries[position]);
     }
     return null;

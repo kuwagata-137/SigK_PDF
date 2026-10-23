@@ -12,6 +12,8 @@ require('../renderer/free-text-layout.js');
 require('../renderer/callout-shape.js');
 require('../renderer/markup-quads.js');
 require('../renderer/shape-style.js');
+require('../renderer/shape-outline.js');
+require('../renderer/cloud-geometry.js');
 require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
@@ -111,4 +113,61 @@ test('hits は多角形を辺の近くと、閉じて塗ったものの中で当
   assert.equal(hit.hits(entry, [50, 50], viewport, null), false);
   assert.equal(hit.hits({ ...entry, fill: '#ffff00' }, [50, 50], viewport, null), true);
   assert.equal(hit.hits({ ...entry, closed: false }, [2, 50], viewport, null), false, '開いたものは最後の辺が無い');
+});
+
+// 「図形」と「ハンド」の道具の当たり（決定84 ②）。塗っていない四角・丸は、描いた線の幅に表示の 3px を内と外に足した帯だけが当たる。
+const OUTLINE = { outline: true };
+const SQUARE = { kind: 'square', rect: [100, 600, 300, 700], lineWidth: 2, color: '#c00000', fill: null, quads: [[100, 700, 300, 700, 100, 600, 300, 600]] };
+
+test('hits の outline は、塗っていない四角を線の帯だけで当て、内側は当てない。outline でなければ今までどおり内側も当たる（決定84 ②）', () => {
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits(SQUARE, [200, 650], viewport, null), true, '「選択」などの当たりは内側も');
+  assert.equal(hit.hits(SQUARE, [200, 650], viewport, null, OUTLINE), false, '内側');
+  assert.equal(hit.hits(SQUARE, [101, 650], viewport, null, OUTLINE), true, '左の線の上');
+  assert.equal(hit.hits(SQUARE, [97.5, 650], viewport, null, OUTLINE), true, '線の外へ 3px まで');
+  assert.equal(hit.hits(SQUARE, [96.5, 650], viewport, null, OUTLINE), false);
+  assert.equal(hit.hits(SQUARE, [104.5, 650], viewport, null, OUTLINE), true, '線の内へ、線の幅 2 と 3px まで');
+  assert.equal(hit.hits(SQUARE, [105.5, 650], viewport, null, OUTLINE), false);
+  assert.equal(hit.hits(SQUARE, [200, 698], viewport, null, OUTLINE), true, '上の線の上');
+  // 3px は表示の px なので、倍率 2 では紙の 1.5pt。
+  assert.equal(hit.hits(SQUARE, [98.6, 650], { scale: 2 }, null, OUTLINE), true);
+  assert.equal(hit.hits(SQUARE, [98.4, 650], { scale: 2 }, null, OUTLINE), false);
+});
+
+test('hits の outline は、塗った四角・丸と、四角・丸のほかの書き込みには効かない（決定84 ②）', () => {
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits({ ...SQUARE, fill: '#00ff00' }, [200, 650], viewport, null, OUTLINE), true);
+  assert.equal(hit.hits({ ...SQUARE, kind: 'circle', fill: '#00ff00' }, [200, 650], viewport, null, OUTLINE), true);
+  const text = { kind: 'text', rect: [100, 600, 300, 700], quads: SQUARE.quads, text: 'あ', fontSize: 12 };
+  assert.equal(hit.hits(text, [200, 650], viewport, null, OUTLINE), true, 'テキストは箱の中が当たる');
+});
+
+test('hits の outline は、塗っていない丸を楕円の線の帯で当てる。箱の角は当てない（決定84 ②）', () => {
+  const circle = { ...SQUARE, kind: 'circle' };
+  const viewport = { scale: 1 };
+  assert.equal(hit.hits(circle, [200, 698], viewport, null, OUTLINE), true, '上の線の上');
+  assert.equal(hit.hits(circle, [299, 650], viewport, null, OUTLINE), true, '右の線の上');
+  assert.equal(hit.hits(circle, [200, 650], viewport, null, OUTLINE), false, '中心');
+  assert.equal(hit.hits(circle, [295, 695], viewport, null, OUTLINE), false, '箱の右上の角は楕円の外');
+  assert.equal(hit.hits(circle, [295, 695], viewport, null), true, 'outline でなければ今までどおり箱で当たる');
+});
+
+test('hits の outline は、回した四角を回す前の座標へ戻して線の帯で見る（決定84 ②）', () => {
+  const turned = { ...SQUARE, angle: 90, quads: [globalThis.SigK.shapeRotation.quadOf(SQUARE.rect, 90)] };
+  const viewport = { scale: 1 };
+  // 90° 回すと、画面の箱は x 150〜250・y 550〜750。左の辺は回す前の上か下の辺に当たる。
+  assert.equal(hit.hits(turned, [150.5, 650], viewport, null, OUTLINE), true);
+  assert.equal(hit.hits(turned, [200, 650], viewport, null, OUTLINE), false);
+  assert.equal(hit.hits(turned, [110, 650], viewport, null, OUTLINE), false, '回す前の左の辺の上は、回した後は外');
+});
+
+test('hits の outline は、雲形の四角を弧の幅（弧の直径＋線の幅）の帯で当てる（決定84 ②）', () => {
+  const cloudy = { ...SQUARE, lineStyle: 'cloudy', cloudIntensity: 1 };
+  const cloud = globalThis.SigK.cloudGeometry.cloudOf({ kind: 'square', box: SQUARE.rect, intensity: 1, lineWidth: 2 });
+  const band = 2 * cloud.radius + cloud.drawWidth;
+  const viewport = { scale: 1 };
+  assert.ok(band > 2, `弧の幅（${band}）は線の幅より広い`);
+  assert.equal(hit.hits(cloudy, [100 + band + 2.5, 650], viewport, null, OUTLINE), true);
+  assert.equal(hit.hits(cloudy, [100 + band + 3.5, 650], viewport, null, OUTLINE), false);
+  assert.equal(hit.hits(SQUARE, [100 + band + 2.5, 650], viewport, null, OUTLINE), band + 2.5 <= 5, '実線なら線の幅の帯');
 });
