@@ -6,7 +6,7 @@
   //   カーソルの絵   … 選んだ最初のページの絵（描けていれば）。2 枚以上なら紙を重ね、「N ページ」の札（.strip-drag-ghost）
   //   引いている紙   … 薄くする（.strip-page.dragging。ページ編集と同じ）
   //   落とす先       … 紙の列のページとページの間にアクセントの色の縦の線と札（.strip-drop-line）。写す・動かすで文を替える
-  //   受け口         … 色を替え、文を「ここに落とすと、選んだ N ページで新しい PDF の帯ができます」に（.drop-zone.hot）
+  //   受け口         … 色を替え、文を「ここにドロップすると、選んだ N ページで新しいファイルを作れます」に（.drop-zone.hot。2026-10-23 改訂。ユーザーの指示）
   //   落とせない所   … 線を出さず、カーソルのそばに理由の札（.strip-drag-refusal）
   //
   // 押し・引き・離すは strip-drag.js。ここは DOM を書くだけ。
@@ -88,7 +88,7 @@
     zone.classList.toggle('hot', on);
     setZoneIcon(zone, on ? 'plus' : 'open');
     if (on)
-      state.doc.getElementById('strip-drop-text').textContent = `ここに落とすと、選んだ ${count} ページで新しい PDF の帯ができます`;
+      state.doc.getElementById('strip-drop-text').textContent = `ここにドロップすると、選んだ ${count} ページで新しいファイルを作れます`;
     else
       root.SigK.stripDropZone?.refresh();
   }
