@@ -5,7 +5,8 @@
 //
 //   SIGK_SMOKE_SPLIT=<PDF>  SIGK_SMOKE_SPLIT_OPS=<操作列>  SIGK_SMOKE_SPLIT_OUT=<出力フォルダ>  SIGK_SMOKE_SPLIT_RULE=seq|pages
 //     操作はカンマ区切りで、ページと箱の番号は 1 始まり: each / every:<N> / at:<3+7 のように + でつなぐ> / clear /
-//     cut:<そのページの前で切る> / join:<箱> / select:<a>-<b> / one / skip / unskip / undo / redo / size:small|mid|large /
+//     cut:<そのページの前で切る> / join:<箱> / select:<a>-<b> / one / skip / unskip / undo / redo /
+//     size:<ツールモードの紙の倍率。0.5〜3。2026-10-23 に「大きさ 小・中・大」をやめてツールバーの倍率にした。docs/07 決定83> /
 //     scroll:<0〜1> / fold（別のツールへ移って戻る） / leave（別のツールへ移ったまま。畳んだあとのメモリを見るため） /
 //     zoom:<ページ> / zoom-step:<±1> / zoom-close / state（その時点を控える）
 //     省略時は every:10。
@@ -78,7 +79,7 @@ function setupScript({ source, ops = 'every:10', outDir = null, rule = 'seq' }) 
       else if (name === 'unskip') edit.unskip();
       else if (name === 'undo') edit.undo();
       else if (name === 'redo') edit.redo();
-      else if (name === 'size') edit.setSize(arg);
+      else if (name === 'size') SigK.toolsZoom.set(Number(arg));
       else if (name === 'scroll') { scroll.scrollTop = Number(arg) * (scroll.scrollHeight - scroll.clientHeight); scroll.dispatchEvent(new Event('scroll')); }
       else if (name === 'leave') SigK.tools.select('merge');
       else if (name === 'fold') { SigK.tools.select('merge'); await wait(400); states.push({ at: 'folded', ...snapshot() }); SigK.tools.select('split'); }

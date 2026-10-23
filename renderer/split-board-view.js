@@ -12,7 +12,7 @@
   const OVERSCAN = 1;   // 上下に足す画面の数
 
   let el = null;
-  let cache = { board: null, width: -1, size: null, placed: null, boxes: null };
+  let cache = { board: null, width: -1, zoom: null, placed: null, boxes: null };
   let frame = null;
 
   const split = () => root.SigK.toolsSplit;
@@ -34,14 +34,14 @@
     return { scrollTop: strips.scrollTop - offset, height: strips.clientHeight, offset };
   }
 
-  // 盤が変わらず、幅・大きさが同じなら、前の配置を使う（スクロールのたびに組み直さない）。
+  // 盤が変わらず、幅・紙の倍率（ツールモードの倍率。docs/07 決定83）が同じなら、前の配置を使う（スクロールのたびに組み直さない）。
   function placed() {
     const board = edit().board();
     const width = Math.max(0, el.scroll.clientWidth - 2);
-    const size = thumbs().size();
-    if (cache.board !== board || cache.width !== width || cache.size !== size) {
+    const zoom = thumbs().zoom();
+    if (cache.board !== board || cache.width !== width || cache.zoom !== zoom) {
       const boxes = model().boxes(board);
-      cache = { board, width, size, boxes, placed: layout().layout({ boxes, contentWidth: width, size }) };
+      cache = { board, width, zoom, boxes, placed: layout().layout({ boxes, contentWidth: width, zoom }) };
     }
     return cache.placed;
   }
@@ -60,7 +60,7 @@
       const rect = layout().pageRect(at, page);
       return rect.y + rect.height > view.scrollTop && rect.y < bottom;
     }).length;
-    thumbs().want(ordered, { cap: Math.max(layout().renderCap(thumbs().size()), visible) });
+    thumbs().want(ordered, { cap: Math.max(layout().renderCap(thumbs().zoom()), visible) });
   }
 
   function build(at, windowed) {
@@ -171,6 +171,8 @@
       if (sheet !== null)
         nodes().fitCanvas(sheet, canvas);
     });
+    // ツールモードの紙の倍率が変わったら、盤を組み直す（帯の画面を送るのは、組み直したあとに strip-zoom.js が行う）。
+    root.SigK.toolsZoom?.onChange(() => render());
     render();
     return true;
   }

@@ -62,13 +62,21 @@
     return element;
   }
 
-  // 描けた canvas を紙の枠に入れる。canvas の画素は devicePixelRatio 倍なので、見た目の大きさに戻す。
+  // 描けた canvas を紙の枠に入れる。canvas の画素は devicePixelRatio 倍なので、見た目の大きさに戻し、紙の枠に収まるように伸び縮みさせる
+  // （ツールモードの紙の倍率を変えた直後は、描き直すまで前の倍率の絵を引き伸ばして見せる。docs/07 決定83）。
   function fitCanvas(sheet, canvas) {
     if (canvas === null || canvas === undefined)
       return;
     const ratio = Math.min(sheet.ownerDocument.defaultView?.devicePixelRatio || 1, MAX_DPR);
-    canvas.style.width = `${canvas.width / ratio}px`;
-    canvas.style.height = `${canvas.height / ratio}px`;
+    const width = canvas.width / ratio;
+    const height = canvas.height / ratio;
+    const boxWidth = parseFloat(sheet.style.width);
+    const boxHeight = parseFloat(sheet.style.height);
+    const fit = boxWidth > 0 && boxHeight > 0 && width > 0 && height > 0 ? Math.min(boxWidth / width, boxHeight / height) : 1;
+    // 今の倍率で描いた絵は枠にほぼぴったりなので、丸めの 1px は動かさない。
+    const scale = Math.abs(fit - 1) * Math.max(width, height) < 1.5 ? 1 : fit;
+    canvas.style.width = `${width * scale}px`;
+    canvas.style.height = `${height * scale}px`;
     sheet.replaceChildren(canvas);
   }
 
