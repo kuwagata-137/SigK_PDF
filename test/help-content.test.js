@@ -139,10 +139,10 @@ test('分割は「分割」の節で説明し、ツールのボタン名は画�
 test('画像→PDF は「変換する画像」の帯で並べ、変換のあとは「できた PDF」のカードから続けられる（spec-2-5 第 H 章）', () => {
   const tools = joined('tools');
   assert.match(tools, /画像→PDF を選んでいるときは、PDF の帯の下に「変換する画像」の帯が出ます/);
-  assert.match(tools, /画像を横に引くと並びが変わり/);
+  assert.match(tools, /画像を横にドラッグすると並びが変わり/);
   assert.match(tools, /画像→PDF（画像ごと）は選んだフォルダへ書き出し、できた PDF を帯で開きます/);
   assert.match(tools, /右の欄に「できた PDF」のカードが出ます/);
-  assert.match(joined('escape'), /「変換する画像」の帯の画像を引いている途中の \[Esc\] は、引くのだけをやめます/);
+  assert.match(joined('escape'), /「変換する画像」の帯の画像をドラッグしている途中の \[Esc\] は、ドラッグだけをやめます/);
   assert.doesNotMatch(joined('escape'), /ファイルの一覧の行/);
   // 進み具合を出す行は帯と呼ばない。呼び名は「通知バー」（決定80 ㊲）。
   assert.doesNotMatch(tools, /青い帯/);
@@ -151,8 +151,8 @@ test('画像→PDF は「変換する画像」の帯で並べ、変換のあと�
 
 test('ツールモードで開く・保存するときの動きで書いてある（決定80）', () => {
   // 落とした PDF はタブでも開き、画像はほかのツールからでも画像→PDF へ切り替わる（tool-handoff.js）。
-  assert.match(joined('tools'), /受け口に PDF を落とすか、［ファイルを開く…］で選ぶと、開いて帯に足します/);
-  assert.match(joined('tools'), /画像を落とすと、画像→PDF に切り替わります/);
+  assert.match(joined('tools'), /受け口に PDF をドロップするか、［ファイルを開く…］で選ぶと、開いて帯に足します/);
+  assert.match(joined('tools'), /画像をドロップすると、画像→PDF に切り替わります/);
   assert.match(joined('tools'), /できたファイルを新しい帯で開きます（ツールモードのままです）/);
   // 帯の画面と、保存していない帯の確認の窓（spec-2-5 第 D・F 章。決定80 ㉜）。用語は「帯」「書き込み」「焼き込み」にそろえる。
   assert.match(joined('tools'), /［上書き保存してから実行］［保存せずに実行］［キャンセル］/);

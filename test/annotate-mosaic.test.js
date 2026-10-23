@@ -180,7 +180,7 @@ test('右パネル: 種類・粗さ 3 段・このページの数・外すボタ
   assert.equal(document.getElementById('props-delete').hidden, true);
   assert.equal(document.getElementById('props-color-row').hidden, true);
   assert.equal(document.getElementById('props-trim-scope-row').hidden, true);
-  assert.match(text(shell, 'props-hint'), /^紙の上を引いて、隠す範囲を囲んでください。/);
+  assert.match(text(shell, 'props-hint'), /^紙の上をドラッグして、隠す範囲を囲んでください。/);
 
   await placeBox(shell);
   await placeBox(shell, [10, 10, 50, 50]);

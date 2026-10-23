@@ -256,7 +256,7 @@ test('透かしを選んでいるときのドロップは、PDF を帯で開い�
   const rejected = new window.Event('drop', { bubbles: true, cancelable: true });
   rejected.dataTransfer = makeDataTransfer([makeDroppedFile('memo.txt', 'C:\\work\\memo.txt')]);
   assert.equal(await SigK.fileDrop.handleDrop(rejected), false);
-  assert.equal(bannerText(shell), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像を落としてください。');
+  assert.equal(bannerText(shell), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像をドロップしてください。');
 });
 
 test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、黄色の通知バーで知らせる', async (t) => {

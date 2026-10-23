@@ -9,9 +9,9 @@
 
   const RECENT_LIMIT = 5;
   const TEXT = 'ページをここにドロップすると新しいファイルを作れます';
-  const BIG_TEXT = 'PDF を落とすか［ファイルを開く…］で選ぶと、ここにページの帯が並びます';
-  const CONVERT_TEXT = 'PDF か画像をここへ落とすと足します（画像は「変換する画像」の帯へ）';
-  const CONVERT_BIG_TEXT = 'PDF か画像を落とすか［ファイルを開く…］で選ぶと、PDF は帯、画像は「変換する画像」の帯に並びます';
+  const BIG_TEXT = 'PDF をドロップするか［ファイルを開く…］で選ぶと、ここにページの帯が並びます';
+  const CONVERT_TEXT = 'PDF か画像をここにドロップすると足します（画像は「変換する画像」の帯へ）';
+  const CONVERT_BIG_TEXT = 'PDF か画像をドロップするか［ファイルを開く…］で選ぶと、PDF は帯、画像は「変換する画像」の帯に並びます';
   const PDF_PATH = /\.pdf$/i;
 
   let el = null;

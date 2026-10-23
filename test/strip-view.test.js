@@ -106,7 +106,7 @@ test('帯が 1 本も無いときは大きな受け口に最近使ったファ�
   SigK.strips.setShown(true);
   const zone = document.getElementById('strip-drop');
   assert.equal(zone.classList.contains('big'), true);
-  assert.equal(document.getElementById('strip-drop-text').textContent, 'PDF を落とすか［ファイルを開く…］で選ぶと、ここにページの帯が並びます');
+  assert.equal(document.getElementById('strip-drop-text').textContent, 'PDF をドロップするか［ファイルを開く…］で選ぶと、ここにページの帯が並びます');
   const rows = [...document.querySelectorAll('#strip-drop-recent .row')];
   assert.equal(rows.length, 5);
   assert.equal(rows[0].querySelector('.p').textContent, 'C:\\work');

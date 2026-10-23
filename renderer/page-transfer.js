@@ -18,7 +18,7 @@
   const banner = () => root.SigK.viewBanner;
 
   function mosaicRefusal(name) {
-    return `モザイクを保存していないページは写せません。「${name}」を上書き保存してから、もう一度引いてください。`;
+    return `モザイクを保存していないページは写せません。「${name}」を上書き保存してから、もう一度ドラッグしてください。`;
   }
 
   // 写す先の帯が使えないときの理由。使えれば null。

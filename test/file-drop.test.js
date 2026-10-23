@@ -182,7 +182,7 @@ test('変換画面は BMP・GIF・TIFF の拡張子も受ける（spec-3-2 確�
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('x.webp', 'C:\\photo\\x.webp')]));
   await shell.flush();
   assert.equal(shell.SigK.toolsConvert.rows().length, 4);
-  assert.equal(shell.document.getElementById('view-banner').textContent, 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）を落としてください。');
+  assert.equal(shell.document.getElementById('view-banner').textContent, 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。');
 });
 
 test('閲覧モードでは画像を断り、PDF だけを受ける', async (t) => {
@@ -192,7 +192,7 @@ test('閲覧モードでは画像を断り、PDF だけを受ける', async (t) 
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('a.png', IMG)]));
   await shell.flush();
   assert.equal(shell.SigK.tabs.count(), 0);
-  assert.equal(message(), 'PDF ファイルではないので、PDF を落としてください。');
+  assert.equal(message(), 'PDF ファイルではないので、PDF をドロップしてください。');
   assert.equal(shell.SigK.toolsConvert.rows().length, 0);
 });
 
@@ -285,7 +285,7 @@ test('ツールモードで PDF でも画像でもないものだけを落とす
   await shell.flush();
 
   assert.equal(shell.SigK.tabs.count(), 0);
-  assert.equal(shell.SigK.viewBanner.text(), 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）を落としてください。');
+  assert.equal(shell.SigK.viewBanner.text(), 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。');
 });
 
 test('透かしを選んでいるときは、透かしの画像に使えない BMP を断る', async (t) => {
@@ -297,7 +297,7 @@ test('透かしを選んでいるときは、透かしの画像に使えない B
 
   assert.equal(shell.SigK.tools.selected(), 'watermark', '画像→PDF へは切り替えない');
   assert.deepEqual(convertPaths(shell), []);
-  assert.equal(shell.SigK.viewBanner.text(), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像を落としてください。');
+  assert.equal(shell.SigK.viewBanner.text(), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像をドロップしてください。');
 });
 
 test('ツールモードで落とした PDF のうち読めなかったものの理由は、後のタブを開いても帯に残る', async (t) => {

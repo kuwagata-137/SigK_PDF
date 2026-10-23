@@ -12,7 +12,7 @@ const A = 'C:\\work\\会議資料.pdf';
 const B = 'C:\\work\\見積書.pdf';
 const C = 'C:\\work\\議事録.pdf';
 const PDF = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37];
-const MOSAIC = 'モザイクを保存していないページは写せません。「会議資料.pdf」を上書き保存してから、もう一度引いてください。';
+const MOSAIC = 'モザイクを保存していないページは写せません。「会議資料.pdf」を上書き保存してから、もう一度ドラッグしてください。';
 
 const copied = (pages = 2) => ({ ok: true, bytes: new Uint8Array(PDF), pages, sizes: Array.from({ length: pages }, () => ({ ...A4 })) });
 
