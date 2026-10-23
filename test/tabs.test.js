@@ -568,8 +568,8 @@ test('ページ編集・編集モードで開いても、モードは変えな�
   assert.equal(shell.SigK.tabs.count(), 2);
 });
 
-// 帯の画面の受け口の［ファイルを選ぶ…］とドロップは、どちらもタブ（帯）で開き、モードは変えない（決定80。spec-2-5 確定事項A1・D7）。
-test('帯の受け口の「ファイルを選ぶ…」とドロップでは、タブで開いてツールモードのまま', async (t) => {
+// 帯の画面の受け口の［ファイルを開く…］とドロップは、どちらもタブ（帯）で開き、モードは変えない（決定80。spec-2-5 確定事項A1・D7）。
+test('帯の受け口の「ファイルを開く…」とドロップでは、タブで開いてツールモードのまま', async (t) => {
   const shell = await inToolsMode(t, { openSourceResults: [{ paths: [A] }] });
   shell.SigK.tools.select('merge');
 

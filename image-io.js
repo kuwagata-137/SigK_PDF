@@ -78,7 +78,7 @@ async function inspectImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_BYTES,
   }
 }
 
-// 画像→PDF を選んでいるときの帯の受け口の［ファイルを選ぶ…］（spec-2-5 確定事項H10）。PDF と画像をまとめて選ばせ、画面が PDF は帯、
+// 画像→PDF を選んでいるときの帯の受け口の［ファイルを開く…］（spec-2-5 確定事項H10）。PDF と画像をまとめて選ばせ、画面が PDF は帯、
 // 画像は「変換する画像」の帯へ振り分ける。選んだ順が戻り値の順である。2026-10-15 に、画像だけを選ぶ窓（pickImageSources）からこれへ替えた。
 const CONVERT_SOURCE_FILTERS = [
   { name: 'PDF と画像', extensions: ['pdf', ...IMAGE_FILTERS[0].extensions] },

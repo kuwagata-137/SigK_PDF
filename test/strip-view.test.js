@@ -106,7 +106,7 @@ test('帯が 1 本も無いときは大きな受け口に最近使ったファ�
   SigK.strips.setShown(true);
   const zone = document.getElementById('strip-drop');
   assert.equal(zone.classList.contains('big'), true);
-  assert.equal(document.getElementById('strip-drop-text').textContent, 'PDF を落とすか［ファイルを選ぶ…］で選ぶと、ここにページの帯が並びます');
+  assert.equal(document.getElementById('strip-drop-text').textContent, 'PDF を落とすか［ファイルを開く…］で選ぶと、ここにページの帯が並びます');
   const rows = [...document.querySelectorAll('#strip-drop-recent .row')];
   assert.equal(rows.length, 5);
   assert.equal(rows[0].querySelector('.p').textContent, 'C:\\work');
@@ -120,7 +120,7 @@ test('帯が 1 本も無いときは大きな受け口に最近使ったファ�
   assert.equal(document.getElementById('strip-drop-recent').hidden, true);
 });
 
-test('受け口の［ファイルを選ぶ…］は「開く PDF を選ぶ」で複数を選び、選んだ順にタブで開く', async (t) => {
+test('受け口の［ファイルを開く…］は「開く PDF を選ぶ」で複数を選び、選んだ順にタブで開く', async (t) => {
   const { SigK, document, flush, openSourceCalls } = await withShell(t, { paths: [], openSourceResults: [{ paths: [C, A] }, { canceled: true }] });
   SigK.strips.setShown(true);
   document.getElementById('strip-drop-pick').click();

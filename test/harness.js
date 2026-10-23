@@ -454,7 +454,7 @@ async function createShell({
   // 答えるパス（spec-2-1）。
   mergeSourceResults = [],
   existingPaths = [],
-  // pdfAPI.pickOpenSources() が返すものの並び（帯の受け口の［ファイルを選ぶ…］。spec-2-5 確定事項D7）。
+  // pdfAPI.pickOpenSources() が返すものの並び（帯の受け口の［ファイルを開く…］。spec-2-5 確定事項D7）。
   openSourceResults = [],
   // pdfAPI.pickFolder() が返すものの並び（spec-2-2）。
   folderResults = [],

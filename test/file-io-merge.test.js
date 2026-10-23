@@ -29,7 +29,7 @@ test('pickMergeSources は複数選択で、選んだ順にパスを返す', asy
   assert.equal(calls[0].defaultPath, 'C:/in');
 });
 
-// ツールモードの帯の受け口の［ファイルを選ぶ…］（spec-2-5 確定事項D7）。選んだものはタブで開く。
+// ツールモードの帯の受け口の［ファイルを開く…］（spec-2-5 確定事項D7）。選んだものはタブで開く。
 test('pickOpenSources は「開く PDF を選ぶ」の窓で複数を選び、取り消せる', async () => {
   const calls = [];
   const dialogLike = {
