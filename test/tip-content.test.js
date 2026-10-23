@@ -64,8 +64,11 @@ test('キーの書き方: 「／」は配列、（）は keysNote、「—」は
 test('［元に戻す］と［拡大］の説明の文は、直した文のまま（「ツールモード」を続けない・2 文に収める）', () => {
   assert.equal(tipContent.resolve(node('bar.undo')).desc,
     '直前の変更を取り消して、1 つ前の状態に戻します。ツールモードでは、ページを引いて動かす・写す・分割の ✂ を、した順に戻します。');
+  // 2026-10-23：ツールモードの紙の倍率（docs/07 決定83）の範囲を括弧で足した。2 文に収めるのは変えない。
   assert.equal(tipContent.resolve(node('bar.zoomIn')).desc,
-    '表示を 1 段大きくします。いちばん大きいのは 400% で、Ctrl+0 で 100% に戻ります。');
+    '表示を 1 段大きくします。いちばん大きいのは 400%（ツールモードで帯に並べるページは 300%）で、Ctrl+0 で 100% に戻ります。');
+  for (const key of ['bar.zoomIn', 'bar.zoomOut'])
+    assert.equal(tipContent.resolve(node(key)).desc.split('。').length - 1, 2, `${key} が 2 文でない`);
 });
 test('左のパネルの「＜」の説明は、開き直す「＞」の場所を「閉じたパネルの細い欄」と呼ぶ（docs/04 第3章の呼び名。PR-5 の点検の直し）', () => {
   assert.equal(tipContent.resolve(node('side.collapse')).desc,
