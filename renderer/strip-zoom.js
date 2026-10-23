@@ -11,7 +11,6 @@
 
   const layout = () => root.SigK.stripLayout;
   const strips = () => root.SigK.strips;
-  const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
   // 帯の画面の中の点（見えている所の左上から）。anchor が無ければ左上。
   function pointIn(anchor) {
@@ -50,7 +49,9 @@
       const x = at === index && anchor !== null ? Math.max(0, anchor.clientX - pages.getBoundingClientRect().left) : 0;
       return { id, x, ratio: (pages.scrollLeft + x) / total };
     });
-    return { index, fraction: clamp01((y - tops[index]) / heights[index]), y: point.y, rows };
+    // 1 本目の帯の上の余白にある点は、余白ごと保つ（割合を負にしておく。0 で切ると、余白の分だけ下へ送り、見出しが上に隠れた）。
+    const fraction = Math.min(1, (y - tops[index]) / heights[index]);
+    return { index, fraction, y: point.y, rows };
   }
 
   function restore(held) {

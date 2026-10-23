@@ -2000,6 +2000,28 @@ function installSmokeCheck(win, mode) {
       } catch (err) {
         problems.push(`windowState: ${err.message}`);
       }
+      // SIGK_SMOKE_TOOLS_ZOOM=<倍率> なら、画面写真の前にツールモードの紙の倍率を変え、描き直しを待つ（docs/07 決定83。50〜300% の見た目を撮るため）。
+      let toolsZoom = null;
+      if (process.env.SIGK_SMOKE_TOOLS_ZOOM) {
+        try {
+          toolsZoom = await win.webContents.executeJavaScript(`(async () => {
+            window.SigK.toolsZoom.set(${JSON.stringify(Number(process.env.SIGK_SMOKE_TOOLS_ZOOM))});
+            await new Promise((resolve) => setTimeout(resolve, 2500));
+            const sheet = document.querySelector('#strips .strip .strip-page .sheet');
+            const board = document.querySelector('#split-board-canvas .sb-sheet');
+            const image = document.querySelector('#image-strip-items .img-thumb');
+            return {
+              zoom: window.SigK.toolsZoom.get(), text: document.getElementById('zoom-value').textContent,
+              sheet: sheet === null ? null : [sheet.style.width, sheet.style.height],
+              board: board === null ? null : [board.style.width, board.style.height],
+              image: image === null ? null : [image.getBoundingClientRect().width, image.getBoundingClientRect().height],
+              grayed: ['pager', 'btn-fit-width', 'btn-fit-page', 'btn-facing', 'zoom'].filter((id) => document.getElementById(id).getAttribute('aria-disabled') === 'true'),
+            };
+          })()`);
+        } catch (err) {
+          problems.push(`toolsZoom: ${err.message}`);
+        }
+      }
       let screenshot = null;
       let shot = null;
       if (process.env.SIGK_SMOKE_SHOT) {
@@ -2073,6 +2095,7 @@ function installSmokeCheck(win, mode) {
         keys,
         perf,
         window: windowState,
+        toolsZoom,
         screenshot,
         shot,
         problems,

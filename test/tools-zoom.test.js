@@ -152,6 +152,15 @@ test('描く枚数の上限は面積で数える（100% で 160 枚、200% で 4
   assert.ok(state.drawn + state.pending + state.queued <= 18, `上限を超えて持った: ${JSON.stringify(state)}`);
 });
 
+test('いちばん上を見ているときに倍率を変えても、1 本目の帯の上の余白ごと、いちばん上のまま', async (t) => {
+  const shell = await withTools(t, 3);
+  const strips = shell.document.getElementById('strips');
+  assert.equal(strips.scrollTop, 0);
+  click(shell, 'zoom-in');
+  click(shell, 'zoom-in');
+  assert.equal(strips.scrollTop, 0, '1 本目の帯の見出しが上に隠れた');
+});
+
 test('倍率を変えても、左上に見えていた帯と、帯の中の横の場所を保つ', async (t) => {
   const shell = await withTools(t, 6);
   const { SigK, document } = shell;
