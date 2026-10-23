@@ -145,8 +145,10 @@ test('押して離すだけ（CLICK_SLOP 以内）では描かず、当たり判
   assert.equal(SigK.viewer.getAnnotations().added.length, 0);
   assert.equal(SigK.pageEdit.canUndo(), false);
   assert.equal(pageNode(shell).querySelector('.annot-draft'), null);
-  // 読み込んだ矩形の上を押して離すと選ぶ（道具を持ったまま）
+  // 読み込んだ矩形の線の上を押して離すと選ぶ（道具を持ったまま）。塗っていないので、内側は何も無い所（決定84 ②）。
   clickAt(shell, 350, 340);
+  assert.equal(SigK.annotate.getSelected(), null);
+  clickAt(shell, 350, 379);
   assert.equal(SigK.annotate.getSelected(), '30R');
   assert.equal(SigK.annotate.getTool(), 'shape');
 });
@@ -277,12 +279,13 @@ test('選んだ図形を掴んでドラッグすると動き、1 世代積まれ
   near(SigK.viewer.getAnnotations().added[0].rect[0], entry.rect[0]);
 });
 
-test('道具を持ったままでも、選んでいる図形の上では描かずに動かす', async (t) => {
+// 2026-10-23 改訂（決定84 ②）: 塗っていない四角は線の上だけが当たりなので、内側でなく上の辺を押す。
+test('道具を持ったままでも、選んでいる図形の線の上では描かずに動かす', async (t) => {
   const shell = await withTool(t, 'shape');
   const { SigK } = shell;
   drag(shell, [100, 700], [300, 600]);
   const entry = SigK.viewer.getAnnotations().added[0];
-  drag(shell, [200, 650], [220, 640]);
+  drag(shell, [150, 700], [170, 690]);
   const { added } = SigK.viewer.getAnnotations();
   assert.equal(added.length, 1);
   near(added[0].rect[0], entry.rect[0] + 20);
@@ -509,7 +512,8 @@ test('次に付ける不透明度が、図形とペンの下書きと描いた�
   // 図形の道具へ戻ると、図形の値のまま
   SigK.annotate.select(null);
   SigK.annotate.setTool('shape');
-  drag(shell, [300, 300], [400, 250]);
+  // 読み込んだ四角 30R の角（300, 300）から描き始めると、決定84 ④で 30R を動かすので、何も無い所から描く。
+  drag(shell, [450, 300], [550, 250]);
   assert.equal(SigK.viewer.getAnnotations().added.at(-1).opacity, 0.5);
 });
 

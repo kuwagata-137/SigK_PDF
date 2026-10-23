@@ -47,8 +47,8 @@ const SELECT_STEPS = `
       const [dx, dy] = delta.split('x').map(Number);
       const entry = SigK.annotate.primaryEntry();
       const index = SigK.viewer.getPlan().findIndex((page) => page.src === entry.src);
-      // 掴むのは箱の真ん中（四角・丸の内側。直線・矢印・ペンは最初の点）。つまみは四隅と辺の中点なので外れる。
-      const at = entry.paths ? entry.paths[0][0] : [(entry.rect[0] + entry.rect[2]) / 2, (entry.rect[1] + entry.rect[3]) / 2];
+      // 掴むのは線の上（四角・丸も線の上。直線・矢印・ペンは最初の点。grabPointOf。決定84 ②）。つまみは外れる。
+      const at = grabPointOf(entry);
       const [sx, sy] = screenPoint(index, at[0], at[1]);
       const [ex, ey] = screenPoint(index, at[0] + dx, at[1] + dy);
       const startCtrl = mode === 'ctrl' || mode === 'ctrl-off';

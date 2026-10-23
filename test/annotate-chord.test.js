@@ -238,6 +238,8 @@ test('全部離した後も 1000ms までの contextmenu は捨てる。過ぎ�
   let clock = 5000;
   window.performance.now = () => clock;
   const a = drawSquare(shell, [100, 600], [200, 500]);
+  // 道具なしの左の押しは書き込みを選ぶので（決定84 ④）、選ばないペンで押す。
+  SigK.annotate.setTool('pen');
   const on = px(shell, [150, 550]);
   fire(shell, 'mousedown', pageNode(shell), on, { button: 0, buttons: 1 });
   fire(shell, 'mousedown', pageNode(shell), on, { button: 2, buttons: 3 });
@@ -309,6 +311,8 @@ test('左＋右を 1 秒より長く押したまま右を最後に離しても�
   let clock = 5000;
   window.performance.now = () => clock;
   drawSquare(shell, [100, 600], [200, 500]);
+  // 道具なしの左の押しは書き込みを選ぶので（決定84 ④）、選ばないペンで押す。
+  SigK.annotate.setTool('pen');
   const on = px(shell, [150, 550]);
   fire(shell, 'mousedown', pageNode(shell), on, { button: 0, buttons: 1 });
   fire(shell, 'mousedown', pageNode(shell), on, { button: 2, buttons: 3 });
@@ -320,7 +324,8 @@ test('左＋右を 1 秒より長く押したまま右を最後に離しても�
   assert.deepEqual(selection(shell), []);
 });
 
-test('つまみの上で右→左の順に押してハンドになっても、つまみのカーソルの形を残さない（確定事項A4・E2）', async (t) => {
+// 2026-10-23 改訂（決定84 ③）: ハンドでもつまみを使うので、左＋右を離した後にマウスを動かせば、つまみのカーソルをまた出す。
+test('つまみの上で右→左の順に押してハンドになると、つまみのカーソルの形をいったん外す（確定事項E2・決定84 ③）', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
   const a = drawSquare(shell, [100, 600], [200, 500]);
@@ -336,7 +341,7 @@ test('つまみの上で右→左の順に押してハンドになっても、�
   fire(shell, 'mouseup', pageNode(shell), corner.at, { button: 0, buttons: 2 });
   fire(shell, 'mouseup', pageNode(shell), corner.at, { button: 2, buttons: 0 });
   fire(shell, 'mousemove', document.body, corner.at, { buttons: 0 });
-  assert.equal(document.documentElement.hasAttribute('data-transform-cursor'), false, 'ハンドのときはつまみの上でも付けない');
+  assert.equal(document.documentElement.getAttribute('data-transform-cursor'), corner.cursor, 'ハンドでもつまみの上ならつまみのカーソル');
 });
 
 test('左＋右の最中と、全部離してから 1000ms までのダブルクリックでは、書き込みを直し始めない（確定事項E2・E4）', async (t) => {

@@ -50,8 +50,6 @@
     }
     el.error.hidden = error === null;
     el.error.textContent = error?.message ?? '';
-    for (const button of el.sizes)
-      button.setAttribute('aria-checked', button.dataset.size === edit().size() ? 'true' : 'false');
     syncBand(running);
     return true;
   }
@@ -88,7 +86,6 @@
       each: byId('split-each'), everyGo: byId('split-every-go'), atGo: byId('split-at-go'), clear: byId('split-clear'),
       undo: byId('split-undo'), redo: byId('split-redo'), error: byId('split-bulk-err'),
       inputs: { every: byId('split-every'), at: byId('split-at') },
-      sizes: [...doc.querySelectorAll('#split-size [data-size]')],
       bandText: byId('split-band-text'), one: byId('split-band-one'), skip: byId('split-band-skip'),
       unskip: byId('split-band-unskip'), clearSelection: byId('split-band-clear'),
     };
@@ -100,8 +97,7 @@
     onClick(el.redo, () => edit().redo());
     bindInput('every');
     bindInput('at');
-    for (const button of el.sizes)
-      button.addEventListener('click', () => edit().setSize(button.dataset.size));
+    // 紙の大きさは、前の「大きさ 小・中・大」をやめ、ツールバーの倍率で変える（tools-zoom.js。docs/07 決定83）。
     // 選んだときの操作の行のボタンは押すと隠れることがあるので、押したらフォーカスを盤の器へ戻す（点検 R1）。
     const toBoard = (action) => () => {
       action();

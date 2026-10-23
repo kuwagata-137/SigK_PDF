@@ -60,29 +60,39 @@ test('上限を超えたページと、頼まれなくなったページは手�
   assert.deepEqual([...pdfjs.cleanups].sort(), [1, 2]);
 });
 
-test('大きさを変えると全部手放し、次に頼まれたときに新しい大きさで描き直す', async (t) => {
+// 2026-10-23 から、紙の大きさはツールモードの紙の倍率で決まる（docs/07 決定83）。倍率を変えても前の絵はすぐには手放さず（白い枠に
+// しないため）、描き直したときに前の絵を手放す。ここは描く層だけを見るので、倍率の読み口（toolsZoom.get）だけを差し替える
+// （toolsZoom.set は帯の画面を組み直し、盤を帯に出していないこのテストでは、出していない間は紙を持たない決まりで全部手放すため）。
+function useZoom(shell, t, zoom) {
+  const original = shell.SigK.toolsZoom.get;
+  shell.SigK.toolsZoom.get = () => zoom;
+  t.after(() => { shell.SigK.toolsZoom.get = original; });
+}
+
+test('紙の倍率を変えても前の絵は残し、次に頼まれたときに新しい大きさで描き直して前の絵を手放す', async (t) => {
   const { shell, pdfjs, thumbs, a } = await createThumbShell(t);
   thumbs.setTab(a);
   thumbs.want([0], { cap: 72 });
   await settle(shell);
   pdfjs.cleanups.length = 0;
-  assert.equal(thumbs.setSize('large'), true);
-  assert.deepEqual(structuredClone(thumbs.getState().drawn), []);
-  assert.deepEqual(pdfjs.cleanups, [1]);
+  useZoom(shell, t, 1.5);
+  assert.equal(thumbs.zoom(), 1.5);
+  assert.deepEqual(structuredClone(thumbs.getState().drawn), [0], '倍率を変えただけで前の絵を手放した');
+  assert.deepEqual(pdfjs.cleanups, []);
   pdfjs.viewportCalls.length = 0;
-  thumbs.want([0], { cap: 36 });
+  thumbs.want([0], { cap: 32 });
   await settle(shell);
   assert.deepEqual(drawnPages(pdfjs), [1]);
-  assert.equal(thumbs.setSize('large'), false, '同じ大きさなら何もしない');
+  assert.deepEqual(pdfjs.cleanups, [1], '描き直したのに前の絵を手放していない');
 });
 
-test('描いている途中に大きさを変えても、そのページは新しい大きさで描き直す（空の枠のまま残さない）', async (t) => {
+test('描いている途中に紙の倍率を変えても、そのページは新しい大きさで描き直す（空の枠のまま残さない）', async (t) => {
   const { shell, thumbs, a } = await createThumbShell(t);
   thumbs.setTab(a);
   thumbs.want([0, 1], { cap: 72 });
   assert.equal(thumbs.getState().pending, 2, '2 枚とも描いている途中');
-  thumbs.setSize('large');
-  thumbs.want([0, 1], { cap: 36 });   // 画面が描き直しで同じページを頼み直す
+  useZoom(shell, t, 1.5);
+  thumbs.want([0, 1], { cap: 32 });   // 画面が描き直しで同じページを頼み直す
   await settle(shell);
   assert.deepEqual(structuredClone(thumbs.getState().drawn), [0, 1]);
 });

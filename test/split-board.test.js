@@ -220,14 +220,14 @@ test('［元に戻す］［やり直す］は盤の操作を 1 つずつ戻し�
   assert.equal($(shell, '#split-redo').getAttribute('aria-disabled'), 'true');
 });
 
-test('大きさ 小・中・大で、描く層の大きさと押している印が変わる', async (t) => {
+// 2026-10-23 から「大きさ 小・中・大」を無くし、ツールバーの倍率（ツールモードの紙の倍率）で盤の紙も変わる（docs/07 決定83）。
+test('盤の「大きさ 小・中・大」は無く、ツールバーの［＋］で盤の紙が大きくなる', async (t) => {
   const shell = await withSource(t);
-  assert.equal($(shell, '#split-size [data-size="mid"]').getAttribute('aria-checked'), 'true');
-  $(shell, '#split-size [data-size="large"]').click();
-  assert.equal(shell.SigK.splitThumbs.size(), 'large');
-  assert.equal($(shell, '#split-size [data-size="large"]').getAttribute('aria-checked'), 'true');
-  assert.equal($(shell, '#split-size [data-size="mid"]').getAttribute('aria-checked'), 'false');
-  assert.equal($(shell, '.sb-sheet').style.width, '148px');
+  assert.equal(shell.document.getElementById('split-size'), null, '「大きさ」の切り替えが残っている');
+  assert.equal($(shell, '.sb-sheet').style.width, '104px');
+  $(shell, '#zoom-in').click();
+  assert.equal(shell.SigK.splitThumbs.zoom(), 1.25);
+  assert.equal($(shell, '.sb-sheet').style.width, '130px');
 });
 
 test('1,000 ページを 1 ページずつにしても、盤の DOM は見えている所の分だけ', async (t) => {
@@ -292,13 +292,13 @@ test('実行中は盤の操作と段と選んだときの操作の行を受け�
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]]);
   assert.equal($(shell, '#split-each').getAttribute('aria-disabled'), 'true');
   assert.equal($(shell, '#split-every').disabled, true);
-  // ✂ と［前のファイルとつなげる］も押せない色にする（確定事項C12）。大きさは見え方だけなので変えられる。
+  // ✂ と［前のファイルとつなげる］も押せない色にする（確定事項C12）。紙の倍率は見え方だけなので変えられる（決定83）。
   assert.ok($$(shell, '.sb-cut').length > 0 && $$(shell, '.sb-join').length > 0);
   assert.ok($$(shell, '.sb-cut, .sb-join').every((node) => node.getAttribute('aria-disabled') === 'true'));
   $(shell, '.sb-join').click();
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]]);
-  $(shell, '#split-size [data-size="small"]').click();
-  assert.equal(shell.SigK.splitThumbs.size(), 'small');
+  $(shell, '#zoom-out').click();
+  assert.equal(shell.SigK.splitThumbs.zoom(), 0.75);
   release({ ok: true, written: 2, targets: [] });
   await running;
   assert.equal($(shell, '#split-every').disabled, false);
@@ -391,7 +391,7 @@ test('✂・［つなげる］・選んだときの操作の行のボタンを�
 test('大きな画面で見えているページが上限を超えるときは、見えている分を全部描く（決定79 ①）', async (t) => {
   const shell = await withSource(t, { pages: 1000 });
   sizeBoard(shell, { width: 2000, height: 1120 });
-  $(shell, '#split-size [data-size="small"]').click();
+  shell.SigK.toolsZoom.set(0.75);
   await settle(shell);
   const view = shell.SigK.splitBoardView;
   const layout = shell.SigK.splitLayout;
@@ -401,7 +401,7 @@ test('大きな画面で見えているページが上限を超えるときは�
     if (rect.y + rect.height > 0 && rect.y < 1120)
       visible.push(page);
   }
-  assert.ok(visible.length > layout.renderCap('small'), `見えているのは ${visible.length} 枚`);
+  assert.ok(visible.length > layout.renderCap(0.75), `見えているのは ${visible.length} 枚`);
   const drawn = new Set(shell.SigK.splitThumbs.getState().drawn);
   assert.deepEqual(visible.filter((page) => !drawn.has(page)), [], '見えているのに描いていないページは無い');
 });

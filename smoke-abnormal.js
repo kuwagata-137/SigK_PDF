@@ -9,6 +9,8 @@
 //
 // SIGK_SMOKE_ABNORMAL_ZOOM=<倍率>@<画面の画素の倍率>（例 4@1.5）を付けると、開けた文書をその倍率で描き直し、1 ページ目の canvas の
 // 大きさと、描けたか（真ん中の 1 画素に色が載ったか）も記録する（D9。大きな紙で canvas が Chromium の上限を超えないか）。
+// 倍率を変えてから新しい絵が貼られるまでのフレーム数（frames）・その間に 1 ページ目の枠に絵が無かったフレーム数（blankFrames。
+// 白く光ったフレーム）・かかった時間（redrawMs）も記録する（2026-10-23 のズームの白い点滅の直し。直した後は blankFrames が 0）。
 
 // 1 本を閲覧で開き、ツールモード（透かし）の帯の様子も見て、閉じる。
 const OPEN_ONE = (filePath, zoom) => `(async () => {
@@ -47,8 +49,29 @@ const OPEN_ONE = (filePath, zoom) => `(async () => {
   const zoom = ${JSON.stringify(zoom)};
   if (opened && zoom !== null) {
     Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: () => zoom.dpr });
+    const first = () => document.querySelector('.pdf-page[data-page="1"]');
+    const before = first()?.querySelector(':scope > canvas') ?? null;
     SigK.viewer.setZoom(zoom.zoom);
     SigK.viewer.goToPage(0);
+    // 倍率を変えてから新しい絵が貼られるまで、1 ページ目の枠に絵が無かったフレームを数える（白く光ったフレーム。2026-10-23 の直しで 0）。
+    const watch = await new Promise((resolve) => {
+      const started = performance.now();
+      let frames = 0;
+      let blankFrames = 0;
+      const tick = () => {
+        const canvas = first()?.querySelector(':scope > canvas') ?? null;
+        frames += 1;
+        if (canvas === null)
+          blankFrames += 1;
+        const ms = Math.round(performance.now() - started);
+        if ((canvas !== null && canvas !== before) || ms > 5000) {
+          resolve({ hadPicture: before !== null, frames, blankFrames, redrawMs: ms });
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
     await wait(5000);
     const canvas = document.querySelector('#view-pages canvas');
     let drawn = null;
@@ -58,7 +81,7 @@ const OPEN_ONE = (filePath, zoom) => `(async () => {
     } catch (error) {
       drawn = String(error?.message ?? error);
     }
-    report.zoomed = { zoom: zoom.zoom, dpr: zoom.dpr, width: canvas?.width ?? null, height: canvas?.height ?? null, drawn };
+    report.zoomed = { zoom: zoom.zoom, dpr: zoom.dpr, width: canvas?.width ?? null, height: canvas?.height ?? null, drawn, ...watch };
     // 差し替えた画面の倍率を戻す（あとの検体と、あとの起動確認の口に残さない）。
     delete window.devicePixelRatio;
     SigK.viewer.setZoom(1);

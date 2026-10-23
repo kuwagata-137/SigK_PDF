@@ -4,9 +4,9 @@
   // ツールモードの帯の画面（spec-2-5 第 D 章。見本 screenshots/strips2-merge.png）。開いているタブを 1 本ずつ帯にし、タブの並びのとおり
   // 上から並べる。状態の持ち主はタブだけで、ここはタブを描くだけ（並び・選択・閉じるは tabs の関数を呼ぶ）。
   //
-  // 合図は tabs.render()（タブの並び・選択・未保存の印が変わるたび）・読み込んだ書き込みの届け・帯のスクロール・窓の大きさから来る。
-  // 隠れている間は旗だけ立て、出したときに合わせる。帯ごとに中身の参照（文書・並び・書き込み・寸法）が前と同じなら見出しだけを直す。
-  // 描くのは見えている所だけ（strip-layout.js・strip-thumbs.js）。
+  // 合図は tabs.render()（タブの並び・選択・未保存の印が変わるたび）・読み込んだ書き込みの届け・帯のスクロール・窓の大きさ・紙の倍率
+  // （strip-zoom.js から）から来る。隠れている間は旗だけ立て、出したときに合わせる。帯ごとに中身の参照（文書・並び・書き込み・寸法）と
+  // 紙の倍率（docs/07 決定83）が前と同じなら見出しだけを直す。描くのは見えている所だけ（strip-layout.js・strip-thumbs.js）。
 
   const state = {
     shown: false,
@@ -56,11 +56,13 @@
     });
     rowParts().showNote(row.node, failed ? view?.error ?? '' : null);
     const refs = failed ? null : rowParts().contentOf(view);
-    if (!rowParts().sameContent(row.refs, refs)) {
-      row.refs = refs;
-      row.line = layout().row(refs?.sizes ?? []);
+    const same = rowParts().sameContent(row.refs, refs);
+    const zoom = layout().zoom();
+    if (!same || row.zoom !== zoom) {
+      Object.assign(row, { refs, zoom, line: layout().row(refs?.sizes ?? [], zoom) });
       rowParts().syncPages(row.node, row.line.sheets);
-      if (refs !== null)
+      rowParts().setHeight(row.node, layout().stripHeight(zoom));
+      if (refs !== null && !same)
         selection().onPlanChanged(tab.id, refs.plan);
     }
     rowParts().markPicked(row.node, selection().get(tab.id));
@@ -84,6 +86,7 @@
     root.SigK.stripWatermark?.decorate();
     // 分割を選んでいれば、選んでいる帯に ✂ の盤を入れる（spec-2-5 確定事項G1）。
     root.SigK.splitStrip?.sync();
+    root.SigK.toolsZoom?.syncToolbar();   // 帯の数が変わると、紙の倍率の［－］［＋］の灰色も変わる
     schedule();
   }
 
@@ -101,7 +104,8 @@
   // 帯ごとの高さ。分割の ✂ の盤を入れた帯だけは、中身に合わせた高さ（spec-2-5 確定事項G9）。
   function heights() {
     const host = root.SigK.splitStrip?.hostId() ?? null;
-    return state.order.map((id) => (id === host ? rowNode(id)?.offsetHeight || layout().STRIP_HEIGHT : layout().STRIP_HEIGHT));
+    const height = layout().stripHeight(layout().zoom());
+    return state.order.map((id) => (id === host ? rowNode(id)?.offsetHeight || height : height));
   }
 
   // 見えている帯と紙を数えて、描く分を strip-thumbs.js へ渡す（1 フレームに 1 回）。盤を広げた帯の紙は、盤の層（split-thumbs.js）が描く。
@@ -192,5 +196,5 @@
   // 帯の紙の列の並べ方（strip-layout.js の row）。引いて落とす先の計算に使う（strip-drag.js。spec-2-5 確定事項I2〜I4）。
   const lineOf = (tabId) => state.rows.get(tabId)?.line ?? null;
 
-  SigK.strips = { init, sync, setShown, schedule, forget: drop, isShown: () => state.shown, rowNode, lineOf, getState };
+  SigK.strips = { init, sync, setShown, schedule, forget: drop, isShown: () => state.shown, rowNode, lineOf, heights, getState };
 })(typeof window !== 'undefined' ? window : globalThis);

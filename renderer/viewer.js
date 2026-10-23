@@ -468,9 +468,10 @@
     if (state.doc !== null && changed) {
       // 並べ直す前に、マウスの下の紙の点を控える（並びはまだ前の倍率のもの）。
       const held = anchor === null ? null : zoomAnchor()?.capture(state.layout.pages, contentPoint(anchor)) ?? null;
-      // 倍率が変われば canvas の解像度も変わる。飛んでいる描画ごと捨てる。
+      // 倍率が変われば canvas の解像度も変わる。飛んでいる描画ごと捨てる。新しい絵ができるまでは前の絵を引き伸ばして残す
+      // （白く光らないため。2026-10-23 の直し）。
       state.token += 1;
-      render.releaseAll();
+      render.releaseAll({ keepPicture: true });
       applyLayout();
       if (held === null || !keepAnchor(held, anchor))
         goToPage(state.current);
@@ -529,10 +530,10 @@
     if (state.doc !== null) {
       const zoom = state.fit === null ? state.zoom : layout().clampZoom(fitZoomFor(state.fit));
       if (zoom !== state.zoom) {
-        // 倍率が変われば canvas の解像度も変わる。飛んでいる描画ごと捨てる。
+        // 倍率が変われば canvas の解像度も変わる。飛んでいる描画ごと捨てる（前の絵は残す。setZoom と同じ）。
         state.zoom = zoom;
         state.token += 1;
-        render.releaseAll();
+        render.releaseAll({ keepPicture: true });
       }
       applyLayout();
       goToPage(state.current);

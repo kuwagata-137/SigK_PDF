@@ -2,7 +2,7 @@
 
 // 「変換する画像」の帯の画像を横に引いて並べ替える（spec-2-5 確定事項H6）。image-strip-drag.js。
 //
-// jsdom は大きさを数えないので、画像の枠の rect を差し替える（幅 104px・間 12px。strips.css と image-strip.js の ITEM_STEP）。
+// jsdom は大きさを数えないので、画像の枠の rect を差し替える（幅 104px・間 12px。strips.css と image-strip-zoom.js の itemStep。紙の倍率 100%）。
 // 引いて落とす基本と、実行中に引けないことは test/tools-convert.test.js が見ている。
 
 const test = require('node:test');
@@ -40,7 +40,7 @@ const line = (shell) => shell.document.querySelector('#image-strip-items .img-dr
 // 画像の枠を左から 116px おきに置く（1 枚目は 0〜104、真ん中は 52）。
 function placeItems(shell) {
   items(shell).forEach((node, index) => {
-    const left = index * shell.SigK.imageStrip.ITEM_STEP;
+    const left = index * shell.SigK.imageStripZoom.itemStep();
     node.getBoundingClientRect = () => ({ left, right: left + 104, width: 104, top: 0, bottom: 72, height: 72, x: left, y: 0 });
   });
 }

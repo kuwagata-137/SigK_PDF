@@ -71,14 +71,21 @@ test('初期状態は空で、実行は押せない', async (t) => {
   assert.equal(shell.SigK.toolsConvert.canRun(), false);
 });
 
-test('受け口の［ファイルを選ぶ…］は PDF と画像を選べ、画像は選んだ順に画像の帯へ、PDF は帯へ（spec-2-5 確定事項H10）', async (t) => {
+// 画像が無いときの右の欄の状態の文は、受け口のボタンを今の名前で指す（spec-2-5 確定事項D7。2026-10-23 改訂。ユーザーの指示）。
+test('画像が無いときの右の欄の状態の文は、受け口の［ファイルを開く…］を案内する', async (t) => {
+  const shell = await createConvertShell(t);
+  assert.equal(shell.document.getElementById('convert-state').textContent, '画像をドロップするか、下の受け口の［ファイルを開く…］で選ぶと、「変換する画像」の帯に並びます。');
+  assert.equal(shell.document.getElementById('strip-drop-pick').textContent, 'ファイルを開く…', '受け口のボタンの名前');
+});
+
+test('受け口の［ファイルを開く…］は PDF と画像を選べ、画像は選んだ順に画像の帯へ、PDF は帯へ（spec-2-5 確定事項H10）', async (t) => {
   const PDF = 'C:\\work\\x.pdf';
   const shell = await createConvertShell(t, { files: { [PDF]: makeSource({ path: PDF }) }, convertSourceResults: [{ paths: [B, PDF, A] }] });
   const { SigK, document: doc } = shell;
   // 帯が 0 本のときは大きい受け口の文、帯ができたら小さい受け口の文（H10）。
-  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像を落とすか［ファイルを選ぶ…］で選ぶと、PDF は帯、画像は「変換する画像」の帯に並びます');
+  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をドロップするか［ファイルを開く…］で選ぶと、PDF は帯、画像は「変換する画像」の帯に並びます');
   assert.equal(await SigK.stripDropZone.pick(), true);
-  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をここへ落とすと足します（画像は「変換する画像」の帯へ）');
+  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をここにドロップすると足します（画像は「変換する画像」の帯へ）');
 
   assert.deepEqual(names(shell), ['b.jpg', 'a.png']);
   assert.deepEqual(plain(SigK.tabs.list().map((tab) => tab.path)), [PDF]);
@@ -110,7 +117,7 @@ test('ドロップでも足せる。画像は画像の帯へ足し、PDF はタ�
 
   // PDF でも画像でもないものは断る。
   await drop([makeDroppedFile('logo.webp', WEBP)]);
-  assert.equal(bannerText(shell), 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）を落としてください。');
+  assert.equal(bannerText(shell), 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。');
 });
 
 test('結合の画面で画像を落とすと、画像→PDF に切り替えて画像の帯へ足す（決定80）', async (t) => {
@@ -695,7 +702,7 @@ test('実行中は画像の帯と設定と実行ボタンが押せず、進捗�
   rowNodes(shell)[0].querySelector('.img-x').click();
   doc.getElementById('image-strip-clear').click();
   assert.equal(rows(shell).length, 2);
-  // 実行中は画像を足せない（受け口の［ファイルを選ぶ…］・ドロップから。点検で見つかった。前の画面では［ファイルを選ぶ…］を押せなくしていた）。
+  // 実行中は画像を足せない（受け口の［ファイルを開く…］・ドロップから。点検で見つかった。前の画面では［ファイルを選ぶ…］を押せなくしていた）。
   assert.deepEqual(plain(await SigK.toolsConvert.addPaths([C])), []);
   assert.equal(rows(shell).length, 2);
   shell.firePointer(rowNodes(shell)[0], 'pointerdown', { x: 10, y: 5 });

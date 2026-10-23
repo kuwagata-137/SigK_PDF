@@ -9,9 +9,12 @@
   // なったページは canvas を手放して page.cleanup() を呼ぶ。帯の紙（strip-thumbs.js）とは別に数える（G10）。同時に描くのは 2 本まで。
   // 描き終えたら onDrawn で知らせ、画面（split-board-view.js）が紙の枠へ差し込む。
 
+  // 2026-10-23 から、紙の大きさはツールモードの紙の倍率（tools-zoom.js。docs/07 決定83）で決まる（前の「大きさ 小・中・大」は無くした）。
+  // 倍率が変わると紙の印が変わるので、盤を描き直す回で描き直す。描き直すまでは前の絵を枠いっぱいに引き伸ばして見せる（split-board-nodes.js）。
+
   const PARALLEL = 2;
 
-  const state = { tabId: null, size: 'mid' };
+  const state = { tabId: null };
   const drawn = new Map();     // ページ → { canvas, page, sig }
   const pending = new Map();   // 描いている途中の「帯の id:ページ」→ sig（帯を替えても、前の帯の描きかけと取り違えない）
   const listeners = [];
@@ -21,10 +24,11 @@
   const layout = () => root.SigK.splitLayout;
   const view = () => (state.tabId === null ? null : root.SigK.tabs?.peek(state.tabId) ?? null);
   const pendingKey = (tabId, index) => `${tabId}:${index}`;
+  const zoom = () => root.SigK.toolsZoom?.get() ?? 1;
 
-  // ページの紙の大きさ（CSS px）。大きさ（小・中・大）の枠に、回転・切り取りのあとの縦横比のまま収める。
-  function sheetFor(size, pageSize) {
-    const cell = layout().cellOf(size);
+  // ページの紙の大きさ（CSS px）。倍率の枠に、回転・切り取りのあとの縦横比のまま収める。
+  function sheetFor(paperZoom, pageSize) {
+    const cell = layout().cellOf(paperZoom);
     const width = Number(pageSize?.width);
     const height = Number(pageSize?.height);
     if (!(width > 0) || !(height > 0))
@@ -35,7 +39,7 @@
 
   function sigOf(index) {
     const current = view();
-    const sheet = sheetFor(state.size, current?.sizes?.[index]);
+    const sheet = sheetFor(zoom(), current?.sizes?.[index]);
     return root.SigK.planPageImage.signature(current, index, `${sheet.width}x${sheet.height}`);
   }
 
@@ -74,7 +78,7 @@
   }
 
   // pages は描く順（見えている所の中心に近い順）。先頭から cap 枚だけ持ち、ほかは手放す。
-  function want(pages, { cap = layout().renderCap(state.size) } = {}) {
+  function want(pages, { cap = layout().renderCap(zoom()) } = {}) {
     const count = view()?.plan?.length ?? 0;
     const keep = pages.filter((index) => Number.isInteger(index) && index >= 0 && index < count).slice(0, cap);
     wanted = new Set(keep);
@@ -107,7 +111,7 @@
     let result = null;
     try {
       const current = view();
-      const sheet = sheetFor(state.size, current.sizes?.[index]);
+      const sheet = sheetFor(zoom(), current.sizes?.[index]);
       result = await root.SigK.planPageImage.draw(root.document, current, index, { sheet, dpr: root.devicePixelRatio ?? 1 });
     } catch {
       result = null;   // 描けなかったページは枠のまま残す（閉じた文書・描画の取りやめ）
@@ -128,23 +132,13 @@
     listeners.forEach((listener) => listener(index, result.canvas));
   }
 
-  function setSize(size) {
-    if (layout().SIZES[size] === undefined || size === state.size)
-      return false;
-    state.size = size;
-    for (const index of [...drawn.keys()])
-      releasePage(index);
-    queue = [];
-    return true;
-  }
-
   const SigK = (root.SigK = root.SigK || {});
   SigK.splitThumbs = {
-    setTab, want, setSize, releaseAll, sheetFor,
+    setTab, want, releaseAll, sheetFor,
     onDrawn: (listener) => listeners.push(listener),
     canvasOf: (index) => drawn.get(index)?.canvas ?? null,
-    size: () => state.size,
+    zoom,
     tabId: () => state.tabId,
-    getState: () => ({ tabId: state.tabId, size: state.size, drawn: [...drawn.keys()].sort((a, b) => a - b), pending: pending.size }),
+    getState: () => ({ tabId: state.tabId, zoom: zoom(), drawn: [...drawn.keys()].sort((a, b) => a - b), pending: pending.size }),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

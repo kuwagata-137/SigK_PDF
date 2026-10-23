@@ -11,7 +11,7 @@
   const ORIENTATIONS = ['auto', 'portrait', 'landscape'];
   const MARGINS = ['none', 'narrow', 'normal'];
   const OUTPUTS = ['single', 'each'];
-  const EMPTY = '画像を落とすか、下の受け口の［ファイルを選ぶ…］で選ぶと、「変換する画像」の帯に並びます。';
+  const EMPTY = '画像をドロップするか、下の受け口の［ファイルを開く…］で選ぶと、「変換する画像」の帯に並びます。';
 
   let el = null;
 

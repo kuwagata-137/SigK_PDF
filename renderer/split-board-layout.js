@@ -6,9 +6,12 @@
   // 見えている範囲だけ DOM を組むため（split-board-view.js）と、なぞる指の下のページを当てるため（split-board-input.js）に、
   // 位置を CSS に任せずここで決める。寸法は split-board.css と同じ値なので、変えるときは両方を直す。箱は横に並べ、入らなければ
   // 次の行へ送る（決定77 ②）。ページの多い箱は盤の幅いっぱいで折り返し、行の末尾に置く ✂ の分を空けて列を決める。
+  // 2026-10-23 から、紙の大きさはツールモードの紙の倍率（tools-zoom.js。50〜300%。docs/07 決定83）で決める（zoom）。前の「大きさ 小・中・大」
+  // （紙の幅 76・104・148px）は無くした。100% は前の「中」（紙の幅 104px）。持つ canvas の上限は面積で数える（100% で 72 枚。前の小・大とほぼ同じ）。
 
-  const SIZES = Object.freeze({ small: 76, mid: 104, large: 148 });
-  const CAPS = Object.freeze({ small: 120, mid: 72, large: 36 });
+  const SHEET_WIDTH = 104;
+  const CAP = 72;
+  const MIN_CAP = 8;
   const PAGE_PAD = 3;    // .sb-page の padding
   const CAPTION = 20;    // 紙と番号の間 4 と、番号の行 16
   const CUT = 26;        // ✂ の幅
@@ -22,13 +25,15 @@
   const CHROME_X = CONTENT_LEFT * 2;
   const contentTop = (box) => box.y + BOX.border + BOX.padTop + box.head;
 
-  function cellOf(size) {
-    const sheetWidth = SIZES[size] ?? SIZES.mid;
+  const zoomOf = (zoom) => (Number(zoom) > 0 ? Number(zoom) : 1);
+
+  function cellOf(zoom = 1) {
+    const sheetWidth = Math.round(SHEET_WIDTH * zoomOf(zoom));
     const sheetHeight = Math.round(sheetWidth * Math.SQRT2);
     return { sheetWidth, sheetHeight, width: sheetWidth + PAGE_PAD * 2, height: sheetHeight + PAGE_PAD * 2 + CAPTION };
   }
 
-  const renderCap = (size) => CAPS[size] ?? CAPS.mid;
+  const renderCap = (zoom = 1) => Math.max(MIN_CAP, Math.round(CAP / (zoomOf(zoom) ** 2)));
   const clamp = (value, low, high) => Math.min(Math.max(value, low), high);
 
   // 1 つの箱の列・段・幅。
@@ -39,9 +44,9 @@
     return { columns: fit, rows: Math.ceil(count / fit), width: Math.max(BOX.minWidth, contentWidth) };
   }
 
-  // boxes は split-board-model.js の boxes()（start・end を使う）。
-  function layout({ boxes, contentWidth, size }) {
-    const cell = cellOf(size);
+  // boxes は split-board-model.js の boxes()（start・end を使う）。zoom はツールモードの紙の倍率。
+  function layout({ boxes, contentWidth, zoom = 1 }) {
+    const cell = cellOf(zoom);
     const placed = [];
     let x = 0;
     let y = 0;
@@ -60,7 +65,7 @@
       x += measured.width + BOX.gap;
       lineHeight = Math.max(lineHeight, height);
     }
-    return { size, cell, contentWidth, boxes: placed, totalHeight: placed.length === 0 ? 0 : y + lineHeight };
+    return { zoom, cell, contentWidth, boxes: placed, totalHeight: placed.length === 0 ? 0 : y + lineHeight };
   }
 
   // ページの入っている箱（start の二分探索）。
@@ -195,6 +200,6 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.splitLayout = {
-    SIZES, CUT, cellOf, renderCap, layout, pageRect, cutRect, windowOf, pageAt, scrollTopFor, boxTop, thumbScale,
+    SHEET_WIDTH, CUT, cellOf, renderCap, layout, pageRect, cutRect, windowOf, pageAt, scrollTopFor, boxTop, thumbScale,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -57,7 +57,7 @@ test('直線の道具で四角の角の近くをダブルクリックすると�
   doubleClick(shell, [402, 378]);
   assert.equal(SigK.annotateLineAnchor.isActive(), true);
   assert.equal(SigK.annotate.getSelected(), null);
-  assert.match(document.getElementById('props-hint').textContent, /押した所までの線を引きます/);
+  assert.match(document.getElementById('props-hint').textContent, /クリックした所までの線を引きます/);
   mouse(shell, 'mousemove', [500, 450]);
   assert.ok(pageNode(shell).querySelector('.annot-draft line') !== null, '下書きの線');
   click(shell, [500, 450]);

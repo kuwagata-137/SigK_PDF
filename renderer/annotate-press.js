@@ -7,9 +7,18 @@
   // 200 行を超えた annotate-pointer.js から移した（spec-4b-3a）。ボタン・入力欄・モード・つまみの見張りと、押して引いている操作
   // （範囲選択・掴む・描く・つまみ）を終えるのは annotate-pointer.js が持ち、ここは残りの判断だけを持つ。
   //   - 押したとき: 「選択」の道具で書き込みの無い所なら範囲選択、Ctrl なら足して（引けば写し）、選んでいる書き込みの上なら
-  //     まとめて掴み、「選択」の道具なら選んで 1 段で掴み、図形・ペンの道具なら描き始める
+  //     まとめて掴み、「選択」の道具と GRAB_TOOLS の道具なら選んで 1 段で掴み、図形・ペンの道具なら描き始める
   //   - 離したとき（動いていない押し離し）: マークアップを作る → Ctrl なら外す → 当たり判定で選ぶ → 何も無い場所で
   //     テキスト・ノートの道具ならそこに置く
+  // 押せば書き込みを掴む所かの判定（grabsAt）も持つ。十字矢印のカーソルとハンドの振り分けが使う（決定84）。
+
+  // 選んでいない書き込みでも、動かせるものなら押したときに選んで 1 段で掴む道具（決定84 ④。null は道具なし）。「選択」は
+  // 動かせない書き込みも選ぶ（決定53 ⑨）。
+  const GRAB_TOOLS = Object.freeze(['select', 'shape', 'hand', null, 'text', 'callout', 'note']);
+  // 塗っていない四角・丸は線の上だけを当てる道具（決定84 ②。内側は図形を描く・表示を引く）。
+  const OUTLINE_TOOLS = Object.freeze(['shape', 'hand']);
+  // 書き込みを選ばず掴まない道具（spec-4b-5b 確定事項21、spec-4b-6a 確定事項12、spec-4b-6b 確定事項11）。
+  const NO_GRAB_TOOLS = Object.freeze(['eraser', 'mosaic', 'trim']);
 
   const state = {
     win: null,
@@ -42,15 +51,40 @@
     return Math.abs(event.clientX - from.x) > slop() || Math.abs(event.clientY - from.y) > slop();
   }
 
+  // 今の道具での当たり（「図形」「ハンド」では塗っていない四角・丸は線の上だけ）。
+  function hitAt(page) {
+    return annotate().hitTest(page.index, page.point, { outline: OUTLINE_TOOLS.includes(annotate().getTool()) });
+  }
+
+  function isMovable(key) {
+    const view = root.SigK.viewer;
+    const entry = root.SigK.annotationState.findAnnot(view.getAnnotations(), view.getImported(), key);
+    return entry !== null && entry.readonly !== true && root.SigK.annotationMoves.isMovable(entry);
+  }
+
+  // 押せば書き込みを掴む所か（決定84）。描いている途中の多角形（押すと頂点を置く）・テキストの入力欄の上・消しゴム・モザイク・
+  // トリミングでは掴まない。掴むのは、動かせる書き込みを GRAB_TOOLS の道具で押すか、選んでいるものか Ctrl で足して押すとき。
+  function grabsAt(event) {
+    const tool = annotate().getTool();
+    if (NO_GRAB_TOOLS.includes(tool) || root.SigK.annotatePlacing?.isActive() === true || (event.target?.closest?.('.free-text-editor') ?? null) !== null)
+      return false;
+    const page = pageAt(event);
+    const hit = page === null ? null : hitAt(page);
+    if (hit === null || !isMovable(hit))
+      return false;
+    return GRAB_TOOLS.includes(tool) || annotate().isSelected(hit) || event.ctrlKey === true;
+  }
+
   function down(event) {
     const page = pageAt(event);
-    const hit = page === null ? null : annotate().hitTest(page.index, page.point);
+    const hit = page === null ? null : hitAt(page);
     const wasSelected = hit !== null && annotate().isSelected(hit);
+    const tool = annotate().getTool();
     state.pressed = { x: event.clientX, y: event.clientY, ctrl: event.ctrlKey === true, hit, wasSelected };
     if (page === null)
       return;
     // 「選択」の道具で書き込みの無い所を押したら範囲選択（確定事項D1・D2。Ctrl か Shift で始めたら足す）。
-    if (hit === null && annotate().getTool() === 'select') {
+    if (hit === null && tool === 'select') {
       root.SigK.annotateMarquee.begin(event, page, { add: event.ctrlKey === true || event.shiftKey === true });
       state.pressed = null;
       return;
@@ -65,17 +99,16 @@
       return;
     }
     // 選んでいる書き込みの上なら、選んでいる全部を掴む（確定事項B6・F）。「選択」の道具なら、選んでいない書き込みも
-    // 押したときに選んで 1 段で掴む（決定53 ⑨）。
+    // 押したときに選んで 1 段で掴む（決定53 ⑨）。GRAB_TOOLS のほかの道具も、動かせる書き込みなら同じ（決定84 ④）。
     if (hit !== null && wasSelected) {
       grab().begin(event, page, hit);
       return;
     }
-    if (hit !== null && annotate().getTool() === 'select') {
+    if (hit !== null && (tool === 'select' || (GRAB_TOOLS.includes(tool) && isMovable(hit)))) {
       annotate().select(hit);
       grab().begin(event, page, hit);
       return;
     }
-    const tool = annotate().getTool();
     // 多角形の道具は、書き込みの無い所で押しても描き始めず、文字も選ばせない（頂点は離したときに置く。spec-4b-5a 確定事項13）。
     if (hit === null && root.SigK.annotatePolygon?.isPolygonTool() === true) {
       event.preventDefault();
@@ -90,7 +123,7 @@
     if (pressed === null || pressed.hit !== null || pressed.ctrl)
       return false;
     const page = pageAt(event);
-    return page !== null && annotate().hitTest(page.index, page.point) === null && root.SigK.annotatePolygon?.start(page) === true;
+    return page !== null && hitAt(page) === null && root.SigK.annotatePolygon?.start(page) === true;
   }
 
   // Ctrl＋クリックを離した（確定事項B3）。選んでいたものを動かさずに離したら外す。書き込みの無い所なら何もしない。
@@ -120,7 +153,7 @@
       annotate().select(null);
       return;
     }
-    const hit = annotate().hitTest(page.index, page.point);
+    const hit = hitAt(page);
     if (hit !== null) {
       annotate().select(hit);
       return;
@@ -149,5 +182,5 @@
 
   const SigK = (root.SigK = root.SigK || {});
   // isPending は押してまだ離していない間（Esc で捨てる。spec-4b-7a 確定事項A3）。
-  SigK.annotatePress = { init, pageAt, down, up, take, isPending: () => state.pressed !== null, reset: () => { state.pressed = null; } };
+  SigK.annotatePress = { GRAB_TOOLS, init, pageAt, grabsAt, down, up, take, isPending: () => state.pressed !== null, reset: () => { state.pressed = null; } };
 })(typeof window !== 'undefined' ? window : globalThis);

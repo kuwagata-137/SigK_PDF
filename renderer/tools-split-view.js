@@ -50,7 +50,7 @@
     no.classList.toggle('even', box.file % 2 === 0);
     row.append(no, span('fname', name), span('p', rangeText(box.first, box.last)));
     // 説明の吹き出し（spec-2-5 J5）。
-    root.SigK.tipContent.text(row, name, '押すと、このファイルの箱へ移ります。');
+    root.SigK.tipContent.text(row, name, 'クリックすると、このファイルの箱へ移ります。');
     return row;
   }
 

@@ -28,17 +28,17 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.tipSaveText = { backupSentence };
   SigK.tipContent.add({
-    'bar.open': { name: '開く', desc: 'PDF を選んで、タブで開きます。窓へ PDF を落としても開けます。', keys: ['Ctrl+O'] },
+    'bar.open': { name: '開く', desc: 'PDF を選んで、タブで開きます。窓へ PDF をドロップしても開けます。', keys: ['Ctrl+O'] },
     'bar.save': saveEntry,
     'bar.saveAs': { name: '名前を付けて保存', desc: '保存先と名前を決めて、今の中身を新しいファイルに保存します。元のファイルは変わりません。', keys: ['Ctrl+Shift+S'] },
-    'bar.undo': { name: '元に戻す', desc: '直前の変更を取り消して、1 つ前の状態に戻します。ツールモードでは、ページを引いて動かす・写す・分割の ✂ を、した順に戻します。', keys: ['Ctrl+Z'] },
+    'bar.undo': { name: '元に戻す', desc: '直前の変更を取り消して、1 つ前の状態に戻します。ツールモードでは、ページをドラッグして動かす・写す・分割の ✂ を、した順に戻します。', keys: ['Ctrl+Z'] },
     'bar.redo': { name: 'やり直し', desc: '元に戻した変更を、もう一度当てます。', keys: ['Ctrl+Y', 'Ctrl+Shift+Z'] },
-    'bar.pointerSelect': { name: '選択', desc: '紙の上を引くと、文字を選びます。左ボタンを押したまま右クリックすると、［ハンド］に切り替わります。' },
-    'bar.pointerHand': { name: 'ハンド', desc: '紙のどこを引いても表示が動きます。Ctrl を押さずにホイールを回すと、拡大・縮小します。' },
+    'bar.pointerSelect': { name: '選択', desc: '紙の上をドラッグすると、文字を選びます。左ボタンを押したまま右クリックすると、［ハンド］に切り替わります。' },
+    'bar.pointerHand': { name: 'ハンド', desc: '紙の上をドラッグすると、表示が動きます（編集モードでは、動かせる書き込みの上をドラッグすると、書き込みが動きます）。Ctrl を押さずにホイールを回すと、拡大・縮小します。' },
     'bar.pagePrev': { name: '前のページ', desc: '1 つ前のページへ移ります。見開きのときは 2 ページ戻ります。', keys: ['PageUp'] },
     'bar.pageNext': { name: '次のページ', desc: '次のページへ移ります。見開きのときは 2 ページ進みます。', keys: ['PageDown'] },
-    'bar.zoomOut': { name: '縮小', desc: '表示を 1 段小さくします。いちばん小さいのは 10% です。', keys: ['Ctrl+−'] },
-    'bar.zoomIn': { name: '拡大', desc: '表示を 1 段大きくします。いちばん大きいのは 400% で、Ctrl+0 で 100% に戻ります。', keys: ['Ctrl+＋'] },
+    'bar.zoomOut': { name: '縮小', desc: '表示を 1 段小さくします。いちばん小さいのは 10%（ツールモードで帯に並べるページは 50%）です。', keys: ['Ctrl+−'] },
+    'bar.zoomIn': { name: '拡大', desc: '表示を 1 段大きくします。いちばん大きいのは 400%（ツールモードで帯に並べるページは 300%）で、Ctrl+0 で 100% に戻ります。', keys: ['Ctrl+＋'] },
     'bar.fitWidth': { name: '幅に合わせる', desc: 'ページの幅を窓に合わせます。窓の大きさが変わっても合わせ直します。' },
     'bar.fitPage': { name: '全体を表示', desc: 'ページ全体が窓に入る大きさにします。窓の大きさが変わっても合わせ直します。' },
     'bar.facing': { name: '見開き', desc: '2 ページずつ並べて表示します（1-2・3-4 の組）。もう一度押すと、1 ページずつに戻ります。' },

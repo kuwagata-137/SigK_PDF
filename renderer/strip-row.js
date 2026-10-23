@@ -121,6 +121,13 @@
     });
   }
 
+  // 帯の高さ（紙の倍率で変わる。strip-layout の stripHeight）。盤を広げた帯の高さは split-strip.js が外す。
+  function setHeight(node, height) {
+    const value = `${height}px`;
+    if (node.style.height !== value)
+      node.style.height = value;
+  }
+
   function pagesOf(node) {
     return node.querySelector('.strip-pages');
   }
@@ -172,5 +179,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.stripRow = { BUTTONS, UNTITLED_DESC, create, updateHead, syncPages, pagesOf, sheetAt, putCanvas, place, contentOf, sameContent, markPicked, showNote };
+  SigK.stripRow = { BUTTONS, UNTITLED_DESC, create, updateHead, syncPages, setHeight, pagesOf, sheetAt, putCanvas, place, contentOf, sameContent, markPicked, showNote };
 })(typeof window !== 'undefined' ? window : globalThis);

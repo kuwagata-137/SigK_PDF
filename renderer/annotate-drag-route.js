@@ -73,11 +73,12 @@
     grab().move(event);
     draw().move(event);
     placing()?.move(event);
-    // つまみの上のカーソル（掴んでいない・描いていないとき）。ハンド・消しゴム・モザイク・トリミングのときはつまみを見ないので、残っていれば外す。
-    if (inAnnotMode(doc) && ['hand', 'eraser', 'mosaic', 'trim'].includes(annotate().getTool()))
+    // つまみの上と、押せば書き込みを掴む所のカーソル（掴んでいない・描いていないとき。決定84 ①）。消しゴム・モザイク・トリミングは
+    // つまみも書き込みも見ないので、編集モードの外と同じく残っていれば外す。
+    if (!inAnnotMode(doc) || ['eraser', 'mosaic', 'trim'].includes(annotate().getTool()))
       transform()?.clearCursor();
-    else if (inAnnotMode(doc) && !grab().isGrabbing() && !draw().isDrawing())
-      transform()?.hover(event);
+    else if (!grab().isGrabbing() && !draw().isDrawing())
+      transform()?.hover(event, root.SigK.annotatePress.grabsAt(event) ? 'move' : null);
   }
 
   function isBusy() {

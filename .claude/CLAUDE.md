@@ -178,3 +178,23 @@ CheckListMaker の `index.html` は 388KB の単一ファイルに CSS・JS を�
 - 依存 OSS を追加したら、その場で `THIRD-PARTY-NOTICES.md` に追記する。ライセンスが
   AGPL・GPL のものは、同梱する前に必ずユーザーへ確認する。
 - PDF の読み書きは規格の範囲にとどめる（特許の点検。`docs/06` 第3章）。
+
+### E. コミットの作者と Co-Authored-By の行
+
+**2026-10-23 ユーザー判断。**リポジトリは公開なので、コミットの作者はリポジトリの持ち主の kuwagata-137
+（くわがた）にする。それまでの作者は `ashikagagassoumu-cmd` だった。
+
+- コミットの作者の名前とアドレスは `くわがた <226218048+kuwagata-137@users.noreply.github.com>` にする。
+  このアドレスは、GitHub が kuwagata-137 のアカウントに用意している noreply アドレスである。本当のメールアドレスを
+  公開せずに、コミットを kuwagata-137 のアカウントにつなげられる。
+- コミットの文の最後に `Co-Authored-By: Claude …` の行を付けない。
+- 新しいクローンやクラウドの環境では、最初のコミットの前に `git var GIT_AUTHOR_IDENT` を見る。上の名前とアドレスで
+  なければ、`git config --local user.name` と `git config --local user.email` で直す。Windows 実機では、
+  `.git/config` と `.claude/settings.local.json` の `"attribution": {"commit": ""}` で設定してある
+  （どちらも Git の管理の外にあり、ほかの環境には伝わらない）。
+- すでにあるコミット（2026-10-23 の時点で 735 件）の作者は書き換えない。書き換えるには `main` の force push が要り、
+  コミットの番号がすべて変わって、文書に書いた番号がどのコミットも指さなくなる。そのうえ GitHub は PR の中に古い
+  コミットを持ち続けるので、PR の画面からは古い名前とアドレスが見え続ける。
+- GitHub の画面のマージのボタンで作るコミットには、ボタンを押したアカウントの名前とアドレスが入る。上の設定では
+  変えられない。
+- PR の本文の最後の「Generated with Claude Code」の行は、この決まりの対象に入れていない。今までどおり付ける。

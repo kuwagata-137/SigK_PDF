@@ -204,7 +204,7 @@ test('JS が作る要素の説明の吹き出しは、文の表の鍵か、フ�
   const buttons = ['strip.up', 'strip.down', 'strip.save', 'strip.close'];
   assert.deepEqual(seen['ツール（merge）'], { strip: [...buttons, ...buttons], fname: [file('a.pdf', A), file('b.pdf', B)], merge: [file('a.pdf', A), file('b.pdf', B)] });
   assert.deepEqual(seen['ツール（split）'], {
-    file: [file('b_001.pdf', '押すと、このファイルの箱へ移ります。')], folder: [file('出力先のフォルダ', 'C:\\work')], cut: ['split.cut', 'split.cut'],
+    file: [file('b_001.pdf', 'クリックすると、このファイルの箱へ移ります。')], folder: [file('出力先のフォルダ', 'C:\\work')], cut: ['split.cut', 'split.cut'],
   });
   const [image] = seen['ツール（convert）'].image;
   assert.equal(image.name, 'p.png');

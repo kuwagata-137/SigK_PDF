@@ -6,7 +6,7 @@
   // 盤（split-board-model.js）と履歴（split-board-history.js）は、帯（タブ）ごとに split-board-store.js が持つ（決定80 ㉟）。
   // ここは選んでいる帯の盤を取り出して操作し、選択（split-selection.js）と、まとめて分けるの欄の文字を持つ。選択は帯を替えると外す。
   // 画面のボタン・欄・キーは、ここの関数を呼ぶだけにする。盤が変わったら tools-split-view.js の render で画面全体を描き直す。
-  // 実行中は盤の操作を受けない（確定事項C12）。大きさ（小・中・大）は描く層（split-thumbs.js）が持つ。
+  // 実行中は盤の操作を受けない（確定事項C12）。紙の大きさはツールモードの紙の倍率（tools-zoom.js。docs/07 決定83）で決まる。
 
   const state = { tabId: null, selection: null, bulkText: { every: '3', at: '' }, bulkError: null };
 
@@ -14,7 +14,6 @@
   const history = () => root.SigK.splitHistory;
   const store = () => root.SigK.splitBoardStore;
   const selection = () => root.SigK.splitSelection;
-  const thumbs = () => root.SigK.splitThumbs;
   const split = () => root.SigK.toolsSplit;
   const changed = () => root.SigK.toolsSplitView?.render();
 
@@ -174,16 +173,9 @@
     return true;
   }
 
-  function setSize(size) {
-    if (!thumbs().setSize(size))
-      return false;
-    changed();
-    return true;
-  }
-
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsSplitEdit = {
-    board, cut, join, setCuts, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape, setSize,
+    board, cut, join, setCuts, makeOne, bulk, setBulkText, select, setSelection, clearSelection, escape,
     skip: () => setSkipped(true),
     unskip: () => setSkipped(false),
     undo: () => step('undo'),
@@ -193,6 +185,5 @@
     selection: () => state.selection,
     bulkText: (kind) => state.bulkText[kind],
     bulkError: () => state.bulkError,
-    size: () => thumbs().size(),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

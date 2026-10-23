@@ -51,10 +51,10 @@
   // 受けられるものが 1 つも無かったときの文言。
   function rejectionFor(tool) {
     if (tool === null)
-      return 'PDF ファイルではないので、PDF を落としてください。';
+      return 'PDF ファイルではないので、PDF をドロップしてください。';
     if (tool === 'watermark')
-      return 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像を落としてください。';
-    return 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）を落としてください。';
+      return 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像をドロップしてください。';
+    return 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。';
   }
 
   // ファイルを運んでいるドラッグかどうか。文字の選択をドラッグしただけで

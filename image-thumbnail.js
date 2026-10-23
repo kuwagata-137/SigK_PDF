@@ -15,6 +15,16 @@ const { MAX_IMAGE_BYTES } = require('./image-io.js');
 
 // 帯の画像の枠は 104×72px（strips.css の .img-thumb）。画素比 2 まで細かく作るので、長い辺を 208px にする。
 const THUMB_PX = 208;
+// 2026-10-23 から、枠はツールモードの紙の倍率（50〜300%。docs/07 決定83）で大きくなるので、画面は 208px 刻みで大きいものを頼める
+// （300%・画素比 2 で 624px）。画面から届いた値は、この刻みと上限に収めてから使う（大きすぎる縮小を作らせない）。
+const MAX_THUMB_PX = THUMB_PX * 3;
+
+function thumbSize(requested) {
+  const value = Number(requested);
+  if (!Number.isFinite(value) || value <= THUMB_PX)
+    return THUMB_PX;
+  return Math.min(MAX_THUMB_PX, THUMB_PX * Math.ceil(value / THUMB_PX));
+}
 const EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff']);
 const FAILED = 'サムネイルを作れませんでした。';
 
@@ -43,4 +53,4 @@ async function createThumbnail(filePath, { nativeImageLike, fsLike = fs, maxByte
   }
 }
 
-module.exports = { THUMB_PX, isThumbnailPath, createThumbnail };
+module.exports = { THUMB_PX, MAX_THUMB_PX, thumbSize, isThumbnailPath, createThumbnail };

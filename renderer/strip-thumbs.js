@@ -17,11 +17,13 @@
 
   const layout = () => root.SigK.stripLayout;
   const keyOf = (tabId, index) => `${tabId}:${index}`;
+  // ツールモードの紙の倍率（docs/07 決定83）。変わると紙の大きさが変わり、印も変わるので描き直す（描き直すまでは前の絵を引き伸ばして見せる）。
+  const zoom = () => layout().zoom();
 
   // 紙の印（plan-page-image.js の signature）。null は描けない（開けなかったタブ・無い位置）。
   function sigOf(tabId, index) {
     const view = root.SigK.tabs.peek(tabId);
-    const sheet = layout().sheetOf(view?.sizes?.[index]);
+    const sheet = layout().sheetOf(view?.sizes?.[index], zoom());
     return root.SigK.planPageImage.signature(view, index, `${sheet.width}x${sheet.height}`);
   }
 
@@ -47,9 +49,9 @@
     notify(entry.tabId, entry.index, null);
   }
 
-  // items は描く順（strip-layout の drawOrder）。先頭から LIMIT 枚だけ持ち、ほかは手放す。
+  // items は描く順（strip-layout の drawOrder）。先頭から上限（倍率で面積を数えた枚数）だけ持ち、ほかは手放す。
   function want(items) {
-    const keep = (items ?? []).slice(0, layout().LIMIT);
+    const keep = (items ?? []).slice(0, layout().limit(zoom()));
     wanted = new Set(keep.map((item) => keyOf(item.tabId, item.page)));
     for (const key of [...drawn.keys()]) {
       if (!wanted.has(key))
@@ -82,7 +84,7 @@
     let result = null;
     try {
       const view = root.SigK.tabs.peek(tabId);
-      const sheet = layout().sheetOf(view.sizes[index]);
+      const sheet = layout().sheetOf(view.sizes[index], zoom());
       result = await root.SigK.planPageImage.draw(root.document, view, index, { sheet, dpr: root.devicePixelRatio ?? 1 });
     } catch {
       result = null;   // 描けなかった紙（閉じた文書・描画の取りやめ）は枠のまま残す

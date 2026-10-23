@@ -223,8 +223,8 @@ body{
               <div class="img-strip-note" id="image-strip-note" hidden></div>
             </div>
             <div class="drop-zone" id="strip-drop">
-              <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">PDF をここへ落とすと、開いて帯に足します</span></div>
-              <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを選ぶ…</button>
+              <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">ページをここにドロップすると新しいファイルを作れます</span></div>
+              <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを開く…</button>
               <div class="recent" id="strip-drop-recent" hidden></div>
             </div>
           </div>
@@ -243,9 +243,6 @@ body{
                 <button type="button" class="sb-btn" id="split-clear">分け目をすべて消す</button>
                 <button type="button" class="sb-btn ghost" id="split-undo" data-tip="split.undo"><span data-icon="undo" data-icon-size="14"></span>元に戻す</button>
                 <button type="button" class="sb-btn ghost" id="split-redo" data-tip="split.redo"><span data-icon="redo" data-icon-size="14"></span>やり直す</button>
-                <span class="spacer"></span>
-                <span class="k">大きさ</span>
-                <span class="sb-seg" id="split-size" role="radiogroup" aria-label="サムネイルの大きさ"><button type="button" role="radio" data-size="small" aria-checked="false">小</button><button type="button" role="radio" data-size="mid" aria-checked="true">中</button><button type="button" role="radio" data-size="large" aria-checked="false">大</button></span>
               </div>
               <p class="sb-err" id="split-bulk-err" hidden></p>
             </div>
@@ -312,7 +309,7 @@ body{
         <div class="pane-body">
           <h2 class="pane-title">分割</h2>
           <p class="pane-desc">選んでいる帯（枠の色が付いた帯）の PDF を、ページの間の ✂ で分けて、いくつかのファイルにします。元のファイルはそのまま残ります。</p>
-          <p class="pane-desc">ページを押してから Shift キーを押したまま別のページを押すか、押したままなぞると、その間のページを選べます。</p>
+          <p class="pane-desc">ページをクリックしてから Shift キーを押したまま別のページをクリックするか、ページの上をドラッグすると、その間のページを選べます。</p>
           <p class="pane-state" id="split-state" hidden></p>
           <section class="sb-card" id="split-files-card" hidden>
             <h3>できるファイル<span class="n" id="split-files-count"></span></h3>
@@ -969,12 +966,14 @@ body{
 <script src="renderer/tool-output.js"></script>
 <script src="renderer/tool-handoff.js"></script>
 <script src="renderer/unsaved-changes.js"></script>
+<script src="renderer/tools-zoom.js"></script>
 <script src="renderer/strip-layout.js"></script>
 <script src="renderer/strip-selection.js"></script>
 <script src="renderer/plan-page-image.js"></script>
 <script src="renderer/strip-thumbs.js"></script>
 <script src="renderer/strip-row.js"></script>
 <script src="renderer/strip-view.js"></script>
+<script src="renderer/strip-zoom.js"></script>
 <script src="renderer/strip-drop-zone.js"></script>
 <script src="renderer/strip-input.js"></script>
 <script src="renderer/strip-drop-target.js"></script>
@@ -1019,6 +1018,7 @@ body{
 <script src="renderer/image-thumbs.js"></script>
 <script src="renderer/image-strip-notes.js"></script>
 <script src="renderer/image-strip.js"></script>
+<script src="renderer/image-strip-zoom.js"></script>
 <script src="renderer/image-strip-drag.js"></script>
 <script src="renderer/tools-convert-view.js"></script>
 <script src="renderer/image-export-plan.js"></script>

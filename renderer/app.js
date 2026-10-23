@@ -107,6 +107,9 @@
     // 呼ばれるので、モードの復元（restoreUi）より先に用意しておく。
     // 帯の画面は tools.init（ツールモードなら選んでいるツールを出す）より前に用意する（spec-2-5 第 D 章）。
     root.SigK.strips.init(doc, win);
+    // ツールモードの紙の倍率（docs/07 決定83）。帯の画面の Ctrl＋ホイールを受け、倍率を変えたら見ていた紙の所へ送る。
+    root.SigK.toolsZoom.init(doc, win);
+    root.SigK.stripZoom.init(doc, win);
     root.SigK.stripDropZone.init(doc, win);
     root.SigK.stripInput.init(doc, win);
     root.SigK.toolPane.init(doc, win);
@@ -127,6 +130,7 @@
     root.SigK.toolsConvert.init(doc, win);
     // 「変換する画像」の帯（spec-2-5 確定事項H4〜H8）。引いている途中の Esc を受ける keydown も、Esc の振り分けより先に登録する。
     root.SigK.imageStrip.init(doc, win);
+    root.SigK.imageStripZoom.init(doc, win);
     root.SigK.imageStripDrag.init(doc, win);
     // 帯のページを引いて落とす（spec-2-5 第 I 章）。引いている途中の Esc を受ける keydown も、Esc の振り分けより先に登録する。
     root.SigK.stripDrag.init(doc, win);
