@@ -20,6 +20,9 @@
   // - getState: controls へ渡す読み取り専用の写し
   function create(ctx) {
     const state = ctx.state;
+    // 倍率を変えたとき、新しい絵ができるまで前の倍率の絵を残しているページの index（2026-10-23 の直し。前は枠を空にしていたので、
+    // pdf.js が描き終えるまで紙の白い地が見え、ズームのたびに白く光った）。描けたら入れ替え、描く範囲から外れたら捨てる。
+    const held = new Set();
 
     function layout() {
       return root.SigK.viewerLayout;
@@ -140,10 +143,42 @@
       }
     }
 
+    // 前の倍率の絵（canvas）と書き込みの層を枠に残し、ほかは外す。.pdf-page canvas は width/height 100% なので、絵は新しい枠の
+    // 大きさに引き伸ばされる。書き込みの層は前の倍率の座標のまま viewBox で伸ばす（2 回目以降は最初の大きさのまま）。
+    function holdPicture(index, node) {
+      const picture = node.querySelector(':scope > canvas');
+      const layer = node.querySelector(':scope > svg.annot-layer');
+      if (layer !== null && !layer.hasAttribute('viewBox')) {
+        layer.setAttribute('viewBox', `0 0 ${layer.getAttribute('width')} ${layer.getAttribute('height')}`);
+        layer.setAttribute('width', '100%');
+        layer.setAttribute('height', '100%');
+        layer.setAttribute('preserveAspectRatio', 'none');
+      }
+      const kept = [picture, layer].filter((part) => part !== null);
+      node.replaceChildren(...kept);
+      if (kept.length > 0)
+        held.add(index);
+      else
+        held.delete(index);
+    }
+
+    // 残していた前の絵を捨てる。残していなければ何もしない（描けたばかりの絵を消さないため）。
+    function dropPicture(index) {
+      if (!held.delete(index))
+        return;
+      ctx.el().pageNodes[index]?.replaceChildren();
+    }
+
+    function dropAllPictures() {
+      for (const index of [...held])
+        dropPicture(index);
+    }
+
     // cleanup は、画面から外れて手放すとき（update）だけ true にする。pdf.js のページが展開した画像などを捨てる（spec-4b-7a 点検の直し。
     // 捨てないと、スクロールで触れたページの分だけメモリが伸び続けた。描画が残っていれば pdf.js が終わるまで待つ）。倍率を変えて
     // 全部を描き直すとき（releaseAll）は、すぐまた使うので捨てない。
-    function releasePage(index, { cleanup = false } = {}) {
+    // keepPicture は倍率を変えて描き直すときだけ true にする。新しい絵ができるまで前の絵を残す（holdPicture）。
+    function releasePage(index, { cleanup = false, keepPicture = false } = {}) {
       const entry = state.rendered.get(index);
       if (entry === undefined)
         return;
@@ -157,12 +192,21 @@
       entry.annots = null;
       root.SigK.annotationFrame?.releasePage(index);
       root.SigK.freeTextEditor?.onPageReleased(index);
-      ctx.el().pageNodes[index]?.replaceChildren();
+      const node = ctx.el().pageNodes[index];
+      if (keepPicture && node !== undefined && node !== null) {
+        holdPicture(index, node);
+        return;
+      }
+      held.delete(index);
+      node?.replaceChildren();
     }
 
-    function releaseAll() {
+    // keepPicture でなければ（閉じる・読み直す・並びが変わる・タブを移る）、残していた前の絵も捨てる。
+    function releaseAll({ keepPicture = false } = {}) {
       for (const index of [...state.rendered.keys()])
-        releasePage(index);
+        releasePage(index, { keepPicture });
+      if (!keepPicture)
+        dropAllPictures();
     }
 
     async function renderPage(index) {
@@ -192,17 +236,22 @@
         const canvas = await drawCanvas({ entry, page, index });
         if (isStale())
           return;
-        if (canvas !== null)
-          ctx.el().pageNodes[index]?.replaceChildren(canvas);
+        // 残していた前の絵と入れ替える。絵が描けない環境（jsdom）でも枠を空にしてから書き込みの層を付ける（前の層と二重にしない）。
+        held.delete(index);
+        ctx.el().pageNodes[index]?.replaceChildren(...(canvas === null ? [] : [canvas]));
         attachAnnotationLayer({ index, entry, page });
 
         await attachTextLayer({ index, entry, page, isStale });
       } catch (error) {
-        if (state.rendered.get(index) === entry)
+        const own = state.rendered.get(index) === entry;
+        if (own)
           state.rendered.delete(index);
         // スクロールで捨てた描画は失敗ではない。
         if (error?.name === 'RenderingCancelledException')
           return;
+        // 描けなかったページに、前の倍率の絵を残したままにしない。
+        if (own)
+          dropPicture(index);
         ctx.report(error, { page: index + 1 });
       }
     }
@@ -259,6 +308,7 @@
       if (el.doc.documentElement.getAttribute('data-mode') === 'tools') {
         for (const index of [...state.rendered.keys()])
           releasePage(index, { cleanup: true });
+        dropAllPictures();
         return;
       }
       const pages = state.layout.pages;
@@ -294,6 +344,11 @@
       for (const index of [...state.rendered.keys()]) {
         if (!targets.includes(index))
           releasePage(index, { cleanup: true });
+      }
+      // 倍率を変えたあと描く範囲から外れたページには、前の絵を残さない（メモリを抱えないため）。
+      for (const index of [...held]) {
+        if (!targets.includes(index))
+          dropPicture(index);
       }
       for (const index of targets)
         renderPage(index);
