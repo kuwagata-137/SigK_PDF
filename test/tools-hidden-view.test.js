@@ -71,3 +71,59 @@ test('ツールモードでは倍率とページ送りのキーが効かず、Ct
   assert.equal(key(shell, { key: '+', ctrlKey: true }).defaultPrevented, true);
   assert.notEqual(SigK.viewer.getState().zoom, zoom);
 });
+
+// ツールモードでは隠れたページの表示に効くだけのページ送り・［幅］［全体］［見開き］を灰色にする（ユーザーの判断 2026-10-23。docs/07 決定83）。
+const HIDDEN_VIEW_CONTROLS = ['pager', 'btn-fit-width', 'btn-fit-page', 'btn-facing'];
+
+function click(shell, id) {
+  shell.document.getElementById(id).dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
+}
+
+test('ツールモードではページ送り・［幅］［全体］［見開き］が灰色で、押しても何も変わらない。閲覧へ戻ると押せる', async (t) => {
+  const shell = await withTabs(t);
+  const { SigK, document } = shell;
+  SigK.shell.setMode(document, 'tools');
+  await shell.flush();
+  const before = { ...SigK.viewer.getState() };
+
+  for (const id of HIDDEN_VIEW_CONTROLS)
+    assert.equal(document.getElementById(id).getAttribute('aria-disabled'), 'true', `#${id} が押せる`);
+  assert.equal(document.getElementById('page-current').disabled, true, 'ページ番号の欄に打てる');
+  for (const id of ['page-next', 'btn-fit-page', 'btn-fit-width', 'btn-facing'])
+    click(shell, id);
+  const after = SigK.viewer.getState();
+  assert.equal(after.current, before.current);
+  assert.equal(after.fit, before.fit);
+  assert.equal(after.facing, before.facing);
+  assert.equal(after.zoom, before.zoom);
+
+  SigK.shell.setMode(document, 'view');
+  for (const id of HIDDEN_VIEW_CONTROLS)
+    assert.equal(document.getElementById(id).hasAttribute('aria-disabled'), false, `#${id} が押せないまま`);
+  assert.equal(document.getElementById('page-current').disabled, false);
+  click(shell, 'page-next');
+  assert.equal(SigK.viewer.getState().current, 1);
+});
+
+test('ツールモードで灰色にしても、［見開き］の押している印は残す（［選択］［ハンド］と同じ）', async (t) => {
+  const shell = await withTabs(t);
+  const { SigK, document } = shell;
+  SigK.shell.setPageLayout(document, 'facing');
+  SigK.shell.setMode(document, 'tools');
+  await shell.flush();
+
+  const facing = document.getElementById('btn-facing');
+  assert.equal(facing.getAttribute('aria-disabled'), 'true');
+  assert.equal(facing.classList.contains('active'), true);
+});
+
+test('ツールモードで帯を押して映すタブを替えても、灰色のまま', async (t) => {
+  const shell = await withTabs(t);
+  const { SigK, document } = shell;
+  SigK.shell.setMode(document, 'tools');
+  SigK.tabs.activate(SigK.tabs.list()[0].id);
+  await shell.flush();
+
+  for (const id of HIDDEN_VIEW_CONTROLS)
+    assert.equal(document.getElementById(id).getAttribute('aria-disabled'), 'true', `#${id} が押せる`);
+});

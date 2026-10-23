@@ -404,12 +404,16 @@ test('ツールバーのクリックで拡大・全体表示・ページ送り�
 
 test('文書が無いときはツールバーを押しても何も起きない', async (t) => {
   const { document, SigK, window } = await withShell(t);
+  const zoom = SigK.viewer.getState().zoom;
 
   document.getElementById('zoom-in').dispatchEvent(new window.MouseEvent('click'));
   document.getElementById('page-next').dispatchEvent(new window.MouseEvent('click'));
 
   assert.equal(SigK.viewer.getState().open, false);
   assert.equal(SigK.viewer.getState().current, 0);
+  // 灰色の印は外の箱（#zoom・#pager）に付く。中のボタンを押しても効かないこと（2026-10-23 の直し。前は数字が変わった）。
+  assert.equal(SigK.viewer.getState().zoom, zoom, '灰色の［＋］で倍率が変わった');
+  assert.equal(document.getElementById('zoom-value').textContent, '100%');
 });
 
 test('開くボタンのクリックでダイアログが出る', async (t) => {

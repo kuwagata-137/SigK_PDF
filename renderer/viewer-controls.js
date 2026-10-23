@@ -6,6 +6,9 @@
 
   // 文書が開いていないと押せないもの。開くボタンだけは常に押せる。
   const DOCUMENT_CONTROLS = ['pager', 'zoom', 'btn-fit-width', 'btn-fit-page', 'btn-facing', 'btn-find', 'btn-print'];
+  // ツールモードでは押せないもの。ツールの画面の下に隠れたページの表示に効くだけで、帯には何も起きないため（ユーザーの判断 2026-10-23。
+  // docs/07 決定83）。押している印（見開き）は残す（［選択］［ハンド］と同じ。spec-2-5 確定事項K11）。
+  const HIDDEN_VIEW_CONTROLS = ['pager', 'btn-fit-width', 'btn-fit-page', 'btn-facing'];
 
   function viewer() {
     return root.SigK.viewer;
@@ -47,8 +50,13 @@
   }
 
   function syncAll(doc, state) {
+    const tools = doc.documentElement.getAttribute('data-mode') === 'tools';
     for (const id of DOCUMENT_CONTROLS)
-      setEnabled(doc, id, state.open);
+      setEnabled(doc, id, state.open && !(tools && HIDDEN_VIEW_CONTROLS.includes(id)));
+    // 灰色の間はページ番号の欄にも打たせない。
+    const input = doc.getElementById('page-current');
+    if (input !== null)
+      input.disabled = doc.getElementById('pager')?.getAttribute('aria-disabled') === 'true';
     syncPage(doc, state);
     syncZoom(doc, state);
     // ページ編集のボタン（回転・削除・元に戻す）もここで揃える。文書を開く・
@@ -74,8 +82,9 @@
     const node = doc.getElementById(id);
     if (node === null)
       return;
+    // 灰色の印は外の箱（#pager・#zoom）に付くこともあるので、祖先も見る（前は押したボタン自身しか見ず、灰色でも押せた。2026-10-23 の直し）。
     node.addEventListener('click', () => {
-      if (node.getAttribute('aria-disabled') === 'true')
+      if (node.closest('[aria-disabled="true"]') !== null)
         return;
       handler();
     });
@@ -129,5 +138,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.viewerControls = { DOCUMENT_CONTROLS, init, syncAll, syncPage, syncZoom, commitPageInput };
+  SigK.viewerControls = { DOCUMENT_CONTROLS, HIDDEN_VIEW_CONTROLS, init, syncAll, syncPage, syncZoom, commitPageInput };
 })(typeof window !== 'undefined' ? window : globalThis);
