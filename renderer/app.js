@@ -107,6 +107,9 @@
     // 呼ばれるので、モードの復元（restoreUi）より先に用意しておく。
     // 帯の画面は tools.init（ツールモードなら選んでいるツールを出す）より前に用意する（spec-2-5 第 D 章）。
     root.SigK.strips.init(doc, win);
+    // ツールモードの紙の倍率（docs/07 決定83）。帯の画面の Ctrl＋ホイールを受け、倍率を変えたら見ていた紙の所へ送る。
+    root.SigK.toolsZoom.init(doc, win);
+    root.SigK.stripZoom.init(doc, win);
     root.SigK.stripDropZone.init(doc, win);
     root.SigK.stripInput.init(doc, win);
     root.SigK.toolPane.init(doc, win);

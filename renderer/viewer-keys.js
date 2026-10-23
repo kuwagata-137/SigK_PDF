@@ -209,6 +209,9 @@
     // ツールモードの元に戻す・やり直し（した順の記録。spec-2-5 確定事項I6）と Ctrl+A（I9）。文書が無くても効かせ、文書の Ctrl+Z より先に取る。
     if (root.SigK.stripKeys?.handleKey(event, doc) === true)
       return;
+    // ツールモードの Ctrl＋＋/－/0 は帯の紙の倍率（docs/07 決定83）。「変換する画像」の帯だけで文書が無くても効かせる。
+    if (root.SigK.toolsZoom?.handleKey(event, doc) === true)
+      return;
     if (viewer().getState().open !== true)
       return;
     if (handleFindPrintKey(event))
@@ -220,8 +223,8 @@
       return;
     if (handlePageEditKey(event, doc))
       return;
-    // ツールモードではページの表示が隠れているので、倍率とページ送りのキーを渡さない（Ctrl+Z・Ctrl+Y は上で効かせる。
-    // spec-2-5 PR-2 の起草者の判断）。
+    // ツールモードではページの表示が隠れているので、隠れた表示の倍率とページ送りのキーを渡さない（Ctrl+Z・Ctrl+Y と、帯の紙の倍率の
+    // Ctrl＋＋/－/0 は上で効かせる。spec-2-5 PR-2 の起草者の判断・docs/07 決定83）。
     if (doc.documentElement.getAttribute('data-mode') === 'tools')
       return;
 

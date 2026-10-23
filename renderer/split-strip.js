@@ -15,7 +15,8 @@
   function release() {
     if (state.host !== null) {
       state.host.classList.remove('board');
-      state.host.style.height = `${root.SigK.stripLayout.STRIP_HEIGHT}px`;
+      // 帯の高さはツールモードの紙の倍率で変わる（docs/07 決定83）。
+      state.host.style.height = `${root.SigK.stripLayout.stripHeight(root.SigK.stripLayout.zoom())}px`;
     }
     Object.assign(state, { host: null, tabId: null, expanded: false });
     // 盤の紙（canvas と pdf.js のページ）も手放す（spec-2-2b D5。分割を離れたときに残っていた。点検で見つけた）。

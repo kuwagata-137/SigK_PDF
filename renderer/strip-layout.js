@@ -6,6 +6,8 @@
   // 寸法は JS が決めて style に書く（jsdom では寸法を測れないため。見える所の計算をテストできる）。帯の高さはどの帯も同じで、
   // 紙は高さ 104px にそろえ、横長の紙は幅 180px で止める。描くのは見えている帯（上下に 1 本ずつ先読み）の、見えている紙
   // （左右に 4 枚ずつ先読み）だけで、全部の帯の合計で 160 枚まで（およそ 20MB）。
+  // 2026-10-23 から、紙の大きさはツールモードの倍率（tools-zoom.js。50〜300%。docs/07 決定83）を掛ける（zoom。100% が上の数）。
+  // 見出し・番号の札・余白は倍率で変えない。描く枚数の上限は面積で数える（倍率が 2 倍なら 4 分の 1 枚。メモリを 100% のときと同じに保つ）。
 
   const SHEET_HEIGHT = 104;
   const SHEET_MAX_WIDTH = 180;
@@ -14,8 +16,9 @@
   const CELL_EXTRA = 8;
   const CELL_GAP = 12;
   const ROW_PAD = 2;
-  // 帯 1 本の高さ（枠線 2・上の余白 7・見出し 26・紙の列〔上 6・紙の枠 8・紙 104・番号との間 3・番号 14・下 8・横のスクロールバー 6〕・下の余白 4）。
-  const STRIP_HEIGHT = 2 + 7 + 26 + (6 + CELL_EXTRA + SHEET_HEIGHT + 3 + 14 + 8 + 6) + 4;
+  // 帯 1 本の高さ（枠線 2・上の余白 7・見出し 26・紙の列〔上 6・紙の枠 8・紙 104×倍率・番号との間 3・番号 14・下 8・横のスクロールバー 6〕・下の余白 4）。
+  const stripHeight = (zoom = 1) => 2 + 7 + 26 + (6 + CELL_EXTRA + Math.round(SHEET_HEIGHT * zoom) + 3 + 14 + 8 + 6) + 4;
+  const STRIP_HEIGHT = stripHeight(1);
   const STRIP_GAP = 10;
   const COLUMN_PAD = 12;
   // #strips の幅から紙の列の見えている幅を出すときに引く分（#strips の左右の余白 14・帯の左右の余白 10・枠線 1）。
@@ -23,23 +26,31 @@
   const PREFETCH_STRIPS = 1;
   const PREFETCH_CELLS = 4;
   const LIMIT = 160;
+  const MIN_LIMIT = 16;
   const PARALLEL = 2;
 
+  // 描く枚数の上限（面積で数える）。
+  const limit = (zoom = 1) => Math.max(MIN_LIMIT, Math.round(LIMIT / (zoom * zoom)));
+  // 今のツールモードの紙の倍率。帯の画面・帯の絵・盤を戻した帯の高さが読む（変わったら tools-zoom.js の onChange で組み直す）。
+  const zoom = () => root.SigK.toolsZoom?.get() ?? 1;
+
   // 紙の大きさ（px）。size は plan を当てたあとの寸法（回転・切り取りのあと。viewer の sizes）。
-  function sheetOf(size) {
+  function sheetOf(size, zoom = 1) {
+    const sheetHeight = Math.round(SHEET_HEIGHT * zoom);
+    const maxWidth = Math.round(SHEET_MAX_WIDTH * zoom);
     const width = Number(size?.width);
     const height = Number(size?.height);
     if (!(width > 0) || !(height > 0))
-      return { width: Math.round(SHEET_HEIGHT * 0.707), height: SHEET_HEIGHT };
-    const natural = SHEET_HEIGHT * width / height;
-    if (natural <= SHEET_MAX_WIDTH)
-      return { width: Math.max(SHEET_MIN_WIDTH, Math.round(natural)), height: SHEET_HEIGHT };
-    return { width: SHEET_MAX_WIDTH, height: Math.max(1, Math.round(SHEET_MAX_WIDTH * height / width)) };
+      return { width: Math.round(sheetHeight * 0.707), height: sheetHeight };
+    const natural = sheetHeight * width / height;
+    if (natural <= maxWidth)
+      return { width: Math.max(Math.round(SHEET_MIN_WIDTH * zoom), Math.round(natural)), height: sheetHeight };
+    return { width: maxWidth, height: Math.max(1, Math.round(maxWidth * height / width)) };
   }
 
   // 紙の列。lefts は各セルの左端（列の左端から）、widths はセルの幅（紙の幅＋枠）、total は列の幅。
-  function row(sizes) {
-    const sheets = (sizes ?? []).map(sheetOf);
+  function row(sizes, zoom = 1) {
+    const sheets = (sizes ?? []).map((size) => sheetOf(size, zoom));
     const lefts = [];
     const widths = [];
     let x = ROW_PAD;
@@ -118,6 +129,6 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.stripLayout = {
     SHEET_HEIGHT, SHEET_MAX_WIDTH, STRIP_HEIGHT, STRIP_GAP, CELL_GAP, COLUMN_PAD, PAGES_INSET, LIMIT, PARALLEL,
-    sheetOf, row, visibleCells, stripTop, tops, visibleStrips, drawOrder, moved,
+    sheetOf, row, stripHeight, limit, zoom, visibleCells, stripTop, tops, visibleStrips, drawOrder, moved,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
