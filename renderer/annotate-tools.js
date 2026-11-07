@@ -77,7 +77,8 @@
     root.SigK.annotateTrim?.discard();
     // モザイクの引いている途中もやめる（spec-4b-6b 確定事項12）。
     root.SigK.annotateMosaic?.cancel();
-    state.tool = isTool(tool) ? tool : null;
+    // 画像のタブで使えない道具は持たせない（spec-7-1 確定事項C1。灰色のボタンは image-tools.js）。
+    state.tool = isTool(tool) && root.SigK.imageTools?.blocks(tool) !== true ? tool : null;
     state.base = toolSwitch().remember(state.base, state.tool);
     if (state.tool === 'text' || state.tool === 'callout')
       root.SigK.freeTextShape?.ensureLoaded(state.doc);
@@ -95,7 +96,7 @@
   // 道具はトグル。マークアップは、押した時点で文字が選ばれていればその場で付ける
   // （確定事項10 ②）。テキストは押しても作らない（spec-4-2 確定事項3）。
   function toggleTool(tool) {
-    if (!isTool(tool))
+    if (!isTool(tool) || root.SigK.imageTools?.blocks(tool) === true)
       return false;
     if (MARKUP_TOOLS.includes(tool) && inAnnotMode() && isOpen() && createFromSelection(tool))
       return setTool(tool) !== null;

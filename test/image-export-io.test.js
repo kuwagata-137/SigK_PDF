@@ -31,7 +31,8 @@ test('writeImage は一時ファイル → rename で書き、バイト数を返
 
   const result = await writeImage(target, new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
 
-  assert.deepEqual(result, { ok: true, path: target, bytes: 4 });
+  assert.deepEqual({ ...result, signature: undefined }, { ok: true, path: target, bytes: 4, signature: undefined, backup: null });
+  assert.equal(result.signature.size, 4, '書いたあとの印（画像のタブの開き直しに使う。spec-7-1 確定事項B5）');
   assert.deepEqual([...fs.readFileSync(target)], [0x89, 0x50, 0x4e, 0x47]);
   assert.equal(fs.existsSync(tempPathFor(target)), false, '一時ファイルは残らない');
 });
@@ -78,3 +79,35 @@ test('createImageIo の write は writeImage を呼ぶ', async (t) => {
   assert.equal(result.ok, true);
   assert.equal(result.bytes, 1);
 });
+
+// ---- 画像のタブの上書き保存（spec-7-1 確定事項B1） ----
+
+test('writeImage は頼まれたら控えを残し、開いたときの印と食い違えば何も書かずに changed を返す', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigk-image-write-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const target = path.join(dir, 'shot.png');
+  fs.writeFileSync(target, 'old');
+  const stat = fs.statSync(target);
+  const expect = { size: stat.size, mtimeMs: Math.round(stat.mtimeMs) };
+
+  assert.deepEqual(await writeImage(target, new Uint8Array([1, 2]), { expect: { size: 999, mtimeMs: 1 } }), { changed: true });
+  assert.equal(fs.readFileSync(target, 'utf8'), 'old', '食い違えば書かない');
+
+  const written = await writeImage(target, new Uint8Array([1, 2]), { makeBackup: true, expect });
+  assert.equal(written.ok, true);
+  assert.equal(written.backup, `${target}.bak`);
+  assert.equal(fs.readFileSync(`${target}.bak`, 'utf8'), 'old', '元の画像は控えに残る');
+  assert.deepEqual([...fs.readFileSync(target)], [1, 2]);
+});
+
+test('createImageIo の write は makeBackup と expect だけを通す', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sigk-image-write-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const target = path.join(dir, 'a.jpg');
+  fs.writeFileSync(target, 'old');
+  const io = createImageIo({ dialog: {} });
+  const result = await io.write(target, new Uint8Array([3]), { makeBackup: true, fsLike: null });
+  assert.equal(result.ok, true, '画面から fsLike を渡しても使わない');
+  assert.equal(fs.existsSync(`${target}.bak`), true);
+});
+

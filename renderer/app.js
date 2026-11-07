@@ -144,6 +144,8 @@
     root.SigK.confirmFlatten.init(doc, win);
     // モザイクを入れて保存する前の確認（spec-4b-6b 確定事項18）。
     root.SigK.confirmMosaic.init(doc, win);
+    // 画像のタブを上書き保存する前の確認（spec-7-1 確定事項B6）。
+    root.SigK.confirmImageSave.init(doc, win);
     root.SigK.toolsFlatten.init(doc, win);
     root.SigK.toolsFlattenView.init(doc, win);
     // ツールで選んだ値と最後のツールを覚える（spec-6-1 タスク E）。設定を読めてから当てる（待たない）。
@@ -165,6 +167,8 @@
     root.SigK.annotateShape.init(doc, win);
     // 道具の段（spec-4b-1a 確定事項1〜7）。図形の種類を読むので annotateShape の後。
     root.SigK.editBar.init(doc, win);
+    // 画像のタブで使えない道具（spec-7-1 確定事項C1）。道具の段のボタンを読むので editBar の後。
+    root.SigK.imageTools.init(doc, win);
     // 入りきらない道具の「その他」（spec-4b-5b 確定事項25〜28）。一覧を先に結ぶ（隠すたびに一覧を閉じるため）。
     root.SigK.editBarMore.init(doc, win);
     root.SigK.editBarOverflow.init(doc, win);

@@ -49,7 +49,9 @@
   // software は CPU で描く canvas にする（willReadFrequently）。GPU で描く小さな canvas に 2 枚分を交互に描くと、字の形が一部しか
   // 描かれないことがある（Chromium の中の不具合。2026-10-15 の計画外の直し）ので、同時に何枚も描く帯・盤の紙（plan-page-image.js）が使う。
   // maxPixels は印刷が渡す（表示は page-render.js が同じ上限で下げる）。PDF→画像は指定した解像度どおりに書き出すので渡さない（4,000 万画素を超えたら断る）。
-  async function renderToCanvas(doc, page, { scale, rotation, box = null, annotationMode, overlay = null, mosaic = null, software = false, maxPixels = Infinity }) {
+  // background は pdf.js が紙の下に塗る色（既定は pdf.js の白）。画像のタブを画像として書くときは、透明を残すため 'rgba(0,0,0,0)' を渡す
+  // （spec-7-1 確定事項A3・B4）。
+  async function renderToCanvas(doc, page, { scale, rotation, box = null, annotationMode, overlay = null, mosaic = null, software = false, maxPixels = Infinity, background = null }) {
     let viewport = viewportFor(page, { scale, rotation, box });
     const capped = cappedScale(scale, viewport.width, viewport.height, maxPixels);
     if (capped !== scale)
@@ -63,7 +65,7 @@
     canvas.width = width;
     canvas.height = height;
     const ctx = software ? canvas.getContext('2d', { willReadFrequently: true }) : canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport, annotationMode }).promise;
+    await page.render({ canvasContext: ctx, viewport, annotationMode, ...(background === null ? {} : { background }) }).promise;
     await root.SigK.mosaicPaint?.paintOver(doc, canvas, page, viewport, mosaic);
     if (typeof overlay === 'function')
       overlay(ctx, viewport);

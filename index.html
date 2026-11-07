@@ -821,6 +821,21 @@ body{
     </div>
   </dialog>
 
+  <!-- 画像のタブの上書き保存の確認（spec-7-1 確定事項B6）。書き込みを画像の画素に焼き込むので、保存したあとは書き込みを直せない。
+       「焼き込んで上書き保存」だけを danger で塗り、既定のフォーカスは安全側の「キャンセル」に置く（中身は confirm-image-save.js）。 -->
+  <dialog id="confirm-image-save">
+    <div class="dlg-head"><span>画像に焼き込んで上書き保存しますか</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-image-save-text">書き込みを画像に焼き込んで、上書き保存します。</p>
+      <p class="dlg-text" id="confirm-image-save-loss"></p>
+      <p class="dlg-text" id="confirm-image-save-backup" hidden></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn danger" id="confirm-image-save-ok">焼き込んで上書き保存</button>
+      <button type="button" class="dlg-btn" id="confirm-image-save-cancel">キャンセル</button>
+    </div>
+  </dialog>
+
   <!-- 出力先の同名確認の3択（spec-2-1 確定事項26〜28・docs/04 第7章）。
        既定のフォーカスは安全側の「中止」。「上書き」だけを danger で塗る。 -->
   <dialog id="confirm-replace">
@@ -1037,6 +1052,11 @@ body{
 <script src="renderer/tools-flatten.js"></script>
 <script src="renderer/tools-flatten-view.js"></script>
 <script src="renderer/save.js"></script>
+<!-- 画像のタブ（spec-7-1）。見分け・焼き込んだ 1 枚を描く・保存・上書きの確認。 -->
+<script src="renderer/image-tab.js"></script>
+<script src="renderer/image-render.js"></script>
+<script src="renderer/image-save.js"></script>
+<script src="renderer/confirm-image-save.js"></script>
 <script src="renderer/opened-source.js"></script>
 <script src="renderer/mosaic-save.js"></script>
 <script src="renderer/extract.js"></script>
@@ -1058,6 +1078,8 @@ body{
 <script src="renderer/annotate-cancel.js"></script>
 <script src="renderer/annotate.js"></script>
 <script src="renderer/edit-bar.js"></script>
+<!-- 画像のタブで使えない道具を灰色にする（spec-7-1 確定事項C1）。 -->
+<script src="renderer/image-tools.js"></script>
 <script src="renderer/edit-bar-fit.js"></script>
 <script src="renderer/edit-bar-overflow.js"></script>
 <script src="renderer/edit-bar-more.js"></script>
