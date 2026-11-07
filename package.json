@@ -63,6 +63,7 @@
       "smoke-split.js",
       "smoke-launch.js",
       "smoke-annotate.js",
+      "smoke-image-edit.js",
       "smoke-annotate-steps.js",
       "smoke-annotate-report.js",
       "smoke-annotate-style.js",
