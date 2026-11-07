@@ -294,7 +294,8 @@ electron-builder は「完了後に起動」のチェックボックス（`MUI_F
   `screenshots/guide-install-finish.png`）。
 - 「プログラムから開く」の候補は API（`SHAssocEnumHandlers`）で並べて確かめた。エクスプローラーの本物の窓は塊③で見る。API の「すべて」の区分では、
   `.png` などにも SigK PDF が出る（おすすめには入らない。本物の窓での出方は確かめていない）。選ぶと SigK PDF が起動するが、画像は開かない
-  （`--open` は PDF だけを受ける）。
+  （`--open` は PDF だけを受ける）。**2026-11-07 改訂（`docs/07` 決定86）**: `--open` が画像も受けるようにしたので、選べば画像がタブで開く
+  （`docs/spec-7-1-image-edit.md` 確定事項A5）。
   **2026-10-08 追記（Phase 5 塊③）**: 本物の入れ物で候補の列挙を確かめた。`.pdf` のおすすめに SigK PDF が入り、Adobe Acrobat・Microsoft Edge・
   Google Chrome・PDF24 と並ぶ。`.png` では「すべて」の区分だけ（`spec-5-3` No.26）。エクスプローラーの本物の窓は「あなたの画面で見る項目」⑤
   （`spec-5-3`）で未確認。
