@@ -165,7 +165,7 @@ test('pickSavePath は選ばれたパスを返す', async () => {
   };
 
   const result = await pickSavePath({ dialogLike, defaultPath: 'C:/out/a.pdf' });
-  assert.deepEqual(result, { path: 'C:/out/b.pdf' }, '拡張子を補って返す');
+  assert.deepEqual(result, { path: 'C:/out/b.pdf', format: 'pdf' }, '拡張子を補って返す');
   assert.equal(calls[0].defaultPath, 'C:/out/a.pdf');
   // 同名の確認は OS のダイアログに委ねる（確定事項22）。
   assert.ok(calls[0].properties.includes('showOverwriteConfirmation'));
@@ -197,5 +197,45 @@ test('createFileIo は保存ダイアログも出せる', async () => {
   const io = createFileIo({
     dialog: { showSaveDialog: async () => ({ canceled: false, filePath: 'C:/out/c.pdf' }) },
   });
-  assert.deepEqual(await io.pickSavePath(null, { defaultPath: 'C:/out/c.pdf' }), { path: 'C:/out/c.pdf' });
+  assert.deepEqual(await io.pickSavePath(null, { defaultPath: 'C:/out/c.pdf' }), { path: 'C:/out/c.pdf', format: 'pdf' });
 });
+
+// ---- 画像を開く・画像のタブの保存の窓（spec-7-1 確定事項A1・A5・B2） ----
+
+const { IMAGE_OPEN_EXTENSIONS, OPEN_FILTERS, isImagePath, withFormatExtension } = require('../file-io.js');
+const { EXTENSIONS } = require('../launch-args.js');
+
+test('開ける画像の拡張子は、起動の引数の画像→PDF と同じ 7 つ', () => {
+  assert.deepEqual(IMAGE_OPEN_EXTENSIONS.map((ext) => `.${ext}`).sort(), [...EXTENSIONS.toPdf].sort());
+  assert.equal(isImagePath('C:/x/a.PNG'), true);
+  assert.equal(isImagePath('C:/x/a.tiff'), true);
+  assert.equal(isImagePath('C:/x/a.pdf'), false);
+  assert.equal(isImagePath(null), false);
+});
+
+test('開く窓は「PDF と画像」を既定に、PDF・画像のフィルターを並べる', async () => {
+  const seen = [];
+  const dialogLike = { showOpenDialog: async (options) => { seen.push(options); return { canceled: true }; } };
+  await pickPdf({ dialogLike });
+  assert.deepEqual(seen[0].filters.map((filter) => filter.name), ['PDF と画像', 'PDF ファイル', '画像ファイル']);
+  assert.deepEqual(seen[0].filters, OPEN_FILTERS);
+  assert.ok(seen[0].filters[0].extensions.includes('pdf') && seen[0].filters[0].extensions.includes('jpeg'));
+});
+
+test('保存の窓に形式を渡すと、その順にフィルターを並べ、選んだ形式を返す。拡張子が無ければ最初の形式のものを足す', async () => {
+  const seen = [];
+  const answers = ['C:/out/a.JPG', 'C:/out/b', 'C:/out/c.pdf'];
+  const dialogLike = { showSaveDialog: async (options) => { seen.push(options); return { canceled: false, filePath: answers.shift() }; } };
+  const formats = ['png', 'jpeg', 'pdf'];
+  assert.deepEqual(await pickSavePath({ dialogLike, formats }), { path: 'C:/out/a.JPG', format: 'jpeg' });
+  assert.deepEqual(await pickSavePath({ dialogLike, formats }), { path: 'C:/out/b.png', format: 'png' });
+  assert.deepEqual(await pickSavePath({ dialogLike, formats }), { path: 'C:/out/c.pdf', format: 'pdf' });
+  assert.deepEqual(seen[0].filters.map((filter) => filter.name), ['PNG 画像', 'JPEG 画像', 'PDF ファイル']);
+});
+
+test('withFormatExtension: 選べない形式は捨て、PDF だけのときは今までどおり .pdf を足す', () => {
+  assert.deepEqual(withFormatExtension('C:/x/a.txt', ['pdf']), { path: 'C:/x/a.txt.pdf', format: 'pdf' });
+  assert.deepEqual(withFormatExtension('C:/x/a.png', ['pdf']), { path: 'C:/x/a.png.pdf', format: 'pdf' }, 'PDF だけなら画像の拡張子でも .pdf を足す');
+  assert.deepEqual(withFormatExtension('C:/x/a.jpeg', ['jpeg', 'png', 'pdf']), { path: 'C:/x/a.jpeg', format: 'jpeg' });
+});
+

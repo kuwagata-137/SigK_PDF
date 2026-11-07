@@ -21,6 +21,24 @@ const MAX_PDF_BYTES = 200 * 1024 * 1024;
 
 const PDF_FILTERS = [{ name: 'PDF ファイル', extensions: ['pdf'] }];
 
+// 開ける画像（spec-7-1 確定事項A1・A5）。画像→PDF と同じ 7 つの拡張子（launch-args.js の EXTENSIONS.toPdf。一致はテストが見張る）。
+// 画像は image-open.js がワーカーで PDF に組み立ててから開く。
+const IMAGE_OPEN_EXTENSIONS = ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'tif', 'tiff'];
+
+// 開く窓のフィルター。最初の 1 つが既定で、PDF と画像の両方が見える。
+const OPEN_FILTERS = [
+  { name: 'PDF と画像', extensions: ['pdf', ...IMAGE_OPEN_EXTENSIONS] },
+  { name: 'PDF ファイル', extensions: ['pdf'] },
+  { name: '画像ファイル', extensions: IMAGE_OPEN_EXTENSIONS },
+];
+
+// 画像のタブの名前を付けて保存で選べる形式（spec-7-1 確定事項B2）。並びが窓のフィルターの並びで、最初が既定。
+const SAVE_FORMAT_FILTERS = {
+  png: { name: 'PNG 画像', extensions: ['png'] },
+  jpeg: { name: 'JPEG 画像', extensions: ['jpg', 'jpeg'] },
+  pdf: { name: 'PDF ファイル', extensions: ['pdf'] },
+};
+
 // 差し込めるもの（spec-1-6 確定事項53）。**このフィルターは目安でしかない。**
 // 実際に受け付けるかどうかはワーカーが先頭バイトで判定し、既定拒否にする
 // （拡張子は中身と食い違うことがある）。
@@ -32,6 +50,10 @@ const INSERT_FILTERS = [
 
 function isPdfPath(filePath) {
   return typeof filePath === 'string' && path.extname(filePath).toLowerCase() === '.pdf';
+}
+
+function isImagePath(filePath) {
+  return typeof filePath === 'string' && IMAGE_OPEN_EXTENSIONS.includes(path.extname(filePath).toLowerCase().slice(1));
 }
 
 function describeReadFailure(error) {
@@ -104,9 +126,9 @@ async function statPdf(filePath, { fsLike = fs } = {}) {
 
 async function pickPdf({ dialogLike, parentWindow = null, defaultPath = undefined }) {
   const options = {
-    title: 'PDF を開く',
+    title: 'PDF か画像を開く',
     properties: ['openFile'],
-    filters: PDF_FILTERS,
+    filters: OPEN_FILTERS,
     defaultPath,
   };
   // showOpenDialog(options) と showOpenDialog(window, options) は別の呼び出しである。
@@ -200,15 +222,34 @@ function withPdfExtension(filePath) {
   return isPdfPath(filePath) ? filePath : `${filePath}.pdf`;
 }
 
+// 保存の形式の並び（formats）を、使える形式だけに絞る。無ければ PDF だけ（今までの保存の窓）。
+function saveFormatsOf(formats) {
+  const known = Array.isArray(formats) ? formats.filter((format) => SAVE_FORMAT_FILTERS[format] !== undefined) : [];
+  return known.length > 0 ? [...new Set(known)] : ['pdf'];
+}
+
+// 選んだパスの形式。拡張子が選べる形式のどれでもなければ、最初の形式の拡張子を足す（spec-7-1 確定事項B2。PDF だけのときは今までの
+// withPdfExtension と同じ）。
+function withFormatExtension(filePath, formats) {
+  const ext = path.extname(filePath).toLowerCase().slice(1);
+  const matched = formats.find((format) => SAVE_FORMAT_FILTERS[format].extensions.includes(ext));
+  if (matched !== undefined)
+    return { path: filePath, format: matched };
+  return { path: `${filePath}.${SAVE_FORMAT_FILTERS[formats[0]].extensions[0]}`, format: formats[0] };
+}
+
 // 保存先を選ばせる（spec-1-6 確定事項25・49）。
 //
 // 同名ファイルの確認は showSaveDialog が OS の作法で出すので、アプリ側では
 // 重ねて聞かない（確定事項22）。docs/04 第7章の3択は、出力先を自分で
 // 組み立てる Phase 2 の結合・分割の話である。
-async function pickSavePath({ dialogLike, parentWindow = null, defaultPath = undefined, title = 'PDF を保存' }) {
+//
+// formats は選べる形式の並び（'png'・'jpeg'・'pdf'）。画像のタブだけが渡す（spec-7-1 確定事項B2）。戻り値の format は選んだ形式。
+async function pickSavePath({ dialogLike, parentWindow = null, defaultPath = undefined, title = 'PDF を保存', formats = ['pdf'] }) {
+  const allowed = saveFormatsOf(formats);
   const options = {
     title,
-    filters: PDF_FILTERS,
+    filters: allowed.map((format) => SAVE_FORMAT_FILTERS[format]),
     defaultPath,
     properties: ['createDirectory', 'showOverwriteConfirmation'],
   };
@@ -220,22 +261,24 @@ async function pickSavePath({ dialogLike, parentWindow = null, defaultPath = und
 
   if (result?.canceled === true || typeof result?.filePath !== 'string' || result.filePath.length === 0)
     return { canceled: true };
-  return { path: withPdfExtension(result.filePath) };
+  return withFormatExtension(result.filePath, allowed);
 }
 
-function createFileIo({ dialog, onError = () => {} }) {
+// readImage(filePath) は画像を開く口（image-open.js。main.js が渡す）。無ければ画像も readPdf に渡し、PDF ではないとして断る。
+function createFileIo({ dialog, onError = () => {}, readImage = null }) {
+  const read = (filePath) => (isImagePath(filePath) && typeof readImage === 'function' ? readImage(filePath) : readPdf(filePath, { onError }));
   return {
     MAX_PDF_BYTES,
-    read: (filePath) => readPdf(filePath, { onError }),
+    read,
     stat: (filePath) => statPdf(filePath),
     async open(parentWindow = null) {
       const picked = await pickPdf({ dialogLike: dialog, parentWindow });
       if (picked.canceled === true)
         return picked;
-      return readPdf(picked.path, { onError });
+      return read(picked.path);
     },
-    pickSavePath: (parentWindow = null, { defaultPath, title } = {}) =>
-      pickSavePath({ dialogLike: dialog, parentWindow, defaultPath, title }),
+    pickSavePath: (parentWindow = null, { defaultPath, title, formats } = {}) =>
+      pickSavePath({ dialogLike: dialog, parentWindow, defaultPath, title, formats }),
     pickInsertSource: (parentWindow = null, { defaultPath } = {}) =>
       pickInsertSource({ dialogLike: dialog, parentWindow, defaultPath }),
     pickMergeSources: (parentWindow = null, { defaultPath } = {}) =>
@@ -252,8 +295,13 @@ function createFileIo({ dialog, onError = () => {} }) {
 module.exports = {
   MAX_PDF_BYTES,
   PDF_FILTERS,
+  IMAGE_OPEN_EXTENSIONS,
+  OPEN_FILTERS,
+  SAVE_FORMAT_FILTERS,
   INSERT_FILTERS,
   isPdfPath,
+  isImagePath,
+  withFormatExtension,
   withPdfExtension,
   describeReadFailure,
   toBytes,

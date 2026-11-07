@@ -82,9 +82,10 @@
 
   // 今の文書の紙全体をまだ読んでいなければ裏で読み、読み終えたら右パネルを描き直す（確定事項10。道具を持った・保存して開き直した・
   // タブを替えたとき。右パネルが描くたびに呼ぶ）。パスが空なら読まない（page-boxes.js が鍵を作れず、読み終えたことにならないため。点検 7）。
+  // 画像のタブも同じ理由で読まない（紙全体は画像そのもので、page.view と同じ。spec-7-1 確定事項A7）。
   function ensureBoxes() {
     const file = viewer()?.getState().file ?? null;
-    if (typeof file?.path === 'string' && file.path !== '' && root.SigK.pageBoxes?.statusOf(file) === 'none')
+    if (typeof file?.path === 'string' && file.path !== '' && file.image === undefined && root.SigK.pageBoxes?.statusOf(file) === 'none')
       root.SigK.pageBoxes.load(file).then(refresh);
   }
 

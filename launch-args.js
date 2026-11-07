@@ -36,15 +36,17 @@ const INTENTS = {
 // 画像→PDF は変換画面のファイル選択（image-io.js の IMAGE_FILTERS）と同じ 7 つで、
 // 右クリックの項目もこの 7 つにだけ出す（build/installer.nsh。spec-5-1 確定事項2・24）。
 // 3 か所の一致はテストが見張る。
+// 「開く」は PDF と画像（spec-7-1 確定事項A5。画像はタブで開いて編集できる。2026-11-07 に spec-5-1 確定事項2 の「開くのは PDF だけ」を改めた）。
+// エクスプローラーの「プログラムから開く」で SigK PDF を選んだときも `--open` で届く。
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff'];
 const EXTENSIONS = {
-  open: ['.pdf'],
+  open: ['.pdf', ...IMAGE_EXTENSIONS],
   merge: ['.pdf'],
   split: ['.pdf'],
-  toPdf: ['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff'],
+  toPdf: IMAGE_EXTENSIONS,
 };
 
-// 裸のパスは「開く」として扱う（確定事項76）。exe へのドラッグ＆ドロップに備える。
-// 開くのは PDF だけなので、画像を落としても受けない（spec-5-1 確定事項2）。
+// 裸のパスは「開く」として扱う（確定事項76）。exe へのドラッグ＆ドロップに備える。画像もタブで開く（spec-7-1 確定事項A5）。
 const DEFAULT_INTENT = 'open';
 
 function splitTokens(args) {

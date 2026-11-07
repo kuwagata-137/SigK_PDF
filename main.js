@@ -25,6 +25,7 @@ const { createPreferencesHost } = require('./preferences.js');
 const { handleRendererGone, runCrashCheck } = require('./renderer-gone.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
+const { createImageOpener } = require('./image-open.js');
 const imageThumbnail = require('./image-thumbnail.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
@@ -452,8 +453,9 @@ function registerIpc() {
   ipcMain.handle('pdf:readWatermarkImage', (_event, filePath) => imageIo.readWatermark(filePath));
   // PDF→画像（spec-3-3 確定事項19）。レンダラーが描いた 1 ページぶんを書く。
   // 書けたら「最後に書き出したフォルダ」として覚える（spec-6-1 確定事項E-6）。
-  ipcMain.handle('image:write', async (_event, target, bytes) => {
-    const result = await imageIo.write(target, bytes);
+  // 画像のタブの上書き保存は、控え（.bak）と外部変更の照合を options で頼む（spec-7-1 確定事項B1）。
+  ipcMain.handle('image:write', async (_event, target, bytes, options = {}) => {
+    const result = await imageIo.write(target, bytes, options);
     if (result?.ok === true)
       preferences.rememberWritten(target);
     return result;
@@ -2120,7 +2122,16 @@ function start() {
   settings = createSettingsStore({ dir: userData, onError: logError });
   settings.load();
   preferences = createPreferencesHost({ settings, logError, notify: (snapshot) => mainWindow?.webContents.send('preferences:changed', snapshot) });
-  fileIo = createFileIo({ dialog, onError: logError });
+  // 画像はワーカーで PDF に組み立ててから開く（spec-7-1 確定事項A4）。taskRunner はこのすぐ下で作るので、呼ぶときに引く。
+  let imageOpenSerial = 0;
+  const imageOpener = createImageOpener({
+    run: (spec) => {
+      imageOpenSerial += 1;
+      return taskRunner.run(`image-open-${imageOpenSerial}`, spec);
+    },
+    onError: logError,
+  });
+  fileIo = createFileIo({ dialog, onError: logError, readImage: (filePath) => imageOpener.read(filePath) });
   imageIo = createImageIo({ dialog, onError: logError });
   // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。
   // require ではなくパスで渡すので、配布物への入れ忘れは

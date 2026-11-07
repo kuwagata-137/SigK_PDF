@@ -180,7 +180,8 @@ contextBridge.exposeInMainWorld('annotationAPI', {
 contextBridge.exposeInMainWorld('imageAPI', {
   available: true,
   // { ok, path, bytes } / { error }
-  write: (target, bytes) => ipcRenderer.invoke('image:write', target, bytes),
+  // options は { makeBackup, expect }（画像のタブの上書き保存。spec-7-1 確定事項B1）。PDF→画像は渡さない。
+  write: (target, bytes, options) => ipcRenderer.invoke('image:write', target, bytes, options),
   // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。{ ok, url, width, height } / { error }
   // size は長い辺の px（ツールモードの紙の倍率で大きくする。docs/07 決定83）。メインが 208px 刻み・上限 624px に収める。
   thumbnail: (filePath, size) => ipcRenderer.invoke('image:thumbnail', filePath, size),
