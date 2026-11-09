@@ -177,7 +177,8 @@ PDF の中に埋め込まれた画像を動かしたり差し替えたりする�
 `npm test` は 3,485 件で、落ちたのは「読み取り専用のファイルには、一時ファイルも .bak も作らずに断る」（`test/pdf-write.test.js`）の 1 件だけ。
 この環境では root で動いており、読み取り専用のファイルにも書けてしまうためで、手を入れる前から落ちていた。手を入れる前の試験では、もう 1 件
 （告知の試験）も落ちた。lockfile をコミットしない運用で pdfjs-dist が 6.5.438 で入り、許諾のファイルが 2 つ増えていたためで、配布した版の
-6.3.289 を手元だけに入れ直すと通った（`package.json` は変えていない）。
+6.3.289 を手元だけに入れ直すと通った。PR #56 の CI も同じ理由で落ちたので、ユーザーの承認を得て、`package.json` の pdfjs-dist を `6.3.289` に固定した
+（告知に書いた版と、試験・配布物で使う版をそろえるため。2026-11-09）。
 
 足した試験は `image-open-task`・`image-open`・`image-tab`・`image-render`・`image-save`・`confirm-image-save`・`image-tools` の 7 本と、
 `file-io`・`image-export-io`・`launch-args` への追記。
