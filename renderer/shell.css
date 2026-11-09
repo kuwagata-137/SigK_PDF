@@ -670,6 +670,9 @@ html[data-mode="annot"] #edit-bar{display:flex}
   border:1px solid var(--border); border-radius:7px; background:var(--surface); color:var(--text); cursor:pointer;
 }
 .edit-tool:hover{background:var(--surface-2)}
+/* 画像のタブで使えない道具（spec-7-1 確定事項C1）。灰色は [aria-disabled="true"] の opacity。押せない印にカーソルを戻す。 */
+.edit-tool[aria-disabled="true"], .edit-more-row[aria-disabled="true"]{cursor:default}
+.edit-tool[aria-disabled="true"]:hover{background:transparent}
 .edit-tool.active{background:var(--primary); color:#fff; border-color:var(--primary)}
 .edit-name{margin-top:3px; font-size:10.5px; line-height:1.1; white-space:nowrap; color:var(--muted)}
 .edit-tool.active + .edit-name{color:var(--primary)}

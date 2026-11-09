@@ -65,7 +65,9 @@
     el = { buttons: [...bar.querySelectorAll('.edit-tool[data-tool]')] };
     for (const button of el.buttons) {
       button.addEventListener('click', (event) => {
-        press(button);
+        // 画像のタブで灰色にした道具（spec-7-1 確定事項C1。image-tools.js）は押しても何もしない。
+        if (button.getAttribute('aria-disabled') !== 'true')
+          press(button);
         leaveIfMouse(event, button);
       });
     }

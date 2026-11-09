@@ -5,6 +5,7 @@
   //
   // 受けるのはウィンドウ全体である。落とす場所を狙わせない。どのモードで落としても PDF はタブで開き、モードは
   // 変えない（決定80）。ツールモードでは、移り期間として、選んでいるツールにも渡す（tool-handoff.js）。
+  // 閲覧・ページ編集・編集モードでは、画像もタブで開く（spec-7-1 確定事項A5）。ツールモードの画像は今のまま画像→PDF へ渡す。
   // dragover と drop の両方で preventDefault を呼ぶのは、既定の動作が
   // 「そのファイルへページ遷移する」であり、放っておくと画面が飛ぶためである
   // （main.js の will-navigate でも止めてはいるが、そこまで行かせない）。
@@ -38,11 +39,11 @@
   }
 
   // 受けるファイル。ツールモードでは PDF（タブで開く）と画像（画像→PDF の「変換する画像」の帯へ）を受ける。透かしを選んで
-  // いるときの画像は透かしの画像にするので、PNG・JPEG だけ（spec-4-5 確定事項37）。ツールモード以外は PDF だけ。
+  // いるときの画像は透かしの画像にするので、PNG・JPEG だけ（spec-4-5 確定事項37）。ツールモード以外は PDF と画像（どちらもタブで開く）。
   function isAcceptedName(name) {
     const tool = selectedTool();
     if (tool === null)
-      return isPdfName(name);
+      return isPdfName(name) || isImageName(name);
     if (tool === 'watermark')
       return isPdfName(name) || isWatermarkImageName(name);
     return isPdfName(name) || isImageName(name);
@@ -50,8 +51,6 @@
 
   // 受けられるものが 1 つも無かったときの文言。
   function rejectionFor(tool) {
-    if (tool === null)
-      return 'PDF ファイルではないので、PDF をドロップしてください。';
     if (tool === 'watermark')
       return 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像をドロップしてください。';
     return 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。';
@@ -121,7 +120,7 @@
       return true;
     }
 
-    // 1つずつ開く（tool-handoff.js の openPdfs）。まとめて走らせるとタブの並びが到着順で入れ替わる。
+    // 1つずつ開く（tool-handoff.js の openPdfs。画像も同じ口でタブになる）。まとめて走らせるとタブの並びが到着順で入れ替わる。
     await handoff().openPdfs(paths);
     return true;
   }

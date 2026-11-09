@@ -36,6 +36,9 @@
       return '開けなかったので、結合に使えません';
     if (typeof tab.path !== 'string')
       return '保存すると結合に使えます';
+    // 画像のタブは、結合がパスから読み直せない（spec-7-1 確定事項A8）。
+    if (peeked.file?.image !== undefined)
+      return '画像なので、PDF として保存すると結合に使えます';
     if (peeked.file?.encrypted === true)
       return 'パスワード付きなので、結合に使えません';
     return null;

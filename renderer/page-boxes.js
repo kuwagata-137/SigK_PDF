@@ -11,8 +11,9 @@
   // 鍵 → { boxes, promise }。boxes は読めたらページ順の配列、読めなければ null、読んでいる間は undefined。
   const cache = new Map();
 
+  // 画像のタブは読まない（紙全体は画像そのもので、page.view と同じ。ワーカーは画像を PDF として読めない。spec-7-1 確定事項A7）。
   function keyOf(file) {
-    if (typeof file?.path !== 'string' || file.path === '')
+    if (typeof file?.path !== 'string' || file.path === '' || file.image !== undefined)
       return null;
     return JSON.stringify([file.path, file.size ?? null, file.mtimeMs ?? null]);
   }

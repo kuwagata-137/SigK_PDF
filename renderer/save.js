@@ -256,6 +256,26 @@
     return null;
   }
 
+  // 保存先を開き直す（spec-4-1 確定事項20。spec-1-6 確定事項29 を改めた）。
+  // 画面は空にせず、倍率と位置を保ったまま文書だけ差し替える。開き直さないと
+  // 2 回目の保存でワーカーが保存先を読んで plan をもう一度当ててしまう。
+  // 読み直せなかったときは従来どおり基準だけを更新する（次の保存で気づける）。
+  // 画像のタブを画像として書いたとき（image-save.js）も同じくここを通る（spec-7-1 確定事項B5）。
+  async function finishSaved({ tabId, source, target, name, result }) {
+    const moved = target !== source;
+    if (moved && tabId !== null)
+      await tabs().rename(tabId, { path: target, name });
+    const reopened = await reopenSaved(tabId, { path: moved ? target : null, name: moved ? name : null });
+    if (reopened === false) {
+      viewer().markSaved({
+        path: moved ? target : null,
+        name: moved ? name : null,
+        signature: result.signature ?? null,
+      });
+    }
+    return reopened;
+  }
+
   // 保存の1往復。ほかのアプリで書き換えられていたら、開いたときの中身で書き直す（spec-6-1 タスク C。opened-source.js）。
   async function writeTo({ source, target, makeBackup, name, label = '保存', mosaics = [], dropBackup = false }) {
     const file = viewer().getState().file;
@@ -283,21 +303,7 @@
       return result ?? { error: '保存できませんでした。' };
     }
 
-    // 保存先を開き直す（spec-4-1 確定事項20。spec-1-6 確定事項29 を改めた）。
-    // 画面は空にせず、倍率と位置を保ったまま文書だけ差し替える。開き直さないと
-    // 2 回目の保存でワーカーが保存先を読んで plan をもう一度当ててしまう。
-    // 読み直せなかったときは従来どおり基準だけを更新する（次の保存で気づける）。
-    const moved = target !== source;
-    if (moved && tabId !== null)
-      await tabs().rename(tabId, { path: target, name });
-    const reopened = await reopenSaved(tabId, { path: moved ? target : null, name: moved ? name : null });
-    if (reopened === false) {
-      viewer().markSaved({
-        path: moved ? target : null,
-        name: moved ? name : null,
-        signature: result.signature ?? null,
-      });
-    }
+    await finishSaved({ tabId, source, target, name, result });
     // 前の控えを消せなかったら、保存は成功のまま黄色の通知バーで知らせる（spec-4b-6b 確定事項23）。
     if (result.backupLeft === true) {
       banner().show('保存しましたが、控えのファイル（.bak）を消せませんでした。元の内容が残っているので、手で消してください。', { autoHideMs: 0, tone: 'warn' });
@@ -329,6 +335,9 @@
     const blocked = warnIfUnsaveable();
     if (blocked !== null)
       return { error: blocked };
+    // 画像のタブは、書き込みを焼き込んで画像として書く（spec-7-1 確定事項B1）。
+    if (root.SigK.imageTab?.isImageFile(view.file) === true)
+      return root.SigK.imageSave.overwrite({ writePdf: (picked) => writePdf(view, picked) });
     // dirty でなければ何もしない（確定事項24）。押せはするが、書く理由がない。
     if (!viewer().isDirty())
       return { ok: true, unchanged: true };
@@ -374,6 +383,9 @@
     const blocked = warnIfUnsaveable();
     if (blocked !== null)
       return { error: blocked };
+    // 画像のタブは、PNG・JPEG・PDF から選ぶ（spec-7-1 確定事項B2）。
+    if (root.SigK.imageTab?.isImageFile(view.file) === true)
+      return root.SigK.imageSave.saveAs({ writePdf: (picked) => writePdf(view, picked) });
 
     // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。
     const defaultPath = defaultPathFor(view.file);
@@ -416,6 +428,15 @@
     });
   }
 
+  // 画像のタブを PDF として書く（spec-7-1 確定事項B2）。書き込みは注釈のまま残る。中身は組み立てた PDF の写し（viewer の file.copy）。
+  // 元の画像は変えないので、モザイクの確認は名前を付けて保存と同じ文で出し、控えは作らない。
+  async function writePdf(view, { target, name }) {
+    const mosaic = await mosaicSave().prepare({ mode: 'saveAs', name, sourceName: view.file.name });
+    if (mosaic.ok !== true)
+      return mosaic;
+    return writeTo({ source: view.file.path, target, makeBackup: false, mosaics: mosaic.mosaics, name });
+  }
+
   function init(doc, win) {
     if (win.__sigkSaveReady === true)
       return false;
@@ -446,5 +467,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.save = { init, isBusy, holding, runTask, runLocal, saveActive, saveAsActive, signatureOf, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
+  SigK.save = { init, isBusy, holding, runTask, runLocal, saveActive, saveAsActive, finishSaved, signatureOf, syncButtons, unsaveableReason, warnIfUnsaveable, lastProgress: () => state.progress ?? null };
 })(typeof window !== 'undefined' ? window : globalThis);

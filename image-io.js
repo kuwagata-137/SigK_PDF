@@ -162,19 +162,23 @@ function isImageWritePath(target) {
 }
 
 // レンダラーが描いた 1 ページぶんのバイト列を書く（spec-3-3 確定事項19）。
-// 一時ファイル → rename は pdf-write.js に任せる。.bak は作らず、外部変更の照合も
-// しない（新しく作るファイルであり、同名の確認は画面が実行前に済ませている）。
-// 戻り値 { ok, path, bytes } / { error }。
-async function writeImage(target, bytes, { fsLike = fs } = {}) {
+// 一時ファイル → rename は pdf-write.js に任せる。PDF→画像は新しく作るファイルなので、.bak は作らず、外部変更の照合も
+// しない（同名の確認は画面が実行前に済ませている）。
+// 画像のタブの上書き保存（spec-7-1 確定事項B1）は、makeBackup で控えを残し、expect（開いたときの大きさと更新時刻）で
+// 外部変更を照らす。食い違えば何も書かずに { changed: true }（画面が確認の窓を出して、expect を外して書き直す）。
+// 戻り値 { ok, path, bytes, signature, backup } / { changed } / { error }。
+async function writeImage(target, bytes, { fsLike = fs, makeBackup = false, expect = null } = {}) {
   if (!isImageWritePath(target))
     return { error: '画像の出力先ではありません。' };
   const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
   if (!(view instanceof Uint8Array) || view.length === 0)
     return { error: '書き出す画像がありません。' };
-  const written = await writeDocument(target, view, { fsLike });
+  const written = await writeDocument(target, view, { fsLike, makeBackup: makeBackup === true, expect: expect ?? null });
+  if (written.changed === true)
+    return { changed: true };
   if (written.ok !== true)
     return { error: written.error ?? '画像を書き込めませんでした。' };
-  return { ok: true, path: target, bytes: written.bytes };
+  return { ok: true, path: target, bytes: written.bytes, signature: written.signature ?? null, backup: written.backup ?? null };
 }
 
 function createImageIo({ dialog, onError = () => {} }) {
@@ -186,7 +190,8 @@ function createImageIo({ dialog, onError = () => {} }) {
     pickWatermark: (parentWindow = null, { defaultPath } = {}) =>
       pickWatermarkImage({ dialogLike: dialog, parentWindow, defaultPath }),
     readWatermark: (filePath) => readWatermarkImage(filePath, { onError }),
-    write: (target, bytes) => writeImage(target, bytes),
+    // options は { makeBackup, expect } だけを通す（画面から fsLike を渡させない）。
+    write: (target, bytes, { makeBackup = false, expect = null } = {}) => writeImage(target, bytes, { makeBackup, expect }),
   };
 }
 

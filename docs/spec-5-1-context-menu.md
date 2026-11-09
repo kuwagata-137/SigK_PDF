@@ -204,7 +204,7 @@ electron-builder 26.15.3 のテンプレート（`node_modules/app-builder-lib/t
 | # | 項目 | 決定 |
 |---|---|---|
 | 1 | 画面へ渡す要求 | `parseLaunchArgs` の解釈は変えない（`spec-1-6` 確定事項72〜76）。**`queueLaunch` の「`open` だけ」の絞りを外し**、パスが 1 本以上ある要求をすべて画面へ渡す |
-| 2 | 画像→PDF の拡張子 | `EXTENSIONS.toPdf` を `.png`・`.jpg`・`.jpeg`・`.bmp`・`.gif`・`.tif`・`.tiff` にし、`.pdf` を外す（`image-io.js` の `IMAGE_FILTERS` と同じ 7 つ）。裸のパスは今までどおり `open`（`.pdf` だけ）なので、exe へ画像を落としても受けない。これで `spec-1-6` 確定事項76 の「Phase 5 で決める」が閉じる |
+| 2 | 画像→PDF の拡張子 | `EXTENSIONS.toPdf` を `.png`・`.jpg`・`.jpeg`・`.bmp`・`.gif`・`.tif`・`.tiff` にし、`.pdf` を外す（`image-io.js` の `IMAGE_FILTERS` と同じ 7 つ）。裸のパスは今までどおり `open`（`.pdf` だけ）なので、exe へ画像を落としても受けない。これで `spec-1-6` 確定事項76 の「Phase 5 で決める」が閉じる。**2026-11-07 改訂（`docs/07` 決定86）**: 画像もタブで開けるようにしたので、`open` は PDF と画像の 7 つを受ける（`docs/spec-7-1-image-edit.md` 確定事項A5）。`toPdf` は変えない |
 | 3 | 束の印 | メインに届いた時刻で決める。**直前の要求と意図が同じで、間隔が W 以下なら同じ束**、それ以外は新しい束。画面へは `{ intent, paths, batch: { id, first } }` を送る。`id` は 1 から数える整数、`first` は束の最初の要求だけ真。1 本目のプロセス自身の引数も同じ経路を通る（届いた時刻は `start()` の時点） |
 | 4 | W | **2000ms**（`launch-batch.js` の `BATCH_WINDOW_MS`）。事前調査 A3 の隣の最大間隔 362ms の 3 倍（1,086ms）より長く取った。W は束ねる判定にだけ使い、画面へ渡すのは待たない |
 | 5 | 渡し方 | **届くたびにすぐ渡す**（静まるのを待たない。論点1）。画面の準備前は、今までどおりメインで溜める（`spec-1-6` 確定事項77） |

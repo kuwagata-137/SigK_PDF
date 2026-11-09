@@ -27,6 +27,7 @@ const {
   describeLoadFailure, describeSourceReadFailure, insertReader,
 } = require('./pdf-io.js');
 const { TOOL_TASKS, isToolKind, runMerge, runSplit, runConvert } = require('./tool-tasks.js');
+const { runImageOpen } = require('./image-open-task.js');
 
 const { failure } = require('./task-failure.js');
 const PHASES = ['read', 'load', 'apply', 'save', 'write'];
@@ -152,6 +153,9 @@ async function runTask(spec, { send = () => {}, fsLike = fs } = {}) {
   let result;
   if (spec?.kind === 'insert-preview')
     result = await runInsertPreview(spec, { fsLike });
+  // 画像を開くための PDF（spec-7-1 確定事項A4）。ファイルを書かず、進捗も送らない（insert-preview と同じ）。
+  else if (spec?.kind === 'image-open')
+    result = await runImageOpen(spec, { fsLike });
   else if (spec?.kind === 'copy-pages')
     result = await runCopy(spec, { fsLike });
   else if (isToolKind(spec?.kind))

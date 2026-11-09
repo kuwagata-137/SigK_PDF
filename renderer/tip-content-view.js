@@ -28,7 +28,7 @@
   const SigK = (root.SigK = root.SigK || {});
   SigK.tipSaveText = { backupSentence };
   SigK.tipContent.add({
-    'bar.open': { name: '開く', desc: 'PDF を選んで、タブで開きます。窓へ PDF をドロップしても開けます。', keys: ['Ctrl+O'] },
+    'bar.open': { name: '開く', desc: 'PDF か画像を選んで、タブで開きます。窓へドロップしても開けます。', keys: ['Ctrl+O'] },
     'bar.save': saveEntry,
     'bar.saveAs': { name: '名前を付けて保存', desc: '保存先と名前を決めて、今の中身を新しいファイルに保存します。元のファイルは変わりません。', keys: ['Ctrl+Shift+S'] },
     'bar.undo': { name: '元に戻す', desc: '直前の変更を取り消して、1 つ前の状態に戻します。ツールモードでは、ページをドラッグして動かす・写す・分割の ✂ を、した順に戻します。', keys: ['Ctrl+Z'] },
@@ -50,7 +50,7 @@
     'mode.pages': { name: 'ページ編集', desc: 'ページを並べ替える・回す・消す・別のファイルに抜き出す・差し込むモードです。' },
     'mode.annot': { name: '編集', desc: 'ハイライト・文字・図形・ノートなどを書き込むモードです。モザイクで隠すことと、余白を切ることもできます。' },
     'mode.tools': { name: 'ツール', desc: '開いている PDF を帯にして並べ、結合・分割・変換・透かし・フラット化をするモードです。' },
-    'tab.add': { name: 'タブを追加', desc: 'PDF を選んで、新しいタブで開きます。', keys: ['Ctrl+O'] },
+    'tab.add': { name: 'タブを追加', desc: 'PDF か画像を選んで、新しいタブで開きます。', keys: ['Ctrl+O'] },
     'tab.close': { name: 'タブを閉じる', desc: 'このタブを閉じます。保存していない変更があれば、閉じる前に聞きます。', keys: ['Ctrl+W'], keysNote: '選んでいるタブ' },
     'tab.dirty': { name: '保存していない変更あり', desc: 'このタブには、まだ保存していない変更があります。' },
     'side.collapse': { name: 'パネルを閉じる', desc: '左のパネルを閉じて、ページの表示を広げます。閉じている間は、閉じたパネルの細い欄の「＞」で開きます。' },

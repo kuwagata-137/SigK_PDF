@@ -88,7 +88,7 @@ test('新しい通知バーを出すと、前の通知バーの消灯予約は�
   assert.equal(shell.SigK.viewBanner.text(), '2つ目');
 });
 
-test('文書を開いたまま PDF 以外を落とすと、通知バーで断る', async (t) => {
+test('文書を開いたまま PDF でも画像でもないものを落とすと、通知バーで断る', async (t) => {
   const shell = await withOpenDocument(t);
 
   const event = new shell.window.Event('drop', { bubbles: true, cancelable: true });
@@ -96,7 +96,7 @@ test('文書を開いたまま PDF 以外を落とすと、通知バーで断る
   shell.document.dispatchEvent(event);
   await shell.flush();
 
-  assert.match(shell.document.getElementById('view-banner').textContent, /PDF ファイルではないので/);
+  assert.match(shell.document.getElementById('view-banner').textContent, /PDF でも画像でもないので/);
   assert.equal(shell.document.getElementById('view-empty').hidden, true);
   assert.equal(shell.SigK.viewer.getState().open, true, '読んでいた文書はそのまま残る');
 });

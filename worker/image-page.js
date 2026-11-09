@@ -80,13 +80,15 @@ async function embedImage(doc, { kind, bytes }, tools = {}, { frame = 0 } = {}) 
 }
 
 // 埋め込んだ絵を、紙（page）の中の箱（box。紙の左下が原点）へ載せた新しいページを作る。
-function drawImagePage(doc, image, { page: size, box, allowUpscale = false }, { PDFPage, rgb }) {
+// paper が偽なら白を敷かない（画像を開くとき。透明な部分を保存で透明のまま残すため。spec-7-1 確定事項A3）。
+function drawImagePage(doc, image, { page: size, box, allowUpscale = false, paper = true }, { PDFPage, rgb }) {
   const placed = fitInside(image, box, { allowUpscale });
   if (placed === null)
     return { error: '画像の大きさを読み取れませんでした。' };
   const page = PDFPage.create(doc);
   page.setSize(size.width, size.height);
-  page.drawRectangle({ x: 0, y: 0, width: size.width, height: size.height, color: rgb(1, 1, 1) });
+  if (paper)
+    page.drawRectangle({ x: 0, y: 0, width: size.width, height: size.height, color: rgb(1, 1, 1) });
   page.drawImage(image, { ...placed, x: box.x + placed.x, y: box.y + placed.y });
   return { ok: true, page };
 }

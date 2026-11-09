@@ -65,14 +65,15 @@ test('PDF 以外が混ざっていれば、その分だけ無視する', async (
   assert.equal(shell.SigK.viewer.getState().file.name, 'a.pdf');
 });
 
-test('PDF が1つも無ければ理由を出す', async (t) => {
+test('PDF も画像も1つも無ければ理由を出す', async (t) => {
   const shell = await withShell(t);
 
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('表.xlsx', 'C:\\work\\表.xlsx')]));
   await shell.flush();
 
   assert.equal(shell.SigK.tabs.count(), 0);
-  assert.match(shell.document.getElementById('view-message').textContent, /PDF ファイルではないので/);
+  // 閲覧・編集モードでも画像を受けるので、ツールモードと同じ文で断る（spec-7-1 確定事項A5）。
+  assert.equal(shell.document.getElementById('view-message').textContent, 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。');
 });
 
 // File.path は Electron 32 で消えている。webUtils が空を返す状況（ドロップ
@@ -185,14 +186,14 @@ test('変換画面は BMP・GIF・TIFF の拡張子も受ける（spec-3-2 確�
   assert.equal(shell.document.getElementById('view-banner').textContent, 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。');
 });
 
-test('閲覧モードでは画像を断り、PDF だけを受ける', async (t) => {
-  const shell = await withShell(t, { imageInfos: IMAGE_INFOS });
-  const message = () => shell.document.getElementById('view-message').textContent;
+test('閲覧モードでは画像もタブで開き、画像→PDF へは渡さない', async (t) => {
+  // 画像は pdf:read がワーカーで PDF に組み立てて返す（spec-7-1 確定事項A4・A5）。ここでは読み込みの結果を差し替える。
+  const shell = await withShell(t, { imageInfos: IMAGE_INFOS, files: { [IMG]: { ...makeSource({ path: IMG }), image: { kind: 'png', frames: [{ width: 10, height: 10 }] } } } });
 
   fireDrag(shell, 'drop', makeDataTransfer([makeDroppedFile('a.png', IMG)]));
   await shell.flush();
-  assert.equal(shell.SigK.tabs.count(), 0);
-  assert.equal(message(), 'PDF ファイルではないので、PDF をドロップしてください。');
+  assert.deepEqual(tabPaths(shell), [IMG]);
+  assert.equal(shell.SigK.viewer.getState().file.image.kind, 'png');
   assert.equal(shell.SigK.toolsConvert.rows().length, 0);
 });
 

@@ -68,8 +68,16 @@ test('相対パス・存在しないファイル・意図に合わない拡張�
   assert.equal(parseLaunchArgs([EXE, 'a.pdf'], only('a.pdf')), null, '相対パスは受けない');
   assert.deepEqual(parseLaunchArgs([EXE, '--open', A], only()), { intent: 'open', paths: [] },
     '実在しないファイルは落ちる');
-  assert.equal(parseLaunchArgs([EXE, 'C:\\work\\photo.jpg'], only('C:\\work\\photo.jpg')), null,
-    '裸の画像は受けない（exe へ画像を落としても開かない。spec-5-1 確定事項2）');
+  assert.deepEqual(parseLaunchArgs([EXE, '--merge', 'C:\\work\\photo.jpg'], only('C:\\work\\photo.jpg')), { intent: 'merge', paths: [] },
+    '結合に画像は受けない');
+});
+
+test('裸の画像と --open の画像は「開く」で受ける（spec-7-1 確定事項A5。spec-5-1 確定事項2 を改めた）', () => {
+  const photo = 'C:\\work\\photo.jpg';
+  const scan = 'C:\\work\\scan.TIFF';
+  assert.deepEqual(parseLaunchArgs([EXE, photo], only(photo)), { intent: 'open', paths: [photo] }, 'exe へ画像を落としたとき');
+  assert.deepEqual(parseLaunchArgs([EXE, '--open', scan], only(scan)), { intent: 'open', paths: [scan] }, '「プログラムから開く」で選んだとき');
+  assert.deepEqual([...EXTENSIONS.open].sort(), ['.pdf', ...EXTENSIONS.toPdf].sort());
 });
 
 test('拡張子は大文字でも通る', () => {

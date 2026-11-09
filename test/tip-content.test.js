@@ -32,12 +32,14 @@ const EXPECTED_KEYS = [
   'strip.up', 'strip.down', 'strip.save', 'strip.saveAs', 'strip.close', 'image.clear', 'image.remove',
   'split.cut', 'split.undo', 'split.redo', 'pages.rotateLeft', 'pages.rotateRight', 'pages.extract', 'pages.insert', 'pages.delete',
   'thumb.rotateLeft', 'thumb.rotateRight', 'thumb.delete',
+  // 画像のタブで灰色にした道具の文（spec-7-1 確定事項C2）。
+  'edit.highlight.image', 'edit.underline.image', 'edit.strikeout.image', 'edit.note.image',
 ];
 
-// 歯車のボタン（bar.settings）は spec-6-1 タスク E で足した。
-test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と過不足なく一致する（組み込みの text を除く）', () => {
+// 歯車のボタン（bar.settings）は spec-6-1 タスク E で、画像のタブで灰色にした道具の 4 個は spec-7-1 で足した。
+test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個と過不足なく一致する（組み込みの text を除く）', () => {
   assert.deepEqual([...tableKeys()].sort(), [...EXPECTED_KEYS].sort());
-  assert.equal(EXPECTED_KEYS.length, 85);
+  assert.equal(EXPECTED_KEYS.length, 89);
 });
 test('どの鍵にも名前と説明があり、説明は「。」で終わる 100 字以内の文', () => {
   for (const key of tableKeys()) {
@@ -50,7 +52,7 @@ test('どの鍵にも名前と説明があり、説明は「。」で終わる 1
 });
 test('キーの書き方: 「／」は配列、（）は keysNote、「—」は keys を持たない', () => {
   assert.deepEqual(tipContent.resolve(node('bar.open')), {
-    name: '開く', desc: 'PDF を選んで、タブで開きます。窓へ PDF をドロップしても開けます。', keys: ['Ctrl+O'],
+    name: '開く', desc: 'PDF か画像を選んで、タブで開きます。窓へドロップしても開けます。', keys: ['Ctrl+O'],
   });
   assert.deepEqual(tipContent.resolve(node('bar.redo')).keys, ['Ctrl+Y', 'Ctrl+Shift+Z']);
   assert.deepEqual(tipContent.resolve(node('find.prev')).keys, ['Shift+F3', 'Shift+Enter']);

@@ -26,7 +26,7 @@
     "jsdom": "^27.0.0",
     "omggif": "^1.0.10",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^6.3.289",
+    "pdfjs-dist": "6.3.289",
     "utif": "^3.1.0"
   },
   "build": {
@@ -50,6 +50,7 @@
       "renderer-gone.js",
       "file-io.js",
       "image-io.js",
+      "image-open.js",
       "image-thumbnail.js",
       "recent-documents.js",
       "pdf-write.js",
@@ -62,6 +63,7 @@
       "smoke-split.js",
       "smoke-launch.js",
       "smoke-annotate.js",
+      "smoke-image-edit.js",
       "smoke-annotate-steps.js",
       "smoke-annotate-report.js",
       "smoke-annotate-style.js",

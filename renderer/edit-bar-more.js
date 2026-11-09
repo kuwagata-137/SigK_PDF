@@ -48,6 +48,9 @@
     if (button.dataset.tip)
       row.dataset.tip = button.dataset.tip;
     row.classList.toggle('active', button.classList.contains('active'));
+    // 画像のタブで灰色にした道具は、一覧でも灰色にする（spec-7-1 確定事項C1）。押すと段のボタンを押すのと同じで、何もしない。
+    if (button.getAttribute('aria-disabled') === 'true')
+      row.setAttribute('aria-disabled', 'true');
     row.addEventListener('click', (event) => pick(button, { byMouse: event.detail > 0 }));
     return row;
   }

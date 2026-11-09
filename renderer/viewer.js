@@ -16,6 +16,8 @@
   // （spec-1-2 確定事項1）。
 
   const EMPTY_MESSAGE = '文書が開かれていません';
+  // 画像のタブが持つ写しの鍵（spec-7-1 確定事項A6）。名前の無い帯の鍵（copy-<番号>）や opened-source.js の鍵と混ざらない名前にする。
+  const IMAGE_COPY = 'image';
 
   const state = {
     doc: null,
@@ -826,7 +828,10 @@
     setMessage('読み込んでいます…');
 
     // 名前の無い帯の中身は、保存のときワーカーへ渡すので、pdf.js が中身を移して空にする前に写しておく（spec-2-5 確定事項I4）。
-    const untitled = source.untitled === true ? { untitled: true, copy: source.copy, bytes: source.bytes.slice(), folder: source.folder ?? null } : {};
+    // 画像のタブも、組み立てた PDF を同じく写しておく（PDF での保存と帯のページを写す機能が読む。spec-7-1 確定事項A6）。
+    const untitled = source.untitled === true
+      ? { untitled: true, copy: source.copy, bytes: source.bytes.slice(), folder: source.folder ?? null }
+      : imageFields(source);
     try {
       const loaded = await loadDocument(source);
       if (token !== state.token) {
@@ -864,6 +869,13 @@
         task.destroy?.();
       throw error;
     }
+  }
+
+  // 画像のタブの欄（spec-7-1 確定事項A4・A6）。image は { kind, frames, original? }。画像でなければ空。
+  function imageFields(source) {
+    if (source?.image === undefined || source.image === null)
+      return {};
+    return { image: { ...source.image }, copy: IMAGE_COPY, bytes: source.bytes.slice() };
   }
 
   // 読んだ文書を映す（状態を作り直し、ページ・サムネイル・状態の欄を組む）。
@@ -939,6 +951,8 @@
     if (source?.error !== undefined || state.doc !== before)
       return false;
 
+    // 画像の写しは、pdf.js が中身を移して空にする前に取る（open と同じ）。
+    const image = imageFields(source);
     // 失敗したら、読んだ文書か読み込みの途中を畳む（pdf.js の側に残さない。spec-6-1 タスク D の点検の直し I-3）。
     const task = root.SigK.pdfjs.getDocument({ data: source.bytes });
     let doc = null;
@@ -972,6 +986,8 @@
       mtimeMs: source.mtimeMs ?? null,
       // パスワード付きは保存できない（spec-1-6 確定事項12）ので、保存先が暗号化されていることはない。
       encrypted: false,
+      // 画像として保存したら、画像のタブとして開き直す（spec-7-1 確定事項B5）。
+      ...image,
     };
     state.basePages = sizes;
     state.plan = root.SigK.pagePlan.createPlan(sizes.length);

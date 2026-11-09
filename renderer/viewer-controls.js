@@ -68,6 +68,8 @@
     // ページ編集のボタン（回転・削除・元に戻す）もここで揃える。文書を開く・
     // 閉じる・タブを移る・編集する、のすべてがこの1本を通る。
     root.SigK.pageEdit?.syncActions();
+    // 画像のタブで使えない道具を灰色にする（spec-7-1 確定事項C1〜C3）。
+    root.SigK.imageTools?.sync();
   }
 
   function commitPageInput(doc) {

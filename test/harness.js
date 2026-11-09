@@ -762,9 +762,13 @@ async function createShell({
     // ここは届いた出力先とバイト列を控えるだけである。
     window.imageAPI = {
       available: true,
-      write: async (target, bytes) => {
-        imageWrites.push({ target, bytes });
-        return imageWriteResults.shift() ?? { ok: true, path: target, bytes: bytes?.length ?? 0 };
+      // options は画像のタブの上書き保存が渡す { makeBackup, expect }（spec-7-1 確定事項B1）。結果に関数を仕込めば、届いた引数で答えを変えられる。
+      write: async (target, bytes, options) => {
+        imageWrites.push({ target, bytes, options: options === undefined || options === null ? null : structuredClone(options) });
+        const next = imageWriteResults.shift();
+        if (typeof next === 'function')
+          return next(target, bytes, options);
+        return next ?? { ok: true, path: target, bytes: bytes?.length ?? 0 };
       },
       thumbnail: async (filePath, size) => {
         thumbnailCalls.push(filePath);
