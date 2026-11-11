@@ -927,7 +927,7 @@ async function createShell({
       const pop = window.document.getElementById('color-pop');
       if (pop.hidden)
         throw new Error(`パレットの窓が開かない: ${chipId}`);
-      const target = color === null ? pop.querySelector('.foot .none') : pop.querySelector(`.cell[data-color="${color}"]`);
+      const target = color === null ? pop.querySelector('.items .none') : pop.querySelector(`.cell[data-color="${color}"]`);
       if (target === null)
         throw new Error(`パレットに無い: ${color}`);
       target.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));

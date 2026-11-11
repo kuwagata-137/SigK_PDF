@@ -153,7 +153,7 @@ test('右パネルは、そろっていない色を「混在」、太さを空�
   SigK.annotate.setColor('#0000ff');
   SigK.annotate.selectKeys([square, arrow]);
   assert.equal(document.getElementById('props-color-name').textContent, '混在');
-  assert.equal(document.querySelector('#props-color .sw').classList.contains('mixed'), true);
+  assert.equal(document.querySelector('#props-color-row .sw').classList.contains('mixed'), true);
   assert.equal(document.getElementById('props-fill-row').hidden, false);
   assert.equal(document.getElementById('props-fill-name').textContent, 'なし');
   assert.equal(document.getElementById('props-width').value, '2', 'そろっていれば値');

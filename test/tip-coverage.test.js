@@ -32,6 +32,7 @@ const STATIC_TARGETS = [
   ['.tab-add', 'tab.add'], ['#side-collapse', 'side.collapse'], ['#side-expand', 'side.expand'],
   ['#find-case', 'find.case'], ['#find-prev', 'find.prev'], ['#find-next', 'find.next'], ['#find-close', 'find.close'],
   ['#status-file', 'status.file'], ['#doc-info-close', 'dialog.close'], ['#help-close', 'dialog.close'], ['#print-close', 'dialog.close'], ['#settings-close', 'dialog.close'],
+  ['#color-dialog-close', 'dialog.close'],
   ['#split-zoom-close', 'zoom.close'], ['#split-zoom-prev', 'zoom.prev'], ['#split-zoom-next', 'zoom.next'],
   ...TOOLS.map((tool) => [`.edit-tool[data-tool="${tool}"]`, `edit.${tool}`]),
   ...SHAPES.map((shape) => [`.edit-tool[data-shape="${shape}"]`, `edit.${shape}`]),

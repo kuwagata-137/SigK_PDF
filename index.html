@@ -483,7 +483,7 @@ body{
                 <span class="sub">紙の大きさに合わせて決めます</span>
               </div>
               <span class="k" id="wm-color-key">色</span>
-              <div class="swatches" id="wm-colors"></div>
+              <div class="chip-row wm-color" id="wm-colors"><span class="split"><button type="button" class="split-main" id="wm-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="wm-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="sw"></span><span class="name" id="wm-color-name"></span></span></div>
               <span class="k">不透明度</span>
               <div class="picks seg" id="wm-opacities"></div>
               <span class="k">向き</span>
@@ -580,8 +580,10 @@ body{
         <div class="prop" id="props-mosaic-count-row" hidden><span class="k">このページ</span><span class="v" id="props-mosaic-count"></span></div>
         <!-- 色・塗り・線種・線の太さ・不透明度（spec-4b-1b 確定事項1〜9）。中身と出し入れは annotation-style-rows.js。
              色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
+        <div class="prop" id="props-set-row" hidden><span class="k">一括</span>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main set-main" id="props-set-apply"><span class="set-sample" aria-hidden="true">Ab</span></button><button type="button" class="chip split-drop" id="props-set" aria-haspopup="dialog" aria-expanded="false" aria-label="一括 の一覧"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">まとめて設定</span></span></div></div>
         <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
-          <div class="chip-row"><button type="button" class="chip" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-color-name"></span></div></div>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">今の色</span><span class="sw"></span><span class="name" id="props-color-name"></span></span></div></div>
         <!-- 文字の大きさ（spec-4b-4a 確定事項G1・G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼）。中身は annotation-text-rows.js。 -->
         <div class="prop" id="props-size-row" hidden><span class="k" id="props-size-label">文字の大きさ</span>
           <div class="range size-field"><input type="number" class="props-field" id="props-size" min="8" max="200" step="0.5" aria-label="文字の大きさ（pt）"><select class="size-list props-field" id="props-size-list" aria-label="よく使う大きさ"></select><span class="unit">pt</span></div></div>
@@ -589,11 +591,11 @@ body{
         <div class="prop" id="props-format-row" hidden><span class="k" id="props-format-label">書式</span>
           <div class="props-kinds format-buttons" id="props-format" role="group" aria-label="書式"><button type="button" data-format="bold" data-tip="format.bold" aria-label="太字" aria-pressed="false">B</button><button type="button" data-format="italic" data-tip="format.italic" aria-label="斜体" aria-pressed="false">I</button></div></div>
         <div class="prop" id="props-fill-row" hidden><span class="k">塗り</span>
-          <div class="chip-row"><button type="button" class="chip" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-fill-name"></span></div></div>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-fill-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">今の色</span><span class="sw"></span><span class="name" id="props-fill-name"></span></span></div></div>
         <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>
         <!-- テキストの枠線（spec-4b-4a 確定事項G4）。色のチップと同じ作りで、パレットに［枠線なし］がある。太さは下の太さの行（枠線の太さ）。 -->
         <div class="prop" id="props-border-row" hidden><span class="k" id="props-border-label">枠線</span>
-          <div class="chip-row"><button type="button" class="chip" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="sw"></span><span class="caret" aria-hidden="true">▼</span></button><span class="name" id="props-border-name"></span></div></div>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-border-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">今の色</span><span class="sw"></span><span class="name" id="props-border-name"></span></span></div></div>
         <!-- .props-field の中のキーは欄のもの（viewer-keys.js が素通しする。Esc だけは escape-order.js が field-escape.js を通して受ける）。 -->
         <div class="prop" id="props-width-row" hidden><span class="k" id="props-width-label">線の太さ</span>
           <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
@@ -640,6 +642,40 @@ body{
     <span class="spacer"></span>
     <span class="version" id="status-version"></span>
   </div>
+
+  <!-- 「色の設定」の画面（spec-7-2 確定事項C。見本 screenshots/office-color-mock-06.png・07.png）。色の一覧の［その他の色…］で開く。中身は color-dialog.js。 -->
+  <dialog id="color-dialog" aria-labelledby="color-dialog-title">
+    <div class="dlg-head">
+      <span id="color-dialog-title">色の設定</span>
+      <button type="button" class="dlg-x" id="color-dialog-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" data-tip="dialog.close" aria-label="閉じる"></button>
+    </div>
+    <div class="cdlg-body">
+      <div class="cdlg-left">
+        <div class="cdlg-tabs" role="tablist" aria-label="色の選び方"><button type="button" role="tab" data-tab="standard">標準</button><button type="button" role="tab" data-tab="custom">ユーザー設定</button></div>
+        <div class="cdlg-pane" id="color-dialog-standard" role="tabpanel">
+          <p class="cdlg-k">色:</p>
+          <svg class="cdlg-hex" id="color-dialog-hex" width="260" height="262" viewBox="-130 -108 260 262" role="img" aria-label="色の六角形"></svg>
+        </div>
+        <div class="cdlg-pane" id="color-dialog-custom" role="tabpanel" hidden>
+          <p class="cdlg-k">色:</p>
+          <div class="cdlg-picker">
+            <div class="cdlg-field" id="color-dialog-field" aria-hidden="true"><i id="color-dialog-cross"></i></div>
+            <div class="cdlg-lum" id="color-dialog-lum" aria-hidden="true"><i id="color-dialog-lum-arrow">◀</i></div>
+          </div>
+          <div class="cdlg-f"><label for="color-dialog-model">カラー モデル:</label><select id="color-dialog-model"><option>RGB</option><option>HSL</option></select></div>
+          <div class="cdlg-f"><label for="color-dialog-n0" id="color-dialog-l0">赤:</label><input type="number" id="color-dialog-n0" min="0" max="255" step="1"></div>
+          <div class="cdlg-f"><label for="color-dialog-n1" id="color-dialog-l1">緑:</label><input type="number" id="color-dialog-n1" min="0" max="255" step="1"></div>
+          <div class="cdlg-f"><label for="color-dialog-n2" id="color-dialog-l2">青:</label><input type="number" id="color-dialog-n2" min="0" max="255" step="1"></div>
+          <div class="cdlg-f"><label for="color-dialog-hexcode">16 進:</label><input type="text" id="color-dialog-hexcode" maxlength="7" spellcheck="false" autocomplete="off"></div>
+        </div>
+      </div>
+      <div class="cdlg-right">
+        <button type="button" class="dlg-btn primary" id="color-dialog-ok">OK</button>
+        <button type="button" class="dlg-btn" id="color-dialog-cancel">キャンセル</button>
+        <div class="cdlg-compare"><span>新規</span><span class="cdlg-sw"><i id="color-dialog-new"></i><i id="color-dialog-current"></i></span><span>現在</span></div>
+      </div>
+    </div>
+  </dialog>
 
   <!-- 文書情報（spec-1-2 確定事項11）。ネイティブの messageBox では文字を
        選択・コピーできないため、アプリ内のモーダルで出す。 -->
@@ -910,6 +946,8 @@ body{
 <script src="renderer/trim-drag.js"></script>
 <script src="renderer/annotation-presets.js"></script>
 <script src="renderer/annotation-palette.js"></script>
+<script src="renderer/color-model.js"></script>
+<script src="renderer/color-memory.js"></script>
 <script src="renderer/free-text-geometry.js"></script>
 <script src="renderer/free-text-entry.js"></script>
 <script src="renderer/shape-style.js"></script>
@@ -1130,8 +1168,10 @@ body{
 <script src="renderer/view-pan.js"></script>
 <script src="renderer/annotation-note-rows.js"></script>
 <script src="renderer/color-popover.js"></script>
+<script src="renderer/color-dialog.js"></script>
 <script src="renderer/field-escape.js"></script>
 <script src="renderer/props-range.js"></script>
+<script src="renderer/annotate-style-set.js"></script>
 <script src="renderer/annotation-chip-rows.js"></script>
 <script src="renderer/annotation-style-rows.js"></script>
 <script src="renderer/annotation-hints.js"></script>

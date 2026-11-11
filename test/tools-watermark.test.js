@@ -57,8 +57,9 @@ test('一覧に「透かし」が並び、選ぶと既定値の画面が出る�
   assert.equal(checkedValue(shell, 'wm-opacity'), '0.3');
   assert.equal(checkedValue(shell, 'wm-angle'), '45');
   assert.equal(checkedValue(shell, 'wm-page-mode'), 'all');
-  assert.deepEqual([...byId(shell, 'wm-colors').children].map((node) => [node.dataset.color, node.classList.contains('on')]),
-    [['#808080', true], ['#d92c2c', false], ['#2c5cd9', false], ['#1c2430', false]]);
+  // 色は分割ボタン（spec-7-2 確定事項E）。今の色は名前の欄に出す。
+  assert.equal(byId(shell, 'wm-color-name').textContent, '#808080'.toUpperCase());
+  assert.ok(byId(shell, 'wm-color-apply') !== null && byId(shell, 'wm-color') !== null);
   assert.deepEqual([...byId(shell, 'wm-opacities').querySelectorAll('.lbl')].map((node) => node.textContent), ['15%', '30%', '50%', '100%']);
   const cells = [...byId(shell, 'wm-grid').children];
   assert.equal(cells.length, 9);
@@ -105,7 +106,9 @@ test('欄の操作が設定に届き、ワーカーへ渡す spec に写る', as
   const text = byId(shell, 'wm-text');
   text.value = '  複製禁止 ';
   text.dispatchEvent(new window.Event('input', { bubbles: true }));
-  byId(shell, 'wm-colors').children[1].click();
+  // ▼ で色の一覧を開き、標準の色の濃い赤を選ぶ（spec-7-2 確定事項E1）。
+  byId(shell, 'wm-color').click();
+  doc.querySelector('#color-pop .cell[data-color="#c00000"]').click();
   byId(shell, 'wm-grid').children[2].click();
   const pick = (name, value) => {
     const input = doc.querySelector(`input[name="${name}"][value="${value}"]`);
@@ -116,10 +119,10 @@ test('欄の操作が設定に届き、ワーカーへ渡す spec に写る', as
   pick('wm-opacity', '0.5');
   pick('wm-angle', '0');
   assert.deepEqual(plain(SigK.toolsWatermark.currentPlan().spec.mark), {
-    type: 'text', text: '複製禁止', color: '#d92c2c', opacity: 0.5, angle: 0, size: 'large', position: 'top-right',
+    type: 'text', text: '複製禁止', color: '#c00000', opacity: 0.5, angle: 0, size: 'large', position: 'top-right',
   });
   assert.equal(byId(shell, 'wm-position-label').textContent, '右上');
-  assert.equal(byId(shell, 'wm-colors').children[1].classList.contains('on'), true);
+  assert.equal(byId(shell, 'wm-color-name').textContent, '#C00000');
   assert.equal(byId(shell, 'wm-grid').children[2].getAttribute('aria-pressed'), 'true');
 });
 

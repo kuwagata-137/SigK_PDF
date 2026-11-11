@@ -16,9 +16,10 @@ const A = 'C:\\work\\見積書.pdf';
 const READY_SOURCE = { path: A, name: '見積書.pdf', pageCount: 5, blocked: null, note: null, pending: false };
 const PNG = { path: 'C:\\work\\logo.png', name: 'logo.png', kind: 'png', width: 400, height: 200, pending: false, error: null };
 
-test('プリセットと既定値は仕様どおり（灰・赤・青・黒／15・30・50・100%／「社外秘」・灰・30%・斜め・中央・中）', () => {
-  assert.deepEqual([...plan.COLORS], ['#808080', '#d92c2c', '#2c5cd9', '#1c2430']);
-  assert.deepEqual({ ...plan.COLOR_NAMES }, { '#808080': '灰', '#d92c2c': '赤', '#2c5cd9': '青', '#1c2430': '黒' });
+test('プリセットと既定値は仕様どおり（15・30・50・100%／「社外秘」・灰・30%・斜め・中央・中）', () => {
+  // 色は右パネルと同じ色の一覧から選ぶので、色のプリセットは持たない（spec-7-2 確定事項E）。
+  assert.equal('COLORS' in plan, false);
+  assert.equal('COLOR_NAMES' in plan, false);
   assert.deepEqual([...plan.OPACITIES], [0.15, 0.3, 0.5, 1]);
   assert.deepEqual({ ...plan.DEFAULTS }, {
     type: 'text', text: '社外秘', color: '#808080', opacity: 0.3, angle: 45, size: 'medium', position: 'center', pageMode: 'all', range: '',

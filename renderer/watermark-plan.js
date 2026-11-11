@@ -4,12 +4,10 @@
   // 透かしの設定の検査と、ワーカーへ渡す spec の組み立て（spec-4-5 確定事項3〜6・25・40）。
   // DOM に触れない純関数。状態は tools-watermark.js が持つ。
   //
-  // 色・不透明度のプリセットと既定値は論点6（既定は「社外秘」・灰・30%・斜め・中央・中。覚えるかは設定の窓で選ぶ。spec-6-1 確定事項E-7）。
-  // 色と並びは自前で決めたもので、他社製品の意匠を写していない（docs/06）。文字の整え方と上限は
+  // 不透明度のプリセットと既定値は論点6（既定は「社外秘」・灰・30%・斜め・中央・中。覚えるかは設定の窓で選ぶ。spec-6-1 確定事項E-7）。
+  // 色は右パネルと同じ色の一覧から選ぶ（spec-7-2 確定事項E。それまでの灰・赤・青・黒の 4 色はやめた）。文字の整え方と上限は
   // ワーカー（worker/op-watermark.js の normalizeText・MAX_TEXT_LENGTH）と同じで、一致はテストで見張る。
 
-  const COLORS = Object.freeze(['#808080', '#d92c2c', '#2c5cd9', '#1c2430']);
-  const COLOR_NAMES = Object.freeze({ '#808080': '灰', '#d92c2c': '赤', '#2c5cd9': '青', '#1c2430': '黒' });
   const OPACITIES = Object.freeze([0.15, 0.3, 0.5, 1]);
   const MAX_TEXT_LENGTH = 50;
   const DEFAULTS = Object.freeze({
@@ -97,7 +95,7 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.watermarkPlan = {
-    COLORS, COLOR_NAMES, OPACITIES, MAX_TEXT_LENGTH, DEFAULTS, POSITION_LABELS, LABEL,
+    OPACITIES, MAX_TEXT_LENGTH, DEFAULTS, POSITION_LABELS, LABEL,
     normalizeText, defaultTarget, targetPages, planOf,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

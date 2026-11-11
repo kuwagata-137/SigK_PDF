@@ -32,7 +32,7 @@ const TOOL_PROBES = [
   ['split', ['#split-board-canvas .sb-cut', '#split-files .sb-file', '#split-folder:not(:empty)']],
   ['convert', ['#image-strip .img-item', '#image-strip .img-x']],
   ['toImage', ['#toimage-folder:not(:empty)']],
-  ['watermark', ['#wm-colors .swatch']],
+  ['watermark', ['#wm-colors .split-main', '#wm-colors .split-drop']],
   ['flatten', ['#tools-list .tool-item.active[data-tool="flatten"]']],
 ];
 
@@ -180,7 +180,7 @@ const FACTS = {
     names: ['#image-strip .img-item', (node) => [node.querySelector('.img-x').getAttribute('aria-label'), node.querySelector('.cap').textContent]],
   },
   'ツール（toImage）': { folder: '#toimage-folder' },
-  'ツール（watermark）': { color: '#wm-colors .swatch' },
+  'ツール（watermark）': { color: '#wm-colors .split-main' },
 };
 
 test('JS が作る要素の説明の吹き出しは、文の表の鍵か、ファイル名とフルパスなどの文（spec-2-5 J5・J15・J16）', async (t) => {
@@ -212,7 +212,8 @@ test('JS が作る要素の説明の吹き出しは、文の表の鍵か、フ�
   assert.deepEqual(seen['ツール（convert）'].off, ['image.remove']);
   assert.deepEqual(seen['ツール（convert）'].names, [['「p.png」を外す', 'p.png']], '画像の名前は、説明の吹き出し・× の読み上げ・名札で同じ');
   assert.deepEqual(seen['ツール（toImage）'], { folder: [file('出力先のフォルダ', 'C:\\work')] });
-  assert.deepEqual(seen['ツール（watermark）'], { color: ['灰', '赤', '青', '黒'].map((name) => file(name, '')) });
+  // 透かしの色は分割ボタン。左側は直前の文字の色（既定 #ff0000）を当てる（spec-7-2 確定事項A4・E1）。
+  assert.deepEqual(seen['ツール（watermark）'], { color: [file('透かしの色を #FF0000 にする', '')] });
 });
 
 test('✂ の盤の ✂ は、説明の吹き出しの位置の基準を ✂ の丸にし、中に小さな黒い札を作らない（J15）', async (t) => {

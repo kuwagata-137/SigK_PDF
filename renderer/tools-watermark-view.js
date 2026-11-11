@@ -5,7 +5,7 @@
   // 対象は選んでいる帯で、対象が無い・使えないときは状態の文を出す。
   //
   // 状態は tools-watermark.js が持つ。ここは読んで DOM に写し、操作をあちらの関数へ返すだけである。
-  // 色の丸・不透明度・位置の格子はプリセット（watermark-plan.js・watermark-geometry.js）から組み、
+  // 不透明度・位置の格子はプリセット（watermark-plan.js・watermark-geometry.js）から組み、
   // 並びを 1 か所に持つ。入力欄はフォーカスのある間は値を書き戻さない（分割と同じ理由）。
 
   let el = null;
@@ -35,18 +35,32 @@
 
   // ---- 組み立て（プリセットから） ----
 
+  // 色は右パネルと同じ分割ボタン（spec-7-2 確定事項E。見本 screenshots/office-color-mock-09.png）。左は直前の文字の色で塗り、▼ で色の一覧を開く。
   function buildColors() {
-    for (const color of planner().COLORS) {
-      const button = el.doc.createElement('button');
-      button.type = 'button';
-      button.className = 'swatch';
-      button.dataset.color = color;
-      button.style.background = color;
-      root.SigK.tipContent.text(button, planner().COLOR_NAMES[color]);
-      button.setAttribute('aria-label', `色 ${planner().COLOR_NAMES[color]}`);
-      button.addEventListener('click', () => tool().setColor(color));
-      el.colors.append(button);
-    }
+    el.colorMain = el.doc.getElementById('wm-color-apply');
+    el.colorDrop = el.doc.getElementById('wm-color');
+    el.colorName = el.doc.getElementById('wm-color-name');
+    el.colorMain.addEventListener('click', () => {
+      root.SigK.colorPopover?.close();
+      const color = root.SigK.colorMemory?.lastOf('font');
+      if (color)
+        tool().setColor(color);
+    });
+    el.colorDrop.addEventListener('click', () => root.SigK.colorPopover?.toggle(el.colorDrop, {
+      title: '透かしの色',
+      current: tool().settings().color,
+      role: 'font',
+      onPick: (color) => {
+        if (color !== null)
+          tool().setColor(color);
+      },
+    }));
+  }
+
+  function renderColor(color) {
+    const chips = root.SigK.annotationChipRows;
+    chips?.renderChip(el.colorDrop, el.colorName, { value: color, mixed: false }, '透かしの色');
+    chips?.renderMain(el.colorMain, 'font', '透かしの色');
   }
 
   function buildOpacities() {
@@ -113,8 +127,7 @@
     if (el.doc.activeElement !== el.text && el.text.value !== settings.text)
       el.text.value = settings.text;
     syncRadios(el.sizes, settings.size);
-    for (const swatch of el.colors.children)
-      swatch.classList.toggle('on', swatch.dataset.color === settings.color);
+    renderColor(settings.color);
     syncRadios(el.opacities.querySelectorAll('input'), settings.opacity);
     syncRadios(el.angles, settings.angle);
     for (const cell of el.grid.children) {

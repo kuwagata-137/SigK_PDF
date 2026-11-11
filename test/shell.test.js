@@ -200,8 +200,9 @@ test('アイコンはすべて描画され、空の入れ物が残らない', as
   const { document } = await withShell(t);
 
   assert.equal(document.querySelectorAll('[data-icon]:empty').length, 0);
-  // 透かしのプレビューの重ね描き（.wm-overlay。spec-4-5 確定事項5）はアイコンではないので除く。
-  const svgs = document.querySelectorAll('svg:not(.wm-overlay)');
+  // 透かしのプレビューの重ね描き（.wm-overlay。spec-4-5 確定事項5）と、色の設定の画面の六角形（.cdlg-hex。spec-7-2 確定事項C2）は
+  // アイコンではないので除く。
+  const svgs = document.querySelectorAll('svg:not(.wm-overlay):not(.cdlg-hex)');
   assert.ok(svgs.length >= 15, `アイコンが少なすぎる: ${svgs.length}`);
   for (const svg of svgs) {
     assert.equal(svg.getAttribute('viewBox'), '0 0 24 24');

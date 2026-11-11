@@ -65,7 +65,7 @@ test('行の並びは 種類 → トリミングの当てるページと大き�
   const ids = [...shell.document.querySelectorAll('#props .props-body > .prop')].map((node) => node.id || 'kind');
   // 回転の行は不透明度の下（spec-4b-2 確定事項25）。文字の大きさは色の直後（spec-4b-4a 確定事項G1。960×600 でも見えるように）
   // トリミングの 2 行は種類の直後（spec-4b-6a 確定事項17。道具を持っている間だけ出す）。モザイクの 2 行はその次（spec-4b-6b 確定事項14）。
-  assert.deepEqual(ids, ['kind', 'props-trim-scope-row', 'props-trim-size-row', 'props-mosaic-block-row', 'props-mosaic-count-row', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
+  assert.deepEqual(ids, ['kind', 'props-trim-scope-row', 'props-trim-size-row', 'props-mosaic-block-row', 'props-mosaic-count-row', 'props-set-row', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
     'props-opacity-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
 });
 
@@ -80,8 +80,10 @@ test('道具ごとに出す行と、色の行の見出しが替わる', async (t
   assert.equal(label(), '線の色');
   assert.deepEqual(shownStyles(document), ['solid', 'dashed', 'cloudy']);
   assert.equal(document.getElementById('props-fill-name').textContent, 'なし');
-  assert.equal(document.querySelector('#props-fill .sw').classList.contains('none'), true, '「なし」は白地に斜線');
-  assert.equal(document.getElementById('props-color').getAttribute('aria-label'), '線の色 #FF0000');
+  assert.equal(document.querySelector('#props-fill-row .cur .sw').classList.contains('none'), true, '「なし」は白地に斜線');
+  // ▼ は「…の一覧」、左側は「…を 直前の色 にする」と読み上げ、2 つのボタンを聞き分けられる（spec-7-2 確定事項A1）。
+  assert.equal(document.getElementById('props-color').getAttribute('aria-label'), '線の色 #FF0000 の一覧');
+  assert.equal(document.getElementById('props-color-apply').getAttribute('aria-label'), '線の色を #ED7D31 にする');
   SigK.annotate.setShapeKind('line');
   assert.deepEqual(shownRows(document), ['color', 'style', 'width', 'opacity']);
   assert.deepEqual(shownStyles(document), ['solid', 'dashed']);
@@ -153,7 +155,7 @@ test('選んでいる線なしの四角は色のチップが「なし」にな�
   fire('mouseup', page, [300, 600]);
   assert.equal(document.getElementById('props-kind').textContent, '四角');
   assert.equal(document.getElementById('props-color-name').textContent, 'なし');
-  assert.equal(document.querySelector('#props-color .sw').classList.contains('none'), true);
+  assert.equal(document.querySelector('#props-color-row .sw').classList.contains('none'), true);
   assert.equal(document.getElementById('props-fill-name').textContent, '#FFFF00');
   const HINTS = SigK.annotationProps.HINTS;
   assert.equal(document.getElementById('props-hint').textContent, `${HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${HINTS.boxTransform}`)}${HINTS.box}${HINTS.fill}`);
