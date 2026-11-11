@@ -60,6 +60,22 @@
   ]);
   const PALETTE_COLORS = new Set(PALETTE_ROWS.flat());
 
+  // 最近使用した色の数（spec-7-2 確定事項B2。annotation-settings.js の ANNOT_RECENT_MAX と同じ）。
+  const RECENT_MAX = 10;
+
+  // 一括の組（spec-7-2 確定事項D2）。7 色 × 3 段で、段は 白の塗り＋色の線／淡い塗り（白へ 80%）＋色の線／濃い塗り＋暗い線（黒へ 25%）＋白の文字。
+  // 文字の色が null の組は、文字の色を変えない。並びの番号を settings.json に覚える（annotation-settings.js の ANNOT_STYLE_SET_COUNT と同じ数）。
+  const STYLE_SET_COLORS = Object.freeze(['#404040', '#4472c4', '#ed7d31', '#a5a5a5', '#ffc000', '#5b9bd5', '#70ad47']);
+  const STYLE_SET_ROWS = Object.freeze(['白の塗り＋色の線', '淡い塗り＋色の線', '濃い塗り＋白の文字']);
+  const STYLE_SETS = Object.freeze([
+    ...STYLE_SET_COLORS.map((color) => Object.freeze({ fill: '#ffffff', stroke: color, text: null })),
+    ...STYLE_SET_COLORS.map((color) => Object.freeze({ fill: tint(color, 0.8), stroke: color, text: null })),
+    ...STYLE_SET_COLORS.map((color) => Object.freeze({ fill: color, stroke: tint(color, -0.25), text: '#ffffff' })),
+  ]);
+
+  // 色の一覧の［太さ ▶］に並べる太さ（pt。spec-7-2 確定事項B3）。右パネルのスライダー（1〜40 の整数）の中から選んだ。
+  const LINE_WIDTH_CHOICES = Object.freeze([1, 2, 3, 4, 6, 8, 12]);
+
   function isPaletteColor(value) {
     const hex = normalizeHex(value);
     return hex !== null && PALETTE_COLORS.has(hex);
@@ -76,6 +92,11 @@
     THEME_COLORS,
     STANDARD_COLORS,
     PALETTE_ROWS,
+    RECENT_MAX,
+    STYLE_SET_COLORS,
+    STYLE_SET_ROWS,
+    STYLE_SETS,
+    LINE_WIDTH_CHOICES,
     isHexColor,
     normalizeHex,
     tint,

@@ -166,6 +166,8 @@
     };
     // 見た目の行とパレットの窓、本文と作成者の行。refresh より先に結ぶ。
     root.SigK.colorPopover?.init(doc, win);
+    // 色の一覧の［その他の色…］で開く「色の設定」の画面（spec-7-2 確定事項C）。
+    root.SigK.colorDialog?.init(doc, win);
     styleRows()?.init(doc, win);
     noteRows()?.init(doc, win);
     root.SigK.annotationAngleRow?.init(doc, win);

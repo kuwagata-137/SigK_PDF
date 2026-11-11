@@ -246,6 +246,49 @@
       d: 'M5 15A3 3 0 0 1 7 9.5A3.2 3.2 0 0 1 12 7.5A3.2 3.2 0 0 1 17 9.5A3 3 0 0 1 19 15A2.6 2.6 0 0 1 16 17A3 3 0 0 1 12 17.5A3 3 0 0 1 8 17A2.6 2.6 0 0 1 5 15Z',
       'stroke-width': 1.6,
     }]],
+    // 色の分割ボタンと色の一覧の項目（spec-7-2 確定事項A2・B3。見本 screenshots/office-color-mock-01.png）。色の帯は絵の下に別に描く。
+    colorFill: [
+      ['path', { d: 'M10.5 3.5 4 10a1.4 1.4 0 0 0 0 2l5 5a1.4 1.4 0 0 0 2 0l6.5-6.5z' }],
+      ['path', { d: 'M8.4 5.6 6.6 3.8' }],
+      ['path', { d: 'M19.5 13.5c1.1 1.6 1.8 2.7 1.8 3.6a1.8 1.8 0 0 1-3.6 0c0-.9.7-2 1.8-3.6z', fill: 'currentColor' }],
+    ],
+    colorLine: [
+      ['path', { d: 'M5 17.5 6 13.5 15.8 3.7a1.5 1.5 0 0 1 2.1 0l1.4 1.4a1.5 1.5 0 0 1 0 2.1L9.5 17z' }],
+      ['path', { d: 'M14 5.5l3.5 3.5' }],
+    ],
+    colorFont: [
+      ['path', { d: 'M6.5 17 12 4l5.5 13' }],
+      ['path', { d: 'M8.5 12.5h7' }],
+    ],
+    colorMark: [
+      ['path', { d: 'M8 15.5 6.5 17H4l1.5-3.5L15 4a1.4 1.4 0 0 1 2 0l2 2a1.4 1.4 0 0 1 0 2z' }],
+      ['path', { d: 'M8 10.5l4.5 4.5' }],
+    ],
+    colorSet: [
+      ['rect', { x: 3.5, y: 5.5, width: 17, height: 13, rx: 2 }],
+      ['path', { d: 'M8 15l2.4-6 2.4 6M8.8 13h3.2M15 9.5v5.5' }],
+    ],
+    colorNone: [
+      ['rect', { x: 4, y: 5, width: 16, height: 14, rx: 1 }],
+      ['path', { d: 'M4 19 20 5' }],
+    ],
+    colorMore: [
+      ['circle', { cx: 12, cy: 12, r: 8.5 }],
+      ['circle', { cx: 12, cy: 7.5, r: 1.6, fill: 'currentColor' }],
+      ['circle', { cx: 7.7, cy: 11.2, r: 1.6, fill: 'currentColor' }],
+      ['circle', { cx: 9.4, cy: 16, r: 1.6, fill: 'currentColor' }],
+      ['circle', { cx: 15.2, cy: 15.4, r: 1.6, fill: 'currentColor' }],
+    ],
+    colorWidth: [
+      ['path', { d: 'M4 6h16', 'stroke-width': 1 }],
+      ['path', { d: 'M4 11.5h16', 'stroke-width': 2.2 }],
+      ['path', { d: 'M4 17.5h16', 'stroke-width': 3.6 }],
+    ],
+    colorDash: [
+      ['path', { d: 'M4 6h16' }],
+      ['path', { d: 'M4 12h3M10.5 12h3M17 12h3' }],
+      ['path', { d: 'M4 18c1.3-1.8 2.7 1.8 4 0s2.7 1.8 4 0 2.7 1.8 4 0 2.7 1.8 4 0' }],
+    ],
   };
 
   function has(name) {

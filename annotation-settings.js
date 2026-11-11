@@ -27,6 +27,10 @@ const ANNOT_DEFAULTS = {
   annotOpacity: { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 },
   annotAuthor: '',
   annotMosaicBlock: 8,
+  // 色の一覧の「最近使用した色」（新しい順に 10 色まで）と、分割ボタンの左側で塗る「直前の色」（spec-7-2 確定事項A4・B2・D5）。
+  // 役割は線・塗り・文字・色の 4 つで、style は一括の組の番号（0〜20）。PDF には書かない。
+  annotRecentColors: [],
+  annotLastColors: { line: '#ed7d31', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 8 },
   annotPaletteVersion: ANNOT_PALETTE_VERSION,
 };
 
@@ -53,6 +57,11 @@ const ANNOT_AUTHOR_MAX = 100;
 const ANNOT_MOSAIC_BLOCKS = [4, 8, 14]; // renderer/page-mosaic.js の BLOCKS と同じ（細かい・ふつう・粗い）
 
 const HEX = /^#[0-9a-f]{6}$/i;
+
+// 最近使用した色の数と、一括の組の数（renderer/annotation-palette.js の RECENT_MAX・STYLE_SETS と同じ。test/settings.test.js が見張る）。
+const ANNOT_RECENT_MAX = 10;
+const ANNOT_STYLE_SET_COUNT = 21;
+const ANNOT_LAST_COLOR_ROLES = ['line', 'fill', 'font', 'mark'];
 
 function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -151,6 +160,23 @@ function pickAnnotOpacity(raw, fallback) {
   return picked;
 }
 
+// 最近使用した色。#rrggbb だけを小文字にそろえ、重なりを畳んで 10 色までにする。配列でなければ fallback、それも無ければ空。
+function pickAnnotRecentColors(raw, fallback) {
+  const source = Array.isArray(raw) ? raw : Array.isArray(fallback) ? fallback : [];
+  return [...new Set(source.map(normalizeHex).filter((color) => color !== null))].slice(0, ANNOT_RECENT_MAX);
+}
+
+// 直前の色。役割ごとに #rrggbb なら受け取り、一括は組の番号（0〜20 の整数）。無ければ fallback の値、それも無ければ既定。
+function pickAnnotLastColors(raw, fallback) {
+  const source = objectOf(raw);
+  const picked = {};
+  for (const role of ANNOT_LAST_COLOR_ROLES)
+    picked[role] = normalizeHex(source[role]) ?? normalizeHex(fallback?.[role]) ?? ANNOT_DEFAULTS.annotLastColors[role];
+  const isStyle = (value) => Number.isInteger(value) && value >= 0 && value < ANNOT_STYLE_SET_COUNT;
+  picked.style = [source.style, fallback?.style].find(isStyle) ?? ANNOT_DEFAULTS.annotLastColors.style;
+  return picked;
+}
+
 // 作成者は文字列だけ。前後の空白を落とし、長すぎれば切る。文字列でなければ fallback。
 function pickAnnotAuthor(raw, fallback) {
   if (typeof raw !== 'string')
@@ -176,6 +202,8 @@ function pickAnnotSettings(source) {
     annotOpacity: pickAnnotOpacity(raw.annotOpacity, ANNOT_DEFAULTS.annotOpacity),
     annotAuthor: pickAnnotAuthor(raw.annotAuthor, ANNOT_DEFAULTS.annotAuthor),
     annotMosaicBlock: pickFromList(ANNOT_MOSAIC_BLOCKS, raw.annotMosaicBlock, ANNOT_DEFAULTS.annotMosaicBlock, ANNOT_DEFAULTS.annotMosaicBlock),
+    annotRecentColors: pickAnnotRecentColors(raw.annotRecentColors, ANNOT_DEFAULTS.annotRecentColors),
+    annotLastColors: pickAnnotLastColors(raw.annotLastColors, ANNOT_DEFAULTS.annotLastColors),
     annotPaletteVersion: ANNOT_PALETTE_VERSION,
   };
 }
@@ -198,6 +226,9 @@ function mergeAnnotUi(current, next) {
     annotOpacity: pickAnnotOpacity(merged('annotOpacity'), current.annotOpacity),
     annotAuthor: pickAnnotAuthor(next.annotAuthor, pickAnnotAuthor(current.annotAuthor, ANNOT_DEFAULTS.annotAuthor)),
     annotMosaicBlock: pickFromList(ANNOT_MOSAIC_BLOCKS, next.annotMosaicBlock, current.annotMosaicBlock, ANNOT_DEFAULTS.annotMosaicBlock),
+    // 最近使用した色は並びごと置き換える（重ねると順番が崩れる）。直前の色は役割ごとに重ねる。
+    annotRecentColors: pickAnnotRecentColors(next.annotRecentColors, current.annotRecentColors),
+    annotLastColors: pickAnnotLastColors(merged('annotLastColors'), current.annotLastColors),
   };
 }
 
@@ -212,6 +243,8 @@ module.exports = {
   ANNOT_LINE_STYLES,
   ANNOT_SHAPE_KINDS,
   ANNOT_AUTHOR_MAX,
+  ANNOT_RECENT_MAX,
+  ANNOT_STYLE_SET_COUNT,
   pickAnnotAuthor,
   pickAnnotSettings,
   mergeAnnotUi,

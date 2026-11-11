@@ -11,8 +11,8 @@
 //   chip:color|fill|border     色・塗り・枠線のチップを押してパレットの窓を開いたままにする（画面写真用）
 //   palette:3x5                パレットを開いて行 x 列（1 起点。1 行目がテーマの色、2〜6 行目が濃淡、7 行目が標準の色）を押す
 //                              （塗りは palette:fill:3x5）
-//   other:#123456              「その他の色…」で色を選んだことにする（OS の色の選択は窓を出さない確かめでは開けないので、
-//                              隠した入力に値を置いて change を送る。塗りは other:fill:#123456）
+//   other:#123456              「その他の色…」で「色の設定」の画面を開き、16 進の欄に打って［OK］を押す（塗りは other:fill:#123456）
+//   set:15                     一括の ▼ を押して組の番号（0〜20。spec-7-2 確定事項D2）を押す。set:reset は［標準の色に戻す］
 //   slide:width:6;12;17        スライダーを ; 区切りの値の順に動かし（input）、最後の値で離す（change。不透明度は
 //                              slide:opacity:80;50;35 で %）。履歴は 1 だけ増える
 // 文字列の中には ` と ${ を書かない（テンプレートの中に埋めるため）。
@@ -47,10 +47,18 @@ const STYLE_STEPS = `
         const [row, column] = value.split('x').map(Number);
         document.querySelectorAll('#color-pop .cell')[(row - 1) * 10 + (column - 1)]?.click();
       } else {
-        const input = document.querySelector('#color-pop input.other-input');
-        input.value = value;
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+        // ［その他の色…］で「色の設定」の画面を開き、ユーザー設定の 16 進の欄に打って［OK］を押す（spec-7-2 確定事項C）。
+        document.querySelector('#color-pop .item.other')?.click();
+        await wait(100);
+        const hex = document.getElementById('color-dialog-hexcode');
+        hex.value = value;
+        hex.dispatchEvent(new Event('input', { bubbles: true }));
+        document.getElementById('color-dialog-ok')?.click();
       }
+    } else if (name === 'set') {
+      document.getElementById('props-set')?.click();
+      await wait(100);
+      (arg === 'reset' ? document.querySelector('#color-pop .item.reset') : document.querySelector('#color-pop .set[data-index="' + arg + '"]'))?.click();
     } else if (name === 'slide') {
       const [field, values] = arg.split(':');
       const range = document.getElementById(field === 'opacity' ? 'props-opacity-range' : 'props-width-range');

@@ -111,7 +111,7 @@ const REPORT = `
     popover: (() => {
       const pop = document.getElementById('color-pop');
       const box = pop.getBoundingClientRect();
-      const none = pop.querySelector('.foot .none');
+      const none = pop.querySelector('.items .none');
       return {
         open: !pop.hidden, title: pop.querySelector('.ttl')?.textContent ?? null, marked: [...pop.querySelectorAll('.cell.on')].map((cell) => cell.dataset.color),
         cells: pop.querySelectorAll('.cell').length, none: none === null ? null : { hidden: none.hidden, label: none.textContent, disabled: none.getAttribute('aria-disabled') === 'true' },

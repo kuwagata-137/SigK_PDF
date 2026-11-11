@@ -106,7 +106,8 @@
   const setType = (type) => setSetting('type', type, (value) => value === 'text' || value === 'image');
   const setText = (text) => setSetting('text', String(text ?? ''), () => true);
   const setSize = (size) => setSetting('size', size, (value) => Object.hasOwn(root.SigK.watermarkGeometry.SIZE_RATIOS, value));
-  const setColor = (color) => setSetting('color', color, (value) => planner().COLORS.includes(value));
+  // 色は #rrggbb なら何でも受け、小文字にそろえる（spec-7-2 確定事項E2）。
+  const setColor = (color) => setSetting('color', root.SigK.annotationPalette?.normalizeHex(color) ?? null, (value) => value !== null);
   const setOpacity = (opacity) => setSetting('opacity', Number(opacity), (value) => planner().OPACITIES.includes(value));
   const setAngle = (angle) => setSetting('angle', Number(angle), (value) => Object.values(root.SigK.watermarkGeometry.ANGLES).includes(value));
   const setPosition = (position) => setSetting('position', position, (value) => root.SigK.watermarkGeometry.POSITIONS.includes(value));

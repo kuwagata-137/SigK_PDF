@@ -153,7 +153,7 @@ test('選んでいる線なしの四角は色のチップが「なし」にな�
   fire('mouseup', page, [300, 600]);
   assert.equal(document.getElementById('props-kind').textContent, '四角');
   assert.equal(document.getElementById('props-color-name').textContent, 'なし');
-  assert.equal(document.querySelector('#props-color .sw').classList.contains('none'), true);
+  assert.equal(document.querySelector('#props-color-row .sw').classList.contains('none'), true);
   assert.equal(document.getElementById('props-fill-name').textContent, '#FFFF00');
   const HINTS = SigK.annotationProps.HINTS;
   assert.equal(document.getElementById('props-hint').textContent, `${HINTS.shapeSelected.replace(HINTS.move, `${HINTS.move}${HINTS.boxTransform}`)}${HINTS.box}${HINTS.fill}`);

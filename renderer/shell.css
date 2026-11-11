@@ -567,7 +567,7 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 .wm-opts .k{color:var(--muted); font-size:12px}
 .wm-opts .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 .wm-opts .sub{color:var(--muted); font-size:11.5px}
-.wm-opts .k[hidden],.wm-opts .row[hidden],.wm-opts .swatches[hidden],.wm-img[hidden]{display:none}
+.wm-opts .k[hidden],.wm-opts .row[hidden],.wm-opts .wm-color[hidden],.wm-img[hidden]{display:none}
 .wm-img{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
 .wm-img .name{font-weight:600}
 .wm-img .meta{color:var(--muted); font-size:12px}
@@ -860,18 +860,30 @@ html[data-mode="annot"] #props{display:flex}
 /* 書式の B・I（spec-4b-4a 確定事項G3）。文字そのもので太字・斜体を見せる。 */
 .format-buttons button[data-format="bold"]{font-weight:700}
 .format-buttons button[data-format="italic"]{font-style:italic; font-family:Georgia, serif}
-/* 色と塗りのチップ（spec-4b-1b 確定事項2・3。モック）。押すとパレットの窓が開く。「なし」は白地に赤の斜線。 */
+/* 色の行の分割ボタン（spec-4b-1b 確定事項2・3、spec-7-2 確定事項A。見本 screenshots/office-color-mock-01.png）。左は直前の色で塗るボタンで
+   絵の下の帯にその色、右の ▼ で色の一覧。今の色は右に「今の色」と色見本・名前で出す。「なし」は白地に赤の斜線。 */
 .chip-row{display:flex; align-items:center; gap:8px}
 .chip-row .name{font-size:12px; color:var(--muted)}
+.split{display:inline-flex; align-items:stretch; height:30px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2); overflow:hidden; flex:0 0 auto}
+.split-main{width:38px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; cursor:pointer; color:var(--text)}
+.split-main:hover{background:var(--select)}
+.split-main .ico{display:grid; place-items:center; height:17px}
+.split-main .bar{display:block; width:20px; height:4px; border:1px solid rgba(16,24,40,.18); border-radius:1px}
+.split-main.set-main .set-sample{width:24px; height:18px; border:1.5px solid; border-radius:3px; display:grid; place-items:center; font:600 10px/1 inherit; font-family:inherit}
+.chip.split-drop{height:auto; width:20px; padding:0; border:0; border-left:1px solid var(--border); border-radius:0; justify-content:center; gap:0}
+.chip.split-drop:hover{background:var(--select)}
+.split.open{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.split.open .chip.split-drop{background:var(--select)}
+.chip-row .cur{display:inline-flex; align-items:center; gap:6px; min-width:0; font-size:12px; color:var(--muted)}
+.chip-row .cur .sw{width:16px; height:16px; flex:0 0 16px; border-radius:3px; border:1px solid rgba(16,24,40,.18); position:relative; overflow:hidden}
+.chip-row .sw.none{background:#fff}
+/* 複数を選んでいて色がそろっていないとき（spec-4b-3a 確定事項I1。モック screenshots/phase4b-3-multi.png）。斜線で、印は付けない。 */
+.chip-row .sw.mixed{background:repeating-linear-gradient(135deg, var(--surface) 0 3px, color-mix(in srgb, var(--muted) 45%, transparent) 3px 5px)}
+.chip-row .sw.none::after{content:""; position:absolute; left:50%; top:-6px; bottom:-6px; width:1.5px; margin-left:-.75px; background:var(--danger); transform:rotate(45deg)}
 .chip{
   height:28px; padding:0 7px 0 4px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2);
   display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-size:12px; color:var(--muted);
 }
-.chip .sw{width:44px; height:18px; border-radius:4px; border:1px solid rgba(16,24,40,.18); position:relative; overflow:hidden}
-.chip .sw.none{background:#fff}
-/* 複数を選んでいて色がそろっていないとき（spec-4b-3a 確定事項I1。モック screenshots/phase4b-3-multi.png）。斜線で、印は付けない。 */
-.chip .sw.mixed{background:repeating-linear-gradient(135deg, var(--surface) 0 3px, color-mix(in srgb, var(--muted) 45%, transparent) 3px 5px)}
-.chip .sw.none::after{content:""; position:absolute; left:50%; top:-12px; bottom:-12px; width:2px; margin-left:-1px; background:var(--danger); transform:rotate(66deg)}
 .chip .caret{font-size:9px; color:var(--muted)}
 .chip.open{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
 /* 線の太さと不透明度（確定事項7）。スライダー＋数値欄＋単位。 */
@@ -923,18 +935,36 @@ html[data-mode="annot"] #props{display:flex}
 .color-pop .cell{width:20px; height:20px; border:1px solid rgba(16,24,40,.14); border-radius:3px; padding:0; cursor:pointer}
 .color-pop .grid.shades .cell{border-radius:0}
 .color-pop .cell.on{box-shadow:0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); position:relative; z-index:1}
-.color-pop .foot{display:flex; gap:8px; margin-top:12px; padding-top:10px; border-top:1px solid var(--border)}
-.color-pop .foot button{
-  flex:1; height:28px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2); font-size:12px;
-  color:var(--text); display:inline-flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;
+/* 色の一覧の項目（spec-7-2 確定事項B1・B3。見本 screenshots/office-color-mock-02.png）。縦に並べ、下の一覧（太さ・線種）は項目の左に開く。 */
+.color-pop .items{margin-top:10px; padding-top:6px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:1px}
+.color-pop .item{
+  position:relative; display:flex; align-items:center; gap:9px; width:100%; height:30px; padding:0 8px; border-radius:6px;
+  font-size:12.5px; color:var(--text); text-align:left; cursor:pointer;
 }
-.color-pop .foot button[hidden]{display:none}
-.color-pop .foot button[aria-disabled="true"]{cursor:default}
-.color-pop .mini{width:14px; height:14px; border-radius:50%; border:1px solid rgba(16,24,40,.18)}
-.color-pop .mini.none{background:#fff; position:relative; overflow:hidden}
-.color-pop .mini.none::after{content:""; position:absolute; left:50%; top:-2px; bottom:-2px; width:1.5px; margin-left:-.75px; background:var(--danger); transform:rotate(45deg)}
-.color-pop .mini.other{background:conic-gradient(#c00000,#ffc000,#ffff00,#00b050,#00b0f0,#0070c0,#7030a0,#c00000)}
-.color-pop .other-input{position:absolute; left:0; bottom:0; width:0; height:0; opacity:0; pointer-events:none; border:0; padding:0}
+.color-pop .item:hover,.color-pop .item.on{background:var(--select)}
+.color-pop .item[aria-disabled="true"]{cursor:default; background:none}
+.color-pop .item .ico{width:18px; display:grid; place-items:center; color:var(--muted)}
+.color-pop .item.none .ico,.color-pop .item.reset .ico{color:var(--danger)}
+.color-pop .item .label{flex:1}
+.color-pop .item .arr{font-size:9px; color:var(--muted)}
+.color-pop .grid.recent{margin-bottom:2px}
+.color-pop [hidden]{display:none}
+.color-sub{
+  position:absolute; right:calc(100% + 6px); top:-6px; width:188px; padding:6px; background:var(--surface);
+  border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:1px; cursor:default;
+}
+.color-sub .row{display:flex; align-items:center; gap:10px; width:100%; height:28px; padding:0 8px; border-radius:6px; font-size:12px; color:var(--text); cursor:pointer}
+.color-sub .row:hover{background:var(--surface-2)}
+.color-sub .row.on{background:var(--select); color:var(--accent)}
+.color-sub .row .v{width:38px; color:var(--muted); font-variant-numeric:tabular-nums}
+.color-sub .row.on .v{color:var(--accent)}
+.color-sub .row .w{flex:1; display:block; background:var(--text); border-radius:1px}
+.color-sub .row .ls{flex:1; display:flex; color:var(--text)}
+/* 一括の組（spec-7-2 確定事項D2。見本 screenshots/office-color-mock-05.png）。 */
+.color-pop .sets .sub{margin-top:0}
+.color-pop .set-grid{display:grid; grid-template-columns:repeat(7,30px); gap:6px}
+.color-pop .set{width:30px; height:24px; border:1.5px solid; border-radius:3px; display:grid; place-items:center; font:600 11px/1 inherit; font-family:inherit; cursor:pointer; padding:0}
+.color-pop .set.on{box-shadow:0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent)}
 /* 文字の大きさ・線の太さ（spec-4-2 確定事項2・34、spec-4-3 確定事項2・29）。 */
 .props-select{
   font:13px inherit; font-family:inherit; width:110px; height:28px; padding:0 8px;
@@ -973,3 +1003,40 @@ html[data-mode="annot"] #props{display:flex}
   .print-page:last-child{page-break-after:auto; break-after:auto}
   .print-page img{display:block; max-width:100%; max-height:100%}
 }
+
+/* 「色の設定」の画面（spec-7-2 確定事項C。見本 screenshots/office-color-mock-06.png・07.png）。 */
+#color-dialog{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow); width:min(480px, 92vw);
+}
+#color-dialog::backdrop{background:rgba(16,24,40,.34)}
+.cdlg-body{display:flex; gap:16px; padding:12px 16px 16px}
+.cdlg-left{flex:1; min-width:0}
+.cdlg-tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:10px}
+.cdlg-tabs button{padding:6px 14px; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; font-size:12.5px}
+.cdlg-tabs button.on{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
+.cdlg-pane[hidden]{display:none}
+.cdlg-k{margin:0 0 4px; font-size:12px; color:var(--muted)}
+.cdlg-hex{display:block; margin:0 auto}
+.cdlg-hex .hx{stroke:#fff; stroke-width:.6; cursor:pointer}
+.cdlg-hex .hx:hover{stroke:var(--text); stroke-width:1.2}
+.cdlg-hex .hx-on{fill:none; stroke:#000; stroke-width:2; pointer-events:none}
+.cdlg-picker{display:flex; gap:12px; margin-bottom:8px}
+.cdlg-field{
+  flex:1; height:150px; position:relative; border:1px solid var(--border-strong); cursor:crosshair;
+  background:linear-gradient(to bottom, rgba(128,128,128,0), #808080), linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.cdlg-field i{position:absolute; width:12px; height:12px; margin:-6px 0 0 -6px; border:2px solid #000; border-radius:50%; box-shadow:0 0 0 1px #fff; pointer-events:none}
+.cdlg-lum{width:14px; height:150px; position:relative; border:1px solid var(--border-strong); cursor:ns-resize}
+.cdlg-lum i{position:absolute; left:calc(100% + 2px); margin-top:-7px; font-style:normal; font-size:10px; line-height:14px; color:var(--text); pointer-events:none}
+.cdlg-f{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12.5px}
+.cdlg-f label{width:96px; color:var(--muted)}
+.cdlg-f input,.cdlg-f select{
+  width:92px; height:28px; padding:0 7px; border:1px solid var(--border-strong); border-radius:6px;
+  background:var(--surface); color:var(--text); font:inherit;
+}
+.cdlg-right{width:104px; display:flex; flex-direction:column; gap:8px; padding-top:38px}
+.cdlg-right .dlg-btn{min-width:0; width:100%; padding:0 6px; white-space:nowrap}
+.cdlg-compare{margin-top:auto; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11px; color:var(--muted)}
+.cdlg-sw{display:flex; flex-direction:column; width:56px; border:1px solid var(--border-strong)}
+.cdlg-sw i{display:block; height:28px}

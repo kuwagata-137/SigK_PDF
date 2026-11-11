@@ -18,6 +18,8 @@
   let el = null;
   // いま行に出している形（annotation-style-patch.js の viewOf）。行を出していなければ null。
   let view = null;
+  // いま行に出している対象（一括の一覧の今の組を決める。spec-7-2 確定事項D）。
+  let targets = [];
 
   function annotate() {
     return root.SigK.annotate;
@@ -85,21 +87,30 @@
   function render(next) {
     if (el === null)
       return false;
-    view = patch().viewOf(Array.isArray(next) ? next : [next]);
+    targets = Array.isArray(next) ? next : [next];
+    view = patch().viewOf(targets);
     el.colorRow.hidden = view === null;
     if (view !== null) {
       el.colorLabel.textContent = view.colorLabel;
       chips().renderChip(el.colorChip, el.colorName, view.color, view.colorLabel);
+      chips().renderMain(el.colorMain, chips().roleOfLabel(view.colorLabel), view.colorLabel);
     }
     el.fillRow.hidden = view?.fill === null || view === null;
-    if (!el.fillRow.hidden)
+    if (!el.fillRow.hidden) {
       chips().renderChip(el.fillChip, el.fillName, view.fill, '塗り');
+      chips().renderMain(el.fillMain, 'fill', '塗り');
+    }
+    // 一括は塗りを持てる書き込みがあるときだけ（spec-7-2 確定事項D1）。
+    el.setRow.hidden = el.fillRow.hidden;
+    if (!el.setRow.hidden)
+      chips().renderSetMain(el.setMain);
     renderStyleButtons(view?.lineStyle ?? null);
     // テキストの枠線（spec-4b-4a 確定事項G4）と、太さの行の名（線の太さ・枠線の太さ・線と枠線の太さ。確定事項G5）。
     el.borderRow.hidden = (view?.border ?? null) === null;
     if (!el.borderRow.hidden) {
       el.borderLabel.textContent = view.border.label;
       chips().renderChip(el.borderChip, el.borderName, view.border, view.border.label);
+      chips().renderMain(el.borderMain, 'line', view.border.label);
     }
     if (view?.lineWidth)
       el.widthLabel.textContent = view.lineWidth.label;
@@ -125,9 +136,12 @@
       doc,
       body: byId('props-color-row').parentElement,
       colorRow: byId('props-color-row'), colorLabel: byId('props-color-label'), colorChip: byId('props-color'), colorName: byId('props-color-name'),
-      fillRow: byId('props-fill-row'), fillChip: byId('props-fill'), fillName: byId('props-fill-name'),
+      colorMain: byId('props-color-apply'),
+      fillRow: byId('props-fill-row'), fillChip: byId('props-fill'), fillName: byId('props-fill-name'), fillMain: byId('props-fill-apply'),
+      setRow: byId('props-set-row'), setChip: byId('props-set'), setMain: byId('props-set-apply'),
       styleRow: byId('props-style-row'), style: byId('props-style'),
       borderRow: byId('props-border-row'), borderLabel: byId('props-border-label'), borderChip: byId('props-border'), borderName: byId('props-border-name'),
+      borderMain: byId('props-border-apply'),
       widthLabel: byId('props-width-label'),
       widthRow: byId('props-width-row'), widthRange: byId('props-width-range'), width: byId('props-width'),
       opacityRow: byId('props-opacity-row'), opacityRange: byId('props-opacity-range'), opacity: byId('props-opacity'),
@@ -151,6 +165,12 @@
     el.colorChip.addEventListener('click', () => chips().openColor(el.colorChip, el.colorLabel.textContent, view));
     el.fillChip.addEventListener('click', () => chips().openFill(el.fillChip, view));
     el.borderChip.addEventListener('click', () => chips().openBorder(el.borderChip, view));
+    el.setChip.addEventListener('click', () => chips().openSet(el.setChip, targets));
+    // 分割ボタンの左側（spec-7-2 確定事項A5）。
+    el.colorMain.addEventListener('click', () => chips().applyLast(el.colorMain.dataset.role ?? 'line', 'color'));
+    el.fillMain.addEventListener('click', () => chips().applyLast('fill', 'fill'));
+    el.borderMain.addEventListener('click', () => chips().applyLast('line', 'border'));
+    el.setMain.addEventListener('click', () => chips().applyLastSet());
     const { LINE_WIDTH_MIN, LINE_WIDTH_MAX, OPACITY_MIN } = presets();
     range().bind(el.widthRange, el.width, {
       min: LINE_WIDTH_MIN, max: LINE_WIDTH_MAX,

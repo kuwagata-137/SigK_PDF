@@ -226,6 +226,8 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 const DEFAULT_COLORS = { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' };
 // 図形の塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。
 const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { shape: false }, annotLineStyles: { shape: 'solid' } };
+// 最近使用した色と直前の色（spec-7-2 確定事項A4・B2）。
+const DEFAULT_COLOR_MEMORY = { annotRecentColors: [], annotLastColors: { line: '#ed7d31', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 8 } };
 const DEFAULT_OPACITY = { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 };
 // テキストの太字・斜体・塗り・枠線の次に付ける値（spec-4b-4a 確定事項H）。
 const DEFAULT_TEXT_STYLE = { bold: false, italic: false, fill: null, border: null, borderWidth: 1 };
@@ -235,7 +237,7 @@ const DEFAULT_CALLOUT_STYLE = { fontSize: 12, bold: false, italic: false, fill: 
 test('pickUi はモードとサイドパネルと編集モードの左と注釈の色・塗り・線なし・線種・文字の大きさ・線の太さ・図形の種類・不透明度・作成者だけを取り出す', () => {
   const ui = pickUi(mergeDefaults({ mode: 'tools', sidePanel: { open: false, width: 300 }, recent: [] }));
 
-  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', viewPointer: 'select', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, ...DEFAULT_SHAPE_STYLE, annotFontSize: 12, annotTextStyle: DEFAULT_TEXT_STYLE, annotCalloutStyle: DEFAULT_CALLOUT_STYLE, annotLineWidth: 2, annotMarkerWidth: 12, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '', annotMosaicBlock: 8 });
+  assert.deepEqual(ui, { mode: 'tools', pageLayout: 'single', editSide: 'thumbs', viewPointer: 'select', sidePanel: { open: false, width: 300 }, annotColors: DEFAULT_COLORS, ...DEFAULT_SHAPE_STYLE, annotFontSize: 12, annotTextStyle: DEFAULT_TEXT_STYLE, annotCalloutStyle: DEFAULT_CALLOUT_STYLE, annotLineWidth: 2, annotMarkerWidth: 12, annotShapeKind: 'square', annotOpacity: DEFAULT_OPACITY, annotAuthor: '', annotMosaicBlock: 8, ...DEFAULT_COLOR_MEMORY });
   // 色の移し替えの印はメインだけが使い、レンダラーへは渡さない（spec-4b-1b 確定事項15）。
   assert.equal('annotPaletteVersion' in ui, false);
 });
@@ -260,6 +262,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
     annotMosaicBlock: 8,
+    ...DEFAULT_COLOR_MEMORY,
   });
   assert.deepEqual(mergeUi(current, { mode: 'annot' }), {
     mode: 'annot',
@@ -277,6 +280,7 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
     annotMosaicBlock: 8,
+    ...DEFAULT_COLOR_MEMORY,
   });
   // 使えない値は現在値のまま。何も送らなくても壊れない。
   assert.deepEqual(mergeUi(current, { mode: 'zzz', sidePanel: { width: 9999 } }), {
@@ -295,8 +299,9 @@ test('mergeUi は入れ子をキー単位で重ねる', () => {
     annotOpacity: DEFAULT_OPACITY,
     annotAuthor: '',
     annotMosaicBlock: 8,
+    ...DEFAULT_COLOR_MEMORY,
   });
-  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs', viewPointer: 'select', ...DEFAULT_SHAPE_STYLE, annotMosaicBlock: 8 });
+  assert.deepEqual(mergeUi(current, null), { ...current, editSide: 'thumbs', viewPointer: 'select', ...DEFAULT_SHAPE_STYLE, annotMosaicBlock: 8, ...DEFAULT_COLOR_MEMORY });
 });
 
 // 編集モードの左に出すもの（spec-4b-1a 確定事項17）。既定はサムネイルで、使えない値は今の値か既定へ落ちる。
@@ -572,4 +577,25 @@ test('pickUi と mergeUi は pageLayout を運ぶ', () => {
   assert.equal(mergeUi(current, { pageLayout: 'zzz' }).pageLayout, 'single');
   // 古い settings.json（pageLayout が無い）から来た current でも落ちない。
   assert.equal(mergeUi({ mode: 'view', sidePanel: { open: true, width: 300 } }, {}).pageLayout, 'single');
+});
+
+test('annotRecentColors は #rrggbb だけを小文字にそろえて重なりを畳み、10 色までにする（spec-7-2 確定事項B2）', () => {
+  const colors = ['#AABBCC', 'x', '#aabbcc', '#112233', ...Array.from({ length: 12 }, (_, i) => `#0000${String(i).padStart(2, '0')}`)];
+  const ui = pickUi(mergeDefaults({ annotRecentColors: colors }));
+  assert.equal(ui.annotRecentColors.length, 10);
+  assert.deepEqual(ui.annotRecentColors.slice(0, 3), ['#aabbcc', '#112233', '#000000']);
+  assert.deepEqual(pickUi(mergeDefaults({ annotRecentColors: 'x' })).annotRecentColors, []);
+  // 部分更新では並びごと置き換える。配列でなければ今のまま。
+  assert.deepEqual(mergeUi(ui, { annotRecentColors: ['#ff0000'] }).annotRecentColors, ['#ff0000']);
+  assert.deepEqual(mergeUi(ui, { annotRecentColors: null }).annotRecentColors, ui.annotRecentColors);
+});
+
+test('annotLastColors は役割ごとに #rrggbb を受け、一括は 0〜20 の整数だけを受ける（spec-7-2 確定事項A4・D5）', () => {
+  const ui = pickUi(mergeDefaults({ annotLastColors: { line: '#ABCDEF', fill: 'red', style: 20 } }));
+  assert.deepEqual(ui.annotLastColors, { line: '#abcdef', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 20 });
+  assert.equal(pickUi(mergeDefaults({ annotLastColors: { style: 21 } })).annotLastColors.style, 8);
+  assert.equal(pickUi(mergeDefaults({ annotLastColors: { style: 1.5 } })).annotLastColors.style, 8);
+  // 部分更新は役割ごとに重ねる。
+  const merged = mergeUi(ui, { annotLastColors: { font: '#00ff00' } });
+  assert.deepEqual(merged.annotLastColors, { line: '#abcdef', fill: '#5b9bd5', font: '#00ff00', mark: '#ffff00', style: 20 });
 });

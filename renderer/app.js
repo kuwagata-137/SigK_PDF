@@ -73,6 +73,8 @@
       // 不透明度と作成者（spec-4-4 確定事項21）。作成者が空ならメインが OS のユーザー名で埋めている。
       root.SigK.annotateOpacity?.applyOpacities(result.ui.annotOpacity);
       root.SigK.annotateNote?.applyAuthor(result.ui.annotAuthor);
+      // 最近使用した色と分割ボタンの直前の色（spec-7-2 確定事項A4・B2）。古い settings.json には無いことがある。
+      root.SigK.colorMemory?.apply({ recentColors: result.ui.annotRecentColors, lastColors: result.ui.annotLastColors });
       return result.ui;
     } catch (error) {
       root.SigK.log?.warn('app', '前回の画面の設定を読めませんでした', error);

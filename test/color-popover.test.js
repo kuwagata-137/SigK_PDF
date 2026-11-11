@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
 
-// 色のパレットの窓（spec-4b-1b 確定事項6・10〜13。モック screenshots/phase4b-style-palette.png）。
+// 色の一覧の窓（spec-4b-1b 確定事項6・10〜13、spec-7-2 確定事項B・C。見本 screenshots/office-color-mock-02.png〜07.png）。
 
 const A = 'C:\\work\\a.pdf';
 
@@ -27,7 +27,7 @@ function click(shell, node) {
   node.dispatchEvent(new shell.window.MouseEvent('click', { bubbles: true }));
 }
 
-test('チップを押すと、見出し・テーマの色・濃淡 5 段・標準の色・下の段のパレットが右パネルの左に開き、今の色に印が付く', async (t) => {
+test('▼ を押すと、見出し・テーマの色・濃淡 5 段・標準の色・項目の一覧が右パネルの左に開き、今の色に印が付く', async (t) => {
   const shell = await withSquareTool(t);
   const { document, SigK } = shell;
   const pop = document.getElementById('color-pop');
@@ -37,9 +37,12 @@ test('チップを押すと、見出し・テーマの色・濃淡 5 段・標�
   assert.equal(pop.hidden, false);
   assert.equal(SigK.colorPopover.isOpen(), true);
   assert.equal(pop.querySelector('.ttl').textContent, '線の色');
-  assert.deepEqual([...pop.querySelectorAll('.sub')].map((node) => node.textContent), ['テーマの色', '標準の色']);
-  const grids = [...pop.querySelectorAll('.grid')];
+  // 最近使用した色はまだ無いので、見出しごと出さない（spec-7-2 確定事項B2）。
+  assert.deepEqual([...pop.querySelectorAll('.sub')].filter((node) => !node.hidden).map((node) => node.textContent), ['テーマの色', '標準の色']);
+  const grids = [...pop.querySelectorAll('.grid')].filter((grid) => !grid.hidden);
   assert.deepEqual(grids.map((grid) => grid.querySelectorAll('.cell').length), [10, 50, 10]);
+  // 項目は［線なし］［その他の色…］［太さ ▶］［線種 ▶］（spec-7-2 確定事項B3）。
+  assert.deepEqual([...pop.querySelectorAll('.items .item')].map((item) => item.querySelector('.label').textContent), ['線なし', 'その他の色…', '太さ', '線種']);
   assert.deepEqual(plain(SigK.annotationPalette.PALETTE_ROWS.flat()), [...pop.querySelectorAll('.cell')].map((cell) => cell.dataset.color));
   const on = [...pop.querySelectorAll('.cell.on')];
   assert.deepEqual(on.map((cell) => [cell.dataset.color, cell.getAttribute('aria-pressed'), SigK.tipContent.resolve(cell).name]), [['#ff0000', 'true', '#FF0000']]);
@@ -47,8 +50,8 @@ test('チップを押すと、見出し・テーマの色・濃淡 5 段・標�
   assert.equal(chip.classList.contains('open'), true);
   assert.equal(chip.getAttribute('aria-expanded'), 'true');
   // 線の色の［なし］は「線なし」。塗りが無いので押せない（線と塗りを両方なしにはできない）。
-  const none = pop.querySelector('.foot .none');
-  assert.deepEqual([none.hidden, none.textContent, none.getAttribute('aria-disabled')], [false, '線なし', 'true']);
+  const none = pop.querySelector('.items .none');
+  assert.deepEqual([none.textContent, none.getAttribute('aria-disabled')], ['線なし', 'true']);
   click(shell, none);
   assert.equal(pop.hidden, false, '押せない［なし］では閉じない');
   // 右パネルの左端から 276px 左、行の上端の 40px 上（jsdom は寸法が 0 なので下限の 8px・90px）。
@@ -95,7 +98,7 @@ test('Esc・外を押す・同じチップをもう 1 度押す、のどれで�
   assert.equal(SigK.annotate.getTool(), 'shape');
 });
 
-test('塗りの［塗りなし］は線があるときだけ押せ、「その他の色…」は OS の色の選択で選んだ色を当てる', async (t) => {
+test('塗りの［塗りなし］は線があるときだけ押せ、「その他の色…」は色の設定の画面で選んだ色を当てて最近使用した色に足す', async (t) => {
   const shell = await withSquareTool(t);
   const { document, SigK } = shell;
   const pop = document.getElementById('color-pop');
@@ -103,22 +106,28 @@ test('塗りの［塗りなし］は線があるときだけ押せ、「その�
   assert.equal(SigK.annotate.fillOf('square'), '#ffd966');
   click(shell, document.getElementById('props-fill'));
   assert.equal(pop.querySelector('.ttl').textContent, '塗り');
-  const none = pop.querySelector('.foot .none');
+  const none = pop.querySelector('.items .none');
   assert.deepEqual([none.textContent, none.getAttribute('aria-disabled')], ['塗りなし', null]);
   assert.equal(pop.querySelector('.cell.on').dataset.color, '#ffd966');
-  // 「その他の色…」: 隠した <input type="color"> の値が決まったら当てて閉じる。
-  const input = pop.querySelector('input.other-input');
-  assert.equal(input.value, '#ffd966', '今の色から選び始める');
-  click(shell, pop.querySelector('.foot .other'));
-  input.value = '#123456';
-  input.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
+  // 「その他の色…」: 一覧を閉じて色の設定の画面を開く。今の色から選び始め、［OK］で当てる（spec-7-2 確定事項C）。
+  click(shell, pop.querySelector('.items .other'));
   assert.equal(pop.hidden, true);
+  assert.equal(SigK.colorDialog.isOpen(), true);
+  assert.equal(SigK.colorDialog.color(), '#ffd966', '今の色から選び始める');
+  const hex = document.getElementById('color-dialog-hexcode');
+  hex.value = '123456';
+  hex.dispatchEvent(new shell.window.Event('input', { bubbles: true }));
+  click(shell, document.getElementById('color-dialog-ok'));
+  assert.equal(SigK.colorDialog.isOpen(), false);
   assert.equal(SigK.annotate.fillOf('square'), '#123456');
+  assert.deepEqual(SigK.colorMemory.recent(), ['#123456'], '色の設定の画面で選んだ色は最近使用した色に足す');
+  assert.equal(SigK.colorMemory.lastOf('fill'), '#123456', '塗りの直前の色になる');
   // 線なしにすると、塗りの［塗りなし］は押せない。
   shell.pickColor('props-color', null);
   assert.equal(SigK.annotate.nextStyleOf('square').color, null);
   click(shell, document.getElementById('props-fill'));
-  assert.equal(pop.querySelector('.foot .none').getAttribute('aria-disabled'), 'true');
+  assert.equal(pop.querySelector('.items .none').getAttribute('aria-disabled'), 'true');
+  assert.deepEqual([...pop.querySelectorAll('.grid.recent .cell')].map((cell) => cell.dataset.color), ['#123456']);
   assert.equal(pop.querySelector('.cell.on'), null, 'パレットに無い色には印を付けない');
 });
 
@@ -145,5 +154,5 @@ test('テキストの色のパレットには［なし］を出さず、窓の�
   SigK.annotate.setTool('text');
   click(shell, document.getElementById('props-color'));
   assert.equal(pop.querySelector('.ttl').textContent, '文字の色');
-  assert.equal(pop.querySelector('.foot .none').hidden, true);
+  assert.equal(pop.querySelector('.items .none'), null);
 });
