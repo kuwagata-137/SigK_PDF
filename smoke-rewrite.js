@@ -10,6 +10,8 @@
 //   SIGK_SMOKE_WATERMARK=<PDF>  SIGK_SMOKE_WATERMARK_OPS=<操作列>  SIGK_SMOKE_WATERMARK_OUT=<出力>
 //     操作はカンマ区切り: text:<文字> / image:<PNG・JPEG のパス> / size:small|medium|large /
 //     color:#rrggbb / opacity:<%> / angle:45|0 / pos:<9 か所> / pages:<範囲> / preview:<ページ番号>
+//     color-main（色の分割ボタンの左側で直前の色を当てる）/ color-other:#rrggbb（▼ →［その他の色…］→ 色の設定の画面の
+//     16 進の欄 →［OK］。spec-7-2 確定事項E）
 //     SIGK_SMOKE_WATERMARK_STAY=1 なら書いたあとも透かしの画面に留まる（画面写真を撮るため）
 //   SIGK_SMOKE_FLATTEN=<PDF>  SIGK_SMOKE_FLATTEN_OUT=<出力>
 //     SIGK_SMOKE_FLATTEN_STAY=screen なら件数を出した画面で、confirm なら確認ダイアログを開いたまま止まる
@@ -54,6 +56,17 @@ function watermarkScript({ source, ops, target, stay }) {
       else if (name === 'image') await tool.setImage(arg);
       else if (name === 'size') tool.setSize(arg);
       else if (name === 'color') tool.setColor(arg);
+      else if (name === 'color-main') document.getElementById('wm-color-apply').click();
+      else if (name === 'color-other') {
+        document.getElementById('wm-color').click();
+        await wait(100);
+        document.querySelector('#color-pop .item.other').click();
+        await wait(100);
+        const hex = document.getElementById('color-dialog-hexcode');
+        hex.value = arg;
+        hex.dispatchEvent(new Event('input', { bubbles: true }));
+        document.getElementById('color-dialog-ok').click();
+      }
       else if (name === 'opacity') tool.setOpacity(Number(arg) / 100);
       else if (name === 'angle') tool.setAngle(Number(arg));
       else if (name === 'pos') tool.setPosition(arg);

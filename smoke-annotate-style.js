@@ -13,6 +13,7 @@
 //                              （塗りは palette:fill:3x5）
 //   other:#123456              「その他の色…」で「色の設定」の画面を開き、16 進の欄に打って［OK］を押す（塗りは other:fill:#123456）
 //   set:15                     一括の ▼ を押して組の番号（0〜20。spec-7-2 確定事項D2）を押す。set:reset は［標準の色に戻す］
+//   main:color|fill|border|set 分割ボタンの左側（直前の色・直前の組を当てる。spec-7-2 確定事項A1・A5・D5）を押す
 //   slide:width:6;12;17        スライダーを ; 区切りの値の順に動かし（input）、最後の値で離す（change。不透明度は
 //                              slide:opacity:80;50;35 で %）。履歴は 1 だけ増える
 // 文字列の中には ` と ${ を書かない（テンプレートの中に埋めるため）。
@@ -59,6 +60,8 @@ const STYLE_STEPS = `
       document.getElementById('props-set')?.click();
       await wait(100);
       (arg === 'reset' ? document.querySelector('#color-pop .item.reset') : document.querySelector('#color-pop .set[data-index="' + arg + '"]'))?.click();
+    } else if (name === 'main') {
+      document.getElementById(({ fill: 'props-fill', border: 'props-border', set: 'props-set' }[arg] ?? 'props-color') + '-apply')?.click();
     } else if (name === 'slide') {
       const [field, values] = arg.split(':');
       const range = document.getElementById(field === 'opacity' ? 'props-opacity-range' : 'props-width-range');
