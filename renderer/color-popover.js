@@ -300,10 +300,13 @@
     buildSets(opts);
     buildRecent(opts);
     buildItems(opts);
+    // 一覧には同じ値の色が 2 組ある（#808080 と #ffc000）。印は上にある方の 1 つだけに付ける（spec-7-2 確定事項B6）。
     const hex = palette().normalizeHex(opts.current);
-    for (const cell of state.el.querySelectorAll('.cell')) {
-      cell.classList.toggle('on', cell.dataset.color === hex);
-      cell.setAttribute('aria-pressed', String(cell.dataset.color === hex));
+    const cells = [...state.el.querySelectorAll('.cell')];
+    const marked = cells.find((cell) => cell.dataset.color === hex) ?? null;
+    for (const cell of cells) {
+      cell.classList.toggle('on', cell === marked);
+      cell.setAttribute('aria-pressed', String(cell === marked));
     }
     state.el.hidden = false;
     place(anchor);

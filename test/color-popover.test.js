@@ -157,3 +157,24 @@ test('テキストの色のパレットには［なし］を出さず、窓の�
   assert.equal(pop.querySelector('.ttl').textContent, '文字の色');
   assert.equal(pop.querySelector('.items .none'), null);
 });
+
+test('一覧に同じ値の色が 2 つあっても、印は上にある方の 1 つだけに付ける（#808080・#ffc000。spec-7-2 確定事項B6）', async (t) => {
+  const shell = await withSquareTool(t);
+  const { document, SigK } = shell;
+  const pop = document.getElementById('color-pop');
+  const cells = () => [...pop.querySelectorAll('.cell')];
+  // 一覧の何番目か（0 起点。テーマの色 10・濃淡 50・標準の色 10 の順）。
+  const marked = () => cells().flatMap((cell, index) => (cell.classList.contains('on') ? [index] : []));
+  const pressed = () => cells().filter((cell) => cell.getAttribute('aria-pressed') === 'true').length;
+  for (const [color, top, other] of [['#ffc000', 7, 62], ['#808080', 11, 50]]) {
+    assert.deepEqual(cells().flatMap((cell, index) => (cell.dataset.color === color ? [index] : [])), [top, other], `${color} は一覧に 2 つある`);
+    SigK.annotate.setColor(color);
+    click(shell, document.getElementById('props-color'));
+    assert.deepEqual(marked(), [top], `${color} の印は上の 1 つだけ`);
+    assert.equal(pressed(), 1);
+    assert.equal(document.activeElement, cells()[top], '開いたときは印の付いた見本へ移る');
+    // 下の方を押しても、当たる色は同じ。
+    click(shell, cells()[other]);
+    assert.equal(SigK.annotate.nextStyleOf('square').color, color);
+  }
+});
