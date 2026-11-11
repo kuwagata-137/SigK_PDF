@@ -120,7 +120,7 @@ test('塗りの［塗りなし］は線があるときだけ押せ、「その�
   click(shell, document.getElementById('color-dialog-ok'));
   assert.equal(SigK.colorDialog.isOpen(), false);
   assert.equal(SigK.annotate.fillOf('square'), '#123456');
-  assert.deepEqual(SigK.colorMemory.recent(), ['#123456'], '色の設定の画面で選んだ色は最近使用した色に足す');
+  assert.deepEqual([...SigK.colorMemory.recent()], ['#123456'], '色の設定の画面で選んだ色は最近使用した色に足す');
   assert.equal(SigK.colorMemory.lastOf('fill'), '#123456', '塗りの直前の色になる');
   // 線なしにすると、塗りの［塗りなし］は押せない。
   shell.pickColor('props-color', null);
@@ -128,7 +128,8 @@ test('塗りの［塗りなし］は線があるときだけ押せ、「その�
   click(shell, document.getElementById('props-fill'));
   assert.equal(pop.querySelector('.items .none').getAttribute('aria-disabled'), 'true');
   assert.deepEqual([...pop.querySelectorAll('.grid.recent .cell')].map((cell) => cell.dataset.color), ['#123456']);
-  assert.equal(pop.querySelector('.cell.on'), null, 'パレットに無い色には印を付けない');
+  assert.equal(pop.querySelector('.colors .cell.on'), null, 'パレットに無い色には、テーマの色・標準の色の並びで印を付けない');
+  assert.deepEqual([...pop.querySelectorAll('.cell.on')].map((cell) => cell.dataset.color), ['#123456'], '最近使用した色の今の色に印を付ける');
 });
 
 test('テキストの色のパレットには［なし］を出さず、窓の中のキーは紙の上の操作に取られない', async (t) => {
