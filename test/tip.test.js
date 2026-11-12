@@ -54,7 +54,7 @@ test('対象の上に止めると、待ち時間のあとで名前・説明・�
   assert.equal(tip.getAttribute('role'), 'tooltip');
   assert.equal(tip.parentElement, document.body);
   assert.equal(tipText(shell, '.tip-name'), '上書き保存');
-  assert.equal(tipText(shell, '.tip-desc'), '開いているファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。');
+  assert.equal(tipText(shell, '.tip-desc'), '開いているファイルに、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（名前.pdf.bak）は作りません。');
   assert.deepEqual(kbds(shell), ['Ctrl+S']);
   assert.equal(tipText(shell, '.tip-keys'), 'キー: Ctrl+S');
   assert.equal(save.getAttribute('aria-describedby'), 'tip');

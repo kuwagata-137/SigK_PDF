@@ -38,7 +38,7 @@
   }
 
   function makesBackup() {
-    return root.SigK.preferences?.current().makeBackup !== false;
+    return root.SigK.preferences?.current().backupBeforeOverwrite === true;
   }
 
   // 窓の間にタブが替わっていたら、別のタブの中身を書かない（save.js の saveAs と同じ）。
@@ -92,8 +92,10 @@
     return result;
   }
 
-  // 焼き込んで上書きしてよいかを聞く（確定事項B6）。
+  // 焼き込んで上書きしてよいかを聞く（確定事項B6）。確認の窓で「次回から表示しない」を選んでいたら、聞かずに進める（spec-7-4 確定事項CF2）。
   async function confirmBurn(file, backup) {
+    if (!root.SigK.confirmImageSave.shouldAsk())
+      return true;
     if ((await root.SigK.confirmImageSave.ask({ name: file.name, backup })) === true)
       return true;
     banner().show('保存を取りやめました。', { tone: 'info' });

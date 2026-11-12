@@ -113,8 +113,8 @@ test('描けない環境（canvas が無い）では断って書かない', asyn
   assert.equal(shell.SigK.viewBanner.text(), 'この環境ではモザイクのページを画像にできません。');
 });
 
-test('モザイクが無ければ確認を出さず、今までどおり .bak を作って保存する', async (t) => {
-  const shell = await withMosaic(t, { taskResults: [okResult()] }, []);
+test('モザイクが無ければ確認を出さず、今までどおり .bak を作って保存する（控えのファイルを作る設定のとき）', async (t) => {
+  const shell = await withMosaic(t, { taskResults: [okResult()], preferences: { backupBeforeOverwrite: true } }, []);
   shell.SigK.viewer.applyPlan(shell.SigK.pagePlan.rotatePages(shell.SigK.viewer.getPlan(), [0], 90));
   const result = await shell.SigK.save.saveActive();
   assert.equal(result.ok, true);

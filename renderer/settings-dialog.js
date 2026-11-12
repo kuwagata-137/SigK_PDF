@@ -39,7 +39,8 @@
       input.checked = input.value === values.outputFolder.mode;
     state.fixed = values.outputFolder.fixed;
     renderFixed();
-    el.backup.checked = values.makeBackup;
+    el.backup.checked = values.backupBeforeOverwrite;
+    el.imageConfirm.checked = values.confirmImageOverwrite;
     el.toolValues.checked = values.rememberToolValues;
     el.lastTool.checked = values.rememberLastTool;
   }
@@ -98,7 +99,8 @@
       }
       const result = await preferences().set({
         outputFolder: { mode: chosenMode(), fixed: state.fixed },
-        makeBackup: el.backup.checked,
+        backupBeforeOverwrite: el.backup.checked,
+        confirmImageOverwrite: el.imageConfirm.checked,
         rememberToolValues: el.toolValues.checked,
         rememberLastTool: el.lastTool.checked,
       });
@@ -126,7 +128,7 @@
       return false;
     win.__sigkSettingsReady = true;
     const byId = (id) => doc.getElementById(id);
-    el = { doc, dialog, fixedPath: byId('settings-fixed-path'), backup: byId('settings-backup'), toolValues: byId('settings-tool-values'), lastTool: byId('settings-last-tool') };
+    el = { doc, dialog, fixedPath: byId('settings-fixed-path'), backup: byId('settings-backup'), imageConfirm: byId('settings-image-confirm'), toolValues: byId('settings-tool-values'), lastTool: byId('settings-last-tool') };
     byId('settings-ok')?.addEventListener('click', () => confirm());
     byId('settings-cancel')?.addEventListener('click', () => close());
     byId('settings-close')?.addEventListener('click', () => close());

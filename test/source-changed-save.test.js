@@ -68,7 +68,7 @@ test('名前を付けて保存で元のファイル自身（区切りの字と�
 });
 
 test('上書き保存で元が書き換えられていたら確認の窓を出し、［上書き］なら開いたときの中身でやり直す', async (t) => {
-  const shell = await withOpenDocument(t, { taskResults: [{ sourceChanged: true }, okResult()] });
+  const shell = await withOpenDocument(t, { taskResults: [{ sourceChanged: true }, okResult()], preferences: { backupBeforeOverwrite: true } });
   edit(shell.SigK);
   const pages = plain(shell.SigK.viewer.getPlan());
   const saving = shell.SigK.save.saveActive();

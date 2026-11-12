@@ -708,6 +708,8 @@ body{
         <p class="dlg-label">上書き保存</p>
         <label class="print-choice settings-check"><input type="checkbox" id="settings-backup">上書き保存の前に、元のファイルの控えのファイル（名前.pdf.bak）を作る</label>
         <p class="settings-note">作らないにしても、前からある控えのファイルは消しません。</p>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-image-confirm">画像を上書き保存する前に、確認の窓を表示する</label>
+        <p class="settings-note">確認の窓で「次回から表示しない」にチェックを付けて保存すると、このチェックが外れます。</p>
       </section>
       <section class="settings-sec">
         <p class="dlg-label">ツール</p>
@@ -868,7 +870,9 @@ body{
       <p class="dlg-text" id="confirm-image-save-loss"></p>
       <p class="dlg-text" id="confirm-image-save-backup" hidden></p>
     </div>
+    <!-- 「次回から表示しない」は足の左に置く（spec-7-4 確定事項CF1）。チェックを付けて［焼き込んで上書き保存］を押したときだけ覚える。 -->
     <div class="dlg-foot">
+      <label class="print-choice confirm-skip"><input type="checkbox" id="confirm-image-save-skip">次回から表示しない</label>
       <button type="button" class="dlg-btn danger" id="confirm-image-save-ok">焼き込んで上書き保存</button>
       <button type="button" class="dlg-btn" id="confirm-image-save-cancel">キャンセル</button>
     </div>

@@ -635,6 +635,8 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 #confirm-mosaic{width:min(560px, 88vw)}
 #confirm-overwrite::backdrop, #password-prompt::backdrop, #confirm-extract::backdrop, #confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}
 #confirm-mosaic .dlg-text + .dlg-text{margin-top:8px}
+/* 確認の窓の足の左に置く「次回から表示しない」（spec-7-4 確定事項CF1）。ボタンは右に寄せたまま。 */
+.dlg-foot .confirm-skip{margin-right:auto; height:30px; font-size:12.5px; color:var(--muted)}
 
 /* ── 注釈一覧（spec-4-4 確定事項9・29〜32） ────────────────────── */
 /* サイドパネルの行。ツール一覧と同じトークンで組む。アイコンは注釈の色、表示のみは灰色に「表示のみ」の印。 */

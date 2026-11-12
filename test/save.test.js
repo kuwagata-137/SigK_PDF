@@ -52,7 +52,7 @@ test('文書を開くと保存ボタンが押せるようになる', async (t) =
 });
 
 test('上書き保存は、いまの並びと元のパスをワーカーへ渡す', async (t) => {
-  const shell = await withOpenDocument(t, { taskResults: [okResult()] });
+  const shell = await withOpenDocument(t, { taskResults: [okResult()], preferences: { backupBeforeOverwrite: true } });
   edit(shell.SigK);
   const edited = plain(shell.SigK.viewer.getPlan());
 
@@ -63,7 +63,7 @@ test('上書き保存は、いまの並びと元のパスをワーカーへ渡�
   const { spec } = shell.taskCalls[0];
   assert.equal(spec.source, A);
   assert.equal(spec.target, A, '上書きなので行き先は同じ');
-  // 上書きのときだけ .bak を作る（確定事項18・20）。
+  // 上書きのときだけ .bak を作る（確定事項18・20。設定の窓で「控えのファイルを作る」にチェックを付けているとき。spec-7-4 確定事項BK1）。
   assert.equal(spec.makeBackup, true);
   // 開いたときのサイズと更新時刻を控えて渡す（確定事項21）。
   assert.deepEqual(spec.expect, { size: 1024, mtimeMs: 1000 });

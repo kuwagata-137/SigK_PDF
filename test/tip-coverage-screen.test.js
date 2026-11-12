@@ -270,7 +270,7 @@ test('名前の無い帯のフロッピーは名前を付けて保存の文、�
   assert.equal(floppy().dataset.tip, 'strip.save');
   assert.equal(floppy().getAttribute('aria-label'), '上書き保存');
   assert.deepEqual(tip(floppy()), {
-    name: '上書き保存', desc: 'この帯のファイル（新しい PDF 1.pdf）に、今の変更を書き込みます。元の中身は「新しい PDF 1.pdf.bak」として残ります。',
+    name: '上書き保存', desc: 'この帯のファイル（新しい PDF 1.pdf）に、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（新しい PDF 1.pdf.bak）は作りません。',
     keys: ['Ctrl+S'], keysNote: '選んでいる帯',
   });
   assert.deepEqual(tip(head().querySelector('.fname')), { name: '新しい PDF 1.pdf', desc: SAVED });

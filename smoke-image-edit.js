@@ -240,8 +240,16 @@ async function takeShots(win, dir) {
     document.getElementById('confirm-image-save-cancel').click();
     await window.__smokeSaving;
     await new Promise((resolve) => setTimeout(resolve, 300));
+    window.SigK.settingsDialog.open();
+    await new Promise((resolve) => setTimeout(resolve, 300));
   })()`);
-  return { tools, confirm };
+  // 設定の窓の「上書き保存」の欄（spec-7-4 確定事項BK1・CF3）。［キャンセル］で閉じる（設定は変えない）。
+  const settings = await shot('shot-settings.png');
+  await win.webContents.executeJavaScript(`(async () => {
+    window.SigK.settingsDialog.close();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  })()`);
+  return { tools, confirm, settings };
 }
 
 // 書いた PDF のページの大きさと注釈の種類（vendor の pdf-lib で読む。配布物に node_modules は無い）。

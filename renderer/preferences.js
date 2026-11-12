@@ -10,7 +10,8 @@
   // preferences.js の PREFERENCE_DEFAULTS と同じ（メインに届かない環境・読み込む前の既定）。
   const DEFAULTS = Object.freeze({
     outputFolder: Object.freeze({ mode: 'source', fixed: null, last: null }),
-    makeBackup: true,
+    backupBeforeOverwrite: false,
+    confirmImageOverwrite: true,
     rememberToolValues: true,
     rememberLastTool: true,
     toolValues: Object.freeze({}),

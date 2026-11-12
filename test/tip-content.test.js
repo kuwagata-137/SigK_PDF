@@ -78,12 +78,13 @@ test('左のパネルの「＜」の説明は、開き直す「＞」の場所�
   assert.equal(tipContent.resolve(node('side.collapse')).desc,
     '左のパネルを閉じて、ページの表示を広げます。閉じている間は、閉じたパネルの細い欄の「＞」で開きます。');
 });
+// 2026-11-12: 控えのファイルの既定を作らないへ改めた（spec-7-4 確定事項BK1）。設定が無いときも、既定と同じく「作りません」の文。
 test('帯のフロッピーの文は、帯のファイル名を入れた見本の文', () => {
   assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '会議資料.pdf' })), { name: '上書き保存',
-    desc: 'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。元の中身は「会議資料.pdf.bak」として残ります。', keys: ['Ctrl+S'], keysNote: '選んでいる帯' });
+    desc: 'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（会議資料.pdf.bak）は作りません。', keys: ['Ctrl+S'], keysNote: '選んでいる帯' });
 });
 test('帯のフロッピーは、ファイル名が空・無いときは「（）」を出さず、ファイル名を抜いた文にする', () => {
-  const noName = { name: '上書き保存', desc: 'この帯のファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。',
+  const noName = { name: '上書き保存', desc: 'この帯のファイルに、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（名前.pdf.bak）は作りません。',
     keys: ['Ctrl+S'], keysNote: '選んでいる帯' };
   assert.deepEqual(tipContent.resolve(node('strip.save')), noName);
   assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '' })), noName);
@@ -93,7 +94,7 @@ test('名前の無い帯のフロッピーは、見本の文のまま', () => {
     desc: 'この帯はまだファイルになっていません。保存先と名前を決めて、PDF のファイルにします。', keys: ['Ctrl+Shift+S'], keysNote: '選んでいる帯' });
 });
 test('ツールバーの［上書き保存］は、名前の無い帯（新しい帯）を映しているときだけ文を替える', () => {
-  const named = { name: '上書き保存', desc: '開いているファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。', keys: ['Ctrl+S'] };
+  const named = { name: '上書き保存', desc: '開いているファイルに、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（名前.pdf.bak）は作りません。', keys: ['Ctrl+S'] };
   const untitled = { name: '上書き保存', desc: 'このファイルはまだ保存先が決まっていないので、保存先と名前を聞いてから PDF のファイルにします。', keys: ['Ctrl+S'] };
   assert.deepEqual(tipContent.resolve(node('bar.save')), named); // SigK.viewer が無いときは名前のある方
   assert.deepEqual(barSaveWith({ file: { untitled: true } }), untitled);
@@ -101,14 +102,14 @@ test('ツールバーの［上書き保存］は、名前の無い帯（新し�
   assert.deepEqual(barSaveWith({ file: null }), named);
   assert.deepEqual(barSaveWith({}), named);
 });
-// 点検の直し I-4。設定の窓で「上書き保存の前に、元のファイルの控えのファイルを作る」を外していたら、.bak が残るとは言わない。
-test('設定の窓で控えのファイルを外していたら、ツールバーの［上書き保存］と帯のフロッピーは「作りません」の文にする', () => {
-  globalThis.SigK.preferences = { current: () => ({ makeBackup: false }) };
+// 点検の直し I-4。設定の窓で「上書き保存の前に、元のファイルの控えのファイルを作る」にチェックを付けているときだけ、.bak が残ると言う。
+test('設定の窓で控えのファイルを作るにしていたら、ツールバーの［上書き保存］と帯のフロッピーは「残ります」の文にする', () => {
+  globalThis.SigK.preferences = { current: () => ({ backupBeforeOverwrite: true }) };
   try {
     assert.equal(tipContent.resolve(node('bar.save')).desc,
-      '開いているファイルに、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（名前.pdf.bak）は作りません。');
+      '開いているファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。');
     assert.equal(tipContent.resolve(node('strip.save', { tipFile: '会議資料.pdf' })).desc,
-      'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（会議資料.pdf.bak）は作りません。');
+      'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。元の中身は「会議資料.pdf.bak」として残ります。');
     assert.equal(barSaveWith({ file: { untitled: true } }).desc, 'このファイルはまだ保存先が決まっていないので、保存先と名前を聞いてから PDF のファイルにします。');
   } finally {
     delete globalThis.SigK.preferences;
