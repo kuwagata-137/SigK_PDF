@@ -1,8 +1,9 @@
 # SigK PDF Windows シェル統合設計
 
 作成日: 2026-08-29（2026-09-28 改訂。Phase 5 塊①の実装と実測（`docs/spec-5-1-context-menu.md`）に合わせて、第1〜5章と第7章を書き直した。
-2026-10-08 改訂。Phase 5 塊②（`docs/spec-5-2-open-with-icon.md`）に合わせて、1-1・1-3・2-1・第4章・第5章・第7章を書き直した）
-関連: `docs/01_製品要件定義.md` F-07 / `docs/02_アーキテクチャ設計.md` 第2章・第7章 / `docs/spec-5-1-context-menu.md` / `docs/spec-5-2-open-with-icon.md` / `build/installer.nsh`
+2026-10-08 改訂。Phase 5 塊②（`docs/spec-5-2-open-with-icon.md`）に合わせて、1-1・1-3・2-1・第4章・第5章・第7章を書き直した。
+2026-11-12 改訂。第2版 7-3（`docs/spec-7-3-image-edit-menu.md`）に合わせて、2-3・3-1・3-3・4-1・第5章に画像の「画像を編集する（SigK PDF）」を足した）
+関連: `docs/01_製品要件定義.md` F-07 / `docs/02_アーキテクチャ設計.md` 第2章・第7章 / `docs/spec-5-1-context-menu.md` / `docs/spec-5-2-open-with-icon.md` / `docs/spec-7-3-image-edit-menu.md` / `build/installer.nsh`
 
 エクスプローラーの右クリックメニューからアプリの各機能へ直行させるための設計である。要件 F-07-1〜F-07-5 を実現する経路と、Windows 側の制約を先に整理する。
 
@@ -140,8 +141,15 @@ HKCU\Software\Classes\SigKPDF.Menu\shell
 ### 2-3. 画像に対する項目
 
 画像は入口を畳まず、1項目だけ出す。
+**2026-11-12 改訂（`docs/07` 決定88。`docs/spec-7-3-image-edit-menu.md` 確定事項IE1）**: 「画像を編集する（SigK PDF）」を足し、畳まずに 2 項目を並べる。
 
 ```
+HKCU\Software\Classes\SystemFileAssociations\<ext>\shell\SigKPDF.EditImage
+    MUIVerb                    = "画像を編集する（SigK PDF）"
+    Icon                       = "<exe>,0"
+    MultiSelectModel           = "Player"
+    \command\(既定)            = "\"<exe>\" --edit-image \"%1\""
+
 HKCU\Software\Classes\SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf
     MUIVerb                    = "PDF に変換（SigK PDF）"
     Icon                       = "<exe>,0"
@@ -149,7 +157,7 @@ HKCU\Software\Classes\SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf
     \command\(既定)            = "\"<exe>\" --to-pdf \"%1\""
 ```
 
-`<ext>` は `.png` `.jpg` `.jpeg` `.bmp` `.gif` `.tif` `.tiff` の7つ。同じ内容を7回書く。この一覧は `launch-args.js` の `EXTENSIONS.toPdf`（起動引数で受ける拡張子）と `image-io.js` の `IMAGE_FILTERS`（変換画面のファイル選択）と同じで、3 か所の一致はテストが見張る。`Player` を付けたので何個選んでも出る（1・5・16・20 個で確かめた）。
+`<ext>` は `.png` `.jpg` `.jpeg` `.bmp` `.gif` `.tif` `.tiff` の7つ。同じ内容を7回書く。この一覧は `launch-args.js` の `EXTENSIONS.toPdf`・`EXTENSIONS.editImage`（起動引数で受ける拡張子）と `image-io.js` の `IMAGE_FILTERS`（変換画面のファイル選択）と同じで、3 か所の一致はテストが見張る。`Player` を付けたので何個選んでも出る（1・5・16・20 個で確かめた。「画像を編集する」は 7-3 の実機確認で見る）。
 
 表示名に「（SigK PDF）」を付けるのは、画像の右クリックメニューには他アプリの項目が並ぶため、どのアプリの機能かを示す必要があるからである。PDF 側はカスケードの親に「SigK PDF」と出るため、子項目には付けない。
 
@@ -165,6 +173,7 @@ HKCU\Software\Classes\SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf
 | `--merge <path>` | 右クリック「選択した PDF を結合」 | ツールモードで結合を選び、一覧にファイル名の順で入れる<br>**2026-10-14 改訂（`docs/07` 決定80 ⑤。`spec-2-5` 確定事項A6）**: 一覧に入れたあと、PDF をタブでも開く |
 | `--split <path>` | 右クリック「PDF を分割」 | ツールモードで分割を選び、束の中でファイル名の順の先頭 1 本を対象にする<br>**2026-10-14 改訂（`docs/07` 決定80 ⑤。`spec-2-5` 確定事項A6）**: 対象を決めたあと、PDF をタブでも開く |
 | `--to-pdf <path>` | 右クリック「PDF に変換」 | ツールモードで画像→PDF を選び、一覧にファイル名の順で入れる。受けるのは 2-3 の 7 拡張子で、`.pdf` は受けない |
+| `--edit-image <path>` | 右クリック「画像を編集する（SigK PDF）」（2026-11-12 追加。`docs/07` 決定88・`spec-7-3`） | 束の最初で編集モードへ移り、画像を届いた順に 1 枚ずつタブで開く。受けるのは 2-3 の 7 拡張子で、`.pdf` は受けない |
 | （引数なし） | スタートメニュー・デスクトップ | 起動画面（最近使ったファイル） |
 
 引数を持たない裸のパスも `--open` として扱う。ドラッグ＆ドロップで exe にファイルを落とした場合に備える。開くのは PDF だけなので、画像を落としても受けない（`docs/spec-5-1-context-menu.md` 確定事項2）。
@@ -243,7 +252,7 @@ HKCU\Software\Classes\SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf
 // preload.js（抜粋）
 contextBridge.exposeInMainWorld('shellAPI', {
   available: true,
-  // { intent: 'open'|'merge'|'split'|'toPdf', paths: string[], batch: { id, first } }
+  // { intent: 'open'|'merge'|'split'|'toPdf'|'editImage', paths: string[], batch: { id, first } }
   onLaunch: (callback) => {
     ipcRenderer.removeAllListeners('shell:launch');
     ipcRenderer.on('shell:launch', (_event, request) => callback(request));
@@ -276,6 +285,7 @@ contextBridge.exposeInMainWorld('shellAPI', {
 | `open` | タブ | 束の最初で、ツールモードなら閲覧モードへ移る。1 本ずつ順に開く。タブが 20 枚あるときは新しいファイルを開かず、通知バー「20 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。」を束につき 1 回出す（すでに開いているファイルは、そのタブを前へ出す）<br>**2026-10-14 改訂（`docs/07` 決定80 ⑤。`spec-2-5` 確定事項A1・A2・A5）**: どのモードでも**モードを替えない**（ツールモードなら、ツールモードのままタブで開く。「束の最初で、ツールモードなら閲覧モードへ移る」をやめた）。開けなかった理由は、ツールモードでは通知バーに出す。ツールモードなら、移り期間（`spec-2-5` の PR-2 で帯ができるまで）として、開いた PDF を選んでいるツールにも渡す（`renderer/tool-handoff.js` の `givePdfs`。分割など対象が 1 本のツールには束の最初の要求の分だけ） |
 | `merge` | `toolsMerge.addFromLaunch` | 束の最初でツールモードにして結合を選ぶ。束の行は同じ束の行の中でファイル名の順になる位置へ入れる。束の行が 2 つになったら通知バー「ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。」を束につき 1 回出す。束の最初で一覧が**実行済み**なら空にしてから入れ、それ以外は後ろに足す。100 ファイルを超えた分は入れず、通知バーを束につき 1 回出す<br>**2026-10-14 改訂（`docs/07` 決定80 ⑤。`spec-2-5` 確定事項A6）**: 結合の一覧に入れたあと、届いた PDF を**タブでも開く**（`launch.js` の `intoTool`。ツールモードのまま。タブの上限は `open` と同じ扱い） |
 | `toPdf` | `toolsConvert.addFromLaunch` | 結合と同じ。上限の通知バーは「変換できるのは 100 ファイルまでです。」 |
+| `editImage` | タブ（`launch.js` の `editImages`） | **2026-11-12 追加（`docs/07` 決定88。`spec-7-3` 確定事項C2〜C4）**: 束の最初でだけ編集モード（`annot`）へ移り、そのあと届いた順に 1 本ずつタブで開く（名前の順に並べ直さない）。ツールモードから来ても先に編集モードへ移すので、帯にはならず、ツールにも渡さない。タブの上限は `open` と同じ扱い。移ったモードは設定に覚えるので、次の起動も編集モードで始まる |
 | `split` | `toolsSplit.useFromLaunch` | 束の最初でツールモードにして分割を選ぶ。ファイル名の順の先頭 1 本を対象にし、後から届いたパスが前なら差し替える。束の 2 本目が届いたら通知バー「1つ目のファイルだけを対象にしました。」を束につき 1 回出す<br>**2026-10-14 改訂（`docs/07` 決定80 ⑤。`spec-2-5` 確定事項A6）**: 対象を決めたあと、届いた PDF を**タブでも開く**（`launch.js` の `intoTool`。ツールモードのまま。タブの上限は `open` と同じ扱い） |
 
 - 名前は `renderer/launch-intake.js` の `compareNames` で比べる（`Intl.Collator('ja', { numeric: true, sensitivity: 'base' })`。同じならパス全体。`2.pdf` は `10.pdf` より前）。
@@ -302,6 +312,8 @@ electron-builder が `build/installer.nsh` を取り込む（`package.json` の 
 | `SigKPDF.Menu\shell\02merge\command` | （既定）＝`"<exe>" --merge "%1"` |
 | `SigKPDF.Menu\shell\03split` | `MUIVerb`＝`PDF を分割` |
 | `SigKPDF.Menu\shell\03split\command` | （既定）＝`"<exe>" --split "%1"` |
+| `SystemFileAssociations\<ext>\shell\SigKPDF.EditImage` | `MUIVerb`＝`画像を編集する（SigK PDF）`・`Icon`＝`<exe>,0`・`MultiSelectModel`＝`Player`（2026-11-12 追加。`spec-7-3`） |
+| `SystemFileAssociations\<ext>\shell\SigKPDF.EditImage\command` | （既定）＝`"<exe>" --edit-image "%1"` |
 | `SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf` | `MUIVerb`＝`PDF に変換（SigK PDF）`・`Icon`＝`<exe>,0`・`MultiSelectModel`＝`Player` |
 | `SystemFileAssociations\<ext>\shell\SigKPDF.ToPdf\command` | （既定）＝`"<exe>" --to-pdf "%1"` |
 | `SigKPDF.Document` | （既定）＝`PDF 文書` |
@@ -317,7 +329,8 @@ electron-builder が `build/installer.nsh` を取り込む（`package.json` の 
 | （`HKCU\Software\` の下）`RegisteredApplications` | `SigK PDF`＝`Software\SigKPDF\Capabilities` |
 
 右クリックメニューの値はすべて REG_SZ で、PDF が 11 個、画像が 4 個×7 拡張子＝28 個、合わせて 39 個になる。塊②の関連付けの値は 13 個
-（`OpenWithProgids` の 1 個だけ REG_NONE）で、全部で 52 個。`<exe>`・`<ext>`・`<doc>` は第2章のとおり。`.pdf` の既定値には書かない。
+（`OpenWithProgids` の 1 個だけ REG_NONE）で、全部で 52 個。**2026-11-12（7-3）**: 画像の「画像を編集する」で 4 個×7 拡張子＝28 個増え、
+右クリックメニューの値は 67 個、全部で 80 個になる。`<exe>`・`<ext>`・`<doc>` は第2章のとおり。`.pdf` の既定値には書かない。
 
 ### 4-2. 書き方の決まり
 
@@ -365,6 +378,7 @@ electron-builder が `build/installer.nsh` を取り込む（`package.json` の 
 | 9 | 「プログラムから開く」と既定のアプリ | 一覧に SigK PDF が出る。メニュー「ヘルプ」→「既定のアプリの設定…」で設定の SigK PDF のページが開き、「.pdf」を SigK PDF に切り替えると、PDF のダブルクリックで開き、エクスプローラーの PDF に紙の形の絵が出る（塊②。このPCでは、別名で候補と設定のページまでを先に確かめた。`spec-5-2` 完了判定2・10） |
 | 10 | アンインストール | 右クリックメニューから項目が消える。`regedit` で、4-1 のキーのうち SigK PDF だけのもの（`SigKPDF.Menu`・`SigKPDF.Document`・`Applications\SigK PDF.exe`・`Software\SigKPDF`・`SystemFileAssociations` の下の `SigKPDF`・`SigKPDF.ToPdf`）が残っていないこと。`.pdf\OpenWithProgids` と `RegisteredApplications` は SigK PDF の値だけが消え、キーは残ること（塊②。`spec-5-2` 確定事項A5）。`SystemFileAssociations` の空になった親キーは残らない |
 | 11 | インストール → アンインストール → 再インストール | 項目が二重に出ない |
+| 12 | 画像を 2 個選んで「画像を編集する（SigK PDF）」（2026-11-12 追加。`spec-7-3`） | ウィンドウが 1 つだけ開き、2 個の画像が 2 枚のタブで開き、左の列で「編集」が選ばれている。既にアプリを開いているときも、同じウィンドウにタブが足される。アンインストールで `SigKPDF.EditImage` も消える |
 
 ~~確認結果は `docs/spec-5-shell-integration-result.md` に記録する。~~ **2026-10-08 訂正**: 結果は `docs/spec-5-3-device-check.md` に記録した
 （記録が仕様書と別のファイルに分かれると、行き先の追記が二重になるため。`spec-5-3` 起草者の判断）。
