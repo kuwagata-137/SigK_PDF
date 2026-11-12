@@ -132,14 +132,14 @@ test('開けなかった帯とパスワード付きの帯は、理由を赤で�
   assert.equal(row.classList.contains('blocked'), true);
   assert.equal(row.querySelector('.cbox').disabled, true);
   assert.equal(row.querySelector('.cbox').checked, false);
-  assert.equal(row.querySelector('.rng.note').textContent, '開けなかったので、結合に使えません');
+  assert.equal(row.querySelector('.rng.note').textContent, '開けなかったので、結合に使用できません');
   assert.equal(shell.SigK.toolsMerge.canRun(), false);
 
   // パスワード付き（開けたが保存も結合もできない）。
   const peek = shell.SigK.tabs.peek;
   shell.window.SigK.tabs.peek = (id) => ({ ...peek(id), doc: {}, basePages: [{}, {}], file: { encrypted: true } });
   shell.SigK.toolsMergeList.render();
-  assert.equal(rowNodes(shell)[0].querySelector('.rng.note').textContent, 'パスワード付きなので、結合に使えません');
+  assert.equal(rowNodes(shell)[0].querySelector('.rng.note').textContent, 'パスワード付きなので、結合に使用できません');
 });
 
 // ---- 実行（spec-2-1 確定事項21〜25・35〜38） ----

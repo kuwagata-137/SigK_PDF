@@ -33,14 +33,14 @@
   // 使えない帯の理由（行に赤で出し、チェックを入れられない）。
   function blockedOf(tab, peeked) {
     if (peeked === null || peeked.doc === undefined)
-      return '開けなかったので、結合に使えません';
+      return '開けなかったので、結合に使用できません';
     if (typeof tab.path !== 'string')
-      return '保存すると結合に使えます';
+      return '保存すると結合に使用できます';
     // 画像のタブは、結合がパスから読み直せない（spec-7-1 確定事項A8）。
     if (peeked.file?.image !== undefined)
-      return '画像なので、PDF として保存すると結合に使えます';
+      return '画像なので、PDF として保存すると結合に使用できます';
     if (peeked.file?.encrypted === true)
-      return 'パスワード付きなので、結合に使えません';
+      return 'パスワード付きなので、結合に使用できません';
     return null;
   }
 

@@ -81,7 +81,7 @@ test('画像のタブは 1 本を対象にするツールの対象にならず�
   shell.SigK.tools.select('merge');
   await shell.flush();
   const row = shell.SigK.toolsMerge.rows().find((entry) => entry.path === PNG);
-  assert.equal(row.blocked, '画像なので、PDF として保存すると結合に使えます');
+  assert.equal(row.blocked, '画像なので、PDF として保存すると結合に使用できます');
 });
 
 test('画像のタブでトリミングの道具を持っても、紙全体を読む口を呼ばない（確定事項A7）', async (t) => {
