@@ -78,7 +78,12 @@
   1 本目の報告はモード `annot`・タブ 2 枚（写真1.png・写真2.png）・映している画像 写真2.png・problems 0 件・窓は隠れたまま（62 fps）だった。
 - `npm run dist` で `dist\SigK PDF Setup 1.2.0.exe`（118,804,802 バイト。SHA-256 `1F463E5DCEA3D416DC0925D691C040259F5E7FE399425C389FC5BAEC0AFDED26`）を作った。
 
+- 2026-11-12、ユーザーの了承（「入れてよい」）を得て、常用の SigK PDF（1.1.0）を 1.2.0 で上書きした。PowerShell のツールから `/S` で入れ、
+  28 秒・終了コード 0。入れたあと、7 つの拡張子すべてで `SigKPDF.EditImage` の 4 つの値（`MUIVerb`「画像を編集する（SigK PDF）」・`Icon`・
+  `MultiSelectModel`「Player」・`command`「`"…\SigK PDF.exe" --edit-image "%1"`」）と `SigKPDF.ToPdf` がそろっていることを読み出して確かめた。
+  PDF の右クリック（`SigKPDF` の入口と `SigKPDF.Menu` の 3 項目）と関連付け（`SigKPDF.Document`・`Capabilities`・`RegisteredApplications`）も残っていた。
+  インストールされているアプリの一覧の名前は「SigK PDF 1.2.0」、入った exe の版は 1.2.0.0。
+
 ### まだ確かめていないこと
 
-- インストーラーで入れたあと、レジストリに `SigKPDF.EditImage` の値が 7 つの拡張子に書かれること（常用の SigK PDF を上書きするので、書く直前にユーザーに伺う。決定73 ②）。
 - エクスプローラーの右クリックから「画像を編集する（SigK PDF）」を押したときの動き（`docs/03` 第5章 #12。ユーザーの画面で見る）。
