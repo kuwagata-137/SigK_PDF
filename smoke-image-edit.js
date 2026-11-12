@@ -15,6 +15,7 @@
 //   bmp       BMP に描き［上書き保存］→ 保存の窓（PNG を選ぶ）。PNG ができたかを見る
 //   pdf       PNG に描き［名前を付けて保存］で PDF。/Square の注釈が残るかを見る
 //   tools     画像のタブの道具の段で、灰色の道具と吹き出しの鍵を見る
+//   exif      EXIF の向きを持つ JPEG を開いて回し、上書き保存する（smoke-image-exif.js。spec-7-4 確定事項X1〜X3）
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -137,6 +138,11 @@ async function run({ win, dir, root, dialog, nativeImage }) {
   const js = (script) => win.webContents.executeJavaScript(script);
   const copy = (name, as) => { const target = path.join(dir, as); fs.copyFileSync(fixture(root, name), target); return target; };
   try {
+    // exif: EXIF の向きを持つ写真を開き、回して上書き保存する（smoke-image-exif.js）。SIGK_SMOKE_IMAGE_EDIT_ONLY=exif なら、これだけを行う。
+    report.exif = await require('./smoke-image-exif.js').run({ js, dir, nativeImage, saveScript, pixelsOf });
+    if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'exif')
+      return report;
+
     // png: 上書き保存（了承）
     const png = copy('image-wide.png', 'wide.png');
     const pngBefore = pixelsOf(nativeImage, png);

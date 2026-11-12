@@ -9,7 +9,9 @@
   //   ② モザイクは pdf.js の描いた絵を比べずに塗る（mosaicPaint.paint。PDF の保存の画像と同じ）。画面の下見（paintOver）は、書き込みを
   //      描かない絵と比べて違う画素を書き込みとみなして残すので、③で敷き直した画素や透明な画素がモザイクから漏れてしまう。
   //   ③ 元が JPEG なら、pdf.js が描いたあと、ブラウザで読み解いた元の画像を描き直す。pdf.js は JPEG を自前で読み解くので、画素が
-  //      少しずれる（事前調査 A）。EXIF の向きは画像→PDF と同じく読まない（imageOrientation: 'none'）。
+  //      少しずれる（事前調査 A）。元の JPEG は、ワーカーが EXIF の向きを 1 に書き換えた写し（image-open-task.js）で、pdf.js と同じく
+  //      画素のままの向きで読み解く。Chromium の createImageBitmap は imageOrientation: 'none' でも EXIF の向きを当てるので（Electron 44 で
+  //      実測）、書き換えないと向きが食い違い、回って縦横比の崩れた絵を敷いてしまう（2026-11-12 の不具合。spec-7-4 確定事項X2）。
   //
   // jsdom には 2D コンテキストが無い。そのときは bytes を null で返し、経路だけを確かめる（page-image.js と同じ作法）。
 
@@ -17,7 +19,7 @@
     return root.SigK.viewer;
   }
 
-  // 元の JPEG をブラウザで読み解く。読めなければ null（pdf.js が描いたままにする）。
+  // 元の JPEG（向きを 1 に書き換えた写し）をブラウザで読み解く。読めなければ null（pdf.js が描いたままにする）。
   async function decodeOriginal(win, file, entry) {
     const original = file?.image?.original;
     if (file?.image?.kind !== 'jpeg' || !(original instanceof Uint8Array) || !Number.isInteger(entry?.src))

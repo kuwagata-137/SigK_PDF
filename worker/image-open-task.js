@@ -9,12 +9,17 @@
 // 返すのは { ok, bytes, kind, frames: [{ width, height }…], signature, original? }。signature は読む前に取った印（大きさと更新時刻）で、
 // 上書き保存のときに照らす。original は元の画像のバイト列で、JPEG のときだけ添える。pdf.js は JPEG を自前で読み解くので、ブラウザが
 // 読み解いた画素と少しずれる。保存のときはブラウザで読み解いた元の画像を敷き直す（spec-7-1 事前調査 A・確定事項B4）。
+//
+// JPEG の EXIF の向きのうち回転（3・6・8）は、ページの回転（/Rotate）にして、エクスプローラーと同じ向きで表示する。紙と frames は
+// 画素のまま（回す前）の大きさにする。original は、向きを 1 に書き換えた写しにする（ブラウザが向きを当てて読み解くと、pdf.js の画素と
+// 向きが食い違うため）。spec-7-4 確定事項X1・X2（jpeg-orientation.js）。
 
 const fs = require('node:fs');
 
 const { readSignature } = require('../pdf-write.js');
 const { inspectImageBytes, detectFormat, isProgressiveJpeg } = require('./image-format.js');
 const { embedImage, drawImagePage } = require('./image-page.js');
+const { jpegOrientation, rotationOf, withoutOrientation } = require('./jpeg-orientation.js');
 const { TOOLS, SAVE_OPTIONS } = require('./pdf-io.js');
 const { failure, passFailure } = require('./task-failure.js');
 
@@ -51,6 +56,10 @@ async function buildImageDocument(bytes, tools = TOOLS) {
     if (added.ok !== true)
       return added;
   }
+  // JPEG は 1 ページだけなので、1 ページ目を回す。
+  const rotation = inspected.kind === 'jpeg' ? rotationOf(jpegOrientation(bytes)) : 0;
+  if (rotation !== 0)
+    doc.getPage(0).setRotation(tools.degrees(rotation));
   return { ok: true, bytes: await doc.save(SAVE_OPTIONS), kind: inspected.kind, frames };
 }
 
@@ -77,7 +86,7 @@ async function runImageOpen(spec, { fsLike = fs } = {}) {
   }
   if (built.ok !== true)
     return built;
-  return { ...built, signature, ...(built.kind === 'jpeg' ? { original: view } : {}) };
+  return { ...built, signature, ...(built.kind === 'jpeg' ? { original: withoutOrientation(view) } : {}) };
 }
 
 module.exports = { MAX_IMAGE_BYTES, buildImageDocument, runImageOpen };

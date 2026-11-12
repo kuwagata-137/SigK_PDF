@@ -11,6 +11,8 @@ const { buildImageDocument, runImageOpen } = require('../worker/image-open-task.
 const { runTask } = require('../worker/pdf-task.js');
 const { makePng, makeJpeg } = require('./fixtures/images.js');
 const { makeBmp, rgbaGradient } = require('./fixtures/bmp.js');
+const { jpegWithExif } = require('./fixtures/jpeg-exif.js');
+const { jpegOrientation } = require('../worker/jpeg-orientation.js');
 
 // 画像を開くための PDF（spec-7-1 確定事項A1〜A4）。1 画素＝1pt で、白を敷かない。
 
@@ -76,6 +78,27 @@ test('runImageOpen は読む前の印を添え、JPEG のときだけ元のバ�
   const fromJpeg = await runImageOpen({ path: jpeg });
   assert.equal(fromJpeg.kind, 'jpeg');
   assert.deepEqual([...fromJpeg.original], [...fs.readFileSync(jpeg)]);
+});
+
+test('EXIF の向きが回転（6・3・8）の JPEG は、ページの回転にして開く。紙と画像の大きさは画素のまま（spec-7-4 確定事項X1）', async () => {
+  for (const [orientation, angle] of [[6, 90], [3, 180], [8, 270], [1, 0], [2, 0]]) {
+    const built = await buildImageDocument(jpegWithExif(orientation, { width: 30, height: 20 }));
+    assert.equal(built.ok, true);
+    assert.deepEqual(built.frames, [{ width: 30, height: 20 }]);
+    const { page } = await contentOf(built.bytes);
+    assert.equal(page.getRotation().angle, angle, `向き ${orientation}`);
+    assert.deepEqual(page.getSize(), { width: 30, height: 20 });
+  }
+});
+
+test('runImageOpen が添える元の JPEG は、向きを 1 に書き換えた写し（保存で敷き直す画素の向きを、pdf.js の画素とそろえる。確定事項X2）', async (t) => {
+  const source = jpegWithExif(6);
+  const jpeg = tempFile(t, 'exif.jpg', source);
+  const opened = await runImageOpen({ path: jpeg });
+  assert.equal(opened.ok, true);
+  assert.equal(jpegOrientation(opened.original), 1);
+  assert.equal(opened.original.length, source.length);
+  assert.deepEqual([...fs.readFileSync(jpeg)], [...source], 'ファイルは書き換えない');
 });
 
 test('runImageOpen は無いファイル・パスの無い頼みを断る', async () => {
