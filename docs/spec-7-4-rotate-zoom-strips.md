@@ -117,6 +117,9 @@
 - 試験は 3,529 件で fail 0（`e56d976` の時点。ふだんの時刻）。
 - 画面写真: 確認の窓 `screenshots/spec-7-4-confirm-skip.png`（足の左に「次回から表示しない」。控えのファイルの 1 行は既定で表示しない）、
   設定の窓 `screenshots/spec-7-4-settings-overwrite.png`（「上書き保存」の欄）。
+- 全件の試験は、ふだんの時刻でも `TZ=UTC` でも 3,529 件で fail 0（`6304f86` の時点）。
+- `npm run dist` で `dist\SigK PDF Setup 1.2.0.exe` を作り直した（2026-11-12 14:16。118,816,687 バイト。
+  SHA-256 `07CAD589B2426DD5BBEA3EE6D752C6BA203906E3E56FE9DC5385D6D6A7AA1BC8`）。版は 1.2.0 のままなので、12:32 に作った同じ名前のファイルは上書きされた。
 
 ### まだ確かめていないこと
 
