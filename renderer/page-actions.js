@@ -79,9 +79,9 @@
     return rotate(delta, [viewer().getState().current]);
   }
 
-  // 削除には確認を出さない（確定事項40）。docs/04 第7章がそう定めているが、
-  // **その根拠は「Ctrl+Z で戻せる」ことである**。だから undo を落とすなら
-  // 確認を出す側へ倒すこと。
+  // 確認なしで削除する芯。ページを削除する画面の操作（Delete キー・［削除］ボタン・［このページを削除］・右クリックメニュー）は、
+  // requestRemove か page-list-commands.js の remove を通して削除確認画面を表示してから、ここを呼ぶ（spec-7-5 確定事項D1。
+  // spec-1-5 確定事項40「削除には確認を出さない」は決定92 で改めた）。右クリックメニューの［切り取り］は確認なしでここを呼ぶ（M5）。
   function remove(explicit) {
     if (!isOpen())
       return false;
@@ -94,6 +94,14 @@
 
     const result = pagePlan().deletePages(current, indices);
     return pageEdit().commit(result.plan, { before: indices, after: result.selection });
+  }
+
+  // 削除確認画面を表示してから削除する入口（spec-7-5 確定事項D1）。［削除］ボタンとサムネイルの［このページを削除］から呼ぶ。対象は remove と同じ。
+  // ［削除］を押して削除したら true になる Promise を返す。
+  function requestRemove(explicit) {
+    if (!isOpen())
+      return Promise.resolve(false);
+    return root.SigK.pageListCommands.remove(root.SigK.pageListTarget.thumbs(), targetIndices(explicit));
   }
 
   function canDelete() {
@@ -159,7 +167,7 @@
     bindClick(doc, ACTION_IDS.editRotateRight, () => rotateCurrent(90));
     bindClick(doc, ACTION_IDS.extract, () => root.SigK.extract?.run());
     bindClick(doc, ACTION_IDS.insert, () => root.SigK.insert?.run());
-    bindClick(doc, ACTION_IDS.remove, () => remove());
+    bindClick(doc, ACTION_IDS.remove, () => requestRemove());
     bindClick(doc, ACTION_IDS.undo, () => (inTools() ? root.SigK.toolHistory : pageEdit()).undo());
     bindClick(doc, ACTION_IDS.redo, () => (inTools() ? root.SigK.toolHistory : pageEdit()).redo());
     syncActions();
@@ -167,5 +175,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageActions = { ACTION_IDS, init, rotate, rotateCurrent, remove, canDelete, syncActions };
+  SigK.pageActions = { ACTION_IDS, init, targetIndices, rotate, rotateCurrent, remove, requestRemove, canDelete, syncActions };
 })(typeof window !== 'undefined' ? window : globalThis);

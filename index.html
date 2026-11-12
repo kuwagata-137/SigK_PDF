@@ -212,7 +212,9 @@ body{
              上から並べる。ツールモードのどのツールでも出す（確定事項D11・G1・H1）。帯は strip-view.js（並びと描く所）・strip-row.js（帯 1 本）が組み、
              いちばん下の受け口は strip-drop-zone.js。PDF の帯は「変換する画像」の帯（#image-strip）の前に並べる。 -->
         <div class="strips-screen" id="strips-screen" hidden>
-          <div class="strips" id="strips" role="list" aria-label="開いている PDF">
+          <!-- tabindex はプログラムから当てるためのもので、Tab 順には入れない。帯をクリックした後だけ Delete・Ctrl+C/X/V をページの操作にするのに
+               要る（spec-7-5 確定事項K1。strip-input.js がフォーカスを移す）。 -->
+          <div class="strips" id="strips" role="list" aria-label="開いている PDF" tabindex="-1">
             <!-- 「変換する画像」の帯（spec-2-5 確定事項H1・H4〜H8。見本 screenshots/strips3-convert.png）。画像→PDF を選んでいて、画像が 1 枚でも
                  あるときだけ出す。タブではないので .strip にしない（帯の数え上げに入れない）。描くのは image-strip.js、サムネイルは image-thumbs.js、
                  引いて並べ替えるのは image-strip-drag.js。 -->
@@ -634,6 +636,17 @@ body{
     <button type="button" class="annot-menu-item" role="menuitem" data-action="delete" tabindex="-1"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span><span class="label">削除</span><span class="key">Delete</span></button>
   </div>
 
+  <!-- ページの右クリックメニュー（spec-7-5 確定事項M1。見本 screenshots/question-pg1-paste-position.png）。ツールモードの帯と、編集モード・
+       ページ編集モードのサムネイルで、右クリックした点に出す。見た目は書き込みの右クリックメニューと同じ。押せない項目は aria-disabled で灰色。
+       表示するかどうかは page-menu-route.js、出し入れは page-menu.js、押した項目の操作は page-list-commands.js。 -->
+  <div class="annot-menu page-menu" id="page-menu" role="menu" aria-label="ページ操作" hidden>
+    <button type="button" class="annot-menu-item" role="menuitem" data-action="copy" tabindex="-1"><span class="label">コピー</span><span class="key">Ctrl+C</span></button>
+    <button type="button" class="annot-menu-item" role="menuitem" data-action="cut" tabindex="-1"><span class="label">切り取り</span><span class="key">Ctrl+X</span></button>
+    <button type="button" class="annot-menu-item" role="menuitem" data-action="paste" tabindex="-1"><span class="label">貼り付け</span><span class="key">Ctrl+V</span></button>
+    <div class="annot-menu-sep" role="separator"></div>
+    <button type="button" class="annot-menu-item danger" role="menuitem" data-action="delete" tabindex="-1"><span class="label">削除</span><span class="key">Delete</span></button>
+  </div>
+
   <div id="status">
     <span id="status-file" data-tip="status.file">文書なし</span><span class="sep">│</span>
     <span id="status-pages">–</span><span class="sep">│</span>
@@ -829,6 +842,20 @@ body{
     <div class="dlg-foot">
       <button type="button" class="dlg-btn primary" id="confirm-extract-ok">抽出</button>
       <button type="button" class="dlg-btn" id="confirm-extract-cancel">キャンセル</button>
+    </div>
+  </dialog>
+
+  <!-- 削除確認画面（spec-7-5 確定事項D1〜D3。見本 screenshots/question-pg2-page-edit-mode.png）。ページを削除する操作は、すべてこの画面を
+       通す。［削除］だけを danger で塗り、既定のフォーカスは安全側の［キャンセル］に置く。文と押せる・押せないは confirm-page-delete.js が決める。 -->
+  <dialog id="confirm-page-delete">
+    <div class="dlg-head"><span>ページの削除</span></div>
+    <div class="dlg-body">
+      <p class="dlg-text" id="confirm-page-delete-text">選択したページを削除しますか？</p>
+      <p class="dlg-text dlg-note" id="confirm-page-delete-note">削除したページは、［元に戻す］（Ctrl+Z）で戻せます。</p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="dlg-btn danger" id="confirm-page-delete-ok">削除</button>
+      <button type="button" class="dlg-btn" id="confirm-page-delete-cancel">キャンセル</button>
     </div>
   </dialog>
 
@@ -1108,6 +1135,13 @@ body{
 <script src="renderer/insert.js"></script>
 <script src="renderer/page-copy-build.js"></script>
 <script src="renderer/page-transfer.js"></script>
+<script src="renderer/page-list-target.js"></script>
+<script src="renderer/page-clipboard.js"></script>
+<script src="renderer/confirm-page-delete.js"></script>
+<script src="renderer/page-list-commands.js"></script>
+<script src="renderer/page-menu.js"></script>
+<script src="renderer/page-menu-route.js"></script>
+<script src="renderer/page-list-keys.js"></script>
 <script src="renderer/find-text.js"></script>
 <script src="renderer/find.js"></script>
 <script src="renderer/find-bar.js"></script>

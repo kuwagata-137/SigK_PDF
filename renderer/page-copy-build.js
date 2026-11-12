@@ -6,11 +6,35 @@
   //
   // 写した先の差し込みにするときは pdf.js で開いて返す（open: true）。pdf.js は渡したバイト列の中身を自分のワーカーへ移して空にするので、
   // 保存に使う分は渡す前に写しておく。新しい帯にするときは開かずにバイト列だけを返す（タブを開く viewer.open が同じように写して持つ）。
+  // 右クリックメニューのコピー・切り取り（spec-7-5 確定事項M4）は開かずにバイト列を持ち、貼り付けのたびに reopen で新しい写しとして開く。
 
   let made = 0;
 
   function viewer() {
     return root.SigK.viewer;
+  }
+
+  // 写しの識別子（保存のときにバイト列を引く鍵。viewer.getCopies）。差し込みにするたびに新しい識別子にする。
+  function nextCopy() {
+    made += 1;
+    return `copy-${made}`;
+  }
+
+  // バイト列を pdf.js で開いた写し。bytes は pdf.js に渡すと空になるので、保存に使う分は渡す前に写す。
+  async function openBytes(bytes, sizes) {
+    const copy = nextCopy();
+    const kept = bytes.slice();
+    try {
+      const doc = await root.SigK.pdfjs.getDocument({ data: bytes }).promise;
+      return { ok: true, copy, bytes: kept, sizes, doc };
+    } catch (error) {
+      return { error: 'コピーしたページを表示できませんでした。' };
+    }
+  }
+
+  // 持っている写しのバイト列を、新しい写しとして開き直す（貼り付けのたび。spec-7-5 確定事項M4・P1）。持っているバイト列は空にしない。
+  function reopen(bytes, sizes) {
+    return openBytes(bytes.slice(), sizes);
   }
 
   // indices は枠の帯の並びの位置（0 起点）。戻り値は { ok, copy, bytes, sizes, doc? } か { error } か { canceled }。
@@ -43,20 +67,12 @@
     if (result?.ok !== true)
       return { error: result?.error ?? 'ページをコピーできませんでした。' };
 
-    made += 1;
-    const copy = `copy-${made}`;
     const bytes = ArrayBuffer.isView(result.bytes) ? result.bytes : new Uint8Array(result.bytes);
     if (!open)
-      return { ok: true, copy, bytes, sizes: result.sizes };
-    const kept = bytes.slice();
-    try {
-      const doc = await root.SigK.pdfjs.getDocument({ data: bytes }).promise;
-      return { ok: true, copy, bytes: kept, sizes: result.sizes, doc };
-    } catch (error) {
-      return { error: 'コピーしたページを表示できませんでした。' };
-    }
+      return { ok: true, copy: nextCopy(), bytes, sizes: result.sizes };
+    return openBytes(bytes, result.sizes);
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageCopyBuild = { build };
+  SigK.pageCopyBuild = { build, reopen };
 })(typeof window !== 'undefined' ? window : globalThis);

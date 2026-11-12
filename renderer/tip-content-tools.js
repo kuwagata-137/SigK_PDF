@@ -42,9 +42,9 @@
     'pages.rotateRight': { name: '右回転', desc: '選択したページを右に 90 度回転します。何も選択していないときは、表示しているページを回転します。' },
     'pages.extract': { name: '抽出', desc: '選択したページを、別の PDF に書き出します。元のファイルは変更されません。' },
     'pages.insert': { name: '挿入', desc: 'PDF か画像を、選択したページの前に差し込みます。何も選択していなければ、末尾に差し込みます。' },
-    'pages.delete': { name: '削除', desc: '選択したページを削除します。何も選択していないときは、表示しているページを削除します。', keys: ['Delete'] },
+    'pages.delete': { name: '削除', desc: '選択したページを削除します。何も選択していないときは、表示しているページを削除します。削除する前に確認画面が表示されます。', keys: ['Delete'] },
     'thumb.rotateLeft': { name: '左回転', desc: 'このページだけを左に 90 度回転します。' },
     'thumb.rotateRight': { name: '右回転', desc: 'このページだけを右に 90 度回転します。' },
-    'thumb.delete': { name: 'このページを削除', desc: 'このページだけを削除します。' },
+    'thumb.delete': { name: 'このページを削除', desc: 'このページだけを削除します。削除する前に確認画面が表示されます。' },
   });
 })(typeof window !== 'undefined' ? window : globalThis);

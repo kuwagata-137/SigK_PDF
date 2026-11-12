@@ -27,7 +27,7 @@ function joined(id) {
 }
 
 const KEY_NAMES = new Set(['Ctrl', 'Shift', 'Esc', 'Enter', 'Delete', 'Backspace', 'Tab', 'PageUp', 'PageDown', 'Home', 'End',
-  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'W', 'Y', 'Z', '0', '+', '-', ',', 'Space', '←', '→', '↑', '↓']);
+  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'V', 'W', 'X', 'Y', 'Z', '0', '+', '-', ',', 'Space', '←', '→', '↑', '↓']);
 
 test('目次は 5 つのグループと 14 の節で、グループの順に並ぶ', () => {
   assert.equal(content.TITLE, 'SigK PDF の使い方');
@@ -199,4 +199,22 @@ test('閲覧の節に［選択］［ハンド］の節があり、マウスの�
   assert.deepEqual(mouse.find((row) => row[0] === 'ホイール（ハンドのとき）'), ['ホイール（ハンドのとき）', '拡大・縮小', '閲覧・ページ編集・編集']);
   assert.equal(mouse.find((row) => row[0] === '左ボタンを押したまま右クリック')[2], '閲覧・ページ編集・編集');
   assert.match(sectionOf('escape').blocks[0].table.at(-1)[1], /閲覧・ページ編集では、ハンドを選択に戻す/);
+});
+
+// ページの削除・右クリックメニュー・コピーと貼り付け（spec-7-5。決定92）。ページ編集の節・ツールの節・キー操作の表に書く。
+test('ページの削除確認画面・右クリックメニュー・コピーと貼り付けを、ページ編集の節とツールの節とキー操作の表に書く（spec-7-5）', () => {
+  const pages = joined('pages');
+  assert.match(pages, /削除する前に確認画面が表示されます/);
+  assert.match(pages, /\[Delete\] も［削除］と同じです/, 'ページ編集モードの Delete は、フォーカスがどこにあっても効く（spec-1-5 確定事項55・K1 の 2026-11-12 の直し）');
+  assert.match(pages, /［コピー］［切り取り］［貼り付け］［削除］のメニューが表示されます/);
+  assert.match(pages, /右クリックしたページの前に挿入します/);
+  assert.match(pages, /編集モードで左パネルにサムネイルを表示しているときも、同じ操作でページを選択し、ドラッグで並べ替えできます/);
+  assert.match(joined('tools'), /帯のページを右クリックすると/);
+  assert.match(joined('tools'), /分割を選択しているときと、「変換する画像」の帯では使用できません/);
+  const keys = sectionOf('keys').blocks[0].table;
+  assert.match(keys.find((row) => row[0] === '[Delete]')[2], /^ページ編集。編集・ツールモードでは、左パネルのサムネイルか帯をクリックした後/);
+  assert.equal(keys.find((row) => row[0] === '[Backspace]')[2], '編集（左パネルをクリックした後は何もしない）');
+  assert.equal(keys.find((row) => row[0] === '[Ctrl]+[C] / [Ctrl]+[X] / [Ctrl]+[V]')[1], 'ページをコピー / 切り取り / 貼り付け');
+  const mouse = sectionOf('keys').blocks.find((b) => b.h === 'マウス').table;
+  assert.equal(mouse.find((row) => row[0] === 'ページを右クリック')[2], 'ページ編集・編集（左パネルのサムネイル）・ツールモード（帯）');
 });

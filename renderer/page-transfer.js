@@ -95,14 +95,17 @@
     edit.setSelection(root.SigK.splitSelection.dragTo(selection[0], selection[selection.length - 1]));
   }
 
-  // 写しを tabId の帯の at（並びの位置）へ差し込みとして入れる。枠の帯は替えない（I7）。
+  // 写しを tabId の帯の at（並びの位置）へ差し込みとして入れる。枠の帯は替えない（I7）。右クリックメニューの貼り付け（spec-7-5 確定事項P1。
+  // page-list-commands.js）も同じ方法で入れる。戻り値は入れたページの並びの位置（帯が無ければ undefined）。
   function insertInto(tabId, built, at) {
-    tabs().withActive(tabId, () => {
+    return tabs().withActive(tabId, () => {
       const numbers = viewer().addInserts(built.sizes.map((size, page) => ({ path: null, copy: built.copy, bytes: built.bytes, page, size, doc: built.doc })));
       const plan = viewer().getPlan();
       const position = Math.max(0, Math.min(at, plan.length));
       const next = [...plan.slice(0, position), ...numbers.map((insert) => ({ insert, rotate: 0 })), ...plan.slice(position)];
-      root.SigK.pageEdit.commit(next, { before: [], after: numbers.map((_number, offset) => position + offset) });
+      const after = numbers.map((_number, offset) => position + offset);
+      root.SigK.pageEdit.commit(next, { before: [], after });
+      return after;
     });
   }
 
@@ -158,5 +161,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageTransfer = { refusalFor, move, copyTo, toNewStrip };
+  SigK.pageTransfer = { refusalFor, move, insertInto, copyTo, toNewStrip };
 })(typeof window !== 'undefined' ? window : globalThis);

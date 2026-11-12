@@ -105,6 +105,8 @@
     root.SigK.confirmOverwrite.init(doc, win);
     root.SigK.confirmExtract.init(doc, win);
     root.SigK.confirmReplace.init(doc, win);
+    // ページの削除確認画面（spec-7-5 確定事項D1）。［削除］ボタン・Delete キー・右クリックメニューから呼ばれる。
+    root.SigK.confirmPageDelete.init(doc, win);
     // ツールモードの枠組みと結合画面（spec-2-1）。shell.setMode から refresh が
     // 呼ばれるので、モードの復元（restoreUi）より先に用意しておく。
     // 帯の画面は tools.init（ツールモードなら選んでいるツールを出す）より前に用意する（spec-2-5 第 D 章）。
@@ -186,6 +188,9 @@
     root.SigK.annotateMosaic.init(doc, win);
     root.SigK.annotationMenu.init(doc, win);
     root.SigK.annotateRightButton.init(doc, win);
+    // ページの右クリックメニュー（spec-7-5 確定事項M1・M2）。左パネルのサムネイルとツールモードの帯で右クリックしたときに出す。
+    root.SigK.pageMenu.init(doc, win);
+    root.SigK.pageMenuRoute.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
     root.SigK.annotationList.init(doc, win);
     // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K）。編集の道具を映すので annotate の後。

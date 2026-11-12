@@ -81,6 +81,9 @@
     // 閲覧・ページ編集のハンドで引いている途中（spec-2-5 確定事項K12）。
     if (!annot && root.SigK.pointerMode?.cancelPan() === true)
       return true;
+    // ページの右クリックメニュー（spec-7-5 確定事項P3。浮いている小窓の段。選択は残す）。
+    if (root.SigK.pageMenu?.close() === true)
+      return true;
     if (inField(event))
       return root.SigK.fieldEscape?.leave(event.target) === true;
     if (inFindBar(event) && closeFindBar())
