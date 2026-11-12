@@ -160,6 +160,56 @@ test('ツールモードで分割を選んでいるときに open の束が来�
   assert.notEqual(SigK.viewBanner.text(), SigK.toolsSplit.NOTE_FIRST_ONLY, 'どの帯も盤にできるので、「1つ目のファイルだけを対象にしました。」の通知バーは出さない');
 });
 
+// ---- 右クリックの「画像を編集する」（spec-7-3 確定事項C2・C3） ----
+//
+// 画像は pdf:read がワーカーで PDF に組み立てて返す（spec-7-1 確定事項A4）。ここでは読み込みの結果を差し替える。
+
+const IMG2 = 'C:\\photo\\b.jpg';
+const imageFiles = {
+  [IMG]: { ...makeSource({ path: IMG, name: 'a.png' }), image: { kind: 'png', frames: [{ width: 120, height: 80 }] } },
+  [IMG2]: { ...makeSource({ path: IMG2, name: 'b.jpg' }), image: { kind: 'jpeg', frames: [{ width: 80, height: 120 }] } },
+};
+
+test('【要】画像を編集するの束（2 件）が来たら、編集モードへ切り替え、画像を 1 枚ずつタブで開く', async (t) => {
+  const shell = await withShell(t, { files: imageFiles });
+  const { SigK } = shell;
+
+  assert.equal(await SigK.launch.handle(request('editImage', [IMG], 5)), 1);
+  assert.equal(await SigK.launch.handle(request('editImage', [IMG2], 5, false)), 1);
+
+  assert.equal(mode(shell), 'annot');
+  assert.deepEqual(tabPaths(shell), [IMG, IMG2], '届いた順に並ぶ');
+  assert.equal(SigK.viewer.getState().file.image.kind, 'jpeg', '最後に開いた画像を映す');
+  assert.deepEqual(plain(SigK.toolsConvert.rows()), [], '画像→PDF へは渡さない');
+});
+
+test('ツールモードから画像を編集するが来ても、編集モードへ移ってからタブで開く（帯にしない）', async (t) => {
+  const shell = await withShell(t, { files: imageFiles });
+  const { SigK, document: doc } = shell;
+  SigK.shell.setMode(doc, 'tools');
+  SigK.tools.select('convert');
+
+  await SigK.launch.handle(request('editImage', [IMG, IMG2], 6));
+
+  assert.equal(mode(shell), 'annot');
+  assert.deepEqual(tabPaths(shell), [IMG, IMG2]);
+  assert.deepEqual(plain(SigK.toolsConvert.rows()), [], '選んでいた画像→PDF にも渡さない');
+});
+
+test('画像を編集するでモードを替えるのは束の最初だけ（束の途中で使う人が替えたモードは戻さない）', async (t) => {
+  const shell = await withShell(t, { files: imageFiles });
+  const { SigK, document: doc } = shell;
+
+  await SigK.launch.handle(request('editImage', [IMG], 8));
+  SigK.shell.setMode(doc, 'view');
+  await SigK.launch.handle(request('editImage', [IMG2], 8, false));
+  assert.equal(mode(shell), 'view', '同じ束の 2 件目では替えない');
+
+  await SigK.launch.handle(request('editImage', [IMG], 9));
+  assert.equal(mode(shell), 'annot', '次の束の最初ではまた替える');
+  assert.deepEqual(tabPaths(shell), [IMG, IMG2], '開いている画像は新しいタブにしない');
+});
+
 test('閲覧モードで open の要求が来ても、閲覧モードのままタブで開くだけ', async (t) => {
   const shell = await withShell(t);
 
@@ -302,6 +352,21 @@ test('【要】前回をツールモードで閉じていて「SigK PDF で開�
   // 閲覧モードへ移れば、ページが見える。
   shell.SigK.shell.setMode(shell.document, 'view');
   assert.equal(shell.SigK.viewer.getState().file.path, A);
+});
+
+test('【要】前回をツールモードで閉じていても、右クリックの「画像を編集する」から起きれば編集モードで画像を開く（spec-7-3）', async (t) => {
+  const shell = await createShell({
+    files: imageFiles,
+    imageInfos: { [IMG]: { kind: 'png', width: 120, height: 80 } },
+    ui: { mode: 'tools', pageLayout: 'single', sidePanel: { open: true, width: 240 } },
+    launchOnReady: [request('editImage', [IMG], 1), request('editImage', [IMG2], 1, false)],
+  });
+  t.after(() => shell.cleanup());
+  await shell.launchSettled();
+  await shell.flush();
+
+  assert.equal(mode(shell), 'annot', '前回の見た目の復元で、ツールモードへ戻されない');
+  assert.deepEqual(tabPaths(shell), [IMG, IMG2]);
 });
 
 test('メインから届いた要求でも開く', async (t) => {

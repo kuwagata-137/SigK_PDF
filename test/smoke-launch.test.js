@@ -55,6 +55,29 @@ test('画面で評価すると、束を当てた後の様子を報告する', as
   assert.equal(report.pending, 0);
 });
 
+test('画像を編集するの束を当てた後は、編集モードと画像のタブを報告する（spec-7-3）', async (t) => {
+  const IMG2 = 'C:\\photo\\b.jpg';
+  const shell = await createShell({
+    files: {
+      [IMG]: { ...makeSource({ path: IMG, name: 'a.png' }), image: { kind: 'png', frames: [{ width: 120, height: 80 }] } },
+      [IMG2]: { ...makeSource({ path: IMG2, name: 'b.jpg' }), image: { kind: 'jpeg', frames: [{ width: 80, height: 120 }] } },
+    },
+  });
+  t.after(() => shell.cleanup());
+  await shell.flush();
+  await shell.SigK.launch.handle({ intent: 'editImage', paths: [IMG], batch: { id: 1, first: true } });
+  await shell.SigK.launch.handle({ intent: 'editImage', paths: [IMG2], batch: { id: 1, first: false } });
+
+  const report = structuredClone(await shell.window.eval(launchScript(0)));
+
+  assert.equal(report.mode, 'annot');
+  assert.equal(report.tabCount, 2);
+  assert.deepEqual(report.names, ['a.png', 'b.jpg']);
+  assert.equal(report.openedName, 'b.jpg');
+  assert.deepEqual(report.convert, []);
+  assert.equal(report.pending, 0);
+});
+
 test('何も届いていなければ、空の報告になる', async (t) => {
   const shell = await createShell();
   t.after(() => shell.cleanup());

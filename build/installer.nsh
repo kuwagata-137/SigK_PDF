@@ -1,5 +1,5 @@
-; 右クリックメニュー（塊①）と、「プログラムから開く」・既定のアプリの選択肢（塊②）の登録と削除
-; （docs/spec-5-1-context-menu.md 確定事項22〜31・docs/spec-5-2-open-with-icon.md 確定事項A・D・docs/03 第2章・第4章）。
+; 右クリックメニュー（塊①・画像の「画像を編集する」は spec-7-3）と、「プログラムから開く」・既定のアプリの選択肢（塊②）の登録と削除
+; （docs/spec-5-1-context-menu.md 確定事項22〜31・docs/spec-5-2-open-with-icon.md 確定事項A・D・docs/spec-7-3-image-edit-menu.md・docs/03 第2章・第4章）。
 ;
 ; electron-builder はこのファイルを、インストーラーとアンインストーラーの両方のスクリプトの
 ; 頭（MUI2.nsh より前）で取り込み、makensis を -WX（警告はエラー）で走らせる。
@@ -28,8 +28,13 @@
   !define MUI_FINISHPAGE_TEXT_LARGE
 !endif
 
-; 画像 1 つの拡張子に「PDF に変換」を書く。何個選んでも出すよう Player を付ける（論点5）。
+; 画像 1 つの拡張子に「画像を編集する」と「PDF に変換」を書く。どちらも何個選んでも出すよう Player を付ける（論点5・spec-7-3）。
+; 「画像を編集する」は、選んだ画像を 1 つずつタブで開き、編集モードにする（spec-7-3 確定事項IE1・C2）。
 !macro sigkWriteImageVerb EXT
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.EditImage" "MUIVerb" "画像を編集する（${PRODUCT_NAME}）"
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.EditImage" "Icon" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.EditImage" "MultiSelectModel" "Player"
+  WriteRegStr HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.EditImage\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" --edit-image "%1"'
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.ToPdf" "MUIVerb" "PDF に変換（${PRODUCT_NAME}）"
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.ToPdf" "Icon" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.ToPdf" "MultiSelectModel" "Player"
@@ -56,6 +61,7 @@
 !macroend
 
 !macro sigkRemoveImageVerb EXT
+  DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.EditImage"
   DeleteRegKey HKCU "Software\Classes\SystemFileAssociations\${EXT}\shell\${SIGK_SHELL_ID}.ToPdf"
   !insertmacro sigkPruneEmptyKey "Software\Classes\SystemFileAssociations\${EXT}\shell"
   !insertmacro sigkPruneEmptyKey "Software\Classes\SystemFileAssociations\${EXT}"
@@ -132,7 +138,7 @@
   WriteRegStr HKCU "Software\Classes\${SIGK_SHELL_ID}.Menu\shell\03split" "MUIVerb" "PDF を分割"
   WriteRegStr HKCU "Software\Classes\${SIGK_SHELL_ID}.Menu\shell\03split\command" "" '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" --split "%1"'
 
-  ; 画像: 入口を畳まず 1 項目だけ出す（docs/03 2-3）。拡張子は image-io.js・launch-args.js の一覧と同じ 7 つ。
+  ; 画像: 入口を畳まず「画像を編集する」「PDF に変換」の 2 項目を出す（docs/03 2-3・spec-7-3 確定事項IE1）。拡張子は image-io.js・launch-args.js の一覧と同じ 7 つ。
   !insertmacro sigkWriteImageVerb ".png"
   !insertmacro sigkWriteImageVerb ".jpg"
   !insertmacro sigkWriteImageVerb ".jpeg"

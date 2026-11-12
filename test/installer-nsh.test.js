@@ -48,8 +48,12 @@ test('2. 書き先・消し先・調べ先は HKCU だけ', () => {
 
 test('3. 画像の拡張子は、起動引数（launch-args.js）と変換画面のファイル選択（image-io.js）と同じ 7 つ', () => {
   const expected = [...EXTENSIONS.toPdf].sort();
-  assert.deepEqual([...new Set(imageExtsOf(INSTALL.filter(({ line }) => line.startsWith('WriteRegStr '))))].sort(), expected);
-  assert.deepEqual([...new Set(imageExtsOf(UNINSTALL))].sort(), expected, '消すのも同じ 7 つ');
+  // 「PDF に変換」と「画像を編集する」（spec-7-3）の 2 つの項目とも、同じ 7 つに書き、同じ 7 つから消す。
+  for (const verb of ['ToPdf', 'EditImage']) {
+    assert.deepEqual([...new Set(imageExtsOf(INSTALL.filter(({ line }) => line.startsWith('WriteRegStr ')), verb))].sort(), expected, verb);
+    assert.deepEqual([...new Set(imageExtsOf(UNINSTALL, verb))].sort(), expected, `${verb} を消すのも同じ 7 つ`);
+  }
+  assert.deepEqual([...EXTENSIONS.editImage].sort(), expected, '画像を編集する起動引数も同じ 7 つ');
   assert.deepEqual(IMAGE_FILTERS.flatMap((filter) => filter.extensions).map((ext) => `.${ext}`).sort(), expected);
 });
 
@@ -59,14 +63,16 @@ test('4. 使うスイッチは INTENTS にあるものだけで、項目との�
   assert.equal(switchOf(`Software\\Classes\\${ID}.Menu\\shell\\01open\\command`), '--open');
   assert.equal(switchOf(`Software\\Classes\\${ID}.Menu\\shell\\02merge\\command`), '--merge');
   assert.equal(switchOf(`Software\\Classes\\${ID}.Menu\\shell\\03split\\command`), '--split');
-  for (const ext of EXTENSIONS.toPdf)
+  for (const ext of EXTENSIONS.toPdf) {
     assert.equal(switchOf(`${SFA}\\${ext}\\shell\\${ID}.ToPdf\\command`), '--to-pdf');
+    assert.equal(switchOf(`${SFA}\\${ext}\\shell\\${ID}.EditImage\\command`), '--edit-image');
+  }
   assert.equal(switchOf(`Software\\Classes\\${ID}.Document\\shell\\open\\command`), '--open');
   assert.equal(switchOf('Software\\Classes\\Applications\\${APP_EXECUTABLE_FILENAME}\\shell\\open\\command'), '--open');
   for (const { value } of commands)
     assert.ok(Object.hasOwn(INTENTS, /(--[a-z-]+)/.exec(value)[1]), value);
-  // メニュー 3・画像 7・関連付け 2（ProgID と Applications の open。spec-5-2 確定事項A1・A3）。
-  assert.equal(commands.length, 3 + EXTENSIONS.toPdf.length + 2);
+  // メニュー 3・画像 7 × 2（PDF に変換・画像を編集する。spec-7-3）・関連付け 2（ProgID と Applications の open。spec-5-2 確定事項A1・A3）。
+  assert.equal(commands.length, 3 + EXTENSIONS.toPdf.length * 2 + 2);
 });
 
 test('5. コマンドは引用符付きの exe のパスと、引用符付きの "%1" で書く（事前調査 C）', () => {
@@ -121,20 +127,24 @@ test('10. 他社の製品名・サービス名が入っていない（docs/06 1-
 test('何個選んでも出すよう、PDF の入口と画像の項目に Player を付け、カスケードの子には付けない（論点5）', () => {
   assert.equal(valueOf(`${SFA}\\.pdf\\shell\\${ID}`, 'MultiSelectModel'), 'Player');
   assert.equal(valueOf(`${SFA}\\.pdf\\shell\\${ID}`, 'ExtendedSubCommandsKey'), `${ID}.Menu`);
-  for (const ext of EXTENSIONS.toPdf)
+  for (const ext of EXTENSIONS.toPdf) {
     assert.equal(valueOf(`${SFA}\\${ext}\\shell\\${ID}.ToPdf`, 'MultiSelectModel'), 'Player', ext);
+    assert.equal(valueOf(`${SFA}\\${ext}\\shell\\${ID}.EditImage`, 'MultiSelectModel'), 'Player', `${ext} 画像を編集する`);
+  }
   const children = WRITES.filter(({ key }) => key.includes(`${ID}.Menu\\`));
   assert.ok(children.length > 0);
   assert.equal(children.some(({ name }) => name === 'MultiSelectModel'), false, '子には効かない（事前調査 A2）');
 });
 
-test('表示名は docs/03 2-2・2-3 のとおり', () => {
+test('表示名は docs/03 2-2・2-3 のとおり（画像の「画像を編集する」は spec-7-3 確定事項IE1）', () => {
   assert.equal(valueOf(`${SFA}\\.pdf\\shell\\${ID}`, 'MUIVerb'), '${PRODUCT_NAME}');
   assert.equal(valueOf(`Software\\Classes\\${ID}.Menu\\shell\\01open`, 'MUIVerb'), '${PRODUCT_NAME} で開く');
   assert.equal(valueOf(`Software\\Classes\\${ID}.Menu\\shell\\02merge`, 'MUIVerb'), '選択した PDF を結合');
   assert.equal(valueOf(`Software\\Classes\\${ID}.Menu\\shell\\03split`, 'MUIVerb'), 'PDF を分割');
-  for (const ext of EXTENSIONS.toPdf)
+  for (const ext of EXTENSIONS.toPdf) {
     assert.equal(valueOf(`${SFA}\\${ext}\\shell\\${ID}.ToPdf`, 'MUIVerb'), 'PDF に変換（${PRODUCT_NAME}）');
+    assert.equal(valueOf(`${SFA}\\${ext}\\shell\\${ID}.EditImage`, 'MUIVerb'), '画像を編集する（${PRODUCT_NAME}）');
+  }
 });
 
 test('electron-builder の設定が、このファイルを取り込む', () => {
