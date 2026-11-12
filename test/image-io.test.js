@@ -208,7 +208,7 @@ test('readWatermarkImage は PNG・JPEG 以外とプログレッシブの JPEG �
   });
   assert.deepEqual(await readWatermarkImage('C:/in/c.bmp', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'bmp' });
   assert.deepEqual(await readWatermarkImage('C:/in/d.gif', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'gif' });
-  assert.deepEqual(await readWatermarkImage('C:/in/e.jpg', { fsLike }), { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。', kind: 'jpeg' });
+  assert.deepEqual(await readWatermarkImage('C:/in/e.jpg', { fsLike }), { error: 'この JPEG はプログレッシブ形式なので、透かしに使用できません。', kind: 'jpeg' });
   assert.deepEqual(await readWatermarkImage('C:/in/f.png', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: null });
   assert.equal(WATERMARK_KIND_ERROR, 'PNG 画像か JPEG 画像を選択してください。');
 });

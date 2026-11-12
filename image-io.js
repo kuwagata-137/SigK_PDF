@@ -152,7 +152,7 @@ async function readWatermarkImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_
     if (kind !== 'png' && kind !== 'jpeg')
       return { error: WATERMARK_KIND_ERROR, kind };
     if (kind === 'jpeg' && isProgressiveJpeg(bytes))
-      return { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。', kind };
+      return { error: 'この JPEG はプログレッシブ形式なので、透かしに使用できません。', kind };
     const inspected = inspectImageBytes(bytes);
     if (inspected.ok !== true)
       return { error: inspected.error, kind };
