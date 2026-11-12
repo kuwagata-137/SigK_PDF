@@ -20,10 +20,10 @@ test('textViewsOf はテキストが無ければどれも null、混ざれば名
   assert.deepEqual(view.textViewsOf([square()]), { fontSize: null, format: null, border: null });
   const alone = view.textViewsOf([text({ border: '#c00000' })]);
   assert.deepEqual(alone.border, { value: '#c00000', mixed: false, label: '枠線' });
-  assert.equal(alone.fontSize.label, '文字の大きさ');
+  assert.equal(alone.fontSize.label, '文字サイズ');
   const mixed = view.textViewsOf([text({ border: '#c00000' }), square(), text({ fontSize: 18 })]);
   assert.deepEqual(mixed.border, { value: null, mixed: true, label: '枠線（テキスト）' });
-  assert.deepEqual(mixed.fontSize, { value: 18, mixed: true, label: '文字の大きさ（テキスト）' });
+  assert.deepEqual(mixed.fontSize, { value: 18, mixed: true, label: '文字サイズ（テキスト）' });
   assert.equal(mixed.format.label, '書式（テキスト）');
 });
 

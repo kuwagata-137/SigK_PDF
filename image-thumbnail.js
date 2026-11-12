@@ -26,7 +26,7 @@ function thumbSize(requested) {
   return Math.min(MAX_THUMB_PX, THUMB_PX * Math.ceil(value / THUMB_PX));
 }
 const EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff']);
-const FAILED = 'サムネイルを作れませんでした。';
+const FAILED = 'サムネイルを作成できませんでした。';
 
 // テストは ubuntu でも回るので、Windows のパスも絶対パスとして読む。
 function isThumbnailPath(filePath) {

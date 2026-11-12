@@ -51,7 +51,7 @@ test('画面で評価すると、束を当てた後の様子を報告する', as
   assert.deepEqual(report.convert.map((row) => [row.name, row.batch, row.kind]), [['a.png', 1, 'png']]);
   // 分割の対象は選んでいる帯（＝映しているタブ）なので、結合の束で最後に開いた a.pdf になる（spec-2-5 確定事項G1）。
   assert.deepEqual(report.split, { name: 'a.pdf', pageCount: 3, blocked: null });
-  assert.equal(report.mergeNote, 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。');
+  assert.equal(report.mergeNote, 'ファイル名順に並べたので、エクスプローラーの並び順と違うときは、帯の ↑↓ で順番を入れ替えてください。');
   assert.equal(report.pending, 0);
 });
 

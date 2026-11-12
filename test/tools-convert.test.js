@@ -3,7 +3,7 @@
 // 画像→PDF（spec-3-1 確定事項1〜9・18〜27、spec-2-5 第 H 章）。
 //
 // 実際に書くのはワーカーで、その中身は test/op-convert.test.js が、紙と箱の計算は test/convert-plan.test.js が見ている。
-// 「変換する画像」の帯の見た目と操作は test/image-strip.test.js、変換のあとの帯と「できた PDF」のカードは test/convert-result.test.js。
+// 「変換する画像」の帯の見た目と操作は test/image-strip.test.js、変換のあとの帯と「作成した PDF」のカードは test/convert-result.test.js。
 // ここは「何を足し、どう並べ、何を出し、何をワーカーへ渡し、終わったら何をするか」を見る。
 
 const test = require('node:test');
@@ -74,7 +74,7 @@ test('初期状態は空で、実行は押せない', async (t) => {
 // 画像が無いときの右の欄の状態の文は、受け口のボタンを今の名前で指す（spec-2-5 確定事項D7。2026-10-23 改訂。ユーザーの指示）。
 test('画像が無いときの右の欄の状態の文は、受け口の［ファイルを開く…］を案内する', async (t) => {
   const shell = await createConvertShell(t);
-  assert.equal(shell.document.getElementById('convert-state').textContent, '画像をドロップするか、下の受け口の［ファイルを開く…］で選ぶと、「変換する画像」の帯に並びます。');
+  assert.equal(shell.document.getElementById('convert-state').textContent, '画像をドロップするか、下のドロップエリアの［ファイルを開く…］で選択すると、「変換する画像」の帯に並びます。');
   assert.equal(shell.document.getElementById('strip-drop-pick').textContent, 'ファイルを開く…', '受け口のボタンの名前');
 });
 
@@ -83,7 +83,7 @@ test('受け口の［ファイルを開く…］は PDF と画像を選べ、画
   const shell = await createConvertShell(t, { files: { [PDF]: makeSource({ path: PDF }) }, convertSourceResults: [{ paths: [B, PDF, A] }] });
   const { SigK, document: doc } = shell;
   // 帯が 0 本のときは大きい受け口の文、帯ができたら小さい受け口の文（H10）。
-  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をドロップするか［ファイルを開く…］で選ぶと、PDF は帯、画像は「変換する画像」の帯に並びます');
+  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をドロップするか［ファイルを開く…］で選択すると、PDF は帯、画像は「変換する画像」の帯に並びます');
   assert.equal(await SigK.stripDropZone.pick(), true);
   assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をここにドロップすると帯を追加します');
 
@@ -148,7 +148,7 @@ test('addFromLaunch はツールモードへ切り替えて変換を選び、末
 });
 
 test('右クリックの束はファイル名の順に並び、注記は束につき 1 回。実行済みの一覧は次の束で置き換える（spec-5-1 確定事項16〜18）', async (t) => {
-  const note = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+  const note = 'ファイル名順に並べたので、エクスプローラーの並び順と違うときは、ドラッグで並べ替えてください。';
   const shell = await createShell({
     imageInfos: INFOS,
     files: { [OUT]: makeSource({ path: OUT }) },
@@ -178,7 +178,7 @@ test('右クリックの束はファイル名の順に並び、注記は束に�
 
 // ---- 右クリックの束の続き（spec-5-1 確定事項16〜19。test/tools-merge.test.js の同じ名前のテストに揃える） ----
 
-const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、ドラッグで入れ替えてください。';
+const NOTE_NAME_ORDER = 'ファイル名順に並べたので、エクスプローラーの並び順と違うときは、ドラッグで並べ替えてください。';
 const first = (id) => ({ batch: { id, first: true } });
 const next = (id) => ({ batch: { id, first: false } });
 
@@ -291,12 +291,12 @@ test('読めない画像は名前が赤くなり、帯の下に理由が出て�
   const { SigK } = shell;
   await SigK.toolsConvert.addPaths([A, WEBP, 'C:\\photo\\x.pdf', 'C:\\photo\\p.jpg']);
 
-  assert.equal(rows(shell)[1].blocked, '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
-  assert.equal(rows(shell)[2].blocked, 'PDF は画像ではないので、PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください');
-  assert.equal(rows(shell)[3].blocked, 'この JPEG はプログレッシブ形式なので、変換できません。外してください');
+  assert.equal(rows(shell)[1].blocked, '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください。削除してください');
+  assert.equal(rows(shell)[2].blocked, 'PDF は画像ではないので、PNG・JPEG・BMP・GIF・TIFF を選んでください。削除してください');
+  assert.equal(rows(shell)[3].blocked, 'この JPEG はプログレッシブ形式なので、変換できません。削除してください');
   assert.equal(rowNodes(shell)[1].classList.contains('bad'), true);
   assert.equal(rowNodes(shell)[0].classList.contains('bad'), false);
-  assert.match(noteText(shell), /「logo\.webp」：対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください。外してください/);
+  assert.match(noteText(shell), /「logo\.webp」：対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください。削除してください/);
   assert.equal(SigK.toolsConvert.canRun(), false);
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
 
@@ -310,7 +310,7 @@ test('読めない画像は名前が赤くなり、帯の下に理由が出て�
 test('見つからないファイルも断る', async (t) => {
   const shell = await createConvertShell(t);
   await shell.SigK.toolsConvert.addPaths(['C:\\photo\\nope.png']);
-  assert.equal(rows(shell)[0].blocked, 'ファイルが見つかりません。外してください');
+  assert.equal(rows(shell)[0].blocked, 'ファイルが見つかりません。削除してください');
 });
 
 test(`上限は ${'100'} ファイルで、超えたぶんは切り捨てて通知バーで伝える`, async (t) => {
@@ -362,13 +362,13 @@ test('横に引いて並べ替え、画像の［×］で 1 枚、見出しの［
 
 // ---- 用紙と向きと余白（確定事項10〜14・21） ----
 
-test('用紙・向き・余白を変えると、画像の説明の「この紙」と出力の例が変わる', async (t) => {
+test('用紙・向き・余白を変えると、画像の説明の「用紙サイズ」と出力の例が変わる', async (t) => {
   const shell = await createConvertShell(t);
   const { SigK } = shell;
   await SigK.toolsConvert.addPaths([A, B]);
 
   // 既定は A4・自動・標準。横長は横、縦長は縦。
-  const papers = () => [0, 1].map((index) => tipDescOf(shell, index).split('この紙: ')[1]);
+  const papers = () => [0, 1].map((index) => tipDescOf(shell, index).split('用紙サイズ: ')[1]);
   assert.deepEqual(papers(), ['A4 横', 'A4 縦']);
 
   pick(shell, 'orient', 'portrait');
@@ -395,7 +395,7 @@ test('「画像に合わせる」では向きと余白を押せなくし、紙�
   pick(shell, 'paper', 'image');
   assert.equal(radio(shell, 'orient', 'portrait').disabled, true);
   assert.equal(radio(shell, 'margin', 'none').disabled, true);
-  assert.deepEqual([0, 1].map((index) => tipDescOf(shell, index).split('この紙: ')[1]), ['1200×800 pt', '64×64 pt']);
+  assert.deepEqual([0, 1].map((index) => tipDescOf(shell, index).split('用紙サイズ: ')[1]), ['1200×800 pt', '64×64 pt']);
   assert.deepEqual(plain(SigK.toolsConvert.currentPlan().pages[1]), [{
     page: { width: 64, height: 64 },
     box: { x: 0, y: 0, width: 64, height: 64 },
@@ -443,11 +443,11 @@ test('画像の帯の中で出力名が重なると赤く示して実行でき�
 
   pick(shell, 'output', 'each');
   assert.equal(SigK.toolsConvert.canRun(), false);
-  assert.equal(SigK.toolsConvert.currentPlan().error, '出力名が重なります: a.pdf');
+  assert.equal(SigK.toolsConvert.currentPlan().error, '出力名が重複しています: a.pdf');
   assert.equal(rowNodes(shell)[0].classList.contains('bad'), true);
   assert.equal(rowNodes(shell)[1].classList.contains('bad'), true);
   assert.match(noteText(shell), /「a\.png」：出力名がほかの画像と重なります/);
-  assert.match(exampleText(shell), /出力名が重なります/);
+  assert.match(exampleText(shell), /出力名が重複しています/);
 
   SigK.toolsConvert.remove(SigK.toolsConvert.rows()[1].id);
   assert.equal(SigK.toolsConvert.canRun(), true);
@@ -485,7 +485,7 @@ test('「まとめる」は保存先を聞き、1本ぶんの spec を渡して�
   assert.equal(SigK.tabs.activeId(), SigK.tabs.list().at(-1).id);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
   assert.equal(SigK.tools.selected(), 'convert');
-  assert.equal(bannerText(shell), '画像を PDF にして、「a.pdf」の帯を足しました。');
+  assert.equal(bannerText(shell), '画像を PDF に変換して、「a.pdf」の帯を追加しました。');
   assert.equal(bannerTone(shell), 'info');
   assert.deepEqual(names(shell), ['a.png', 'b.jpg'], '画像の帯は消さない');
 });
@@ -513,7 +513,7 @@ test('「まとめる」で帯が上限なら開かずに知らせ、最近使�
   await SigK.toolsConvert.addPaths([A, B]);
   await SigK.toolsConvert.run();
   assert.equal(SigK.tabs.count(), 20);
-  assert.equal(bannerText(shell), '画像を PDF にして「a.pdf」を作りましたが、帯が 20 本を超えるので開いていません。');
+  assert.equal(bannerText(shell), '画像を PDF に変換して「a.pdf」を作成しましたが、帯が 20 本を超えるので開いていません。');
   // 開かなかっただけで書けてはいるので、失敗の赤にしない（決定48）。
   assert.equal(bannerTone(shell), 'info');
   assert.equal(shell.document.documentElement.getAttribute('data-mode'), 'tools');
@@ -548,7 +548,7 @@ test('「まとめる」の出力先がタブで開いていれば、何も書�
   await SigK.toolsConvert.addPaths([A]);
 
   const result = await SigK.toolsConvert.run();
-  assert.equal(result.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '出力先ファイルはタブで開いているので、タブを閉じるか、別の名前を指定してください。');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(bannerText(shell), result.error);
   assert.equal(doc.documentElement.getAttribute('data-mode'), 'tools');
@@ -567,7 +567,7 @@ test('「画像ごと」の出力先がタブで開いていれば、同名の3�
   pick(shell, 'output', 'each');
 
   const result = await SigK.toolsConvert.run();
-  assert.equal(result.error, '出力先の「b.pdf」はタブで開いているので、タブを閉じるか、フォルダを変えてください。');
+  assert.equal(result.error, '出力先の「b.pdf」はタブで開いているので、タブを閉じるか、フォルダを変更してください。');
   assert.equal(doc.getElementById('confirm-replace').open, false, '置き換えてよいかは聞かない');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(bannerText(shell), result.error);
@@ -593,7 +593,7 @@ test('「画像ごと」は出力先を組んで渡し、終わったらでき�
   assert.deepEqual(plain(spec.targets), [`${DIR}\\a.pdf`, `${DIR}\\b.pdf`]);
   assert.deepEqual(plain(spec.images.map((image) => image.target)), [`${DIR}\\a.pdf`, `${DIR}\\b.pdf`]);
 
-  assert.equal(bannerText(shell).includes('画像を 2 個の PDF にして、帯を足しました。'), true);
+  assert.equal(bannerText(shell).includes('画像を 2 個の PDF に変換して、帯を追加しました。'), true);
   assert.deepEqual(plain(SigK.tabs.list().map((tab) => tab.path)), outs);
   assert.equal(SigK.tabs.activeId(), SigK.tabs.list().at(-1).id, '最後にできた PDF の帯を選ぶ（H11）');
   const action = doc.querySelector('#view-banner .banner-action');
@@ -732,7 +732,7 @@ test('TIFF の画像には「N ページ」の札と説明が付き、出力の�
   await SigK.toolsConvert.addPaths([SCAN, A]);
   assert.equal(rowNodes(shell)[0].querySelector('.img-pages').textContent, '3 ページ');
   assert.equal(rowNodes(shell)[1].querySelector('.img-pages'), null, '1ページなら札を出さない');
-  assert.match(tipDescOf(shell, 0), /1200×800・TIFF・3 ページ\nこの紙: A4 横/, '「この紙」は先頭ページ');
+  assert.match(tipDescOf(shell, 0), /1200×800・TIFF・3 ページ\n用紙サイズ: A4 横/, '「用紙サイズ」は先頭ページ');
   assert.match(tipDescOf(shell, 1), /1200×800・PNG\n/);
   assert.match(exampleText(shell), /scan\.pdf（4 ページ）/);
   assert.equal(plain(SigK.toolsConvert.currentPlan().totalPages), 4);
@@ -744,7 +744,7 @@ test('TIFF の画像には「N ページ」の札と説明が付き、出力の�
     { width: 841.89, height: 595.28 }, { width: 595.28, height: 841.89 }, { width: 595.28, height: 841.89 },
   ], 'ページごとに向き「自動」');
   assert.equal(spec.images[1].layouts.length, 1);
-  assert.equal(bannerText(shell), '画像を PDF にして、「a.pdf」の帯を足しました。');
+  assert.equal(bannerText(shell), '画像を PDF に変換して、「a.pdf」の帯を追加しました。');
 });
 
 test('合計ページ数が 100 を超えると出力の例に文言が出て実行できない', async (t) => {

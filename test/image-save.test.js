@@ -66,9 +66,9 @@ test('PNG の上書き保存: 確認の窓を出し、了承すると同じ形�
 
   assert.equal(shell.SigK.confirmImageSave.isOpen(), true);
   assert.equal(byId(shell, 'confirm-image-save-text').textContent, '書き込みを「shot.png」の画像に焼き込んで、上書き保存します。');
-  assert.equal(byId(shell, 'confirm-image-save-loss').textContent, '保存したあとは、書き込みを動かしたり直したりできません。書き込みの下にあった元の画像も元に戻せません。');
+  assert.equal(byId(shell, 'confirm-image-save-loss').textContent, '保存したあとは、書き込みを移動・編集できません。書き込みの下にあった画像も元に戻せません。');
   assert.equal(byId(shell, 'confirm-image-save-backup').hidden, false);
-  assert.equal(byId(shell, 'confirm-image-save-backup').textContent, '元の画像は、控えのファイル（shot.png.bak）に残します。');
+  assert.equal(byId(shell, 'confirm-image-save-backup').textContent, '元の画像は、バックアップファイル（shot.png.bak）に残します。');
   assert.equal(shell.document.activeElement?.id, 'confirm-image-save-cancel', '既定のフォーカスはキャンセル');
   assert.equal(byId(shell, 'confirm-image-save-ok').classList.contains('danger'), true);
   assert.equal(byId(shell, 'confirm-image-save-skip').checked, false, '「次回から表示しない」は外した状態から始める');
@@ -102,7 +102,7 @@ test('キャンセルすると描かずに書かず、変更は残る', async (t
   assert.equal((await saving).canceled, true);
   assert.equal(calls.length, 0);
   assert.equal(shell.imageWrites.length, 0);
-  assert.equal(shell.SigK.viewBanner.text(), '保存を取りやめました。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存をキャンセルしました。');
   assert.equal(shell.SigK.viewer.isDirty(), true);
 });
 

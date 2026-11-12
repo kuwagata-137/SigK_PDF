@@ -18,7 +18,7 @@ test('道具の段のテキストの隣に「吹き出し」のボタンがあ�
   assert.ok(SigK.icons.has('callout'));
   button.click();
   assert.equal(SigK.annotate.getTool(), 'callout');
-  assert.equal(document.getElementById('props-kind').textContent, '吹き出し（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, '吹き出し（次に追加する書き込み）');
   assert.equal(document.getElementById('props-size-row').hidden, false, '文字の大きさの行を出す');
   assert.match(document.getElementById('props-hint').textContent, /吹き出し/);
 });

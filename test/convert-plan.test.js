@@ -51,11 +51,11 @@ test('不正な値と読めない寸法は誤り', () => {
   assert.match(planPage(WIDE, { paper: 'a5', orientation: 'auto', margin: 'normal' }).error, /用紙/);
   assert.match(planPage(WIDE, { paper: 'a4', orientation: 'flip', margin: 'normal' }).error, /向き/);
   assert.match(planPage(WIDE, { paper: 'a4', orientation: 'auto', margin: 'huge' }).error, /余白/);
-  assert.match(planPage({ width: 0, height: 10 }, { paper: 'a4', orientation: 'auto', margin: 'normal' }).error, /大きさ/);
-  assert.match(planPage(null, { paper: 'a4', orientation: 'auto', margin: 'normal' }).error, /大きさ/);
+  assert.match(planPage({ width: 0, height: 10 }, { paper: 'a4', orientation: 'auto', margin: 'normal' }).error, /画像サイズ/);
+  assert.match(planPage(null, { paper: 'a4', orientation: 'auto', margin: 'normal' }).error, /画像サイズ/);
 });
 
-test('行に出す「この紙」', () => {
+test('行に出す「用紙サイズ」', () => {
   assert.equal(describePage(planPage(WIDE, { paper: 'a4', orientation: 'auto', margin: 'normal' }), 'a4'), 'A4 横');
   assert.equal(describePage(planPage(TALL, { paper: 'letter', orientation: 'auto', margin: 'normal' }), 'letter'), 'レター 縦');
   assert.equal(describePage(planPage(WIDE, { paper: 'image', orientation: 'auto', margin: 'normal' }), 'image'), '1200×800 pt');
@@ -120,7 +120,7 @@ test('「画像ごと」で出力名が衝突すれば誤り。「まとめる�
   assert.equal(planConvert(rows, SETTINGS).ready, true);
   const each = planConvert(rows, { ...SETTINGS, output: 'each' });
   assert.equal(each.ready, false);
-  assert.match(each.error, /出力名が重なります: a\.pdf/);
+  assert.match(each.error, /出力名が重複しています: a\.pdf/);
 });
 
 test('上限を超えれば誤り', () => {

@@ -8,8 +8,8 @@
   // （保存していない変更は結果に入らない。実行の前に確かめる〔確定事項F〕）。描画は tools-merge-list.js。
 
   // 起動からの結合の注記（確定事項E7）。
-  const NOTE_NAME_ORDER = 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。';
-  const RANGE_RECHECK = '上書き保存でページの数が変わり、合わない範囲があるので、範囲を直してから、もう一度実行してください。';
+  const NOTE_NAME_ORDER = 'ファイル名順に並べたので、エクスプローラーの並び順と違うときは、帯の ↑↓ で順番を入れ替えてください。';
+  const RANGE_RECHECK = '上書き保存でページ数が変わり、一部の範囲がページ数と合わなくなったので、範囲を修正してから、もう一度実行してください。';
 
   const state = { running: false, launchTabs: [], note: false };
   const picks = root.SigK.mergePicks.create();
@@ -194,11 +194,11 @@
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
+      return { error: picked?.error ?? '保存先を指定できませんでした。' };
     const target = picked.path;
     // 入力と同じファイル・タブで開いているファイルへは書かない（確定事項45）。帯はどれもタブなので、入力と同じ名前は後者でも断られる。
     const refused = chosen.some((row) => pathKey(row.path) === pathKey(target))
-      ? '出力先に入力ファイルと同じファイルは選べません。'
+      ? '出力先に入力ファイルと同じファイルは選択できません。'
       : root.SigK.outputTarget.refusalFor(target);
     if (refused !== null) {
       banner().show(refused);

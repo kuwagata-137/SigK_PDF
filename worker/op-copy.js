@@ -16,7 +16,7 @@ const { normalizeRotation } = require('./op-pages.js');
 const { PDFDocument, SAVE_OPTIONS, LOAD_OPTIONS, describeLoadFailure, describeSourceReadFailure, insertReader } = require('./pdf-io.js');
 
 const { failure } = require('./task-failure.js');
-const NO_SOURCE = 'PDF の中身が見つからないので、もう一度やり直してください。';
+const NO_SOURCE = 'PDF の内容が見つからないので、もう一度やり直してください。';
 
 // 元の中身のバイト列。写しの鍵（sourceCopy）があれば、パスがあってもその鍵のバイト列だけを使う（無ければ止める。書き換えられたディスクの中身へ
 // 黙って落ちない。spec-6-1 確定事項C-6）。鍵が無ければパスから読む。
@@ -76,7 +76,7 @@ async function runCopy(spec, { fsLike } = {}) {
   try {
     bytes = await applied.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return failure('写すページを組み立てられませんでした。', error);
+    return failure('コピーするページを作成できませんでした。', error);
   }
   return { ok: true, bytes, pages: applied.pages, sizes: applied.doc.getPages().map(viewedSize) };
 }

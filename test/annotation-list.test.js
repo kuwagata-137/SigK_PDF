@@ -65,7 +65,7 @@ test('文書が無ければ案内、編集モードで注釈一覧を選んで�
   document.querySelector('#side-switch button[data-side="list"]').click();
   assert.equal(list.hidden, false);
   assert.equal(document.getElementById('annot-list-empty').hidden, false);
-  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと書き込みの一覧が出ます');
+  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと、書き込みが一覧で表示されます');
   assert.equal(document.getElementById('thumbs-empty').hidden, true);
   assert.equal(rows(shell).length, 0);
   SigK.shell.setMode(document, 'view');
@@ -196,7 +196,7 @@ test('文書を閉じると案内に戻る', async (t) => {
   await SigK.tabs.closeCurrent?.() ?? SigK.viewer.close();
   await shell.flush();
   assert.equal(rows(shell).length, 0);
-  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと書き込みの一覧が出ます');
+  assert.equal(document.getElementById('annot-list-empty').textContent, '文書を開くと、書き込みが一覧で表示されます');
 });
 
 // ---- Ctrl＋クリック・Shift＋クリック（spec-4b-3a 確定事項K。決定39 ⑧の改め） ----

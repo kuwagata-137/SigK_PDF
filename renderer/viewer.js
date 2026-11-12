@@ -770,7 +770,7 @@
     if (error?.name === 'PasswordException')
       return 'パスワードが違うため、この PDF を開けませんでした。';
     if (error?.name === 'InvalidPDFException')
-      return 'PDF として読めませんでした。ファイルが壊れている可能性があります。';
+      return 'PDF として読み込めませんでした。ファイルが壊れている可能性があります。';
     if (error?.name === 'BrokenPageError')
       return `${error.page} ページ目が壊れているので、この PDF を開けませんでした。`;
     return 'この PDF を開けませんでした。';
@@ -787,7 +787,7 @@
       outcome.asked = true;
       const prompt = root.SigK.passwordPrompt;
       if (prompt === undefined) {
-        updatePassword(new Error('パスワードを聞けません'));
+        updatePassword(new Error('パスワード入力画面を表示できません'));
         return;
       }
       prompt
@@ -796,7 +796,7 @@
           if (value === null) {
             state.openCanceled = true;
             // Error を渡すと promise が reject する。取りやめの合図である。
-            updatePassword(new Error('パスワードの入力を取りやめました'));
+            updatePassword(new Error('パスワードの入力をキャンセルしました'));
             return;
           }
           updatePassword(value);
@@ -817,7 +817,7 @@
       return false;
     }
     if (root.SigK.pdfjs?.available !== true) {
-      setMessage('PDF の表示機能を読み込めませんでした。');
+      setMessage('PDF 表示機能を読み込めませんでした。');
       return false;
     }
 
@@ -1032,7 +1032,7 @@
 
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
-      setMessage('ファイルを開く機能が使えません。');
+      setMessage('ファイルを開く機能を使用できません。');
       return false;
     }
     const result = await api.open();

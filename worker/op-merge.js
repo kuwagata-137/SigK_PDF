@@ -26,10 +26,10 @@ function resolvePages(pages, pageCount) {
   if (pages === null || pages === undefined)
     return { pages: Array.from({ length: pageCount }, (_value, index) => index) };
   if (!Array.isArray(pages))
-    return { error: 'ページの指定を読み取れません。' };
+    return { error: 'ページ指定を読み取れません。' };
   for (const page of pages) {
     if (!Number.isInteger(page) || page < 0 || page >= pageCount)
-      return { error: 'ページの指定がファイルと合わないので、もう一度足し直してください。' };
+      return { error: 'ページ指定がファイルと合わないので、ファイルをもう一度追加してください。' };
   }
   return { pages };
 }
@@ -41,7 +41,7 @@ function withName(name, message) {
 // entries: [{ name, pages, load }]。load() は入力を PDFDocument として返す。
 // 失敗（壊れている・暗号化）は describeLoadFailure で文言にし、ファイル名を添えて
 // 全体を止める（確定事項31）。onProgress(done, total) は1本複製し終えるごとに呼ぶ。
-async function mergeDocuments(entries, tools, { describeLoadFailure = () => '読めません。', onProgress = () => {} } = {}) {
+async function mergeDocuments(entries, tools, { describeLoadFailure = () => '読み込めません。', onProgress = () => {} } = {}) {
   const { PDFDocument } = tools;
   if (!Array.isArray(entries) || entries.length === 0)
     return { error: '結合するファイルがありません。' };

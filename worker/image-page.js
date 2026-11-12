@@ -59,7 +59,7 @@ async function embedWithPdfLib(doc, kind, bytes) {
 // 自分で画素へ展開する形式（BMP・GIF・TIFF）。tools に PDFImage・PngEmbedder・PDFName・PDFHexString が要る。
 async function embedDecoded(doc, kind, bytes, frame, tools) {
   if (typeof tools?.PDFImage?.of !== 'function' || typeof tools?.PngEmbedder !== 'function')
-    return { error: '画像を埋め込む道具が揃っていません。' };
+    return { error: '画像埋め込みに必要な機能がそろっていません。' };
   const decoded = decodeImage(kind, bytes, { frame });
   if (decoded.ok !== true)
     return passFailure(decoded);
@@ -71,7 +71,7 @@ async function embedDecoded(doc, kind, bytes, frame, tools) {
 async function embedImage(doc, { kind, bytes }, tools = {}, { frame = 0 } = {}) {
   const pixels = imageSize(kind, bytes, { frame });
   if (pixels === null || !(pixels.width > 0) || !(pixels.height > 0))
-    return { error: '画像の大きさを読み取れませんでした。' };      // 0画素も含む（確定事項57）
+    return { error: '画像サイズを読み取れませんでした。' };      // 0画素も含む（確定事項57）
   if (pixels.width * pixels.height > MAX_PIXELS)
     return { error: '画像が大きすぎます。' };
 
@@ -81,7 +81,7 @@ async function embedImage(doc, { kind, bytes }, tools = {}, { frame = 0 } = {}) 
   if (embedded.ok !== true)
     return embedded;
   if (!(embedded.image.width > 0) || !(embedded.image.height > 0))
-    return { error: '画像の大きさを読み取れませんでした。' };
+    return { error: '画像サイズを読み取れませんでした。' };
   // 表示のために回す角度（JPEG の EXIF の向き。それ以外は 0）。
   return { ...embedded, rotation: kind === 'jpeg' ? rotationOfJpeg(bytes) : 0 };
 }
@@ -106,7 +106,7 @@ function drawRotated(page, image, rect, rotation, degrees) {
 function drawImagePage(doc, image, { page: size, box, allowUpscale = false, paper = true, rotation = 0 }, { PDFPage, rgb, degrees }) {
   const placed = fitInside(uprightSize(image, rotation), box, { allowUpscale });
   if (placed === null)
-    return { error: '画像の大きさを読み取れませんでした。' };
+    return { error: '画像サイズを読み取れませんでした。' };
   const page = PDFPage.create(doc);
   page.setSize(size.width, size.height);
   if (paper)

@@ -22,14 +22,14 @@ const { applyCrop } = require('./page-box-rules.js');
 // 取り出す plan がこの文書に当てられる形かを見る。inserted は差し込んだページの実体（insert 番号で引く。写し〔spec-2-5 I5〕のときだけ渡る）。
 function validateSelection(plan, pageCount, inserted = []) {
   if (!Array.isArray(plan) || plan.length === 0)
-    return { error: '抽出するページが選ばれていません。' };
+    return { error: '抽出するページが選択されていません。' };
 
   for (const entry of plan) {
     if (isInsert(entry) && inserted[entry.insert] !== undefined)
       continue;
     const src = entry?.src;
     if (!Number.isInteger(src) || src < 0 || src >= pageCount)
-      return { error: 'ページの指定が元の文書と合わないので、もう一度開き直してください。' };
+      return { error: 'ページ指定が元の文書と合わないので、文書をもう一度開いてください。' };
   }
   return { ok: true };
 }
@@ -71,7 +71,7 @@ async function extractPages(source, plan, { PDFDocument, PDFName, inserted = [] 
   for (const [index, entry] of plan.entries()) {
     if (entry?.crop === undefined)
       continue;
-    const cropped = PDFName === undefined ? { error: 'ページの切り方を保存できません。' } : applyCrop(copied[index], entry.crop, { PDFName });
+    const cropped = PDFName === undefined ? { error: 'トリミング範囲を保存できません。' } : applyCrop(copied[index], entry.crop, { PDFName });
     if (cropped.ok !== true)
       return cropped;
   }

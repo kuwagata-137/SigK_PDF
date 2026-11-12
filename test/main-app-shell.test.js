@@ -17,9 +17,9 @@ function helpMenuOrder() {
   return [...block.matchAll(/\{ (?:label: '([^']+)'|type: 'separator')/g)].map((m) => m[1] ?? '-');
 }
 
-test('メニュー「ヘルプ」は 使い方・既定のアプリの設定…・エラーの記録のフォルダを開く・区切り・バージョン情報 の順で、起動確認が見張る並びと同じ', () => {
+test('メニュー「ヘルプ」は 使い方・既定のアプリの設定…・エラーログフォルダを開く・区切り・バージョン情報 の順で、起動確認が見張る並びと同じ', () => {
   const order = helpMenuOrder();
-  assert.deepEqual(order, ['使い方', '既定のアプリの設定…', 'エラーの記録のフォルダを開く', '-', 'バージョン情報']);
+  assert.deepEqual(order, ['使い方', '既定のアプリの設定…', 'エラーログフォルダを開く', '-', 'バージョン情報']);
   const watched = /const HELP_MENU_ORDER = (\[[^\]]+\]);/.exec(MAIN)[1];
   assert.deepEqual(JSON.parse(watched.replace(/'/g, '"')), order);
 });
@@ -32,8 +32,8 @@ test('「既定のアプリの設定…」を押すと、製品名を渡して d
   assert.match(MAIN, /^const \{[^}]*\bshell\b[^}]*\} = require\('electron'\);/m);
 });
 
-test('「エラーの記録のフォルダを開く」を押すと、記録のフォルダを渡して log-folder.js の openLogFolder を呼ぶ（spec-6-1 タスク B。決定81 ⑧）', () => {
-  assert.match(MAIN, /\{ label: 'エラーの記録のフォルダを開く', click: requestLogFolder \}/);
+test('「エラーログフォルダを開く」を押すと、記録のフォルダを渡して log-folder.js の openLogFolder を呼ぶ（spec-6-1 タスク B。決定81 ⑧）', () => {
+  assert.match(MAIN, /\{ label: 'エラーログフォルダを開く', click: requestLogFolder \}/);
   assert.match(MAIN, /function requestLogFolder\(\) \{\n {2}openLogFolder\(\{ dir: path\.dirname\(errorLog\.filePath\), shell, logError \}\);\n\}/);
   assert.match(MAIN, /const \{ openLogFolder \} = require\('\.\/log-folder\.js'\);/);
 });
@@ -42,7 +42,7 @@ test('「エラーの記録のフォルダを開く」を押すと、記録の�
 test('画面の処理が止まったら、保存していない変更の数と起動の要求の受け取りの印を戻してから、renderer-gone.js へ渡す', () => {
   const body = /function onRendererGone\(win\) \{([\s\S]*?)\n\}/.exec(MAIN)?.[1] ?? '';
   assert.match(body, /dirtyTabCount = 0;/);
-  assert.match(body, /launchReady = false;/, '開き直した画面が shell:ready を送るまで、エクスプローラーから開いたファイルをためておく（確定事項77）');
+  assert.match(body, /launchReady = false;/, '開き直した画面が shell:ready を送るまで、エクスプローラーからの操作開いたファイルをためておく（確定事項77）');
   // ブランチ全体の点検の直し M-3。止まった画面の保存は、開き直した画面と番号がぶつかりうるので、アプリを終えるときと同じく止める。
   assert.match(body, /taskRunner\?\.cancelAll\(\);/, '走っているワーカーを止める');
   assert.match(body, /handleRendererGone\(\{ win, dialog, app, logError, smoke: process\.env\.SIGK_SMOKE === '1', quitting \}\)/);

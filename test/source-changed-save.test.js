@@ -18,7 +18,7 @@ const OUT = 'C:\\work\\a_抽出.pdf';
 const OPENED = { size: 1024, mtimeMs: 1000 };
 // harness.js の makeSource が持たせるバイト列（開いたときの中身）。
 const OPENED_BYTES = [0x25, 0x50, 0x44, 0x46, 0x2d];
-const UNREADABLE = '開いたあとで元のファイルがほかのアプリで書き換えられていて、開いたときの中身も読み出せなかったので、保存できませんでした。元のファイルは変更していません。';
+const UNREADABLE = '元のファイルが、開いたあとにほかのアプリで書き換えられていて、開いた時点の内容も読み出せなかったので、保存できませんでした。元のファイルは変更していません。';
 
 const plain = (value) => structuredClone(value);
 const okResult = (over = {}) => ({ ok: true, path: A, backup: null, signature: { size: 2048, mtimeMs: 2000 }, ...over });
@@ -87,7 +87,7 @@ test('上書き保存で元が書き換えられていたら確認の窓を出�
   assert.equal(second.makeBackup, true, '書き換えられた中身は控え（.bak）に残る');
 });
 
-test('上書き保存で元が書き換えられていて［取りやめ］なら、やり直さない', async (t) => {
+test('上書き保存で元が書き換えられていて［キャンセル］なら、やり直さない', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [{ sourceChanged: true }] });
   edit(shell.SigK);
   const saving = shell.SigK.save.saveActive();
@@ -95,7 +95,7 @@ test('上書き保存で元が書き換えられていて［取りやめ］な�
   shell.document.getElementById('confirm-overwrite-cancel').click();
   assert.deepEqual(plain(await saving), { canceled: true });
   assert.equal(shell.taskCalls.length, 1);
-  assert.equal(shell.SigK.viewBanner.text(), '保存を取りやめました。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存をキャンセルしました。');
   assert.equal(shell.SigK.viewer.isDirty(), true);
 });
 
@@ -212,7 +212,7 @@ test('差し込みと元の両方が書き換えられていて上書きなら�
 
 // ---- 点検の直し（2026-10-20。I-1・M-1〜M-3 と足りなかったテスト） ----
 
-test('抽出は、保存の窓を開いている間も保存の枠を押さえる（エクスプローラーから開いたファイルを待たせる。I-1）', async (t) => {
+test('抽出は、保存の窓を開いている間も保存の枠を押さえる（エクスプローラーからの操作開いたファイルを待たせる。I-1）', async (t) => {
   const shell = await withOpenDocument(t, { taskResults: [{ ok: true, path: OUT, pages: 1 }] });
   let busyDuringDialog = null;
   shell.window.pdfAPI.pickSavePath = async () => { busyDuringDialog = shell.SigK.save.isBusy(); return { path: OUT }; };
@@ -235,7 +235,7 @@ test('抽出の保存の窓の間に映しているタブが替わったら、�
   const result = await running;
   assert.equal(result.changed, true);
   assert.equal(shell.taskCalls.length, 0);
-  assert.equal(shell.SigK.viewBanner.text(), '抽出の確認や画像にしている間に、ページかタブが変わったので、抽出を取りやめました。もう一度抽出してください。');
+  assert.equal(shell.SigK.viewBanner.text(), '抽出確認中や画像変換中に、ページが変更されたかタブが切り替わったので、抽出をキャンセルしました。もう一度抽出してください。');
 });
 
 test('1 回目とやり直しの間（開いたときの中身を読む間）も保存の枠を押さえる（M-1）', async (t) => {
@@ -273,7 +273,7 @@ test('読み出せなかったときの文は、読み出せなかった方で�
   shell.SigK.viewer.peek().doc.getData = async () => new Uint8Array([1]);
   shell.SigK.viewer.peek().inserts[0].doc.getData = async () => { throw new Error('読めない'); };
   assert.equal((await shell.SigK.save.saveActive()).error,
-    '差し込んだあとで差し込んだファイルがほかのアプリで書き換えられていて、差し込んだときの中身も読み出せなかったので、保存できませんでした。元のファイルは変更していません。');
+    '差し込んだファイルが、その後ほかのアプリで書き換えられていて、差し込んだ時点の内容も読み出せなかったので、保存できませんでした。元のファイルは変更していません。');
 });
 
 test('写し（copy）と、同じ下見の文書の 2 ページと、並びに無い差し込みが混ざっていても、写しにするのは並びにあるファイルの差し込みだけで、下見の文書は 1 回だけ読む', async (t) => {

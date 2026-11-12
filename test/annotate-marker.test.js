@@ -133,7 +133,7 @@ test('右パネル・ヒント・一覧はマーカーの名前で、行は色�
   const shell = await withTool(t, 'marker');
   const { SigK, document } = shell;
   const shown = (id) => document.getElementById(id).hidden === false;
-  assert.equal(document.getElementById('props-kind').textContent, 'マーカー（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, 'マーカー（次に追加する書き込み）');
   assert.equal(document.getElementById('props-width').value, '12');
   assert.equal(document.getElementById('props-opacity').value, '100');
   assert.equal(shown('props-color-row') && shown('props-width-row') && shown('props-opacity-row'), true);

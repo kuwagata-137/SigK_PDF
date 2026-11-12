@@ -24,7 +24,7 @@
 ; 「完了後に起動」があると文の欄は 5 行分しかないので、7.5 行分に広げる（spec-5-2 事前調査 I。文は 7 行）。
 ; 句点と読点のあとで改行する。成り行きの折り返しでは、行末に開きかぎ「「」がぶら下がる行が 2 つできた（spec-5-3 確かめ No.24・docs/07 決定75 ④）。
 !ifndef BUILD_UNINSTALLER
-  !define MUI_FINISHPAGE_TEXT "${PRODUCT_NAME} のインストールが完了しました。$\r$\n$\r$\nPDF と画像の右クリックメニューから使えますが、$\r$\nWindows 11 では「その他のオプションを確認」の中にあります。$\r$\n$\r$\nPDF をダブルクリックで開くアプリにするには、$\r$\nメニュー「ヘルプ」→「既定のアプリの設定…」から選んでください。"
+  !define MUI_FINISHPAGE_TEXT "${PRODUCT_NAME} のインストールが完了しました。$\r$\n$\r$\nPDF と画像の右クリックメニューから使えますが、$\r$\nWindows 11 では「その他のオプションを確認」の中にあります。$\r$\n$\r$\nPDF をダブルクリックで開くアプリにするには、$\r$\nメニュー「ヘルプ」→「既定のアプリの設定…」から選択してください。"
   !define MUI_FINISHPAGE_TEXT_LARGE
 !endif
 
@@ -99,7 +99,7 @@
   WriteRegStr HKCU "Software\Classes\Applications\${APP_EXECUTABLE_FILENAME}\SupportedTypes" ".pdf" ""
   ; A4 設定の「既定のアプリ」の一覧に名前を出す。メニューの「既定のアプリの設定…」は、この値の名前でページを開く。
   WriteRegStr HKCU "Software\${SIGK_SHELL_ID}\Capabilities" "ApplicationName" "${PRODUCT_NAME}"
-  WriteRegStr HKCU "Software\${SIGK_SHELL_ID}\Capabilities" "ApplicationDescription" "PDF の閲覧・ページの編集・書き込み・結合・分割・変換"
+  WriteRegStr HKCU "Software\${SIGK_SHELL_ID}\Capabilities" "ApplicationDescription" "PDF の閲覧・ページ編集・書き込み・結合・分割・変換"
   WriteRegStr HKCU "Software\${SIGK_SHELL_ID}\Capabilities" "ApplicationIcon" "$INSTDIR\${APP_EXECUTABLE_FILENAME},0"
   WriteRegStr HKCU "Software\${SIGK_SHELL_ID}\Capabilities\FileAssociations" ".pdf" "${SIGK_SHELL_ID}.Document"
   WriteRegStr HKCU "Software\RegisteredApplications" "${PRODUCT_NAME}" "Software\${SIGK_SHELL_ID}\Capabilities"

@@ -41,7 +41,7 @@
     node.classList.toggle('blocked', row.blocked !== null);
     box.checked = row.checked;
     box.disabled = row.blocked !== null || running;
-    box.setAttribute('aria-label', `「${row.name}」を結合に入れる`);
+    box.setAttribute('aria-label', `「${row.name}」を結合対象にする`);
     no.textContent = String(row.no);
     name.textContent = row.name;
     // 説明の吹き出しはファイル名にだけ付ける（行に付けると、範囲の欄の上でも出てしまう。J17）。（ファイル名, フルパス）で、

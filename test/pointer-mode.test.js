@@ -51,7 +51,7 @@ test('ツールバーの［元に戻す］［やり直し］の右に、区切�
   assert.notEqual(group, null, '1 組が無い');
   assert.equal(group.className, 'tb-seg');
   assert.equal(group.getAttribute('role'), 'group');
-  assert.equal(group.getAttribute('aria-label'), '紙の上のマウスの働き');
+  assert.equal(group.getAttribute('aria-label'), 'ページ上のマウス操作');
   assert.equal(group.previousElementSibling.className, 'tb-sep');
   assert.equal(group.previousElementSibling.previousElementSibling.id, 'btn-redo');
   assert.equal(group.nextElementSibling.className, 'tb-sep');

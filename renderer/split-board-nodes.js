@@ -53,7 +53,7 @@
       head.append(node(doc, 'span', 'chip', skipChip(info, skipped)));
     head.append(node(doc, 'span', 'spacer'));
     if (info.index > 0) {
-      const join = node(doc, 'button', 'sb-join', '前のファイルとつなげる');
+      const join = node(doc, 'button', 'sb-join', '前のファイルと結合');
       join.type = 'button';
       join.dataset.join = String(info.index);
       head.append(join);
@@ -104,7 +104,7 @@
     button.tabIndex = -1;
     button.dataset.cut = String(index);
     button.dataset.tip = 'split.cut';
-    button.setAttribute('aria-label', 'ここで分ける');
+    button.setAttribute('aria-label', 'ここで分割');
     button.style.paddingTop = `${3 + cell.sheetHeight / 2 - 11}px`;
     const scissors = node(doc, 'span', 's');
     scissors.dataset.tipAnchor = '';

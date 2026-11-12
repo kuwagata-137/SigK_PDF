@@ -40,7 +40,7 @@
     for (const filePath of paths) {
       if (tabs.count() >= tabs.MAX_TABS && tabs.findByPath(filePath) === null) {
         if (openBatches().once('tabs'))
-          SigKOf().viewBanner.show(`${tabs.MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
+          SigKOf().viewBanner.show(`タブは ${tabs.MAX_TABS} 個まで開けます。タブが多すぎるので、使わないタブを閉じてください。`);
         continue;
       }
       const result = await SigKOf().toolHandoff.openOne(filePath);

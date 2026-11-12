@@ -182,10 +182,10 @@ test('出力先が入力の 1 つと同じなら断り、タブで開いてい�
   const shell = await createMergeShell(t, { open: [A, B, C], savePathResults: [{ path: 'C:/work/A.PDF' }, { path: 'c:/work/C.PDF' }] });
   check(shell, 2, false);
   const same = await shell.SigK.toolsMerge.run();
-  assert.equal(same.error, '出力先に入力ファイルと同じファイルは選べません。');
+  assert.equal(same.error, '出力先に入力ファイルと同じファイルは選択できません。');
   assert.equal(bannerText(shell), same.error);
   const open = await shell.SigK.toolsMerge.run();
-  assert.equal(open.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
+  assert.equal(open.error, '出力先ファイルはタブで開いているので、タブを閉じるか、別の名前を指定してください。');
   assert.equal(shell.taskCalls.length, 0, 'ワーカーへ渡さない');
 });
 
@@ -308,7 +308,7 @@ test('起動からの結合は、選んだ PDF だけにチェックを入れ、
   assert.deepEqual(names(shell), ['b.pdf', 'a.pdf', 'c.pdf'], '束の帯がいる位置の中で名前の順');
   assert.deepEqual(checked(shell), [false, true, true]);
   assert.equal(doc.getElementById('merge-note').hidden, false);
-  assert.equal(text(shell, 'merge-note'), 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。');
+  assert.equal(text(shell, 'merge-note'), 'ファイル名順に並べたので、エクスプローラーの並び順と違うときは、帯の ↑↓ で順番を入れ替えてください。');
 
   // 次の束では、前の束の帯のチェックも外す。すでに開いている PDF を選べば、その帯にチェックが入る。
   await SigK.toolsMerge.addFromLaunch([B], { ...first(2), open: openWith(shell) });

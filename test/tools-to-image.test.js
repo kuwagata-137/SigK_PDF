@@ -69,7 +69,7 @@ test('帯が無ければ対象は無く、状態の文を出して実行は押�
   const { document: doc, SigK } = shell;
   assert.equal(SigK.toolsToImage.source(), null);
   assert.equal(stateNode(shell).hidden, false);
-  assert.equal(stateNode(shell).textContent, 'PDF を開くと、選んでいる帯が対象になります。');
+  assert.equal(stateNode(shell).textContent, 'PDF を開くと、選択中の帯が対象になります。');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
   assert.equal(SigK.toolsToImage.canRun(), false);
   assert.equal(exampleText(shell), '');
@@ -104,7 +104,7 @@ test('出力先のフォルダの説明の吹き出しはフォルダのパス�
   const folder = doc.getElementById('toimage-folder');
   assert.deepEqual(Object.keys(folder.dataset), [], '帯が無ければフォルダが無く、説明の吹き出しも付けない');
   await openTab(shell, A);
-  assert.deepEqual(plain(SigK.tipContent.resolve(folder)), { name: '出力先のフォルダ', desc: 'C:\\work' });
+  assert.deepEqual(plain(SigK.tipContent.resolve(folder)), { name: '出力先フォルダ', desc: 'C:\\work' });
   await SigK.tabs.closeTab(SigK.tabs.activeId());
   await shell.flush();
   assert.equal(folder.textContent, '');
@@ -155,9 +155,9 @@ test('開けなかった帯は状態の文を出し、実行できない', async
   const shell = await createToImageShell(t, { pdfjs: createPdfjsStub({ openError: new Error('broken') }) });
   const { SigK } = shell;
   await openTab(shell, A);
-  assert.equal(SigK.toolsToImage.source().blocked, '「a.pdf」は開けなかったので、ほかの帯を選んでください。');
+  assert.equal(SigK.toolsToImage.source().blocked, '「a.pdf」は開けなかったので、ほかの帯を選択してください。');
   assert.equal(stateNode(shell).hidden, false);
-  assert.equal(stateNode(shell).textContent, '「a.pdf」は開けなかったので、ほかの帯を選んでください。');
+  assert.equal(stateNode(shell).textContent, '「a.pdf」は開けなかったので、ほかの帯を選択してください。');
   assert.equal(SigK.toolsToImage.canRun(), false);
   assert.equal(exampleText(shell), '');
 });
@@ -168,7 +168,7 @@ test('パスワード付きの帯は「画像にできません」と断る（�
   const peek = shell.SigK.tabs.peek;
   shell.window.SigK.tabs.peek = (id) => ({ ...peek(id), file: { ...peek(id).file, encrypted: true } });
   shell.SigK.toolsToImageView.render();
-  assert.equal(shell.SigK.toolsToImage.source().blocked, '「a.pdf」はパスワード付きなので画像にできません。ほかの帯を選んでください。');
+  assert.equal(shell.SigK.toolsToImage.source().blocked, '「a.pdf」はパスワード付きなので画像にできません。ほかの帯を選択してください。');
   assert.equal(shell.SigK.toolsToImage.canRun(), false);
 });
 
@@ -236,7 +236,7 @@ test('501 ページ以上は理由を出して実行できない（ユーザー�
   const { SigK } = shell;
   await openTab(shell, A);
   assert.equal(SigK.toolsToImage.canRun(), false);
-  assert.match(exampleText(shell), /501 ページが指定されていますが、一度に画像にできるのは 500 ページまでです/);
+  assert.match(exampleText(shell), /501 ページが指定されていますが、一度に画像に変換できるのは 500 ページまでです/);
   SigK.toolsToImage.setPageMode('range');
   SigK.toolsToImage.setRange('1-500');
   assert.equal(SigK.toolsToImage.canRun(), true);
@@ -347,7 +347,7 @@ test('中止は次のページの前で止まり、書き出し済みの枚数�
   const running = SigK.toolsToImage.run();
   await shell.flush();
   assert.equal(gates.length, 1, '1 ページ目を書いている');
-  assert.match(bannerText(shell), /画像にしています（0 \/ 3 ページ）/);
+  assert.match(bannerText(shell), /画像に変換しています（0 \/ 3 ページ）/);
   // 通知バーの「中止」を押す。旗が立つだけで、いま書いている 1 枚は終わる。
   SigK.viewBanner.action().click();
   gates[0]();
@@ -355,7 +355,7 @@ test('中止は次のページの前で止まり、書き出し済みの枚数�
 
   assert.deepEqual(plain(result), { canceled: true, written: 1 });
   assert.equal(gates.length, 1, '2 ページ目は描かない');
-  assert.equal(bannerText(shell), '画像にするのを中止しましたが、1 ファイルは書き出し済みです。');
+  assert.equal(bannerText(shell), '画像への変換を中止しましたが、1 ファイルは書き出し済みです。');
   // 自分で止めたので、失敗の赤ではなく青で出す（決定49）。
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
   assert.equal(shell.pdfjs.documents.at(-1).destroyed, true, '中止でも文書を畳む');
@@ -369,7 +369,7 @@ test('書き込みの失敗はファイル名と理由を添えて止め、書�
 
   const result = await SigK.toolsToImage.run();
 
-  assert.equal(result.error, '「a_002.png」を書き込めませんでした。ディスクに空きがありません。');
+  assert.equal(result.error, '「a_002.png」を書き出せませんでした。ディスクに空きがありません。');
   assert.equal(result.written, 1);
   assert.equal(shell.imageWrites.length, 2, '3 ページ目には進まない');
   assert.equal(bannerText(shell), result.error);
@@ -398,7 +398,7 @@ test('描けなかったページは番号を添えて止め、ログにも残�
 
   const result = await SigK.toolsToImage.run();
 
-  assert.equal(result.error, '「a.pdf」の 2 ページ目を画像にできませんでした。');
+  assert.equal(result.error, '「a.pdf」の 2 ページ目を画像に変換できませんでした。');
   assert.equal(result.written, 1);
   assert.equal(bannerText(shell), result.error);
   assert.equal(shell.logs.at(-1)?.context?.source, 'to-image');
@@ -420,11 +420,11 @@ test('実行中は入力と実行ボタンが押せず、進捗はページ数�
   assert.equal(doc.getElementById('toimage-range').disabled, true);
   assert.equal(doc.querySelector('input[name="toimage-dpi"][value="300"]').disabled, true);
   assert.equal(SigK.toolsSplit.canRun(), false, '分割も押せない');
-  assert.match((await SigK.toolsToImage.run()).error, /画像にできる状態ではありません/);
+  assert.match((await SigK.toolsToImage.run()).error, /画像に変換できる状態ではありません/);
 
   gates[0]();
   await shell.flush();
-  assert.match(bannerText(shell), /画像にしています（1 \/ 3 ページ）/);
+  assert.match(bannerText(shell), /画像に変換しています（1 \/ 3 ページ）/);
   assert.equal(SigK.shell.setMode(doc, 'view'), true, 'モードの切り替えは許す');
   gates[1]();
   await shell.flush();
@@ -445,7 +445,7 @@ test('imageAPI が無ければ通知バーで伝えて何も書かない', async
 
   const result = await SigK.toolsToImage.run();
 
-  assert.match(result.error, /画像を書き出す機能を使えません/);
+  assert.match(result.error, /画像書き出し機能を使用できません/);
   assert.equal(bannerText(shell), result.error);
 });
 

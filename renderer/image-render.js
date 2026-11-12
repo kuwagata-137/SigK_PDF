@@ -52,7 +52,7 @@
     const page = await view.getPage(1);
     const entry = view.getPlan()[0];
     if (page === null || page === undefined || entry === undefined)
-      return { error: '画像にするページがありません。' };
+      return { error: '画像に変換するページがありません。' };
     const file = view.getState().file;
     await root.SigK.freeTextShape?.ensureLoaded(doc);
     const bitmap = await decodeOriginal(doc.defaultView, file, entry);

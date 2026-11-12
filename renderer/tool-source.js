@@ -16,10 +16,10 @@
   async function inspectImage(filePath) {
     const api = root.pdfAPI;
     if (api?.available !== true || typeof api.inspectImage !== 'function')
-      return { reason: 'unavailable', error: '画像を読む機能を使えません' };
+      return { reason: 'unavailable', error: '画像読み込み機能を使用できません' };
     const info = await api.inspectImage(filePath);
     if (info?.ok !== true)
-      return { reason: 'image', error: String(info?.error ?? '画像を読めませんでした').replace(/。$/, '') };
+      return { reason: 'image', error: String(info?.error ?? '画像を読み込めませんでした').replace(/。$/, '') };
     const frames = Array.isArray(info.frames) && info.frames.length > 0 ? info.frames : [{ width: info.width, height: info.height }];
     return { ok: true, kind: info.kind, width: info.width, height: info.height, pages: frames.length, frames, name: info.name ?? baseName(filePath) };
   }

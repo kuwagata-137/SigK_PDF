@@ -66,7 +66,7 @@ async function buildImageDocument(bytes, tools = TOOLS) {
 async function runImageOpen(spec, { fsLike = fs } = {}) {
   const sourcePath = spec?.path;
   if (typeof sourcePath !== 'string' || sourcePath === '')
-    return { error: '開く画像が決まっていません。' };
+    return { error: '開く画像が指定されていません。' };
   // 印は読む前に取る（読んだあとに取ると、間の書き換えを見落とす。insert-preview と同じ）。
   const signature = await readSignature(sourcePath, { fsLike });
   if (signature !== null && signature.size > MAX_IMAGE_BYTES)
@@ -75,7 +75,7 @@ async function runImageOpen(spec, { fsLike = fs } = {}) {
   try {
     bytes = await fsLike.promises.readFile(sourcePath);
   } catch (error) {
-    return failure('画像を読めませんでした。移動または削除された可能性があります。', error);
+    return failure('画像を読み込めませんでした。移動または削除された可能性があります。', error);
   }
   const view = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let built;

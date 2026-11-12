@@ -27,7 +27,7 @@ test('歯車のボタンで開き、今の値を欄へ写す（既定は、控�
   byId(shell, 'btn-settings').click();
   assert.equal(isOpen(shell), true);
   assert.equal(checkedMode(shell), 'source');
-  assert.equal(byId(shell, 'settings-fixed-path').textContent, 'まだ決めていません');
+  assert.equal(byId(shell, 'settings-fixed-path').textContent, '未指定');
   assert.equal(byId(shell, 'settings-backup').checked, false);
   assert.equal(byId(shell, 'settings-image-confirm').checked, true);
   assert.equal(byId(shell, 'settings-tool-values').checked, true);
@@ -55,7 +55,7 @@ test('決めたフォルダの欄は吹き出しでパスの全体を出し、�
   assert.equal(path.dataset.tip, 'text');
   assert.equal(shell.SigK.tipContent.resolve(path).desc, D_OUT);
   const radio = shell.document.querySelector('input[name="settings-folder"][value="fixed"]');
-  assert.equal(radio.closest('label').textContent, '決めたフォルダ');
+  assert.equal(radio.closest('label').textContent, '指定フォルダ');
   assert.equal(byId(shell, 'settings-fixed-change').closest('label'), null);
   shell.SigK.settingsDialog.close();
   const empty = await withShell(t);
@@ -117,7 +117,7 @@ test('［変更…］でフォルダを選ぶと、決めたフォルダの欄�
   await shell.flush();
   assert.equal(byId(shell, 'settings-fixed-path').textContent, D_OUT);
   assert.equal(checkedMode(shell), 'fixed');
-  assert.equal(shell.folderCalls[0].title, '決めたフォルダを選ぶ');
+  assert.equal(shell.folderCalls[0].title, '指定フォルダを選択');
   await shell.SigK.settingsDialog.confirm();
   assert.deepEqual(shell.preferencesCalls[0].outputFolder, { mode: 'fixed', fixed: D_OUT });
 });

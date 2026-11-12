@@ -64,7 +64,7 @@ test('帯が 1 本も無いときは、盤を出さず、右の欄に状態の�
   const shell = await createBoardShell(t);
   assert.equal($(shell, '#split-strip-board').hidden, true);
   assert.equal($(shell, '#split-state').hidden, false);
-  assert.equal($(shell, '#split-state').textContent, 'PDF を開くと、選んでいる帯が対象になります。');
+  assert.equal($(shell, '#split-state').textContent, 'PDF を開くと、選択中の帯が対象になります。');
   assert.equal(summary(shell), '');
   assert.equal(runDisabled(shell), true);
   assert.equal($(shell, '#split-files-card').hidden, true);
@@ -78,17 +78,17 @@ test('入れた直後は分け目なしの箱 1 つで、✂ の使い方を案�
   assert.deepEqual(boxHeads(shell), ['1a_001.pdf1〜3 ページ']);
   assert.equal($$(shell, '#split-board-canvas .sb-page').length, 3);
   assert.deepEqual($$(shell, '#split-board-canvas .sb-cut').map((cut) => cut.dataset.cut), ['1', '2']);
-  assert.equal(summary(shell), '✂ で分け目を入れるか、書き出さないページを決めると、実行できます。');
+  assert.equal(summary(shell), '✂ で分割位置を追加するか、書き出さないページを指定すると、実行できます。');
   assert.equal($(shell, '#split-summary').classList.contains('wait'), true);
   assert.equal(runDisabled(shell), true);
   assert.deepEqual(fileRows(shell), ['1a_001.pdf1〜3 ページ']);
 });
 
-test('✂ を押すと箱が割れ、［前のファイルとつなげる］で戻る', async (t) => {
+test('✂ を押すと箱が割れ、［前のファイルと結合］で戻る', async (t) => {
   const shell = await withSource(t);
   $(shell, '#split-board-canvas .sb-cut[data-cut="2"]').click();
-  assert.deepEqual(boxHeads(shell), ['1a_001.pdf1〜2 ページ', '2a_002.pdf3 ページ目前のファイルとつなげる']);
-  assert.equal(summary(shell), '3 ページを 2 つのファイルに分けます。');
+  assert.deepEqual(boxHeads(shell), ['1a_001.pdf1〜2 ページ', '2a_002.pdf3 ページ目前のファイルと結合']);
+  assert.equal(summary(shell), '3 ページを 2 つのファイルに分割します。');
   assert.equal(runDisabled(shell), false);
   assert.deepEqual(fileRows(shell), ['1a_001.pdf1〜2 ページ', '2a_002.pdf3 ページ目']);
   assert.equal($(shell, '#split-files-count').textContent, '2 つ');
@@ -119,7 +119,7 @@ test('まとめて分ける 4 つ。番号の欄の誤りは赤くして段の�
   $(shell, '#split-at').dispatchEvent(new shell.window.Event('input', { bubbles: true }));
   $(shell, '#split-at-go').click();
   assert.equal($(shell, '#split-bulk-err').hidden, false);
-  assert.equal($(shell, '#split-bulk-err').textContent, '1 の前では切れないので、2 から書いてください');
+  assert.equal($(shell, '#split-bulk-err').textContent, '1 ページ目の前では分割できません。2 以上を入力してください');
   assert.equal($(shell, '#split-at').classList.contains('invalid'), true);
   assert.deepEqual(parts(), [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9]], '誤りのときは盤を変えない');
   $(shell, '#split-at').value = '5';
@@ -140,14 +140,14 @@ test('選ぶと選んだときの操作の行が出て、書き出さない・�
   edit(shell).select(1);
   edit(shell).select(2, { shift: true });
   assert.equal($(shell, '#split-band').hidden, false);
-  assert.equal($(shell, '#split-band-text').textContent, '2〜3 ページを選んでいます');
+  assert.equal($(shell, '#split-band-text').textContent, '2〜3 ページを選択しています');
   assert.deepEqual($$(shell, '.sb-page.sel').map((page) => page.dataset.page), ['1', '2']);
 
   $(shell, '#split-band-skip').click();
   assert.deepEqual($$(shell, '.sb-page.skip').map((page) => page.dataset.page), ['1', '2']);
   assert.equal($(shell, '.sb-page.skip .tag').textContent, '書き出さない');
   assert.match(boxHeads(shell)[0], /2・3 ページは書き出さない/);
-  assert.equal(summary(shell), '2・3 ページ目を書き出さずに、残りの 4 ページを 2 つのファイルに分けます。');
+  assert.equal(summary(shell), '2・3 ページ目を書き出さずに、残りの 4 ページを 2 つのファイルに分割します。');
   assert.equal($(shell, '#split-band-skip').hidden, true, '全部が書き出さないページなら［書き出す］');
   assert.equal($(shell, '#split-band-unskip').hidden, false);
 
@@ -177,7 +177,7 @@ test('狭い箱（幅 420px 未満）は見出しを 2 行にし、書き出さ�
 test('1 ページだけ選んだときの操作の行の文', async (t) => {
   const shell = await withSource(t);
   edit(shell).select(2);
-  assert.equal($(shell, '#split-band-text').textContent, '3 ページ目を選んでいます');
+  assert.equal($(shell, '#split-band-text').textContent, '3 ページ目を選択しています');
 });
 
 test('全部を書き出さないにすると、実行できない理由を案内する', async (t) => {
@@ -185,7 +185,7 @@ test('全部を書き出さないにすると、実行できない理由を案�
   edit(shell).select(0);
   edit(shell).select(2, { shift: true });
   edit(shell).skip();
-  assert.equal(summary(shell), '書き出すページが 1 枚も無いので、書き出さない印をどれか外してください。');
+  assert.equal(summary(shell), '書き出すページが 1 枚も無いので、「書き出さない」のマークをどれか解除してください。');
   assert.equal(runDisabled(shell), true);
   assert.match(boxHeads(shell)[0], /^－書き出さない/);
 });
@@ -193,7 +193,7 @@ test('全部を書き出さないにすると、実行できない理由を案�
 test('500 を超えるファイルになる分け方は、数を添えて実行を止める', async (t) => {
   const shell = await withSource(t, { pages: 640 });
   $(shell, '#split-each').click();
-  assert.equal(summary(shell), 'いまの分け方では 640 ファイルになり、上限の 500 を超えるので、実行できません。');
+  assert.equal(summary(shell), '現在の分割位置では 640 ファイルになり、上限の 500 を超えるので、実行できません。');
   assert.equal(runDisabled(shell), true);
 });
 
@@ -202,7 +202,7 @@ test('書き出さないページが 4 枚以上なら、要約は枚数で言�
   edit(shell).select(0);
   edit(shell).select(3, { shift: true });
   edit(shell).skip();
-  assert.equal(summary(shell), '4 ページを書き出さずに、残りの 6 ページを 1 つのファイルに分けます。');
+  assert.equal(summary(shell), '4 ページを書き出さずに、残りの 6 ページを 1 つのファイルに分割します。');
 });
 
 test('［元に戻す］［やり直す］は盤の操作を 1 つずつ戻し、選択は外す', async (t) => {
@@ -272,7 +272,7 @@ test('実行の前にファイルが書き換わっていたら止める（spec-
   shell.files[A] = makeSource({ path: A, mtimeMs: 5 });
   const result = await shell.SigK.toolsSplit.run();
   // 文はほかのツールとそろえた（決定81 ⑫。spec-6-1 確定事項C-9）。
-  assert.equal(result.error, '「a.pdf」がほかのアプリで書き換えられていたので、分割を止めました。タブを閉じて開き直してから、もう一度実行してください。');
+  assert.equal(result.error, '「a.pdf」がほかのアプリで書き換えられていたので、分割を中止しました。タブを閉じ、ファイルをもう一度開いてから、再度実行してください。');
   assert.equal(shell.SigK.viewBanner.text(), result.error);
   assert.equal(shell.taskCalls.length, 0);
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]], '盤はそのまま');
@@ -292,7 +292,7 @@ test('実行中は盤の操作と段と選んだときの操作の行を受け�
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]]);
   assert.equal($(shell, '#split-each').getAttribute('aria-disabled'), 'true');
   assert.equal($(shell, '#split-every').disabled, true);
-  // ✂ と［前のファイルとつなげる］も押せない色にする（確定事項C12）。紙の倍率は見え方だけなので変えられる（決定83）。
+  // ✂ と［前のファイルと結合］も押せない色にする（確定事項C12）。紙の倍率は見え方だけなので変えられる（決定83）。
   assert.ok($$(shell, '.sb-cut').length > 0 && $$(shell, '.sb-join').length > 0);
   assert.ok($$(shell, '.sb-cut, .sb-join').every((node) => node.getAttribute('aria-disabled') === 'true'));
   $(shell, '.sb-join').click();
@@ -305,7 +305,7 @@ test('実行中は盤の操作と段と選んだときの操作の行を受け�
   assert.ok($$(shell, '.sb-cut, .sb-join').every((node) => !node.hasAttribute('aria-disabled')));
 });
 
-test('まとめて分けるの欄の誤りは、［1 ページずつに分ける］と［分け目をすべて消す］でも消える', async (t) => {
+test('まとめて分けるの欄の誤りは、［1 ページずつ分割］と［分割位置をすべて削除］でも消える', async (t) => {
   const shell = await withSource(t, { pages: 6 });
   const typeAt = (text) => {
     $(shell, '#split-at').value = text;
@@ -331,7 +331,7 @@ test('1,000 以上の数には、分割の画面のどこでもカンマを付�
   $(shell, '#split-every').value = '100';
   $(shell, '#split-every').dispatchEvent(new shell.window.Event('input', { bubbles: true }));
   $(shell, '#split-every-go').click();
-  assert.equal(summary(shell), '1,200 ページを 12 個のファイルに分けます。');
+  assert.equal(summary(shell), '1,200 ページを 12 個のファイルに分割します。');
   assert.equal($(shell, '#split-files-count').textContent, '12 個');
   assert.match(fileRows(shell)[10], /1,001〜1,100 ページ$/);
 
@@ -340,9 +340,9 @@ test('1,000 以上の数には、分割の画面のどこでもカンマを付�
   assert.ok($$(shell, '.sb-page .cap').some((cap) => cap.textContent === '1,001'));
 
   edit(shell).select(1000);
-  assert.equal($(shell, '#split-band-text').textContent, '1,001 ページ目を選んでいます');
+  assert.equal($(shell, '#split-band-text').textContent, '1,001 ページ目を選択しています');
   edit(shell).skip();
-  assert.equal(summary(shell), '1,001 ページ目を書き出さずに、残りの 1,199 ページを 12 個のファイルに分けます。');
+  assert.equal(summary(shell), '1,001 ページ目を書き出さずに、残りの 1,199 ページを 12 個のファイルに分割します。');
   assert.ok(boxHeads(shell).some((head) => head.includes('1,001 ページは書き出さない')));
 
   shell.SigK.splitZoom.open(1099);
@@ -368,7 +368,7 @@ test('できるファイルの一覧は上限の 500 行までにし、残りの
   assert.equal($(shell, '#split-files .sb-files-more'), null);
 });
 
-test('✂・［つなげる］・選んだときの操作の行のボタンを押したあとも、フォーカスは盤の器に残る（裏のページビューへキーを流さない）', async (t) => {
+test('✂・［前のファイルと結合］・選んだときの操作の行のボタンを押したあとも、フォーカスは盤の器に残る（裏のページビューへキーを流さない）', async (t) => {
   const shell = await withSource(t, { pages: 6 });
   const scroll = $(shell, '#split-board-scroll');
   const pressButton = (selector) => {

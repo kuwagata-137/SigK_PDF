@@ -98,7 +98,7 @@ const CONVERT_SOURCE_FILTERS = [
 
 async function pickConvertSources({ dialogLike, parentWindow = null, defaultPath = undefined }) {
   const options = {
-    title: 'PDF か変換する画像を選ぶ',
+    title: 'PDF か変換する画像を選択',
     properties: ['openFile', 'multiSelections'],
     filters: CONVERT_SOURCE_FILTERS,
     defaultPath,
@@ -120,8 +120,8 @@ async function pickConvertSources({ dialogLike, parentWindow = null, defaultPath
 // 重なるため）。受け付けるかどうかは先頭バイトで判定し、文言はワーカー（worker/op-watermark.js）と揃える。
 
 const WATERMARK_IMAGE_FILTERS = [{ name: 'PNG・JPEG 画像', extensions: ['png', 'jpg', 'jpeg'] }];
-const WATERMARK_IMAGE_TITLE = '透かしにする画像を選ぶ';
-const WATERMARK_KIND_ERROR = 'PNG か JPEG の画像を選んでください。';
+const WATERMARK_IMAGE_TITLE = '透かしに使う画像を選択';
+const WATERMARK_KIND_ERROR = 'PNG 画像か JPEG 画像を選択してください。';
 
 // 透かしにする画像を 1 枚選ばせる。戻り値 { path } / { canceled }。
 async function pickWatermarkImage({ dialogLike, parentWindow = null, defaultPath = undefined }) {
@@ -179,7 +179,7 @@ function isImageWritePath(target) {
 // 戻り値 { ok, path, bytes, signature, backup } / { changed } / { error }。
 async function writeImage(target, bytes, { fsLike = fs, makeBackup = false, expect = null } = {}) {
   if (!isImageWritePath(target))
-    return { error: '画像の出力先ではありません。' };
+    return { error: '出力先が画像ファイルではありません。' };
   const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
   if (!(view instanceof Uint8Array) || view.length === 0)
     return { error: '書き出す画像がありません。' };
@@ -187,7 +187,7 @@ async function writeImage(target, bytes, { fsLike = fs, makeBackup = false, expe
   if (written.changed === true)
     return { changed: true };
   if (written.ok !== true)
-    return { error: written.error ?? '画像を書き込めませんでした。' };
+    return { error: written.error ?? '画像を保存できませんでした。' };
   return { ok: true, path: target, bytes: written.bytes, signature: written.signature ?? null, backup: written.backup ?? null };
 }
 

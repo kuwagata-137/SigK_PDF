@@ -419,7 +419,7 @@ test('道具の段の図形の 4 つのボタンで種類を選び、右パネ�
   assert.equal(SigK.annotate.getTool(), 'shape');
   assert.equal(SigK.annotateShape.getShapeKind(), 'square');
   assert.equal(widthRow.hidden, false);
-  assert.equal(document.getElementById('props-kind').textContent, '四角（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, '四角（次に追加する書き込み）');
   assert.equal(document.getElementById('props-width').value, '2');
   assert.match(document.getElementById('props-hint').textContent, /ドラッグ/);
   const pressed = () => [...document.querySelectorAll('#edit-bar .edit-tool.active')].map((el) => el.dataset.shape ?? el.dataset.tool);
@@ -429,7 +429,7 @@ test('道具の段の図形の 4 つのボタンで種類を選び、右パネ�
   assert.equal(SigK.annotate.getTool(), 'shape');
   assert.equal(SigK.annotateShape.getShapeKind(), 'arrow');
   assert.deepEqual(pressed(), ['arrow']);
-  assert.equal(document.getElementById('props-kind').textContent, '矢印（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, '矢印（次に追加する書き込み）');
   assert.equal(shell.uiCalls.at(-1).annotShapeKind, 'arrow');
   drag(shell, [100, 700], [300, 650]);
   assert.equal(SigK.viewer.getAnnotations().added.at(-1).kind, 'arrow');
@@ -460,8 +460,8 @@ test('道具の段の図形の 4 つのボタンで種類を選び、右パネ�
   document.querySelector('#edit-bar .edit-tool[data-tool="pen"]').click();
   assert.deepEqual(pressed(), ['pen']);
   assert.equal(widthRow.hidden, false);
-  assert.equal(document.getElementById('props-kind').textContent, 'ペン（次に付ける）');
-  assert.match(document.getElementById('props-hint').textContent, /なぞる/);
+  assert.equal(document.getElementById('props-kind').textContent, 'ペン（次に追加する書き込み）');
+  assert.match(document.getElementById('props-hint').textContent, /ドラッグすると線を引けます/);
   assert.equal(document.getElementById('props-color-label').textContent, '線の色');
   assert.equal(document.getElementById('props-fill-row').hidden, true);
   assert.equal(document.getElementById('props-style-row').hidden, true);
@@ -536,7 +536,7 @@ test('道具の段の ×印で箱をドラッグすると ×印が描かれ、�
   assert.equal(handles.handles.filter((handle) => handle.kind === 'corner').length, 4);
   assert.equal(handles.handles.filter((handle) => handle.kind === 'rotate').length, 1);
   assert.equal(document.getElementById('props-angle-row').hidden, false);
-  assert.match(document.getElementById('props-hint').textContent, /四隅と辺の白いつまみ/);
+  assert.match(document.getElementById('props-hint').textContent, /四隅と辺の白いハンドル/);
   assert.equal(document.getElementById('props-kind').textContent, '×印');
   // 空いた箱の中を押しても選ばない（対角線の近くだけ当たる）
   SigK.annotate.select(null);

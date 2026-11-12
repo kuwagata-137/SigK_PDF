@@ -98,7 +98,7 @@
     const image = tool().image();
     el.imageName.textContent = image?.name ?? '';
     el.imageMeta.textContent = image === null || image.error !== null ? '' : (image.pending ? '…' : `${image.width} × ${image.height} px`);
-    const note = image === null ? 'PNG か JPEG の画像を選んでください。ここへドロップしてもかまいません。' : (image.error ?? '');
+    const note = image === null ? 'PNG 画像か JPEG 画像を選択してください。ここへドロップしてもかまいません。' : (image.error ?? '');
     el.imageNote.textContent = note;
     el.imageNote.hidden = note === '';
     el.imageNote.classList.toggle('error', image?.error !== null && image?.error !== undefined);

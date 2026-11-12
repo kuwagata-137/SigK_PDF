@@ -198,22 +198,22 @@ test('JS が作る要素の説明の吹き出しは、文の表の鍵か、フ�
   assert.deepEqual(seen['閲覧（文書なし）'], { recent: [file('a.pdf', A)] });
   assert.deepEqual(seen['閲覧（タブ 2 枚）'], { tabs: [file('a.pdf', A), file('b.pdf', B)], close: ['tab.close', 'tab.close'] });
   assert.deepEqual(seen['ページ編集（保存していない変更あり）'], {
-    thumb: ['thumb.rotateLeft', 'thumb.rotateRight', 'thumb.delete'], thumbLabel: ['左に回す', '右に回す', 'このページを削除'], dirty: ['tab.dirty'],
+    thumb: ['thumb.rotateLeft', 'thumb.rotateRight', 'thumb.delete'], thumbLabel: ['左回転', '右回転', 'このページを削除'], dirty: ['tab.dirty'],
   }, 'サムネイルの上の 3 つの読み上げの名前は、説明の吹き出しの名前（J16 の呼び名）');
   assert.deepEqual(seen['編集（四角）'], { style: ['style.solid', 'style.dashed', 'style.cloudy'] });
   const buttons = ['strip.up', 'strip.down', 'strip.save', 'strip.close'];
   assert.deepEqual(seen['ツール（merge）'], { strip: [...buttons, ...buttons], fname: [file('a.pdf', A), file('b.pdf', B)], merge: [file('a.pdf', A), file('b.pdf', B)] });
   assert.deepEqual(seen['ツール（split）'], {
-    file: [file('b_001.pdf', 'クリックすると、このファイルの箱へ移ります。')], folder: [file('出力先のフォルダ', 'C:\\work')], cut: ['split.cut', 'split.cut'],
+    file: [file('b_001.pdf', 'クリックすると、この出力ファイルの枠へ移動します。')], folder: [file('出力先フォルダ', 'C:\\work')], cut: ['split.cut', 'split.cut'],
   });
   const [image] = seen['ツール（convert）'].image;
   assert.equal(image.name, 'p.png');
-  assert.match(image.desc, /^C:\\photo\\p\.png\n1200×800・PNG\nこの紙: /);
+  assert.match(image.desc, /^C:\\photo\\p\.png\n1200×800・PNG\n用紙サイズ: /);
   assert.deepEqual(seen['ツール（convert）'].off, ['image.remove']);
-  assert.deepEqual(seen['ツール（convert）'].names, [['「p.png」を外す', 'p.png']], '画像の名前は、説明の吹き出し・× の読み上げ・名札で同じ');
-  assert.deepEqual(seen['ツール（toImage）'], { folder: [file('出力先のフォルダ', 'C:\\work')] });
+  assert.deepEqual(seen['ツール（convert）'].names, [['「p.png」を削除', 'p.png']], '画像の名前は、説明の吹き出し・× の読み上げ・名札で同じ');
+  assert.deepEqual(seen['ツール（toImage）'], { folder: [file('出力先フォルダ', 'C:\\work')] });
   // 透かしの色は分割ボタン。左側は直前の文字の色（既定 #ff0000）を当てる（spec-7-2 確定事項A4・E1）。
-  assert.deepEqual(seen['ツール（watermark）'], { color: [file('透かしの色を #FF0000 にする', '')] });
+  assert.deepEqual(seen['ツール（watermark）'], { color: [file('透かしの色を #FF0000 に変更', '')] });
 });
 
 test('✂ の盤の ✂ は、説明の吹き出しの位置の基準を ✂ の丸にし、中に小さな黒い札を作らない（J15）', async (t) => {
@@ -229,7 +229,7 @@ test('✂ の盤の ✂ は、説明の吹き出しの位置の基準を ✂ の
   assert.equal(cuts.length, 2);
   assert.deepEqual(cuts.map((cut) => shell.SigK.tipView.anchorOf(cut).className), ['s', 's']);
   assert.deepEqual(cuts.map((cut) => cut.querySelector('.tip')), [null, null]);
-  assert.deepEqual(cuts.map((cut) => [cut.dataset.tip, cut.getAttribute('aria-label')]), [['split.cut', 'ここで分ける'], ['split.cut', 'ここで分ける']]);
+  assert.deepEqual(cuts.map((cut) => [cut.dataset.tip, cut.getAttribute('aria-label')]), [['split.cut', 'ここで分割'], ['split.cut', 'ここで分割']]);
 });
 
 const copied = (pages = 1) => ({ ok: true, bytes: new Uint8Array(PDF), pages, sizes: Array.from({ length: pages }, () => ({ ...A4 })) });
@@ -259,10 +259,10 @@ test('名前の無い帯のフロッピーは名前を付けて保存の文、�
   assert.equal(floppy().dataset.tip, 'strip.saveAs');
   assert.equal(tip(floppy()).name, '名前を付けて保存');
   assert.equal(floppy().getAttribute('aria-label'), '名前を付けて保存', '読み上げの名前も説明の吹き出しの名前にそろえる');
-  assert.deepEqual(tip(head().querySelector('.fname')), { name: '新しい PDF 1', desc: 'まだファイルになっていない新しい帯です。' });
-  assert.deepEqual(tip(tab()), { name: '新しい PDF 1', desc: 'まだファイルになっていない新しい PDF です。' });
+  assert.deepEqual(tip(head().querySelector('.fname')), { name: '新しい PDF 1', desc: 'まだファイルとして保存していない新しい帯です。' });
+  assert.deepEqual(tip(tab()), { name: '新しい PDF 1', desc: 'まだファイルとして保存していない新しい PDF です。' });
   const mergeName = () => document.querySelector(`#merge-list .merge-pick[data-tab-id="${id}"] .fname`);
-  assert.deepEqual(tip(mergeName()), { name: '新しい PDF 1', desc: 'まだファイルになっていない新しい帯です。' }, '結合の欄のファイル名は帯と同じ説明');
+  assert.deepEqual(tip(mergeName()), { name: '新しい PDF 1', desc: 'まだファイルとして保存していない新しい帯です。' }, '結合の欄のファイル名は帯と同じ説明');
 
   await SigK.save.saveActive();
   await settle(shell);
@@ -270,8 +270,8 @@ test('名前の無い帯のフロッピーは名前を付けて保存の文、�
   assert.equal(floppy().dataset.tip, 'strip.save');
   assert.equal(floppy().getAttribute('aria-label'), '上書き保存');
   assert.deepEqual(tip(floppy()), {
-    name: '上書き保存', desc: 'この帯のファイル（新しい PDF 1.pdf）に、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（新しい PDF 1.pdf.bak）は作りません。',
-    keys: ['Ctrl+S'], keysNote: '選んでいる帯',
+    name: '上書き保存', desc: 'この帯のファイル（新しい PDF 1.pdf）に、現在の変更内容を上書き保存します。設定画面でチェックを外しているので、バックアップファイル（新しい PDF 1.pdf.bak）は作成しません。',
+    keys: ['Ctrl+S'], keysNote: '選択中の帯',
   });
   assert.deepEqual(tip(head().querySelector('.fname')), { name: '新しい PDF 1.pdf', desc: SAVED });
   assert.deepEqual(tip(tab()), { name: '新しい PDF 1.pdf', desc: SAVED });

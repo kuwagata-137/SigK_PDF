@@ -95,7 +95,7 @@ test('readPdf はフォルダを断る', async () => {
 test('describeReadFailure はよくある失敗を日本語にする', () => {
   assert.match(describeReadFailure({ code: 'EACCES' }), /権限/);
   assert.match(describeReadFailure({ code: 'EBUSY' }), /使われています/);
-  assert.match(describeReadFailure({ code: 'なんだこれ' }), /読めませんでした/);
+  assert.match(describeReadFailure({ code: 'なんだこれ' }), /読み込めませんでした/);
 });
 
 test('pickPdf は取り消しを canceled として返す', async () => {

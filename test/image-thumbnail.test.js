@@ -53,13 +53,13 @@ test('頼まれた大きさは 208px 刻みに切り上げ、624px で止める'
 test('画像でないパス・大きすぎるファイルは、作らずに断る', async () => {
   const nativeImageLike = fakeNativeImage();
   assert.deepEqual(await createThumbnail('a.png', { nativeImageLike }), { error: '画像のパスではありません。' });
-  assert.deepEqual(await createThumbnail(PNG, { nativeImageLike, maxBytes: 10 }), { error: 'サムネイルを作れませんでした。' });
+  assert.deepEqual(await createThumbnail(PNG, { nativeImageLike, maxBytes: 10 }), { error: 'サムネイルを作成できませんでした。' });
   assert.equal(nativeImageLike.calls.length, 0);
 });
 
 test('作れなかった（空の画像・例外・無いファイル）ときは誤りを返す（画面は形式の名前を書いた紙にする）', async () => {
-  assert.deepEqual(await createThumbnail(PNG, { nativeImageLike: fakeNativeImage({ empty: true }) }), { error: 'サムネイルを作れませんでした。' });
-  assert.deepEqual(await createThumbnail(PNG, { nativeImageLike: fakeNativeImage({ fail: new Error('no handler') }) }), { error: 'サムネイルを作れませんでした。' });
+  assert.deepEqual(await createThumbnail(PNG, { nativeImageLike: fakeNativeImage({ empty: true }) }), { error: 'サムネイルを作成できませんでした。' });
+  assert.deepEqual(await createThumbnail(PNG, { nativeImageLike: fakeNativeImage({ fail: new Error('no handler') }) }), { error: 'サムネイルを作成できませんでした。' });
   const missing = path.join(__dirname, 'fixtures', 'no-such-image.png');
-  assert.deepEqual(await createThumbnail(missing, { nativeImageLike: fakeNativeImage() }), { error: 'サムネイルを作れませんでした。' });
+  assert.deepEqual(await createThumbnail(missing, { nativeImageLike: fakeNativeImage() }), { error: 'サムネイルを作成できませんでした。' });
 });

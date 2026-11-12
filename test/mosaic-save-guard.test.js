@@ -1,6 +1,6 @@
 'use strict';
 
-// 保存・抽出の前にモザイクのページを画像にする間の守り（mosaic-save.js・save.js・extract.js。spec-4b-6b 確定事項19。コードの点検で直した）。
+// 保存・抽出の前にモザイクを入れたページを画像に変換する間の守り（mosaic-save.js・save.js・extract.js。spec-4b-6b 確定事項19。コードの点検で直した）。
 //   - 確認の間・画像にしている間に、ページの編集かタブの切り替えがあれば、何も書かずに取りやめる（描いた画像と並びが食い違うと、
 //     モザイクのページが元の中身のまま書かれるため）
 //   - 最後のページを描いている間の［中止］も効く
@@ -13,7 +13,7 @@ const assert = require('node:assert/strict');
 
 const { A, B, withMosaic, placeMosaic, stubImages, byId, spec, okResult, makeSource } = require('./fixtures/mosaic-shell.js');
 
-const CHANGED = /ページかタブが変わったので、保存を取りやめました。元のファイルは変更していません。もう一度保存してください。/;
+const CHANGED = /ページが変更されたかタブが切り替わったので、保存をキャンセルしました。元のファイルは変更していません。もう一度保存してください。/;
 
 function rotateSecond(shell) {
   const { SigK } = shell;
@@ -80,7 +80,7 @@ test('抽出の確認を出している間にページを回すと、取りや�
   byId(shell, 'confirm-extract-ok').click();
   assert.equal((await running).changed, true);
   assert.equal(shell.taskCalls.length, 0);
-  assert.match(shell.SigK.viewBanner.text(), /ページかタブが変わったので、抽出を取りやめました。/);
+  assert.match(shell.SigK.viewBanner.text(), /ページが変更されたかタブが切り替わったので、抽出をキャンセルしました。/);
 });
 
 test('名前を付けて保存で開いているファイル自身を選ぶと、上書き保存の確認を出し、前の控えを消すよう渡す', async (t) => {

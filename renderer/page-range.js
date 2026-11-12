@@ -14,7 +14,7 @@
   // 印刷（print.js の parsePageList）とは規則が違う。あちらは逆順を誤りとし、
   // 重複を畳み、昇順に並べ直す。「印刷する集合」と「並べる列」の違いである。
 
-  const EXAMPLE = '1-3,5 のように書いてください';
+  const EXAMPLE = '1-3,5 のように入力してください';
 
   // 全角を半角へ寄せる。NFKC で数字・「－」・「，」は片付くが、長音「ー」と
   // 波ダッシュ「〜」「～」、読点「、」は残るので個別に置く。
@@ -53,7 +53,7 @@
 
   function parsePageRange(text, pageCount) {
     if (!Number.isInteger(pageCount) || pageCount < 0)
-      return { error: 'ページ数が分かりません' };
+      return { error: 'ページ数を取得できません' };
 
     const source = normalize(text);
     if (source === '')

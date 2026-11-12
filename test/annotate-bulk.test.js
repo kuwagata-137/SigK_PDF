@@ -217,7 +217,7 @@ test('複数を選んで文字の大きさを変えると、テキストにだ�
   SigK.annotate.setFontSize(18);
   SigK.annotate.selectKeys([square, first, second]);
   assert.equal(document.getElementById('props-size-row').hidden, false);
-  assert.equal(document.getElementById('props-size-label').textContent, '文字の大きさ（テキスト）');
+  assert.equal(document.getElementById('props-size-label').textContent, '文字サイズ（テキスト）');
   assert.equal(document.getElementById('props-size').value, '', '12 と 18 でそろっていないので空');
   const squareBefore = JSON.stringify(entry(shell, square));
   const at = SigK.pageEdit.getHistoryState().at;
@@ -237,13 +237,13 @@ test('複数を選んで文字の大きさを変えると、テキストにだ�
   assert.deepEqual([...SigK.annotate.getSelection()], [square, first, second]);
 });
 
-test('テキストだけを複数選んでいれば、行の名は「文字の大きさ」のまま', async (t) => {
+test('テキストだけを複数選んでいれば、行の名は「文字サイズ」のまま', async (t) => {
   const shell = await withShell(t);
   const { SigK, document } = shell;
   const first = placeText(shell, 300, 450, 'あいう').id;
   const second = placeText(shell, 300, 380, 'えお').id;
   SigK.annotate.setTool(null);
   SigK.annotate.selectKeys([first, second]);
-  assert.equal(document.getElementById('props-size-label').textContent, '文字の大きさ');
+  assert.equal(document.getElementById('props-size-label').textContent, '文字サイズ');
   assert.equal(document.getElementById('props-size').value, '12');
 });

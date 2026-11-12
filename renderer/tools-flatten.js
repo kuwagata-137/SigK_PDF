@@ -78,7 +78,7 @@
     if (src === null || src.blocked !== null)
       return { ready: false, error: '' };
     if (census === null || census.pending)
-      return { ready: false, error: '書き込みを数えています…' };
+      return { ready: false, error: '書き込みを集計しています…' };
     if (census.error !== null)
       return { ready: false, error: census.error };
     if (!(census.result.baked > 0))
@@ -87,7 +87,7 @@
     if (chosen.error !== undefined)
       return { ready: false, error: '' };
     if (!(chosen.tally.baked > 0))
-      return { ready: false, error: '焼き込む書き込みを選んでください。' };
+      return { ready: false, error: '焼き込む書き込みを選択してください。' };
     return { ready: true, error: null, summary: `書き込み ${chosen.tally.baked} 件を焼き込みます` };
   }
 

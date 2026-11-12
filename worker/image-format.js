@@ -38,7 +38,7 @@ const IMAGE_KINDS = new Set(['png', 'jpeg', 'gif', 'bmp', 'tiff']);
 const MAX_PIXELS = 40 * 1000 * 1000;
 
 const IMAGE_CHOICES = 'PNG・JPEG・BMP・GIF・TIFF';
-const SIZE_UNREADABLE = '画像の大きさを読み取れませんでした。';
+const SIZE_UNREADABLE = '画像サイズを読み取れませんでした。';
 
 function startsWith(bytes, signature) {
   if (bytes.length < signature.length)
@@ -63,14 +63,14 @@ function isSupported(kind) {
 
 // 差し込みで断る理由（確定事項54・spec-3-2 確定事項2）。何を選び直せばよいかを伝える。
 function describeFormat() {
-  return `対応していない形式なので、${IMAGE_CHOICES}・PDF を選んでください。`;
+  return `対応していない形式なので、${IMAGE_CHOICES}・PDF を選択してください。`;
 }
 
 // 変換で断る理由（spec-3-1 確定事項1）。差し込みの describeFormat と違い PDF を受けない。
 function describeImageFormat(kind) {
   if (kind === 'pdf')
-    return `PDF は画像ではないので、${IMAGE_CHOICES} を選んでください。`;
-  return `対応していない形式なので、${IMAGE_CHOICES} を選んでください。`;
+    return `PDF は画像ではないので、${IMAGE_CHOICES} を選択してください。`;
+  return `対応していない形式なので、${IMAGE_CHOICES} を選択してください。`;
 }
 
 function readUint32BE(bytes, at) {

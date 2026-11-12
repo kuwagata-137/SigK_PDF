@@ -69,7 +69,7 @@ test('クリックはその 1 枚を選び、Shift＋クリックはその間を
   assert.deepEqual(range(shell), { from: 2, to: 2 });
   press(shell, 5, { shift: true });
   assert.deepEqual(range(shell), { from: 2, to: 5 });
-  assert.equal(shell.document.getElementById('split-band-text').textContent, '3〜6 ページを選んでいます');
+  assert.equal(shell.document.getElementById('split-band-text').textContent, '3〜6 ページを選択しています');
 });
 
 test('押したままなぞると、押したページからなぞった所までを選ぶ。なぞったあとの click は捨てる', async (t) => {
@@ -167,7 +167,7 @@ test('なぞっていないときの Esc は、選択を外す（確定事項G2�
   assert.equal(range(shell), null);
 });
 
-test('✂ と［つなげる］の上では、なぞり始めない', async (t) => {
+test('✂ と［前のファイルと結合］の上では、なぞり始めない', async (t) => {
   const shell = await createInputShell(t);
   const cut = shell.document.querySelector('.sb-cut[data-cut="3"]');
   const at = centerOf(shell, 3);

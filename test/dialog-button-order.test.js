@@ -15,7 +15,7 @@ const A = 'C:\\work\\a.pdf';
 // 窓ごとの、下の段のボタン（左から）。[id, 見出し]。
 const ORDER = {
   'print-dialog': [['print-run', '印刷…'], ['print-cancel', '閉じる']],
-  'confirm-overwrite': [['confirm-overwrite-ok', '上書き'], ['confirm-overwrite-cancel', '取りやめ']],
+  'confirm-overwrite': [['confirm-overwrite-ok', '上書き'], ['confirm-overwrite-cancel', 'キャンセル']],
   'password-prompt': [['password-prompt-ok', '開く'], ['password-prompt-cancel', 'キャンセル']],
   'confirm-extract': [['confirm-extract-ok', '抽出'], ['confirm-extract-cancel', 'キャンセル']],
   'confirm-flatten': [['confirm-flatten-ok', '焼き込む'], ['confirm-flatten-cancel', 'キャンセル']],

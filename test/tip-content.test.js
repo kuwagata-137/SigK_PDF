@@ -54,63 +54,63 @@ test('どの鍵にも名前と説明があり、説明は「。」で終わる 1
 });
 test('キーの書き方: 「／」は配列、（）は keysNote、「—」は keys を持たない', () => {
   assert.deepEqual(tipContent.resolve(node('bar.open')), {
-    name: '開く', desc: 'PDF か画像を選んで、タブで開きます。窓へドロップしても開けます。', keys: ['Ctrl+O'],
+    name: '開く', desc: 'PDF か画像を選択して、タブで開きます。ウインドウへドロップしても開けます。', keys: ['Ctrl+O'],
   });
   assert.deepEqual(tipContent.resolve(node('bar.redo')).keys, ['Ctrl+Y', 'Ctrl+Shift+Z']);
   assert.deepEqual(tipContent.resolve(node('find.prev')).keys, ['Shift+F3', 'Shift+Enter']);
   assert.deepEqual(tipContent.resolve(node('find.next')).keys, ['F3', 'Enter']);
   const close = tipContent.resolve(node('tab.close'));
-  assert.deepEqual([close.keys, close.keysNote], [['Ctrl+W'], '選んでいるタブ']);
+  assert.deepEqual([close.keys, close.keysNote], [['Ctrl+W'], '選択中のタブ']);
   assert.equal('keys' in tipContent.resolve(node('mode.view')), false);
   assert.equal('keys' in tipContent.resolve(node('edit.pen')), false);
   assert.equal('keysNote' in tipContent.resolve(node('bar.open')), false);
 });
 test('［元に戻す］と［拡大］の説明の文は、直した文のまま（「ツールモード」を続けない・2 文に収める）', () => {
   assert.equal(tipContent.resolve(node('bar.undo')).desc,
-    '直前の変更を取り消して、1 つ前の状態に戻します。ツールモードでは、ページをドラッグして動かす・写す・分割の ✂ を、した順に戻します。');
+    '直前の変更を取り消して、1 つ前の状態に戻します。ツールモードでは、ページのドラッグによる移動・コピーと、✂ による分割を、行った順序に従って戻します。');
   // 2026-10-23：ツールモードの紙の倍率（docs/07 決定83）の範囲を括弧で足した。2 文に収めるのは変えない。
   assert.equal(tipContent.resolve(node('bar.zoomIn')).desc,
-    '表示を 1 段大きくします。いちばん大きいのは 1000%（ツールモードで帯に並べるページは 300%）で、Ctrl+0 で 100% に戻ります。');
+    '表示を 1 段階拡大します。最大は 1000%（ツールモードで帯に並べるページは 300%）で、Ctrl+0 で 100% に戻ります。');
   for (const key of ['bar.zoomIn', 'bar.zoomOut'])
     assert.equal(tipContent.resolve(node(key)).desc.split('。').length - 1, 2, `${key} が 2 文でない`);
 });
 test('左のパネルの「＜」の説明は、開き直す「＞」の場所を「閉じたパネルの細い欄」と呼ぶ（docs/04 第3章の呼び名。PR-5 の点検の直し）', () => {
   assert.equal(tipContent.resolve(node('side.collapse')).desc,
-    '左のパネルを閉じて、ページの表示を広げます。閉じている間は、閉じたパネルの細い欄の「＞」で開きます。');
+    '左パネルを閉じて、ページを表示する領域を広げます。閉じている間は、パネルの位置に残る細い欄の「＞」で開きます。');
 });
 // 2026-11-12: 控えのファイルの既定を作らないへ改めた（spec-7-4 確定事項BK1）。設定が無いときも、既定と同じく「作りません」の文。
 test('帯のフロッピーの文は、帯のファイル名を入れた見本の文', () => {
   assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '会議資料.pdf' })), { name: '上書き保存',
-    desc: 'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（会議資料.pdf.bak）は作りません。', keys: ['Ctrl+S'], keysNote: '選んでいる帯' });
+    desc: 'この帯のファイル（会議資料.pdf）に、現在の変更内容を上書き保存します。設定画面でチェックを外しているので、バックアップファイル（会議資料.pdf.bak）は作成しません。', keys: ['Ctrl+S'], keysNote: '選択中の帯' });
 });
 test('帯のフロッピーは、ファイル名が空・無いときは「（）」を出さず、ファイル名を抜いた文にする', () => {
-  const noName = { name: '上書き保存', desc: 'この帯のファイルに、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（名前.pdf.bak）は作りません。',
-    keys: ['Ctrl+S'], keysNote: '選んでいる帯' };
+  const noName = { name: '上書き保存', desc: 'この帯のファイルに、現在の変更内容を上書き保存します。設定画面でチェックを外しているので、バックアップファイル（名前.pdf.bak）は作成しません。',
+    keys: ['Ctrl+S'], keysNote: '選択中の帯' };
   assert.deepEqual(tipContent.resolve(node('strip.save')), noName);
   assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '' })), noName);
 });
 test('名前の無い帯のフロッピーは、見本の文のまま', () => {
   assert.deepEqual(tipContent.resolve(node('strip.saveAs')), { name: '名前を付けて保存',
-    desc: 'この帯はまだファイルになっていません。保存先と名前を決めて、PDF のファイルにします。', keys: ['Ctrl+Shift+S'], keysNote: '選んでいる帯' });
+    desc: 'この帯はまだ保存されていません。保存先と名前を指定して、PDF ファイルとして保存します。', keys: ['Ctrl+Shift+S'], keysNote: '選択中の帯' });
 });
 test('ツールバーの［上書き保存］は、名前の無い帯（新しい帯）を映しているときだけ文を替える', () => {
-  const named = { name: '上書き保存', desc: '開いているファイルに、今の変更を書き込みます。設定の窓で外しているので、控えのファイル（名前.pdf.bak）は作りません。', keys: ['Ctrl+S'] };
-  const untitled = { name: '上書き保存', desc: 'このファイルはまだ保存先が決まっていないので、保存先と名前を聞いてから PDF のファイルにします。', keys: ['Ctrl+S'] };
+  const named = { name: '上書き保存', desc: '開いているファイルに、現在の変更内容を上書き保存します。設定画面でチェックを外しているので、バックアップファイル（名前.pdf.bak）は作成しません。', keys: ['Ctrl+S'] };
+  const untitled = { name: '上書き保存', desc: 'このファイルは保存先が未指定なので、保存画面で保存先と名前を指定してから PDF ファイルとして保存します。', keys: ['Ctrl+S'] };
   assert.deepEqual(tipContent.resolve(node('bar.save')), named); // SigK.viewer が無いときは名前のある方
   assert.deepEqual(barSaveWith({ file: { untitled: true } }), untitled);
   assert.deepEqual(barSaveWith({ file: { untitled: false } }), named);
   assert.deepEqual(barSaveWith({ file: null }), named);
   assert.deepEqual(barSaveWith({}), named);
 });
-// 点検の直し I-4。設定の窓で「上書き保存の前に、元のファイルの控えのファイルを作る」にチェックを付けているときだけ、.bak が残ると言う。
+// 点検の直し I-4。設定の窓で「上書き保存する前に、元のファイルのバックアップファイル（名前.pdf.bak）を作成する」にチェックを付けているときだけ、.bak が残ると言う。
 test('設定の窓で控えのファイルを作るにしていたら、ツールバーの［上書き保存］と帯のフロッピーは「残ります」の文にする', () => {
   globalThis.SigK.preferences = { current: () => ({ backupBeforeOverwrite: true }) };
   try {
     assert.equal(tipContent.resolve(node('bar.save')).desc,
-      '開いているファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。');
+      '開いているファイルに、現在の変更内容を上書き保存します。上書き前の内容は「名前.pdf.bak」として残ります。');
     assert.equal(tipContent.resolve(node('strip.save', { tipFile: '会議資料.pdf' })).desc,
-      'この帯のファイル（会議資料.pdf）に、今の変更を書き込みます。元の中身は「会議資料.pdf.bak」として残ります。');
-    assert.equal(barSaveWith({ file: { untitled: true } }).desc, 'このファイルはまだ保存先が決まっていないので、保存先と名前を聞いてから PDF のファイルにします。');
+      'この帯のファイル（会議資料.pdf）に、現在の変更内容を上書き保存します。上書き前の内容は「会議資料.pdf.bak」として残ります。');
+    assert.equal(barSaveWith({ file: { untitled: true } }).desc, 'このファイルは保存先が未指定なので、保存画面で保存先と名前を指定してから PDF ファイルとして保存します。');
   } finally {
     delete globalThis.SigK.preferences;
   }

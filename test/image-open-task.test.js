@@ -102,8 +102,8 @@ test('runImageOpen が添える元の JPEG は、向きを 1 に書き換えた�
 });
 
 test('runImageOpen は無いファイル・パスの無い頼みを断る', async () => {
-  assert.equal((await runImageOpen({})).error, '開く画像が決まっていません。');
-  assert.match((await runImageOpen({ path: path.join(os.tmpdir(), 'sigk-無い.png') })).error, /画像を読めませんでした/);
+  assert.equal((await runImageOpen({})).error, '開く画像が指定されていません。');
+  assert.match((await runImageOpen({ path: path.join(os.tmpdir(), 'sigk-無い.png') })).error, /画像を読み込めませんでした/);
 });
 
 test('ワーカーの入口は image-open を振り分け、ファイルを書かない', async (t) => {

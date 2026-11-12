@@ -45,7 +45,7 @@
   function stillShowing(file) {
     if (viewer().getState().file === file)
       return true;
-    banner().show('保存の途中でタブが替わったので、保存を取りやめました。もう一度押してください。', { tone: 'warn' });
+    banner().show('保存中にタブが切り替わったので、保存をキャンセルしました。もう一度押してください。', { tone: 'warn' });
     return false;
   }
 
@@ -60,7 +60,7 @@
         if (canceled())
           return { canceled: true };
         const written = await root.imageAPI.write(target, drawn.bytes, { makeBackup, expect });
-        return written ?? { error: '画像を書き込めませんでした。' };
+        return written ?? { error: '画像を保存できませんでした。' };
       },
     });
   }
@@ -72,7 +72,7 @@
     let result = await writeOnce(target, format, { makeBackup, expect });
     if (result?.changed === true) {
       if ((await root.SigK.confirmOverwrite.ask({ name })) !== true) {
-        banner().show('保存を取りやめました。', { tone: 'info' });
+        banner().show('保存をキャンセルしました。', { tone: 'info' });
         return { canceled: true };
       }
       if (!stillShowing(file))
@@ -98,7 +98,7 @@
       return true;
     if ((await root.SigK.confirmImageSave.ask({ name: file.name, backup })) === true)
       return true;
-    banner().show('保存を取りやめました。', { tone: 'info' });
+    banner().show('保存をキャンセルしました。', { tone: 'info' });
     return false;
   }
 
@@ -130,7 +130,7 @@
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
+      return { error: picked?.error ?? '保存先を指定できませんでした。' };
     const refused = root.SigK.outputTarget.refusalForSaveAs(picked.path);
     if (refused !== null) {
       banner().show(refused);

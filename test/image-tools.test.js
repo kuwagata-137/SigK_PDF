@@ -35,8 +35,8 @@ test('画像のタブでは 4 つの道具を灰色にし、吹き出しを理�
     assert.equal(button(shell, tool).dataset.tip, `edit.${tool}.image`, tool);
   }
   assert.equal(button(shell, 'pen').getAttribute('aria-disabled'), null, 'ほかの道具は使える');
-  assert.equal(shell.SigK.tipContent.resolve(button(shell, 'highlight')).desc, '画像には選べる文字が無いので、使えません。');
-  assert.equal(shell.SigK.tipContent.resolve(button(shell, 'note')).desc, '画像に保存すると付箋の本文が残らないので、画像では使えません。');
+  assert.equal(shell.SigK.tipContent.resolve(button(shell, 'highlight')).desc, '画像には選択できる文字が無いので、使用できません。');
+  assert.equal(shell.SigK.tipContent.resolve(button(shell, 'note')).desc, '画像に保存すると付箋の本文が残らないので、画像では使用できません。');
 
   await shell.SigK.tabs.openPath(PDF);
   await shell.flush();
@@ -77,7 +77,7 @@ test('画像のタブは 1 本を対象にするツールの対象にならず�
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('split');
   await shell.flush();
-  assert.equal(shell.document.getElementById('tools-view').textContent.includes('「shot.png」は画像なので、PDF として保存すると使えます。'), true);
+  assert.equal(shell.document.getElementById('tools-view').textContent.includes('「shot.png」は画像なので、PDF として保存すると使用できます。'), true);
   shell.SigK.tools.select('merge');
   await shell.flush();
   const row = shell.SigK.toolsMerge.rows().find((entry) => entry.path === PNG);

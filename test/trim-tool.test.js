@@ -121,7 +121,7 @@ test('すべてのページ: 大きさの違うページ・回したページも
   // 余白は上 241.89・右 195.28・下 200・左 100（画面の向き）。90° のページは、画面の上が紙の左の辺になる。
   assert.deepEqual(crops(shell), [BOX, [241.89, 100, 600, 804.72], null]);
   assert.equal(SigK.pageEdit.getHistoryState().depth, depth + 1);
-  assert.equal(SigK.viewBanner.text(), '2 ページを切りました。小さすぎる 1 ページはそのままです。');
+  assert.equal(SigK.viewBanner.text(), '2 ページをトリミングしました。小さすぎる 1 ページはそのままです。');
   assert.equal(document.getElementById('view-banner').getAttribute('data-tone'), 'info');
 });
 
@@ -140,7 +140,7 @@ test('すべてのページ: 差し込んだページは切らず、通知バー
 
   assert.deepEqual(crops(shell), [BOX, BOX, BOX, null]);
   assert.equal(Number.isInteger(SigK.viewer.getPlan()[3].insert), true);
-  assert.equal(SigK.viewBanner.text(), '3 ページを切りました。差し込んだ 1 ページはそのままです。');
+  assert.equal(SigK.viewBanner.text(), '3 ページをトリミングしました。差し込んだ 1 ページはそのままです。');
 });
 
 test('道具を持つたびに当てるページを［このページ］へ戻し、選択を外し、紙全体を 1 回だけ読む', async (t) => {
@@ -157,7 +157,7 @@ test('道具を持つたびに当てるページを［このページ］へ戻�
   assert.equal(shell.boxesCalls.length, 1);
 });
 
-test('［トリミングを外す］は紙全体を読み終えるまで待ち、ほかのアプリで切ってあるページも紙全体に戻す', async (t) => {
+test('［トリミングを解除］は紙全体を読み終えるまで待ち、ほかのアプリで切ってあるページも紙全体に戻す', async (t) => {
   let release = null;
   const pending = new Promise((resolve) => { release = resolve; });
   const pdfjs = createPdfjsStub({ sizes: [{ width: 400, height: 500 }, A4, A4], views: [[50, 60, 450, 560]] });
@@ -271,7 +271,7 @@ test('外すのを待つ間に切り直したら、待ち明けに外さず、�
 
   assert.equal(await removing, false);
   assert.deepEqual(crops(shell), [[150, 250, 350, 550], null, null]);
-  assert.equal(SigK.viewBanner.text(), '読み込みを待つ間にページが変わったので、トリミングを外しませんでした。もう一度押してください。');
+  assert.equal(SigK.viewBanner.text(), '読み込みを待つ間にページが変わったので、トリミングを解除しませんでした。もう一度［トリミングを解除］を押してください。');
 });
 
 test('すべてのページで、枠が今の見える範囲と同じなら、何も積まず通知バーも出さない（点検 6）', async (t) => {

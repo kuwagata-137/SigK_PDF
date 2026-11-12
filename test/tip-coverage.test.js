@@ -45,7 +45,7 @@ const STATIC_TARGETS = [
 
 // 今まで aria-label が無かった、アイコンだけの要素に足す名前（spec-2-5 J3）。
 const ADDED_LABELS = [
-  ['#btn-undo', '元に戻す'], ['#btn-redo', 'やり直し'], ['#btn-find', '検索'], ['#btn-print', '印刷'], ['#page-prev', '前のページ'], ['#page-next', '次のページ'],
+  ['#btn-undo', '元に戻す'], ['#btn-redo', 'やり直す'], ['#btn-find', '検索'], ['#btn-print', '印刷'], ['#page-prev', '前のページ'], ['#page-next', '次のページ'],
   ['#zoom-out', '縮小'], ['#zoom-in', '拡大'], ['.tab-add', 'タブを追加'], ['#side-collapse', 'パネルを閉じる'], ['#find-case', '大文字と小文字を区別'],
   ['#find-prev', '前へ'], ['#find-next', '次へ'], ['#find-close', '閉じる'], ['#doc-info-close', '閉じる'], ['#help-close', '閉じる'], ['#print-close', '閉じる'],
 ];
@@ -87,7 +87,7 @@ test('今の aria-label は変えない（読み上げの名前と使い方の�
   assert.equal(doc.getElementById('btn-help').getAttribute('aria-label'), '使い方');
   assert.equal(doc.getElementById('btn-fit-width').getAttribute('aria-label'), '幅に合わせる');
   assert.equal(doc.getElementById('btn-facing').getAttribute('aria-label'), '見開き');
-  assert.equal(doc.getElementById('image-strip-clear').getAttribute('aria-label'), 'すべて外す');
+  assert.equal(doc.getElementById('image-strip-clear').getAttribute('aria-label'), 'すべて削除');
 });
 
 // 要素に title を付ける書き方を、ソースの文字から拾う。窓の題（doc.title）と、=== などの比べは拾わない。

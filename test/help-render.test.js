@@ -61,7 +61,7 @@ test('表は先頭の行を見出し（th）にし、残りを td にする', ()
   const tables = world.render.section(world.doc, keys).filter((node) => node.tagName === 'TABLE');
   assert.equal(tables.length, 2);
   const [first] = tables;
-  assert.deepEqual([...first.querySelectorAll('thead th')].map((th) => th.textContent), ['キー', 'すること', '効く所']);
+  assert.deepEqual([...first.querySelectorAll('thead th')].map((th) => th.textContent), ['キー', '機能', '使用できる場面']);
   assert.equal(first.querySelectorAll('tbody tr').length, keys.blocks[0].table.length - 1);
   assert.equal(first.querySelector('tbody td kbd').textContent, 'F1');
 });

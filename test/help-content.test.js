@@ -69,123 +69,123 @@ test('キーの書き方 [キー] は閉じていて、決めた名前だけを�
 
 test('計画外の直しのあとの動きで書いてある', () => {
   // ① Ctrl＋クリック・Shift＋クリックで複数のページを選べる。
-  assert.match(joined('pages'), /\[Ctrl\] を押しながらクリックすると 1 枚ずつ足す・外す/);
+  assert.match(joined('pages'), /\[Ctrl\] を押しながらクリックすると 1 枚ずつ選択を追加・解除し/);
   // ② 閉じた左のパネルは「＞」で開く。
   assert.match(joined('basics'), /「＞」で開きます/);
   // ⑥ どのモードで開いてもタブで開き、モードは変えない。ツールモードでは帯の画面に帯として足す（決定80。2026-10-08 の
   // 「ツールモードで開くと閲覧モードへ移る」を改めた。2026-10-15 に、分割・画像→PDF も帯の画面へ移った〔spec-2-5 第 G・H 章〕）。
-  assert.match(joined('basics'), /どのモードで開いても、ファイルはタブで開き、モードはそのままです/);
-  assert.match(joined('basics'), /ツールモードで開いたときは、帯の画面に帯として足します/);
+  assert.match(joined('basics'), /どのモードで開いても、ファイルはタブで開き、モードは変わりません/);
+  assert.match(joined('basics'), /ツールモードで開いたときは、帯として追加します/);
   assert.doesNotMatch(joined('basics'), /画像→PDF は除きます/);
   // 「帯」は PDF の帯だけに使う。閉じた左のパネルの「＞」の所は帯と呼ばない（用語を揺らさない。2026-10-15）。
   assert.doesNotMatch(joined('basics'), /細い帯/);
   for (const id of ['basics', 'tools'])
-    assert.doesNotMatch(joined(id), /閲覧モードへ移ります/, id);
+    assert.doesNotMatch(joined(id), /閲覧モード[へに](移ります|移動します|切り替わります)/, id);
   // ④⑤ Ctrl+Shift+Z はやり直し。文字を打つ欄の中では欄の文字を戻す。
   const keys = content.SECTIONS.find((section) => section.id === 'keys').blocks[0].table;
   const redo = keys.find((row) => row[0].includes('[Ctrl]+[Shift]+[Z]'));
-  assert.equal(redo[1], 'やり直し');
-  assert.match(keys.find((row) => row[0] === '[Ctrl]+[Z]')[2], /文字を打つ欄の中では、欄の文字を戻す/);
+  assert.equal(redo[1], 'やり直す');
+  assert.match(keys.find((row) => row[0] === '[Ctrl]+[Z]')[2], /文字入力欄の中では、文字入力を元に戻す/);
 });
 
 test('キー操作の表に F1 があり、Esc の順は 10 段で窓が先頭', () => {
   const keys = sectionOf('keys').blocks[0].table;
-  assert.deepEqual(keys.find((row) => row[0] === '[F1]'), ['[F1]', 'この使い方を開く', 'いつでも']);
+  assert.deepEqual(keys.find((row) => row[0] === '[F1]'), ['[F1]', '使い方を表示', 'いつでも']);
   const order = sectionOf('escape').blocks[0].table.slice(1);
   assert.deepEqual(order.map((row) => row[0]), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
-  assert.match(order[0][1], /^窓/);
-  assert.match(order[9][1], /^道具を外す/);
+  assert.match(order[0][1], /^画面/);
+  assert.match(order[9][1], /^書き込みツールの選択を解除する/);
 });
 
 test('倍率の段は、表示の倍率の段（viewer-layout.js の ZOOM_STEPS）と同じ', () => {
   require('../renderer/viewer-layout.js');
   const steps = globalThis.SigK.viewerLayout.ZOOM_STEPS.map((zoom) => Math.round(zoom * 100)).join('・');
-  assert.ok(joined('view').includes(`段は ${steps}% です`), steps);
+  assert.ok(joined('view').includes(`段階は ${steps}% です`), steps);
 });
 
 // 点検（文面とコードの突き合わせ）で直した所。コードの値と比べられるものは比べる。
 test('元に戻せる回数は、履歴の世代の数（今の状態を含む）から 1 を引いた数', () => {
   require('../renderer/edit-history.js');
   const times = globalThis.SigK.editHistory.MAX_HISTORY - 1;
-  assert.ok(joined('basics').includes(`合わせて ${times} 回まで戻せます`), String(times));
+  assert.ok(joined('basics').includes(`合わせて ${times} 回まで元に戻せます`), String(times));
 });
 
 test('分割は「分割」の節で説明し、ツールのボタン名は画面と同じ（spec-2-2b 確定事項G4）', () => {
   const tools = joined('tools');
   assert.match(tools, /使い方は次の「分割」の節にあります/);
   assert.doesNotMatch(tools, /N ページごと|範囲（例 1-3, 8）/, '無くなった分け方を書かない');
-  assert.match(tools, /［実行…］を押すと始まります/);
+  assert.match(tools, /［実行…］を押すと処理が始まります/);
   const split = joined('split');
-  for (const button of ['［前のファイルとつなげる］', '［1 ページずつに分ける］', '［ページごとに分ける］', '［ページの前で切る］',
-    '［分け目をすべて消す］', '［この範囲を 1 つのファイルにする］', '［書き出さない］', '［書き出す］', '［元に戻す］', '［やり直す］', '［実行…］'])
+  for (const button of ['［前のファイルと結合］', '［1 ページずつ分割］', '［ページごとに分割］', '［ページの前で分割］',
+    '［分割位置をすべて削除］', '［選択範囲を 1 つのファイルに統合］', '［書き出さない］', '［書き出す］', '［元に戻す］', '［やり直す］', '［実行…］'])
     assert.ok(split.includes(button), button);
   // どのツールも帯の画面を使う（spec-2-5 第 D・E・G・H 章）。［開いているタブから選ぶ］は 2026-10-15 に無くした（G14）。
   for (const id of ['tools', 'split', 'escape'])
     assert.doesNotMatch(joined(id), /開いているタブから選ぶ/, id);
-  assert.match(tools, /分割・PDF→画像・透かし・フラット化は、選んでいる帯（枠の色が付いた帯）の PDF に使います/);
+  assert.match(tools, /分割・PDF→画像・透かし・フラット化は、選択中の帯（枠に色が付いた帯）の PDF に使用します/);
   // どのツールも、帯の PDF がほかのアプリで書き換えられていたら止める（決定81 ⑫。spec-6-1 確定事項C-9）。
-  assert.match(tools, /ほかのアプリで書き換えられていたら、［実行…］を押しても何も書き出さずに止めて知らせます/);
+  assert.match(tools, /ほかのアプリで書き換えられていた場合は、［実行…］を押しても何も書き出さずに中止して通知します/);
   assert.doesNotMatch(tools, /まとめて追加/);
   // 分割は選んでいる帯を ✂ の盤に広げ、切った位置は帯ごとに覚える（G1・G5）。書き換わっていたら止める（G11）。
-  assert.match(split, /選んでいる帯が ✂ の盤/);
-  assert.match(split, /帯ごとに覚えるので、別の帯を選んでから戻っても残っています/);
-  assert.match(split, /［保存せずに実行］は使えません/);
-  assert.match(split, /分割を止めて知らせます/);
-  assert.doesNotMatch(split, /戻ったときに読み直して/);
+  assert.match(split, /選択中の帯が分割画面/);
+  assert.match(split, /帯ごとに記憶するので、別の帯を選択してから戻っても残っています/);
+  assert.match(split, /［保存せずに実行］は使用できません/);
+  assert.match(split, /分割を中止して通知します/);
+  assert.doesNotMatch(split, /戻ったときに(読み直して|読み込み直して|再度読み込んで|もう一度読み込んで)/);
   // 範囲を選んだときのボタンの行は帯と呼ばない（PDF の帯と取り違えない）。
-  assert.doesNotMatch(split, /上に帯が出ます/);
+  assert.doesNotMatch(split, /上に帯が(出ます|表示されます)/);
 });
 
-test('画像→PDF は「変換する画像」の帯で並べ、変換のあとは「できた PDF」のカードから続けられる（spec-2-5 第 H 章）', () => {
+test('画像→PDF は「変換する画像」の帯で並べ、変換のあとは「作成した PDF」のカードから続けられる（spec-2-5 第 H 章）', () => {
   const tools = joined('tools');
-  assert.match(tools, /画像→PDF を選んでいるときは、PDF の帯の下に「変換する画像」の帯が出ます/);
-  assert.match(tools, /画像を横にドラッグすると並びが変わり/);
-  assert.match(tools, /画像→PDF（画像ごと）は選んだフォルダへ書き出し、できた PDF を帯で開きます/);
-  assert.match(tools, /右の欄に「できた PDF」のカードが出ます/);
-  assert.match(joined('escape'), /「変換する画像」の帯の画像をドラッグしている途中の \[Esc\] は、ドラッグだけをやめます/);
+  assert.match(tools, /画像→PDF を選択しているときは、PDF の帯の下に「変換する画像」の帯が表示されます/);
+  assert.match(tools, /画像を横にドラッグすると並び順が変わり/);
+  assert.match(tools, /画像→PDF（画像ごとに PDF を作成するとき）は、選択したフォルダへ書き出し、作成した PDF を帯で開きます/);
+  assert.match(tools, /設定パネルに「作成した PDF」のカードが表示されます/);
+  assert.match(joined('escape'), /「変換する画像」の帯の画像をドラッグしている途中に \[Esc\] を押すと、ドラッグだけをキャンセルします/);
   assert.doesNotMatch(joined('escape'), /ファイルの一覧の行/);
   // 進み具合を出す行は帯と呼ばない。呼び名は「通知バー」（決定80 ㊲）。
   assert.doesNotMatch(tools, /青い帯/);
-  assert.match(tools, /画面の上に出る通知バー（青い 1 行）に進み具合が出て/);
+  assert.match(tools, /画面の上に表示される通知バー（青い 1 行）に進捗が表示され/);
 });
 
 test('ツールモードで開く・保存するときの動きで書いてある（決定80）', () => {
   // 落とした PDF はタブでも開き、画像はほかのツールからでも画像→PDF へ切り替わる（tool-handoff.js）。
-  assert.match(joined('tools'), /受け口に PDF をドロップするか、［ファイルを開く…］で選ぶと、開いて帯に足します/);
+  assert.match(joined('tools'), /ドロップエリアに PDF をドロップするか、［ファイルを開く…］で選択すると、PDF を開いて帯を追加します/);
   assert.match(joined('tools'), /画像をドロップすると、画像→PDF に切り替わります/);
-  assert.match(joined('tools'), /できたファイルを新しい帯で開きます（ツールモードのままです）/);
+  assert.match(joined('tools'), /作成したファイルを新しい帯で開きます（ツールモードのままです）/);
   // 帯の画面と、保存していない帯の確認の窓（spec-2-5 第 D・F 章。決定80 ㉜）。用語は「帯」「書き込み」「焼き込み」にそろえる。
   assert.match(joined('tools'), /［上書き保存してから実行］［保存せずに実行］［キャンセル］/);
-  assert.match(joined('tools'), /このときタブの列は出ません/);
+  assert.match(joined('tools'), /このときタブバーは表示されません/);
   assert.match(joined('tools'), /ページの内容として焼き込み/);
   assert.doesNotMatch(joined('tools'), /紙に焼き込/);
   // 保存はツールモードでも効く（save.js。spec-2-1 確定事項4・5 を改めた）。
-  assert.match(joined('basics'), /どのモードでも、保存するのはタブの列で選んでいるタブ（ツールモードで帯が並んでいるときは、選んでいる帯）です/);
+  assert.match(joined('basics'), /どのモードでも、保存対象はタブバーで選択中のタブ（ツールモードで帯が並んでいるときは、選択中の帯）です/);
   const keys = sectionOf('keys').blocks[0].table;
   assert.equal(keys.find((row) => row[0] === '[Ctrl]+[S] / [Ctrl]+[Shift]+[S]')[2], '文書を開いているとき');
 });
 
 test('Esc の例は、持っている道具と選んでいる書き込みを書き分ける', () => {
-  assert.match(joined('escape'), /［四角］の道具を持ち、描いた四角が選ばれていて/);
+  assert.match(joined('escape'), /［四角］のツールを選択して四角を描画し、その四角が選択されている状態で/);
 });
 
 test('既定のアプリの入口を、メニューと同じ名前で案内する（spec-5-2 確定事項C3）', () => {
   const mainJs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
   assert.match(mainJs, /label: '既定のアプリの設定…'/);
-  assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」か、設定の窓の［Windows の設定を開く］で Windows の設定を開き、SigK PDF を選びます/);
+  assert.match(joined('basics'), /メニュー「ヘルプ」→「既定のアプリの設定…」か、設定画面の［Windows の設定を開く］で Windows の設定を開き、SigK PDF を選択します/);
   // 一覧の SigK PDF を押すだけでは 1 回しか開かないので、ガイドと同じ手順で案内する（spec-6-1 タスク E の E9。docs/07 の積み残し）。
-  assert.match(joined('basics'), /「プログラムから開く」→「別のプログラムを選択」をクリックし、SigK PDF を選んで［常に使う］を押しても、既定にできます/);
+  assert.match(joined('basics'), /「プログラムから開く」→「別のプログラムを選択」をクリックし、SigK PDF を選択して［常に使う］を押しても、既定のアプリにできます/);
   // 設定の窓の開き方（spec-6-1 確定事項E-1）。
-  assert.match(joined('basics'), /メニュー「ファイル」→「設定…」か \[Ctrl\]\+\[,\]、ツールバーの右の端の歯車のボタンで、設定の窓を開きます/);
+  assert.match(joined('basics'), /メニュー「ファイル」→「設定…」か \[Ctrl\]\+\[,\]、ツールバーの右端にある歯車ボタンで、設定画面を開きます/);
 });
 
 test('うまく動かないときの記録の入口を、メニューと同じ名前で案内する（spec-6-1 タスク B。決定81 ⑧）', () => {
   const mainJs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'main.js'), 'utf8');
-  assert.match(mainJs, /label: 'エラーの記録のフォルダを開く'/);
-  const block = sectionOf('basics').blocks.find((b) => b.h === 'うまく動かないとき');
-  assert.notEqual(block, undefined, '「画面とモード」に「うまく動かないとき」が無い');
-  assert.match(block.items.join(' '), /メニュー「ヘルプ」→「エラーの記録のフォルダを開く」をクリックすると/);
-  assert.match(block.items.join(' '), /外へは送りません/);
+  assert.match(mainJs, /label: 'エラーログフォルダを開く'/);
+  const block = sectionOf('basics').blocks.find((b) => b.h === 'うまく動作しないとき');
+  assert.notEqual(block, undefined, '「画面とモード」に「うまく動作しないとき」が無い');
+  assert.match(block.items.join(' '), /メニュー「ヘルプ」→「エラーログフォルダを開く」をクリックすると/);
+  assert.match(block.items.join(' '), /外部へは送信しません/);
 });
 
 // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K。2026-10-14）。閲覧の節に節を立て、マウスの表と Esc の順にも閲覧・ページ編集を書く。
@@ -193,7 +193,7 @@ test('閲覧の節に［選択］［ハンド］の節があり、マウスの�
   const block = sectionOf('view').blocks.find((b) => b.h === '選択とハンド');
   assert.notEqual(block, undefined, '閲覧の節に「選択とハンド」が無い');
   const text = block.items.join('\n');
-  for (const part of ['［選択］', '［ハンド］', '左ボタンを押したまま右クリック', 'ツールモードでは使えません', '次に起動したときも続きます'])
+  for (const part of ['［選択］', '［ハンド］', '左ボタンを押したまま右クリック', 'ツールモードでは使用できません', '次回起動時にも引き継がれます'])
     assert.ok(text.includes(part), part);
   const mouse = sectionOf('keys').blocks.find((b) => b.h === 'マウス').table;
   assert.deepEqual(mouse.find((row) => row[0] === 'ホイール（ハンドのとき）'), ['ホイール（ハンドのとき）', '拡大・縮小', '閲覧・ページ編集・編集']);

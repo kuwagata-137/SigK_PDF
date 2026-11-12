@@ -82,7 +82,7 @@ test('保存中は抽出できない', async (t) => {
 
   assert.equal(shell.SigK.extract.canExtract(), false);
   assert.equal(extractButton(shell).getAttribute('aria-disabled'), 'true');
-  assert.match((await shell.SigK.extract.run()).error, /いま保存しています/);
+  assert.match((await shell.SigK.extract.run()).error, /現在、保存中です/);
 
   release();
   await saving;
@@ -179,7 +179,7 @@ test('出力先が元のファイル自身なら、何も書かずに通知バ�
   shell.SigK.pageGrid.setSelection([0]);
 
   const result = await runAndAccept(shell);
-  assert.equal(result.error, '出力先に元のファイルと同じファイルは選べません。');
+  assert.equal(result.error, '出力先に元のファイルと同じファイルは選択できません。');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(shell.SigK.viewBanner.text(), result.error);
 });
@@ -197,7 +197,7 @@ test('出力先が別のタブで開いていれば、何も書かずに通知�
   shell.SigK.pageGrid.setSelection([0]);
 
   const result = await runAndAccept(shell);
-  assert.equal(result.error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '出力先ファイルはタブで開いているので、タブを閉じるか、別の名前を指定してください。');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(shell.SigK.viewBanner.text(), result.error);
 });

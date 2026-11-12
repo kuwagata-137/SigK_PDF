@@ -321,15 +321,15 @@ function requestLogFolder() {
 
 // メニュー「ヘルプ」の並び（spec-5-2 確定事項C1）と、アプリのアイコンを読めるか。起動確認の報告に載せる（確定事項E1）。
 // 配布物では app.asar の中のアイコンを読む。並びが違う・読めないときは problems に積む。
-const HELP_MENU_ORDER = ['使い方', '既定のアプリの設定…', 'エラーの記録のフォルダを開く', '-', 'バージョン情報'];
+const HELP_MENU_ORDER = ['使い方', '既定のアプリの設定…', 'エラーログフォルダを開く', '-', 'バージョン情報'];
 function readAppShellState(problems) {
   const helpMenu = Menu.getApplicationMenu()?.items.find((item) => item.label === 'ヘルプ');
   const labels = helpMenu?.submenu?.items.map((item) => (item.type === 'separator' ? '-' : item.label)) ?? null;
   const appIcon = nativeImage.createFromPath(APP_ICON_PATH);
   if (JSON.stringify(labels) !== JSON.stringify(HELP_MENU_ORDER))
-    problems.push(`appShell: メニュー「ヘルプ」の並びが違います（${JSON.stringify(labels)}）`);
+    problems.push(`appShell: メニュー「ヘルプ」の並び順が違います（${JSON.stringify(labels)}）`);
   if (appIcon.isEmpty())
-    problems.push(`appShell: アイコンを読めません（${APP_ICON_PATH}）`);
+    problems.push(`appShell: アイコンを読み込めません（${APP_ICON_PATH}）`);
   return { helpMenu: labels, icon: { empty: appIcon.isEmpty(), ...appIcon.getSize() } };
 }
 
@@ -379,7 +379,7 @@ function buildAppMenu() {
         // F1 は画面の側（viewer-keys.js）で受ける 1 本にする（spec-4b-7b 確定事項A2）。ここはキーを表示するだけで登録しない。
         { label: '使い方', accelerator: 'F1', registerAccelerator: false, click: requestHelp },
         { label: '既定のアプリの設定…', click: requestDefaultAppsSettings },
-        { label: 'エラーの記録のフォルダを開く', click: requestLogFolder },
+        { label: 'エラーログフォルダを開く', click: requestLogFolder },
         { type: 'separator' },
         { label: 'バージョン情報', click: showAboutDialog },
       ],

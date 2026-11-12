@@ -28,7 +28,7 @@ const DA_FONT_NAME = 'SigKJP';
 const BOLD_FONT_NAME = 'SigKJPB';
 const FONT_BASE_NAME = 'NotoSansJP-Regular';
 const BOLD_BASE_NAME = 'NotoSansJP-Bold';
-const FONT_ERROR = '日本語フォントを読めなかったため、テキストの書き込みを保存できません。';
+const FONT_ERROR = '日本語フォントを読み込めなかったため、テキストの書き込みを保存できません。';
 // 合字を切る（fontkit の layout が fi・ff などを 1 字にまとめると、画面の行の幅と食い違う）。
 const FEATURES = Object.freeze({ liga: false });
 

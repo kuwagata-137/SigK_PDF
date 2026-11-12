@@ -12,14 +12,14 @@
     { key: 'remove', label: 'ページの削除' },
     { key: 'rotate', label: 'ページの回転' },
     { key: 'insert', label: 'ページの差し込み' },
-    { key: 'crop', label: '切り取り' },
+    { key: 'crop', label: 'トリミング' },
     { key: 'mosaic', label: 'モザイク' },
     { key: 'annot', label: '書き込み' },
   ]);
   const FALLBACK = '保存していない変更';
   // 2 本以上のときに名前を並べる数（F4）。
   const LIST_LIMIT = 5;
-  const TAIL = 'ツールはファイルに保存してある中身を使うので、このまま実行すると、その変更は結果に入りません。';
+  const TAIL = 'ツールはファイルに保存してある内容を使うので、このまま実行すると、その変更は結果に反映されません。';
 
   const keyOf = (page) => (Number.isInteger(page?.insert) ? `i${page.insert}` : `s${page?.src}`);
 

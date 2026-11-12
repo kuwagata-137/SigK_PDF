@@ -32,7 +32,7 @@ test('1 本の出力先: タブで開いているファイルだけを断る。�
   assert.equal(refusalFor(B), OPEN_IN_TAB, '映しているタブ');
   assert.equal(refusalFor('c:/work/A.PDF'), OPEN_IN_TAB);
   // 透かし・フラット化（spec-4-5 確定事項42）と同じ文言にしてある。
-  assert.equal(OPEN_IN_TAB, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
+  assert.equal(OPEN_IN_TAB, '出力先ファイルはタブで開いているので、タブを閉じるか、別の名前を指定してください。');
 });
 
 test('1 本の出力先: source を渡すと元のファイルそのものも断り、そちらの文言を先に返す', async (t) => {
@@ -43,7 +43,7 @@ test('1 本の出力先: source を渡すと元のファイルそのものも断
   assert.equal(refusalFor(A, { source: B }), OPEN_IN_TAB);
   assert.equal(refusalFor(NEW, { source: B }), null);
   // 分割・PDF→画像と同じ文言。
-  assert.equal(SAME_AS_SOURCE, '出力先に元のファイルと同じファイルは選べません。');
+  assert.equal(SAME_AS_SOURCE, '出力先に元のファイルと同じファイルは選択できません。');
 });
 
 test('フォルダへの出力: 開いている最初の 1 本を名指しして断る', async (t) => {
@@ -52,7 +52,7 @@ test('フォルダへの出力: 開いている最初の 1 本を名指しして
 
   assert.equal(refusalForFolder([NEW, 'C:\\work\\new2.pdf']), null);
   assert.equal(refusalForFolder([]), null);
-  assert.equal(refusalForFolder([NEW, B, A]), '出力先の「b.pdf」はタブで開いているので、タブを閉じるか、フォルダを変えてください。');
+  assert.equal(refusalForFolder([NEW, B, A]), '出力先の「b.pdf」はタブで開いているので、タブを閉じるか、フォルダを変更してください。');
 });
 
 test('名前を付けて保存: 別のタブで開いているファイルは断り、映しているファイル自身と開いていないファイルは通す', async (t) => {
@@ -62,7 +62,7 @@ test('名前を付けて保存: 別のタブで開いているファイルは断
   assert.equal(refusalForSaveAs(A), SAVE_AS_OPEN_IN_TAB);
   assert.equal(refusalForSaveAs('c:/work/b.pdf'), null, '自分自身への保存');
   assert.equal(refusalForSaveAs(NEW), null);
-  assert.equal(SAVE_AS_OPEN_IN_TAB, '保存先のファイルは別のタブで開いているので、そのタブを閉じるか、別の名前を選んでください。');
+  assert.equal(SAVE_AS_OPEN_IN_TAB, '保存先ファイルは別のタブで開いているので、そのタブを閉じるか、別の名前を指定してください。');
 });
 
 test('タブが 1 枚も無ければ何も断らない', async (t) => {

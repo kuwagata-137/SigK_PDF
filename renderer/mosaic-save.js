@@ -21,7 +21,7 @@
   const JPEG_QUALITY = 0.9;
   // PNG が JPEG のこの倍以下なら PNG（文字がにじまない）、超えるなら JPEG（写真のページ。事前調査 H）。
   const PNG_RATIO = 2;
-  const LABEL = 'モザイクのページを画像に';
+  const LABEL = 'モザイクを入れたページを画像に変換';
 
   function viewer() {
     return root.SigK.viewer;
@@ -56,7 +56,7 @@
     const file = viewer().getState().file;
     const page = await viewer().getPage(index + 1);
     if (!Number.isInteger(entry?.src) || page === null || page === undefined)
-      return { error: 'モザイクのページを読めませんでした。' };
+      return { error: 'モザイクを入れたページを読み込めませんでした。' };
     await root.SigK.pageBoxes?.load(file);
     const box = root.SigK.pageBoxes?.mediaBoxOf(file, entry.src) ?? root.SigK.pageCrop.normalizeBox(page.view);
     const scale = scaleFor(box, page.userUnit ?? 1);
@@ -64,7 +64,7 @@
     const drawn = await images.renderToCanvas(root.document, page, { scale, rotation: 0, box, annotationMode: root.SigK.pdfjs?.lib?.AnnotationMode?.DISABLE });
     try {
       if (drawn.canvas === null)
-        return { error: 'この環境ではモザイクのページを画像にできません。' };
+        return { error: 'この環境では、モザイクを入れたページを画像に変換できません。' };
       const viewport = root.SigK.pageViewbox.viewportFor(page, { scale, rotation: 0, box });
       root.SigK.mosaicPaint.paint(drawn.canvas.getContext('2d'), viewport, entry.mosaic);
       const png = await images.toBytes(drawn.canvas, { type: images.PNG });
@@ -103,8 +103,8 @@
 
   function showChanged(mode) {
     banner()?.show(mode === 'extract'
-      ? '抽出の確認や画像にしている間に、ページかタブが変わったので、抽出を取りやめました。もう一度抽出してください。'
-      : '保存の確認や画像にしている間に、ページかタブが変わったので、保存を取りやめました。元のファイルは変更していません。もう一度保存してください。', { tone: 'warn' });
+      ? '抽出確認中や画像変換中に、ページが変更されたかタブが切り替わったので、抽出をキャンセルしました。もう一度抽出してください。'
+      : '保存確認中や画像変換中に、ページが変更されたかタブが切り替わったので、保存をキャンセルしました。元のファイルは変更していません。もう一度保存してください。', { tone: 'warn' });
     return { changed: true };
   }
 
@@ -126,7 +126,7 @@
       const pages = root.SigK.pageMosaic.pagesLabel(targets);
       if (await root.SigK.confirmMosaic.ask({ mode, count: targets.length, pages, name, sourceName }) !== true) {
         // 自分で「やめる」を選んだので赤く塗らない（決定49）。
-        banner()?.show('保存を取りやめました。', { tone: 'info' });
+        banner()?.show('保存をキャンセルしました。', { tone: 'info' });
         return { canceled: true };
       }
     }
@@ -138,8 +138,8 @@
       return result;
     }
     if (result?.ok !== true) {
-      banner()?.show(result?.error ?? 'モザイクのページを画像にできませんでした。');
-      return result ?? { error: 'モザイクのページを画像にできませんでした。' };
+      banner()?.show(result?.error ?? 'モザイクを入れたページを画像に変換できませんでした。');
+      return result ?? { error: 'モザイクを入れたページを画像に変換できませんでした。' };
     }
     return result;
   }

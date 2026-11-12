@@ -20,7 +20,7 @@
   }
 
   function bandText(band) {
-    return `${root.SigK.toolsSplitView.rangeText(band.from, band.to)}を選んでいます`;
+    return `${root.SigK.toolsSplitView.rangeText(band.from, band.to)}を選択しています`;
   }
 
   function syncBand(running) {

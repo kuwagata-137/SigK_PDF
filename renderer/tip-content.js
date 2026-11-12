@@ -30,7 +30,7 @@
     const keys = Object.keys(entries);
     const dup = keys.find((key) => table.has(key));
     if (dup !== undefined)
-      throw new Error(`説明の吹き出しの鍵が重なっています: ${dup}`);
+      throw new Error(`ツールチップキーが重複しています: ${dup}`);
     for (const key of keys)
       table.set(key, typeof entries[key] === 'function' ? entries[key] : freezeEntry(entries[key]));
   }

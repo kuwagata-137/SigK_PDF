@@ -249,7 +249,7 @@ test('目次の節を押すと、右の本文がその節に替わり、印が�
   click(shell, dialog(shell).querySelector('.help-item[data-section="escape"]'));
   assert.deepEqual(shown(shell), ['escape']);
   assert.deepEqual(marked(shell), ['escape']);
-  assert.equal(dialog(shell).querySelector('.help-section[data-section="escape"] h3').textContent, 'Esc で取りやめる順');
+  assert.equal(dialog(shell).querySelector('.help-section[data-section="escape"] h3').textContent, 'Esc でキャンセルする順序');
 });
 
 test('目次で ↓↑ は次・前、Home・End は最初・最後の節へ移り、端で止まる', async (t) => {

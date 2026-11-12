@@ -44,7 +44,7 @@
     el.sizeRow.hidden = current === null;
     if (current === null)
       return true;
-    el.label.textContent = current.label ?? '文字の大きさ';
+    el.label.textContent = current.label ?? '文字サイズ';
     el.size.placeholder = current.mixed ? '–' : '';
     if (!isTyping()) {
       el.size.value = current.mixed ? '' : String(current.value);

@@ -145,6 +145,6 @@ test('3形式でも寸法と上限は埋め込む前に断り、道具が無け�
   const huge = { width: 9000, height: 5000, bitsPerSample: [1], photometric: 0, compression: 1, strips: [new Uint8Array(0)] };
   assert.match((await embedImage(doc, { kind: 'tiff', bytes: toBytes(makeTiff([huge])) }, FULL_TOOLS)).error, /大きすぎます/);
   const bmp = toBytes(makeBmp({ width: 4, height: 4, bits: 24, pixels: rgbaGradient(4, 4) }));
-  assert.match((await embedImage(doc, { kind: 'bmp', bytes: bmp }, TOOLS)).error, /道具/);
+  assert.match((await embedImage(doc, { kind: 'bmp', bytes: bmp }, TOOLS)).error, /必要な機能がそろっていません/);
   assert.match((await embedImage(doc, { kind: 'bmp', bytes: bmp.subarray(0, 60) }, FULL_TOOLS)).error, /壊れている/);
 });

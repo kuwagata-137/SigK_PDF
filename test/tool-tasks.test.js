@@ -38,11 +38,11 @@ test('pdf-task.js は同じ関数を再エクスポートする（既存のテ�
 
 test('runTask はツールの kind をその実行関数へ、表に無い kind を保存へ回す', async () => {
   assert.equal((await pdfTask.runTask({ kind: 'merge' })).error, '結合するファイルがありません。');
-  assert.equal((await pdfTask.runTask({ kind: 'split' })).error, '分割するファイルが決まっていません。');
+  assert.equal((await pdfTask.runTask({ kind: 'split' })).error, '分割するファイルが指定されていません。');
   assert.equal((await pdfTask.runTask({ kind: 'convert' })).error, '変換する画像がありません。');
-  assert.equal((await pdfTask.runTask({ kind: 'watermark' })).error, '対象のファイルが決まっていません。');
-  assert.equal((await pdfTask.runTask({ kind: 'flatten' })).error, '対象のファイルが決まっていません。');
-  assert.equal((await pdfTask.runTask({ kind: 'flatten-preview' })).error, '対象のファイルが決まっていません。');
+  assert.equal((await pdfTask.runTask({ kind: 'watermark' })).error, '対象ファイルが指定されていません。');
+  assert.equal((await pdfTask.runTask({ kind: 'flatten' })).error, '対象ファイルが指定されていません。');
+  assert.equal((await pdfTask.runTask({ kind: 'flatten-preview' })).error, '対象ファイルが指定されていません。');
   // 綴りを誤った kind は今までどおり保存へ落ちる（既定を変えない）。
-  assert.equal((await pdfTask.runTask({ kind: 'mergee' })).error, '保存先が決まっていません。');
+  assert.equal((await pdfTask.runTask({ kind: 'mergee' })).error, '保存先が指定されていません。');
 });

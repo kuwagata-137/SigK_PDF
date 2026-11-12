@@ -66,11 +66,11 @@ function describeSourceReadFailure(error) {
       return '元のファイルが見つかりません。移動または削除された可能性があります。';
     case 'EACCES':
     case 'EPERM':
-      return '元のファイルを読む権限がありません。';
+      return '元のファイルを読み取る権限がありません。';
     case 'EBUSY':
       return '元のファイルが他のプログラムで使われています。';
     default:
-      return '元のファイルを読めませんでした。';
+      return '元のファイルを読み込めませんでした。';
   }
 }
 

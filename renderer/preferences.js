@@ -53,14 +53,14 @@
   async function set(patch) {
     const target = api();
     if (target === null)
-      return { error: '設定を書けません。' };
+      return { error: '設定を保存できません。' };
     try {
       const result = await target.set(patch);
       accept(result);
       return result;
     } catch (error) {
       root.SigK.log?.warn('preferences', '設定を書けませんでした', error);
-      return { error: '設定を書けませんでした。' };
+      return { error: '設定を保存できませんでした。' };
     }
   }
 

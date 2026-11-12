@@ -219,7 +219,7 @@ test('理由（reason）で返す口の失敗も、detail があれば理由を�
 
 test('detail の無い失敗（書けない・設定が読めないなど、例外を握っていないもの）は記録しない', async () => {
   const logged = [];
-  const { utilityProcess } = fakeUtilityProcess(politeWorker({ error: '透かしの設定が読めません。' }));
+  const { utilityProcess } = fakeUtilityProcess(politeWorker({ error: '透かし設定を読み取れません。' }));
   const runner = createTaskRunner({ utilityProcess, workerPath: 'w.js', onError: (e) => logged.push(e) });
   await runner.run('t1', { kind: 'watermark', source: 'a.pdf' }, {});
   assert.deepEqual(logged, []);
@@ -230,7 +230,7 @@ test('ワーカーを起動できなければ、その旨を返す', async () =>
   const { utilityProcess } = fakeUtilityProcess(() => {}, { forkThrows: true });
   const runner = createTaskRunner({ utilityProcess, workerPath: 'w.js', onError: (e) => logged.push(e) });
   const result = await runner.run('t1', { target: 'a.pdf' }, {});
-  assert.deepEqual(result, { error: '保存の処理を開始できませんでした。' });
+  assert.deepEqual(result, { error: '保存処理を開始できませんでした。' });
   assert.equal(logged.length, 1);
 });
 

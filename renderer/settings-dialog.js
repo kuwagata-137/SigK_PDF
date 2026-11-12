@@ -25,12 +25,12 @@
 
   // 欄は幅で切れるので、右の欄の「フォルダ」と同じく吹き出しでパスの全体を出す（点検の直し M-11）。
   function renderFixed() {
-    el.fixedPath.textContent = state.fixed ?? 'まだ決めていません';
+    el.fixedPath.textContent = state.fixed ?? '未指定';
     el.fixedPath.classList.toggle('empty', state.fixed === null);
     if (state.fixed === null)
       root.SigK.tipContent?.clear(el.fixedPath);
     else
-      root.SigK.tipContent?.text(el.fixedPath, '決めたフォルダ', state.fixed);
+      root.SigK.tipContent?.text(el.fixedPath, '指定フォルダ', state.fixed);
   }
 
   // 今の値を欄へ写す。
@@ -76,7 +76,7 @@
 
   // 「決めたフォルダ」を選ぶ（右の欄の［変更…］と同じフォルダを選ぶ窓）。選んだら「決めたフォルダ」の選択肢も選ぶ。
   async function changeFixed() {
-    const picked = await root.pdfAPI?.pickFolder?.({ defaultPath: state.fixed ?? undefined, title: '決めたフォルダを選ぶ' });
+    const picked = await root.pdfAPI?.pickFolder?.({ defaultPath: state.fixed ?? undefined, title: '指定フォルダを選択' });
     if (typeof picked?.path === 'string' && picked.path !== '') {
       state.fixed = picked.path;
       renderFixed();
@@ -105,7 +105,7 @@
         rememberLastTool: el.lastTool.checked,
       });
       if (result?.ok !== true) {
-        root.SigK.viewBanner?.show(result?.error ?? '設定を書けませんでした。');
+        root.SigK.viewBanner?.show(result?.error ?? '設定を保存できませんでした。');
         return false;
       }
       close();

@@ -23,7 +23,7 @@
     const plan = viewer().getPlan();
     const pages = indices.map((index) => plan[index]).filter((page) => page !== undefined);
     if (pages.length === 0)
-      return { error: '写すページが選ばれていません。' };
+      return { error: 'コピーするページが選択されていません。' };
 
     // ほかのアプリで書き換えられていたら、開いたときの中身で写し直す（spec-6-1 タスク C。保存と同じ。opened-source.js）。
     const result = await root.SigK.openedSource.run({
@@ -36,12 +36,12 @@
       inserts: viewer().getInserts(),
       annotations: root.SigK.annotationState.toSaveSpec(viewer().getAnnotations(), { layoutOf: root.SigK.freeTextMetrics.layoutOfEntry }),
       // 通知バーは「<label>しています」と組む（save.js の showRunning）。
-      label: 'ページの写しを用意',
+      label: 'ページのコピーを準備',
     });
     if (result?.canceled === true)
       return { canceled: true };
     if (result?.ok !== true)
-      return { error: result?.error ?? 'ページを写せませんでした。' };
+      return { error: result?.error ?? 'ページをコピーできませんでした。' };
 
     made += 1;
     const copy = `copy-${made}`;
@@ -53,7 +53,7 @@
       const doc = await root.SigK.pdfjs.getDocument({ data: bytes }).promise;
       return { ok: true, copy, bytes: kept, sizes: result.sizes, doc };
     } catch (error) {
-      return { error: '写したページを表示できませんでした。' };
+      return { error: 'コピーしたページを表示できませんでした。' };
     }
   }
 

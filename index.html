@@ -52,11 +52,11 @@ body{
     <div class="tb-btn" id="btn-save-as" data-tip="bar.saveAs" aria-disabled="true"><span data-icon="saveAs"></span>名前を付けて保存</div>
     <div class="tb-sep"></div>
     <div class="tb-btn icon" id="btn-undo" data-icon="undo" data-tip="bar.undo" aria-label="元に戻す" aria-disabled="true"></div>
-    <div class="tb-btn icon" id="btn-redo" data-icon="redo" data-tip="bar.redo" aria-label="やり直し" aria-disabled="true"></div>
+    <div class="tb-btn icon" id="btn-redo" data-icon="redo" data-tip="bar.redo" aria-label="やり直す" aria-disabled="true"></div>
     <div class="tb-sep"></div>
     <!-- 閲覧の［選択］［ハンド］（spec-2-5 確定事項K2・K3。見本 screenshots/strips1-view-hand.png）。閲覧・ページ編集・編集で使い、ツールモードでは灰色。
          編集モードでは編集の道具を映す。結線は pointer-mode-bar.js、状態は pointer-mode.js。 -->
-    <div class="tb-seg" id="pointer-mode" role="group" aria-label="紙の上のマウスの働き">
+    <div class="tb-seg" id="pointer-mode" role="group" aria-label="ページ上のマウス操作">
       <div class="tb-btn" id="btn-pointer-select" role="button" aria-pressed="true" aria-label="選択" data-tip="bar.pointerSelect"><span data-icon="pointerSelect"></span>選択</div>
       <div class="tb-btn" id="btn-pointer-hand" role="button" aria-pressed="false" aria-label="ハンド" data-tip="bar.pointerHand"><span data-icon="hand"></span>ハンド</div>
     </div>
@@ -87,7 +87,7 @@ body{
 
   <!-- 編集の道具の段（spec-4b-1a 確定事項1〜6）。編集モードのときだけ出る。CheckListMaker の画像エディタと同じく、
        四角いボタンの下に名前を置く。図形の 4 つは data-shape で種類を持つ。結線は edit-bar.js。 -->
-  <div id="edit-bar" role="toolbar" aria-label="書き込みの道具">
+  <div id="edit-bar" role="toolbar" aria-label="書き込みツール">
     <!-- 「選択」「ハンド」は置かない（spec-7-4 確定事項C3。ユーザーの指示）。上のツールバーの［選択］［ハンド］（pointer-mode-bar.js）が、
          編集モードでは同じ annotate.toggleTool を呼ぶ。 -->
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="highlight" data-tip="edit.highlight" aria-label="ハイライト" aria-pressed="false"><span data-icon="highlight" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ハイライト</span></span>
@@ -121,7 +121,7 @@ body{
     <!-- 入りきらない道具の入れ物（spec-4b-5b 確定事項25〜28。見本 screenshots/phase4b-5b-more.png）。入りきらないときだけ出す。
          結線は edit-bar-overflow.js（隠す）と edit-bar-more.js（一覧）。 -->
     <span class="edit-item edit-more" hidden><button type="button" class="edit-tool" id="edit-more" data-tip="edit.more" aria-label="その他" aria-haspopup="menu" aria-expanded="false" aria-pressed="false"><span data-icon="more" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">その他</span></span>
-    <div id="edit-more-menu" class="edit-more-menu" role="menu" aria-label="その他の道具" hidden></div>
+    <div id="edit-more-menu" class="edit-more-menu" role="menu" aria-label="その他の書き込みツール" hidden></div>
   </div>
 
   <div id="body">
@@ -149,7 +149,7 @@ body{
       <div class="side-head">
         <span id="side-title">サムネイル</span>
         <!-- 編集モードの左の見出し（spec-4b-1a 確定事項15〜18）。見出しの文字の代わりに出す。結線は shell.js。 -->
-        <span class="side-switch" id="side-switch" role="group" aria-label="左に出すもの"><button type="button" data-side="thumbs" aria-pressed="true" class="on">サムネイル</button><button type="button" data-side="list" aria-pressed="false">注釈一覧</button></span>
+        <span class="side-switch" id="side-switch" role="group" aria-label="左パネル表示切り替え"><button type="button" data-side="thumbs" aria-pressed="true" class="on">サムネイル</button><button type="button" data-side="list" aria-pressed="false">注釈一覧</button></span>
         <span class="collapse" id="side-collapse" data-icon="chevronLeft" data-icon-size="14" data-icon-stroke="1.9" data-tip="side.collapse" aria-label="パネルを閉じる"></span>
       </div>
       <!-- tabindex はプログラムから当てるためのもので、Tab 順には入れない。
@@ -157,13 +157,13 @@ body{
            （spec-1-5 確定事項18）。 -->
       <div class="side-scroll" id="side-scroll" tabindex="-1">
         <div class="thumbs1" id="thumbs" hidden></div>
-        <p class="empty" id="thumbs-empty">文書を開くと<br>ページの一覧が出ます</p>
+        <p class="empty" id="thumbs-empty">文書を開くと<br>ページ一覧が表示されます</p>
         <!-- ツールモードのツール一覧（spec-2-1 確定事項1）。中身は tools.js が組む。 -->
         <div class="tools-list" id="tools-list" hidden></div>
         <!-- 注釈モードの注釈一覧（spec-4-4 確定事項9・29）。中身は annotation-list.js が組む。 -->
         <div class="annot-list" id="annot-list" hidden>
           <div class="annot-rows" id="annot-rows"></div>
-          <p class="empty" id="annot-list-empty">文書を開くと書き込みの一覧が出ます</p>
+          <p class="empty" id="annot-list-empty">文書を開くと、書き込みが一覧で表示されます</p>
         </div>
       </div>
       <!-- ページモードの操作（spec-1-5 確定事項50・51）。div ではなく button に
@@ -219,13 +219,13 @@ body{
             <div class="img-strip" id="image-strip" hidden>
               <div class="img-strip-head">
                 <span class="img-badge">画</span><span class="fname">変換する画像</span><span class="count" id="image-strip-count"></span><span class="spacer"></span>
-                <button type="button" class="strip-btn" id="image-strip-clear" data-tip="image.clear" aria-label="すべて外す" tabindex="-1"><span data-icon="close" data-icon-size="15" data-icon-stroke="1.9"></span></button>
+                <button type="button" class="strip-btn" id="image-strip-clear" data-tip="image.clear" aria-label="すべて削除" tabindex="-1"><span data-icon="close" data-icon-size="15" data-icon-stroke="1.9"></span></button>
               </div>
               <div class="img-strip-items" id="image-strip-items"></div>
               <div class="img-strip-note" id="image-strip-note" hidden></div>
             </div>
             <div class="drop-zone" id="strip-drop">
-              <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">ページをここにドロップすると新しいファイルを作れます</span></div>
+              <div class="line"><span data-icon="open" data-icon-size="18"></span><span id="strip-drop-text">ページをここにドロップすると新しいファイルを作成できます</span></div>
               <button type="button" class="act" id="strip-drop-pick"><span data-icon="open" data-icon-size="14"></span>ファイルを開く…</button>
               <div class="recent" id="strip-drop-recent" hidden></div>
             </div>
@@ -236,13 +236,13 @@ body{
           <div class="strip-board" id="split-strip-board" hidden>
             <div class="sb-tools" id="split-tools">
               <div class="sb-row">
-                <span class="k">まとめて分ける</span>
-                <button type="button" class="sb-btn" id="split-each">1 ページずつに分ける</button>
-                <span class="sb-pair"><input type="text" class="sb-inp num" id="split-every" value="3" inputmode="numeric" autocomplete="off" aria-label="何ページごとに分けるか"><button type="button" class="sb-btn" id="split-every-go">ページごとに分ける</button></span>
-                <span class="sb-pair"><input type="text" class="sb-inp wide" id="split-at" placeholder="例: 3, 7, 12" autocomplete="off" spellcheck="false" aria-label="その前で切るページの番号"><button type="button" class="sb-btn" id="split-at-go">ページの前で切る</button></span>
+                <span class="k">一括分割</span>
+                <button type="button" class="sb-btn" id="split-each">1 ページずつ分割</button>
+                <span class="sb-pair"><input type="text" class="sb-inp num" id="split-every" value="3" inputmode="numeric" autocomplete="off" aria-label="分割するページ数"><button type="button" class="sb-btn" id="split-every-go">ページごとに分割</button></span>
+                <span class="sb-pair"><input type="text" class="sb-inp wide" id="split-at" placeholder="例: 3, 7, 12" autocomplete="off" spellcheck="false" aria-label="分割位置（ページ番号）"><button type="button" class="sb-btn" id="split-at-go">ページの前で分割</button></span>
               </div>
               <div class="sb-row">
-                <button type="button" class="sb-btn" id="split-clear">分け目をすべて消す</button>
+                <button type="button" class="sb-btn" id="split-clear">分割位置をすべて削除</button>
                 <button type="button" class="sb-btn ghost" id="split-undo" data-tip="split.undo"><span data-icon="undo" data-icon-size="14"></span>元に戻す</button>
                 <button type="button" class="sb-btn ghost" id="split-redo" data-tip="split.redo"><span data-icon="redo" data-icon-size="14"></span>やり直す</button>
               </div>
@@ -251,12 +251,12 @@ body{
             <div class="sb-band" id="split-band" hidden>
               <b id="split-band-text"></b>
               <span class="spacer"></span>
-              <button type="button" class="sb-btn" id="split-band-one">この範囲を 1 つのファイルにする</button>
+              <button type="button" class="sb-btn" id="split-band-one">選択範囲を 1 つのファイルに統合</button>
               <button type="button" class="sb-btn" id="split-band-skip">書き出さない</button>
               <button type="button" class="sb-btn" id="split-band-unskip" hidden>書き出す</button>
-              <button type="button" class="sb-btn ghost" id="split-band-clear">選ぶのをやめる</button>
+              <button type="button" class="sb-btn ghost" id="split-band-clear">選択解除</button>
             </div>
-            <div class="sb-scroll" id="split-board-scroll" tabindex="0" aria-label="ページの並び">
+            <div class="sb-scroll" id="split-board-scroll" tabindex="0" aria-label="ページ一覧">
               <div class="sb-canvas" id="split-board-canvas"></div>
               <p class="sb-empty" id="split-board-empty"></p>
             </div>
@@ -291,11 +291,11 @@ body{
       <section class="pane-tool" data-tool="merge" hidden>
         <div class="pane-body">
           <h2 class="pane-title">結合</h2>
-          <p class="pane-desc">チェックを入れたファイルを、左の帯の上から順に 1 つの PDF にまとめます（しおりは引き継がれません）。順番は帯の ↑↓ で変えます。</p>
+          <p class="pane-desc">チェックを入れたファイルを、左の帯の上から順に 1 つの PDF に結合します（しおりは引き継がれません）。順番は帯の ↑↓ で変更します。</p>
           <section class="sb-card">
-            <h3><span>まとめるファイル（<span id="merge-count">0 / 0</span>）</span></h3>
+            <h3><span>結合するファイル（<span id="merge-count">0 / 0</span>）</span></h3>
             <div class="pane-rows" id="merge-list"></div>
-            <p class="pane-desc" id="merge-empty">PDF を開くと、ここにまとめるファイルが並びます。</p>
+            <p class="pane-desc" id="merge-empty">PDF を開くと、結合するファイルがここに並びます。</p>
             <p class="pane-note" id="merge-note" hidden></p>
           </section>
         </div>
@@ -310,11 +310,11 @@ body{
       <section class="pane-tool" data-tool="split" hidden>
         <div class="pane-body">
           <h2 class="pane-title">分割</h2>
-          <p class="pane-desc">選んでいる帯（枠の色が付いた帯）の PDF を、ページの間の ✂ で分けて、いくつかのファイルにします。元のファイルはそのまま残ります。</p>
-          <p class="pane-desc">ページをクリックしてから Shift キーを押したまま別のページをクリックするか、ページの上をドラッグすると、その間のページを選べます。</p>
+          <p class="pane-desc">選択中の帯（枠の色が付いた帯）の PDF を、ページ間の ✂ で分割し、複数のファイルにします。元のファイルはそのまま残ります。</p>
+          <p class="pane-desc">ページをクリックしてから Shift キーを押したまま別のページをクリックするか、ページ上をドラッグすると、その間のページを選択できます。</p>
           <p class="pane-state" id="split-state" hidden></p>
           <section class="sb-card" id="split-files-card" hidden>
-            <h3>できるファイル<span class="n" id="split-files-count"></span></h3>
+            <h3>出力ファイル<span class="n" id="split-files-count"></span></h3>
             <div class="sb-files" id="split-files"></div>
           </section>
           <section class="sb-card">
@@ -344,10 +344,10 @@ body{
       <section class="pane-tool" data-tool="convert" hidden>
         <div class="pane-body">
           <h2 class="pane-title">画像 → PDF</h2>
-          <p class="pane-desc">下の「変換する画像」の帯の画像を、左から順にページにして PDF を作ります。できた PDF は新しい帯になります。</p>
+          <p class="pane-desc">下の「変換する画像」の帯にある画像を、左から順にページにして PDF を作成します。作成した PDF は新しい帯になります。</p>
           <p class="pane-state" id="convert-state" hidden></p>
           <section class="sb-card convert-result" id="convert-result" hidden>
-            <h3 id="convert-result-title">できた PDF</h3>
+            <h3 id="convert-result-title">作成した PDF</h3>
             <p class="pane-desc" id="convert-result-desc"></p>
             <button type="button" class="act result-go" id="convert-result-merge"><span data-icon="merge" data-icon-size="14"></span><span class="t">この PDF をほかの帯と結合する</span></button>
             <button type="button" class="act result-go" id="convert-result-split"><span data-icon="split" data-icon-size="14"></span><span class="t">この PDF を分割する</span></button>
@@ -355,7 +355,7 @@ body{
           <section class="sb-card">
             <h3>用紙</h3>
             <div class="convert-opts">
-              <span class="k">大きさ</span>
+              <span class="k">用紙サイズ</span>
               <div class="picks seg convert-papers" id="convert-papers">
                 <label class="pick"><input type="radio" name="convert-paper" value="a4" checked><span class="lbl">A4</span></label>
                 <label class="pick"><input type="radio" name="convert-paper" value="a3"><span class="lbl">A3</span></label>
@@ -384,15 +384,15 @@ body{
             <div class="split-out convert-out">
               <span class="k">方式</span>
               <div class="picks" id="convert-outputs">
-                <label class="pick"><input type="radio" name="convert-output" value="single" checked><span class="lbl">1 つの PDF にまとめる</span></label>
-                <label class="pick"><input type="radio" name="convert-output" value="each"><span class="lbl">画像ごとに 1 つの PDF</span></label>
+                <label class="pick"><input type="radio" name="convert-output" value="single" checked><span class="lbl">1 つの PDF に結合</span></label>
+                <label class="pick"><input type="radio" name="convert-output" value="each"><span class="lbl">画像ごとに PDF を作成</span></label>
               </div>
               <span class="k" id="convert-folder-key" hidden>フォルダ</span>
               <div class="folder" id="convert-folder-row" hidden>
                 <span class="path" id="convert-folder"></span>
                 <button type="button" class="act" id="convert-folder-pick">変更…</button>
               </div>
-              <span class="k">出力の例</span>
+              <span class="k">出力例</span>
               <div class="example" id="convert-example"></div>
             </div>
           </section>
@@ -408,7 +408,7 @@ body{
       <section class="pane-tool" data-tool="toImage" hidden>
         <div class="pane-body">
           <h2 class="pane-title">PDF → 画像</h2>
-          <p class="pane-desc">選んでいる帯の PDF のページを、1 ページずつ画像のファイルにします。</p>
+          <p class="pane-desc">選択中の帯にある PDF を、1 ページずつ画像ファイルに変換します。</p>
           <p class="pane-state" id="toimage-state" hidden></p>
           <section class="sb-card">
             <h3>ページと形式</h3>
@@ -417,19 +417,19 @@ body{
                 <div class="picks toimage-range-row" id="toimage-page-modes">
                   <label class="pick"><input type="radio" name="toimage-page-mode" value="all" checked><span class="lbl">すべて</span></label>
                   <label class="pick"><input type="radio" name="toimage-page-mode" value="range"><span class="lbl">範囲</span></label>
-                  <input type="text" class="split-inp wide" id="toimage-range" placeholder="例: 1-3, 5, 8-" aria-label="画像にするページ範囲" autocomplete="off" spellcheck="false">
+                  <input type="text" class="split-inp wide" id="toimage-range" placeholder="例: 1-3, 5, 8-" aria-label="画像に変換するページ範囲" autocomplete="off" spellcheck="false">
                   <span class="err" id="toimage-range-err" hidden></span>
                 </div>
                 <span class="k">形式</span>
                 <div class="picks" id="toimage-formats">
-                  <label class="pick"><input type="radio" name="toimage-format" value="png" checked><span class="lbl">PNG</span><span class="sub">文字や図に向く。白地で書き出します</span></label>
-                  <label class="pick"><input type="radio" name="toimage-format" value="jpeg"><span class="lbl">JPEG</span><span class="sub">写真の多いページに向く。品質は 90</span></label>
+                  <label class="pick"><input type="radio" name="toimage-format" value="png" checked><span class="lbl">PNG</span><span class="sub">文字や図に適しています。白地で書き出します</span></label>
+                  <label class="pick"><input type="radio" name="toimage-format" value="jpeg"><span class="lbl">JPEG</span><span class="sub">写真の多いページに適しています。品質は 90 です</span></label>
                 </div>
                 <span class="k">解像度</span>
                 <div class="picks" id="toimage-dpis">
-                  <label class="pick"><input type="radio" name="toimage-dpi" value="72"><span class="lbl">72 dpi</span><span class="sub">画面で見る</span></label>
-                  <label class="pick"><input type="radio" name="toimage-dpi" value="150" checked><span class="lbl">150 dpi</span><span class="sub">印刷と同じ</span></label>
-                  <label class="pick"><input type="radio" name="toimage-dpi" value="300"><span class="lbl">300 dpi</span><span class="sub">細かい文字・拡大</span></label>
+                  <label class="pick"><input type="radio" name="toimage-dpi" value="72"><span class="lbl">72 dpi</span><span class="sub">画面表示用</span></label>
+                  <label class="pick"><input type="radio" name="toimage-dpi" value="150" checked><span class="lbl">150 dpi</span><span class="sub">印刷時と同じ解像度</span></label>
+                  <label class="pick"><input type="radio" name="toimage-dpi" value="300"><span class="lbl">300 dpi</span><span class="sub">細かい文字・拡大表示用</span></label>
                 </div>
             </div>
           </section>
@@ -441,7 +441,7 @@ body{
                   <span class="path" id="toimage-folder"></span>
                   <button type="button" class="act" id="toimage-folder-pick">変更…</button>
                 </div>
-                <span class="k">出力の例</span>
+                <span class="k">出力例</span>
                 <div class="example" id="toimage-example"></div>
             </div>
           </section>
@@ -458,7 +458,7 @@ body{
       <section class="pane-tool" data-tool="watermark" hidden>
         <div class="pane-body">
           <h2 class="pane-title">透かし</h2>
-          <p class="pane-desc">選んでいる帯（枠の色が付いた帯）の PDF に、文字か画像を重ねて新しいファイルにします。元のファイルは変えません。</p>
+          <p class="pane-desc">選択中の帯（枠の色が付いた帯）の PDF に、文字か画像を重ねて新しいファイルにします。元のファイルは変更しません。</p>
           <p class="pane-state" id="wm-state" hidden></p>
           <section class="sb-card">
             <h3>透かし</h3>
@@ -469,12 +469,12 @@ body{
                 <label class="pick"><input type="radio" name="wm-type" value="image"><span class="lbl">画像</span></label>
               </div>
               <span class="k" id="wm-text-key">文字</span>
-              <div class="row" id="wm-text-row"><input type="text" class="split-inp wide" id="wm-text" maxlength="50" value="社外秘" aria-label="透かしの文字" autocomplete="off" spellcheck="false"></div>
+              <div class="row" id="wm-text-row"><input type="text" class="split-inp wide" id="wm-text" maxlength="50" value="社外秘" aria-label="透かし文字" autocomplete="off" spellcheck="false"></div>
               <span class="k" id="wm-image-key" hidden>画像</span>
               <div class="wm-img" id="wm-image-row" hidden>
                 <span class="name" id="wm-image-name"></span>
                 <span class="meta" id="wm-image-meta"></span>
-                <button type="button" class="act" id="wm-image-pick">画像を選ぶ…</button>
+                <button type="button" class="act" id="wm-image-pick">画像を選択…</button>
                 <span class="note" id="wm-image-note"></span>
               </div>
               <span class="k">大きさ</span>
@@ -482,7 +482,7 @@ body{
                 <label class="pick"><input type="radio" name="wm-size" value="small"><span class="lbl">小</span></label>
                 <label class="pick"><input type="radio" name="wm-size" value="medium" checked><span class="lbl">中</span></label>
                 <label class="pick"><input type="radio" name="wm-size" value="large"><span class="lbl">大</span></label>
-                <span class="sub">紙の大きさに合わせて決めます</span>
+                <span class="sub">用紙サイズに合わせて自動で決まります</span>
               </div>
               <span class="k" id="wm-color-key">色</span>
               <div class="chip-row wm-color" id="wm-colors"><span class="split"><button type="button" class="split-main" id="wm-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="wm-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="sw"></span><span class="name" id="wm-color-name"></span></span></div>
@@ -515,7 +515,7 @@ body{
               <div class="wm-page" id="wm-preview-page">
                 <div class="wm-canvas" id="wm-preview-canvas"></div>
                 <svg class="wm-overlay" id="wm-preview-overlay" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
-                <p class="wm-preview-empty" id="wm-preview-empty">PDF を開くとここに出ます</p>
+                <p class="wm-preview-empty" id="wm-preview-empty">PDF を開くとここに表示されます</p>
               </div>
             </div>
             <p class="cap" id="wm-preview-cap"></p>
@@ -537,13 +537,13 @@ body{
       <section class="pane-tool" data-tool="flatten" hidden>
         <div class="pane-body">
           <h2 class="pane-title">フラット化</h2>
-          <p class="pane-desc">選んでいる帯の PDF の書き込みを、ページの内容として焼き込み、新しいファイルにします（元のファイルは変えません）。焼き込んだ書き込みは、あとから動かせません。</p>
+          <p class="pane-desc">選択中の帯にある PDF の書き込みを、ページの内容として焼き込み、新しいファイルにします（元のファイルは変更しません）。焼き込んだ書き込みは、あとから移動できません。</p>
           <p class="pane-state" id="fl-state" hidden></p>
           <section class="sb-card">
             <h3>焼き込む書き込み</h3>
             <p class="fl-status" id="fl-status" hidden></p>
             <div class="fl-list" id="fl-list" hidden></div>
-            <p class="fl-keep" id="fl-keep" hidden><b>焼き込まずに残すもの</b><span id="fl-keep-text"></span></p>
+            <p class="fl-keep" id="fl-keep" hidden><b>焼き込まない対象</b><span id="fl-keep-text"></span></p>
             <p class="fl-warn" id="fl-warn" hidden></p>
           </section>
           <section class="sb-card">
@@ -572,32 +572,32 @@ body{
         <div class="prop"><span class="k">種類</span><span class="v" id="props-kind">–</span></div>
         <!-- トリミング（spec-4b-6a 確定事項17。見本 screenshots/phase4b-6-trim-frame.png・-trim-applied.png）。道具を持っている間だけ出す。
              当てるページと、残す大きさ（枠があるとき）か今のページが切ってあるか。中身は trim-props.js。 -->
-        <div class="prop" id="props-trim-scope-row" hidden><span class="k">当てるページ</span>
-          <div class="props-kinds trim-scope" id="props-trim-scope" role="group" aria-label="当てるページ"><button type="button" data-scope="page" aria-pressed="true">このページ</button><button type="button" data-scope="all" aria-pressed="false">すべてのページ</button></div></div>
-        <div class="prop" id="props-trim-size-row" hidden><span class="k" id="props-trim-size-label">残す大きさ</span><span class="v" id="props-trim-size"></span></div>
+        <div class="prop" id="props-trim-scope-row" hidden><span class="k">適用範囲</span>
+          <div class="props-kinds trim-scope" id="props-trim-scope" role="group" aria-label="適用範囲"><button type="button" data-scope="page" aria-pressed="true">このページ</button><button type="button" data-scope="all" aria-pressed="false">すべてのページ</button></div></div>
+        <div class="prop" id="props-trim-size-row" hidden><span class="k" id="props-trim-size-label">トリミングサイズ</span><span class="v" id="props-trim-size"></span></div>
         <!-- モザイク（spec-4b-6b 確定事項14。見本 screenshots/phase4b-6b-mosaic-remove.png）。道具を持っている間だけ出す。粗さと、今のページの
              モザイクの数。中身は mosaic-props.js。 -->
         <div class="prop" id="props-mosaic-block-row" hidden><span class="k">粗さ</span>
-          <div class="props-kinds mosaic-blocks" id="props-mosaic-block" role="group" aria-label="粗さ"><button type="button" data-block="4" aria-pressed="false">細かい</button><button type="button" data-block="8" aria-pressed="true">ふつう</button><button type="button" data-block="14" aria-pressed="false">粗い</button></div></div>
+          <div class="props-kinds mosaic-blocks" id="props-mosaic-block" role="group" aria-label="粗さ"><button type="button" data-block="4" aria-pressed="false">細かい</button><button type="button" data-block="8" aria-pressed="true">標準</button><button type="button" data-block="14" aria-pressed="false">粗い</button></div></div>
         <div class="prop" id="props-mosaic-count-row" hidden><span class="k">このページ</span><span class="v" id="props-mosaic-count"></span></div>
         <!-- 色・塗り・線種・線の太さ・不透明度（spec-4b-1b 確定事項1〜9）。中身と出し入れは annotation-style-rows.js。
              色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
         <div class="prop" id="props-set-row" hidden><span class="k">一括</span>
-          <div class="chip-row"><span class="split"><button type="button" class="split-main set-main" id="props-set-apply"><span class="set-sample" aria-hidden="true">Ab</span></button><button type="button" class="chip split-drop" id="props-set" aria-haspopup="dialog" aria-expanded="false" aria-label="一括 の一覧"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">まとめて設定</span></span></div></div>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main set-main" id="props-set-apply"><span class="set-sample" aria-hidden="true">Ab</span></button><button type="button" class="chip split-drop" id="props-set" aria-haspopup="dialog" aria-expanded="false" aria-label="一括設定メニュー"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">一括設定</span></span></div></div>
         <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
-          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">今の色</span><span class="sw"></span><span class="name" id="props-color-name"></span></span></div></div>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">現在の色</span><span class="sw"></span><span class="name" id="props-color-name"></span></span></div></div>
         <!-- 文字の大きさ（spec-4b-4a 確定事項G1・G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼）。中身は annotation-text-rows.js。 -->
-        <div class="prop" id="props-size-row" hidden><span class="k" id="props-size-label">文字の大きさ</span>
-          <div class="range size-field"><input type="number" class="props-field" id="props-size" min="8" max="200" step="0.5" aria-label="文字の大きさ（pt）"><select class="size-list props-field" id="props-size-list" aria-label="よく使う大きさ"></select><span class="unit">pt</span></div></div>
+        <div class="prop" id="props-size-row" hidden><span class="k" id="props-size-label">文字サイズ</span>
+          <div class="range size-field"><input type="number" class="props-field" id="props-size" min="8" max="200" step="0.5" aria-label="文字サイズ（pt）"><select class="size-list props-field" id="props-size-list" aria-label="よく使うサイズ"></select><span class="unit">pt</span></div></div>
         <!-- 書式（spec-4b-4a 確定事項G3。モック screenshots/phase4b-4-props.png）。太字と斜体の切り替え。中身は annotation-text-rows.js。 -->
         <div class="prop" id="props-format-row" hidden><span class="k" id="props-format-label">書式</span>
           <div class="props-kinds format-buttons" id="props-format" role="group" aria-label="書式"><button type="button" data-format="bold" data-tip="format.bold" aria-label="太字" aria-pressed="false">B</button><button type="button" data-format="italic" data-tip="format.italic" aria-label="斜体" aria-pressed="false">I</button></div></div>
         <div class="prop" id="props-fill-row" hidden><span class="k">塗り</span>
-          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-fill-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">今の色</span><span class="sw"></span><span class="name" id="props-fill-name"></span></span></div></div>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-fill-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">現在の色</span><span class="sw"></span><span class="name" id="props-fill-name"></span></span></div></div>
         <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>
         <!-- テキストの枠線（spec-4b-4a 確定事項G4）。色のチップと同じ作りで、パレットに［枠線なし］がある。太さは下の太さの行（枠線の太さ）。 -->
         <div class="prop" id="props-border-row" hidden><span class="k" id="props-border-label">枠線</span>
-          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-border-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">今の色</span><span class="sw"></span><span class="name" id="props-border-name"></span></span></div></div>
+          <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-border-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">現在の色</span><span class="sw"></span><span class="name" id="props-border-name"></span></span></div></div>
         <!-- .props-field の中のキーは欄のもの（viewer-keys.js が素通しする。Esc だけは escape-order.js が field-escape.js を通して受ける）。 -->
         <div class="prop" id="props-width-row" hidden><span class="k" id="props-width-label">線の太さ</span>
           <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
@@ -611,15 +611,15 @@ body{
         <div class="prop" id="props-contents-row" hidden><span class="k">本文</span><textarea class="props-textarea props-field" id="props-contents" rows="3" aria-label="本文"></textarea></div>
         <div class="prop" id="props-author-row" hidden><span class="k">作成者</span><input class="props-input props-field" id="props-author" type="text" maxlength="100" aria-label="作成者"></div>
         <div class="prop" id="props-page-row" hidden><span class="k">ページ</span><span class="v" id="props-page"></span></div>
-        <div class="prop" id="props-text-row" hidden><span class="k" id="props-text-label">対象の文字</span><span class="v" id="props-text"></span></div>
+        <div class="prop" id="props-text-row" hidden><span class="k" id="props-text-label">対象文字列</span><span class="v" id="props-text"></span></div>
         <p class="props-hint" id="props-hint"></p>
       </div>
       <div class="props-actions">
         <!-- トリミングの［取消］［適用］（枠があるとき）と［トリミングを外す］（枠が無いとき）。結線は trim-props.js。 -->
         <div class="trim-actions" id="props-trim-actions" hidden><button type="button" class="act" id="props-trim-cancel">取消</button><button type="button" class="act primary" id="props-trim-apply">適用</button></div>
-        <button type="button" class="act wide" id="props-trim-remove" hidden>トリミングを外す</button>
+        <button type="button" class="act wide" id="props-trim-remove" hidden>トリミングを解除</button>
         <!-- ［このページのモザイクを外す］（spec-4b-6b 確定事項16。決定66 ④）。結線は mosaic-props.js。 -->
-        <button type="button" class="act wide" id="props-mosaic-remove" hidden>このページのモザイクを外す</button>
+        <button type="button" class="act wide" id="props-mosaic-remove" hidden>このページのモザイクを削除</button>
         <button type="button" class="act danger wide" id="props-delete" aria-disabled="true"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span>削除</button>
       </div>
     </div>
@@ -630,7 +630,7 @@ body{
 
   <!-- 書き込みの上の右クリックで出すメニュー（spec-4b-3b 確定事項D7。モック screenshots/phase4b-3-menu.png）。押した点に出す。
        結線は annotation-menu.js。フォーカスは移さないので、項目はキーボードの並びに入れない（tabindex=-1）。 -->
-  <div class="annot-menu" id="annot-menu" role="menu" aria-label="書き込みの操作" hidden>
+  <div class="annot-menu" id="annot-menu" role="menu" aria-label="書き込み操作" hidden>
     <button type="button" class="annot-menu-item" role="menuitem" data-action="delete" tabindex="-1"><span data-icon="trash" data-icon-size="14" data-icon-stroke="1.9"></span><span class="label">削除</span><span class="key">Delete</span></button>
   </div>
 
@@ -653,10 +653,10 @@ body{
     </div>
     <div class="cdlg-body">
       <div class="cdlg-left">
-        <div class="cdlg-tabs" role="tablist" aria-label="色の選び方"><button type="button" role="tab" data-tab="standard">標準</button><button type="button" role="tab" data-tab="custom">ユーザー設定</button></div>
+        <div class="cdlg-tabs" role="tablist" aria-label="色指定方法"><button type="button" role="tab" data-tab="standard">標準</button><button type="button" role="tab" data-tab="custom">ユーザー設定</button></div>
         <div class="cdlg-pane" id="color-dialog-standard" role="tabpanel">
           <p class="cdlg-k">色:</p>
-          <svg class="cdlg-hex" id="color-dialog-hex" width="260" height="262" viewBox="-130 -108 260 262" role="img" aria-label="色の六角形"></svg>
+          <svg class="cdlg-hex" id="color-dialog-hex" width="260" height="262" viewBox="-130 -108 260 262" role="img" aria-label="六角形カラーパレット"></svg>
         </div>
         <div class="cdlg-pane" id="color-dialog-custom" role="tabpanel" hidden>
           <p class="cdlg-k">色:</p>
@@ -698,28 +698,28 @@ body{
     </div>
     <div class="dlg-body settings-body">
       <section class="settings-sec">
-        <p class="dlg-label">ファイルを書き出すときの、最初のフォルダ</p>
+        <p class="dlg-label">書き出し先フォルダ（初期値）</p>
         <label class="print-choice"><input type="radio" name="settings-folder" value="source">元のファイルと同じフォルダ</label>
         <label class="print-choice"><input type="radio" name="settings-folder" value="last">最後に書き出したフォルダ</label>
-        <div class="settings-fixed"><label class="print-choice"><input type="radio" name="settings-folder" value="fixed">決めたフォルダ</label><span class="settings-path-row"><span class="settings-path empty" id="settings-fixed-path">まだ決めていません</span><button type="button" class="dlg-btn settings-small" id="settings-fixed-change">変更…</button></span></div>
-        <p class="settings-note">保存の窓が最初に開くフォルダと、分割・画像→PDF・PDF→画像の右の欄の「フォルダ」の最初の値です。「元のファイルと同じフォルダ」は、結合では 1 本目の PDF、画像→PDF では 1 枚目の画像、新しい帯では写す前の帯の PDF のフォルダです。「最後に書き出したフォルダ」か「決めたフォルダ」が無くなっていたときは、元のファイルと同じフォルダにします。</p>
+        <div class="settings-fixed"><label class="print-choice"><input type="radio" name="settings-folder" value="fixed">指定フォルダ</label><span class="settings-path-row"><span class="settings-path empty" id="settings-fixed-path">未指定</span><button type="button" class="dlg-btn settings-small" id="settings-fixed-change">変更…</button></span></div>
+        <p class="settings-note">保存画面で最初に表示されるフォルダと、分割・画像→PDF・PDF→画像の設定パネルにある「フォルダ」の初期値です。「元のファイルと同じフォルダ」は、結合では 1 つ目の PDF、画像→PDF では 1 枚目の画像、新しい帯ではコピー元の帯にある PDF のフォルダです。「最後に書き出したフォルダ」か「指定フォルダ」が見つからないときは、元のファイルと同じフォルダを使用します。</p>
       </section>
       <section class="settings-sec">
         <p class="dlg-label">上書き保存</p>
-        <label class="print-choice settings-check"><input type="checkbox" id="settings-backup">上書き保存の前に、元のファイルの控えのファイル（名前.pdf.bak）を作る</label>
-        <p class="settings-note">作らないにしても、前からある控えのファイルは消しません。</p>
-        <label class="print-choice settings-check"><input type="checkbox" id="settings-image-confirm">画像を上書き保存する前に、確認の窓を表示する</label>
-        <p class="settings-note">確認の窓で「次回から表示しない」にチェックを付けて保存すると、このチェックが外れます。</p>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-backup">上書き保存する前に、元のファイルのバックアップファイル（名前.pdf.bak）を作成する</label>
+        <p class="settings-note">作成しない設定でも、既存のバックアップファイルは削除しません。</p>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-image-confirm">画像を上書き保存する前に確認画面を表示する</label>
+        <p class="settings-note">確認画面で「次回から表示しない」にチェックを付けて保存すると、このチェックが外れます。</p>
       </section>
       <section class="settings-sec">
         <p class="dlg-label">ツール</p>
-        <label class="print-choice settings-check"><input type="checkbox" id="settings-tool-values">ツールで選んだ値を覚えて、次に起動したときも使う</label>
-        <p class="settings-note">透かし（種類・文字・色・不透明度・角度・大きさ・位置）、PDF→画像（形式・解像度）、画像→PDF（用紙・向き・余白・まとめ方）、分割（ファイル名の付け方）、フラット化（焼き込む書き込みの種類）。ページの範囲と透かしの画像のファイルは覚えません。</p>
-        <label class="print-choice settings-check"><input type="checkbox" id="settings-last-tool">最後に使ったツールを覚えて、次にツールモードを開いたときに選んでおく</label>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-tool-values">ツールで選択した値を記憶し、次回起動時にも使用する</label>
+        <p class="settings-note">透かし（種類・文字・色・不透明度・角度・大きさ・位置）、PDF→画像（形式・解像度）、画像→PDF（用紙・向き・余白・出力方式）、分割（ファイル名形式）、フラット化（焼き込む書き込みの種類）。ページ範囲と、透かしに使う画像ファイルは記憶しません。</p>
+        <label class="print-choice settings-check"><input type="checkbox" id="settings-last-tool">最後に使用したツールを記憶し、次回ツールモードを開いたときに選択した状態にする</label>
       </section>
       <section class="settings-sec">
         <p class="dlg-label">既定のアプリ</p>
-        <div class="settings-row"><span>PDF をダブルクリックしたときに開くアプリは、Windows の設定で選びます。</span><button type="button" class="dlg-btn settings-small" id="settings-default-apps">Windows の設定を開く</button></div>
+        <div class="settings-row"><span>PDF をダブルクリックしたときに開くアプリは、Windows の設定で選択します。</span><button type="button" class="dlg-btn settings-small" id="settings-default-apps">Windows の設定を開く</button></div>
       </section>
     </div>
     <div class="dlg-foot">
@@ -743,7 +743,7 @@ body{
       <div class="sz-page" id="split-zoom-page"></div>
       <button type="button" class="sz-nav" id="split-zoom-next" data-icon="chevronRight" data-icon-size="22" data-icon-stroke="2" data-tip="zoom.next" aria-label="次のページ"></button>
     </div>
-    <p class="sz-hint">← → で前後のページへ移り、Esc で閉じます。</p>
+    <p class="sz-hint">← → で前後のページへ移動し、Esc で閉じます。</p>
   </dialog>
   <dialog id="help-dialog" aria-labelledby="help-title">
     <div class="dlg-head">
@@ -771,11 +771,11 @@ body{
       <button type="button" class="dlg-x" id="print-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" data-tip="dialog.close" aria-label="閉じる"></button>
     </div>
     <div class="dlg-body">
-      <p class="dlg-label">印刷する範囲</p>
+      <p class="dlg-label">印刷範囲</p>
       <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-all" checked>すべてのページ</label>
       <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-current">現在のページ</label>
       <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-custom">ページ指定</label>
-      <input type="text" id="print-pages" class="print-pages" placeholder="例: 1-5, 8" aria-label="印刷するページ" autocomplete="off">
+      <input type="text" id="print-pages" class="print-pages" placeholder="例: 1-5, 8" aria-label="印刷ページ" autocomplete="off">
       <p class="print-error" id="print-error" hidden></p>
       <div class="print-progress" id="print-progress" hidden>
         <div class="print-bar"><div class="print-bar-fill" id="print-bar"></div></div>
@@ -794,18 +794,18 @@ body{
   <dialog id="confirm-overwrite">
     <div class="dlg-head"><span>上書きしますか</span></div>
     <div class="dlg-body">
-      <p class="dlg-text" id="confirm-overwrite-text">このファイルは、開いたあとでほかのアプリで書き換えられています。</p>
+      <p class="dlg-text" id="confirm-overwrite-text">このファイルは、開いたあとにほかのアプリで変更されています。</p>
     </div>
     <div class="dlg-foot">
       <button type="button" class="dlg-btn danger" id="confirm-overwrite-ok">上書き</button>
-      <button type="button" class="dlg-btn" id="confirm-overwrite-cancel">取りやめ</button>
+      <button type="button" class="dlg-btn" id="confirm-overwrite-cancel">キャンセル</button>
     </div>
   </dialog>
 
   <!-- パスワード付き PDF の入力（spec-1-6 確定事項66〜69）。pdf.js の
        onPassword から呼ばれる。**覚えない**ので、閉じるたびに入力欄を空へ戻す。 -->
   <dialog id="password-prompt">
-    <div class="dlg-head"><span>パスワードの入力</span></div>
+    <div class="dlg-head"><span>パスワード入力</span></div>
     <div class="dlg-body">
       <p class="dlg-text" id="password-prompt-text">この PDF はパスワードで保護されています。</p>
       <input type="password" id="password-prompt-input" class="dlg-input" aria-label="パスワード" autocomplete="off" spellcheck="false">

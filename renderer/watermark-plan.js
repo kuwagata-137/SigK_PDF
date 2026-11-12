@@ -42,11 +42,11 @@
 
   function sourceProblem(source) {
     if (source === null || source === undefined)
-      return '透かしを入れる PDF を決めてください。';
+      return '透かしを入れる PDF を指定してください。';
     if (source.pending)
-      return '対象の PDF を読んでいます…';
+      return '対象の PDF を読み込んでいます…';
     if (source.blocked !== null || source.pageCount === null)
-      return '対象の PDF を選び直してください。';
+      return '対象の PDF をもう一度選択してください。';
     return null;
   }
 
@@ -55,18 +55,18 @@
     const common = { opacity: settings.opacity, angle: settings.angle, size: settings.size, position: settings.position };
     if (settings.type === 'image') {
       if (image === null || image === undefined)
-        return { error: '透かしにする画像を選んでください。' };
+        return { error: '透かしに使う画像を選択してください。' };
       if (image.pending)
-        return { error: '画像を読んでいます…' };
+        return { error: '画像を読み込んでいます…' };
       if (image.error !== null && image.error !== undefined)
         return { error: image.error };
       return { mark: { type: 'image', image: image.path, ...common } };
     }
     const text = normalizeText(settings.text);
     if (text === '')
-      return { error: '透かしの文字を入れてください。' };
+      return { error: '透かし文字を入力してください。' };
     if (text.length > MAX_TEXT_LENGTH)
-      return { error: `透かしの文字は ${MAX_TEXT_LENGTH} 文字までです。` };
+      return { error: `透かし文字は ${MAX_TEXT_LENGTH} 文字までです。` };
     return { mark: { type: 'text', text, color: settings.color, ...common } };
   }
 

@@ -43,7 +43,7 @@
       return pending.promise;
 
     el.text.textContent = `選択した ${count} ページを別のファイルへ書き出します。`
-      + 'しおり・入力欄・名前付きのリンク先は引き継がれません。元のファイルは変更されません。'
+      + 'しおり・入力欄・名前付きリンク先は引き継がれません。元のファイルは変更されません。'
       + (mosaicCount > 0 ? `モザイクを入れた ${mosaicCount} ページは、画像に置き換えて書き出します。` : '');
 
     pending = Promise.withResolvers();

@@ -113,8 +113,8 @@
   // 紙の上に出す小さなボタン（確定事項52。docs/04 4-2）。ページモードのときだけ
   // 置く。紙の幅が 100px 前後になるため、文字は入れずアイコンだけにする。
   const THUMB_TOOLS = [
-    ['rotateLeft', 'rotateLeft', '左に回す'],
-    ['rotateRight', 'rotateRight', '右に回す'],
+    ['rotateLeft', 'rotateLeft', '左回転'],
+    ['rotateRight', 'rotateRight', '右回転'],
     ['delete', 'trash', 'このページを削除'],
   ];
 

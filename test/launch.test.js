@@ -102,7 +102,7 @@ test('【要】結合の束を 3 本受けると、束の帯をファイル名�
   assert.deepEqual(tabPaths(shell), [A, B, C], '帯（タブ）も名前の順');
   const note = shell.document.getElementById('merge-note');
   assert.equal(note.hidden, false);
-  assert.equal(note.textContent, 'ファイル名の順に並べたので、エクスプローラーの並びと違うときは、帯の ↑↓ で入れ替えてください。');
+  assert.equal(note.textContent, 'ファイル名順に並べたので、エクスプローラーの並び順と違うときは、帯の ↑↓ で順番を入れ替えてください。');
 });
 
 test('知らない操作・パスの無い要求は何もしない', async (t) => {
@@ -233,7 +233,7 @@ test('タブが上限なら開かず、通知バーを束につき 1 回出す�
     await SigK.tabs.openPath(filePath);
 
   assert.equal(await SigK.launch.handle(request('open', [paths[20]], 5)), 0);
-  assert.equal(SigK.viewBanner.text(), '20 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。');
+  assert.equal(SigK.viewBanner.text(), 'タブは 20 個まで開けます。タブが多すぎるので、使わないタブを閉じてください。');
   SigK.viewBanner.show('ほかの知らせ');
   assert.equal(await SigK.launch.handle(request('open', [paths[21]], 5, false)), 0);
   assert.equal(SigK.viewBanner.text(), 'ほかの知らせ', '通知バーは束につき 1 回');
