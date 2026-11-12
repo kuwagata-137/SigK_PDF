@@ -111,6 +111,8 @@
     root.SigK.strips.init(doc, win);
     // ツールモードの紙の倍率（docs/07 決定83）。帯の画面の Ctrl＋ホイールを受け、倍率を変えたら見ていた紙の所へ送る。
     root.SigK.toolsZoom.init(doc, win);
+    // 帯のページ段の上のホイールを左右に送る（spec-7-4 確定事項ST1）。
+    root.SigK.stripWheel?.init(doc, win);
     root.SigK.stripZoom.init(doc, win);
     root.SigK.stripDropZone.init(doc, win);
     root.SigK.stripInput.init(doc, win);
