@@ -7,6 +7,7 @@
 //   opened    ページの回転が 90 か。画面の紙（pdf.js の絵）と保存用の絵（image-render.js）が、画素を右に 90 度回した絵と一致するか
 //   written   ［右回転］を押して上書き保存した画像が、画素を 180 度回した絵（横 300・縦 200）と一致し、向きの情報を持たないか
 //   reopened  保存のあと開き直したタブは、ページの回転が 0 で、画面の紙が 180 度回した絵と一致するか
+//   tools     画像→PDF（画像サイズに合わせる・A4）と差し込みで、写真が右に 90 度回した絵（縦長）になるか（spec-7-4 確定事項X4・X5）
 // 絵は、境目を半分の位置からずらして塗り分ける。縦横比が崩れると境目が動くので、一致しない点が増える。
 
 const fs = require('node:fs');
@@ -129,7 +130,70 @@ function summarize(probe, angle) {
   };
 }
 
-async function run({ js, dir, nativeImage, saveScript, pixelsOf }) {
+// 画像→PDF（spec-7-4 確定事項X4・X5）: 画面と同じ寸法の読み取り（pdfAPI.inspectImage）と紙の計画（convertPlan.planPage）で、
+// 実際のワーカーに変換させる。paper は 'image'（画像サイズに合わせる）か 'a4'。
+const convertScript = (source, target, paper) => `(async () => {
+  const SigK = window.SigK;
+  const info = await window.pdfAPI.inspectImage(${JSON.stringify(source)});
+  const planned = SigK.convertPlan.planPage(info.frames[0], { paper: ${JSON.stringify(paper)}, orientation: 'auto', margin: 'normal' });
+  const result = await SigK.save.runTask({ kind: 'convert', label: '変換', output: 'single', target: ${JSON.stringify(target)}, targets: [${JSON.stringify(target)}],
+    images: [{ path: ${JSON.stringify(source)}, name: 'exif6-src.jpg', layouts: [planned] }] });
+  return { info: { width: info.width, height: info.height, rotation: info.rotation ?? 0 }, page: planned.page, box: planned.box, ok: result?.ok === true, error: result?.error ?? null };
+})()`;
+
+// 映しているタブの number ページ目を倍率 1 で描き、点の色を返す。rect（canvas の画素。左上が原点）を渡せば、その枠の中で点を取る。
+const pageScript = (number, rect = null) => `(async () => {
+  const SigK = window.SigK;
+  const grid = ${JSON.stringify(GRID)};
+  const page = await SigK.viewer.getPage(${number});
+  const drawn = await SigK.pageImage.renderToCanvas(document, page, { scale: 1, rotation: SigK.viewer.viewportRotation(${number}, page) });
+  const ctx = drawn.canvas.getContext('2d');
+  const rect = ${JSON.stringify(rect)} ?? { x: 0, y: 0, width: drawn.width, height: drawn.height };
+  const at = (fx, fy) => Array.from(ctx.getImageData(Math.floor(rect.x + rect.width * fx), Math.floor(rect.y + rect.height * fy), 1, 1).data).slice(0, 3);
+  return { size: [drawn.width, drawn.height], samples: grid.map((fy) => grid.map((fx) => at(fx, fy))) };
+})()`;
+
+// A4 の紙の中で写真が載った枠（canvas の画素。左上が原点）。worker/image-page.js の fitInside と同じく、余白の内側へ縦横比を保って最大化する。
+function placedRect(page, box, shown) {
+  const ratio = Math.min(box.width / shown.width, box.height / shown.height);
+  const width = shown.width * ratio;
+  const height = shown.height * ratio;
+  const x = box.x + (box.width - width) / 2;
+  const y = box.y + (box.height - height) / 2;
+  return { x, y: page.height - (y + height), width, height };
+}
+
+// 画像→PDF と差し込みで、写真が正しい向きになるかを見る。差し込みは、画像サイズに合わせて変換した PDF（縦 300・横 200 の紙）の
+// 1 ページ目の後ろへ、同じ写真を差し込む（紙の大きさが同じなので、写真は紙いっぱいに載る）。ファイルを選ぶ窓は差し替えて答える。
+async function convertAndInsert({ js, dir, nativeImage, dialog }) {
+  const source = path.join(dir, 'exif6-src.jpg');
+  fs.writeFileSync(source, withExifOrientation(patternImage(nativeImage).toJPEG(95), 6));
+  const fitted = path.join(dir, 'exif6-image.pdf');
+  const a4 = path.join(dir, 'exif6-a4.pdf');
+  const convertImage = await js(convertScript(source, fitted, 'image'));
+  const convertA4 = await js(convertScript(source, a4, 'a4'));
+  await js(`window.SigK.tabs.openPath(${JSON.stringify(fitted)}).then(() => new Promise((resolve) => setTimeout(resolve, 700)))`);
+  const fittedPage = await js(pageScript(1));
+  const original = dialog.showOpenDialog;
+  dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [source] });
+  let inserted;
+  try {
+    inserted = await js('window.SigK.insert.run().then((result) => new Promise((resolve) => setTimeout(() => resolve({ ok: result?.ok === true, at: result?.at ?? null, error: result?.error ?? null }), 500)))');
+  } finally {
+    dialog.showOpenDialog = original;
+  }
+  const insertedPage = inserted.ok ? await js(pageScript(inserted.at + 1)) : null;
+  // A4 は、写真が載った枠の中で点を取り、回した絵の大きさ（横 200・縦 300）の点として比べる。
+  await js(`window.SigK.tabs.openPath(${JSON.stringify(a4)}).then(() => new Promise((resolve) => setTimeout(resolve, 700)))`);
+  const a4Page = await js(pageScript(1, placedRect(convertA4.page, convertA4.box, convertA4.info)));
+  return {
+    convertImage: { ...convertImage, mismatches: mismatches(fittedPage, 90) },
+    convertA4: { ...convertA4, portrait: convertA4.page.width < convertA4.page.height, mismatches: mismatches({ size: [HEIGHT, WIDTH], samples: a4Page.samples }, 90) },
+    insert: { ...inserted, size: insertedPage?.size ?? null, mismatches: insertedPage === null ? null : mismatches(insertedPage, 90) },
+  };
+}
+
+async function run({ js, dir, nativeImage, saveScript, pixelsOf, dialog }) {
   const target = path.join(dir, 'exif6.jpg');
   fs.writeFileSync(target, withExifOrientation(patternImage(nativeImage).toJPEG(95), 6));
   const opened = summarize(await js(probeScript(target)), 90);
@@ -141,6 +205,7 @@ async function run({ js, dir, nativeImage, saveScript, pixelsOf }) {
     opened, rotated, saved: saved.result,
     written: { size: written.size, mismatches: mismatches(written, 180), orientation: jpegOrientation(fs.readFileSync(target)) },
     reopened,
+    tools: await convertAndInsert({ js, dir, nativeImage, dialog }),
   };
 }
 

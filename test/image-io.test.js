@@ -12,6 +12,7 @@ const {
 const { makePng, makeJpeg, GIF89A, WEBP } = require('./fixtures/images.js');
 const { makeTiff } = require('./fixtures/tiff.js');
 const { makeBmp, rgbaGradient } = require('./fixtures/bmp.js');
+const { jpegWithExif } = require('./fixtures/jpeg-exif.js');
 
 const IN_A = 'C:/in/a.png';
 const IN_B = 'C:/in/b.jpg';
@@ -62,6 +63,15 @@ test('先頭だけ読んで形式・画素数・名前を返す', async () => {
   assert.deepEqual([jpeg.width, jpeg.height], [4032, 3024]);
   assert.equal(counts.head, 2);
   assert.equal(counts.whole, 0, '先頭で足りれば全体は読まない');
+});
+
+test('EXIF の向きが回転の JPEG は、向きを当てた後の寸法（縦長の写真なら縦長）と rotation を返す（spec-7-4 確定事項X4）', async () => {
+  const IN_C = 'C:/in/c.jpg';
+  const { fsLike } = fsFor({ [IN_B]: { bytes: Buffer.from(jpegWithExif(6, { width: 300, height: 200 })) }, [IN_C]: { bytes: Buffer.from(jpegWithExif(3, { width: 300, height: 200 })) } });
+  const turned = await inspectImage(IN_B, { fsLike });
+  assert.deepEqual([turned.width, turned.height, turned.frames, turned.rotation], [200, 300, [{ width: 200, height: 300 }], 90]);
+  const upside = await inspectImage(IN_C, { fsLike });
+  assert.deepEqual([upside.width, upside.height, upside.frames, upside.rotation], [300, 200, [{ width: 300, height: 200 }], 180]);
 });
 
 test('先頭 64KB に寸法が無ければ全体を読み直す', async () => {

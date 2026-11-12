@@ -9,9 +9,10 @@
 //
 // Electron の dialog は引数で受け取る（file-io.js と同じ作法。node --test から読める）。
 // 戻り値の形も file-io.js に揃える。
-//   成功     { ok: true, path, name, size, kind, width, height, pages, frames }
+//   成功     { ok: true, path, name, size, kind, width, height, pages, frames, rotation? }
 //            （pages はページ数、frames はページごとの寸法。複数ページを持つのは TIFF だけ。
-//              spec-3-2 確定事項28）
+//              spec-3-2 確定事項28。寸法は写真の EXIF の向きを当てた後の値で、回すときだけ rotation を添える。
+//              spec-7-4 確定事項X4）
 //   取り消し { canceled: true }
 //   失敗     { error: '人が読める文言' }
 
@@ -19,6 +20,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { detectFormat, isProgressiveJpeg, inspectImageBytes } = require('./worker/image-format.js');
+const { rotationOfJpeg, uprightSize } = require('./worker/jpeg-orientation.js');
 const { toBytes, describeReadFailure } = require('./file-io.js');
 const { writeDocument } = require('./pdf-write.js');
 
@@ -54,23 +56,31 @@ async function inspectImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_BYTES,
     if (stat.size > maxBytes)
       return { error: `${Math.floor(maxBytes / 1024 / 1024)}MB までに対応していますが、ファイルが大きすぎます。` };
 
-    let inspected = inspectImageBytes(await readHead(filePath, stat.size, fsLike));
+    let bytes = await readHead(filePath, stat.size, fsLike);
+    let inspected = inspectImageBytes(bytes);
     // 先頭だけでは寸法に届かなかった（SOF が 64KB より後ろ）。全体を読み直す。
-    if (inspected.incomplete === true && stat.size > HEAD_BYTES)
-      inspected = inspectImageBytes(toBytes(await fsLike.promises.readFile(filePath)));
+    if (inspected.incomplete === true && stat.size > HEAD_BYTES) {
+      bytes = toBytes(await fsLike.promises.readFile(filePath));
+      inspected = inspectImageBytes(bytes);
+    }
     if (inspected.ok !== true)
       return { error: inspected.error, kind: inspected.kind ?? null };
 
+    // 写真の EXIF の向きを当てた後の寸法を返す。画面はこの寸法で紙の向きと枠を決め、ワーカーは元の画素を回して載せる
+    // （spec-7-4 確定事項X4。EXIF の向きは APP1 の頭にあるので、先頭 64KB で読める）。
+    const rotation = inspected.kind === 'jpeg' ? rotationOfJpeg(bytes) : 0;
+    const frames = inspected.frames.map((frame) => uprightSize(frame, rotation));
     return {
       ok: true,
       path: filePath,
       name: path.basename(filePath),
       size: stat.size,
       kind: inspected.kind,
-      width: inspected.width,
-      height: inspected.height,
+      width: frames[0].width,
+      height: frames[0].height,
       pages: inspected.pages,
-      frames: inspected.frames,
+      frames,
+      ...(rotation === 0 ? {} : { rotation }),
     };
   } catch (error) {
     onError({ message: '画像を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });

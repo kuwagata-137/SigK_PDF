@@ -139,7 +139,7 @@ async function run({ win, dir, root, dialog, nativeImage }) {
   const copy = (name, as) => { const target = path.join(dir, as); fs.copyFileSync(fixture(root, name), target); return target; };
   try {
     // exif: EXIF の向きを持つ写真を開き、回して上書き保存する（smoke-image-exif.js）。SIGK_SMOKE_IMAGE_EDIT_ONLY=exif なら、これだけを行う。
-    report.exif = await require('./smoke-image-exif.js').run({ js, dir, nativeImage, saveScript, pixelsOf });
+    report.exif = await require('./smoke-image-exif.js').run({ js, dir, nativeImage, saveScript, pixelsOf, dialog });
     if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'exif')
       return report;
 

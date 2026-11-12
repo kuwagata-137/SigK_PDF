@@ -6,6 +6,8 @@
 // スマートフォンの写真は、画素を撮ったときの向きのまま書き、「何度回して見せるか」を EXIF の向きに書く。エクスプローラーはこの向きに
 // 従って表示するが、PDF の DCTDecode には向きの決まりが無く、pdf.js は画素のまま描く。画像のタブは、向きのうち回転（3・6・8）だけを
 // ページの回転（/Rotate）にして表示する（image-open-task.js）。鏡に映した向き（2・4・5・7）は回転では表せないので、画素のまま表示する。
+// 画像→PDF と差し込みは、向きを当てた後の寸法（uprightSize）で紙と枠を決め、元の画素を回して枠に収める（image-page.js・image-io.js。
+// spec-7-4 確定事項X4・X5）。
 //
 // 保存のときに敷き直す元の JPEG（image-render.js）は、向きを 1（そのまま）に書き換えた写しを渡す。Chromium の createImageBitmap は
 // imageOrientation: 'none' を指定しても EXIF の向きを当てるので（Electron 44 で実測）、書き換えないと、pdf.js の描いた画素と向きが食い違う。
@@ -91,6 +93,16 @@ function rotationOf(orientation) {
   return ROTATION_OF[orientation] ?? 0;
 }
 
+// 向きを当てた後の寸法。90°・270° 回すときは幅と高さを入れ替える。
+function uprightSize(size, rotation) {
+  return rotation === 90 || rotation === 270 ? { width: size.height, height: size.width } : { width: size.width, height: size.height };
+}
+
+// JPEG のバイト列から、表示のために回す角度を読む（JPEG でなければ呼ばない）。
+function rotationOfJpeg(bytes) {
+  return rotationOf(jpegOrientation(bytes));
+}
+
 // 向きを 1 に書き換えた写し。向きが無い・もともと 1 なら、受け取ったものをそのまま返す（書き換えない）。
 function withoutOrientation(bytes) {
   const entry = orientationEntry(bytes);
@@ -102,4 +114,4 @@ function withoutOrientation(bytes) {
   return copy;
 }
 
-module.exports = { jpegOrientation, rotationOf, withoutOrientation };
+module.exports = { jpegOrientation, rotationOf, rotationOfJpeg, uprightSize, withoutOrientation };

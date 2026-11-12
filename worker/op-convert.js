@@ -74,7 +74,8 @@ async function addPage(doc, entry, loaded, frame, tools) {
   const embedded = await embedImage(doc, loaded, tools, { frame });
   if (embedded.ok !== true)
     return { error: withName(entry.name, embedded.error) };
-  const made = drawImagePage(doc, embedded.image, entry.layouts[frame], tools);
+  // 紙と枠は、画面（convert-plan.js）が向きを当てた後の寸法で決めている。写真の向きを当てて載せる（spec-7-4 確定事項X5）。
+  const made = drawImagePage(doc, embedded.image, { ...entry.layouts[frame], rotation: embedded.rotation }, tools);
   if (made.ok !== true)
     return { error: withName(entry.name, made.error) };
   doc.addPage(made.page);
