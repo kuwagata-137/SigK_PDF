@@ -623,18 +623,19 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #confirm-replace::backdrop{background:rgba(16,24,40,.34)}
 
-/* 上書き・パスワード・抽出・モザイクの確認。ほかの窓と同じ枠にする（枠を当てておらず、ブラウザの素の黒い枠で出ていた）。
-   幅は中身に合わせる。抽出とモザイクは文が長いので広め。 */
-#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic{
+/* 上書き・パスワード・抽出・モザイク・画像の上書きの確認。ほかの窓と同じ枠にする（枠を当てておらず、ブラウザの素の黒い枠で出ていた。
+   画像の上書きの確認は 2026-11-12 に追加した。spec-7-4 確定事項CF4）。幅は中身に合わせる。抽出・モザイク・画像の上書きは文が長いので広め。 */
+#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic, #confirm-image-save{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);
   background:var(--surface); color:var(--text); box-shadow:var(--shadow);
 }
 #confirm-overwrite{width:min(440px, 88vw)}
 #password-prompt{width:min(420px, 88vw)}
 #confirm-extract{width:min(460px, 88vw)}
-#confirm-mosaic{width:min(560px, 88vw)}
-#confirm-overwrite::backdrop, #password-prompt::backdrop, #confirm-extract::backdrop, #confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}
-#confirm-mosaic .dlg-text + .dlg-text{margin-top:8px}
+#confirm-mosaic, #confirm-image-save{width:min(560px, 88vw)}
+#confirm-overwrite::backdrop, #password-prompt::backdrop, #confirm-extract::backdrop, #confirm-mosaic::backdrop, #confirm-image-save::backdrop{background:rgba(16,24,40,.34)}
+#confirm-mosaic .dlg-text + .dlg-text, #confirm-image-save .dlg-text + .dlg-text{margin-top:8px}
+#confirm-image-save .dlg-text[hidden]{display:none}
 /* 確認の窓の足の左に置く「次回から表示しない」（spec-7-4 確定事項CF1）。ボタンは右に寄せたまま。 */
 .dlg-foot .confirm-skip{margin-right:auto; height:30px; font-size:12.5px; color:var(--muted)}
 

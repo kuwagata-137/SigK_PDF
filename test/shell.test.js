@@ -537,15 +537,17 @@ test('キーボードで「＞」を押したらパネルの中へフォーカ�
 });
 
 // 確認の窓 4 つに枠が無く、ブラウザの素の黒い枠で出ていた（計画外の直し・窓の枠。spec-4b-7b 点検 7 で見張りを足した）。
-test('上書き・パスワード・抽出・モザイクの確認の窓に、ほかの窓と同じ枠と幅の上限がある（shell.css）', () => {
+// 画像の上書きの確認（#confirm-image-save）は、2026-11-12 に同じ枠へ入れた（spec-7-4 確定事項CF4。7-1 からブラウザの素の黒い枠で出ていた）。
+test('上書き・パスワード・抽出・モザイク・画像の上書きの確認の窓に、ほかの窓と同じ枠と幅の上限がある（shell.css）', () => {
   const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
-  const rule = css.match(/#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic\{([^}]*)\}/);
-  assert.notEqual(rule, null, '4 つの窓の枠の規則が無い');
+  const rule = css.match(/#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic, #confirm-image-save\{([^}]*)\}/);
+  assert.notEqual(rule, null, '5 つの窓の枠の規則が無い');
   for (const part of ['padding:0', 'border:1px solid var(--border)', 'border-radius:var(--radius)', 'box-shadow:var(--shadow)'])
     assert.ok(rule[1].includes(part), part);
-  for (const [id, width] of [['confirm-overwrite', 440], ['password-prompt', 420], ['confirm-extract', 460], ['confirm-mosaic', 560]])
+  for (const [id, width] of [['confirm-overwrite', 440], ['password-prompt', 420], ['confirm-extract', 460]])
     assert.ok(css.includes(`#${id}{width:min(${width}px, 88vw)}`), id);
-  assert.ok(css.includes('#confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}'));
+  assert.ok(css.includes('#confirm-mosaic, #confirm-image-save{width:min(560px, 88vw)}'));
+  assert.ok(css.includes('#confirm-mosaic::backdrop, #confirm-image-save::backdrop{background:rgba(16,24,40,.34)}'));
 });
 
 // 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにして、幅 960 の窓でもツールバーを 1 列に収める
