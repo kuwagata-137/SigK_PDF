@@ -9,24 +9,30 @@ const layout = globalThis.SigK.viewerLayout;
 const A4 = { width: 595.28, height: 841.89 };
 const A5 = { width: 419.53, height: 595.28 };
 
-test('clampZoom は 10〜400% に収める（spec-4b-7a 確定事項G1）', () => {
+test('clampZoom は 10〜1000% に収める（spec-4b-7a 確定事項G1・spec-7-4 確定事項Z1）', () => {
   assert.equal(layout.clampZoom(0.01), 0.1);
   assert.equal(layout.clampZoom(0.1), 0.1);
-  assert.equal(layout.clampZoom(9), 4);
+  assert.equal(layout.clampZoom(99), 10);
+  assert.equal(layout.clampZoom(9), 9);
   assert.equal(layout.clampZoom(1.5), 1.5);
   assert.equal(layout.clampZoom(Number.NaN), 1);
   assert.equal(layout.clampZoom(undefined), 1);
 });
 
 test('段送りは上限と下限で止まる', () => {
-  assert.equal(layout.nextZoom(4), 4);
+  assert.equal(layout.nextZoom(10), 10);
+  // 400% の上は 500・600・800・1000%（spec-7-4 確定事項Z1）。
+  assert.equal(layout.nextZoom(4), 5);
+  assert.equal(layout.nextZoom(6), 8);
+  assert.equal(layout.prevZoom(10), 8);
   assert.equal(layout.prevZoom(0.1), 0.1);
   assert.equal(layout.nextZoom(1), 1.25);
   assert.equal(layout.prevZoom(1), 0.75);
 });
 
-test('25% の下は 20・15・10% を 1 段ずつ送る（spec-4b-7a 確定事項G1。段は 16）', () => {
-  assert.equal(layout.ZOOM_STEPS.length, 16);
+test('25% の下は 20・15・10% を 1 段ずつ送る（spec-4b-7a 確定事項G1。段は 400% の上の 4 段を入れて 20）', () => {
+  assert.equal(layout.ZOOM_STEPS.length, 20);
+  assert.equal(layout.MAX_ZOOM, 10);
   assert.equal(layout.MIN_ZOOM, 0.1);
   assert.equal(layout.prevZoom(0.25), 0.2);
   assert.equal(layout.prevZoom(0.2), 0.15);
@@ -212,7 +218,8 @@ test('100% は 96/72 倍として pdf.js へ渡る', () => {
 test('formatZoom は百分率の文字列にする', () => {
   assert.equal(layout.formatZoom(1), '100%');
   assert.equal(layout.formatZoom(0.6667), '67%');
-  assert.equal(layout.formatZoom(9), '400%');
+  assert.equal(layout.formatZoom(9), '900%');
+  assert.equal(layout.formatZoom(10), '1000%');
 });
 
 test('parsePageNumber は 1 起点の入力を 0 起点の添字にする', () => {
