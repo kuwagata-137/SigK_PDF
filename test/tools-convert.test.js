@@ -85,7 +85,7 @@ test('受け口の［ファイルを開く…］は PDF と画像を選べ、画
   // 帯が 0 本のときは大きい受け口の文、帯ができたら小さい受け口の文（H10）。
   assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をドロップするか［ファイルを開く…］で選ぶと、PDF は帯、画像は「変換する画像」の帯に並びます');
   assert.equal(await SigK.stripDropZone.pick(), true);
-  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をここにドロップすると足します（画像は「変換する画像」の帯へ）');
+  assert.equal(doc.getElementById('strip-drop-text').textContent, 'PDF か画像をここにドロップすると帯を追加します');
 
   assert.deepEqual(names(shell), ['b.jpg', 'a.png']);
   assert.deepEqual(plain(SigK.tabs.list().map((tab) => tab.path)), [PDF]);
