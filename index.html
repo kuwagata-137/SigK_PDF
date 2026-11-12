@@ -88,11 +88,8 @@ body{
   <!-- 編集の道具の段（spec-4b-1a 確定事項1〜6）。編集モードのときだけ出る。CheckListMaker の画像エディタと同じく、
        四角いボタンの下に名前を置く。図形の 4 つは data-shape で種類を持つ。結線は edit-bar.js。 -->
   <div id="edit-bar" role="toolbar" aria-label="書き込みの道具">
-    <!-- 「選択」は先頭（spec-4b-3a 確定事項C1。モック screenshots/phase4b-3-bar.png）。描かない道具で、紙の上を引くと範囲選択。 -->
-    <span class="edit-item"><button type="button" class="edit-tool" data-tool="select" data-tip="edit.select" aria-label="選択" aria-pressed="false"><span data-icon="pointerSelect" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">選択</span></span>
-    <!-- 「ハンド」は「選択」の隣（spec-4b-3b 確定事項A1）。描かない道具で、紙のどこを引いても表示が動く。 -->
-    <span class="edit-item"><button type="button" class="edit-tool" data-tool="hand" data-tip="edit.hand" aria-label="ハンド" aria-pressed="false"><span data-icon="hand" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ハンド</span></span>
-    <span class="edit-sep"></span>
+    <!-- 「選択」「ハンド」は置かない（spec-7-4 確定事項C3。ユーザーの指示）。上のツールバーの［選択］［ハンド］（pointer-mode-bar.js）が、
+         編集モードでは同じ annotate.toggleTool を呼ぶ。 -->
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="highlight" data-tip="edit.highlight" aria-label="ハイライト" aria-pressed="false"><span data-icon="highlight" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ハイライト</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="underline" data-tip="edit.underline" aria-label="下線" aria-pressed="false"><span data-icon="underline" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">下線</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="strikeout" data-tip="edit.strikeout" aria-label="取り消し線" aria-pressed="false"><span data-icon="strikeout" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">取り消し線</span></span>
@@ -116,6 +113,11 @@ body{
     <span class="edit-sep"></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="mosaic" data-tip="edit.mosaic" aria-label="モザイク" aria-pressed="false"><span data-icon="mosaic" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">モザイク</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="trim" data-tip="edit.trim" aria-label="トリミング" aria-pressed="false"><span data-icon="trim" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">トリミング</span></span>
+    <!-- ［左回転］［右回転］（spec-7-4 確定事項RT1・RT2。見本 screenshots/rotate-question-rt2-icons.png の案D）。押すとすぐ、見ているページ
+         （画像のタブでは画像）を 90° 回すボタンで、押したままにならない。data-tool ではなく data-action を持つ。結線は page-actions.js。 -->
+    <span class="edit-sep"></span>
+    <span class="edit-item"><button type="button" class="edit-tool" id="edit-rotate-left" data-action="rotateLeft" data-tip="edit.rotateLeft" aria-label="左回転"><span data-icon="pageRotateLeft" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">左回転</span></span>
+    <span class="edit-item"><button type="button" class="edit-tool" id="edit-rotate-right" data-action="rotateRight" data-tip="edit.rotateRight" aria-label="右回転"><span data-icon="pageRotateRight" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">右回転</span></span>
     <!-- 入りきらない道具の入れ物（spec-4b-5b 確定事項25〜28。見本 screenshots/phase4b-5b-more.png）。入りきらないときだけ出す。
          結線は edit-bar-overflow.js（隠す）と edit-bar-more.js（一覧）。 -->
     <span class="edit-item edit-more" hidden><button type="button" class="edit-tool" id="edit-more" data-tip="edit.more" aria-label="その他" aria-haspopup="menu" aria-expanded="false" aria-pressed="false"><span data-icon="more" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">その他</span></span>

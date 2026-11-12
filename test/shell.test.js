@@ -114,16 +114,21 @@ test('ツールレールは 4 つのモードだけを持ち、編集の道具�
   assert.deepEqual(modes, [...SigK.shell.MODES]);
   assert.deepEqual([...document.querySelectorAll('#rail .lbl')].map((el) => el.textContent), ['閲覧', 'ページ編集', '編集', 'ツール']);
   // 編集の道具はレールではなく、ツールバーの下の段に並ぶ（spec-4b-1a 確定事項1〜3・11）。図形は 4 つに分かれる。
-  // 先頭は描かない道具の「選択」「ハンド」と区切り（spec-4b-3a 確定事項C1、spec-4b-3b 確定事項A1）。
+  // 「選択」「ハンド」は置かない（spec-7-4 確定事項C3。上のツールバーの［選択］［ハンド］を使う。spec-4b-3a 確定事項C1 を改めた）。
   assert.equal(document.querySelectorAll('#rail .rail-item').length, 4);
   const tools = [...document.querySelectorAll('#edit-bar .edit-tool[data-tool]')];
   // 吹き出しはテキストの隣（spec-4b-4b 確定事項F1。決定57 ⑦）。×印・多角形は丸の後ろ（spec-4b-5a 確定事項27）。マーカーと消しゴムは
   // ペンの後ろ（spec-4b-5b 確定事項2・18）。トリミングはノートの後ろに区切りを挟む（spec-4b-6a 確定事項11）。
-  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['select', 'hand', 'highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'cross', 'polygon', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim']);
-  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['選択', 'ハンド', 'ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', '×印', '多角形', 'ペン', 'マーカー', '消しゴム', 'ノート', 'モザイク', 'トリミング']);
+  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'cross', 'polygon', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim']);
+  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', '×印', '多角形', 'ペン', 'マーカー', '消しゴム', 'ノート', 'モザイク', 'トリミング']);
   assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 5);
   // ノートの後ろの区切り線の右に、モザイク・トリミングの順（spec-4b-6b 確定事項10）。
   assert.equal(tools.at(-2).closest('.edit-item').previousElementSibling.className, 'edit-sep');
+  // トリミングの右に区切り線を挟んで［左回転］［右回転］（spec-7-4 確定事項RT1。押したままにならないボタンで、data-action を持つ）。
+  const actions = [...document.querySelectorAll('#edit-bar .edit-tool[data-action]')];
+  assert.deepEqual(actions.map((el) => [el.dataset.action, el.nextElementSibling.textContent]), [['rotateLeft', '左回転'], ['rotateRight', '右回転']]);
+  assert.equal(tools.at(-1).closest('.edit-item').nextElementSibling.className, 'edit-sep');
+  assert.equal(actions.every((el) => !el.hasAttribute('aria-pressed') && el.querySelector('svg') !== null), true);
   // 右端の「その他」は入りきらないときだけ出す（spec-4b-5b 確定事項25）。
   const more = document.getElementById('edit-more');
   assert.equal(more.closest('.edit-item').hidden, true);

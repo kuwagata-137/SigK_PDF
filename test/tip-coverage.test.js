@@ -21,7 +21,7 @@ const loadDocument = () => new JSDOM(fs.readFileSync(INDEX_PATH, 'utf8')).window
 
 // 文の表の「付ける要素」の列のうち、index.html に最初から書いてある要素。[選ぶ式, 鍵]。
 const MODES = [['view', 'mode.view'], ['pages', 'mode.pages'], ['annot', 'mode.annot'], ['tools', 'mode.tools']];
-const TOOLS = ['select', 'hand', 'highlight', 'underline', 'strikeout', 'text', 'callout', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim'];
+const TOOLS = ['highlight', 'underline', 'strikeout', 'text', 'callout', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim'];
 const SHAPES = ['arrow', 'line', 'square', 'circle', 'cross', 'polygon'];
 const STATIC_TARGETS = [
   ['#btn-open', 'bar.open'], ['#btn-save', 'bar.save'], ['#btn-save-as', 'bar.saveAs'], ['#btn-undo', 'bar.undo'], ['#btn-redo', 'bar.redo'],
@@ -36,7 +36,8 @@ const STATIC_TARGETS = [
   ['#split-zoom-close', 'zoom.close'], ['#split-zoom-prev', 'zoom.prev'], ['#split-zoom-next', 'zoom.next'],
   ...TOOLS.map((tool) => [`.edit-tool[data-tool="${tool}"]`, `edit.${tool}`]),
   ...SHAPES.map((shape) => [`.edit-tool[data-shape="${shape}"]`, `edit.${shape}`]),
-  ['#edit-more', 'edit.more'], ['#props-format [data-format="bold"]', 'format.bold'], ['#props-format [data-format="italic"]', 'format.italic'],
+  ['#edit-rotate-left', 'edit.rotateLeft'], ['#edit-rotate-right', 'edit.rotateRight'],
+  ['#edit-more', 'edit.more'],['#props-format [data-format="bold"]', 'format.bold'], ['#props-format [data-format="italic"]', 'format.italic'],
   ['#image-strip-clear', 'image.clear'], ['#split-undo', 'split.undo'], ['#split-redo', 'split.redo'],
   ['#act-rotate-left', 'pages.rotateLeft'], ['#act-rotate-right', 'pages.rotateRight'], ['#act-extract', 'pages.extract'],
   ['#act-insert', 'pages.insert'], ['#act-delete', 'pages.delete'],

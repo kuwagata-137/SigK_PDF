@@ -142,7 +142,6 @@ test('編集モードでは 1 組が編集の道具を映し、押すと道具�
   click(shell, 'btn-pointer-select');
   assert.equal(SigK.annotate.getTool(), 'select');
   assert.equal(pressedOf(shell), 'select');
-  assert.equal(document.querySelector('#edit-bar [data-tool="select"]').getAttribute('aria-pressed'), 'true', '道具の段も同じ印');
 
   SigK.annotate.toggleTool('pen');
   assert.equal(pressedOf(shell), null, '描く道具ではどちらも押していない形');

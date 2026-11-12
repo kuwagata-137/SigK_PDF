@@ -25,7 +25,7 @@ const EXPECTED_KEYS = [
   'bar.zoomOut', 'bar.zoomIn', 'bar.fitWidth', 'bar.fitPage', 'bar.facing', 'bar.find', 'bar.print', 'bar.settings', 'bar.help',
   'mode.view', 'mode.pages', 'mode.annot', 'mode.tools', 'tab.add', 'tab.close', 'tab.dirty', 'side.collapse', 'side.expand',
   'find.case', 'find.prev', 'find.next', 'find.close', 'status.file', 'dialog.close', 'zoom.close', 'zoom.prev', 'zoom.next',
-  'edit.select', 'edit.hand', 'edit.highlight', 'edit.underline', 'edit.strikeout', 'edit.text', 'edit.callout',
+  'edit.highlight', 'edit.underline', 'edit.strikeout', 'edit.text', 'edit.callout',
   'edit.arrow', 'edit.line', 'edit.square', 'edit.circle', 'edit.cross', 'edit.polygon', 'edit.pen', 'edit.marker', 'edit.eraser',
   'edit.note', 'edit.mosaic', 'edit.trim', 'edit.more', 'format.bold', 'format.italic', 'style.solid', 'style.dashed', 'style.cloudy',
   'tools.merge', 'tools.split', 'tools.convert', 'tools.toImage', 'tools.watermark', 'tools.flatten',
@@ -34,10 +34,12 @@ const EXPECTED_KEYS = [
   'thumb.rotateLeft', 'thumb.rotateRight', 'thumb.delete',
   // 画像のタブで灰色にした道具の文（spec-7-1 確定事項C2）。
   'edit.highlight.image', 'edit.underline.image', 'edit.strikeout.image', 'edit.note.image',
+  // 編集モードのボタン列の［左回転］［右回転］（spec-7-4）。代わりに［選択］［ハンド］の edit.select・edit.hand を外した（確定事項C3）。
+  'edit.rotateLeft', 'edit.rotateRight',
 ];
 
-// 歯車のボタン（bar.settings）は spec-6-1 タスク E で、画像のタブで灰色にした道具の 4 個は spec-7-1 で足した。
-test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個と過不足なく一致する（組み込みの text を除く）', () => {
+// 歯車のボタン（bar.settings）は spec-6-1 タスク E で、画像のタブで灰色にした道具の 4 個は spec-7-1 で足した。spec-7-4 で 2 個を外し、2 個を足した。
+test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個（spec-7-4 で 2 個を替えた）と過不足なく一致する（組み込みの text を除く）', () => {
   assert.deepEqual([...tableKeys()].sort(), [...EXPECTED_KEYS].sort());
   assert.equal(EXPECTED_KEYS.length, 89);
 });
