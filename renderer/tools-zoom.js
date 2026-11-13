@@ -2,14 +2,18 @@
   'use strict';
 
   // ツールモードの紙の倍率（docs/07 決定83。spec-2-5 確定事項L）。PDF の帯・分割の盤・「変換する画像」の帯の紙は、どれもこの 1 つの倍率で
-  // 大きさが変わる。100% は前からの大きさ（帯の紙の高さ 104px・盤の紙の幅 104px・画像の枠 104×72px）。閲覧の倍率（タブごと。viewer.js）
-  // とは別に持ち、起動している間だけ覚える（閉じると 100%。設定には書かない）。
+  // 大きさが変わる。100% は帯の紙の高さ 208px・盤の紙の幅 208px・画像の枠 208×144px（基準の寸法 104px などの PAPER_SCALE 倍。決定93）。
+  // 閲覧の倍率（タブごと。viewer.js）とは別に持ち、起動している間だけ覚える（閉じると 100%。設定には書かない）。
   //
-  // 変える口は、ツールバーの［－］［＋］（viewer-controls.js が振り替える）・Ctrl＋＋/－/0（viewer-keys.js から handleKey）・帯の画面の上の
+  // 変える口は、ツールバーの［－］［＋］と倍率の入力欄（viewer-controls.js が振り替える）・Ctrl＋＋/－/0（viewer-keys.js から handleKey）・帯の画面の上の
   // Ctrl＋ホイール（タッチパッドの 2 本指も。溜め方は wheel-zoom.js）。変えたら、紙を並べ直す受け手（onChange）へ知らせ、そのあと
   // マウスの下の紙（ボタン・キーでは帯の画面の左上）が同じ所に来るように帯の画面を送る（strip-zoom.js）。
 
-  const STEPS = Object.freeze([0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]);
+  // 2026-11-13（docs/07 決定93。spec-7-6 確定事項ZT1・ZS3）: 前の 200% の大きさを 100% にした。表示する倍率（get）は 50〜300% のまま、
+  // 画面上の大きさ（scale）は倍率×PAPER_SCALE にする。大きさを計算する所（strip-layout.js・split-thumbs.js・image-strip-zoom.js・
+  // image-thumbs.js・CSS の --paper-zoom）は scale を読む。描く枚数の上限も scale で数える（ZT3）。100% 以下の段は 10% 刻み（ZS3）。
+  const PAPER_SCALE = 2;
+  const STEPS = Object.freeze([0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]);
   const MIN = STEPS[0];
   const MAX = STEPS[STEPS.length - 1];
 
@@ -37,9 +41,12 @@
     root.SigK.viewerControls?.syncAll(el.doc, root.SigK.viewer.getState());
   }
 
-  // CSS で寸法を掛ける所（「変換する画像」の帯の枠。strips.css）のために、倍率を html の --paper-zoom に置く。
+  // 画面上の大きさの倍率（表示する倍率×PAPER_SCALE）。
+  const scale = () => state.zoom * PAPER_SCALE;
+
+  // CSS で寸法を掛ける所（「変換する画像」の帯の枠。strips.css）のために、画面上の大きさの倍率を html の --paper-zoom に置く。
   function setCssZoom() {
-    el?.doc.documentElement.style.setProperty('--paper-zoom', String(state.zoom));
+    el?.doc.documentElement.style.setProperty('--paper-zoom', String(scale()));
   }
 
   // anchor（{ clientX, clientY }）の下の紙を動かさずに倍率を変える。渡さなければ帯の画面の左上を動かさない。
@@ -101,8 +108,9 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.toolsZoom = {
-    STEPS, MIN, MAX, init, set, zoomIn, zoomOut, reset, canZoom, handleKey, syncToolbar, isToolsMode,
+    PAPER_SCALE, STEPS, MIN, MAX, init, set, zoomIn, zoomOut, reset, canZoom, handleKey, syncToolbar, isToolsMode,
     get: () => state.zoom,
+    scale,
     onChange: (listener) => listeners.push(listener),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

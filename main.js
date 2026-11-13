@@ -2017,7 +2017,7 @@ function installSmokeCheck(win, mode) {
             const board = document.querySelector('#split-board-canvas .sb-sheet');
             const image = document.querySelector('#image-strip-items .img-thumb');
             return {
-              zoom: window.SigK.toolsZoom.get(), text: document.getElementById('zoom-value').textContent,
+              zoom: window.SigK.toolsZoom.get(), text: document.getElementById('zoom-value').value,
               sheet: sheet === null ? null : [sheet.style.width, sheet.style.height],
               board: board === null ? null : [board.style.width, board.style.height],
               image: image === null ? null : [image.getBoundingClientRect().width, image.getBoundingClientRect().height],

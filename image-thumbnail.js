@@ -17,7 +17,8 @@ const { MAX_IMAGE_BYTES } = require('./image-io.js');
 const THUMB_PX = 208;
 // 2026-10-23 から、枠はツールモードの紙の倍率（50〜300%。docs/07 決定83）で大きくなるので、画面は 208px 刻みで大きいものを頼める
 // （300%・画素比 2 で 624px）。画面から届いた値は、この刻みと上限に収めてから使う（大きすぎる縮小を作らせない）。
-const MAX_THUMB_PX = THUMB_PX * 3;
+// 2026-11-13（docs/07 決定93。spec-7-6 確定事項ZT1）: ツールモードの 100% を前の 200% の大きさにしたので、上限を 2 倍にした（300%・画素比 2 で 1248px）。
+const MAX_THUMB_PX = THUMB_PX * 6;
 
 function thumbSize(requested) {
   const value = Number(requested);

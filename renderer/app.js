@@ -206,6 +206,8 @@
     root.SigK.tabs.init(doc, win);
     root.SigK.recentPanel.init(doc, win);
     root.SigK.fileDrop.init(doc, win);
+    // 倍率の入力欄（spec-7-6 確定事項ZI1）。表示は viewer-controls.js の syncZoom がそろえる。
+    root.SigK.zoomInput.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
     root.SigK.viewerWheel.init(doc, win);
     showAppVersion(doc);

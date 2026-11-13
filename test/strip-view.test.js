@@ -43,11 +43,12 @@ test('出すと、タブの並びのとおりに帯を並べ、選んでいる�
   assert.equal(disabled(button(first, 'up')), true);
   assert.equal(disabled(button(first, 'down')), false);
   assert.equal(disabled(button(third, 'down')), true);
-  assert.equal(second.style.height, '188px');
+  // 決定93 で 100% を前の 200% の大きさにしたので、帯の高さは 100% で 292px、紙の高さは 208px（spec-7-6 確定事項ZT1）。
+  assert.equal(second.style.height, '292px');
   const pages = second.querySelectorAll('.strip-page');
   assert.equal(pages.length, SigK.tabs.peek(SigK.tabs.list()[1].id).sizes.length);
   assert.equal(pages[0].querySelector('.cap').textContent, '1');
-  assert.equal(pages[0].querySelector('.sheet').style.height, '104px');
+  assert.equal(pages[0].querySelector('.sheet').style.height, '208px');
   assert.equal(document.getElementById('strip-drop').classList.contains('big'), false);
   assert.equal(document.querySelector('#strips').lastElementChild.id, 'strip-drop', '受け口はいちばん下');
 });

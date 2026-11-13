@@ -520,6 +520,14 @@
     return setZoom(fitZoomFor(mode), { fit: mode });
   }
 
+  // 開いた直後の倍率（spec-7-6 確定事項ZV1・ZV2。spec-1-1 確定事項8 の「幅に合わせる」を改めた）。100% で開く。画像だけは、100% で
+  // ページ表示に収まらない（［全体］の倍率が 100% より小さい）ときに［全体］で開く。PDF は大きなページでも 100%。
+  function applyOpeningZoom() {
+    if (root.SigK.imageTab?.isImageFile(state.file) === true && fitZoomFor('page') < 1)
+      return applyFit('page');
+    return setZoom(1);
+  }
+
   // 単ページ／見開きの切り替え（spec-2-3 確定事項3・4）。呼ぶのは shell.js で、
   // 覚えるのもそちらである。現在ページを保ったまま配置し直し、追従中なら
   // 倍率も計算し直す（2枚に合わせるので約半分になる）。
@@ -917,8 +925,8 @@
     // 配置し直さないため、2つ目の文書が1つ目と同じ倍率になると（同じ紙の
     // 大きさなら普通に起こる）ページの位置と寸法が空のまま残ってしまう。
     applyLayout();
-    // 用紙サイズを知らなくても読める幅で出す（spec-1-1 確定事項8）。
-    applyFit('width');
+    // 100% で開く。はみ出す画像だけ［全体］（spec-7-6 確定事項ZV1・ZV2）。
+    applyOpeningZoom();
     el.view.scrollTop = 0;
     root.SigK.shell.setStatus(el.doc, {
       file: source.name,

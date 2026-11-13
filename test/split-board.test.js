@@ -165,6 +165,8 @@ test('選ぶと選んだときの操作の行が出て、書き出さない・�
 
 test('狭い箱（幅 420px 未満）は見出しを 2 行にし、書き出さない札は出さない（ページの札で分かる）', async (t) => {
   const shell = await withSource(t, { pages: 6 });
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  shell.SigK.toolsZoom.set(0.5);
   edit(shell).cut(3);
   edit(shell).select(1);
   edit(shell).skip();
@@ -224,10 +226,12 @@ test('［元に戻す］［やり直す］は盤の操作を 1 つずつ戻し�
 test('盤の「大きさ 小・中・大」は無く、ツールバーの［＋］で盤の紙が大きくなる', async (t) => {
   const shell = await withSource(t);
   assert.equal(shell.document.getElementById('split-size'), null, '「大きさ」の切り替えが残っている');
-  assert.equal($(shell, '.sb-sheet').style.width, '104px');
+  // 決定93 で 100% を前の 200% の大きさにしたので、盤の紙の幅は 100% で 208px（spec-7-6 確定事項ZT1）。盤が読むのは
+  // 画面上の大きさの倍率（表示する倍率×2）なので、［＋］で 125% にすると 2.5。
+  assert.equal($(shell, '.sb-sheet').style.width, '208px');
   $(shell, '#zoom-in').click();
-  assert.equal(shell.SigK.splitThumbs.zoom(), 1.25);
-  assert.equal($(shell, '.sb-sheet').style.width, '130px');
+  assert.equal(shell.SigK.splitThumbs.zoom(), 2.5);
+  assert.equal($(shell, '.sb-sheet').style.width, '260px');
 });
 
 test('1,000 ページを 1 ページずつにしても、盤の DOM は見えている所の分だけ', async (t) => {
@@ -298,7 +302,8 @@ test('実行中は盤の操作と段と選んだときの操作の行を受け�
   $(shell, '.sb-join').click();
   assert.deepEqual(plain(shell.SigK.toolsSplit.currentPlan().parts), [[0], [1, 2]]);
   $(shell, '#zoom-out').click();
-  assert.equal(shell.SigK.splitThumbs.zoom(), 0.75);
+  // 盤が読むのは画面上の大きさの倍率（表示する倍率 90% の 2 倍。決定93）。
+  assert.equal(shell.SigK.splitThumbs.zoom(), 1.8);
   release({ ok: true, written: 2, targets: [] });
   await running;
   assert.equal($(shell, '#split-every').disabled, false);
@@ -391,7 +396,9 @@ test('✂・［前のファイルと結合］・選んだときの操作の行�
 test('大きな画面で見えているページが上限を超えるときは、見えている分を全部描く（決定79 ①）', async (t) => {
   const shell = await withSource(t, { pages: 1000 });
   sizeBoard(shell, { width: 2000, height: 1120 });
-  shell.SigK.toolsZoom.set(0.75);
+  // 決定93 で 100% が前の 200% の大きさになったので、いちばん小さい 50%（前の 100% と同じ大きさ）で確かめる。
+  // 上限は画面上の大きさの倍率で数える（spec-7-6 確定事項ZT3）。
+  shell.SigK.toolsZoom.set(0.5);
   await settle(shell);
   const view = shell.SigK.splitBoardView;
   const layout = shell.SigK.splitLayout;
@@ -401,7 +408,7 @@ test('大きな画面で見えているページが上限を超えるときは�
     if (rect.y + rect.height > 0 && rect.y < 1120)
       visible.push(page);
   }
-  assert.ok(visible.length > layout.renderCap(0.75), `見えているのは ${visible.length} 枚`);
+  assert.ok(visible.length > layout.renderCap(shell.SigK.splitThumbs.zoom()), `見えているのは ${visible.length} 枚`);
   const drawn = new Set(shell.SigK.splitThumbs.getState().drawn);
   assert.deepEqual(visible.filter((page) => !drawn.has(page)), [], '見えているのに描いていないページは無い');
 });

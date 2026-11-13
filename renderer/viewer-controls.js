@@ -37,9 +37,10 @@
   const toolsZoom = (doc) => (root.SigK.toolsZoom?.isToolsMode(doc) === true ? root.SigK.toolsZoom : null);
 
   function syncZoom(doc, state) {
+    // 倍率の入力欄（zoom-input.js）。入力している途中は上書きしない。
     const value = doc.getElementById('zoom-value');
-    if (value !== null)
-      value.textContent = root.SigK.viewerLayout.formatZoom(toolsZoom(doc)?.get() ?? state.zoom);
+    if (value !== null && root.SigK.zoomInput?.isEditing() !== true)
+      value.value = root.SigK.viewerLayout.formatZoom(toolsZoom(doc)?.get() ?? state.zoom);
 
     for (const [id, mode] of [['btn-fit-width', 'width'], ['btn-fit-page', 'page']]) {
       const node = doc.getElementById(id);
@@ -59,10 +60,13 @@
     // 帯の紙の倍率は、紙が 1 枚でもあれば変えられる（「変換する画像」の帯だけのときも）。
     if (toolsZoom(doc) !== null)
       setEnabled(doc, 'zoom', toolsZoom(doc).canZoom());
-    // 灰色の間はページ番号の欄にも打たせない。
+    // 灰色の間はページ番号の欄と倍率の欄にも打たせない（spec-7-6 確定事項ZI4）。
     const input = doc.getElementById('page-current');
     if (input !== null)
       input.disabled = doc.getElementById('pager')?.getAttribute('aria-disabled') === 'true';
+    const zoomInput = doc.getElementById('zoom-value');
+    if (zoomInput !== null)
+      zoomInput.disabled = doc.getElementById('zoom')?.getAttribute('aria-disabled') === 'true';
     syncPage(doc, state);
     syncZoom(doc, state);
     // ページ編集のボタン（回転・削除・元に戻す）もここで揃える。文書を開く・

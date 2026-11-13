@@ -27,11 +27,12 @@ test('段送りは上限と下限で止まる', () => {
   assert.equal(layout.prevZoom(10), 8);
   assert.equal(layout.prevZoom(0.1), 0.1);
   assert.equal(layout.nextZoom(1), 1.25);
-  assert.equal(layout.prevZoom(1), 0.75);
+  // 100% の下は 10% 刻み（spec-7-6 確定事項ZS1）。
+  assert.equal(layout.prevZoom(1), 0.9);
 });
 
-test('25% の下は 20・15・10% を 1 段ずつ送る（spec-4b-7a 確定事項G1。段は 400% の上の 4 段を入れて 20）', () => {
-  assert.equal(layout.ZOOM_STEPS.length, 20);
+test('25% の下は 20・15・10% を 1 段ずつ送る（spec-4b-7a 確定事項G1。段は 400% の上の 4 段と 33〜100% の 10% 刻みを入れて 23）', () => {
+  assert.equal(layout.ZOOM_STEPS.length, 23);
   assert.equal(layout.MAX_ZOOM, 10);
   assert.equal(layout.MIN_ZOOM, 0.1);
   assert.equal(layout.prevZoom(0.25), 0.2);

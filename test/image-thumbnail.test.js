@@ -40,11 +40,11 @@ test('画像の縮小を data URL で返す。頼む大きさは 208px 四方（
 });
 
 // ツールモードの紙の倍率（50〜300%。docs/07 決定83）で枠が大きくなるので、画面は大きい縮小を頼める。画面から届いた値は 208px 刻み・
-// 上限 624px（300%・画素比 2）に収める。数でないもの・208 以下は 208。
-test('頼まれた大きさは 208px 刻みに切り上げ、624px で止める', async () => {
-  assert.equal(MAX_THUMB_PX, 624);
-  assert.deepEqual([undefined, null, 'abc', -1, 100, 208, 209, 416, 500, 624, 1000, Infinity].map(thumbSize),
-    [208, 208, 208, 208, 208, 208, 416, 416, 624, 624, 624, 208]);
+// 上限 1248px（300%・画素比 2。ツールモードの 100% は前の 200% の大きさ。決定93）に収める。数でないもの・208 以下は 208。
+test('頼まれた大きさは 208px 刻みに切り上げ、1248px で止める', async () => {
+  assert.equal(MAX_THUMB_PX, 1248);
+  assert.deepEqual([undefined, null, 'abc', -1, 100, 208, 209, 416, 500, 624, 1000, 1248, 2000, Infinity].map(thumbSize),
+    [208, 208, 208, 208, 208, 208, 416, 416, 624, 624, 1040, 1248, 1248, 208]);
   const nativeImageLike = fakeNativeImage();
   await createThumbnail(PNG, { nativeImageLike, size: thumbSize(416) });
   assert.deepEqual(nativeImageLike.calls, [{ filePath: PNG, wanted: { width: 416, height: 416 } }]);

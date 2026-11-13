@@ -10,7 +10,8 @@
   // 足りなくなった画像は頼み直し、届くまでは前のものを使う（枠いっぱいに引き伸ばして見せる）。
 
   const PARALLEL = 2;
-  // 作る大きさの刻み（メインの image-thumbnail.js の THUMB_PX・thumbSize と同じ）。100% の枠の幅 104px×画素比 2。
+  // 作る大きさの刻み（メインの image-thumbnail.js の THUMB_PX・thumbSize と同じ）。画面上の大きさの倍率 1（表示する倍率 50%。決定93）の
+  // 枠の幅 104px×画素比 2。
   const STEP_PX = 208;
   const cache = new Map();
   const pending = new Set();
@@ -20,9 +21,10 @@
 
   const validPaths = (paths) => (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
 
-  // 今の倍率で要る大きさ。枠の幅 104px×倍率×画素比を、STEP_PX 刻みで切り上げる（100% なら画素比 2 まで 208px）。
+  // 今の倍率で要る大きさ。枠の幅 104px×画面上の大きさの倍率（表示する倍率×2。決定93）×画素比を、STEP_PX 刻みで切り上げる
+  // （100% なら画素比 2 まで 416px）。
   function wantedPx() {
-    const zoom = root.SigK.toolsZoom?.get() ?? 1;
+    const zoom = root.SigK.toolsZoom?.scale() ?? 1;
     const ratio = Math.min(2, Math.max(1, root.devicePixelRatio || 1));
     return STEP_PX * Math.max(1, Math.ceil((root.SigK.imageStripZoom?.ITEM_WIDTH ?? 104) * zoom * ratio / STEP_PX));
   }

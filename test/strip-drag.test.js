@@ -25,6 +25,8 @@ async function withStrips(t, { taskResults = [] } = {}) {
     await shell.SigK.tabs.openPath(filePath);
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('merge');
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  shell.SigK.toolsZoom.set(0.5);
   await shell.flush();
   placeStrips(shell);
   return shell;

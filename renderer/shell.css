@@ -87,7 +87,14 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
 }
 .zoom .step{font-size:15px}
 .pager .step:hover,.zoom .step:hover{background:var(--surface); color:var(--text)}
-.zoom .val{min-width:48px; text-align:center; font-variant-numeric:tabular-nums}
+/* 倍率の入力欄（spec-7-6 確定事項ZI1）。ふだんは今までの数字と同じ見た目で、フォーカスがあるときだけ白い欄にする。 */
+.zoom .val{
+  width:52px; padding:0 2px; border:1px solid transparent; border-radius:4px; background:transparent; color:var(--text);
+  font:inherit; text-align:center; font-variant-numeric:tabular-nums;
+}
+.zoom .val:hover:not(:disabled){border-color:var(--border)}
+.zoom .val:focus{outline:none; background:var(--surface); border-color:var(--accent)}
+.zoom .val:disabled{color:inherit}
 .spacer{flex:1}
 /* 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにし、すき間を詰めて、幅 960 の窓（最小の大きさ）でも
    ツールバーを 1 列に収める（spec-2-5 確定事項B5・K2。見本 screenshots/strips1-view-hand-960.png）。名前は data-tip（説明の吹き出し）と aria-label に残る。 */

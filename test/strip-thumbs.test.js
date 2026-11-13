@@ -6,7 +6,8 @@ const assert = require('node:assert/strict');
 const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
 
 // 帯の紙の描き方（spec-2-5 確定事項D8。危ない所「メモリ」）。描くのは見えている帯と紙（先読みを含む）だけで、全部の帯の合計で
-// 160 枚まで、同時に 2 本まで。jsdom には 2D コンテキストが無いので canvas は null だが、持っている数と手放しは同じ経路で見られる。
+// 160 枚まで（ツールモードの倍率 50% のとき。100% では 40 枚。決定93）、同時に 2 本まで。jsdom には 2D コンテキストが無いので canvas は null だが、
+// 持っている数と手放しは同じ経路で見られる。
 
 const A4 = { width: 595, height: 842 };
 const pathOf = (index) => `C:\\work\\f${String(index).padStart(2, '0')}.pdf`;
@@ -41,6 +42,8 @@ const keys = (SigK) => [...SigK.stripThumbs.getState().keys];
 test('出した帯の、見えている紙と左右の先読みだけを描く', async (t) => {
   const shell = await withTabs(t, { count: 3, pages: 40 });
   const { SigK } = shell;
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  SigK.toolsZoom.set(0.5);
   SigK.strips.setShown(true);
   await settle(shell);
   const ids = SigK.tabs.list().map((tab) => tab.id);
@@ -59,9 +62,11 @@ test('出した帯の、見えている紙と左右の先読みだけを描く',
   assert.ok(keys(SigK).includes(`${ids[1]}:0`), 'ほかの帯は動かない');
 });
 
-test('帯 20 本・各 100 ページでも、持つのは 160 枚まで、同時に描くのは 2 本まで。隠すと全部手放す', async (t) => {
+test('帯 20 本・各 100 ページでも、持つのは 160 枚まで（倍率 50%）、同時に描くのは 2 本まで。隠すと全部手放す', async (t) => {
   const shell = await withTabs(t, { count: 20, pages: 100 });
   const { SigK, document, pdfjs } = shell;
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  SigK.toolsZoom.set(0.5);
   SigK.strips.setShown(true);
   const seen = await settle(shell);
   assert.ok(seen.pending <= 2, `同時に ${seen.pending} 本`);

@@ -28,6 +28,8 @@ async function createInputShell(t, { pages = 12 } = {}) {
   canvas.getBoundingClientRect = () => ({ top: -strips.scrollTop, left: 0, right: 640, bottom: 500, width: 640, height: 500 });
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('split');
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  shell.SigK.toolsZoom.set(0.5);
   await shell.SigK.tabs.openPath(A);
   for (let i = 0; i < 4; i += 1)
     await shell.flush();

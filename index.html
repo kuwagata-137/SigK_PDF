@@ -69,7 +69,9 @@ body{
     <div class="tb-sep"></div>
     <div class="zoom" id="zoom" aria-disabled="true">
       <div class="step" id="zoom-out" data-tip="bar.zoomOut" aria-label="縮小">−</div>
-      <div class="val" id="zoom-value">100%</div>
+      <!-- 倍率の入力欄（spec-7-6 確定事項ZI1〜ZI4。zoom-input.js）。ページ番号の欄と同じく、Enter キーかほかの所のクリックで確定する。
+           文字を打つ欄なので、ツールチップは付けない（spec-2-5 確定事項J17）。 -->
+      <input class="val" id="zoom-value" type="text" inputmode="numeric" size="5" value="100%" aria-label="表示倍率">
       <div class="step" id="zoom-in" data-tip="bar.zoomIn" aria-label="拡大">＋</div>
     </div>
     <div class="tb-btn" id="btn-fit-width" aria-disabled="true" data-tip="bar.fitWidth" aria-label="幅に合わせる"><span data-icon="fitWidth"></span>幅</div>
@@ -1241,6 +1243,7 @@ body{
 <script src="renderer/viewer-keys.js"></script>
 <script src="renderer/wheel-zoom.js"></script>
 <script src="renderer/viewer-wheel.js"></script>
+<script src="renderer/zoom-input.js"></script>
 <script src="renderer/viewer-controls.js"></script>
 <script src="renderer/app.js"></script>
 </body>
