@@ -33,10 +33,10 @@ function pageNodes(document) {
   return [...document.querySelectorAll('#view-pages .pdf-page')];
 }
 
-// 印刷の 150dpi 描画だけを抜き出す。ページビューとサムネイルは別の倍率で
-// 同じスタブを呼ぶため、倍率で切り分ける。
-function printCalls(pdfjs, SigK) {
-  return pdfjs.viewportCalls.filter((call) => call.scale === SigK.print.PRINT_SCALE);
+// 印刷で描いたページ（元のページの番号と回転）。ページビューとサムネイルも同じスタブを呼ぶので、印刷の準備が返す
+// rendered（print-job.js・spec-7-7）で見る。
+function printCalls(result) {
+  return [...result.rendered].map((entry) => ({ page: entry.sourcePage, rotation: entry.rotation }));
 }
 
 function sizeOf(node) {
@@ -242,44 +242,44 @@ test('編集してもサムネイルのスクロール位置は残る（確定�
 // ---- 印刷（確定事項39・48） ----
 
 test('印刷は編集後の並びを紙に出す', async (t) => {
-  const { SigK, pdfjs } = await withOpenDocument(t);
+  const { SigK } = await withOpenDocument(t);
 
   const moved = SigK.pagePlan.movePages(SigK.viewer.getPlan(), [2], 0);
   SigK.viewer.applyPlan(moved.plan);
 
-  pdfjs.viewportCalls.length = 0;
-  await SigK.print.prepare({ mode: 'all' });
+  SigK.print.open();
+  const result = await SigK.print.prepare({ mode: 'all' });
 
-  assert.deepEqual(printCalls(pdfjs, SigK).map((call) => call.page), [3, 1, 2]);
+  assert.deepEqual(printCalls(result).map((call) => call.page), [3, 1, 2]);
 });
 
 // getViewport を回転なしで呼んでいた4か所目。落とすと「画面では回っているのに
 // 印刷は回っていない」が起きる。
 test('印刷の画像にも回転が載る（確定事項39）', async (t) => {
-  const { SigK, pdfjs } = await withOpenDocument(t);
+  const { SigK } = await withOpenDocument(t);
 
   SigK.viewer.applyPlan(SigK.pagePlan.rotatePages(SigK.viewer.getPlan(), [0], 90));
 
-  pdfjs.viewportCalls.length = 0;
+  SigK.print.open();
   const result = await SigK.print.prepare({ mode: 'custom', text: '1' });
 
-  assert.equal(printCalls(pdfjs, SigK)[0].rotation, 90);
+  assert.equal(printCalls(result)[0].rotation, 90);
   // 縦横が入れ替わる。
-  assert.ok(result.images[0].width > result.images[0].height, '印刷の画像が縦のままである');
+  assert.ok(result.rendered[0].width > result.rendered[0].height, '印刷の画像が縦のままである');
 });
 
 test('元ページの /Rotate に相対角度を足す', async (t) => {
-  const { SigK, pdfjs } = await withOpenDocument(t, {
+  const { SigK } = await withOpenDocument(t, {
     pdfjs: createPdfjsStub({ sizes: [A4, A4], rotations: [90, 0] }),
   });
 
   // 90 度回っているページをさらに右へ90度。
   SigK.viewer.applyPlan(SigK.pagePlan.rotatePages(SigK.viewer.getPlan(), [0], 90));
 
-  pdfjs.viewportCalls.length = 0;
-  await SigK.print.prepare({ mode: 'custom', text: '1' });
+  SigK.print.open();
+  const result = await SigK.print.prepare({ mode: 'custom', text: '1' });
 
-  assert.equal(printCalls(pdfjs, SigK)[0].rotation, 180);
+  assert.equal(printCalls(result)[0].rotation, 180);
 });
 
 // ---- タブごとの編集内容（確定事項7） ----

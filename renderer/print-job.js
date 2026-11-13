@@ -75,7 +75,7 @@
       const region = source.view ? R().within(source.view, part) : part;
       const full = region.x <= 1e-9 && region.y <= 1e-9 && region.width >= 1 - 1e-9 && region.height >= 1 - 1e-9;
       const box = full ? (entry?.crop ?? null) : R().regionBox(entry?.crop ?? page.view, rotation, region);
-      return root.SigK.printComments.renderPage(doc, page, {
+      const drawn = await root.SigK.printComments.renderPage(doc, page, {
         mode,
         src: entry?.src,
         annotations: await annotationsOf(source.number, page),
@@ -86,6 +86,8 @@
         mosaic: entry?.mosaic ?? null,
         maxPixels: root.SigK.pageImage.MAX_CANVAS_PIXELS,
       });
+      // 試験と起動確認のために、描いた回転・範囲・倍率も返す（spec-1-5 確定事項39・spec-4b-6a 確定事項25）。
+      return { ...drawn, rotation, box, scale: pxPerPt, sourcePage: page.pageNumber ?? null };
     };
   }
 
@@ -135,6 +137,36 @@
     return { ok: true, jobs, rendered, sheets: plan.sheets.length };
   }
 
+  // 配置を作り、シートの画像を作って、最初の印刷の分を #print-area に並べる（印刷の手前まで）。isAlive() が false になったら
+  // { canceled: true }。戻り値の rendered は描いたページの部分（試験と起動確認が見る）。
+  async function prepareImages(doc, area, job, { isAlive = () => true, onProgress } = {}) {
+    await root.SigK.freeTextShape?.ensureLoaded(doc);
+    const plan = planFor(doc, job);
+    if (plan.error !== undefined)
+      return { error: plan.error };
+    const startedAt = root.performance?.now?.() ?? 0;
+    let built = null;
+    try {
+      built = await buildImages(doc, plan, job, { isAlive, onProgress });
+    } catch (error) {
+      root.SigK.log?.report({ level: 'error', message: error?.message ?? String(error), stack: error?.stack, context: { source: 'print' } });
+      return { error: 'ページを画像に変換できませんでした。' };
+    }
+    if (built.canceled === true || !isAlive())
+      return { canceled: true };
+    const placed = root.SigK.printSend.fillArea(doc, area, built.jobs[0]);
+    await root.SigK.printSend.waitForImages(area);
+    if (!isAlive()) {
+      area.replaceChildren();
+      return { canceled: true };
+    }
+    const images = built.jobs.flatMap((entry) => entry.images.map(({ bytes }) => ({ bytes })));
+    return {
+      ok: true, pages: job.pages, placed, sheets: built.sheets, jobs: built.jobs, duplexMode: plan.duplexMode, rendered: built.rendered, images,
+      elapsedMs: Math.round((root.performance?.now?.() ?? 0) - startedAt),
+    };
+  }
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.printJob = { PRINT_DPI, visibleFraction, pageDescriptors, partRenderer, labelMaker, planFor, buildImages };
+  SigK.printJob = { PRINT_DPI, visibleFraction, pageDescriptors, partRenderer, labelMaker, planFor, buildImages, prepareImages };
 })(typeof window !== 'undefined' ? window : globalThis);

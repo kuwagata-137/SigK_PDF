@@ -87,13 +87,13 @@
   // 枠に最も大きく収まる置き方。autoRotate なら、90 度回した方が大きい時に回す（各シート内でページを自動回転(W)）。
   function placeFitted(page, box, { autoRotate = false, alignX, alignY, border = false } = {}) {
     if (page === null)
-      return { page: null, ...place({ width: 0, height: 0 }, 1, box, { alignX, alignY }), border: false, clip: null };
+      return { page: null, source: null, ...place({ width: 0, height: 0 }, 1, box, { alignX, alignY }), border: false, clip: null };
     const size = pageSize(page);
     const straight = fitScale(size.width, size.height, box);
     const turned = fitScale(size.height, size.width, box);
     const rotation = autoRotate && turned > straight + 1e-9 ? 90 : 0;
     const scale = rotation === 90 ? turned : straight;
-    return { page: page.number, ...place(size, scale, box, { rotation, alignX, alignY }), border, clip: null };
+    return { page: page.number, source: page, ...place(size, scale, box, { rotation, alignX, alignY }), border, clip: null };
   }
 
   function fitsPaper(size, paper) {

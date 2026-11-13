@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="renderer/tool-pane.css">
 <link rel="stylesheet" href="renderer/tip.css">
 <link rel="stylesheet" href="renderer/settings-dialog.css">
+<link rel="stylesheet" href="renderer/print-dialog.css">
 <style>
 :root{
   --bg:#eef1f5; --surface:#ffffff; --surface-2:#eff2f6;
@@ -778,28 +779,230 @@ body{
        ユーザーの指示。test/dialog-button-order.test.js）。最初のフォーカスは下の段の並びに頼らない（確認の窓は各 confirm-*.js が
        id で当て、パスワードは入力欄、印刷は showModal が見出しの［×］へ当てる）。 -->
 
-  <!-- 印刷（spec-1-4 確定事項34〜37）。文書情報と同じ作法・同じ意匠のモーダル
-       にする。モーダルなので、準備している間の背後の操作は自然に塞がれる。 -->
-  <dialog id="print-dialog">
-    <div class="dlg-head">
-      <span>印刷</span>
-      <button type="button" class="dlg-x" id="print-close" data-icon="close" data-icon-size="14" data-icon-stroke="2" data-tip="dialog.close" aria-label="閉じる"></button>
+  <!-- 印刷画面（docs/spec-7-7-print-dialog.md・決定94）。Acrobat Reader の［印刷］ダイアログと同じ構成・文言・配置にする
+       （ユーザーの画面写真 2 枚。寸法は約 863 × 545）。文言の (N) などはアクセスキー（Alt＋文字）。注釈は書き込みのこと（質問 PR2）。
+       モーダルなので、準備している間の背後の操作は自然に塞がれる。 -->
+  <dialog id="print-dialog" class="pd" aria-labelledby="print-title">
+    <div class="pd-title" id="print-titlebar">
+      <span id="print-title">印刷</span>
+      <button type="button" class="pd-x" id="print-close" data-icon="close" data-icon-size="14" data-icon-stroke="1.6" data-tip="dialog.close" aria-label="閉じる"></button>
     </div>
-    <div class="dlg-body">
-      <p class="dlg-label">印刷範囲</p>
-      <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-all" checked>すべてのページ</label>
-      <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-current">現在のページ</label>
-      <label class="print-choice"><input type="radio" name="print-mode" id="print-mode-custom">ページ指定</label>
-      <input type="text" id="print-pages" class="print-pages" placeholder="例: 1-5, 8" aria-label="印刷ページ" autocomplete="off">
-      <p class="print-error" id="print-error" hidden></p>
-      <div class="print-progress" id="print-progress" hidden>
-        <div class="print-bar"><div class="print-bar-fill" id="print-bar"></div></div>
-        <span id="print-progress-text"></span>
+    <div class="pd-top">
+      <label class="pd-at pd-l-printer" for="print-printer">プリンター(<u>N</u>) :</label>
+      <select class="pd-select" id="print-printer" data-key="n"></select>
+      <button type="button" class="pd-btn pd-at" id="print-props" data-key="p">プロパティ(<u>P</u>)</button>
+      <button type="button" class="pd-btn pd-at" id="print-advanced" disabled data-tip="print.advanced">詳細設定(<u>D</u>)</button>
+      <button type="button" class="pd-link pd-at" id="print-help" data-key="h">ヘルプ(<u>H</u>)</button>
+      <span class="pd-q pd-at pd-l-q" aria-hidden="true">?</span>
+      <label class="pd-at pd-l-copies" for="print-copies">部数(<u>C</u>) :</label>
+      <input type="text" class="pd-input pd-at" id="print-copies" inputmode="numeric" autocomplete="off" value="1" data-key="c">
+      <span class="pd-spin pd-at pd-l-spin">
+        <button type="button" id="print-copies-up" tabindex="-1" aria-label="部数を増やす"></button>
+        <button type="button" id="print-copies-down" tabindex="-1" aria-label="部数を減らす"></button>
+      </span>
+      <label class="pd-check pd-at pd-c-gray"><input type="checkbox" id="print-gray" data-key="y"><span>グレースケール (白黒) で印刷(<u>Y</u>)</span></label>
+      <label class="pd-check pd-at pd-c-ink"><input type="checkbox" id="print-ink"><span>インク / トナーを節約</span></label>
+      <span class="pd-info pd-at" id="print-ink-info" tabindex="0" data-tip="print.inkInfo" aria-label="インク / トナーを節約の説明">i</span>
+    </div>
+    <div class="pd-main">
+      <div class="pd-left">
+        <section class="pd-sec pd-sec-range">
+          <h3 class="pd-row pd-head">印刷するページ</h3>
+          <div class="pd-row">
+            <label class="pd-radio pd-w110"><input type="radio" name="print-range" id="print-range-all" value="all" checked data-key="a"><span>すべて(<u>A</u>)</span></label>
+            <label class="pd-radio pd-w138"><input type="radio" name="print-range" id="print-range-current" value="current" data-key="u"><span>現在のページ(<u>U</u>)</span></label>
+            <label class="pd-radio pd-w117"><input type="radio" name="print-range" id="print-range-custom" value="custom" data-key="g"><span>ページ指定(<u>G</u>)</span></label>
+            <input type="text" class="pd-input pd-pages" id="print-pages" aria-label="ページ指定" autocomplete="off">
+          </div>
+          <p class="pd-error" id="print-error" hidden></p>
+          <div class="pd-row"><button type="button" class="pd-more" id="print-more" aria-expanded="false" aria-controls="print-more-body"><span class="pd-tri"></span>詳細オプション</button></div>
+          <div class="pd-more-body" id="print-more-body" hidden>
+            <div class="pd-row"><label class="pd-radio"><input type="radio" name="print-range" id="print-range-view" value="view" data-key="v"><span>現在の表示範囲(<u>V</u>)</span></label></div>
+            <div class="pd-row">
+              <label class="pd-w130" for="print-parity">偶数または奇数ページ :</label>
+              <select class="pd-select pd-flow pd-w192" id="print-parity">
+                <option value="all">範囲内のすべてのページ</option>
+                <option value="odd">奇数ページのみ</option>
+                <option value="even">偶数ページのみ</option>
+              </select>
+            </div>
+            <div class="pd-row"><label class="pd-check"><input type="checkbox" id="print-reverse" data-key="e"><span>逆順に印刷(<u>E</u>)</span></label></div>
+          </div>
+        </section>
+        <section class="pd-sec pd-sec-handling">
+          <h3 class="pd-row pd-head">ページサイズ処理<span class="pd-info pd-info-head" id="print-handling-info" tabindex="0" data-tip="print.handlingInfo" aria-label="ページサイズ処理の説明">i</span></h3>
+          <div class="pd-handling" role="group" aria-label="ページサイズ処理">
+            <button type="button" class="pd-btn pd-tab" id="print-handling-size" data-handling="size" aria-pressed="true" data-key="i">サイズ(<u>I</u>)</button>
+            <button type="button" class="pd-btn pd-tab" id="print-handling-poster" data-handling="poster" aria-pressed="false">ポスター</button>
+            <button type="button" class="pd-btn pd-tab" id="print-handling-multiple" data-handling="multiple" aria-pressed="false">複数</button>
+            <button type="button" class="pd-btn pd-tab" id="print-handling-booklet" data-handling="booklet" aria-pressed="false">小冊子</button>
+          </div>
+          <div class="pd-panel" id="print-panel-size" data-panel="size">
+            <div class="pd-row pd-row26">
+              <label class="pd-radio pd-w136"><input type="radio" name="print-fit" id="print-fit-fit" value="fit" checked data-key="f"><span>合わせる(<u>F</u>)</span></label>
+              <label class="pd-radio"><input type="radio" name="print-fit" id="print-fit-actual" value="actual"><span>実際のサイズ</span></label>
+            </div>
+            <div class="pd-row pd-row26">
+              <label class="pd-radio pd-w136"><input type="radio" name="print-fit" id="print-fit-shrink" value="shrink"><span>特大ページを縮小</span></label>
+              <label class="pd-radio pd-w114"><input type="radio" name="print-fit" id="print-fit-custom" value="custom"><span>カスタム倍率 :</span></label>
+              <input type="text" class="pd-input pd-num" id="print-fit-scale" value="100" aria-label="カスタム倍率" autocomplete="off"><span class="pd-unit">%</span>
+            </div>
+            <div class="pd-row pd-row26 pd-gap4"><label class="pd-check"><input type="checkbox" id="print-choose-paper" data-key="z"><span>PDF のページサイズに合わせて用紙を選択(<u>Z</u>)</span></label></div>
+          </div>
+          <div class="pd-panel" id="print-panel-poster" data-panel="poster" hidden>
+            <div class="pd-row pd-row26">
+              <label class="pd-w50" for="print-poster-scale">倍率 :</label>
+              <input type="text" class="pd-input pd-num" id="print-poster-scale" value="100" autocomplete="off"><span class="pd-unit pd-w46">%</span>
+              <label class="pd-w50" for="print-poster-overlap">重なり :</label>
+              <input type="text" class="pd-input pd-num" id="print-poster-overlap" value="0" autocomplete="off"><span class="pd-unit">mm</span>
+            </div>
+            <div class="pd-row pd-row26">
+              <label class="pd-check pd-w136"><input type="checkbox" id="print-poster-marks" data-key="k"><span>タイルマーク(<u>K</u>)</span></label>
+              <label class="pd-check"><input type="checkbox" id="print-poster-labels"><span>ラベル</span></label>
+            </div>
+            <div class="pd-row pd-row26 pd-gap4"><label class="pd-check"><input type="checkbox" id="print-poster-large"><span>大きいページのみを分割</span></label></div>
+          </div>
+          <div class="pd-panel" id="print-panel-multiple" data-panel="multiple" hidden>
+            <div class="pd-row pd-row26">
+              <label class="pd-w113" for="print-multi-count">1 枚あたりのページ数 :</label>
+              <select class="pd-select pd-flow pd-w96" id="print-multi-count">
+                <option value="2">2</option><option value="4">4</option><option value="6">6</option><option value="9">9</option><option value="16">16</option>
+                <option value="custom">カスタム...</option>
+              </select>
+              <input type="text" class="pd-input pd-num-s" id="print-multi-cols" value="2" aria-label="1 枚あたりの列の数" autocomplete="off">
+              <span class="pd-times">x</span>
+              <input type="text" class="pd-input pd-num-s" id="print-multi-rows" value="1" aria-label="1 枚あたりの行の数" autocomplete="off">
+            </div>
+            <div class="pd-row pd-row26">
+              <label class="pd-w113" for="print-multi-order">ページの順序 :</label>
+              <select class="pd-select pd-flow pd-w192" id="print-multi-order">
+                <option value="horizontal">横</option><option value="horizontalReversed">横（右から左）</option>
+                <option value="vertical">縦</option><option value="verticalReversed">縦（右から左）</option>
+              </select>
+            </div>
+            <div class="pd-row pd-row26 pd-gap4"><label class="pd-check"><input type="checkbox" id="print-multi-border"><span>ページ境界線を印刷</span></label></div>
+          </div>
+          <div class="pd-panel" id="print-panel-booklet" data-panel="booklet" hidden>
+            <div class="pd-row pd-row26">
+              <label class="pd-w113" for="print-booklet-method">小冊子の印刷方法 :</label>
+              <select class="pd-select pd-flow pd-w192" id="print-booklet-method">
+                <option value="both">両面で印刷</option><option value="front">片面で印刷（表側）</option><option value="back">片面で印刷（裏側）</option>
+              </select>
+            </div>
+            <div class="pd-row pd-row26">
+              <label class="pd-w113" for="print-booklet-from">開始ページ :</label>
+              <input type="text" class="pd-input pd-num" id="print-booklet-from" value="1" autocomplete="off">
+              <label class="pd-w78 pd-ml16" for="print-booklet-to">終了ページ :</label>
+              <input type="text" class="pd-input pd-num" id="print-booklet-to" value="1" autocomplete="off">
+            </div>
+            <div class="pd-row pd-row26 pd-gap4">
+              <label class="pd-w113" for="print-booklet-binding">綴じ方 :</label>
+              <select class="pd-select pd-flow pd-w192" id="print-booklet-binding">
+                <option value="left">左</option><option value="right">右</option><option value="leftTall">縦長左</option><option value="rightTall">縦長右</option>
+              </select>
+            </div>
+          </div>
+        </section>
+        <section class="pd-sec pd-sec-orient">
+          <div class="pd-row" id="print-duplex-row"><label class="pd-check"><input type="checkbox" id="print-duplex" data-key="b"><span>用紙の両面に印刷(<u>B</u>)</span></label></div>
+          <div class="pd-row pd-indent" id="print-flip-row" hidden>
+            <label class="pd-radio pd-w136"><input type="radio" name="print-flip" id="print-flip-long" value="longEdge" checked><span>長辺を綴じる</span></label>
+            <label class="pd-radio"><input type="radio" name="print-flip" id="print-flip-short" value="shortEdge"><span>短辺を綴じる</span></label>
+          </div>
+          <p class="pd-row">向き :</p>
+          <div class="pd-row">
+            <label class="pd-radio pd-w80" id="print-orient-auto-label"><input type="radio" name="print-orient" id="print-orient-auto" value="auto" checked><span>自動</span></label>
+            <label class="pd-radio pd-w66"><input type="radio" name="print-orient" id="print-orient-portrait" value="portrait"><span>縦</span></label>
+            <label class="pd-radio"><input type="radio" name="print-orient" id="print-orient-landscape" value="landscape"><span>横</span></label>
+          </div>
+          <div class="pd-row" id="print-autorotate-row" hidden><label class="pd-check"><input type="checkbox" id="print-autorotate" data-key="w"><span>各シート内でページを自動回転(<u>W</u>)</span></label></div>
+        </section>
+        <section class="pd-sec pd-sec-comments">
+          <h3 class="pd-row pd-head pd-head-comments"><label for="print-comments">注釈とフォーム(<u>M</u>)</label></h3>
+          <div class="pd-row pd-row-comments">
+            <select class="pd-select pd-flow pd-comments" id="print-comments" data-key="m" data-tip="print.comments">
+              <option value="markups">文書と注釈</option><option value="document">文書</option>
+              <option value="stamps">文書とスタンプ</option><option value="forms">フォームフィールドのみ</option>
+            </select>
+            <button type="button" class="pd-btn pd-summary" id="print-summary" aria-pressed="false" data-key="t" data-tip="print.summary">注釈の一覧(<u>T</u>)</button>
+          </div>
+        </section>
+      </div>
+      <div class="pd-preview" id="print-preview">
+        <p class="pd-pv-scale" id="print-preview-scale"></p>
+        <p class="pd-pv-size" id="print-preview-size"></p>
+        <div class="pd-pv-paper" id="print-preview-paper"></div>
+        <p class="pd-pv-status" id="print-preview-status" hidden></p>
+        <button type="button" class="pd-btn pd-pv-prev" id="print-preview-prev" aria-label="前の用紙">&lt;</button>
+        <input type="range" class="pd-pv-slider" id="print-preview-slider" min="1" max="1" value="1" aria-label="プレビューの用紙">
+        <button type="button" class="pd-btn pd-pv-next" id="print-preview-next" aria-label="次の用紙">&gt;</button>
+        <p class="pd-pv-count" id="print-preview-count"></p>
       </div>
     </div>
-    <div class="dlg-foot">
-      <button type="button" class="dlg-btn primary" id="print-run">印刷…</button>
-      <button type="button" class="dlg-btn" id="print-cancel">閉じる</button>
+    <div class="pd-foot dlg-foot">
+      <button type="button" class="pd-btn pd-setup" id="print-setup" data-key="s">ページ設定(<u>S</u>)...</button>
+      <button type="button" class="pd-btn pd-default" id="print-run">印刷</button>
+      <button type="button" class="pd-btn" id="print-cancel">キャンセル</button>
+    </div>
+  </dialog>
+
+  <!-- ページ設定（spec-7-7 質問 PR3 ②）。Windows のページ設定画面と同じ構成。給紙方法は「自動選択」だけ（プリンターの既定のトレイ）、
+       余白は灰色（印刷可能領域はプリンターから取得する）。 -->
+  <dialog id="print-setup-dialog" class="pd pd-sub" aria-labelledby="print-setup-title">
+    <div class="pd-title">
+      <span id="print-setup-title">ページ設定</span>
+      <button type="button" class="pd-x" id="print-setup-close" data-icon="close" data-icon-size="14" data-icon-stroke="1.6" data-tip="dialog.close" aria-label="閉じる"></button>
+    </div>
+    <div class="ps-body">
+      <div class="ps-preview"><div class="ps-paper" id="print-setup-paper"></div></div>
+      <fieldset class="ps-group">
+        <legend>用紙</legend>
+        <div class="ps-row"><label for="print-setup-size">サイズ(<u>Z</u>):</label><select class="pd-select pd-flow" id="print-setup-size" data-key="z"></select></div>
+        <div class="ps-row"><label for="print-setup-source">給紙方法(<u>S</u>):</label><select class="pd-select pd-flow" id="print-setup-source" disabled><option>自動選択</option></select></div>
+      </fieldset>
+      <div class="ps-cols">
+        <fieldset class="ps-group ps-orient">
+          <legend>印刷の向き</legend>
+          <label class="pd-radio"><input type="radio" name="print-setup-orient" id="print-setup-portrait" value="portrait" checked data-key="o"><span>縦(<u>O</u>)</span></label>
+          <label class="pd-radio"><input type="radio" name="print-setup-orient" id="print-setup-landscape" value="landscape" data-key="a"><span>横(<u>A</u>)</span></label>
+        </fieldset>
+        <fieldset class="ps-group ps-margins" disabled>
+          <legend>余白 (ミリ)</legend>
+          <label>左(<u>L</u>):<input type="text" class="pd-input" value="25" aria-label="左の余白"></label>
+          <label>右(<u>R</u>):<input type="text" class="pd-input" value="25" aria-label="右の余白"></label>
+          <label>上(<u>T</u>):<input type="text" class="pd-input" value="25" aria-label="上の余白"></label>
+          <label>下(<u>B</u>):<input type="text" class="pd-input" value="25" aria-label="下の余白"></label>
+        </fieldset>
+      </div>
+    </div>
+    <div class="pd-foot dlg-foot">
+      <button type="button" class="pd-btn pd-default" id="print-setup-ok">OK</button>
+      <button type="button" class="pd-btn" id="print-setup-cancel">キャンセル</button>
+    </div>
+  </dialog>
+
+  <!-- 注釈の一覧(T) の確認（Acrobat の確認画面と同じ文言。肯定を左）。 -->
+  <dialog id="print-summary-confirm" class="pd pd-sub" aria-labelledby="print-summary-title">
+    <div class="pd-title">
+      <span id="print-summary-title">SigK PDF</span>
+      <button type="button" class="pd-x" id="print-summary-close" data-icon="close" data-icon-size="14" data-icon-stroke="1.6" data-tip="dialog.close" aria-label="閉じる"></button>
+    </div>
+    <div class="pc-body"><span class="pc-icon" aria-hidden="true">?</span><p id="print-summary-text">印刷する文書に注釈の一覧テキストを含めますか？</p></div>
+    <div class="pd-foot dlg-foot">
+      <button type="button" class="pd-btn pd-default" id="print-summary-yes" data-key="y">はい(<u>Y</u>)</button>
+      <button type="button" class="pd-btn" id="print-summary-no" data-key="n">いいえ(<u>N</u>)</button>
+    </div>
+  </dialog>
+
+  <!-- 印刷の進行状況（spec-7-7 確定事項C6）。［印刷］を押すと印刷画面を閉じて、これを表示する。 -->
+  <dialog id="print-progress-dialog" class="pd pd-sub" aria-labelledby="print-progress-title">
+    <div class="pd-title"><span id="print-progress-title">印刷</span></div>
+    <div class="pp-body">
+      <p id="print-progress-text"></p>
+      <div class="pp-bar"><div class="pp-bar-fill" id="print-bar"></div></div>
+    </div>
+    <div class="pd-foot dlg-foot">
+      <button type="button" class="pd-btn" id="print-progress-cancel">キャンセル</button>
     </div>
   </dialog>
 
@@ -965,6 +1168,7 @@ body{
 <script src="renderer/tip-content-view.js"></script>
 <script src="renderer/tip-content-edit.js"></script>
 <script src="renderer/tip-content-tools.js"></script>
+<script src="renderer/tip-content-print.js"></script>
 <script src="renderer/tip-view.js"></script>
 <script src="renderer/tip-rules.js"></script>
 <script src="renderer/tip.js"></script>
@@ -1158,6 +1362,15 @@ body{
 <script src="renderer/print-sheet-render.js"></script>
 <script src="renderer/print-job.js"></script>
 <script src="renderer/print-send.js"></script>
+<script src="renderer/print-settings.js"></script>
+<script src="renderer/print-dialog.js"></script>
+<script src="renderer/print-dialog-input.js"></script>
+<script src="renderer/print-dialog-keys.js"></script>
+<script src="renderer/print-preview.js"></script>
+<script src="renderer/print-page-setup.js"></script>
+<script src="renderer/print-progress.js"></script>
+<script src="renderer/print-printers.js"></script>
+<script src="renderer/print-actions.js"></script>
 <script src="renderer/print.js"></script>
 <script src="renderer/tool-switch.js"></script>
 <script src="renderer/pointer-mode-rules.js"></script>

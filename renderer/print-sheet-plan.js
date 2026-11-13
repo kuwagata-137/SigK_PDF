@@ -38,7 +38,7 @@
       const scale = sizeScale(fit, size, sheet.area, custom);
       const toArea = fit === 'fit' || (fit === 'shrink' && scale < 1);
       const box = toArea ? sheet.area : { x: 0, y: 0, width: sheet.width, height: sheet.height };
-      const item = { page: page.number, ...G().place(size, scale, box), border: false, clip: null };
+      const item = { page: page.number, source: page, ...G().place(size, scale, box), border: false, clip: null };
       return { ...sheet, items: [item], scalePercent: G().percent(scale) };
     });
     return { sheets, duplexMode: null };

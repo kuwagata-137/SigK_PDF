@@ -14,7 +14,11 @@ const A = 'C:\\work\\a.pdf';
 
 // 窓ごとの、下の段のボタン（左から）。[id, 見出し]。
 const ORDER = {
-  'print-dialog': [['print-run', '印刷…'], ['print-cancel', '閉じる']],
+  // 印刷画面は Acrobat の［印刷］ダイアログと同じ（spec-7-7）。左端の［ページ設定(S)...］は別の画面を開くボタンで、肯定と取りやめの並びの外。
+  'print-dialog': [['print-setup', 'ページ設定(S)...'], ['print-run', '印刷'], ['print-cancel', 'キャンセル']],
+  'print-setup-dialog': [['print-setup-ok', 'OK'], ['print-setup-cancel', 'キャンセル']],
+  'print-summary-confirm': [['print-summary-yes', 'はい(Y)'], ['print-summary-no', 'いいえ(N)']],
+  'print-progress-dialog': [['print-progress-cancel', 'キャンセル']],
   'confirm-overwrite': [['confirm-overwrite-ok', '上書き'], ['confirm-overwrite-cancel', 'キャンセル']],
   'password-prompt': [['password-prompt-ok', '開く'], ['password-prompt-cancel', 'キャンセル']],
   'confirm-extract': [['confirm-extract-ok', '抽出'], ['confirm-extract-cancel', 'キャンセル']],
@@ -75,13 +79,14 @@ test('並べ替えても、確認の窓が最初にフォーカスを当てる�
   }
 });
 
-// 印刷の窓はコードでフォーカスを当てず、showModal が見出しの［×］へ当てる。下の段を並べ替えても［×］のまま。
-test('印刷の窓の最初のフォーカスは、見出しの［×］のまま', async (t) => {
+// 印刷画面は、Acrobat と同じくプリンターの一覧にフォーカスを当てる（ユーザーの画面写真 1。spec-7-7）。
+test('印刷画面の最初のフォーカスは、プリンターの一覧', async (t) => {
   const shell = await withShell(t);
   await shell.SigK.viewer.open(makeSource({ path: A }));
   await shell.flush();
   assert.equal(shell.SigK.print.open(), true);
+  assert.equal(shell.document.activeElement?.id, 'print-printer');
   const dialog = shell.document.getElementById('print-dialog');
-  assert.equal(firstFocusable(dialog).id, 'print-close');
+  assert.equal(firstFocusable(dialog).id, 'print-close', '木の順では題名バーの［×］が先（Tab の順は Acrobat と同じく見た目の順）');
   shell.document.getElementById('print-cancel').click();
 });

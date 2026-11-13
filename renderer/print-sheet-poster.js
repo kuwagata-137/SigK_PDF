@@ -48,7 +48,7 @@
   function layoutPage(page, sheetBase, settings) {
     const scale = G().clampNumber(settings.scale ?? 100, 1, 1000, 100) / 100;
     const area = sheetBase.area;
-    const pageItem = (box, rotation) => ({ page: page.number, ...G().place(G().pageSize(page), scale, box, { rotation }), border: false, clip: null });
+    const pageItem = (box, rotation) => ({ page: page.number, source: page, ...G().place(G().pageSize(page), scale, box, { rotation }), border: false, clip: null });
     if (settings.largeOnly === true) {
       const size = sizeAt(page, scale, 0);
       if (size.width <= area.width + 1e-6 && size.height <= area.height + 1e-6)

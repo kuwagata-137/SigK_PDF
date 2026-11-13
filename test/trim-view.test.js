@@ -69,10 +69,12 @@ test('印刷は切った範囲で描く', async (t) => {
   await flush();
   SigK.print.open();
   const prepared = await SigK.print.prepare({ mode: 'current' });
-  const scale = SigK.print.PRINT_SCALE;
   assert.equal(prepared.ok, true);
-  assert.equal(prepared.images[0].width, Math.round(300 * scale));
-  assert.equal(prepared.images[0].height, Math.round(400 * scale));
+  // 切った範囲（300 × 400 pt）を描く範囲として渡し、用紙に合わせた倍率で描く（spec-7-7）。縦横の比は切った範囲のまま。
+  const [drawn] = prepared.rendered;
+  assert.deepEqual([...drawn.box], CROP);
+  assert.equal(drawn.width, Math.round(300 * drawn.scale));
+  assert.equal(drawn.height, Math.round(400 * drawn.scale));
 });
 
 test('紙の範囲（テキストの自動の幅の上限）は切った範囲を返す', async (t) => {

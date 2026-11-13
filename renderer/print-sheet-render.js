@@ -129,7 +129,9 @@
         if (visible === null)
           continue;
         const drawn = await renderPart(item.source, visible.part, (dpi / 72) * item.scale);
-        rendered.push({ page: item.page, width: drawn.width, height: drawn.height });
+        rendered.push({
+          page: item.page, sourcePage: drawn.sourcePage, width: drawn.width, height: drawn.height, rotation: drawn.rotation, box: drawn.box ?? null, scale: drawn.scale,
+        });
         if (target !== null && drawn.canvas !== null)
           paste(target.ctx, drawn.canvas, rectPx(visible.dest, dpi), item.rotation, { grayscale, inkSave });
         root.SigK.pageImage.release(drawn.canvas);

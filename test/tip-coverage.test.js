@@ -14,6 +14,7 @@ require('../renderer/tip-content.js');
 require('../renderer/tip-content-view.js');
 require('../renderer/tip-content-edit.js');
 require('../renderer/tip-content-tools.js');
+require('../renderer/tip-content-print.js');
 
 const { tipContent } = globalThis.SigK;
 const INDEX_PATH = path.resolve(__dirname, '..', 'index.html');
@@ -33,6 +34,9 @@ const STATIC_TARGETS = [
   ['#find-case', 'find.case'], ['#find-prev', 'find.prev'], ['#find-next', 'find.next'], ['#find-close', 'find.close'],
   ['#status-file', 'status.file'], ['#doc-info-close', 'dialog.close'], ['#help-close', 'dialog.close'], ['#print-close', 'dialog.close'], ['#settings-close', 'dialog.close'],
   ['#color-dialog-close', 'dialog.close'],
+  // 印刷画面（spec-7-7）。
+  ['#print-advanced', 'print.advanced'], ['#print-ink-info', 'print.inkInfo'], ['#print-handling-info', 'print.handlingInfo'],
+  ['#print-comments', 'print.comments'], ['#print-summary', 'print.summary'], ['#print-setup-close', 'dialog.close'], ['#print-summary-close', 'dialog.close'],
   ['#split-zoom-close', 'zoom.close'], ['#split-zoom-prev', 'zoom.prev'], ['#split-zoom-next', 'zoom.next'],
   ...TOOLS.map((tool) => [`.edit-tool[data-tool="${tool}"]`, `edit.${tool}`]),
   ...SHAPES.map((shape) => [`.edit-tool[data-shape="${shape}"]`, `edit.${shape}`]),

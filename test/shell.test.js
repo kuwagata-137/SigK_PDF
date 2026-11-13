@@ -47,8 +47,8 @@ test('index.html が読み込むスタイルシートはすべて実在する', 
 
   // split-board.css は分割の盤（spec-2-2b）、strips.css・tool-pane.css はツールモードの帯の画面と右の欄（spec-2-5 第 D・E 章）、
   // strip-drag.css は帯のページを引いて落とす間の見た目（spec-2-5 第 I 章）、tip.css は説明の吹き出し（spec-2-5 第 J 章）、
-  // settings-dialog.css は設定の窓（spec-6-1 タスク E）。
-  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css', 'renderer/strip-drag.css', 'renderer/tool-pane.css', 'renderer/tip.css', 'renderer/settings-dialog.css']);
+  // settings-dialog.css は設定の窓（spec-6-1 タスク E）、print-dialog.css は印刷画面（spec-7-7）。
+  assert.deepEqual(hrefs, ['renderer/shell.css', 'renderer/text-layer.css', 'renderer/split-board.css', 'renderer/strips.css', 'renderer/strip-drag.css', 'renderer/tool-pane.css', 'renderer/tip.css', 'renderer/settings-dialog.css', 'renderer/print-dialog.css']);
   for (const href of hrefs)
     assert.ok(fs.existsSync(path.join(ROOT, ...href.split('/'))), `${href} が無い`);
 });
@@ -238,9 +238,13 @@ test('検索バーと印刷ダイアログの部品が揃っている', async (t
   for (const id of ['find-input', 'find-count', 'find-case', 'find-prev', 'find-next', 'find-close'])
     assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
 
-  for (const id of ['print-dialog', 'print-area', 'print-mode-all', 'print-mode-current',
-    'print-mode-custom', 'print-pages', 'print-error', 'print-progress', 'print-bar',
-    'print-run', 'print-cancel'])
+  // 印刷画面は Acrobat の［印刷］ダイアログと同じ構成（spec-7-7）。ページ設定・注釈の一覧の確認・進行状況画面は別の窓。
+  for (const id of ['print-dialog', 'print-area', 'print-printer', 'print-props', 'print-advanced', 'print-help', 'print-copies',
+    'print-gray', 'print-ink', 'print-range-all', 'print-range-current', 'print-range-custom', 'print-range-view', 'print-pages',
+    'print-error', 'print-more', 'print-parity', 'print-reverse', 'print-handling-size', 'print-handling-poster',
+    'print-handling-multiple', 'print-handling-booklet', 'print-duplex', 'print-orient-auto', 'print-orient-portrait',
+    'print-orient-landscape', 'print-autorotate', 'print-comments', 'print-summary', 'print-preview', 'print-setup',
+    'print-run', 'print-cancel', 'print-setup-dialog', 'print-summary-confirm', 'print-progress-dialog', 'print-bar'])
     assert.notEqual(document.getElementById(id), null, `#${id} が無い`);
 
   // 印刷用のコンテナは #app の外に置く。@media print で #app ごと隠すため。

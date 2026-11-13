@@ -9,6 +9,7 @@ require('../renderer/tip-content.js');
 require('../renderer/tip-content-view.js');
 require('../renderer/tip-content-edit.js');
 require('../renderer/tip-content-tools.js');
+require('../renderer/tip-content-print.js');
 
 const { tipContent } = globalThis.SigK;
 const node = (key, extra = {}) => ({ dataset: { tip: key, ...extra } });
@@ -36,12 +37,14 @@ const EXPECTED_KEYS = [
   'edit.highlight.image', 'edit.underline.image', 'edit.strikeout.image', 'edit.note.image',
   // 編集モードのボタン列の［左回転］［右回転］（spec-7-4）。代わりに［選択］［ハンド］の edit.select・edit.hand を外した（確定事項C3）。
   'edit.rotateLeft', 'edit.rotateRight',
+  // 印刷画面の ⓘ・［詳細設定(D)］・注釈とフォーム(M)・［注釈の一覧(T)］（spec-7-7）。
+  'print.advanced', 'print.inkInfo', 'print.handlingInfo', 'print.comments', 'print.summary',
 ];
 
 // 歯車のボタン（bar.settings）は spec-6-1 タスク E で、画像のタブで灰色にした道具の 4 個は spec-7-1 で足した。spec-7-4 で 2 個を外し、2 個を足した。
-test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個（spec-7-4 で 2 個を替えた）と過不足なく一致する（組み込みの text を除く）', () => {
+test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個（spec-7-4 で 2 個を替えた）と印刷画面の 5 個（spec-7-7）と過不足なく一致する（組み込みの text を除く）', () => {
   assert.deepEqual([...tableKeys()].sort(), [...EXPECTED_KEYS].sort());
-  assert.equal(EXPECTED_KEYS.length, 89);
+  assert.equal(EXPECTED_KEYS.length, 94);
 });
 test('どの鍵にも名前と説明があり、説明は「。」で終わる 100 字以内の文', () => {
   for (const key of tableKeys()) {
@@ -166,12 +169,15 @@ test('add は重なる鍵を見つけたら 1 つも足さない（新しい鍵�
   assert.equal(tipContent.keyList().includes('test.atomic'), false);
   assert.equal(tipContent.resolve(node('bar.open')).name, '開く');
 });
-test('文に「注釈」（「注釈一覧」を除く）と「ツールチップ」を使わない', () => {
+// 印刷画面の欄の名前は Acrobat と同じ「注釈」を使い、ツールチップで書き込みのことだと書く（決定94・質問 PR2）。その名前と「注釈（書き込み）」は除く。
+const ACROBAT_TERMS = ['注釈とフォーム', '注釈の一覧', '文書と注釈', '注釈（書き込み）'];
+test('文に「注釈」（「注釈一覧」と、印刷画面の Acrobat の欄の名前を除く）と「ツールチップ」を使わない', () => {
   const all = tableKeys().map((key) => {
     const e = tipContent.resolve(node(key, { tipFile: 'a.pdf' }));
     return `${e.name}\n${e.desc}\n${e.keysNote ?? ''}`;
   }).join('\n');
-  assert.equal(all.replaceAll('注釈一覧', '').includes('注釈'), false);
+  const rest = ACROBAT_TERMS.reduce((text, term) => text.replaceAll(term, ''), all.replaceAll('注釈一覧', ''));
+  assert.equal(rest.includes('注釈'), false);
   assert.equal(all.includes('ツールチップ'), false);
 });
 test('足した鍵は引ける。関数の値は、出す瞬間に要素を渡して呼ぶ', () => {
