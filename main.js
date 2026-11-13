@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, protocol, screen, session, shell, utilityProcess } = require('electron');
+const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -32,6 +33,8 @@ const { createTaskRunner } = require('./task-runner.js');
 const { parseLaunchArgs } = require('./launch-args.js');
 const { createLaunchBatcher } = require('./launch-batch.js');
 const { openDefaultAppsSettings } = require('./default-apps-link.js');
+const { createPrinterConfig } = require('./printer-config.js');
+const { buildPrintSettings } = require('./print-job-options.js');
 const { smokeWindowMode } = require('./smoke-window.js');
 const smokeRewrite = require('./smoke-rewrite.js');
 const smokeSplit = require('./smoke-split.js');
@@ -535,16 +538,45 @@ function registerIpc() {
     return { ok: true, ui: uiForRenderer() };
   });
 
-  // 印刷（spec-1-4 確定事項28〜30）。レンダラーが印刷用のコンテナへ画像を
-  // 並べ終えてから呼ぶ。silent: false が OS の印刷ダイアログを出す経路である。
+  // 印刷画面のプリンターの一覧・既定のプリンター・プリンターごとの用紙などの初期値・印刷設定の画面
+  // （spec-7-7 確定事項C3・質問 PR1 案A）。プリンター名は、一覧にあるものだけを外部のコマンドへ渡す。
+  const printers = createPrinterConfig({ execFile, spawn, logError });
+  const knownPrinter = async (contents, name) => {
+    if (typeof name !== 'string' || name === '')
+      return false;
+    const list = await contents.getPrintersAsync().catch(() => []);
+    return list.some((printer) => printer.name === name);
+  };
+  ipcMain.handle('print:listPrinters', async (event) => {
+    const [list, defaultName] = await Promise.all([
+      event.sender.getPrintersAsync().catch((err) => {
+        logError({ message: 'プリンターの一覧を取得できませんでした', stack: err?.stack, context: { where: 'print:listPrinters' } });
+        return [];
+      }),
+      printers.defaultPrinter(),
+    ]);
+    return { ok: true, printers: list.map(({ name, displayName }) => ({ name, displayName: displayName || name })), defaultName };
+  });
+  ipcMain.handle('print:printerConfig', async (event, name) => {
+    if (!(await knownPrinter(event.sender, name)))
+      return { ok: false, reason: 'unknown' };
+    return printers.config(name);
+  });
+  ipcMain.handle('print:openPreferences', async (event, name) => {
+    if (!(await knownPrinter(event.sender, name)))
+      return { ok: false, reason: 'unknown' };
+    const opened = await printers.openPreferences(name);
+    if (opened.ok !== true)
+      return opened;
+    return { ok: true, config: await printers.config(name) };
+  });
+
+  // 印刷（spec-1-4 確定事項28〜30・spec-7-7）。レンダラーが印刷用のコンテナへ用紙 1 枚ぶんずつの画像を
+  // 並べ終えてから呼ぶ。印刷画面の［印刷］は silent: true で、選んだプリンターへ直接送る（質問 PR1 案A）。
   // 取り消しは失敗ではないので、理由を見て分けて返す。
   ipcMain.handle('print:run', (event, options = {}) => new Promise((resolve) => {
     const contents = event.sender;
-    const settingsForPrint = {
-      silent: options?.silent === true,
-      printBackground: true,
-      deviceName: typeof options?.deviceName === 'string' ? options.deviceName : undefined,
-    };
+    const settingsForPrint = buildPrintSettings(options);
     try {
       contents.print(settingsForPrint, (success, reason) => {
         const canceled = success !== true && /cancel/i.test(String(reason ?? ''));
