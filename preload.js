@@ -108,7 +108,7 @@ contextBridge.exposeInMainWorld('taskAPI', {
 // **onLaunch を呼んでから ready() を送ること。**購読を始める前にメインが送ると取りこぼす。メイン側は ready を受けるまで要求を溜めている。
 contextBridge.exposeInMainWorld('shellAPI', {
   available: true,
-  // { intent: 'open'|'merge'|'split'|'toPdf', paths: string[], batch: { id, first } }
+  // { intent: 'open'|'merge'|'split'|'toPdf'|'editImage', paths: string[], batch: { id, first } }
   onLaunch: (callback) => {
     ipcRenderer.removeAllListeners('shell:launch');
     ipcRenderer.on('shell:launch', (_event, request) => callback(request));

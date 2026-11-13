@@ -14,7 +14,7 @@
   // 読むのは tool-source.js の inspectImage（メインの image-io.js が先頭バイトだけ見る）。文言の続き「外してください」はこちらで足す。
   async function inspect(filePath) {
     const info = await root.SigK.toolSource.inspectImage(filePath);
-    return info.ok === true ? info : { error: `${info.error}。外してください` };
+    return info.ok === true ? info : { error: `${info.error}。削除してください` };
   }
 
   const validPaths = (paths) => (paths ?? []).filter((filePath) => typeof filePath === 'string' && filePath !== '');
@@ -45,7 +45,7 @@
     async function addPaths(paths, { batch = null, limitNotice = true } = {}) {
       // 実行中・保存中は足さない（並びが実行した中身と食い違う。点検で見つけた。受け口の［ファイルを開く…］・ドロップから届く）。
       if (state.running || root.SigK.save?.isBusy() === true) {
-        banner().show('変換の実行中は、画像を足せません。終わってから足してください。', { tone: 'warn' });
+        banner().show('変換中は、画像を追加できません。変換が終了してから追加してください。', { tone: 'warn' });
         return [];
       }
       const incoming = validPaths(paths);

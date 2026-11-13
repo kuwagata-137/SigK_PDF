@@ -109,6 +109,19 @@ test('画像→PDF は画像 7 拡張子を受け、PDF は受けない（spec-5
     'PDF は画像→PDF に渡せない（右クリックの項目も画像にしか出ない）');
 });
 
+test('画像を編集する（--edit-image）は画像 7 拡張子を受け、混ぜて届いた PDF は捨てる（spec-7-3 確定事項C1）', () => {
+  const photo = 'C:\\work\\photo.png';
+  const scan = 'C:\\work\\scan.JPG';
+  assert.deepEqual(parseLaunchArgs([EXE, '--edit-image', photo, scan], only(photo, scan)),
+    { intent: 'editImage', paths: [photo, scan] });
+  assert.deepEqual(parseLaunchArgs([EXE, '--edit-image', A, photo], only(A, photo)),
+    { intent: 'editImage', paths: [photo] }, 'PDF は画像の編集に渡せない');
+  // second-instance の argv の形（スイッチが前へ寄り、Electron のスイッチが差し込まれる。確定事項73）。
+  assert.deepEqual(parseLaunchArgs([EXE, '--edit-image', '--allow-file-access-from-files', photo], only(photo)),
+    { intent: 'editImage', paths: [photo] });
+  assert.deepEqual([...EXTENSIONS.editImage].sort(), [...EXTENSIONS.toPdf].sort());
+});
+
 test('画像→PDF の拡張子は、変換画面のファイル選択（image-io.js）と同じ一覧である', () => {
   const { IMAGE_FILTERS } = require('../image-io.js');
   const picker = IMAGE_FILTERS.flatMap((filter) => filter.extensions).map((ext) => `.${ext}`);

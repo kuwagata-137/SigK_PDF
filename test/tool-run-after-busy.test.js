@@ -28,7 +28,7 @@ const CENSUS = {
 const TOOLS = [
   // 結合する PDF は帯（＝タブ）。開くと結合の行に既定でチェックが入る（spec-2-5 確定事項E2）。
   { id: 'merge', label: '結合', api: 'toolsMerge', button: 'merge-run', ready: (SigK) => SigK.tabs.openPath(B) },
-  // 分割の対象も選んでいる帯（spec-2-5 確定事項G1）。開いた帯を 1 ページずつに分ける。
+  // 分割の対象も選んでいる帯（spec-2-5 確定事項G1）。開いた帯を 1 ページずつ分割。
   {
     id: 'split', label: '分割', api: 'toolsSplit', button: 'split-run',
     ready: async (SigK) => {

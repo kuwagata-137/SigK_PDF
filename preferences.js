@@ -17,9 +17,14 @@ const TOOL_VALUES_MAX = 4000;
 // フォルダが今あるかを確かめるのを待つ上限（ミリ秒）。届かないネットワークのフォルダは「無い」とする。
 const FOLDER_CHECK_TIMEOUT_MS = 1500;
 
+// backupBeforeOverwrite は、上書き保存の前に元のファイルの控え（名前.pdf.bak・名前.png.bak）を作るか。2026-11-12 に既定を作らないへ
+// 改めた（spec-7-4 確定事項BK1。質問 BK1 の答え「案A チェック欄を残す」）。前の鍵 makeBackup に保存されている「作る」を引き継がず、
+// 今までの設定も作らないへ切り替えるため、鍵の名前を替えた（前の鍵は知らない値として捨てる）。
+// confirmImageOverwrite は、画像のタブを上書き保存する前に確認画面を表示するか（spec-7-4 確定事項CF1〜CF3）。
 const PREFERENCE_DEFAULTS = Object.freeze({
   outputFolder: Object.freeze({ mode: 'source', fixed: null, last: null }),
-  makeBackup: true,
+  backupBeforeOverwrite: false,
+  confirmImageOverwrite: true,
   rememberToolValues: true,
   rememberLastTool: true,
   toolValues: Object.freeze({}),
@@ -56,7 +61,8 @@ function mergePreferences(raw) {
       fixed: pickFolder(folder.fixed),
       last: pickFolder(folder.last),
     },
-    makeBackup: pickBoolean(source.makeBackup, PREFERENCE_DEFAULTS.makeBackup),
+    backupBeforeOverwrite: pickBoolean(source.backupBeforeOverwrite, PREFERENCE_DEFAULTS.backupBeforeOverwrite),
+    confirmImageOverwrite: pickBoolean(source.confirmImageOverwrite, PREFERENCE_DEFAULTS.confirmImageOverwrite),
     rememberToolValues: pickBoolean(source.rememberToolValues, PREFERENCE_DEFAULTS.rememberToolValues),
     rememberLastTool: pickBoolean(source.rememberLastTool, PREFERENCE_DEFAULTS.rememberLastTool),
     toolValues: pickToolValues(source.toolValues),

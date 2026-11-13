@@ -8,8 +8,8 @@
   const ITEM_WIDTH = 104;
   const GAP = 12;
 
-  // 画像 1 枚ぶんの横の幅（枠＋間）。100% で 116px。
-  const itemStep = () => Math.round(ITEM_WIDTH * (root.SigK.toolsZoom?.get() ?? 1)) + GAP;
+  // 画像 1 枚ぶんの横の幅（枠＋間）。画面上の大きさの倍率（表示する倍率×2。決定93）を掛けるので、100% で 220px。
+  const itemStep = () => Math.round(ITEM_WIDTH * (root.SigK.toolsZoom?.scale() ?? 1)) + GAP;
 
   // 見えている画像 [first, last)（左右に prefetch 枚の先読み）。幅が分からない（隠れている・テスト）ときは 8 枚分と見る。
   function visible(items, count, prefetch) {

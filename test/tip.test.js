@@ -54,7 +54,7 @@ test('対象の上に止めると、待ち時間のあとで名前・説明・�
   assert.equal(tip.getAttribute('role'), 'tooltip');
   assert.equal(tip.parentElement, document.body);
   assert.equal(tipText(shell, '.tip-name'), '上書き保存');
-  assert.equal(tipText(shell, '.tip-desc'), '開いているファイルに、今の変更を書き込みます。元の中身は「名前.pdf.bak」として残ります。');
+  assert.equal(tipText(shell, '.tip-desc'), '開いているファイルに、現在の変更内容を上書き保存します。設定画面でチェックを外しているので、バックアップファイル（名前.pdf.bak）は作成しません。');
   assert.deepEqual(kbds(shell), ['Ctrl+S']);
   assert.equal(tipText(shell, '.tip-keys'), 'キー: Ctrl+S');
   assert.equal(save.getAttribute('aria-describedby'), 'tip');
@@ -105,8 +105,8 @@ test('灰色で押せないボタンにも、同じ中身で出す（決定80 �
   over(shell, redo);
   await sleep(shell, 60);
   assert.equal(shell.SigK.tip.isShown(), true);
-  assert.equal(tipText(shell, '.tip-name'), 'やり直し');
-  assert.equal(tipText(shell, '.tip-desc'), '元に戻した変更を、もう一度当てます。');
+  assert.equal(tipText(shell, '.tip-name'), 'やり直す');
+  assert.equal(tipText(shell, '.tip-desc'), '元に戻した変更を、もう一度適用します。');
   assert.deepEqual(kbds(shell), ['Ctrl+Y', 'Ctrl+Shift+Z']);
   assert.equal(tipText(shell, '.tip-keys'), 'キー: Ctrl+Y／Ctrl+Shift+Z');
 });

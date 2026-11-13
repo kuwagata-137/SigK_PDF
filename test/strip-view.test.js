@@ -43,11 +43,12 @@ test('出すと、タブの並びのとおりに帯を並べ、選んでいる�
   assert.equal(disabled(button(first, 'up')), true);
   assert.equal(disabled(button(first, 'down')), false);
   assert.equal(disabled(button(third, 'down')), true);
-  assert.equal(second.style.height, '188px');
+  // 決定93 で 100% を前の 200% の大きさにしたので、帯の高さは 100% で 292px、紙の高さは 208px（spec-7-6 確定事項ZT1）。
+  assert.equal(second.style.height, '292px');
   const pages = second.querySelectorAll('.strip-page');
   assert.equal(pages.length, SigK.tabs.peek(SigK.tabs.list()[1].id).sizes.length);
   assert.equal(pages[0].querySelector('.cap').textContent, '1');
-  assert.equal(pages[0].querySelector('.sheet').style.height, '104px');
+  assert.equal(pages[0].querySelector('.sheet').style.height, '208px');
   assert.equal(document.getElementById('strip-drop').classList.contains('big'), false);
   assert.equal(document.querySelector('#strips').lastElementChild.id, 'strip-drop', '受け口はいちばん下');
 });
@@ -106,7 +107,7 @@ test('帯が 1 本も無いときは大きな受け口に最近使ったファ�
   SigK.strips.setShown(true);
   const zone = document.getElementById('strip-drop');
   assert.equal(zone.classList.contains('big'), true);
-  assert.equal(document.getElementById('strip-drop-text').textContent, 'PDF をドロップするか［ファイルを開く…］で選ぶと、ここにページの帯が並びます');
+  assert.equal(document.getElementById('strip-drop-text').textContent, 'PDF をドロップするか［ファイルを開く…］で選択すると、ここにページの帯が並びます');
   const rows = [...document.querySelectorAll('#strip-drop-recent .row')];
   assert.equal(rows.length, 5);
   assert.equal(rows[0].querySelector('.p').textContent, 'C:\\work');
@@ -120,7 +121,7 @@ test('帯が 1 本も無いときは大きな受け口に最近使ったファ�
   assert.equal(document.getElementById('strip-drop-recent').hidden, true);
 });
 
-test('受け口の［ファイルを開く…］は「開く PDF を選ぶ」で複数を選び、選んだ順にタブで開く', async (t) => {
+test('受け口の［ファイルを開く…］は「開く PDF を選択」で複数を選び、選んだ順にタブで開く', async (t) => {
   const { SigK, document, flush, openSourceCalls } = await withShell(t, { paths: [], openSourceResults: [{ paths: [C, A] }, { canceled: true }] });
   SigK.strips.setShown(true);
   document.getElementById('strip-drop-pick').click();

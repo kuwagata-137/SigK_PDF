@@ -64,7 +64,7 @@
 
   async function run() {
     if (root.SigK.save?.isBusy() === true)
-      return { error: 'いま保存しています。' };
+      return { error: '現在、保存中です。' };
     if (viewer().getState().open !== true)
       return { error: '文書が開かれていません。' };
 
@@ -72,7 +72,7 @@
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '差し込むファイルを決められませんでした。' };
+      return { error: picked?.error ?? '差し込むファイルを指定できませんでした。' };
 
     const at = insertAt();
     const built = await root.SigK.save.runTask({

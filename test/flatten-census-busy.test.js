@@ -70,7 +70,7 @@ test('結合が走っている間に対象を決めても、書き込みは結�
   assert.equal(SigK.save.isBusy(), true, '結合がまだ走っている');
   assert.equal(SigK.toolsSplit.canRun(), false, 'ほかのツールの［実行…］は押せない');
   assert.equal(SigK.toolsFlatten.canRun(), false);
-  assert.equal(byId(shell, 'fl-summary').textContent, '書き込みを数えています…');
+  assert.equal(byId(shell, 'fl-summary').textContent, '書き込みを集計しています…');
   assert.equal(byId(shell, 'fl-run').getAttribute('aria-disabled'), 'true');
 
   // 画面には触らずに、結合を終わらせる（中止で終える）。

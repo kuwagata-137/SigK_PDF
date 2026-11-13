@@ -170,17 +170,17 @@ test('JPEG の透かしも埋められ、BMP は PNG か JPEG を選ぶよう、
   assert.deepEqual(await applyWatermark(doc, { pages: [0], mark }, TOOLS, { fontSource, readFile: async () => new Uint8Array(jpeg) }), { ok: true, pages: 1 });
   const bmp = fs.readFileSync(fixturePath('image-rgb.bmp'));
   assert.deepEqual(await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile: async () => new Uint8Array(bmp) }),
-    { error: 'PNG か JPEG の画像を選んでください。' });
+    { error: 'PNG 画像か JPEG 画像を選択してください。' });
   const progressive = makeJpeg({ width: 32, height: 16, marker: 0xc2 });
   assert.deepEqual(await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile: async () => new Uint8Array(progressive) }),
-    { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。' });
+    { error: 'この JPEG はプログレッシブ形式なので、透かしに使用できません。' });
 });
 
 test('画像を読めなければ断る', async () => {
   const mark = { type: 'image', image: 'missing.png', opacity: 0.3, angle: 0, size: 'medium', position: 'center' };
   const readFile = async () => { throw Object.assign(new Error('nope'), { code: 'ENOENT' }); };
   const result = await applyWatermark(await makeDoc(1), { pages: [0], mark }, TOOLS, { fontSource, readFile });
-  assert.equal(result.error, '透かしの画像を読めませんでした。');
+  assert.equal(result.error, '透かし画像を読み込めませんでした。');
   // 握った例外の中身は、エラーの記録に残すために添える（spec-6-1 タスク B。task-runner.js が画面へ返す前に外す）。
   assert.equal(result.detail.message, 'nope');
 });
@@ -199,16 +199,16 @@ test('設定が読めなければ断る（向き・大きさ・位置・不透�
   ];
   for (const patch of cases) {
     const result = await applyWatermark(await makeDoc(1), { pages: [0], mark: { ...TEXT_MARK, ...patch } }, TOOLS, { fontSource });
-    assert.deepEqual(result, { error: '透かしの設定が読めません。' }, JSON.stringify(patch));
+    assert.deepEqual(result, { error: '透かし設定を読み取れません。' }, JSON.stringify(patch));
   }
 });
 
 test('文字は空白だけ・長すぎるものを断り、50 文字ちょうどは受ける', async () => {
   assert.equal(MAX_TEXT_LENGTH, 50);
   const run = async (text) => applyWatermark(await makeDoc(1), { pages: [0], mark: { ...TEXT_MARK, text } }, TOOLS, { fontSource });
-  assert.deepEqual(await run('   '), { error: '透かしの文字を入れてください。' });
-  assert.deepEqual(await run(''), { error: '透かしの文字を入れてください。' });
-  assert.deepEqual(await run('あ'.repeat(51)), { error: `透かしの文字は ${MAX_TEXT_LENGTH} 文字までです。` });
+  assert.deepEqual(await run('   '), { error: '透かし文字を入力してください。' });
+  assert.deepEqual(await run(''), { error: '透かし文字を入力してください。' });
+  assert.deepEqual(await run('あ'.repeat(51)), { error: `透かし文字は ${MAX_TEXT_LENGTH} 文字までです。` });
   assert.deepEqual(await run('あ'.repeat(50)), { ok: true, pages: 1 });
 });
 
@@ -251,8 +251,8 @@ test('runTask の kind: watermark は元が読めない・壊れていると断�
     const broken = await runTask({ kind: 'watermark', source: fixturePath('broken.pdf'), target, pages: [0], mark: TEXT_MARK });
     assert.equal(broken.error, 'この PDF は内容が壊れているため保存できません。');
     assert.equal(fs.existsSync(target), false);
-    assert.equal((await runTask({ kind: 'watermark', target, pages: [0], mark: TEXT_MARK })).error, '対象のファイルが決まっていません。');
-    assert.equal((await runTask({ kind: 'watermark', source: fixturePath('one-page.pdf'), pages: [0], mark: TEXT_MARK })).error, '保存先が決まっていません。');
+    assert.equal((await runTask({ kind: 'watermark', target, pages: [0], mark: TEXT_MARK })).error, '対象ファイルが指定されていません。');
+    assert.equal((await runTask({ kind: 'watermark', source: fixturePath('one-page.pdf'), pages: [0], mark: TEXT_MARK })).error, '保存先が指定されていません。');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

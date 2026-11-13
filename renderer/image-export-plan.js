@@ -60,7 +60,7 @@
       return { error: parsed.error, errorKind: 'range' };
     const pages = [...new Set(parsed.pages)].sort((a, b) => a - b);
     if (pages.length > MAX_PAGES)
-      return { error: `${pages.length} ページが指定されていますが、一度に画像にできるのは ${MAX_PAGES} ページまでです。`, errorKind: 'limit' };
+      return { error: `${pages.length} ページが指定されていますが、一度に画像に変換できるのは ${MAX_PAGES} ページまでです。`, errorKind: 'limit' };
     return { pages };
   }
 
@@ -80,9 +80,9 @@
     if (source === null || source === undefined || source.pending === true || (source.blocked ?? null) !== null || !Number.isInteger(source.pageCount))
       return { ready: false, error: null };
     if (!Object.prototype.hasOwnProperty.call(FORMATS, format))
-      return { ready: false, error: '形式を選んでください。', errorKind: 'settings' };
+      return { ready: false, error: '形式を選択してください。', errorKind: 'settings' };
     if (!DPI_CHOICES.includes(dpi))
-      return { ready: false, error: '解像度を選んでください。', errorKind: 'settings' };
+      return { ready: false, error: '解像度を選択してください。', errorKind: 'settings' };
 
     const resolved = resolvePages({ mode, range }, source.pageCount);
     if (resolved.error !== undefined)
@@ -92,7 +92,7 @@
     const over = oversizedPages(sizes, resolved.pages, dpi);
     if (over.length > 0) {
       const smaller = DPI_CHOICES.filter((choice) => choice < dpi);
-      const hint = smaller.length > 0 ? `${smaller[smaller.length - 1]}dpi 以下を選んでください。` : '';
+      const hint = smaller.length > 0 ? `${smaller[smaller.length - 1]}dpi 以下を選択してください。` : '';
       return { ready: false, error: `${over.length} ページが ${dpi}dpi では大きすぎます（1 ページ ${MAX_PIXELS / 1_000_000}M 画素まで）。${hint}`.trim(), errorKind: 'pixels' };
     }
 

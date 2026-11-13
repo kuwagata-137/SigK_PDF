@@ -127,13 +127,13 @@ test('RLE8 と RLE4 は 8bit のインデックス列に展開する', () => {
 
 test('対応していないものと壊れたものは文言で断り、投げない', () => {
   const file = makeBmp({ width: W, height: H, bits: 24, pixels: gradient });
-  assert.match(decodeBmp(file.subarray(0, 20)).error, /大きさを読み取れません/);
+  assert.match(decodeBmp(file.subarray(0, 20)).error, /画像サイズを読み取れません/);
   assert.match(decodeBmp(file.subarray(0, file.length - 5)).error, /壊れている/);
   const view = new DataView(file.buffer, file.byteOffset, file.byteLength);
   const patched = (at, value, size = 4) => { const copy = Buffer.from(file); const v = new DataView(copy.buffer, copy.byteOffset); if (size === 2) v.setUint16(at, value, true); else v.setUint32(at, value, true); return copy; };
   assert.match(decodeBmp(patched(14, 12)).error, /古い形式/);                  // OS/2 ヘッダー
-  assert.match(decodeBmp(patched(30, 4)).error, /圧縮か色深度/);               // BI_JPEG
-  assert.match(decodeBmp(patched(28, 2, 2)).error, /圧縮か色深度/);            // 2bit
-  assert.match(decodeBmp(patched(18, 0)).error, /大きさを読み取れません/);      // 幅 0
+  assert.match(decodeBmp(patched(30, 4)).error, /圧縮方式か色深度/);               // BI_JPEG
+  assert.match(decodeBmp(patched(28, 2, 2)).error, /圧縮方式か色深度/);            // 2bit
+  assert.match(decodeBmp(patched(18, 0)).error, /画像サイズを読み取れません/);      // 幅 0
   assert.equal(view.getUint16(28, true), 24);
 });

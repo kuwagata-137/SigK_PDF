@@ -38,14 +38,14 @@
   }
 
   function makesBackup() {
-    return root.SigK.preferences?.current().makeBackup !== false;
+    return root.SigK.preferences?.current().backupBeforeOverwrite === true;
   }
 
   // 窓の間にタブが替わっていたら、別のタブの中身を書かない（save.js の saveAs と同じ）。
   function stillShowing(file) {
     if (viewer().getState().file === file)
       return true;
-    banner().show('保存の途中でタブが替わったので、保存を取りやめました。もう一度押してください。', { tone: 'warn' });
+    banner().show('保存中にタブが切り替わったので、保存をキャンセルしました。もう一度押してください。', { tone: 'warn' });
     return false;
   }
 
@@ -60,7 +60,7 @@
         if (canceled())
           return { canceled: true };
         const written = await root.imageAPI.write(target, drawn.bytes, { makeBackup, expect });
-        return written ?? { error: '画像を書き込めませんでした。' };
+        return written ?? { error: '画像を保存できませんでした。' };
       },
     });
   }
@@ -72,7 +72,7 @@
     let result = await writeOnce(target, format, { makeBackup, expect });
     if (result?.changed === true) {
       if ((await root.SigK.confirmOverwrite.ask({ name })) !== true) {
-        banner().show('保存を取りやめました。', { tone: 'info' });
+        banner().show('保存をキャンセルしました。', { tone: 'info' });
         return { canceled: true };
       }
       if (!stillShowing(file))
@@ -92,11 +92,13 @@
     return result;
   }
 
-  // 焼き込んで上書きしてよいかを聞く（確定事項B6）。
+  // 焼き込んで上書きしてよいかを聞く（確定事項B6）。確認の窓で「次回から表示しない」を選んでいたら、聞かずに進める（spec-7-4 確定事項CF2）。
   async function confirmBurn(file, backup) {
+    if (!root.SigK.confirmImageSave.shouldAsk())
+      return true;
     if ((await root.SigK.confirmImageSave.ask({ name: file.name, backup })) === true)
       return true;
-    banner().show('保存を取りやめました。', { tone: 'info' });
+    banner().show('保存をキャンセルしました。', { tone: 'info' });
     return false;
   }
 
@@ -128,7 +130,7 @@
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
+      return { error: picked?.error ?? '保存先を指定できませんでした。' };
     const refused = root.SigK.outputTarget.refusalForSaveAs(picked.path);
     if (refused !== null) {
       banner().show(refused);

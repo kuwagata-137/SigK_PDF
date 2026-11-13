@@ -42,7 +42,7 @@ async function loadImage(path, { readFile }) {
   try {
     bytes = await readFile(path);
   } catch (error) {
-    return failure('画像を読めませんでした。移動または削除された可能性があります。', error);
+    return failure('画像を読み込めませんでした。移動または削除された可能性があります。', error);
   }
   const inspected = inspectImageBytes(bytes);
   if (inspected.ok !== true)
@@ -60,7 +60,7 @@ function validateEntries(entries) {
     return { error: '変換する画像がありません。' };
   for (const entry of entries) {
     if (!Array.isArray(entry?.layouts) || entry.layouts.length === 0 || !entry.layouts.every(validLayout))
-      return { error: withName(entry?.name, '紙の大きさが決まっていません。') };
+      return { error: withName(entry?.name, '用紙サイズが指定されていません。') };
   }
   return { ok: true };
 }
@@ -74,7 +74,8 @@ async function addPage(doc, entry, loaded, frame, tools) {
   const embedded = await embedImage(doc, loaded, tools, { frame });
   if (embedded.ok !== true)
     return { error: withName(entry.name, embedded.error) };
-  const made = drawImagePage(doc, embedded.image, entry.layouts[frame], tools);
+  // 紙と枠は、画面（convert-plan.js）が向きを当てた後の寸法で決めている。写真の向きを当てて載せる（spec-7-4 確定事項X5）。
+  const made = drawImagePage(doc, embedded.image, { ...entry.layouts[frame], rotation: embedded.rotation }, tools);
   if (made.ok !== true)
     return { error: withName(entry.name, made.error) };
   doc.addPage(made.page);
@@ -88,7 +89,7 @@ async function addFile(doc, entry, tools, onPage) {
   if (loaded.ok !== true)
     return { error: withName(entry.name, loaded.error) };
   if (Number.isInteger(loaded.pages) && loaded.pages < entry.layouts.length)
-    return { error: withName(entry.name, '画像のページ数が一覧に入れたときと違うので、もう一度足してください。') };
+    return { error: withName(entry.name, '画像のページ数が一覧に追加したときと違うので、画像をもう一度追加してください。') };
   for (let frame = 0; frame < entry.layouts.length; frame += 1) {
     const added = await addPage(doc, entry, loaded, frame, tools);
     if (added.ok !== true) {

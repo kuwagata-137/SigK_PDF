@@ -36,7 +36,7 @@
   // いま走っているものの名で断る。保存中に保存を押せば「いま保存しています」、
   // PDF→画像の最中なら「いま画像にしています」になる。
   function busyReason() {
-    return `いま${state.running?.label ?? '保存'}しています。`;
+    return `現在、${state.running?.label ?? '保存'}中です。`;
   }
 
   // runTask・runLocal の断り。busy を添えるのは、後回しにできる処理（フラット化の数え）が「断られた」と「失敗した」を見分けるため。
@@ -154,7 +154,7 @@
   async function runTask({ label, ...spec }) {
     const api = root.taskAPI;
     if (api?.available !== true)
-      return { error: '保存の機能を使えません。' };
+      return { error: '保存機能を使用できません。' };
     // 同時に回すと、走っている処理の記録を上書きする（点検の直し）。
     if (state.running !== null)
       return refusal();
@@ -289,7 +289,7 @@
     const result = await root.SigK.openedSource.run({ ...spec, label }, { ask });
     if (result?.declined === true) {
       // 自分で「やめる」を選んだので赤く塗らない（決定49）。
-      banner().show('保存を取りやめました。', { tone: 'info' });
+      banner().show('保存をキャンセルしました。', { tone: 'info' });
       return { canceled: true };
     }
 
@@ -306,7 +306,7 @@
     await finishSaved({ tabId, source, target, name, result });
     // 前の控えを消せなかったら、保存は成功のまま黄色の通知バーで知らせる（spec-4b-6b 確定事項23）。
     if (result.backupLeft === true) {
-      banner().show('保存しましたが、控えのファイル（.bak）を消せませんでした。元の内容が残っているので、手で消してください。', { autoHideMs: 0, tone: 'warn' });
+      banner().show('保存しましたが、バックアップファイル（.bak）を削除できませんでした。元の内容が残っているので、手動で削除してください。', { autoHideMs: 0, tone: 'warn' });
       return result;
     }
     // 成功は失敗ではないので赤く塗らない（確定事項6・30、決定48）。通知バーの既定の色は失敗の赤である。
@@ -352,7 +352,7 @@
       target: view.file.path,
       // 上書きのときだけ .bak を作る（確定事項18・20）。モザイクを含むときは作らず、前の控えも消す（決定64 ⑧）。設定の窓で「控えの
       // ファイルを作る」を外していたら作らない（前からある控えは消さない。spec-6-1 確定事項E-9）。
-      makeBackup: !mosaicked && root.SigK.preferences?.current().makeBackup !== false,
+      makeBackup: !mosaicked && root.SigK.preferences?.current().backupBeforeOverwrite === true,
       dropBackup: mosaicked,
       mosaics: mosaic.mosaics,
       name: view.file.name,
@@ -392,14 +392,14 @@
     const initialPath = await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath;
     // 聞き直しの返事を待つ間（窓を出さない待ち）にタブが替わっていたら、別のタブの中身を書かずに取りやめる（ブランチ全体の点検の直し I-1）。
     if (viewer().getState().file !== view.file) {
-      banner().show('保存の窓を出す前にタブが替わったので、名前を付けて保存を取りやめました。もう一度押してください。', { tone: 'warn' });
+      banner().show('保存画面を表示する前にタブが切り替わったので、名前を付けて保存をキャンセルしました。もう一度押してください。', { tone: 'warn' });
       return { changed: true };
     }
     const picked = await root.pdfAPI.pickSavePath({ defaultPath: initialPath });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
+      return { error: picked?.error ?? '保存先を指定できませんでした。' };
     // 別のタブで開いているファイルへは保存しない（確定事項97）。保存するとこのタブが
     // そこへ移り（確定事項26）、同じパスのタブが 2 枚になるため。
     const refused = root.SigK.outputTarget.refusalForSaveAs(picked.path);

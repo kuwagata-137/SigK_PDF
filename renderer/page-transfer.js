@@ -18,16 +18,16 @@
   const banner = () => root.SigK.viewBanner;
 
   function mosaicRefusal(name) {
-    return `モザイクを保存していないページは写せません。「${name}」を上書き保存してから、もう一度ドラッグしてください。`;
+    return `モザイクを保存していないページはコピーできません。「${name}」を上書き保存してから、もう一度ドラッグしてください。`;
   }
 
   // 写す先の帯が使えないときの理由。使えれば null。
   function targetRefusal(tabId) {
     const peeked = tabs().peek(tabId);
     if (peeked === null || peeked.doc === undefined)
-      return '開けなかった PDF には写せません。';
+      return '開けなかった PDF にはコピーできません。';
     if (peeked.file?.encrypted === true)
-      return 'パスワード付きの PDF には写せません。';
+      return 'パスワード付き PDF にはコピーできません。';
     return null;
   }
 
@@ -37,13 +37,13 @@
       return null;
     const view = viewer().getState();
     if (view.file?.encrypted === true)
-      return 'パスワード付きの PDF のページは写せません。';
+      return 'パスワード付き PDF のページはコピーできません。';
     const plan = viewer().getPlan();
     if (indices.some((index) => (root.SigK.pageMosaic?.countOf(plan[index]) ?? 0) > 0))
       return mosaicRefusal(view.file.name);
     if (target?.kind === 'new') {
       const max = tabs().MAX_TABS;
-      return tabs().count() >= max ? `帯が ${max} 本あるので、新しい帯を作れません。使わない帯を閉じてください。` : null;
+      return tabs().count() >= max ? `帯が ${max} 本あるので、新しい帯を作成できません。使わない帯を閉じてください。` : null;
     }
     return targetRefusal(target?.tabId);
   }
@@ -56,7 +56,7 @@
   // 写しを作れなかった・中止したことを知らせる（進み具合の文を残さない）。中止は自分で止めたので赤く塗らない（決定49）。
   function report(built) {
     if (built.canceled === true)
-      banner().show('ページを写すのを中止しました。', { tone: 'info' });
+      banner().show('ページのコピーを中止しました。', { tone: 'info' });
     else if (built.error !== undefined)
       banner().show(built.error);
     return built;
@@ -95,14 +95,17 @@
     edit.setSelection(root.SigK.splitSelection.dragTo(selection[0], selection[selection.length - 1]));
   }
 
-  // 写しを tabId の帯の at（並びの位置）へ差し込みとして入れる。枠の帯は替えない（I7）。
+  // 写しを tabId の帯の at（並びの位置）へ差し込みとして入れる。枠の帯は替えない（I7）。右クリックメニューの貼り付け（spec-7-5 確定事項P1。
+  // page-list-commands.js）も同じ方法で入れる。戻り値は入れたページの並びの位置（帯が無ければ undefined）。
   function insertInto(tabId, built, at) {
-    tabs().withActive(tabId, () => {
+    return tabs().withActive(tabId, () => {
       const numbers = viewer().addInserts(built.sizes.map((size, page) => ({ path: null, copy: built.copy, bytes: built.bytes, page, size, doc: built.doc })));
       const plan = viewer().getPlan();
       const position = Math.max(0, Math.min(at, plan.length));
       const next = [...plan.slice(0, position), ...numbers.map((insert) => ({ insert, rotate: 0 })), ...plan.slice(position)];
-      root.SigK.pageEdit.commit(next, { before: [], after: numbers.map((_number, offset) => position + offset) });
+      const after = numbers.map((_number, offset) => position + offset);
+      root.SigK.pageEdit.commit(next, { before: [], after });
+      return after;
     });
   }
 
@@ -118,7 +121,7 @@
     if (tabs().activeId() !== sourceId || targetRefusal(tabId) !== null) {
       built.doc?.loadingTask?.destroy?.();
       if (targetRefusal(tabId) !== null)
-        banner().show('写す先の帯が閉じられたので、ページを写すのをやめました。', { tone: 'info' });
+        banner().show('コピー先の帯が閉じられたので、ページのコピーを中止しました。', { tone: 'info' });
       else
         report({ canceled: true });
       return { canceled: true };
@@ -126,7 +129,7 @@
     insertInto(tabId, built, at);
     root.SigK.toolHistory?.record('pages', tabId);
     const name = tabs().list().find((tab) => tab.id === tabId)?.name ?? '';
-    banner().show(`${built.sizes.length} ページを「${name}」に写しました。`, { autoHideMs: 2500, tone: 'info' });
+    banner().show(`${built.sizes.length} ページを「${name}」にコピーしました。`, { autoHideMs: 2500, tone: 'info' });
     return { ok: true, pages: built.sizes.length };
   }
 
@@ -153,10 +156,10 @@
     });
     if (!opened)
       return report({ error: '新しい帯を開けませんでした。' });
-    banner().show(`${indices.length} ページで、新しい帯「新しい PDF ${untitled}」を作りました。`, { autoHideMs: 2500, tone: 'info' });
+    banner().show(`${indices.length} ページで、新しい帯「新しい PDF ${untitled}」を作成しました。`, { autoHideMs: 2500, tone: 'info' });
     return { ok: true, tabId: tabs().activeId() };
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageTransfer = { refusalFor, move, copyTo, toNewStrip };
+  SigK.pageTransfer = { refusalFor, move, insertInto, copyTo, toNewStrip };
 })(typeof window !== 'undefined' ? window : globalThis);

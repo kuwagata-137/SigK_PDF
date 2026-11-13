@@ -13,7 +13,7 @@ const { createShell, makeSource } = require('./harness.js');
 const A = 'C:\\work\\a.pdf';
 const B = 'C:\\work\\b.pdf';
 const OUT = 'C:\\out\\a_out.pdf';
-const changedText = (name, verb) => `「${name}」がほかのアプリで書き換えられていたので、${verb}を止めました。タブを閉じて開き直してから、もう一度実行してください。`;
+const changedText = (name, verb) => `「${name}」がほかのアプリで書き換えられていたので、${verb}を中止しました。タブを閉じ、ファイルをもう一度開いてから、再度実行してください。`;
 
 async function createToolShell(t, tool, options = {}) {
   const shell = await createShell({
@@ -108,14 +108,14 @@ test('PDF→画像: 書き換えられていたら止める。描く前に読み
   const shell = await createToolShell(t, 'toImage');
   await openTabs(shell, A);
   rewriteOutside(shell, A);
-  assert.deepEqual(plain(await shell.SigK.toolsToImage.run()), { error: changedText('a.pdf', '画像にするの') });
+  assert.deepEqual(plain(await shell.SigK.toolsToImage.run()), { error: changedText('a.pdf', '画像への変換') });
   assert.equal(shell.imageWrites.length, 0);
   // 確かめのあと・読み直す前に書き換えられた（照らしは通り、読み直した中身の印が違う）。
   shell.files[A] = makeSource({ path: A, mtimeMs: 1000 });
   const read = shell.window.pdfAPI.read;
   shell.window.pdfAPI.read = async (filePath) => ({ ...(await read(filePath)), mtimeMs: 5555 });
   const result = await shell.SigK.toolsToImage.run();
-  assert.equal(result.error, changedText('a.pdf', '画像にするの'));
+  assert.equal(result.error, changedText('a.pdf', '画像への変換'));
   assert.equal(shell.imageWrites.length, 0);
 });
 

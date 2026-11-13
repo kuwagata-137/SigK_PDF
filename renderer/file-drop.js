@@ -52,7 +52,7 @@
   // 受けられるものが 1 つも無かったときの文言。
   function rejectionFor(tool) {
     if (tool === 'watermark')
-      return 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像をドロップしてください。';
+      return 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG 画像をドロップしてください。';
     return 'PDF でも画像でもないので、PDF か画像（PNG・JPEG・BMP・GIF・TIFF）をドロップしてください。';
   }
 
@@ -108,7 +108,7 @@
 
     const paths = pathsFrom(event.dataTransfer.files);
     if (paths.length === 0) {
-      complain('ファイルの場所を取得できなかったので、「開く」から選んでください。');
+      complain('ファイルの場所を取得できなかったので、「開く」から選択してください。');
       return false;
     }
 

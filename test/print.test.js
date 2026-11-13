@@ -35,7 +35,7 @@ test('逆順の範囲は理由を返す', () => {
   const result = print.parsePageList('5-1', 10);
 
   assert.equal(result.pages, undefined);
-  assert.match(result.error, /終わりのページが始まりより前/);
+  assert.match(result.error, /終了ページが開始ページより前/);
 });
 
 test('範囲外のページは理由を返す', () => {
@@ -134,7 +134,7 @@ test('範囲がおかしければ、押す前にダイアログの中で理由�
 
   assert.equal(result.ok, undefined);
   assert.equal(document.getElementById('print-error').hidden, false);
-  assert.match(document.getElementById('print-error').textContent, /終わりのページが始まりより前/);
+  assert.match(document.getElementById('print-error').textContent, /終了ページが開始ページより前/);
 });
 
 test('中止すると準備は無効になり、作りかけを残さない', async (t) => {
@@ -184,8 +184,8 @@ test('printAPI が無くても落ちない', async (t) => {
 
   const result = await shell.SigK.print.run({ mode: 'current' });
 
-  assert.match(result.error, /印刷の機能が使えません/);
-  assert.match(shell.document.getElementById('print-error').textContent, /印刷の機能が使えません/);
+  assert.match(result.error, /印刷機能を使用できません/);
+  assert.match(shell.document.getElementById('print-error').textContent, /印刷機能を使用できません/);
 });
 
 // 開いている <dialog> に showModal() をもう一度呼ぶと InvalidStateError になる。

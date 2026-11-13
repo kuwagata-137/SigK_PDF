@@ -172,7 +172,7 @@ test('右パネル: 種類・粗さ 3 段・このページの数・外すボタ
   assert.equal(text(shell, 'props-kind'), 'モザイク');
   assert.equal(document.getElementById('props-mosaic-block-row').hidden, false);
   assert.deepEqual([...document.querySelectorAll('#props-mosaic-block button')].map((b) => [b.textContent, b.getAttribute('aria-pressed')]),
-    [['細かい', 'false'], ['ふつう', 'true'], ['粗い', 'false']]);
+    [['細かい', 'false'], ['標準', 'true'], ['粗い', 'false']]);
   assert.equal(text(shell, 'props-mosaic-count'), 'モザイクはありません');
   const remove = document.getElementById('props-mosaic-remove');
   assert.equal(remove.hidden, false);
@@ -180,7 +180,7 @@ test('右パネル: 種類・粗さ 3 段・このページの数・外すボタ
   assert.equal(document.getElementById('props-delete').hidden, true);
   assert.equal(document.getElementById('props-color-row').hidden, true);
   assert.equal(document.getElementById('props-trim-scope-row').hidden, true);
-  assert.match(text(shell, 'props-hint'), /^紙の上をドラッグして、隠す範囲を囲んでください。/);
+  assert.match(text(shell, 'props-hint'), /^ページ上をドラッグして、隠す範囲を囲んでください。/);
 
   await placeBox(shell);
   await placeBox(shell, [10, 10, 50, 50]);
@@ -216,7 +216,7 @@ test('設定の粗さで始まり、3 段のどれでもなければふつう', 
   assert.equal(shell.SigK.annotateMosaic.setBlock(10), false);
 });
 
-test('［このページのモザイクを外す］は今のページのモザイクを全部外し、1 世代で Ctrl+Z・やり直しが効く', async (t) => {
+test('［このページのモザイクを削除］は今のページのモザイクを全部外し、1 世代で Ctrl+Z・やり直しが効く', async (t) => {
   const shell = await withMosaic(t);
   const { SigK, document } = shell;
   await placeBox(shell);
@@ -246,7 +246,7 @@ test('回したページでも、引いた範囲が紙の座標（回す前）�
   assert.equal(SigK.viewer.getPlan()[0].rotate, 90);
 });
 
-test('モザイクからトリミングへ持ち替えると、モザイクの行と［このページのモザイクを外す］を隠す（コードの点検で直した）', async (t) => {
+test('モザイクからトリミングへ持ち替えると、モザイクの行と［このページのモザイクを削除］を隠す（コードの点検で直した）', async (t) => {
   const shell = await withMosaic(t);
   const { SigK, document } = shell;
   await placeBox(shell);

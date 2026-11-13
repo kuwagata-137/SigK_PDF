@@ -51,7 +51,7 @@ test('ツールバーの［元に戻す］［やり直し］の右に、区切�
   assert.notEqual(group, null, '1 組が無い');
   assert.equal(group.className, 'tb-seg');
   assert.equal(group.getAttribute('role'), 'group');
-  assert.equal(group.getAttribute('aria-label'), '紙の上のマウスの働き');
+  assert.equal(group.getAttribute('aria-label'), 'ページ上のマウス操作');
   assert.equal(group.previousElementSibling.className, 'tb-sep');
   assert.equal(group.previousElementSibling.previousElementSibling.id, 'btn-redo');
   assert.equal(group.nextElementSibling.className, 'tb-sep');
@@ -142,7 +142,6 @@ test('編集モードでは 1 組が編集の道具を映し、押すと道具�
   click(shell, 'btn-pointer-select');
   assert.equal(SigK.annotate.getTool(), 'select');
   assert.equal(pressedOf(shell), 'select');
-  assert.equal(document.querySelector('#edit-bar [data-tool="select"]').getAttribute('aria-pressed'), 'true', '道具の段も同じ印');
 
   SigK.annotate.toggleTool('pen');
   assert.equal(pressedOf(shell), null, '描く道具ではどちらも押していない形');

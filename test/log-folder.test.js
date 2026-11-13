@@ -1,6 +1,6 @@
 'use strict';
 
-// メニュー「ヘルプ」→「エラーの記録のフォルダを開く」（log-folder.js。spec-6-1 タスク B の B7・docs/07 決定81 ⑧）。
+// メニュー「ヘルプ」→「エラーログフォルダを開く」（log-folder.js。spec-6-1 タスク B の B7・docs/07 決定81 ⑧）。
 // Electron の shell と fs は偽物を渡し、作る・開く・開けなかったときの記録を見る。
 
 const test = require('node:test');

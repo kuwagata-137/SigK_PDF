@@ -10,10 +10,11 @@ const {
 } = require('../preferences.js');
 const { DEFAULTS, mergeDefaults } = require('../settings.js');
 
-test('既定は、最初のフォルダが「元のファイルと同じフォルダ」、控えのファイルを作る、ツールの値と最後のツールを覚える（どれも今と同じ動き）', () => {
+test('既定は、最初のフォルダが「元のファイルと同じフォルダ」、控えのファイルを作らない（spec-7-4 確定事項BK1）、画像の上書きの確認の窓を表示する、ツールの値と最後のツールを覚える', () => {
   assert.deepEqual(structuredClone(PREFERENCE_DEFAULTS), {
     outputFolder: { mode: 'source', fixed: null, last: null },
-    makeBackup: true,
+    backupBeforeOverwrite: false,
+    confirmImageOverwrite: true,
     rememberToolValues: true,
     rememberLastTool: true,
     toolValues: {},
@@ -25,7 +26,8 @@ test('既定は、最初のフォルダが「元のファイルと同じフォ�
 test('mergePreferences は、型の違う値・知らない値・相対パスを既定へ落とす', () => {
   const merged = mergePreferences({
     outputFolder: { mode: 'どこか', fixed: 'relative\\dir', last: 42 },
-    makeBackup: 'yes',
+    backupBeforeOverwrite: 'yes',
+    confirmImageOverwrite: 0,
     rememberToolValues: false,
     toolValues: { watermark: { text: '社外秘' }, unknownTool: { a: 1 }, split: 'seq' },
     lastTool: 'paint',
@@ -33,13 +35,21 @@ test('mergePreferences は、型の違う値・知らない値・相対パスを
   });
   assert.deepEqual(merged, {
     outputFolder: { mode: 'source', fixed: null, last: null },
-    makeBackup: true,
+    backupBeforeOverwrite: false,
+    confirmImageOverwrite: true,
     rememberToolValues: false,
     rememberLastTool: true,
     toolValues: { watermark: { text: '社外秘' } },
     lastTool: null,
   });
   assert.deepEqual(mergePreferences(undefined), structuredClone(PREFERENCE_DEFAULTS), '古い settings.json に欄が無ければ既定');
+});
+
+test('前の鍵 makeBackup に保存されている「作る」は引き継がず、控えのファイルを作らない（spec-7-4 確定事項BK1。このパソコンでも外す）', () => {
+  const merged = mergePreferences({ makeBackup: true });
+  assert.equal(merged.backupBeforeOverwrite, false);
+  assert.equal('makeBackup' in merged, false, '前の鍵は捨てる');
+  assert.equal(mergePreferences({ makeBackup: false, backupBeforeOverwrite: true }).backupBeforeOverwrite, true, '新しい鍵の値はそのまま');
 });
 
 test('settings.json の読み込み（mergeDefaults）も preferences の欄を確かめて残す', () => {
@@ -51,11 +61,13 @@ test('settings.json の読み込み（mergeDefaults）も preferences の欄を�
 
 test('applyPreferencesPatch は差分だけを当てる（最初のフォルダの欄とツールの値は、ツールごと・欄ごとに重ねる）', () => {
   const current = mergePreferences({ outputFolder: { mode: 'last', fixed: 'D:\\out', last: 'C:\\work' }, toolValues: { split: { rule: 'pages' } } });
-  const next = applyPreferencesPatch(current, { outputFolder: { last: 'E:\\new' }, toolValues: { watermark: { text: '控え' } }, makeBackup: false });
+  const next = applyPreferencesPatch(current, { outputFolder: { last: 'E:\\new' }, toolValues: { watermark: { text: '控え' } }, backupBeforeOverwrite: true, confirmImageOverwrite: false });
   assert.deepEqual(next.outputFolder, { mode: 'last', fixed: 'D:\\out', last: 'E:\\new' });
   assert.deepEqual(next.toolValues, { split: { rule: 'pages' }, watermark: { text: '控え' } });
-  assert.equal(next.makeBackup, false);
-  assert.equal(current.makeBackup, true, '元は変えない');
+  assert.equal(next.backupBeforeOverwrite, true);
+  assert.equal(next.confirmImageOverwrite, false);
+  assert.equal(current.backupBeforeOverwrite, false, '元は変えない');
+  assert.equal(current.confirmImageOverwrite, true, '元は変えない');
 });
 
 test('ツールの値が大きすぎれば捨てる（設定のファイルを膨らませない）', () => {
@@ -95,8 +107,8 @@ test('createPreferencesHost: snapshot は値と、今あるフォルダ（最後
 test('createPreferencesHost: set は差分を当てて書き、確かめた全体を返す', async () => {
   const settings = fakeSettings();
   const host = createPreferencesHost({ settings, isDirectory: async () => true });
-  const snapshot = await host.set({ makeBackup: false, outputFolder: { mode: 'fixed', fixed: 'D:\\out' } });
-  assert.equal(snapshot.preferences.makeBackup, false);
+  const snapshot = await host.set({ backupBeforeOverwrite: true, outputFolder: { mode: 'fixed', fixed: 'D:\\out' } });
+  assert.equal(snapshot.preferences.backupBeforeOverwrite, true);
   assert.equal(settings.get().preferences.outputFolder.fixed, 'D:\\out');
   assert.equal(settings.saves(), 1);
 });

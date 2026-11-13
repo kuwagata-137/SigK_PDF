@@ -10,7 +10,8 @@
   // preferences.js の PREFERENCE_DEFAULTS と同じ（メインに届かない環境・読み込む前の既定）。
   const DEFAULTS = Object.freeze({
     outputFolder: Object.freeze({ mode: 'source', fixed: null, last: null }),
-    makeBackup: true,
+    backupBeforeOverwrite: false,
+    confirmImageOverwrite: true,
     rememberToolValues: true,
     rememberLastTool: true,
     toolValues: Object.freeze({}),
@@ -52,14 +53,14 @@
   async function set(patch) {
     const target = api();
     if (target === null)
-      return { error: '設定を書けません。' };
+      return { error: '設定を保存できません。' };
     try {
       const result = await target.set(patch);
       accept(result);
       return result;
     } catch (error) {
       root.SigK.log?.warn('preferences', '設定を書けませんでした', error);
-      return { error: '設定を書けませんでした。' };
+      return { error: '設定を保存できませんでした。' };
     }
   }
 

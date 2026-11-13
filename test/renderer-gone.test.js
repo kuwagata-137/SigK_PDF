@@ -33,8 +33,8 @@ test('確認の窓の文とボタン: 肯定の［画面を開き直す］を左
   assert.equal(GONE_DIALOG.title, 'SigK PDF');
   assert.equal(GONE_DIALOG.message, 'SigK PDF の画面の処理が止まりました');
   assert.equal(GONE_DIALOG.detail,
-    '保存していない変更は失われました。保存したファイルは、保存したところまで残っています。\n［画面を開き直す］を押すと、最近使ったファイルから開き直せます。');
-  assert.deepEqual(GONE_DIALOG.buttons, ['画面を開き直す', '終了']);
+    '保存していない変更は失われました。保存したファイルは、保存したところまで残っています。\n［画面を再読み込み］を押すと、最近使ったファイルからもう一度開くことができます。');
+  assert.deepEqual(GONE_DIALOG.buttons, ['画面を再読み込み', '終了']);
   assert.equal(GONE_DIALOG.defaultId, 0);
   assert.equal(GONE_DIALOG.cancelId, 0, '窓の × と Esc でも、アプリを残す方にする');
   assert.equal(GONE_DIALOG.noLink, true, 'ボタンの形で並べる（Windows の大きな選択肢の形にしない）');

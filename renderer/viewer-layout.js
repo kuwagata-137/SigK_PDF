@@ -11,7 +11,12 @@
   const CSS_UNITS = 96 / 72;
 
   // 下限は 10%（spec-4b-7a 確定事項G1。決定68 ④）。25% の下に 20・15・10% を刻む（1 段で 4 分の 1 に飛ばないため）。
-  const ZOOM_STEPS = [0.1, 0.15, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4];
+  // 上限は 1000%（spec-7-4 確定事項Z1。ユーザーの指示。それまでは 400%）。400% の上は 500・600・800・1000% を刻む。
+  // 1 枚の canvas の画素には上限があり（page-image.js の MAX_CANVAS_PIXELS）、超える分は倍率を下げて描いて広げるので、
+  // 使うメモリの上限は 400% のときと変わらない（大きな紙と高解像度の画面では、高い倍率で少しにじむ）。
+  // 2026-11-13（docs/07 決定93。spec-7-6 確定事項ZS1・ZS2）: 33〜100% を 33・40・50・60・70・80・90・100 にした（ユーザーの指示）。
+  // ホイール・［－］［＋］・Ctrl＋－／＋ のすべてがこの段階で動く。
+  const ZOOM_STEPS = [0.1, 0.15, 0.2, 0.25, 0.33, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5, 6, 8, 10];
   const MIN_ZOOM = ZOOM_STEPS[0];
   const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1];
 
@@ -381,6 +386,16 @@
     return number - 1;
   }
 
+  // 倍率の入力欄の値（「137」「137%」「１３７％」「137.5」）を倍率（1 が 100%）に直す（spec-7-6 確定事項ZI1・ZI2）。全角は半角にし、
+  // 小数は整数の % に丸め、範囲外は min・max にする。数字でないものは null（元の倍率に戻す）。
+  function parseZoomInput(value, { min = MIN_ZOOM, max = MAX_ZOOM } = {}) {
+    const text = String(value ?? '').normalize('NFKC').trim().replace(/\s*%$/, '');
+    if (!/^\d+(\.\d+)?$/.test(text))
+      return null;
+    const percent = Math.round(Number(text));
+    return Math.min(max, Math.max(min, percent / 100));
+  }
+
   const SigK = (root.SigK = root.SigK || {});
   SigK.viewerLayout = {
     CSS_UNITS,
@@ -428,5 +443,6 @@
     renderScale,
     formatZoom,
     parsePageNumber,
+    parseZoomInput,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

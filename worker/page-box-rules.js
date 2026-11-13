@@ -62,7 +62,7 @@ function applyCrop(page, crop, { PDFName }) {
   const wanted = normalizeBox(crop);
   const box = media === null || wanted === null ? null : intersect(wanted, media);
   if (box === null)
-    return { error: 'ページの切り方が正しくありません。' };
+    return { error: 'トリミング範囲が正しくありません。' };
   const name = PDFName.of('CropBox');
   if (sameBox(box, media)) {
     page.node.delete(name);

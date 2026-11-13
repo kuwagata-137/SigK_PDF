@@ -71,7 +71,7 @@ test('様子の控えの tip に、説明の吹き出しが出ているか・鍵
   assert.equal(shown.shown, true);
   assert.equal(shown.key, 'bar.save');
   assert.equal(shown.name, '上書き保存');
-  assert.match(shown.text, /^上書き保存開いているファイルに、今の変更を書き込みます。.*キー: Ctrl\+S$/);
+  assert.match(shown.text, /^上書き保存開いているファイルに、現在の変更内容を上書き保存します。.*キー: Ctrl\+S$/);
   assert.equal(shown.side, 'below');
   assert.deepEqual(shown.box, [0, 0, 0, 0], 'jsdom は寸法を持たないので 0（実機は矩形）');
 });

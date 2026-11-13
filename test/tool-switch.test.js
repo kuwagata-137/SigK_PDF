@@ -51,7 +51,8 @@ test('annotate-tools は戻り先を持ち、左＋右（chord）で表のとお
   const shell = await withShell(t);
   const { SigK, document } = shell;
   const tools = SigK.annotateTools;
-  const pressed = (tool) => document.querySelector(`#edit-bar .edit-tool[data-tool="${tool}"]`).getAttribute('aria-pressed');
+  // 「選択」「ハンド」の印は、上のツールバーの［選択］［ハンド］で見る（spec-7-4 確定事項C3。編集モードのボタン列からは外した）。
+  const pressed = (tool) => document.getElementById(`btn-pointer-${tool}`).getAttribute('aria-pressed');
   assert.equal(tools.getBase(), null);
   SigK.annotate.setTool('select');
   SigK.annotate.setTool('pen');

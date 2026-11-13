@@ -75,6 +75,18 @@
       ['path', { d: 'M20 9a8 8 0 1 0-1.2 6' }],
       ['path', { d: 'M20 4v5h-5' }],
     ],
+    // 編集モードのボタン列の［左回転］［右回転］（spec-7-4 確定事項RT2。見本 screenshots/rotate-question-rt2-icons.png の案D）。
+    // 紙の上に、回る向きの半円の矢印。左回転は右から上を通って左へ、右回転は左から上を通って右へ回り、矢じりは下を向く。
+    pageRotateLeft: [
+      ['path', { d: 'M18 9A6 6 0 0 0 6 9' }],
+      ['path', { d: 'M4.07 6.7L6 9l1.93-2.3' }],
+      ['rect', { x: 8.5, y: 12, width: 7, height: 9, rx: 0.8 }],
+    ],
+    pageRotateRight: [
+      ['path', { d: 'M6 9A6 6 0 0 1 18 9' }],
+      ['path', { d: 'M16.07 6.7L18 9l1.93-2.3' }],
+      ['rect', { x: 8.5, y: 12, width: 7, height: 9, rx: 0.8 }],
+    ],
     extract: [
       ['path', { d: 'M9 4h8a1 1 0 0 1 1 1v10' }],
       ['rect', { x: 5, y: 8, width: 9, height: 12, rx: 1 }],

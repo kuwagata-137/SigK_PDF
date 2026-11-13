@@ -57,8 +57,8 @@ function stubImages(t, shell) {
 
 const byId = (shell, id) => shell.document.getElementById(id);
 
-test('PNG の上書き保存: 確認の窓を出し、了承すると同じ形式・倍率 1・背景を塗らずに描いて、控えと照合を付けて書く', async (t) => {
-  const shell = await withImage(t, PNG, 'png');
+test('PNG の上書き保存: 確認の窓を出し、了承すると同じ形式・倍率 1・背景を塗らずに描いて、控え（作る設定のとき）と照合を付けて書く', async (t) => {
+  const shell = await withImage(t, PNG, 'png', { preferences: { backupBeforeOverwrite: true } });
   const calls = stubImages(t, shell);
   rotate(shell);
   const saving = shell.SigK.save.saveActive();
@@ -66,11 +66,12 @@ test('PNG の上書き保存: 確認の窓を出し、了承すると同じ形�
 
   assert.equal(shell.SigK.confirmImageSave.isOpen(), true);
   assert.equal(byId(shell, 'confirm-image-save-text').textContent, '書き込みを「shot.png」の画像に焼き込んで、上書き保存します。');
-  assert.equal(byId(shell, 'confirm-image-save-loss').textContent, '保存したあとは、書き込みを動かしたり直したりできません。書き込みの下にあった元の画像も元に戻せません。');
+  assert.equal(byId(shell, 'confirm-image-save-loss').textContent, '保存したあとは、書き込みを移動・編集できません。書き込みの下にあった画像も元に戻せません。');
   assert.equal(byId(shell, 'confirm-image-save-backup').hidden, false);
-  assert.equal(byId(shell, 'confirm-image-save-backup').textContent, '元の画像は、控えのファイル（shot.png.bak）に残します。');
+  assert.equal(byId(shell, 'confirm-image-save-backup').textContent, '元の画像は、バックアップファイル（shot.png.bak）に残します。');
   assert.equal(shell.document.activeElement?.id, 'confirm-image-save-cancel', '既定のフォーカスはキャンセル');
   assert.equal(byId(shell, 'confirm-image-save-ok').classList.contains('danger'), true);
+  assert.equal(byId(shell, 'confirm-image-save-skip').checked, false, '「次回から表示しない」は外した状態から始める');
   byId(shell, 'confirm-image-save-ok').click();
   const result = await saving;
 
@@ -101,7 +102,7 @@ test('キャンセルすると描かずに書かず、変更は残る', async (t
   assert.equal((await saving).canceled, true);
   assert.equal(calls.length, 0);
   assert.equal(shell.imageWrites.length, 0);
-  assert.equal(shell.SigK.viewBanner.text(), '保存を取りやめました。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存をキャンセルしました。');
   assert.equal(shell.SigK.viewer.isDirty(), true);
 });
 
@@ -113,8 +114,8 @@ test('変更が無ければ、確認の窓も出さずに何もしない', async
   assert.equal(shell.imageWrites.length, 0);
 });
 
-test('JPEG は白を敷いて品質 0.95 で書く。控えを作らない設定なら、控えの文を出さず makeBackup も偽', async (t) => {
-  const shell = await withImage(t, JPG, 'jpeg', { preferences: { makeBackup: false } });
+test('JPEG は白を敷いて品質 0.95 で書く。控えを作らない設定（既定。spec-7-4 確定事項BK1）なら、控えの文を出さず makeBackup も偽', async (t) => {
+  const shell = await withImage(t, JPG, 'jpeg');
   const calls = stubImages(t, shell);
   rotate(shell);
   const saving = shell.SigK.save.saveActive();
@@ -172,7 +173,7 @@ test('名前を付けて保存で別の PNG を選ぶと、確認の窓を出さ
 });
 
 test('名前を付けて保存で開いている画像そのものを選ぶと、上書き保存と同じく確認の窓と控えを出す', async (t) => {
-  const shell = await withImage(t, JPG, 'jpeg', { savePathResults: [{ path: JPG, format: 'jpeg' }] });
+  const shell = await withImage(t, JPG, 'jpeg', { savePathResults: [{ path: JPG, format: 'jpeg' }], preferences: { backupBeforeOverwrite: true } });
   stubImages(t, shell);
   const saving = shell.SigK.save.saveAsActive();
   await shell.flush();
@@ -209,4 +210,65 @@ test('ページが 2 枚ある画像（複数ページの TIFF）は、PDF だ�
   assert.deepEqual(shell.savePathCalls[0].formats, ['pdf']);
   assert.equal(shell.savePathCalls[0].defaultPath, 'C:\\work\\fax.pdf');
   assert.equal(shell.SigK.viewBanner.text(), 'ページが 2 ページ以上あるので、PDF で保存します。');
+});
+
+// 確認の窓の「次回から表示しない」（spec-7-4 確定事項CF1〜CF3。2026-11-12 のユーザーの依頼）。
+
+test('「次回から表示しない」にチェックを付けて［焼き込んで上書き保存］を押すと、設定に書き、次の上書き保存では確認の窓を表示せずに書く', async (t) => {
+  const shell = await withImage(t, PNG, 'png');
+  stubImages(t, shell);
+  rotate(shell);
+  const first = shell.SigK.save.saveActive();
+  await shell.flush();
+  byId(shell, 'confirm-image-save-skip').checked = true;
+  byId(shell, 'confirm-image-save-ok').click();
+  assert.equal((await first).ok, true);
+  await shell.flush();
+  assert.deepEqual(shell.preferencesCalls, [{ confirmImageOverwrite: false }]);
+  assert.equal(shell.SigK.preferences.current().confirmImageOverwrite, false);
+
+  rotate(shell);
+  const second = await shell.SigK.save.saveActive();
+  assert.equal(second.ok, true);
+  assert.equal(shell.SigK.confirmImageSave.isOpen(), false, '確認の窓を表示しない');
+  assert.equal(shell.imageWrites.length, 2);
+  assert.equal(shell.SigK.viewBanner.text(), '保存しました。');
+});
+
+test('「次回から表示しない」にチェックを付けても［キャンセル］なら覚えず、次に開いた窓のチェックは外れている', async (t) => {
+  const shell = await withImage(t, PNG, 'png');
+  stubImages(t, shell);
+  rotate(shell);
+  const first = shell.SigK.save.saveActive();
+  await shell.flush();
+  byId(shell, 'confirm-image-save-skip').checked = true;
+  byId(shell, 'confirm-image-save-cancel').click();
+  assert.equal((await first).canceled, true);
+  await shell.flush();
+  assert.deepEqual(shell.preferencesCalls, []);
+
+  const second = shell.SigK.save.saveActive();
+  await shell.flush();
+  assert.equal(shell.SigK.confirmImageSave.isOpen(), true, 'また確認の窓を表示する');
+  assert.equal(byId(shell, 'confirm-image-save-skip').checked, false);
+  byId(shell, 'confirm-image-save-cancel').click();
+  await second;
+});
+
+test('設定で確認の窓を表示しないなら、名前を付けて保存で開いている画像そのものを選んだときも、確認の窓を表示せずに書く', async (t) => {
+  const shell = await withImage(t, JPG, 'jpeg', { savePathResults: [{ path: JPG, format: 'jpeg' }], preferences: { confirmImageOverwrite: false } });
+  stubImages(t, shell);
+  const result = await shell.SigK.save.saveAsActive();
+  assert.equal(result.ok, true);
+  assert.equal(shell.SigK.confirmImageSave.isOpen(), false);
+  assert.deepEqual(shell.imageWrites[0].options, { makeBackup: false, expect: { size: 789, mtimeMs: 1000 } });
+});
+
+test('「次回から表示しない」は確認の窓の足の左にあり、ボタンは［焼き込んで上書き保存］［キャンセル］の順', (t) => {
+  return withImage(t, PNG, 'png').then((shell) => {
+    const foot = byId(shell, 'confirm-image-save-skip').closest('.dlg-foot');
+    assert.deepEqual([...foot.children].map((child) => child.id || child.querySelector('input')?.id),
+      ['confirm-image-save-skip', 'confirm-image-save-ok', 'confirm-image-save-cancel']);
+    assert.equal(byId(shell, 'confirm-image-save-skip').closest('label').textContent, '次回から表示しない');
+  });
 });

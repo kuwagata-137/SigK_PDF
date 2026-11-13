@@ -22,24 +22,26 @@ const byId = (shell, id) => shell.document.getElementById(id);
 const checkedMode = (shell) => shell.document.querySelector('input[name="settings-folder"]:checked')?.value ?? null;
 const isOpen = (shell) => shell.SigK.settingsDialog.isOpen();
 
-test('歯車のボタンで開き、今の値を欄へ写す（既定はどれも今と同じ動き）。フォーカスは選んでいる最初のフォルダの選択肢', async (t) => {
+test('歯車のボタンで開き、今の値を欄へ写す（既定は、控えのファイルを作らない・画像の上書きの確認の窓を表示する。spec-7-4 確定事項BK1・CF3）。フォーカスは選んでいる最初のフォルダの選択肢', async (t) => {
   const shell = await withShell(t);
   byId(shell, 'btn-settings').click();
   assert.equal(isOpen(shell), true);
   assert.equal(checkedMode(shell), 'source');
-  assert.equal(byId(shell, 'settings-fixed-path').textContent, 'まだ決めていません');
-  assert.equal(byId(shell, 'settings-backup').checked, true);
+  assert.equal(byId(shell, 'settings-fixed-path').textContent, '未指定');
+  assert.equal(byId(shell, 'settings-backup').checked, false);
+  assert.equal(byId(shell, 'settings-image-confirm').checked, true);
   assert.equal(byId(shell, 'settings-tool-values').checked, true);
   assert.equal(byId(shell, 'settings-last-tool').checked, true);
   assert.equal(shell.document.activeElement, shell.document.querySelector('input[name="settings-folder"][value="source"]'));
 });
 
-test('覚えている値（最後に書き出したフォルダ・控えのファイルを作らない など）を欄へ写す', async (t) => {
-  const shell = await withShell(t, { preferences: { outputFolder: { mode: 'fixed', fixed: D_OUT }, makeBackup: false, rememberLastTool: false } });
+test('覚えている値（最後に書き出したフォルダ・控えのファイルを作る・画像の上書きの確認の窓を表示しない など）を欄へ写す', async (t) => {
+  const shell = await withShell(t, { preferences: { outputFolder: { mode: 'fixed', fixed: D_OUT }, backupBeforeOverwrite: true, confirmImageOverwrite: false, rememberLastTool: false } });
   shell.SigK.settingsDialog.open();
   assert.equal(checkedMode(shell), 'fixed');
   assert.equal(byId(shell, 'settings-fixed-path').textContent, D_OUT);
-  assert.equal(byId(shell, 'settings-backup').checked, false);
+  assert.equal(byId(shell, 'settings-backup').checked, true);
+  assert.equal(byId(shell, 'settings-image-confirm').checked, false);
   assert.equal(byId(shell, 'settings-last-tool').checked, false);
   assert.equal(shell.document.activeElement, shell.document.querySelector('input[name="settings-folder"][value="fixed"]'));
 });
@@ -53,7 +55,7 @@ test('決めたフォルダの欄は吹き出しでパスの全体を出し、�
   assert.equal(path.dataset.tip, 'text');
   assert.equal(shell.SigK.tipContent.resolve(path).desc, D_OUT);
   const radio = shell.document.querySelector('input[name="settings-folder"][value="fixed"]');
-  assert.equal(radio.closest('label').textContent, '決めたフォルダ');
+  assert.equal(radio.closest('label').textContent, '指定フォルダ');
   assert.equal(byId(shell, 'settings-fixed-change').closest('label'), null);
   shell.SigK.settingsDialog.close();
   const empty = await withShell(t);
@@ -63,7 +65,7 @@ test('決めたフォルダの欄は吹き出しでパスの全体を出し、�
 
 // ブランチ全体の点検の直し I-2。起動してすぐ、メインの返事（最大 1.5 秒）より前に開くと、既定の値で欄を埋め、［OK］で覚えていた値を消していた。
 test('設定を読み終える前に開こうとしたら、読み終えてから覚えている値で開く（［OK］で既定の値を書かない）', async (t) => {
-  const shell = await withShell(t, { holdPreferences: true, preferences: { outputFolder: { mode: 'fixed', fixed: D_OUT }, makeBackup: false } });
+  const shell = await withShell(t, { holdPreferences: true, preferences: { outputFolder: { mode: 'fixed', fixed: D_OUT }, backupBeforeOverwrite: true } });
   assert.equal(shell.SigK.settingsDialog.open(), false, 'まだ開かない');
   assert.equal(isOpen(shell), false);
   shell.releasePreferences();
@@ -72,36 +74,40 @@ test('設定を読み終える前に開こうとしたら、読み終えてか�
   assert.equal(isOpen(shell), true, '読み終えたら開く');
   assert.equal(checkedMode(shell), 'fixed');
   assert.equal(byId(shell, 'settings-fixed-path').textContent, D_OUT);
-  assert.equal(byId(shell, 'settings-backup').checked, false);
+  assert.equal(byId(shell, 'settings-backup').checked, true);
   await shell.SigK.settingsDialog.confirm();
   assert.deepEqual(shell.preferencesCalls[0].outputFolder, { mode: 'fixed', fixed: D_OUT });
-  assert.equal(shell.preferencesCalls[0].makeBackup, false);
+  assert.equal(shell.preferencesCalls[0].backupBeforeOverwrite, true);
 });
 
 test('［OK］で欄の値を書いて閉じる', async (t) => {
   const shell = await withShell(t);
   shell.SigK.settingsDialog.open();
   shell.document.querySelector('input[name="settings-folder"][value="last"]').checked = true;
-  byId(shell, 'settings-backup').checked = false;
+  byId(shell, 'settings-backup').checked = true;
+  byId(shell, 'settings-image-confirm').checked = false;
   byId(shell, 'settings-tool-values').checked = false;
   assert.equal(await shell.SigK.settingsDialog.confirm(), true);
   assert.equal(isOpen(shell), false);
-  assert.deepEqual(shell.preferencesCalls, [{ outputFolder: { mode: 'last', fixed: null }, makeBackup: false, rememberToolValues: false, rememberLastTool: true }]);
+  assert.deepEqual(shell.preferencesCalls, [{ outputFolder: { mode: 'last', fixed: null }, backupBeforeOverwrite: true, confirmImageOverwrite: false, rememberToolValues: false, rememberLastTool: true }]);
   assert.equal(shell.savedPreferences().outputFolder.mode, 'last');
-  assert.equal(shell.SigK.preferences.current().makeBackup, false, '写しも書いた値になる');
+  assert.equal(shell.SigK.preferences.current().backupBeforeOverwrite, true, '写しも書いた値になる');
+  assert.equal(shell.SigK.preferences.current().confirmImageOverwrite, false, '写しも書いた値になる');
 });
 
 test('［キャンセル］と × は書かずに閉じ、次に開いたときは覚えている値に戻っている', async (t) => {
   const shell = await withShell(t);
   for (const id of ['settings-cancel', 'settings-close']) {
     shell.SigK.settingsDialog.open();
-    byId(shell, 'settings-backup').checked = false;
+    byId(shell, 'settings-backup').checked = true;
+    byId(shell, 'settings-image-confirm').checked = false;
     byId(shell, id).click();
     assert.equal(isOpen(shell), false, id);
   }
   assert.deepEqual(shell.preferencesCalls, []);
   shell.SigK.settingsDialog.open();
-  assert.equal(byId(shell, 'settings-backup').checked, true);
+  assert.equal(byId(shell, 'settings-backup').checked, false);
+  assert.equal(byId(shell, 'settings-image-confirm').checked, true);
 });
 
 test('［変更…］でフォルダを選ぶと、決めたフォルダの欄に入り、その選択肢を選ぶ。［OK］でそのフォルダを書く', async (t) => {
@@ -111,7 +117,7 @@ test('［変更…］でフォルダを選ぶと、決めたフォルダの欄�
   await shell.flush();
   assert.equal(byId(shell, 'settings-fixed-path').textContent, D_OUT);
   assert.equal(checkedMode(shell), 'fixed');
-  assert.equal(shell.folderCalls[0].title, '決めたフォルダを選ぶ');
+  assert.equal(shell.folderCalls[0].title, '指定フォルダを選択');
   await shell.SigK.settingsDialog.confirm();
   assert.deepEqual(shell.preferencesCalls[0].outputFolder, { mode: 'fixed', fixed: D_OUT });
 });
@@ -173,7 +179,7 @@ test('Esc（窓の cancel の合図）は書かずに閉じる', async (t) => {
 test('「上書き保存の前に控えのファイルを作る」を外していたら、上書き保存で控えを作らない（前の控えも消さない）', async (t) => {
   const { makeSource } = require('./harness.js');
   const A = 'C:\\work\\a.pdf';
-  const shell = await withShell(t, { preferences: { makeBackup: false }, files: { [A]: makeSource({ path: A }) }, taskResults: [{ ok: true, path: A }] });
+  const shell = await withShell(t, { preferences: { backupBeforeOverwrite: false }, files: { [A]: makeSource({ path: A }) }, taskResults: [{ ok: true, path: A }] });
   await shell.SigK.tabs.openPath(A);
   await shell.flush();
   shell.SigK.viewer.applyPlan(shell.SigK.pagePlan.rotatePages(shell.SigK.viewer.getPlan(), [0], 90));

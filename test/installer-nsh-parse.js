@@ -127,8 +127,9 @@ const ID = '${SIGK_SHELL_ID}';
 const EXE = '"$INSTDIR\\${APP_EXECUTABLE_FILENAME}"';
 const SFA = 'Software\\Classes\\SystemFileAssociations';
 const valueOf = (key, name) => WRITES.find((write) => write.key === key && write.name === name)?.value;
-const imageExtsOf = (lines) => lines
-  .map(({ line }) => new RegExp(`^(?:WriteRegStr|DeleteRegKey) HKCU "${SFA.replace(/\\/g, '\\\\')}\\\\(\\.[a-z]+)\\\\shell\\\\\\$\\{SIGK_SHELL_ID\\}\\.ToPdf"`).exec(line)?.[1])
+// 画像の項目は 2 つ（PDF に変換＝ToPdf・画像を編集する＝EditImage。spec-7-3）。verb で、どちらのキーを見るかを選ぶ。
+const imageExtsOf = (lines, verb = 'ToPdf') => lines
+  .map(({ line }) => new RegExp(`^(?:WriteRegStr|DeleteRegKey) HKCU "${SFA.replace(/\\/g, '\\\\')}\\\\(\\.[a-z]+)\\\\shell\\\\\\$\\{SIGK_SHELL_ID\\}\\.${verb}"`).exec(line)?.[1])
   .filter(Boolean);
 
 module.exports = {

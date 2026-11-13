@@ -52,7 +52,7 @@ test('文書を開くと保存ボタンが押せるようになる', async (t) =
 });
 
 test('上書き保存は、いまの並びと元のパスをワーカーへ渡す', async (t) => {
-  const shell = await withOpenDocument(t, { taskResults: [okResult()] });
+  const shell = await withOpenDocument(t, { taskResults: [okResult()], preferences: { backupBeforeOverwrite: true } });
   edit(shell.SigK);
   const edited = plain(shell.SigK.viewer.getPlan());
 
@@ -63,7 +63,7 @@ test('上書き保存は、いまの並びと元のパスをワーカーへ渡�
   const { spec } = shell.taskCalls[0];
   assert.equal(spec.source, A);
   assert.equal(spec.target, A, '上書きなので行き先は同じ');
-  // 上書きのときだけ .bak を作る（確定事項18・20）。
+  // 上書きのときだけ .bak を作る（確定事項18・20。設定の窓で「バックアップファイルを作成する」にチェックを付けているとき。spec-7-4 確定事項BK1）。
   assert.equal(spec.makeBackup, true);
   // 開いたときのサイズと更新時刻を控えて渡す（確定事項21）。
   assert.deepEqual(spec.expect, { size: 1024, mtimeMs: 1000 });
@@ -187,7 +187,7 @@ test('名前を付けて保存の保存先が別のタブで開いていれば�
   await shell.flush();
 
   const result = await shell.SigK.save.saveAsActive();
-  assert.equal(result.error, '保存先のファイルは別のタブで開いているので、そのタブを閉じるか、別の名前を選んでください。');
+  assert.equal(result.error, '保存先ファイルは別のタブで開いているので、そのタブを閉じるか、別の名前を指定してください。');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(shell.SigK.viewBanner.text(), result.error);
   assert.deepEqual(plain(shell.SigK.tabs.list().map((tab) => tab.path)), [A, B]);
@@ -248,7 +248,7 @@ test('保存中は保存ボタンを押せない', async (t) => {
   await shell.flush();
   assert.equal(shell.SigK.save.isBusy(), true);
   assert.equal(shell.document.getElementById('btn-save').getAttribute('aria-disabled'), 'true');
-  assert.match((await shell.SigK.save.saveActive()).error, /いま保存しています/);
+  assert.match((await shell.SigK.save.saveActive()).error, /現在、保存中です/);
 
   release();
   await promise;
@@ -309,11 +309,11 @@ test('保存の途中で別のタブへ移っても、開き直すのは保存�
 test('runTask・runLocal は、走っている処理があれば断り、busy を添える（点検の直し）', async (t) => {
   const shell = await withOpenDocument(t);
   let done = null;
-  const local = shell.SigK.save.runLocal({ label: '画像に', run: () => new Promise((resolve) => { done = () => resolve({ ok: true }); }) });
+  const local = shell.SigK.save.runLocal({ label: '画像に変換', run: () => new Promise((resolve) => { done = () => resolve({ ok: true }); }) });
   await shell.flush();
 
   const refused = await shell.SigK.save.runTask({ kind: 'flatten-preview', label: '書き込みを確認', source: A });
-  assert.deepEqual(plain(refused), { error: 'いま画像にしています。', busy: true });
+  assert.deepEqual(plain(refused), { error: '現在、画像に変換中です。', busy: true });
   assert.equal(shell.taskCalls.length, 0, 'ワーカーへは渡さない');
   done();
   await local;
@@ -374,8 +374,8 @@ test('外から書き換えられていて、取りやめたら書かない', as
 
   assert.deepEqual(plain(await promise), { canceled: true });
   assert.equal(shell.taskCalls.length, 1);
-  assert.equal(shell.SigK.viewBanner.text(), '保存を取りやめました。');
-  // 確認で自分が「やめる」を選んだので、失敗の赤ではなく青で出す（決定49）。
+  assert.equal(shell.SigK.viewBanner.text(), '保存をキャンセルしました。');
+  // 確認で自分が「キャンセル」を選んだので、失敗の赤ではなく青で出す（決定49）。
   assert.equal(shell.document.getElementById('view-banner').getAttribute('data-tone'), 'info');
   assert.equal(shell.SigK.viewer.isDirty(), true);
 });
@@ -422,7 +422,7 @@ test('runLocal は通知バーと中止を出し、走っている間は isBusy 
   let seen = null;
 
   const promise = shell.SigK.save.runLocal({
-    label: '画像に',
+    label: '画像に変換',
     run: (frame) => new Promise((resolve) => {
       seen = frame;
       release = () => resolve({ ok: true, written: 3 });
@@ -431,13 +431,13 @@ test('runLocal は通知バーと中止を出し、走っている間は isBusy 
   await shell.flush();
 
   assert.equal(shell.SigK.save.isBusy(), true);
-  assert.match(shell.SigK.viewBanner.text(), /画像にしています/);
+  assert.match(shell.SigK.viewBanner.text(), /画像に変換しています/);
   assert.equal(shell.SigK.viewBanner.action()?.textContent, '中止');
-  assert.match((await shell.SigK.save.saveActive()).error, /いま画像にしています/);
+  assert.match((await shell.SigK.save.saveActive()).error, /現在、画像に変換中です/);
 
   // 進捗はページ単位で通知バーに出て、最後の値は lastProgress から読める。
   seen.report(3, 12);
-  assert.match(shell.SigK.viewBanner.text(), /画像にしています（3 \/ 12 ページ）/);
+  assert.match(shell.SigK.viewBanner.text(), /画像に変換しています（3 \/ 12 ページ）/);
   assert.deepEqual(plain(shell.SigK.save.lastProgress()), { taskId: 'local-1', phase: 'write', done: 3, of: 12, unit: 'ページ' });
 
   // 中止はワーカーの kill ではなく旗である。
@@ -459,14 +459,14 @@ test('runLocal はワーカーのタスクと同時には走らず、逆も同�
 
   const saving = shell.SigK.save.saveActive();
   await shell.flush();
-  assert.match((await shell.SigK.save.runLocal({ label: '画像に', run: async () => ({ ok: true }) })).error, /いま保存しています/);
+  assert.match((await shell.SigK.save.runLocal({ label: '画像に変換', run: async () => ({ ok: true }) })).error, /現在、保存中です/);
   release();
   await saving;
 
   let done = null;
-  const local = shell.SigK.save.runLocal({ label: '画像に', run: () => new Promise((resolve) => { done = () => resolve({ ok: true }); }) });
+  const local = shell.SigK.save.runLocal({ label: '画像に変換', run: () => new Promise((resolve) => { done = () => resolve({ ok: true }); }) });
   await shell.flush();
-  assert.match((await shell.SigK.save.runLocal({ label: '画像に', run: async () => ({ ok: true }) })).error, /いま画像にしています/);
+  assert.match((await shell.SigK.save.runLocal({ label: '画像に変換', run: async () => ({ ok: true }) })).error, /現在、画像に変換中です/);
   done();
   await local;
 });
@@ -474,7 +474,7 @@ test('runLocal はワーカーのタスクと同時には走らず、逆も同�
 test('runLocal は run が投げても枠を戻し、理由を返す', async (t) => {
   const shell = await withOpenDocument(t);
 
-  const result = await shell.SigK.save.runLocal({ label: '画像に', run: async () => { throw new Error('描けない'); } });
+  const result = await shell.SigK.save.runLocal({ label: '画像に変換', run: async () => { throw new Error('描けない'); } });
 
   assert.deepEqual(plain(result), { error: '描けない' });
   assert.equal(shell.SigK.save.isBusy(), false);

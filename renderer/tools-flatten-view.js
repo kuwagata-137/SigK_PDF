@@ -55,20 +55,20 @@
   function keepText(tally) {
     const lines = [];
     if (tally.keep.functional > 0)
-      lines.push(`リンク・フォームの欄など ${tally.keep.functional} 件はそのまま残します。`);
+      lines.push(`リンク・フォーム入力欄など ${tally.keep.functional} 件はそのまま残します。`);
     if (tally.keep.noAppearance > 0)
-      lines.push(`見た目の情報を持たない書き込み ${tally.keep.noAppearance} 件（直線・テキストなど）は焼き込めないため、書き込みのまま残します。`);
+      lines.push(`外観情報を持たない書き込み ${tally.keep.noAppearance} 件（直線・テキストなど）は焼き込めないため、書き込みのまま残します。`);
     if (tally.keep.hidden > 0)
       lines.push(`表示されていない書き込み ${tally.keep.hidden} 件は、書き込みのまま残します。`);
     if (tally.unchosen > 0)
-      lines.push(`選ばなかった書き込み ${tally.unchosen} 件（チェックを外した種類・範囲の外のページ）は、書き込みのまま残します。`);
+      lines.push(`選択しなかった書き込み ${tally.unchosen} 件（チェックを外した種類・範囲外のページ）は、書き込みのまま残します。`);
     return lines.join('');
   }
 
   function renderCensus(selection, running) {
     const census = tool().census();
     const total = census?.result ?? null;
-    el.status.textContent = census === null ? '' : (census.pending ? '数えています…' : (census.error ?? (total.baked > 0 ? '' : '焼き込める書き込みがありません。')));
+    el.status.textContent = census === null ? '' : (census.pending ? '集計しています…' : (census.error ?? (total.baked > 0 ? '' : '焼き込める書き込みがありません。')));
     el.status.hidden = el.status.textContent === '';
     const tally = selection.tally;
     el.list.hidden = tally === null || !(total?.baked > 0);
@@ -79,7 +79,7 @@
     const keep = counted ? keepText(tally) : '';
     el.keepText.textContent = keep;
     el.keep.hidden = keep === '';
-    el.warn.textContent = counted && tally.notes > 0 ? `ノート ${tally.notes} 件は付箋の絵だけが残り、本文と作成者は書き出したファイルに残りません。` : '';
+    el.warn.textContent = counted && tally.notes > 0 ? `ノート ${tally.notes} 件は付箋アイコンだけが残り、本文と作成者は書き出したファイルに残りません。` : '';
     el.warn.hidden = el.warn.textContent === '';
   }
 

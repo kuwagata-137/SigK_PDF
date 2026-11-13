@@ -21,7 +21,7 @@ function imageFrames(kind, bytes) {
   return frameCount(kind, bytes);
 }
 
-const UNREADABLE = '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。';
+const UNREADABLE = '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読み込めませんでした。';
 const BROKEN_PAGE = '差し込む PDF に壊れたページがあるので、差し込めませんでした。';
 
 // ページの木の中の、pdf-lib が黙って飛ばすページ（壊れたページ）の見分け（spec-6-1 確定事項D-8。点検の直し I-1・I-2）。壊れていれば理由の文、
@@ -34,7 +34,7 @@ function brokenPageReason(doc) {
   let leaves = 0;
   const walk = (node, depth) => {
     if (seen.has(node) || depth > 64)
-      return 'ページの木が自分を指しているか、深すぎる';
+      return 'ページツリーが循環しているか、階層が深すぎます';
     seen.add(node);
     const kids = node.lookup(PDFName.of('Kids'));
     if (kids === undefined) {
@@ -42,10 +42,10 @@ function brokenPageReason(doc) {
       return null;
     }
     if (!(kids instanceof PDFArray))
-      return '/Kids が配列でない';
+      return '/Kids が配列ではありません';
     for (let index = 0; index < kids.size(); index += 1) {
       const kid = kids.lookup(index);
-      const reason = kid instanceof PDFDict ? walk(kid, depth + 1) : `/Kids の ${index + 1} 番目が辞書でない`;
+      const reason = kid instanceof PDFDict ? walk(kid, depth + 1) : `/Kids の ${index + 1} 番目が辞書ではありません`;
       if (reason !== null)
         return reason;
     }
@@ -55,7 +55,7 @@ function brokenPageReason(doc) {
   if (reason !== null)
     return reason;
   const count = doc.getPageCount();
-  return count === leaves ? null : `ページの木の葉 ${leaves} 枚と、pdf-lib が数えたページ ${count} 枚が違う`;
+  return count === leaves ? null : `ページツリーにあるページ ${leaves} 枚と、pdf-lib が数えたページ ${count} 枚が一致しません`;
 }
 
 // 読んだバイト列を、差し込める形（PDF なら pdf-lib の文書、画像ならフレームの数）にする。
@@ -64,7 +64,7 @@ async function loadBytes(bytes, PDFDocument) {
   if (!isSupported(kind))
     return { error: describeFormat(kind) };
   if (kind === 'jpeg' && isProgressiveJpeg(bytes))
-    return { error: 'この JPEG はプログレッシブ形式なので、挿入できません。' };
+    return { error: 'この JPEG はプログレッシブ形式なので、差し込めません。' };
 
   if (kind === 'pdf') {
     let doc;
@@ -97,7 +97,7 @@ async function loadSource(path, cache, { readFile, PDFDocument }) {
   try {
     bytes = await readFile(path);
   } catch (error) {
-    cache.set(path, failure('差し込むファイルを読めませんでした。', error));
+    cache.set(path, failure('差し込むファイルを読み込めませんでした。', error));
     return cache.get(path);
   }
   cache.set(path, await loadBytes(bytes, PDFDocument));

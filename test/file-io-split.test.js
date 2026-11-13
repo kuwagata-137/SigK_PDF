@@ -40,7 +40,7 @@ test('pickMergeSources は複数を返す', async () => {
   };
   assert.deepEqual(await pickMergeSources({ dialogLike }), { paths: [IN_A, IN_B] });
   assert.deepEqual(calls[0].properties, ['openFile', 'multiSelections']);
-  assert.equal(calls[0].title, '結合する PDF を選ぶ');
+  assert.equal(calls[0].title, '結合する PDF を選択');
 });
 
 test('pickFolder はフォルダだけを選ばせ、{ path } か { canceled } を返す', async () => {
@@ -74,15 +74,15 @@ test('createFileIo はフォルダ選択も出せる', async () => {
   assert.deepEqual(await io.pickFolder(null, { defaultPath: 'C:/in' }), { path: DIR });
 });
 
-// 点検の直し M-1。設定の窓の［変更…］は題「決めたフォルダを選ぶ」を渡す。届かず既定の題になっていた。
-test('createFileIo の pickFolder は、画面が渡した題を窓に出す（無い・空なら既定の「出力先のフォルダを選ぶ」）', async () => {
+// 点検の直し M-1。設定の窓の［変更…］は題「指定フォルダを選択」を渡す。届かず既定の題になっていた。
+test('createFileIo の pickFolder は、画面が渡した題を窓に出す（無い・空なら既定の「出力先フォルダを選択」）', async () => {
   const titles = [];
   const dialog = { showOpenDialog: async (options) => { titles.push(options.title); return { canceled: true }; } };
   const io = createFileIo({ dialog });
-  await io.pickFolder(null, { title: '決めたフォルダを選ぶ' });
+  await io.pickFolder(null, { title: '指定フォルダを選択' });
   await io.pickFolder(null, {});
   await io.pickFolder(null, { title: '' });
-  assert.deepEqual(titles, ['決めたフォルダを選ぶ', '出力先のフォルダを選ぶ', '出力先のフォルダを選ぶ']);
+  assert.deepEqual(titles, ['指定フォルダを選択', '出力先フォルダを選択', '出力先フォルダを選択']);
 });
 
 // 分割の画面が、読んだあとで書き換わっていないかを照らす口（spec-2-2b 確定事項D7）。

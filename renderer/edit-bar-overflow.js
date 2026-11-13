@@ -69,11 +69,11 @@
     return result.more;
   }
 
-  // 隠している道具のボタン（段の並び）。
+  // 隠している道具のボタン（段の並び）。押すとすぐ働く［左回転］［右回転］（data-action。spec-7-4）も入れる。
   function hiddenButtons() {
     if (el === null)
       return [];
-    return [...el.bar.querySelectorAll(`.${OVERFLOW} .edit-tool[data-tool]`)];
+    return [...el.bar.querySelectorAll(`.${OVERFLOW} .edit-tool[data-tool], .${OVERFLOW} .edit-tool[data-action]`)];
   }
 
   function init(doc, win) {

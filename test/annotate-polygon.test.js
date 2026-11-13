@@ -64,7 +64,7 @@ test('道具の段の多角形で、クリックした所に頂点を置き、�
   const { SigK, document } = shell;
   assert.equal(SigK.annotate.getTool(), 'shape');
   assert.equal(SigK.annotateShape.getShapeKind(), 'polygon');
-  assert.match(document.getElementById('props-hint').textContent, /クリックで頂点を置きます/);
+  assert.match(document.getElementById('props-hint').textContent, /クリックで頂点を配置します/);
   click(shell, [100, 700]);
   assert.equal(SigK.annotatePolygon.isDrawing(), true);
   assert.match(document.getElementById('props-hint').textContent, /始点をクリックすると閉じます/);
@@ -203,7 +203,7 @@ test('選んだ多角形の頂点のつまみを引くとその頂点だけが�
   click(shell, [100, 700]);
   const [polygon] = added(shell);
   assert.equal(document.getElementById('props-angle-row').hidden, false);
-  assert.match(document.getElementById('props-hint').textContent, /頂点の白いつまみ/);
+  assert.match(document.getElementById('props-hint').textContent, /頂点の白いハンドル/);
   const viewport = viewportOf(shell);
   const handles = SigK.shapeHandles.handlesOf(polygon, viewport).handles;
   const vertex = handles.find((handle) => handle.id === 'v1');

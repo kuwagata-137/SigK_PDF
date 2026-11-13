@@ -33,7 +33,7 @@ const plain = (value) => structuredClone(value);
 const runButton = (shell) => shell.document.getElementById('split-run');
 const bannerText = (shell) => shell.SigK.viewBanner.text();
 const bannerTone = (shell) => shell.document.getElementById('view-banner').getAttribute('data-tone');
-// 帯（タブ）で開いて対象にし、1 ページずつに分ける（3 ページの A なら A_TARGETS の 3 本になる）。
+// 帯（タブ）で開いて対象にし、1 ページずつ分割（3 ページの A なら A_TARGETS の 3 本になる）。
 async function useEach(shell, filePath = A) {
   await shell.SigK.tabs.openPath(filePath);
   await shell.flush();
@@ -47,8 +47,8 @@ test('出力先に元のファイルと同じパスが入っていれば、書�
   const original = shell.SigK.splitPlan.outputNames;
   shell.SigK.splitPlan.outputNames = (...args) => original(...args).map((name, index) => (index === 1 ? 'a.pdf' : name));
   const result = await shell.SigK.toolsSplit.run();
-  assert.equal(result.error, '出力先に元のファイルと同じファイルは選べません。');
-  assert.equal(bannerText(shell), '出力先に元のファイルと同じファイルは選べません。');
+  assert.equal(result.error, '出力先に元のファイルと同じファイルは選択できません。');
+  assert.equal(bannerText(shell), '出力先に元のファイルと同じファイルは選択できません。');
   assert.equal(shell.taskCalls.length, 0);
 });
 
@@ -84,7 +84,7 @@ test('帯が無いときは対象が無く、右の欄に状態の文を出し�
   const shell = await createSplitShell(t);
   const { document: doc, SigK } = shell;
   assert.equal(SigK.toolsSplit.source(), null);
-  assert.equal(doc.getElementById('split-state').textContent, 'PDF を開くと、選んでいる帯が対象になります。');
+  assert.equal(doc.getElementById('split-state').textContent, 'PDF を開くと、選択中の帯が対象になります。');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
   assert.equal(SigK.toolsSplit.canRun(), false);
   assert.equal(doc.getElementById('split-summary').textContent, '');
@@ -107,7 +107,7 @@ test('帯を開くとその帯が対象になり、フォルダが埋まる。�
   assert.equal(doc.getElementById('split-rule-pages').textContent, 'a_p1-3.pdf');
   SigK.toolsSplitEdit.bulk('each');
   assert.deepEqual(plain(SigK.toolsSplit.currentPlan().targets), A_TARGETS);
-  assert.equal(doc.getElementById('split-summary').textContent, '3 ページを 3 つのファイルに分けます。');
+  assert.equal(doc.getElementById('split-summary').textContent, '3 ページを 3 つのファイルに分割します。');
   assert.equal(doc.getElementById('split-rule-pages').textContent, 'a_p1.pdf');
   assert.equal(SigK.toolsSplit.canRun(), true);
   assert.equal(runButton(shell).hasAttribute('aria-disabled'), false);
@@ -155,7 +155,7 @@ test('開けなかった帯は盤に広げず、理由を帯と右の欄に出�
   const { document: doc, SigK } = shell;
   await SigK.tabs.openPath(A);
   await shell.flush();
-  const reason = '「a.pdf」は開けなかったので、ほかの帯を選んでください。';
+  const reason = '「a.pdf」は開けなかったので、ほかの帯を選択してください。';
   assert.equal(SigK.toolsSplit.source().blocked, reason);
   assert.equal(doc.getElementById('split-state').textContent, reason);
   assert.equal(SigK.toolsSplit.canRun(), false);
@@ -172,7 +172,7 @@ test('パスワード付きの帯は「分割できません」と断る', async
   const peek = shell.SigK.tabs.peek;
   shell.window.SigK.tabs.peek = (id) => ({ ...peek(id), file: { ...peek(id).file, encrypted: true } });
   shell.SigK.toolsSplitView.render();
-  assert.equal(shell.SigK.toolsSplit.source().blocked, '「a.pdf」はパスワード付きなので分割できません。ほかの帯を選んでください。');
+  assert.equal(shell.SigK.toolsSplit.source().blocked, '「a.pdf」はパスワード付きなので分割できません。ほかの帯を選択してください。');
   assert.equal(shell.SigK.toolsSplit.canRun(), false);
   assert.equal(shell.document.getElementById('split-strip-board').hasAttribute('data-blocked'), true);
 });
@@ -259,7 +259,7 @@ test('出力先のどれかがタブで開いていれば、同名の3択を出�
   await useEach(shell);
 
   const result = await SigK.toolsSplit.run();
-  assert.equal(result.error, '出力先の「a_002.pdf」はタブで開いているので、タブを閉じるか、フォルダを変えてください。');
+  assert.equal(result.error, '出力先の「a_002.pdf」はタブで開いているので、タブを閉じるか、フォルダを変更してください。');
   assert.equal(SigK.confirmReplace.isOpen(), false, '置き換えてよいかは聞かない');
   assert.equal(shell.taskCalls.length, 0);
   assert.equal(bannerText(shell), result.error);
@@ -281,7 +281,7 @@ test('「別名で保存」で選び直したフォルダの出力先がタブ�
   await shell.flush();
   doc.getElementById('confirm-replace-rename').click();
   const result = await pending;
-  assert.equal(result.error, '出力先の「a_001.pdf」はタブで開いているので、タブを閉じるか、フォルダを変えてください。');
+  assert.equal(result.error, '出力先の「a_001.pdf」はタブで開いているので、タブを閉じるか、フォルダを変更してください。');
   assert.equal(shell.taskCalls.length, 0);
 });
 

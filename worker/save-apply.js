@@ -31,7 +31,7 @@ const fontSource = createFontSource();
 // モザイク（spec-4b-6b 確定事項20・21）も applyPlan の前に、ページの中身を画像に差し替える。src が元のページ番号のうちに当てるためで、
 // 書き込みとは別のオブジェクトなので、注釈との前後は問わない。mosaics の数を返す（保存の直前に辿れない中身を消すかどうか。pdf-task.js）。
 // plan にモザイクがあるのに画像が来ていないページがあれば、何もせずに断る（元の中身のまま書かない）。
-const UNPAINTED = 'モザイクを入れたページの画像がそろっていないので、取りやめました。もう一度やり直してください。';
+const UNPAINTED = 'モザイクを入れたページの画像がそろっていないので、保存を中止しました。もう一度やり直してください。';
 
 async function applyForSave(doc, pages, inserts, fsLike, annotations, mosaics = [], copies = {}) {
   if (unpaintedSources(pages, mosaics).length > 0)

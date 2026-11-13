@@ -40,7 +40,7 @@ function wheel(shell, { deltaY = -100, ctrl = true } = {}) {
   return event;
 }
 
-const zoomText = (shell) => shell.document.getElementById('zoom-value').textContent;
+const zoomText = (shell) => shell.document.getElementById('zoom-value').value;
 const firstStrip = (shell) => shell.document.querySelector('#strips .strip');
 const firstSheet = (shell) => firstStrip(shell).querySelector('.strip-page .sheet');
 
@@ -66,10 +66,10 @@ test('ツールモードの［＋］は帯の紙の倍率を上げ、閲覧の�
   assert.equal(zoomText(shell), '125%');
 });
 
-test('段は 50・67・75・100・125・150・175・200・250・300%。端で止まり、Ctrl＋0 で 100% に戻る', async (t) => {
+test('段は 50・60・70・80・90・100・125・150・175・200・250・300%。端で止まり、Ctrl＋0 で 100% に戻る', async (t) => {
   const shell = await withTools(t);
   const { SigK } = shell;
-  assert.deepEqual([...SigK.toolsZoom.STEPS], [0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]);
+  assert.deepEqual([...SigK.toolsZoom.STEPS], [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]);
 
   for (let index = 0; index < 12; index += 1)
     click(shell, 'zoom-in');
@@ -83,7 +83,7 @@ test('段は 50・67・75・100・125・150・175・200・250・300%。端で止
   assert.equal(key(shell, { key: '0', ctrlKey: true }).defaultPrevented, true);
   assert.equal(SigK.toolsZoom.get(), 1);
   assert.equal(key(shell, { key: '-', ctrlKey: true }).defaultPrevented, true);
-  assert.equal(SigK.toolsZoom.get(), 0.75);
+  assert.equal(SigK.toolsZoom.get(), 0.9);
   assert.equal(key(shell, { key: '=', ctrlKey: true }).defaultPrevented, true);
   assert.equal(SigK.toolsZoom.get(), 1);
 });
@@ -125,31 +125,34 @@ test('倍率どおりに PDF の帯の紙と帯の高さが変わる（見出し
   const shell = await withTools(t);
   const { SigK } = shell;
   const layout = SigK.stripLayout;
-  assert.equal(firstSheet(shell).style.height, '104px');
-  assert.equal(firstStrip(shell).style.height, `${layout.STRIP_HEIGHT}px`);
+  // 決定93 で 100% を前の 200% の大きさにしたので、紙の高さは 100% で 208px（spec-7-6 確定事項ZT1）。
+  assert.equal(firstSheet(shell).style.height, '208px');
+  assert.equal(firstStrip(shell).style.height, `${layout.stripHeight(2)}px`);
 
   SigK.toolsZoom.set(2);
   await shell.flush();
-  assert.equal(firstSheet(shell).style.height, '208px');
-  assert.equal(firstStrip(shell).style.height, `${layout.stripHeight(2)}px`);
-  assert.equal(layout.stripHeight(2) - layout.STRIP_HEIGHT, 104, '紙のほかの寸法まで変わった');
+  assert.equal(firstSheet(shell).style.height, '416px');
+  assert.equal(firstStrip(shell).style.height, `${layout.stripHeight(4)}px`);
+  assert.equal(layout.stripHeight(4) - layout.stripHeight(2), 208, '紙のほかの寸法まで変わった');
 
   SigK.toolsZoom.set(0.5);
   await shell.flush();
-  assert.equal(firstSheet(shell).style.height, '52px');
+  assert.equal(firstSheet(shell).style.height, '104px');
 });
 
-test('描く枚数の上限は面積で数える（100% で 160 枚、200% で 40 枚、300% で 18 枚、50% で 640 枚）', async (t) => {
+test('描く枚数の上限は画面上の大きさの面積で数える（50% で 160 枚、100% で 40 枚、150% で 18 枚、200% 以上は下限の 16 枚。決定93）', async (t) => {
   const shell = await withTools(t);
   const layout = shell.SigK.stripLayout;
-  assert.deepEqual([1, 2, 3, 0.5].map((zoom) => layout.limit(zoom)), [160, 40, 18, 640]);
+  const { PAPER_SCALE } = shell.SigK.toolsZoom;
+  assert.deepEqual([0.5, 1, 1.5, 2, 3].map((zoom) => layout.limit(zoom * PAPER_SCALE)), [160, 40, 18, 16, 16]);
+  assert.equal(layout.limit(layout.zoom()), 40, '今の倍率（100%）の上限');
 
   // 帯の絵も、今の倍率の上限までしか持たない。
   shell.SigK.toolsZoom.set(3);
   const items = Array.from({ length: 30 }, (_, page) => ({ strip: 0, page, tabId: shell.SigK.tabs.list()[0].id, near: false }));
   shell.SigK.stripThumbs.want(items);
   const state = shell.SigK.stripThumbs.getState();
-  assert.ok(state.drawn + state.pending + state.queued <= 18, `上限を超えて持った: ${JSON.stringify(state)}`);
+  assert.ok(state.drawn + state.pending + state.queued <= 16, `上限を超えて持った: ${JSON.stringify(state)}`);
 });
 
 test('いちばん上を見ているときに倍率を変えても、1 本目の帯の上の余白ごと、いちばん上のまま', async (t) => {

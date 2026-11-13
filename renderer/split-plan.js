@@ -28,7 +28,7 @@
   function parseEvery(text) {
     const normalized = normalize(text);
     if (!/^\d+$/.test(normalized) || Number(normalized) < 1)
-      return { error: '1 以上の整数を書いてください' };
+      return { error: '1 以上の整数を入力してください' };
     return { n: Number(normalized) };
   }
 
@@ -36,14 +36,14 @@
   function parseCuts(text, pageCount) {
     const normalized = normalize(text);
     if (normalized === '')
-      return { error: '3, 7 のように書いてください' };
+      return { error: '3, 7 のように入力してください' };
     const numbers = [];
     for (const token of normalized.split(',')) {
       if (!/^\d+$/.test(token))
-        return { error: '3, 7 のように書いてください' };
+        return { error: '3, 7 のように入力してください' };
       const page = Number(token);
       if (page < 2)
-        return { error: '1 の前では切れないので、2 から書いてください' };
+        return { error: '1 ページ目の前では分割できません。2 以上を入力してください' };
       if (page > pageCount)
         return { error: `${withCommas(pageCount)} ページまでです` };
       if (numbers.includes(page))

@@ -33,9 +33,9 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
   if (!Array.isArray(inputs) || inputs.length === 0)
     return { error: '結合するファイルがありません。' };
   if (typeof target !== 'string')
-    return { error: '保存先が決まっていません。' };
+    return { error: '保存先が指定されていません。' };
   if (inputs.some((input) => typeof input?.path !== 'string'))
-    return { error: '結合するファイルの場所が分かりません。' };
+    return { error: '結合するファイルの場所を取得できません。' };
 
   const nameOf = (input) => input.name ?? path.basename(input.path);
   // 帯のファイルが、タブで開いたときから書き換えられていたら読む前に止める（決定81 ⑫。spec-6-1 確定事項C-9）。止めたときの文は画面が組む。
@@ -78,7 +78,7 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     output = await merged.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return failure('結合した内容を組み立てられませんでした。', error);
+    return failure('結合後の PDF を作成できませんでした。', error);
   }
 
   advance('write');
@@ -110,11 +110,11 @@ async function runMerge(spec, { fsLike = fs, advance = () => {} } = {}) {
 async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
   const { source, parts, expectSource = null } = spec ?? {};
   if (typeof source !== 'string')
-    return { error: '分割するファイルが決まっていません。' };
+    return { error: '分割するファイルが指定されていません。' };
   if (!Array.isArray(parts) || parts.length === 0)
     return { error: '分割するページがありません。' };
   if (parts.some((part) => typeof part?.target !== 'string'))
-    return { error: '出力先が決まっていません。' };
+    return { error: '出力先が指定されていません。' };
   // 画面が読んだあとで書き換わっていたら、見ているサムネイルと違う中身を分けないよう止める（spec-2-2b 確定事項H4）。止めたときの文は
   // 画面が組む（決定81 ⑫。spec-6-1 確定事項C-9。ほかのツールと同じ）。
   if (expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
@@ -146,11 +146,11 @@ async function runSplit(spec, { fsLike = fs, advance = () => {} } = {}) {
       try {
         output = await out.save(SAVE_OPTIONS);
       } catch (error) {
-        return failure(`${index + 1} / ${parts.length} 本目の内容を組み立てられませんでした。`, error);
+        return failure(`${index + 1} / ${parts.length} ファイル目の PDF を作成できませんでした。`, error);
       }
       const written = await writeDocument(targets[index], Buffer.from(output), { makeBackup: false, expect: null, fsLike });
       if (written.ok !== true)
-        return { error: `${index + 1} / ${parts.length} 本目を書けませんでした。${written.error ?? ''}` };
+        return { error: `${index + 1} / ${parts.length} ファイル目を書き出せませんでした。${written.error ?? ''}` };
       return { ok: true };
     },
     onProgress: (done, total) => advance('write', done, total),

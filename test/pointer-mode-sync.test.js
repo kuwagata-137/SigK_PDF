@@ -72,7 +72,6 @@ test('閲覧で［ハンド］にして編集へ入ると、編集の道具は�
 
   setMode(shell, 'annot');
   assert.equal(SigK.annotate.getTool(), 'hand');
-  assert.equal(document.querySelector('#edit-bar [data-tool="hand"]').getAttribute('aria-pressed'), 'true');
   assert.equal(document.getElementById('btn-pointer-hand').classList.contains('active'), true);
 });
 

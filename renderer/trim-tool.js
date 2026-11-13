@@ -32,7 +32,7 @@
   function announce({ count, small, inserted }) {
     const kept = [small > 0 ? `小さすぎる ${small} ページ` : null, inserted > 0 ? `差し込んだ ${inserted} ページ` : null].filter(Boolean);
     const rest = kept.length === 0 ? '' : `${kept.join('と')}はそのままです。`;
-    root.SigK.viewBanner?.show(`${count} ページを切りました。${rest}`, { tone: 'info' });
+    root.SigK.viewBanner?.show(`${count} ページをトリミングしました。${rest}`, { tone: 'info' });
   }
 
   // Enter・［適用］: 枠で切る（確定事項14・18）。1 世代にまとめ、枠を消し、切ったページの上端へ表示を寄せる。枠が無ければ false。
@@ -71,7 +71,7 @@
       return false;
     }
     if (!root.SigK.pagePlan.samePlan(before, viewer().getPlan())) {
-      root.SigK.viewBanner?.show('読み込みを待つ間にページが変わったので、トリミングを外しませんでした。もう一度押してください。', { tone: 'warn' });
+      root.SigK.viewBanner?.show('読み込みを待つ間にページが変わったので、トリミングを解除しませんでした。もう一度［トリミングを解除］を押してください。', { tone: 'warn' });
       refresh();
       return false;
     }

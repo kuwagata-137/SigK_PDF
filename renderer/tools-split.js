@@ -10,7 +10,7 @@
 
   // 右クリック起動で複数本が届いたときの文言。Phase 5 で見直して変えないことにした（spec-5-1 確定事項20）。
   const NOTE_FIRST_ONLY = '1つ目のファイルだけを対象にしました。';
-  const NOTE_ORDER = 'ページの並べ替え・削除・差し込みを保存していないので、✂ の位置がファイルのページとずれます。［保存せずに実行］は使えません。';
+  const NOTE_ORDER = 'ページの並べ替え・削除・差し込みを保存していないので、分割位置がファイルのページとずれます。［保存せずに実行］は使用できません。';
 
   const state = { folder: null, folderTouched: false, rule: 'seq', running: false };
   let el = null;

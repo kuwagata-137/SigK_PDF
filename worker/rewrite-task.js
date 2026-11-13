@@ -26,7 +26,7 @@ const fontSource = createFontSource();
 // 元を読んで開く。戻り値は { doc } か { error }。advance は読む・開くの入り口で呼ぶ。
 async function openSource(source, { fsLike, advance = () => {} }) {
   if (typeof source !== 'string')
-    return { error: '対象のファイルが決まっていません。' };
+    return { error: '対象ファイルが指定されていません。' };
   advance('read');
   let bytes;
   try {
@@ -46,7 +46,7 @@ async function openSource(source, { fsLike, advance = () => {} }) {
 async function runRewrite(spec, apply, { fsLike = fs, advance = () => {} } = {}) {
   const { source, target, expectSource = null } = spec ?? {};
   if (typeof source === 'string' && typeof target !== 'string')
-    return { error: '保存先が決まっていません。' };
+    return { error: '保存先が指定されていません。' };
   // 止めたときの文は画面が組む（spec-6-1 確定事項C-9）。
   if (typeof source === 'string' && expectSource !== null && !signaturesMatch(expectSource, await readSignature(source, { fsLike })))
     return { sourceChanged: true };
@@ -57,14 +57,14 @@ async function runRewrite(spec, apply, { fsLike = fs, advance = () => {} } = {})
   advance('apply');
   const applied = await apply(opened.doc, { fsLike });
   if (applied?.ok !== true)
-    return applied ?? { error: '手を加えられませんでした。' };
+    return applied ?? { error: 'PDF を加工できませんでした。' };
 
   advance('save');
   let output;
   try {
     output = await opened.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return failure('書き出す内容を組み立てられませんでした。', error);
+    return failure('書き出す PDF を作成できませんでした。', error);
   }
 
   advance('write');

@@ -32,7 +32,7 @@ test('文書情報に暗号の印（EncryptFilterName）がある PDF は、パ�
   assert.equal(shell.taskCalls.length, 0, '保存を押す前に断る（ワーカーを回さない）');
   SigK.shell.setMode(shell.document, 'tools');
   SigK.tools.select('watermark');
-  assert.equal(SigK.toolsWatermark.stateText(), '「a.pdf」はパスワード付きなので透かしを入れられません。ほかの帯を選んでください。');
+  assert.equal(SigK.toolsWatermark.stateText(), '「a.pdf」はパスワード付きなので透かしを入れられません。ほかの帯を選択してください。');
   assert.equal(SigK.toolsWatermark.canRun(), false);
 });
 

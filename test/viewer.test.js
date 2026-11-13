@@ -70,12 +70,20 @@ test('ページの枠は計算どおりの位置と大きさを持つ', async (t
   assert.equal(document.getElementById('view-pages').style.height, `${expected.totalHeight}px`);
 });
 
-test('開いた直後は幅に合わせる', async (t) => {
-  const { document, SigK } = await withOpenDocument(t);
+// 決定93 で、開いた直後の倍率を［幅］から 100% に改めた（spec-7-6 確定事項ZV1。spec-1-1 確定事項8）。
+test('開いた直後は 100% で表示し、［幅］を押すと幅に合わせる', async (t) => {
+  const { document, SigK, window } = await withOpenDocument(t);
   const state = SigK.viewer.getState();
 
-  assert.equal(state.fit, 'width');
-  assert.equal(state.zoom, SigK.viewerLayout.fitWidthZoom({
+  assert.equal(state.fit, null);
+  assert.equal(state.zoom, 1);
+  assert.equal(document.getElementById('btn-fit-width').classList.contains('active'), false);
+  assert.equal(document.getElementById('zoom-value').value, '100%');
+
+  document.getElementById('btn-fit-width').dispatchEvent(new window.MouseEvent('click'));
+  const fitted = SigK.viewer.getState();
+  assert.equal(fitted.fit, 'width');
+  assert.equal(fitted.zoom, SigK.viewerLayout.fitWidthZoom({
     pageWidth: A4.width,
     viewportWidth: DEFAULT_VIEWPORT.width,
   }));
@@ -151,7 +159,7 @@ test('拡大すると段が上がり、幅への追従は外れる', async (t) =
   assert.ok(after.zoom > before, `${after.zoom} は ${before} より大きいはず`);
   assert.equal(after.fit, null, '手で倍率を変えたら追従をやめる');
   assert.equal(document.getElementById('btn-fit-width').classList.contains('active'), false);
-  assert.equal(document.getElementById('zoom-value').textContent, SigK.viewerLayout.formatZoom(after.zoom));
+  assert.equal(document.getElementById('zoom-value').value, SigK.viewerLayout.formatZoom(after.zoom));
 });
 
 test('倍率を変えるとページの枠も付いてくる', async (t) => {
@@ -164,10 +172,10 @@ test('倍率を変えるとページの枠も付いてくる', async (t) => {
   assert.equal(SigK.viewer.getState().zoom, 2);
 });
 
-test('倍率は 10〜400% を超えない（spec-4b-7a 確定事項G1）', async (t) => {
+test('倍率は 10〜1000% を超えない（spec-4b-7a 確定事項G1・spec-7-4 確定事項Z1）', async (t) => {
   const { SigK } = await withOpenDocument(t);
 
-  assert.equal(SigK.viewer.setZoom(99), 4);
+  assert.equal(SigK.viewer.setZoom(99), 10);
   assert.equal(SigK.viewer.setZoom(0.01), 0.1);
 });
 
@@ -358,6 +366,8 @@ test('文書を開いていなければキー操作は効かない', async (t) =
 // サイドパネルはページビューの幅を変える。追従中なら倍率も計算し直す。
 test('サイドパネルを畳むと幅への追従が計算し直される', async (t) => {
   const shell = await withOpenDocument(t);
+  // 決定93 で開いた直後は 100% になったので、前の条件の［幅］にそろえる。
+  shell.SigK.viewer.applyFit('width');
   const before = shell.SigK.viewer.getState().zoom;
 
   // 視野が広がったことにして畳む。
@@ -389,8 +399,9 @@ test('ツールバーのクリックで拡大・全体表示・ページ送り�
   click('zoom-in');
   assert.ok(SigK.viewer.getState().zoom > before, '＋ が効いていない');
 
+  // ［－］は、［＋］で上げた段から 1 段下げる（決定93 で開いた直後は 100% になったので、100% に戻る）。
   click('zoom-out');
-  assert.equal(SigK.viewer.getState().zoom, before === 1 ? 0.75 : SigK.viewerLayout.prevZoom(SigK.viewerLayout.nextZoom(before)));
+  assert.equal(SigK.viewer.getState().zoom, SigK.viewerLayout.prevZoom(SigK.viewerLayout.nextZoom(before)));
 
   click('btn-fit-page');
   assert.equal(SigK.viewer.getState().fit, 'page');
@@ -413,7 +424,7 @@ test('文書が無いときはツールバーを押しても何も起きない',
   assert.equal(SigK.viewer.getState().current, 0);
   // 灰色の印は外の箱（#zoom・#pager）に付く。中のボタンを押しても効かないこと（2026-10-23 の直し。前は数字が変わった）。
   assert.equal(SigK.viewer.getState().zoom, zoom, '灰色の［＋］で倍率が変わった');
-  assert.equal(document.getElementById('zoom-value').textContent, '100%');
+  assert.equal(document.getElementById('zoom-value').value, '100%');
 });
 
 test('開くボタンのクリックでダイアログが出る', async (t) => {
