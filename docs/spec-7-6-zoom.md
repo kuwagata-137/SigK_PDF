@@ -66,11 +66,13 @@
 
 ### 起動確認（ウインドウを表示しない。2026-11-13）
 
-`test/fixtures` の `three-pages.pdf`・`mixed-size.pdf` と、scratchpad で作った写真（4032×3024 画素）・小さい画像（480×300 画素）を `SIGK_SMOKE_DROP` で開いた。7 通りとも problems 0。
+`test/fixtures` の `three-pages.pdf`・`mixed-size.pdf` と、scratchpad で作った写真（4032×3024 画素）・小さい画像（480×300 画素）を `SIGK_SMOKE_DROP` で開いた。7 通りと、追加の 2 通り（分割・画像→PDF）とも problems 0。
 
 | 筋書き | 結果 |
 |---|---|
 | ツールモード（PDF 2 つ） | 100% で、帯のページが前の 200% と同じ大きさ（`screenshots/zoom-tools-100.png`） |
+| ツールモードの分割 | 100% で、分割画面のページの幅が 208px（`screenshots/zoom-split-100.png`） |
+| ツールモードの画像→PDF（画像 2 枚） | 100% で、「変換する画像」の帯の画像の枠が 208×144px（`screenshots/zoom-convert-100.png`） |
 | PDF を開く | 100%（A4 の幅 794 ピクセル。`screenshots/zoom-pdf-open.png`） |
 | 写真を開いて編集モード | ［全体］の 12% で、写真全体が表示される（`screenshots/zoom-photo-open.png`） |
 | 小さい画像を開いて編集モード | 100% |
