@@ -96,13 +96,23 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
 .zoom .val:focus{outline:none; background:var(--surface); border-color:var(--accent)}
 .zoom .val:disabled{color:inherit}
 .spacer{flex:1}
-/* 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにし、すき間を詰めて、幅 960 の窓（最小の大きさ）でも
-   ツールバーを 1 列に収める（spec-2-5 確定事項B5・K2。見本 screenshots/strips1-view-hand-960.png）。名前は data-tip（説明の吹き出し）と aria-label に残る。 */
-@media (max-width:1100px){
-  #btn-fit-width,#btn-fit-page,#btn-facing,#btn-pointer-select,#btn-pointer-hand{font-size:0; gap:0; width:30px; padding:0; justify-content:center}
+/* ウインドウの幅に応じて、ツールバーを 3 段階で詰め、幅 960 のウインドウ（最小の大きさ）でも、ボタンを縮ませずに 1 列に収める
+   （spec-7-8 確定事項PB3。決定95 ②。見本 screenshots/question-pb1-print-button.png）。印刷ボタンに文字を付けて幅が 46px 増えたため、
+   前の 1 段階（1100px 以下。spec-2-5 確定事項B5・K2）を改めた。前の作りでは 1101〜1276px でボタンが縮み、ページ番号が 2 行に折り返されていた。
+   ① 1340px 以下: すき間と余白を詰める。② 1270px 以下: ［幅］［全体］［見開き］［選択］［ハンド］をアイコンだけにする（名前は data-tip と
+   aria-label に残る）。③ 1060px 以下: すき間と、文字の付いたボタンの左右の余白をさらに詰める。 */
+@media (max-width:1340px){
   #toolbar{gap:4px; padding:0 8px}
   .tb-sep{margin:0 2px}
   .pager .num{padding:0 4px; white-space:nowrap}
+}
+@media (max-width:1270px){
+  #btn-fit-width,#btn-fit-page,#btn-facing,#btn-pointer-select,#btn-pointer-hand{font-size:0; gap:0; width:30px; padding:0; justify-content:center}
+}
+@media (max-width:1060px){
+  #toolbar{gap:2px; padding:0 6px}
+  .tb-sep{margin:0 1px}
+  #btn-open,#btn-print,#btn-save,#btn-save-as{padding:0 6px}
 }
 
 /* ── 本体 ───────────────────────────────────── */

@@ -554,27 +554,52 @@ test('上書き・パスワード・抽出・モザイク・画像の上書き�
   assert.ok(css.includes('#confirm-mosaic::backdrop, #confirm-image-save::backdrop{background:rgba(16,24,40,.34)}'));
 });
 
-// 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにして、幅 960 の窓でもツールバーを 1 列に収める
-// （spec-2-5 確定事項B5・K2。見本 screenshots/strips1-view-hand-960.png）。jsdom は CSS を読まないので文字で見張り、1 列に収まるかは起動確認で見る。
-test('窓が 1100px より狭いときは、幅・全体・見開き・選択・ハンドを絵だけにし、ツールバーを詰める（shell.css）', async (t) => {
+// ウインドウの幅に応じて、ツールバーを 3 段階で詰め、幅 960 のウインドウでも 1 列に収める（spec-7-8 確定事項PB3。前の 1100px の 1 段階は
+// spec-2-5 確定事項B5・K2）。jsdom は CSS を読まないので文字で見張り、1 列に収まるかは起動確認で見る。
+test('ウインドウの幅が 1340px・1270px・1060px 以下で、ツールバーを 3 段階で詰める（shell.css。spec-7-8 確定事項PB3）', async (t) => {
   const css = fs.readFileSync(path.join(ROOT, 'renderer', 'shell.css'), 'utf8');
-  const narrow = [...css.matchAll(/@media \(max-width:1100px\)\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
+  const rulesAt = (width) => [...css.matchAll(new RegExp(`@media \\(max-width:${width}px\\)\\{([\\s\\S]*?)\\n\\}`, 'g'))].map((m) => m[1]).join('\n');
   const ICON_ONLY = ['#btn-fit-width', '#btn-fit-page', '#btn-facing', '#btn-pointer-select', '#btn-pointer-hand'];
 
-  assert.notEqual(narrow, '', '狭い窓の規則が無い');
-  const iconOnly = narrow.match(/([^{}]+)\{([^}]*font-size:0[^}]*)\}/);
+  assert.equal(rulesAt(1100), '', '前の 1100px の規則が残っている');
+
+  const first = rulesAt(1340);
+  assert.match(first, /#toolbar\{gap:4px; padding:0 8px\}/);
+  assert.match(first, /\.tb-sep\{margin:0 2px\}/);
+  assert.match(first, /\.pager \.num\{padding:0 4px; white-space:nowrap\}/);
+
+  const iconOnly = rulesAt(1270).match(/([^{}]+)\{([^}]*font-size:0[^}]*)\}/);
   assert.notEqual(iconOnly, null, '文字を消す規則が無い');
   assert.deepEqual(iconOnly[1].split(',').map((s) => s.trim()), ICON_ONLY);
   for (const part of ['gap:0', 'width:30px', 'padding:0', 'justify-content:center'])
     assert.ok(iconOnly[2].includes(part), part);
-  assert.match(narrow, /#toolbar\{gap:4px; padding:0 8px\}/);
-  assert.match(narrow, /\.tb-sep\{margin:0 2px\}/);
-  assert.match(narrow, /\.pager \.num\{padding:0 4px; white-space:nowrap\}/);
 
-  // 絵だけになっても、読み上げでは見えている文字を含む名前で読める。
+  const third = rulesAt(1060);
+  assert.match(third, /#toolbar\{gap:2px; padding:0 6px\}/);
+  assert.match(third, /\.tb-sep\{margin:0 1px\}/);
+  assert.match(third, /#btn-open,#btn-print,#btn-save,#btn-save-as\{padding:0 6px\}/);
+
+  // アイコンだけになっても、読み上げでは見えている文字を含む名前で読める。
   const { document } = await withShell(t);
   for (const [id, name] of [['btn-fit-width', '幅に合わせる'], ['btn-fit-page', '全体を表示'], ['btn-facing', '見開き']])
     assert.equal(document.getElementById(id).getAttribute('aria-label'), name, id);
+});
+
+// 印刷ボタンは［開く］のすぐ右に置き、アイコンを 22px にして「印刷」の文字を付ける。右端は検索・設定・使い方（spec-7-8 確定事項PB1・PB2）。
+test('印刷ボタンは［開く］のすぐ右にあり、22px のアイコンと「印刷」の文字を持つ。右端は検索・設定・使い方', async (t) => {
+  const { document } = await withShell(t);
+  const print = document.getElementById('btn-print');
+  assert.equal(print.previousElementSibling.id, 'btn-open');
+  assert.equal(print.nextElementSibling.id, 'btn-save');
+  assert.equal(print.className, 'tb-btn');
+  assert.equal(print.textContent.trim(), '印刷');
+  assert.equal(print.querySelector('[data-icon="print"]').dataset.iconSize, '22');
+  assert.equal(print.querySelector('svg').getAttribute('width'), '22');
+  assert.equal(print.dataset.tip, 'bar.print');
+
+  const toolbar = document.getElementById('toolbar');
+  const afterSpacer = [...toolbar.children].slice([...toolbar.children].indexOf(toolbar.querySelector('.spacer')) + 1).map((node) => node.id);
+  assert.deepEqual(afterSpacer, ['btn-find', 'btn-settings', 'btn-help']);
 });
 
 // jsdom は shell.css を読まないので、閉じたパネルの細い欄の寸法と出し入れの規則は文字で見張る。

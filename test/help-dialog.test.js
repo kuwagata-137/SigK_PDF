@@ -44,7 +44,8 @@ test('ツールバーの右端（歯車の右。spec-6-1 確定事項E-1）に�
   const shell = await withShell(t, { open: false });
   const button = shell.document.getElementById('btn-help');
   assert.equal(button.previousElementSibling.id, 'btn-settings');
-  assert.equal(button.previousElementSibling.previousElementSibling.id, 'btn-print');
+  // 印刷ボタンは［開く］の右へ移動した（spec-7-8 確定事項PB2）。歯車の左は検索。
+  assert.equal(button.previousElementSibling.previousElementSibling.id, 'btn-find');
   assert.equal(button.nextElementSibling, null);
   assert.equal(button.className, 'tb-btn icon');
   assert.equal(button.dataset.tip, 'bar.help');

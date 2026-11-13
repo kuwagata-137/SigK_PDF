@@ -48,6 +48,9 @@ body{
 
   <div id="toolbar">
     <div class="tb-btn" id="btn-open" data-tip="bar.open"><span data-icon="open"></span>開く</div>
+    <!-- 印刷ボタン（spec-7-8 確定事項PB1・PB2。決定95 ②。見本 screenshots/question-pb1-print-button.png）。前は右端のアイコンだけのボタンだった。
+         見つけやすくするため、［開く］のすぐ右に置き、アイコンを 22px にして文字を付ける。押せる・押せない・押したときの処理は print.js。 -->
+    <div class="tb-btn" id="btn-print" data-tip="bar.print" aria-disabled="true"><span data-icon="print" data-icon-size="22"></span>印刷</div>
     <!-- 保存の 2 つは文字で明示する（spec-2-5 確定事項B4。決定80 ⑰㉑）。どちらも全部のモードに出し、ツールモードでも使える（B6）。
          押せる・押せない・押したときの処理は save.js の SAVE_BUTTONS。 -->
     <div class="tb-btn" id="btn-save" data-tip="bar.save" aria-disabled="true"><span data-icon="save"></span>上書き保存</div>
@@ -82,7 +85,6 @@ body{
     <div class="tb-btn" id="btn-facing" aria-disabled="true" data-tip="bar.facing" aria-label="見開き"><span data-icon="facing"></span>見開き</div>
     <div class="spacer"></div>
     <div class="tb-btn icon" id="btn-find" data-icon="search" data-tip="bar.find" aria-label="検索" aria-disabled="true"></div>
-    <div class="tb-btn icon" id="btn-print" data-icon="print" data-tip="bar.print" aria-label="印刷" aria-disabled="true"></div>
     <!-- 設定の窓を開く（spec-6-1 タスク E の確定事項E-1。見本 screenshots/phase6-mock-settings-entry.png）。どのモードでも、文書が無くても押せる。 -->
     <div class="tb-btn icon" id="btn-settings" data-icon="settings" data-tip="bar.settings" aria-label="設定"></div>
     <!-- 使い方の窓を開く（spec-4b-7b 確定事項A1。見本 screenshots/phase4b-7b-button.png）。文書が無くても押せる。 -->
