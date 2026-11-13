@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+// ページの解決は print-pages.js に移した（spec-7-7）。SigK.print からも同じ名前で呼べる。
+require('../renderer/print-pages.js');
 require('../renderer/print.js');
 const print = globalThis.SigK.print;
 

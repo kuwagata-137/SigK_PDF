@@ -8,7 +8,8 @@
   // window.print() を使わないのは、オプションを渡せず結果も受け取れないため
   // である（確定事項29）。fs と OS に触るのはメイン、という線とも揃う。
 
-  const MAX_PAGES = 100;
+  // ページの解決（ページ指定の読み方・上限 100 ページ）は print-pages.js にある（spec-7-7 で移した）。
+  const pagesApi = () => root.SigK.printPages;
   // pdf.js viewer の PRINT_RESOLUTION と同じ 150dpi 相当。画面用の
   // renderScale とは別に計算する（確定事項31）。
   const PRINT_DPI = 150;
@@ -24,69 +25,9 @@
     return root.SigK.viewer;
   }
 
-  // 全角のカンマ・ハイフンも受け付ける（確定事項34）。NFKC が ，と －を半角へ
-  // 直すので、そこから漏れる読点と各種ダッシュだけを先に均す。
-  function normalizeRangeText(text) {
-    return String(text ?? '')
-      .replace(/、/g, ',')
-      .replace(/[‐‑‒–—―−ー]/g, '-')
-      .normalize('NFKC')
-      .trim();
-  }
-
-  // 「1-5, 8」を読む。範囲外・逆順・数字でないものはその場で弾き、理由を返す
-  // （確定事項35）。押せてから失敗するのではなく、押す前に分かるようにする。
-  function parsePageList(text, pageCount) {
-    const source = normalizeRangeText(text);
-    if (source.length === 0)
-      return { error: '印刷するページを指定してください。' };
-
-    const pages = new Set();
-    for (const rawToken of source.split(',')) {
-      const token_ = rawToken.trim();
-      if (token_.length === 0)
-        return { error: `ページ指定を読み取れません: 「${rawToken}」` };
-
-      const parts = token_.split('-').map((part) => part.trim());
-      if (parts.length > 2 || parts.some((part) => !/^\d+$/.test(part)))
-        return { error: `ページは数字で指定してください: 「${token_}」` };
-
-      const from = Number(parts[0]);
-      const to = Number(parts[parts.length - 1]);
-      if (from < 1 || to > pageCount)
-        return { error: `1 〜 ${pageCount} の範囲で指定してください: 「${token_}」` };
-      if (from > to)
-        return { error: `終了ページが開始ページより前です: 「${token_}」` };
-
-      for (let number = from; number <= to; number += 1)
-        pages.add(number);
-    }
-    return { pages: [...pages].sort((a, b) => a - b) };
-  }
-
-  // 一度に印刷できるページ数の上限（確定事項33）。実測に基づかない初期値である。
-  function withLimit(pages) {
-    if (pages.length > MAX_PAGES)
-      return { error: `${pages.length} ページが指定されていますが、一度に印刷できるのは ${MAX_PAGES} ページまでです。` };
-    return { pages };
-  }
-
-  function resolvePages({ mode, text, pageCount, current = 0 }) {
-    if (!Number.isFinite(pageCount) || pageCount <= 0)
-      return { error: '文書が開かれていません。' };
-
-    if (mode === 'all')
-      return withLimit(Array.from({ length: pageCount }, (_value, index) => index + 1));
-    if (mode === 'current')
-      return withLimit([Math.min(pageCount, Math.max(1, (current ?? 0) + 1))]);
-    if (mode !== 'custom')
-      return { error: '印刷範囲を選択してください。' };
-
-    const parsed = parsePageList(text, pageCount);
-    if (parsed.error !== undefined)
-      return parsed;
-    return withLimit(parsed.pages);
-  }
+  const normalizeRangeText = (text) => pagesApi().normalizeRangeText(text);
+  const parsePageList = (text, pageCount) => pagesApi().parsePageList(text, pageCount);
+  const resolvePages = (spec) => pagesApi().resolvePages(spec);
 
   // ---- 画面 ----
 
@@ -399,7 +340,9 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.print = {
-    MAX_PAGES,
+    get MAX_PAGES() {
+      return pagesApi().MAX_PAGES;
+    },
     PRINT_DPI,
     PRINT_SCALE,
     normalizeRangeText,
