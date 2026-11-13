@@ -43,7 +43,13 @@
       return mosaicRefusal(view.file.name);
     if (target?.kind === 'new') {
       const max = tabs().MAX_TABS;
-      return tabs().count() >= max ? `帯が ${max} 本あるので、新しい帯を作成できません。使わない帯を閉じてください。` : null;
+      // 上限の判定は tabs.js の isFull（空のタブも 1 枚に数える。映している空のタブは、新しい帯のタブに置き換わるので数えない。
+      // spec-7-8 確定事項NT4・NT10）。帯の数が上限に満たないのは、ツールモードでは見えない空のタブを数えたときなので、その旨を伝える。
+      if (!tabs().isFull())
+        return null;
+      return tabs().list().length < max
+        ? `空のタブを含めて、タブが ${max} 個開いているので、新しい帯を作成できません。ツールモード以外のモードで、空のタブを閉じてください。`
+        : `帯が ${max} 本あるので、新しい帯を作成できません。使わない帯を閉じてください。`;
     }
     return targetRefusal(target?.tabId);
   }

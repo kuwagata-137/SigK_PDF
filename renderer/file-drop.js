@@ -96,7 +96,8 @@
       return false;
 
     // ツールモードでは空の表示（#view-empty）が作業画面の下に隠れるので、通知バーで伝える。
-    const complain = (text) => (root.SigK.tools?.isToolsMode() === true
+    // 空のタブの画面も、文言欄（#view-message）を隠しているので通知バーで伝える（spec-7-8 確定事項NT2）。
+    const complain = (text) => (root.SigK.tools?.isToolsMode() === true || root.SigK.tabs?.isBlankActive?.() === true
       ? root.SigK.viewBanner.show(text)
       : root.SigK.viewer.setMessage(text));
 

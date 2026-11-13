@@ -166,6 +166,23 @@ test('ツールモードで開く・保存するときの動きで書いてあ�
   assert.equal(keys.find((row) => row[0] === '[Ctrl]+[S] / [Ctrl]+[Shift]+[S]')[2], '文書を開いているとき');
 });
 
+// 空のタブ（spec-7-8 確定事項NT1〜NT10）。「画面とモード」に節を立て、キー操作の表に空のタブの Ctrl+V を書く。
+test('「＋」と空のタブ（［ファイルを開く］・最近使ったファイル・Ctrl+V・「新しい画像 1」・保存）を「画面とモード」とキー操作の表に書く（spec-7-8）', () => {
+  const block = sectionOf('basics').blocks.find((b) => b.h === '空のタブ');
+  assert.notEqual(block, undefined, '「画面とモード」に「空のタブ」が無い');
+  const text = block.items.join('\n');
+  for (const part of ['タブバーの「＋」をクリックすると、空のタブ（タブ名「新しいタブ」）が開きます', '空のタブは 1 つだけ', '閲覧・ページ編集・編集のどのモードでも同じです',
+    '［ファイルを開く］', '「最近使ったファイル」', '空のタブの位置に開きます', '[Ctrl]+[V] を押すと、クリップボードの画像を、空のタブの位置に開きます',
+    '「新しい画像 1」「新しい画像 2」', '「クリップボードに画像がありません。」', '［上書き保存］を押すと、［名前を付けて保存］と同じ画面が開きます',
+    'PNG・JPEG・PDF', '最初は PNG です', '確認画面を表示します'])
+    assert.ok(text.includes(part), part);
+  // 「＋」は直接ファイルを選ぶボタンではなくなった（NT1）。
+  assert.doesNotMatch(joined('basics'), /タブバーの「＋」・\[Ctrl\]\+\[O\] で/);
+  assert.match(joined('basics'), /ツールバーの［開く］か \[Ctrl\]\+\[O\] で、PDF か画像/);
+  const keys = sectionOf('keys').blocks[0].table;
+  assert.deepEqual(keys.find((row) => row[0] === '[Ctrl]+[V]'), ['[Ctrl]+[V]', 'クリップボードの画像を、空のタブの位置に開く', '空のタブを表示しているとき（文字入力欄の外）']);
+});
+
 test('Esc の例は、持っている道具と選んでいる書き込みを書き分ける', () => {
   assert.match(joined('escape'), /［四角］のツールを選択して四角を描画し、その四角が選択されている状態で/);
 });

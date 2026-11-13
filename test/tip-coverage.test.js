@@ -30,7 +30,7 @@ const STATIC_TARGETS = [
   ['#zoom-out', 'bar.zoomOut'], ['#zoom-in', 'bar.zoomIn'], ['#btn-fit-width', 'bar.fitWidth'], ['#btn-fit-page', 'bar.fitPage'],
   ['#btn-facing', 'bar.facing'], ['#btn-find', 'bar.find'], ['#btn-print', 'bar.print'], ['#btn-settings', 'bar.settings'], ['#btn-help', 'bar.help'],
   ...MODES.map(([mode, key]) => [`.rail-item[data-mode="${mode}"]`, key]),
-  ['.tab-add', 'tab.add'], ['#side-collapse', 'side.collapse'], ['#side-expand', 'side.expand'],
+  ['.tab-add', 'tab.add'], ['#newtab-open', 'newtab.open'], ['#side-collapse', 'side.collapse'], ['#side-expand', 'side.expand'],
   ['#find-case', 'find.case'], ['#find-prev', 'find.prev'], ['#find-next', 'find.next'], ['#find-close', 'find.close'],
   ['#status-file', 'status.file'], ['#doc-info-close', 'dialog.close'], ['#help-close', 'dialog.close'], ['#print-close', 'dialog.close'], ['#settings-close', 'dialog.close'],
   ['#color-dialog-close', 'dialog.close'],

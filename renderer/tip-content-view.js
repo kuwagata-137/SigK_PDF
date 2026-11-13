@@ -3,9 +3,12 @@
 
   // 説明の吹き出しの文のうち、ツールバー・左端の 4 つのモード・タブ・左のパネル・検索バー・文書情報／印刷／使い方の窓の ×・大きく見る窓の分
   // （spec-2-5 J1・J2・J5・J14）。計画の文の表のとおり。データだけで、DOM に触れない。1 行 1 鍵。
+  // 空のタブの［ファイルを開く］（newtab.open）は spec-7-8 確定事項NT11 で追加した。
   // キーの「／」は keys の配列、（）の補足は keysNote。キーの無いものは keys を持たない。ボタンの名前は全角の［］で書く。
 
   const SAVE_UNTITLED = { name: '上書き保存', desc: 'このファイルは保存先が未指定なので、保存画面で保存先と名前を指定してから PDF ファイルとして保存します。', keys: ['Ctrl+S'] };
+  // 空のタブに貼り付けた画像（名前の無い画像。spec-7-8 確定事項NT9）。形式は PNG・JPEG・PDF から選ぶ（image-save.js）。
+  const SAVE_UNTITLED_IMAGE = { name: '上書き保存', desc: 'この画像は保存先が未指定なので、保存画面で保存先・名前・形式（PNG・JPEG・PDF）を指定してから保存します。', keys: ['Ctrl+S'] };
 
   // 上書き保存の文の 2 文目（控えのファイル）。backup は控えのファイルの名前。設定の窓で「上書き保存の前に、元のファイルの控えのファイルを
   // 作る」を外していたら、作らない文にする（spec-6-1 確定事項E-9。点検の直し I-4）。設定が無い（文の表だけのテストなど）ときは、既定と
@@ -20,9 +23,9 @@
   // ツールバーの［上書き保存］（J14）。名前の無い帯（新しい帯）を映しているときだけ、保存先と名前を聞く文にする。
   // SigK.viewer が無い（文の表だけを読み込んだテストなど）ときは、名前のある方の文。
   function saveEntry() {
-    const untitled = root.SigK?.viewer?.getState?.()?.file?.untitled === true;
-    if (untitled)
-      return SAVE_UNTITLED;
+    const file = root.SigK?.viewer?.getState?.()?.file;
+    if (file?.untitled === true)
+      return file.image === undefined || file.image === null ? SAVE_UNTITLED : SAVE_UNTITLED_IMAGE;
     return { name: '上書き保存', desc: `開いているファイルに、現在の変更内容を上書き保存します。${backupSentence('名前.pdf.bak')}`, keys: ['Ctrl+S'] };
   }
 
@@ -51,7 +54,10 @@
     'mode.pages': { name: 'ページ編集', desc: 'ページの並べ替え・回転・削除・別ファイルへの抽出・差し込みを行うモードです。' },
     'mode.annot': { name: '編集', desc: 'ハイライト・文字・図形・ノートなどを書き込むモードです。モザイクで隠すことと、余白をトリミングすることもできます。' },
     'mode.tools': { name: 'ツール', desc: '開いている PDF を帯にして並べ、結合・分割・変換・透かし・フラット化をするモードです。' },
-    'tab.add': { name: 'タブを追加', desc: 'PDF か画像を選択して、新しいタブで開きます。', keys: ['Ctrl+O'] },
+    // 「＋」は空のタブを開くボタンになった（spec-7-8 確定事項NT1・NT11）。Ctrl+O は空のタブを開かない（ダイアログを開く）ので、キーは書かない。
+    'tab.add': { name: 'タブを追加', desc: '空のタブを開きます。空のタブでは、ファイルを開くか、Ctrl+V でクリップボードの画像を貼り付けられます。' },
+    // 空のタブの中央の［ファイルを開く］（spec-7-8 確定事項NT3・NT11）。
+    'newtab.open': { name: 'ファイルを開く', desc: 'PDF か画像のファイルを選択して、このタブで開きます。', keys: ['Ctrl+O'] },
     'tab.close': { name: 'タブを閉じる', desc: 'このタブを閉じます。保存していない変更があれば、閉じる前に確認します。', keys: ['Ctrl+W'], keysNote: '選択中のタブ' },
     'tab.dirty': { name: '保存していない変更あり', desc: 'このタブには、まだ保存していない変更があります。' },
     'side.collapse': { name: 'パネルを閉じる', desc: '左パネルを閉じて、ページを表示する領域を広げます。閉じている間は、パネルの位置に残る細い欄の「＞」で開きます。' },

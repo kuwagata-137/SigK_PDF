@@ -157,6 +157,26 @@ test('パスワード付きの帯・開けなかった帯へは写さない', as
   assert.equal(shell.SigK.pageTransfer.refusalFor({ indices: [1], target: { kind: 'copy', tabId: c } }), '開けなかった PDF にはコピーできません。');
 });
 
+// 空のタブ（ツールモードでは帯にならない）も上限に数える。映していない空のタブがあると、帯が 19 本でも作らず、空のタブを閉じるよう伝える
+// （spec-7-8 確定事項NT10）。
+test('映していない空のタブがあり、タブが 20 枚なら、帯が 19 本でも新しい帯を作らない', async (t) => {
+  const shell = await withStrips(t);
+  shell.SigK.shell.setMode(shell.document, 'view');
+  shell.SigK.tabs.openBlankTab();
+  for (let index = shell.SigK.tabs.count(); index < shell.SigK.tabs.MAX_TABS; index += 1) {
+    const filePath = `C:\\work\\追加${index}.pdf`;
+    shell.files[filePath] = makeSource({ path: filePath });
+    shell.SigK.tabs.activate(ids(shell)[0]);
+    await shell.SigK.tabs.openPath(filePath);
+  }
+  shell.SigK.shell.setMode(shell.document, 'tools');
+  shell.SigK.tabs.activate(ids(shell)[0]);
+  assert.equal(shell.SigK.tabs.list().length, shell.SigK.tabs.MAX_TABS - 1);
+  pickInFirst(shell);
+  const result = await shell.SigK.pageTransfer.toNewStrip([1]);
+  assert.equal(result.refused, '空のタブを含めて、タブが 20 個開いているので、新しい帯を作成できません。ツールモード以外のモードで、空のタブを閉じてください。');
+});
+
 test('帯が 20 本なら新しい帯を作らない', async (t) => {
   const shell = await withStrips(t);
   pickInFirst(shell);

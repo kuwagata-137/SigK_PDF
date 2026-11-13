@@ -314,6 +314,19 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 /* 場所はファイル名の下に添えるだけなので、末尾から省いてよい。 */
 .recent-path{font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 
+/* 空のタブの画面（spec-7-8 確定事項NT2。見本 screenshots/question-nt2-new-tab-recent.png）。［ファイルを開く］と案内文（2 行）を中央に
+   並べる。器（#view-empty）はクリックを通すので、ボタンだけ pointer-events を戻す。ツールモードではツールの画面が上に重なるので隠す。 */
+#newtab{display:flex; flex-direction:column; align-items:center; gap:14px}
+#newtab[hidden], html[data-mode="tools"] #newtab{display:none}
+#newtab-open{
+  pointer-events:auto; display:inline-flex; align-items:center; gap:10px;
+  height:44px; padding:0 26px; border:none; border-radius:10px;
+  background:var(--primary); color:#fff; font:inherit; font-size:15px; font-weight:700;
+  box-shadow:var(--shadow-item); cursor:pointer;
+}
+#newtab-open:hover{filter:brightness(1.08)}
+#newtab-hint{margin:0; font-size:12.5px; line-height:1.9; opacity:.92; text-align:center}
+
 /* 通知バー（spec-1-2 確定事項20）。既定の色は失敗の赤で、data-tone で塗り替える。
    文書を開いたままでも読めるよう上端に出す。押せば消え、出さなければ数秒で自動的に消える。 */
 #view-banner{

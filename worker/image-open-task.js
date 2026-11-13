@@ -1,6 +1,7 @@
 'use strict';
 
-// 画像を開くために、画像を PDF に組み立てる（spec-7-1 確定事項A1〜A4）。kind は 'image-open'。
+// 画像を開くために、画像を PDF に組み立てる（spec-7-1 確定事項A1〜A4）。kind は 'image-open'。画像はパス（spec.path）で受け、
+// 空のタブに貼り付けたクリップボードの画像だけはバイト列（spec.bytes）で受ける（spec-7-8 確定事項NT8）。
 //
 // 画面（pdf.js）が開けるのは PDF だけなので、画像は 1 画素＝1pt の紙に、白を敷かずに載せた PDF にして渡す。ファイルは書かない。
 // 載せ方は画像→PDF・差し込みと同じ embedImage を通る（BMP・GIF・TIFF の展開も同じ）。複数ページの TIFF はページごとに 1 ページ、
@@ -63,14 +64,43 @@ async function buildImageDocument(bytes, tools = TOOLS) {
   return { ok: true, bytes: await doc.save(SAVE_OPTIONS), kind: inspected.kind, frames };
 }
 
+const TOO_LARGE = `${Math.floor(MAX_IMAGE_BYTES / 1024 / 1024)}MB までに対応していますが、画像が大きすぎます。`;
+
+// view（画像の中身）を PDF に組み立て、JPEG なら元のバイト列（向きを 1 に書き換えたコピー）を添える。brokenText は、組み立ての途中で
+// 例外が起きたときに返すエラーメッセージ。
+async function buildWithOriginal(view, brokenText) {
+  let built;
+  try {
+    built = await buildImageDocument(view);
+  } catch (error) {
+    return failure(brokenText, error);
+  }
+  if (built.ok !== true)
+    return built;
+  return { ...built, ...(built.kind === 'jpeg' ? { original: withoutOrientation(view) } : {}) };
+}
+
+// 空のタブに貼り付けたクリップボードの画像（spec-7-8 確定事項NT8）は、パスの代わりに PNG のバイト列（spec.bytes）で届く
+// （clipboard-image.js）。ファイルが無いので、読む前の印（signature）は添えない。
+async function runFromBytes(bytes) {
+  if (bytes.length === 0)
+    return { error: '開く画像が指定されていません。' };
+  if (bytes.length > MAX_IMAGE_BYTES)
+    return { error: TOO_LARGE };
+  const view = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return buildWithOriginal(view, '画像を読み込めませんでした。');
+}
+
 async function runImageOpen(spec, { fsLike = fs } = {}) {
+  if (spec?.bytes instanceof Uint8Array)
+    return runFromBytes(spec.bytes);
   const sourcePath = spec?.path;
   if (typeof sourcePath !== 'string' || sourcePath === '')
     return { error: '開く画像が指定されていません。' };
   // 印は読む前に取る（読んだあとに取ると、間の書き換えを見落とす。insert-preview と同じ）。
   const signature = await readSignature(sourcePath, { fsLike });
   if (signature !== null && signature.size > MAX_IMAGE_BYTES)
-    return { error: `${Math.floor(MAX_IMAGE_BYTES / 1024 / 1024)}MB までに対応していますが、画像が大きすぎます。` };
+    return { error: TOO_LARGE };
   let bytes;
   try {
     bytes = await fsLike.promises.readFile(sourcePath);
@@ -78,15 +108,8 @@ async function runImageOpen(spec, { fsLike = fs } = {}) {
     return failure('画像を読み込めませんでした。移動または削除された可能性があります。', error);
   }
   const view = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let built;
-  try {
-    built = await buildImageDocument(view);
-  } catch (error) {
-    return failure('画像を読み込めませんでした。ファイルが壊れている可能性があります。', error);
-  }
-  if (built.ok !== true)
-    return built;
-  return { ...built, signature, ...(built.kind === 'jpeg' ? { original: withoutOrientation(view) } : {}) };
+  const built = await buildWithOriginal(view, '画像を読み込めませんでした。ファイルが壊れている可能性があります。');
+  return built.ok === true ? { ...built, signature } : built;
 }
 
 module.exports = { MAX_IMAGE_BYTES, buildImageDocument, runImageOpen };

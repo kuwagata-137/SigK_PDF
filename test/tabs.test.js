@@ -412,13 +412,18 @@ test('ツールモードでツールバーの「開く」から開くと、タ�
   assert.equal(shell.SigK.viewer.getState().file.name, 'a.pdf');
 });
 
-test('ツールモードでタブの「＋」から開いても、ツールモードのまま', async (t) => {
+// 「＋」は空のタブを開くボタンになった（spec-7-8 確定事項NT1）。ツールモードではタブバーを表示しないので押せないが、押せたとしても
+// ダイアログは開かず、空のタブを開くだけで、ツールモードのまま。空のタブは帯にならない（NT10）。
+test('ツールモードでタブの「＋」を押しても、空のタブを開くだけで、ツールモードのまま（spec-7-8 確定事項NT1・NT10）', async (t) => {
   const shell = await inToolsMode(t, { openResults: [makeSource({ path: B })] });
 
   press(shell, shell.document.querySelector('#tabbar .tab-add'));
   await shell.flush();
 
-  assert.equal(shell.SigK.tabs.count(), 1);
+  assert.equal(shell.SigK.tabs.count(), 1, '空のタブは上限の数に入る');
+  assert.equal(shell.SigK.tabs.isBlankActive(), true);
+  assert.deepEqual(structuredClone(shell.SigK.tabs.list()), [], '帯・ツールの一覧には入らない');
+  assert.equal(shell.openResults.length, 1, 'ダイアログは開かない');
   assert.equal(modeOf(shell), 'tools');
 });
 
@@ -493,9 +498,7 @@ test('ファイルを選ぶ窓で取りやめたら、ツールモードのま�
   await shell.flush();
   assert.equal(modeOf(shell), 'tools');
 
-  press(shell, shell.document.querySelector('#tabbar .tab-add'));
-  await shell.flush();
-  assert.equal(modeOf(shell), 'tools');
+  // タブの「＋」はダイアログを開かなくなった（空のタブを開く。spec-7-8 確定事項NT1）ので、ここでは押さない。
 
   shell.fireOpenRequest();
   await shell.flush();

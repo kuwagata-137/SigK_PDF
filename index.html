@@ -209,6 +209,12 @@ body{
       </div>
       <div class="empty" id="view-empty">
         <p id="view-message">文書が開かれていません</p>
+        <!-- 空のタブの画面（spec-7-8 確定事項NT2・NT3。見本 screenshots/question-nt2-new-tab-recent.png）。空のタブを映している間だけ
+             new-tab.js が表示し、上の「文書が開かれていません」を隠す。下の「最近使ったファイル」の一覧（#view-recent）も表示する。 -->
+        <div id="newtab" hidden>
+          <button type="button" id="newtab-open" data-tip="newtab.open"><span data-icon="open" data-icon-size="20"></span>ファイルを開く</button>
+          <p id="newtab-hint">クリップボードの画像は、Ctrl+V で貼り付けられます。<br>PDF と画像のファイルは、ここにドロップしても開けます。</p>
+        </div>
         <div id="view-recent" hidden></div>
       </div>
       <!-- ツールモードの作業画面（spec-2-1 確定事項2）。#view の上に重ね、
@@ -1488,6 +1494,7 @@ body{
 <script src="renderer/help-dialog.js"></script>
 <script src="renderer/tabs.js"></script>
 <script src="renderer/recent-panel.js"></script>
+<script src="renderer/new-tab.js"></script>
 <script src="renderer/file-drop.js"></script>
 <script src="renderer/launch.js"></script>
 <script src="renderer/escape-order.js"></script>

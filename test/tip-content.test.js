@@ -39,12 +39,23 @@ const EXPECTED_KEYS = [
   'edit.rotateLeft', 'edit.rotateRight',
   // 印刷画面の［詳細設定(D)］・注釈とフォーム(M)・［注釈の一覧(T)］（spec-7-7。2 つの ⓘ は、押すと説明の画面を開くのでツールチップを持たない）。
   'print.advanced', 'print.comments', 'print.summary',
+  // 空のタブの［ファイルを開く］（spec-7-8 確定事項NT11）。
+  'newtab.open',
 ];
 
 // 歯車のボタン（bar.settings）は spec-6-1 タスク E で、画像のタブで灰色にした道具の 4 個は spec-7-1 で足した。spec-7-4 で 2 個を外し、2 個を足した。
-test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個（spec-7-4 で 2 個を替えた）と印刷画面の 3 個（spec-7-7）と過不足なく一致する（組み込みの text を除く）', () => {
+test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの書き込みツールの 4 個（spec-7-4 で 2 個を替えた）と印刷画面の 3 個（spec-7-7）と空のタブの 1 個（spec-7-8）と過不足なく一致する（組み込みの text を除く）', () => {
   assert.deepEqual([...tableKeys()].sort(), [...EXPECTED_KEYS].sort());
-  assert.equal(EXPECTED_KEYS.length, 92);
+  assert.equal(EXPECTED_KEYS.length, 93);
+});
+// 空のタブ（spec-7-8 確定事項NT11）。「＋」は空のタブを開くボタンになったので、Ctrl+O（ダイアログを開く）をキーに書かない。
+test('「＋」と空のタブの［ファイルを開く］のツールチップは、仕様書 spec-7-8 の NT11 の文言のまま', () => {
+  assert.deepEqual(tipContent.resolve(node('tab.add')), {
+    name: 'タブを追加', desc: '空のタブを開きます。空のタブでは、ファイルを開くか、Ctrl+V でクリップボードの画像を貼り付けられます。',
+  });
+  assert.deepEqual(tipContent.resolve(node('newtab.open')), {
+    name: 'ファイルを開く', desc: 'PDF か画像のファイルを選択して、このタブで開きます。', keys: ['Ctrl+O'],
+  });
 });
 test('どの鍵にも名前と説明があり、説明は「。」で終わる 100 字以内の文', () => {
   for (const key of tableKeys()) {
@@ -92,15 +103,19 @@ test('帯のフロッピーは、ファイル名が空・無いときは「（�
   assert.deepEqual(tipContent.resolve(node('strip.save')), noName);
   assert.deepEqual(tipContent.resolve(node('strip.save', { tipFile: '' })), noName);
 });
-test('名前の無い帯のフロッピーは、見本の文のまま', () => {
+// 貼り付けた画像の帯は PNG・JPEG・PDF から形式を選ぶので、2026-11-13 に 3 文目を追加した（spec-7-8 確定事項NT9）。
+test('名前の無い帯のフロッピーは、新しい PDF の帯と貼り付けた画像の帯の保存形式を書く', () => {
   assert.deepEqual(tipContent.resolve(node('strip.saveAs')), { name: '名前を付けて保存',
-    desc: 'この帯はまだ保存されていません。保存先と名前を指定して、PDF ファイルとして保存します。', keys: ['Ctrl+Shift+S'], keysNote: '選択中の帯' });
+    desc: 'この帯はまだ保存されていません。保存先と名前を指定して保存します。新しい PDF の帯は PDF ファイルとして、貼り付けた画像の帯は PNG・JPEG・PDF から選んだ形式で保存します。', keys: ['Ctrl+Shift+S'], keysNote: '選択中の帯' });
 });
 test('ツールバーの［上書き保存］は、名前の無い帯（新しい帯）を映しているときだけ文を替える', () => {
   const named = { name: '上書き保存', desc: '開いているファイルに、現在の変更内容を上書き保存します。設定画面でチェックを外しているので、バックアップファイル（名前.pdf.bak）は作成しません。', keys: ['Ctrl+S'] };
   const untitled = { name: '上書き保存', desc: 'このファイルは保存先が未指定なので、保存画面で保存先と名前を指定してから PDF ファイルとして保存します。', keys: ['Ctrl+S'] };
   assert.deepEqual(tipContent.resolve(node('bar.save')), named); // SigK.viewer が無いときは名前のある方
   assert.deepEqual(barSaveWith({ file: { untitled: true } }), untitled);
+  // 空のタブに貼り付けた画像（名前の無い画像。spec-7-8 確定事項NT9）は、形式も選ぶ文にする。
+  assert.deepEqual(barSaveWith({ file: { untitled: true, image: { kind: 'png' } } }), { name: '上書き保存',
+    desc: 'この画像は保存先が未指定なので、保存画面で保存先・名前・形式（PNG・JPEG・PDF）を指定してから保存します。', keys: ['Ctrl+S'] });
   assert.deepEqual(barSaveWith({ file: { untitled: false } }), named);
   assert.deepEqual(barSaveWith({ file: null }), named);
   assert.deepEqual(barSaveWith({}), named);

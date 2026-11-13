@@ -193,6 +193,13 @@ contextBridge.exposeInMainWorld('imageAPI', {
   thumbnail: (filePath, size) => ipcRenderer.invoke('image:thumbnail', filePath, size),
 });
 
+// 空のタブで Ctrl+V を押したときに、クリップボードの画像を開く（spec-7-8 確定事項NT6〜NT8）。画像はメインが PDF に組み立てて返す。
+contextBridge.exposeInMainWorld('clipboardAPI', {
+  available: true,
+  // { ok, path: null, name: null, size, mtimeMs: null, bytes, image: { kind, frames } } / { empty: true }（画像が無い）/ { error }
+  readImage: () => ipcRenderer.invoke('clipboard:readImage'),
+});
+
 // 最近使ったファイル（spec-1-2 確定事項8〜10）。実体は settings.json にあり、
 // メニューの再構築もメイン側が持つ。レンダラーは一覧を読んで描くだけ。
 contextBridge.exposeInMainWorld('recentAPI', {
