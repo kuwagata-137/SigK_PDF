@@ -89,6 +89,7 @@
       "smoke-abnormal.js",
       "smoke-measure.js",
       "smoke-drop.js",
+      "smoke-print.js",
       "worker/**",
       "index.html",
       "renderer/**",

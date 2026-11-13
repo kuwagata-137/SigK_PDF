@@ -42,6 +42,7 @@ const smokeLaunch = require('./smoke-launch.js');
 const smokeAnnotate = require('./smoke-annotate.js');
 const smokeKeys = require('./smoke-keys.js');
 const smokeDrop = require('./smoke-drop.js');
+const smokePrint = require('./smoke-print.js');
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -1050,74 +1051,6 @@ function installSmokeCheck(win, mode) {
     };
   })()`;
 
-  // SIGK_SMOKE_PRINT=<範囲> を付けると、印刷の準備までを実測する。
-  // 「all」「current」はそのまま、それ以外は「ページ指定」の文字列として渡す。
-  // 印刷ダイアログ自体は自動化できないので、OS へ送る手前までを確かめる
-  // （spec-1-4 の完了判定）。
-  const printScript = (spec) => `(async () => {
-    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    const round = (rect) => rect === null ? null : {
-      w: Math.round(rect.width), h: Math.round(rect.height),
-    };
-    const spec = ${JSON.stringify(spec)};
-    const mode = (spec === 'all' || spec === 'current') ? spec : 'custom';
-
-    window.SigK.print.open();
-    await wait(200);
-    const dialogBox = round(document.getElementById('print-dialog').getBoundingClientRect());
-
-    const t0 = performance.now();
-    const result = await window.SigK.print.prepare({ mode, text: spec });
-    const elapsedMs = Math.round(performance.now() - t0);
-    const imgs = [...document.querySelectorAll('#print-area img')];
-    const measured = {
-      mode,
-      spec,
-      error: result.error || null,
-      pageCount: (result.pages || []).length,
-      pages: (result.pages || []).slice(0, 12),
-      placed: result.placed || 0,
-      imgCount: imgs.length,
-      firstImage: result.images && result.images[0] ? result.images[0] : null,
-      totalBytes: (result.images || []).reduce((sum, image) => sum + image.bytes, 0),
-      elapsedMs,
-      dialogBox,
-    };
-
-    // 上限（確定事項33）が本当に効くかも、同じ経路で見ておく。
-    const overflow = await window.SigK.print.prepare({ mode: 'custom', text: '1-1000' });
-    measured.overLimitError = overflow.error || null;
-    measured.overCountError = window.SigK.print.resolvePages({ mode: 'all', pageCount: 300 }).error || null;
-
-    // 1ページあたりの内訳。描画と PNG への変換のどちらが重いのかは、
-    // 上限100ページ（確定事項33）を見直すときの根拠になる。
-    const page = await window.SigK.viewer.getPage(1);
-    const viewport = page.getViewport({ scale: window.SigK.print.PRINT_SCALE });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    const r0 = performance.now();
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    const renderMs = Math.round(performance.now() - r0);
-    const e0 = performance.now();
-    const url = canvas.toDataURL('image/png');
-    const encodeMs = Math.round(performance.now() - e0);
-    canvas.width = 0;
-    canvas.height = 0;
-    measured.perPage = { renderMs, encodeMs, pngBytes: Math.round((url.length - url.indexOf(',') - 1) * 3 / 4) };
-    measured.heapMB = performance.memory
-      ? Math.round(performance.memory.usedJSHeapSize / 1048576)
-      : null;
-
-    // このあと SIGK_SMOKE_SHOT で画面写真を撮ることがある。実際に使う状態で
-    // 開き直しておく（準備で作った画像は open が捨てる）。
-    window.SigK.print.open();
-    document.getElementById('print-mode-' + mode).checked = true;
-    if (mode === 'custom')
-      document.getElementById('print-pages').value = spec;
-    return measured;
-  })()`;
-
   // SIGK_SMOKE_PAGES=<操作列> を付けると、ページ編集の実測を出す
   // （spec-1-5 の完了判定）。SIGK_SMOKE_PDF と一緒に使う。
   //
@@ -1760,6 +1693,7 @@ function installSmokeCheck(win, mode) {
       let text = null;
       let find = null;
       let print = null;
+      let printPdf = null;
       let pages = null;
       let save = null;
       let sourceChanged = null;
@@ -1825,8 +1759,18 @@ function installSmokeCheck(win, mode) {
           if (perfPath !== undefined)
             memoryAfterEdit = snapshotMemory();
         }
-        if (process.env.SIGK_SMOKE_PRINT)
-          print = await win.webContents.executeJavaScript(printScript(process.env.SIGK_SMOKE_PRINT));
+        // 印刷画面と印刷の準備（smoke-print.js。spec-7-7）。SIGK_SMOKE_PRINT_PDF=<出力先> を付けると、準備した用紙を printToPDF で
+        // PDF に書き、用紙の枚数と寸法を確かめられるようにする（本物のプリンターには送らない）。
+        if (process.env.SIGK_SMOKE_PRINT_PDF) {
+          const prepared = await win.webContents.executeJavaScript(smokePrint.preparePdfScript(process.env.SIGK_SMOKE_PRINT ?? 'all'));
+          const data = await win.webContents.printToPDF({ preferCSSPageSize: true, printBackground: true, margins: { marginType: 'none' } });
+          const out = path.resolve(process.env.SIGK_SMOKE_PRINT_PDF);
+          fs.mkdirSync(path.dirname(out), { recursive: true });
+          fs.writeFileSync(out, data);
+          printPdf = { ...prepared, path: out, bytes: data.length };
+        } else if (process.env.SIGK_SMOKE_PRINT) {
+          print = await win.webContents.executeJavaScript(smokePrint.printScript(process.env.SIGK_SMOKE_PRINT));
+        }
         // 保存はいちばん後ろに置く。前の段（開く・編集）が済んだ状態で通したいのと、
         // 書いたファイルを開き直してタブを増やすためである。
         // 保存の元は SIGK_SMOKE_PDF か、実測のときは SIGK_SMOKE_PERF で開いた
@@ -2114,6 +2058,7 @@ function installSmokeCheck(win, mode) {
         text,
         find,
         print,
+        printPdf,
         pages,
         save,
         sourceChanged,
