@@ -103,3 +103,54 @@
 4. Win＋Shift＋S などで画面の一部をコピーし、空のタブで Ctrl+V を押す。「新しい画像 1」のタブで画像が開き、書き込みができる。
 5. ［上書き保存］を押すと、名前を付けて保存のダイアログが開き、ファイル名は「新しい画像 1.png」になっている。保存すると、タブ名が保存したファイル名になる。
 6. 「＋」で空のタブを開き、［ファイルを開く］で PDF を選ぶ。空のタブの位置で PDF が開く。
+
+## 実装記録（2026-11-13）
+
+| ファイル | 変えた所 |
+|---|---|
+| `renderer/print-dialog.css` | `.pd-select option` に黒い文字・白い背景（SC1。ad78107） |
+| `index.html`・`renderer/shell.css` | 印刷ボタンを［開く］の右へ（アイコン 22px・文字「印刷」）。ツールバーの詰め方を 3 段階に（PB1〜PB3。f3166d7）。`#view-empty` に `#newtab`（［ファイルを開く］と案内文）を追加し、`renderer/new-tab.js` を読み込む |
+| `renderer/tabs.js` | 空のタブ（`blank: true`）。`openBlankTab`・`isBlankActive`・`blankId`・`isFull` を公開。`list()`・`reorder` は空のタブを除く。`openSource` は映している空のタブの位置に置き換える（開けなかったタブも同じ。パスワードの入力をキャンセルした時は空のタブに戻る）。タブのツールチップ（NT11） |
+| `renderer/new-tab.js`（新規） | 空のタブの画面（`sync`）・［ファイルを開く］・Ctrl+V（`handleKey`・`paste`）・「新しい画像 N」の番号 |
+| `renderer/recent-panel.js` | 空のタブを映している時も、最近使ったファイルの一覧を表示する |
+| `renderer/viewer.js` | 名前の無い文書でも画像の欄を残す（`untitledFields`） |
+| `renderer/image-save.js` | 名前の無い画像の［上書き保存］は名前を付けて保存へ。既定のパスは「新しい画像 N.png」 |
+| `renderer/viewer-keys.js` | Ctrl+V を、文書の有無を見る前に `newTab.handleKey` へ渡す |
+| `renderer/file-drop.js`・`renderer/launch.js`・`renderer/page-transfer.js` | 空のタブの画面では断る理由を通知バーに表示する。上限の判定は `isFull`（映している空のタブは数えない）。新しい帯の上限で、映していない空のタブが原因の時は、空のタブを閉じるよう伝える |
+| `renderer/tip-content-view.js`・`tip-content-tools.js`・`help-content.js` | ツールチップ（「＋」・［ファイルを開く］・名前の無い画像の［上書き保存］・帯の［名前を付けて保存］）と、使い方画面の「空のタブ」の 4 項目・キー操作の表の Ctrl+V |
+| `clipboard-image.js`（新規）・`main.js`・`preload.js`・`package.json` | IPC `clipboard:readImage`・`window.clipboardAPI`。起動確認の `SIGK_SMOKE_CLIPBOARD`（NT12）。`build.files` に追加 |
+| `worker/image-open-task.js` | パスの代わりにバイト列（`spec.bytes`）も受ける |
+| `smoke-keys-page.js`・`smoke-keys.js`・`smoke-image-edit.js` | 起動確認の命令 `newtab` と状態の控え `newTab`。画像の編集の起動確認に筋書き `paste` を追加 |
+
+### 実装で決めたこと（仕様書に無かった所。Claude の案）
+
+1. Ctrl+V は `viewer-keys.js` の `handleKey` から受ける。確認画面を開いている間はどのキーも下の画面に渡さない決まりを、ほかのキーと同じ 1 か所で守るため。
+2. 「＋」のツールチップから Ctrl+O を外した。Ctrl+O は空のタブを開かず、ダイアログを開くため（Ctrl+O は［ファイルを開く］のツールチップに書いた）。
+3. 上限の判定（`isFull`）は、映している空のタブを数えない。開いたファイルのタブに置き換わるため。
+4. 空のタブの画面は「文書が開かれていません」の文言欄を隠すので、開けなかった理由とドロップを断る理由は通知バーに表示する。
+5. 空のタブの位置で読み込んでいる間は「読み込んでいます…」を表示する。
+6. クリップボードの画像を組み立てられなかった時の通知文「クリップボードの画像を開けませんでした。」を追加した。大きすぎる時は、画像を開く時と同じ通知文。
+7. 「新しい画像 N」の番号は、クリップボードの画像を読み込めた時に進める。読み込んでいる間の Ctrl+V は無視する。
+8. 名前の無い画像の［上書き保存］のツールチップは「この画像は保存先が未指定なので、保存画面で保存先・名前・形式（PNG・JPEG・PDF）を指定してから保存します。」、
+   帯の［名前を付けて保存］のツールチップに「新しい PDF の帯は PDF ファイルとして、貼り付けた画像の帯は PNG・JPEG・PDF から選んだ形式で保存します。」を追加した。
+9. ツールモードで、映していない空のタブのために新しい帯の上限（20）に達した時は、「空のタブを含めて、タブが 20 個開いているので、新しい帯を作成できません。
+   ツールモード以外のモードで、空のタブを閉じてください。」と表示する（ツールモードでは空のタブが見えないため）。
+
+### 試験
+
+- 追加: `test/new-tab.test.js`（24 件）・`test/clipboard-image.test.js`（7 件）・`test/print-dialog-select-color.test.js`（1 件）、`test/shell.test.js` に印刷ボタンの並びと 3 段階の CSS、
+  `test/page-transfer.test.js` に空のタブと新しい帯の上限。変更: `tabs`・`tip-content`・`tip-coverage`・`help-content`・`help-dialog`・`smoke-keys` の試験と `test/harness.js`。
+- 全件 3,726 件 fail 0（TZ=UTC も 3,726 件 fail 0）。
+
+### 起動確認（ウインドウを表示しない。2026-11-13）
+
+| 筋書き | 結果 |
+|---|---|
+| ツールバーの幅（本物の CSS の静的な見本。幅 960〜1,920 の 13 通り） | どの幅でもボタンの縮み 0・ページ番号 1 行。印刷ボタンの幅は 76px（1,060px 以下は 68px） |
+| ツールバー（実アプリ。幅 1,920・1,280・960） | 1 列に収まる（`screenshots/toolbar-print-1920.png`・`toolbar-print-1280.png`・`toolbar-print-960.png`） |
+| 編集モード・閲覧モードで「＋」 | 「新しいタブ」が開き、［ファイルを開く］・案内文・最近使ったファイルを表示（`screenshots/new-tab-annot.png`・`new-tab-view.png`。最近使ったファイルは例の 3 件を設定ファイルに入れて撮った） |
+| `SIGK_SMOKE_CLIPBOARD`（600×209 の PNG）で Ctrl+V | 空のタブが「新しい画像 1」に置き換わり、未保存の点・ステータスバーの「変更あり」（`screenshots/new-tab-pasted.png`） |
+| `SIGK_SMOKE_CLIPBOARD=empty` で Ctrl+V | 黄色の通知バー「クリップボードに画像がありません。」（`screenshots/new-tab-no-image.png`） |
+| 画像の編集の筋書き `paste`（貼り付け → 四角を描く → ［上書き保存］→ 保存画面で PNG） | 保存画面が開き（確認画面なし）、保存した PNG は 600×209 で元と同じ、四角の線は赤、四角の外の画素は元と差 0。保存後のタブは保存したファイルの画像のタブになり、未保存の状態が解消した |
+
+本物のクリップボード（`clipboard.readImage()`）は、ユーザーのクリップボードを読み書きしない決まり（NT12）のため、起動確認では読んでいない。「手で確かめる筋書き」の 4 で確かめる。
