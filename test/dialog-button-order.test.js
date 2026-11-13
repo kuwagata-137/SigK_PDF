@@ -19,6 +19,9 @@ const ORDER = {
   'print-setup-dialog': [['print-setup-ok', 'OK'], ['print-setup-cancel', 'キャンセル']],
   'print-summary-confirm': [['print-summary-yes', 'はい(Y)'], ['print-summary-no', 'いいえ(N)']],
   'print-progress-dialog': [['print-progress-cancel', 'キャンセル']],
+  // ⓘ を押すと開く説明の画面（Acrobat の画面写真 3-12・3-13）。［閉じる］1 つだけ。
+  'print-handling-info-dialog': [['print-handling-info-close', '閉じる']],
+  'print-ink-info-dialog': [['print-ink-info-close', '閉じる']],
   'confirm-overwrite': [['confirm-overwrite-ok', '上書き'], ['confirm-overwrite-cancel', 'キャンセル']],
   'password-prompt': [['password-prompt-ok', '開く'], ['password-prompt-cancel', 'キャンセル']],
   'confirm-extract': [['confirm-extract-ok', '抽出'], ['confirm-extract-cancel', 'キャンセル']],

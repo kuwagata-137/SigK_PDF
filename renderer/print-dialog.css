@@ -1,162 +1,197 @@
 /* 印刷画面・ページ設定・注釈の一覧の確認・進行状況画面（docs/spec-7-7-print-dialog.md 確定事項C1）。
-   Acrobat Reader の［印刷］ダイアログと同じ見た目にする。色と寸法はユーザーの画面写真 1・2 から読み取った値
-   （地 #F0F0F0・区画の線 #DCDCDC・ボタン #FDFDFD と線 #D0D0D0・既定のボタンの線 #0078D4・題名バー #EEF5F9・選んだ丸 #005FB8）。
-   SigK のほかの画面の配色（shell.css の変数）は使わない。位置は画面写真の座標（画面の左上から。題名バーの高さ 30 px）。 */
+   Acrobat Reader の［印刷］ダイアログと同じ見た目にする。色・寸法・位置は、ユーザーの画面写真 1・2 を 1 画素ずつ読み取った値。
+   コメントの座標は、題名バーの下・枠の内側を原点にした値。書体は、英数字が Segoe UI 12px、日本語が MS UI Gothic を 13px 相当に
+   拡大したもの（Windows の書体リンクと同じ見た目）。SigK のほかの画面の配色（shell.css の変数）は使わない。 */
+
+@font-face{
+  font-family:'SigK Print JA'; src:local('MS UI Gothic'), local('MS-UIGothic'); size-adjust:108.33%;
+  unicode-range:U+3000-30FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF;
+}
 
 dialog.pd{
-  padding:0; border:1px solid #8a8a8a; border-radius:8px; background:#f0f0f0; color:#000;
-  font:12px/16px 'Yu Gothic UI', 'Meiryo UI', sans-serif; box-shadow:0 8px 32px rgba(0,0,0,.28);
+  padding:0; border:1px solid #9a9a9a; border-radius:8px; background:#f0f0f0; color:#000;
+  font:12px/16px 'Segoe UI', 'SigK Print JA', 'Yu Gothic UI', 'Meiryo UI', sans-serif; box-shadow:0 8px 32px rgba(0,0,0,.28);
   max-height:calc(100vh - 16px); overflow:auto;
 }
 dialog.pd::backdrop{background:rgba(16,24,40,.34)}
 .pd *, .pd *::before, .pd *::after{box-sizing:border-box}
-.pd p, .pd h3{margin:0}
-.pd u{text-decoration:underline}
-#print-dialog{width:863px; max-width:calc(100vw - 16px)}
+/* 行・チェックボックス・ラジオボタンの display の指定より、hidden を優先する（両面の綴じ方・自動回転の行を隠すため） */
+.pd [hidden]{display:none !important}
+.pd p, .pd h3{margin:0; font-size:inherit}
+/* アクセスキーの下線は、Alt を押すまで表示しない（Windows と同じ。print-dialog-keys.js が pd-keys を付ける）。 */
+.pd u{text-decoration:none}
+.pd.pd-keys u{text-decoration:underline}
+#print-dialog{width:860px; max-width:calc(100vw - 16px)}
 
-.pd-title{position:relative; height:30px; background:#eef5f9; display:flex; align-items:center; padding-left:10px; user-select:none; cursor:default}
-.pd-x{position:absolute; right:0; top:0; width:46px; height:30px; display:flex; align-items:center; justify-content:center; background:transparent; border:0; color:#000}
+.pd-title{
+  position:relative; height:30px; background:#eef5f9; display:flex; align-items:center; padding:0 0 1px 8px;
+  font:12px/16px 'Yu Gothic UI', 'Segoe UI', sans-serif; user-select:none; cursor:default;
+}
+.pd-x{position:absolute; right:0; top:0; width:31px; height:28px; display:flex; align-items:center; justify-content:center; background:transparent; border:0; color:#000}
 .pd-x:hover{background:#c42b1c; color:#fff}
 
-/* ボタン・選択欄・入力欄・チェックボックス・ラジオボタン */
+/* ボタン（枠 #d0d0d0・下の枠 #bababa・地 #fdfdfd）。フォーカスのあるボタンは、青い枠と点線の四角になる。 */
 .pd-btn{
-  height:24px; padding:0 8px; background:#fdfdfd; border:1px solid #d0d0d0; border-radius:4px; color:#000; font:inherit;
-  display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; cursor:default;
+  height:24px; padding:0 6px 2px; background:#fdfdfd; border:1px solid #d0d0d0; border-bottom-color:#bababa; border-radius:3px;
+  color:#000; font:inherit; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; cursor:default;
 }
 .pd-btn:hover:not(:disabled){background:#f6f6f6}
 .pd-btn:active:not(:disabled){background:#f0f0f0; color:#5d5d5d}
 .pd-btn:disabled{color:#a0a0a0; background:#f5f5f5; border-color:#e5e5e5}
-.pd-default{border-color:#0078d4}
-.pd :focus-visible{outline:2px solid #000; outline-offset:1px}
-.pd-link{background:none; border:0; padding:0; color:#0066cc; text-decoration:underline; font:inherit; cursor:pointer}
-.pd-q{width:15px; height:15px; border-radius:50%; border:1.3px solid #6d6d6d; display:inline-flex; align-items:center; justify-content:center; font-size:10px; line-height:1; color:#6d6d6d}
-.pd-info{
-  display:inline-flex; width:14px; height:14px; border-radius:50%; border:1.3px solid #6d6d6d; align-items:center; justify-content:center;
-  font:700 9px/1 Georgia, serif; color:#6d6d6d; cursor:default;
+.pd-default, .pd-btn:focus{border-color:#0078d4; border-bottom-color:#006bbe}
+.pd-btn:focus{outline:1px dotted #000; outline-offset:-4px}
+/* ほかのボタンにフォーカスがある間は、既定のボタン（印刷・OK・はい）を普通のボタンの見た目に戻す（Windows と同じ）。 */
+.pd:has(.pd-btn:not(.pd-default):focus) .pd-default:not(:focus){border-color:#d0d0d0; border-bottom-color:#bababa}
+.pd :focus-visible{outline:1px dotted #000; outline-offset:1px}
+/* チェックボックスとラジオボタンは、文字を点線で囲む（Windows と同じ） */
+.pd-check input:focus-visible, .pd-radio input:focus-visible{outline:none}
+.pd-check:has(input:focus-visible) span, .pd-radio:has(input:focus-visible) span{outline:1px dotted #000}
+.pd-link{background:none; border:0; padding:0; color:#0000ff; text-decoration:underline; font:inherit; cursor:pointer}
+.pd-q, .pd-info{
+  display:inline-flex; width:14px; height:14px; border-radius:50%; border:1px solid #7e7e7e; align-items:center; justify-content:center;
+  color:#7e7e7e; cursor:default;
 }
-.pd-info-head{margin-left:6px}
+.pd-q{font:700 10px/1 'Segoe UI', sans-serif}
+.pd-info{width:15px; font:700 9px/1 Georgia, serif}
+
+/* 選択欄（枠 #d2d2d2・下の枠 #bcbcbc）。フォーカスのある間は、選んだ項目を青で塗る（Windows のコンボボックスと同じ）。 */
 .pd-select{
-  height:24px; padding:0 22px 0 6px; border:1px solid #d2d2d2; border-radius:4px; color:#000; font:inherit; appearance:none;
-  background:#fdfdfd url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M.7.7 4.5 4.5 8.3.7' fill='none' stroke='%23333' stroke-width='1.3'/%3E%3C/svg%3E") no-repeat right 8px center;
+  height:24px; padding:0 22px 0 5px; border:1px solid #d2d2d2; border-bottom-color:#bcbcbc; border-radius:3px; color:#000; font:inherit;
+  appearance:none; box-shadow:inset 0 0 0 2px #fdfdfd; background:#fff no-repeat right 4px top 10px; padding-bottom:2px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M.5.5 4.5 4.5 8.5.5' fill='none' stroke='%23444' stroke-width='1.1'/%3E%3C/svg%3E");
+}
+.pd-select:focus{
+  outline:none; color:#fff;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M.5.5 4.5 4.5 8.5.5' fill='none' stroke='%23444' stroke-width='1.1'/%3E%3C/svg%3E"), linear-gradient(#0078d7, #0078d7);
+  background-size:auto, calc(100% - 22px) 17px; background-position:right 4px top 10px, 3px center;
 }
 .pd-select:disabled{color:#8a8a8a; background-color:#f5f5f5}
-.pd-input{height:22px; padding:0 4px; background:#fff; border:1px solid #7a7a7a; border-top-color:#696969; border-radius:0; font:inherit; color:#000}
-.pd-input:disabled{background:#f0f0f0; color:#6d6d6d; border-color:#a0a0a0}
-.pd-check, .pd-radio{display:inline-flex; align-items:center; white-space:nowrap}
-.pd-check input, .pd-radio input{appearance:none; margin:0 6px 0 0; width:14px; height:14px; flex:none; background:#fff; border:1px solid #5d5d5d; position:relative}
+/* 入力欄（へこんだ枠: 外の上と左 #a0a0a0・内の上と左 #696969・内の下と右 #e3e3e3・外の下と右 #ffffff）。
+   数字は、内の線から右に 3 px・下に 5 px の所に置く（画面写真 1・3-02・3-03）。中身の高さを行の高さ 16 px と同じにして、
+   上下の中央寄せで 0.5 px の端数を作らない（端数があると、欄の位置によって文字が 1 px 上下する）。 */
+.pd-input{
+  height:23px; padding:1px 2px 4px; background:#fff; border:1px solid; border-color:#a0a0a0 #fff #fff #a0a0a0; border-radius:0;
+  box-shadow:inset 1px 1px 0 #696969, inset -1px -1px 0 #e3e3e3; font:inherit; line-height:16px; color:#000;
+}
+.pd-input:focus{outline:none}
+.pd-input:disabled{background:#f0f0f0; color:#6d6d6d}
+/* チェックボックスとラジオボタンは、16 px の行の上から 2 px に置く（行の高さが偶数なら、画素の境目に揃ってにじまない） */
+.pd-check, .pd-radio{display:inline-flex; align-items:flex-start; white-space:nowrap}
+.pd-check input, .pd-radio input{appearance:none; margin:2px 3px 0 0; width:13px; height:13px; flex:none; background:#f3f3f3; border:1px solid #626262; position:relative}
 .pd-radio input{border-radius:50%}
-.pd-radio input:checked{border:4px solid #005fb8}
-.pd-check input{border-radius:3px; border-color:#626262; background:#f3f3f3}
+.pd-radio input:checked{border:4px solid #005fb8; background:#fff}
+.pd-check input{border-radius:3px}
 .pd-check input:checked{background:#005fb8; border-color:#005fb8}
-.pd-check input:checked::after{content:''; position:absolute; left:4px; top:1px; width:4px; height:8px; border-right:2px solid #fff; border-bottom:2px solid #fff; transform:rotate(45deg)}
+.pd-check input:checked::after{content:''; position:absolute; left:3.5px; top:.5px; width:4px; height:8px; border-right:1.5px solid #fff; border-bottom:1.5px solid #fff; transform:rotate(45deg)}
 .pd-check input:disabled, .pd-radio input:disabled{border-color:#a0a0a0; background:#f0f0f0}
 .pd-check input:disabled + span, .pd-radio input:disabled + span, .pd-off{color:#9a9a9a}
 
-/* 上の 2 行（プリンター・部数）。位置は画面写真 1 の座標。 */
-.pd-top{position:relative; height:76px}
+/* 上の枠（4, 11）〜（853, 80）。中の位置は、枠の内側の左上からの値。 */
+.pd-top{position:relative; height:70px; margin:11px 4px 0; border:1px solid #dcdcdc}
 .pd-at{position:absolute; white-space:nowrap}
-.pd-l-printer{left:22px; top:13px}
-#print-printer{position:absolute; left:97px; top:10px; width:261px}
-#print-props{left:364px; top:10px; width:84px}
-#print-advanced{left:455px; top:10px; width:88px}
-#print-help{left:775px; top:13px}
-.pd-l-q{left:830px; top:14px}
-.pd-l-copies{left:22px; top:49px}
-#print-copies{left:72px; top:46px; width:40px}
-.pd-l-spin{left:113px; top:46px; width:16px; height:22px; display:flex; flex-direction:column}
-.pd-spin button{flex:1; padding:0; border:1px solid #adadad; background:#fdfdfd; position:relative}
-.pd-spin button + button{border-top:0}
-.pd-spin button::after{content:''; position:absolute; left:4px; top:3px; border-left:3.5px solid transparent; border-right:3.5px solid transparent}
-#print-copies-up::after{border-bottom:4px solid #333}
-#print-copies-down::after{border-top:4px solid #333}
-.pd-c-gray{left:416px; top:49px}
-.pd-c-ink{left:619px; top:49px}
-#print-ink-info{left:768px; top:50px}
+.pd-l-printer{left:15px; top:5px}
+#print-printer{position:absolute; left:87px; top:2px; width:263px}
+#print-props{left:355px; top:3px; width:84px}
+#print-advanced{left:445px; top:3px; width:89px}
+#print-help{left:765px; top:1px}
+.pd-l-q{left:819px; top:3px}
+.pd-l-copies{left:14px; top:40px}
+#print-copies{left:64px; top:37px; width:40px}
+.pd-l-spin{left:106px; top:38px; width:15px; height:21px; display:flex; flex-direction:column; gap:1px}
+.pd-spin button{flex:1; padding:0; border:1px solid #d2d2d2; border-bottom-color:#bcbcbc; border-radius:2px; background:#fafafa; position:relative}
+.pd-spin button::after{content:''; position:absolute; left:3px; top:2px; border-left:3.5px solid transparent; border-right:3.5px solid transparent}
+#print-copies-up::after{top:1.5px; border-bottom:3.5px solid #1a1a1a}
+#print-copies-down::after{border-top:3.5px solid #1a1a1a}
+.pd-c-gray{left:407px; top:39px}
+.pd-c-ink{left:610px; top:40px}
+#print-ink-info{left:753px; top:41px}
 
-/* 左の 4 つの区画。行の高さは 23 px（ページサイズ処理の中は 26 px）。 */
-.pd-main{display:flex; align-items:flex-start; gap:4px; padding:0 8px 0 10px}
-.pd-left{width:543px; flex:none}
-.pd-sec{border:1px solid #dcdcdc; padding:8px 8px 4px 13px; margin-bottom:3px}
+/* 左の 4 つの区画（4〜549）と、プレビュー（552〜853）。区画の高さは、サイズの時 81・157・79・70、複数の時 81・156・101・70。 */
+.pd-main{display:flex; align-items:flex-start; gap:2px; padding:0 4px; margin-top:2px}
+.pd-left{width:546px; flex:none}
+.pd-sec{border:1px solid #dcdcdc; padding:0 0 0 14px; margin-bottom:2px}
 .pd-sec:last-child{margin-bottom:0}
-.pd-row{display:flex; align-items:center; height:23px; white-space:nowrap}
-.pd-row26{height:26px}
-.pd-gap4{margin-top:4px}
-.pd-head{font-weight:700; font-size:12px}
+.pd-row{display:flex; align-items:center; height:24px; white-space:nowrap}
+.pd-head{font-weight:700; letter-spacing:1px}
 .pd-error{color:#c42b1c; white-space:normal; padding:2px 0}
-.pd-more{background:none; border:0; padding:0 0 0 2px; font:inherit; color:#000; display:inline-flex; align-items:center}
-.pd-tri{width:0; height:0; border-left:5px solid #333; border-top:4px solid transparent; border-bottom:4px solid transparent; margin-right:6px; transition:transform .1s}
+.pd-sec-range{padding-top:2px; padding-bottom:10px}
+.pd-sec-range > .pd-head{height:23px; padding-top:2px}
+.pd-sec-range .pd-row-more{height:20px}
+.pd-more{background:none; border:0; padding:0 0 0 5px; font:inherit; color:#000; display:inline-flex; align-items:flex-start}
+.pd-tri{width:5px; height:9px; background:#393939; clip-path:polygon(0 0, 100% 50%, 0 100%); align-self:flex-start; margin:5px 7px 0 0; transition:transform .1s}
 .pd-more[aria-expanded="true"] .pd-tri{transform:rotate(90deg)}
-.pd-pages{width:148px}
+.pd-pages{width:150px}
 .pd-flow{position:static}
-.pd-sec-handling{padding-bottom:5px}
-.pd-handling{display:flex; gap:7px; height:30px}
-.pd-tab{width:97px; height:30px}
-.pd-tab[aria-pressed="true"]{border-color:#0078d4; box-shadow:inset 0 0 0 1px #0078d4}
-.pd-panel{padding-top:7px}
-.pd-num{width:56px}
-.pd-num-s{width:28px; margin-left:7px}
-.pd-unit{margin-left:6px}
-.pd-times{margin:0 6px}
-.pd-sec-orient{padding-top:0; padding-bottom:6px}
-.pd-indent{padding-left:20px}
-.pd-sec-comments{padding-top:6px; padding-bottom:17px}
-.pd-head-comments{height:20px}
-.pd-row-comments{height:24px}
-.pd-comments{width:235px; margin-left:-2px}
-.pd-summary{width:99px; margin-left:5px}
-.pd-w46{width:46px} .pd-w50{width:50px} .pd-w66{width:66px} .pd-w78{width:78px} .pd-w80{width:80px} .pd-w96{width:96px}
-.pd-w110{width:110px} .pd-w113{width:113px} .pd-w114{width:114px} .pd-w117{width:117px} .pd-w130{width:130px} .pd-w136{width:136px}
-.pd-w138{width:138px} .pd-w192{width:192px} .pd-ml16{margin-left:16px}
+.pd-sec-handling{padding-top:3px; padding-bottom:7px}
+.pd-handling{display:flex; gap:6px; height:30px; margin:3px 0 0 1px}
+.pd-tab{width:98px; height:30px; padding-bottom:3px}
+/* 詳細オプション（画面写真 3-01）。1 行目に 現在の表示範囲(V) と 逆順に印刷(E)、2 行目に 偶数または奇数ページ。 */
+.pd-more-body{padding-left:21px; margin-bottom:-3px}
+.pd-more-body > .pd-row:nth-child(2){margin-top:2px}
+/* ページサイズ処理の 4 つのパネル。行の高さと間隔は、画面写真 1・2・3-02・3-03 の位置。 */
+.pd-panel > .pd-row{height:26px}
+#print-panel-size > .pd-row:first-child{margin-top:7px}
+#print-panel-size > .pd-row:nth-child(3){margin-top:3px}
+.pd-panel-poster > .pd-row:first-child{margin-top:10px}
+.pd-panel-poster > .pd-row:nth-child(n+2){height:22px}
+.pd-panel-multiple > .pd-row:first-child{margin-top:11px}
+.pd-panel-multiple > .pd-row:nth-child(2){margin-top:4px; height:24px}
+.pd-panel-multiple > .pd-row:nth-child(3){height:22px}
+.pd-panel-booklet{margin-bottom:2px}
+.pd-panel-booklet > .pd-row:first-child{margin-top:11px}
+.pd-panel-booklet > .pd-row:nth-child(2){margin-top:2px}
+.pd-panel-booklet > .pd-row:nth-child(3){margin-top:3px; height:24px}
+/* 入力欄（高さ 23）は、行の上から 2 px（高さ 24 の行では 1 px）に置く */
+.pd-row > .pd-input{align-self:flex-start; margin-top:2px}
+.pd-sec-range .pd-row > .pd-input{margin-top:1px}
+.pd-num{width:58px}
+.pd-num-s{width:30px}
+.pd-unit{margin-left:5px}
+.pd-mm{margin-left:4px}
+.pd-times{margin:0 3px 0 4px}
+/* 両面と向き（画面写真 1・2・3-08）。ポスターと小冊子では、用紙の両面に印刷(B) の行を表示しない（print-dialog.js）。 */
+.pd-sec-orient{padding-bottom:12px}
+/* 用紙の両面に印刷(B) の文字から 向き : の文字までは 28 px。綴じ方の行を表示すると、両面の行から 21 px 下に綴じ方の行、その 29 px 下に 向き : */
+.pd-sec-orient > #print-duplex-row{height:16px; margin-bottom:9px}
+.pd-sec-orient > #print-flip-row{height:16px; margin:-4px 0 10px}
+.pd-sec-orient > .pd-row-orient{height:22px; margin-top:3px}
+.pd-sec-orient > .pd-row-radios{height:18px}
+.pd-sec-orient > #print-autorotate-row{height:26px; margin-bottom:-4px}
+.pd-indent{padding-left:16px}
+.pd-sec-comments{padding-top:2px; padding-bottom:17px}
+.pd-sec-handling > .pd-head{letter-spacing:1.25px}
+.pd-sec-comments > .pd-head{letter-spacing:.6px}
+.pd-row-comments{height:25px; align-items:flex-start}
+.pd-comments{width:234px}
+.pd-summary{width:99px; margin:1px 0 0 5px}
+.pd-info-head{margin-left:3px; position:relative; top:1px; letter-spacing:0}
+.pd-w36{width:36px} .pd-w46{width:46px} .pd-w47{width:47px} .pd-w54{width:54px} .pd-w63{width:63px} .pd-w65{width:65px} .pd-w81{width:81px}
+.pd-w82{width:82px} .pd-w98{width:98px} .pd-w110{width:110px} .pd-w111{width:111px} .pd-w112{width:112px} .pd-w113{width:113px} .pd-w117{width:117px}
+.pd-w118{width:118px} .pd-w124{width:124px} .pd-w126{width:126px} .pd-w137{width:137px} .pd-w138{width:138px} .pd-w146{width:146px} .pd-w168{width:168px}
+.pd-w179{width:179px} .pd-w193{width:193px} .pd-w208{width:208px} .pd-ml7{margin-left:7px} .pd-mr4{margin-right:4px}
 
-/* プレビュー（幅 298 × 高さ 394 px）。用紙は 212 × 275 px の枠に収め、枠の中心はプレビューの上から 191 px。 */
-.pd-preview{position:relative; width:298px; height:394px; border:1px solid #dcdcdc; flex:none}
-.pd-pv-scale{position:absolute; left:14px; top:4px}
-.pd-pv-size{position:absolute; left:0; right:0; text-align:center}
+/* プレビュー（302 × 386）。用紙は、枠を含めて 210 × 276 の中に収める（print-preview.js）。 */
+.pd-preview{position:relative; width:302px; height:386px; border:1px solid #dcdcdc; flex:none}
+.pd-pv-scale{position:absolute; left:14px; top:-1px}
+.pd-pv-size{position:absolute; font-size:11.5px; line-height:14px}
 .pd-pv-paper{position:absolute; border:2px solid #000; background:#fff; overflow:hidden}
 .pd-pv-paper canvas{display:block; width:100%; height:100%}
 .pd-pv-status{position:absolute; left:12px; right:12px; top:300px; text-align:center; color:#555; white-space:normal}
-.pd-pv-prev, .pd-pv-next{position:absolute; top:337px; width:28px; padding:0}
-.pd-pv-prev{left:14px}
-.pd-pv-next{left:254px}
-.pd-pv-slider{position:absolute; left:70px; top:339px; width:160px; height:20px; margin:0; appearance:none; background:transparent}
-.pd-pv-slider::-webkit-slider-runnable-track{height:4px; background:#6d6d6d; border-radius:2px}
-.pd-pv-slider::-webkit-slider-thumb{appearance:none; width:10px; height:18px; margin-top:-7px; background:#0078d7; border-radius:5px; border:0}
+.pd-pv-prev, .pd-pv-next{position:absolute; top:334px; width:30px; padding:0}
+.pd-pv-prev{left:15px}
+.pd-pv-next{left:255px}
+.pd-pv-slider{position:absolute; left:71px; top:334px; width:157px; height:18px; margin:0; appearance:none; background:transparent}
+.pd-pv-slider::-webkit-slider-runnable-track{height:4px; background:#6d6d6d}
+.pd-pv-slider::-webkit-slider-thumb{appearance:none; width:11px; height:19px; margin-top:-6px; background:#0078d7; border:0; clip-path:polygon(0 0, 100% 0, 100% 74%, 50% 100%, 0 74%)}
 .pd-pv-slider:disabled::-webkit-slider-thumb{background:#a0a0a0}
-.pd-pv-count{position:absolute; left:0; right:0; top:366px; text-align:center}
+.pd-pv-count{position:absolute; left:0; right:0; top:363px; text-align:center}
 
-/* 下の段 */
-dialog.pd .pd-foot{position:relative; display:block; height:44px; padding:0}
-#print-setup{position:absolute; left:8px; top:7px; width:106px}
-#print-run{position:absolute; left:675px; top:7px; width:86px}
-#print-cancel{position:absolute; left:771px; top:7px; width:85px}
+/* 下の段（左の区画の下から 6 px 空けてボタン、ボタンの下は 11 px） */
+dialog.pd .pd-foot{position:relative; display:block; height:41px; padding:0}
+#print-setup{position:absolute; left:5px; top:6px; width:103px}
+#print-run{position:absolute; left:671px; top:6px; width:84px}
+#print-cancel{position:absolute; left:767px; top:6px; width:84px}
 
-/* ページ設定（Windows のページ設定画面と同じ構成） */
-#print-setup-dialog{width:430px}
-.ps-body{padding:12px 14px 2px}
-.ps-preview{height:128px; display:flex; align-items:center; justify-content:center; margin-bottom:8px}
-.ps-paper{background:#fff; border:1px solid #888; box-shadow:3px 3px 0 #b5b5b5}
-.ps-group{border:1px solid #dcdcdc; border-radius:4px; margin:0 0 10px; padding:4px 10px 8px; min-width:0}
-.ps-group legend{padding:0 4px}
-.ps-row{display:flex; align-items:center; gap:8px; height:30px}
-.ps-row label{width:84px; flex:none}
-.ps-row select{flex:1; min-width:0}
-.ps-cols{display:flex; gap:10px}
-.ps-orient{width:130px; display:flex; flex-direction:column; gap:8px; padding-top:8px}
-.ps-margins{flex:1; display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; padding-top:8px; color:#8a8a8a}
-.ps-margins label{display:flex; align-items:center; gap:4px}
-.ps-margins input{width:44px}
-#print-setup-dialog .pd-foot, #print-summary-confirm .pd-foot, #print-progress-dialog .pd-foot{display:flex; justify-content:flex-end; gap:8px; height:auto; padding:8px 14px 12px}
-#print-setup-dialog .pd-foot .pd-btn, #print-summary-confirm .pd-foot .pd-btn, #print-progress-dialog .pd-foot .pd-btn{min-width:84px}
-
-/* 注釈の一覧の確認 */
-#print-summary-confirm{width:420px}
-.pc-body{display:flex; gap:14px; align-items:center; padding:20px 18px 14px; background:#fff}
-.pc-icon{width:32px; height:32px; border-radius:50%; background:#0078d4; color:#fff; font:700 20px/32px sans-serif; text-align:center; flex:none}
-
-/* 進行状況画面 */
-#print-progress-dialog{width:380px}
-.pp-body{padding:16px 18px 6px}
-.pp-bar{height:14px; border:1px solid #bcbcbc; background:#e6e6e6; margin-top:10px}
-.pp-bar-fill{height:100%; width:0; background:#06b025}
+/* ページ設定・注釈の一覧の確認・ⓘ の説明・進行状況画面は print-sub-dialogs.css。 */
 
 /* 紙に出す時（spec-1-4 確定事項28）。用紙の大きさと余白 0 は、印刷のたびに print-send.js が #print-page-style に書く。 */

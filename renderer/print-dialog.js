@@ -118,12 +118,13 @@
 
   function renderOrientation() {
     const { state, config } = ctx;
-    const supported = config?.duplex?.supported !== false;
     const booklet = state.handling === 'booklet';
-    $('print-duplex-row').hidden = !supported;
-    setChecked('print-duplex', booklet ? state.booklet.method === 'both' : settings().duplexOf(state, config));
-    setDisabled('print-duplex', booklet);
-    $('print-flip-row').hidden = !supported || booklet || !settings().duplexOf(state, config);
+    const poster = state.handling === 'poster';
+    // ポスターと小冊子では、用紙の両面に印刷(B) の行を表示しない（Acrobat の画面写真 3-02・3-03。小冊子の両面は、小冊子の印刷方法で決める）。
+    const shown = config?.duplex?.supported !== false && !booklet && !poster;
+    $('print-duplex-row').hidden = !shown;
+    setChecked('print-duplex', settings().duplexOf(state, config));
+    $('print-flip-row').hidden = !shown || !settings().duplexOf(state, config);
     setChecked('print-flip-long', state.flip !== 'shortEdge');
     setChecked('print-flip-short', state.flip === 'shortEdge');
     const size = state.handling === 'size';
@@ -133,7 +134,8 @@
       setChecked(`print-orient-${value}`, orientation === value);
     setDisabled('print-orient-portrait', booklet);
     setDisabled('print-orient-landscape', booklet);
-    $('print-autorotate-row').hidden = size;
+    // 各シート内でページを自動回転(W) は、複数と小冊子だけ（画面写真 2・3-05）。ポスターでは表示しない（Claude の案。画面写真 3-02 に写っていない）。
+    $('print-autorotate-row').hidden = size || poster;
     setChecked('print-autorotate', state.autoRotate);
   }
 

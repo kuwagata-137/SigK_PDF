@@ -67,7 +67,7 @@
   }
 
   function progressText(done, total) {
-    root.SigK.printProgress.setProgress(`${done} / ${total} ページを準備しています…`, total === 0 ? 0 : done / total);
+    root.SigK.printProgress.preparing(total === 0 ? 0 : done / total);
   }
 
   function finishRun(result) {
@@ -100,7 +100,7 @@
       const prepared = await root.SigK.printJob.prepareImages(ctx.doc, ctx.area, job, { isAlive, onProgress: progressText });
       if (prepared.ok !== true)
         return finishRun(prepared);
-      root.SigK.printProgress.setProgress('プリンターに送っています…', 1);
+      root.SigK.printProgress.preparing(1);
       const options = { ...job.send, duplexMode: prepared.duplexMode ?? job.send.duplexMode };
       return finishRun((await root.SigK.printSend.send(ctx.doc, ctx.area, prepared.jobs, options, { isAlive })) ?? { ok: false });
     } finally {
@@ -172,7 +172,7 @@
       return false;
     win.__sigkPrintReady = true;
     Object.assign(ctx, { doc, dialog, area });
-    for (const part of [D(), root.SigK.printPreview, root.SigK.printPageSetup, root.SigK.printProgress])
+    for (const part of [D(), root.SigK.printPreview, root.SigK.printPageSetup, root.SigK.printProgress, root.SigK.printInfo])
       part.init(doc);
     actions().init({ doc, isOpen: isDialogOpen, isBusy: () => ctx.busy, jobFor, close });
     printers().init({ onLoading: () => actions().refreshPreview(), onLoaded: () => actions().schedulePreview(false) });

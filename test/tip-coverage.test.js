@@ -35,8 +35,9 @@ const STATIC_TARGETS = [
   ['#status-file', 'status.file'], ['#doc-info-close', 'dialog.close'], ['#help-close', 'dialog.close'], ['#print-close', 'dialog.close'], ['#settings-close', 'dialog.close'],
   ['#color-dialog-close', 'dialog.close'],
   // 印刷画面（spec-7-7）。
-  ['#print-advanced', 'print.advanced'], ['#print-ink-info', 'print.inkInfo'], ['#print-handling-info', 'print.handlingInfo'],
-  ['#print-comments', 'print.comments'], ['#print-summary', 'print.summary'], ['#print-setup-close', 'dialog.close'], ['#print-summary-close', 'dialog.close'],
+  // 2 つの ⓘ はツールチップを表示せず、押すと説明の画面を開く（Acrobat と同じ。print-info.js）。注釈の一覧の確認画面には［×］が無い。
+  ['#print-advanced', 'print.advanced'],
+  ['#print-comments', 'print.comments'], ['#print-summary', 'print.summary'], ['#print-setup-close', 'dialog.close'],
   ['#split-zoom-close', 'zoom.close'], ['#split-zoom-prev', 'zoom.prev'], ['#split-zoom-next', 'zoom.next'],
   ...TOOLS.map((tool) => [`.edit-tool[data-tool="${tool}"]`, `edit.${tool}`]),
   ...SHAPES.map((shape) => [`.edit-tool[data-shape="${shape}"]`, `edit.${shape}`]),

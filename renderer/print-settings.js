@@ -78,7 +78,7 @@
       multiple: { ...state.multiple },
       booklet: { ...state.booklet, to: state.booklet.to ?? undefined },
       orientation: orientationOf(state),
-      autoRotate: state.handling !== 'size' && state.autoRotate === true,
+      autoRotate: (state.handling === 'multiple' || state.handling === 'booklet') && state.autoRotate === true,
     };
   }
 
@@ -117,7 +117,8 @@
         copies: state.copies,
         collate: config.collate !== false,
         color: !grayscaleOf(state, config),
-        duplexMode: duplexOf(state, config) ? state.flip : 'simplex',
+        // ポスターは片面だけ（Acrobat と同じく、用紙の両面に印刷(B) を表示しない。画面写真 3-02）。
+        duplexMode: state.handling !== 'poster' && duplexOf(state, config) ? state.flip : 'simplex',
         defaultPaper: config.paper,
       },
     };

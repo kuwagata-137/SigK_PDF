@@ -37,14 +37,14 @@ const EXPECTED_KEYS = [
   'edit.highlight.image', 'edit.underline.image', 'edit.strikeout.image', 'edit.note.image',
   // 編集モードのボタン列の［左回転］［右回転］（spec-7-4）。代わりに［選択］［ハンド］の edit.select・edit.hand を外した（確定事項C3）。
   'edit.rotateLeft', 'edit.rotateRight',
-  // 印刷画面の ⓘ・［詳細設定(D)］・注釈とフォーム(M)・［注釈の一覧(T)］（spec-7-7）。
-  'print.advanced', 'print.inkInfo', 'print.handlingInfo', 'print.comments', 'print.summary',
+  // 印刷画面の［詳細設定(D)］・注釈とフォーム(M)・［注釈の一覧(T)］（spec-7-7。2 つの ⓘ は、押すと説明の画面を開くのでツールチップを持たない）。
+  'print.advanced', 'print.comments', 'print.summary',
 ];
 
 // 歯車のボタン（bar.settings）は spec-6-1 タスク E で、画像のタブで灰色にした道具の 4 個は spec-7-1 で足した。spec-7-4 で 2 個を外し、2 個を足した。
-test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個（spec-7-4 で 2 個を替えた）と印刷画面の 5 個（spec-7-7）と過不足なく一致する（組み込みの text を除く）', () => {
+test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの道具の 4 個（spec-7-4 で 2 個を替えた）と印刷画面の 3 個（spec-7-7）と過不足なく一致する（組み込みの text を除く）', () => {
   assert.deepEqual([...tableKeys()].sort(), [...EXPECTED_KEYS].sort());
-  assert.equal(EXPECTED_KEYS.length, 94);
+  assert.equal(EXPECTED_KEYS.length, 92);
 });
 test('どの鍵にも名前と説明があり、説明は「。」で終わる 100 字以内の文', () => {
   for (const key of tableKeys()) {

@@ -40,7 +40,7 @@ test('ページサイズ処理のボタンで、下の中身（サイズ・ポ�
   }
 });
 
-test('向き: サイズは 自動・縦・横、ほかは 縦・横 と「各シート内でページを自動回転(W)」（ユーザーの画面写真 2）', async (t) => {
+test('向き: サイズは 自動・縦・横、ほかは 縦・横。「各シート内でページを自動回転(W)」は複数と小冊子だけ（ユーザーの画面写真 2・3-02・3-05）', async (t) => {
   const { $, click } = await withPrint(t);
   assert.equal(shown($('print-orient-auto-label')), true);
   assert.equal($('print-orient-auto').checked, true);
@@ -48,7 +48,11 @@ test('向き: サイズは 自動・縦・横、ほかは 縦・横 と「各シ
   click('print-handling-poster');
   assert.equal(shown($('print-orient-auto-label')), false);
   assert.equal($('print-orient-portrait').checked, true, '自動は縦にする');
-  assert.equal(shown($('print-autorotate-row')), true);
+  assert.equal(shown($('print-autorotate-row')), false, 'ポスターでは表示しない');
+  for (const handling of ['multiple', 'booklet']) {
+    click(`print-handling-${handling}`);
+    assert.equal(shown($('print-autorotate-row')), true, handling);
+  }
 });
 
 test('複数: 決まった数では Acrobat と同じく用紙の向きを選び、列と行は灰色で表示する。カスタムで列と行を入力できる', async (t) => {
@@ -67,17 +71,14 @@ test('複数: 決まった数では Acrobat と同じく用紙の向きを選び
   assert.equal($('print-multi-cols').value, '3', '全角の数字も受け付ける');
 });
 
-test('小冊子: 偶数または奇数ページ・逆順に印刷は灰色。両面は小冊子の印刷方法で決まり、綴じる辺の選択は表示しない', async (t) => {
-  const { $, click, change } = await withPrint(t);
+test('小冊子: 偶数または奇数ページ・逆順に印刷は灰色。用紙の両面に印刷(B) の行は表示しない（両面は小冊子の印刷方法で決まる。画面写真 3-03）', async (t) => {
+  const { $, click } = await withPrint(t);
   click('print-handling-booklet');
   assert.equal($('print-parity').disabled, true);
   assert.equal($('print-reverse').disabled, true);
-  assert.equal($('print-duplex').disabled, true);
-  assert.equal($('print-duplex').checked, true);
+  assert.equal(shown($('print-duplex-row')), false);
   assert.equal(shown($('print-flip-row')), false);
   assert.equal($('print-booklet-to').value, '1', '3 ページは紙 1 枚');
-  change('print-booklet-method', 'front');
-  assert.equal($('print-duplex').checked, false);
 });
 
 test('用紙の両面に印刷(B) をオンにすると、長辺を綴じる・短辺を綴じるを選べ、印刷に渡る', async (t) => {
@@ -153,7 +154,7 @@ test('［ページ設定(S)...］でサイズを A3 にすると、A3 の用紙�
   assert.equal($('print-setup-dialog').hasAttribute('open'), true);
   assert.deepEqual([...$('print-setup-size').options].map((option) => option.textContent), ['A4', 'A3', 'A5']);
   assert.equal($('print-setup-size').value, 'psk:ISOA4');
-  assert.equal($('print-setup-source').disabled, true, '給紙方法は自動選択だけ');
+  assert.deepEqual([...$('print-setup-source').options].map((option) => option.textContent), ['自動'], '給紙方法は「自動」だけ（画面写真 3-11）');
   change('print-setup-size', 'psk:ISOA3');
   click('print-setup-ok');
   await shell.flush();

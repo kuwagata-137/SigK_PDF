@@ -6,14 +6,15 @@
   // 配置（print-sheet-plan.js）どおりに、ページの画像・注釈の一覧ページ・ページ境界線・タイルマーク・ラベルを canvas に描く。
   // ページは用紙に入る部分だけを、用紙の上で dpi の解像度になる倍率で描く（拡大しても粗くならず、縮小しても無駄に大きく描かない）。
   // 印刷する画像（forPrint）は、横のシートを時計回りに 90 度回して縦の用紙の向きにする（print-sheet-geometry.js）。
-  // グレースケール (白黒) で印刷(Y) は灰色に、インク / トナーを節約は色を白に近づけて描く（質問 PR3 ③）。
+  // グレースケール (白黒) で印刷(Y) は灰色に、インク / トナーを節約は色を白に近づけて描く（質問 PR3 ③・PR5）。
   // jsdom には 2D コンテキストが無い。そのときもページは描かせ（経路と描く範囲を試験で見るため）、シートの canvas は作らない。
 
   const UM_PER_INCH = 25400;
-  // インク / トナーを節約の濃さ（質問 PR3 ③の図の「5 割」。Acrobat は最大 15% の節約なので、ユーザーに改めて伺う）。
-  const INK_SAVE_DENSITY = 0.5;
+  // インク / トナーを節約の濃さ（質問 PR5 の答え「15% 節約」。Acrobat の説明「トナーを最大 15% 節約できます」と同じにする）。
+  const INK_SAVE_DENSITY = 0.85;
   const MARK_LENGTH = 4000;
   const LABEL_PT = 7;
+  const UNPRINTABLE = '#dfdfdf';
 
   const R = () => root.SigK.printPageRegion;
 
@@ -31,8 +32,14 @@
     canvas.width = turn ? height : width;
     canvas.height = turn ? width : height;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
+    // プレビューでは、用紙の印刷できない余白を灰色（#dfdfdf。Acrobat のプレビューと同じ色）で塗る。
+    ctx.fillStyle = forPrint ? '#ffffff' : UNPRINTABLE;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!forPrint && sheet.area) {
+      const area = rectPx(sheet.area, dpi);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(area.x, area.y, area.width, area.height);
+    }
     if (turn) {
       ctx.translate(canvas.width, 0);
       ctx.rotate(Math.PI / 2);

@@ -77,7 +77,11 @@
   }
 
   function attach(dialog, { onEnter = null } = {}) {
+    // アクセスキーの下線は、Alt を押した後から画面を閉じるまで表示する（Windows と同じ。print-dialog.css の pd-keys）。
+    dialog.addEventListener('close', () => dialog.classList.remove('pd-keys'));
     dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Alt' || event.altKey)
+        dialog.classList.add('pd-keys');
       if (handleAccessKey(dialog, event))
         return;
       if (onEnter !== null)

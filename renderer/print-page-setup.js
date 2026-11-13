@@ -1,9 +1,12 @@
 (function (root) {
   'use strict';
 
-  // ページ設定（docs/spec-7-7-print-dialog.md・質問 PR3 ②）。Windows のページ設定画面と同じ構成で、サイズ(Z) と印刷の向きを選ぶ。
-  // 給紙方法は「自動選択」だけ（プリンターの既定のトレイを使う）。余白は灰色（印刷可能領域はプリンターから取得する）。
+  // ページ設定（docs/spec-7-7-print-dialog.md・質問 PR3 ②・Acrobat の画面写真 3-11）。Windows のページ設定画面と同じ構成で、
+  // サイズ(Z) と印刷の向きを選ぶ。給紙方法は「自動」だけ（プリンターの既定のトレイを使う）。余白は灰色（印刷可能領域はプリンターから取得する）。
   // open() は［OK］で { paperId, orientation }、［キャンセル］・［×］・Esc で null を返す。
+
+  const PAPER_PX = 150;
+  const MARGIN_UM = 25000;
 
   const ctx = { el: null, resolve: null, sizes: [] };
   const $ = (id) => ctx.el.doc.getElementById(id);
@@ -17,7 +20,7 @@
     return $('print-setup-landscape').checked ? 'landscape' : 'portrait';
   }
 
-  // 上の見本の用紙（大きい方の辺を 110 px にする）。
+  // 上の見本の用紙（大きい方の辺を 150 px にする。画面写真 3-11 の A4 の縦は 106 × 150）。点線の枠は余白 25 ミリの位置。
   function renderPaper() {
     const size = selected();
     const node = $('print-setup-paper');
@@ -28,9 +31,14 @@
     const landscape = orientation() === 'landscape';
     const w = landscape ? size.height : size.width;
     const h = landscape ? size.width : size.height;
-    const ratio = 110 / Math.max(w, h);
+    const ratio = PAPER_PX / Math.max(w, h);
     node.hidden = false;
     Object.assign(node.style, { width: `${Math.round(w * ratio)}px`, height: `${Math.round(h * ratio)}px` });
+    const margin = node.querySelector('.ps-paper-margin');
+    if (margin !== null) {
+      const inset = Math.round(MARGIN_UM * ratio);
+      Object.assign(margin.style, { left: `${inset}px`, top: `${inset}px`, right: `${inset}px`, bottom: `${inset}px` });
+    }
   }
 
   function finish(result) {

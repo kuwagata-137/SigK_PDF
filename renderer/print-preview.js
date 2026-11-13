@@ -5,9 +5,13 @@
   //
   // 用紙 1 枚（シート）を縮小して描き、上に用紙の寸法（「297.00 x 210.00 ミリ」）、左上に倍率（サイズの時だけ。「倍率 : 113%」）、
   // 下に［<］スライダー［>］と「1 / 21 ページ」（複数の時は「 (最初のページ番号)」を足す）を表示する。
-  // 用紙は 212 × 275 px の枠に収め、枠の中心はプレビューの上から 191 px（画面写真の位置）。描くのは印刷と同じ合成（print-sheet-render.js）。
+  // 用紙は、黒い枠（2 px）を含めて 210 × 276 px の中に収める。黒い枠の内側の位置は、内側の大きさ（端数のまま）から
+  // 中心がプレビューの内側の左から 150.5 px・上から 185 px になるように四捨五入して決める（画面写真 1 の横の用紙と、2 の縦の用紙の位置が両方合う）。
+  // 用紙の寸法の文字は、文字の左端が用紙の左端の 2 px 右・文字の下端が用紙の上の 12 px 上になるように置く（画面写真 1・2 の位置）。
+  // 描くのは印刷と同じ合成（print-sheet-render.js）。
 
-  const BOX = Object.freeze({ width: 212, height: 275, centerY: 191, inner: 296 });
+  const BOX = Object.freeze({ width: 210, height: 276, border: 2, centerX: 150.5, centerY: 185 });
+  const SIZE_LABEL = Object.freeze({ dx: 1, dy: -24 });
   const UM_PER_INCH = 25400;
 
   const ctx = { el: null, plan: null, job: null, index: 0, token: 0, mode: 'size' };
@@ -31,14 +35,18 @@
       $(id).disabled = true;
   }
 
+  // 用紙の内側（黒い枠の内側）の大きさを決めてから、枠の分を足す。返すのは内側の大きさ（描く画像の大きさ）。
   function placePaper(sheet) {
-    const ratio = Math.min(BOX.width / sheet.width, BOX.height / sheet.height);
-    const width = Math.max(1, Math.round(sheet.width * ratio));
-    const height = Math.max(1, Math.round(sheet.height * ratio));
-    const left = Math.round((BOX.inner - width) / 2);
-    const top = Math.round(BOX.centerY - height / 2);
-    Object.assign($('print-preview-paper').style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
-    $('print-preview-size').style.top = `${top - 21}px`;
+    const edge = BOX.border * 2;
+    const ratio = Math.min((BOX.width - edge) / sheet.width, (BOX.height - edge) / sheet.height);
+    const exactWidth = sheet.width * ratio;
+    const exactHeight = sheet.height * ratio;
+    const width = Math.max(1, Math.round(exactWidth));
+    const height = Math.max(1, Math.round(exactHeight));
+    const left = Math.round(BOX.centerX - exactWidth / 2) - BOX.border;
+    const top = Math.round(BOX.centerY - exactHeight / 2) - BOX.border;
+    Object.assign($('print-preview-paper').style, { left: `${left}px`, top: `${top}px`, width: `${width + edge}px`, height: `${height + edge}px` });
+    Object.assign($('print-preview-size').style, { left: `${left + SIZE_LABEL.dx}px`, top: `${top + SIZE_LABEL.dy}px` });
     return { width, height };
   }
 
@@ -47,8 +55,9 @@
     slider.max = String(Math.max(1, count));
     slider.value = String(ctx.index + 1);
     slider.disabled = count <= 1;
-    $('print-preview-prev').disabled = ctx.index <= 0;
-    $('print-preview-next').disabled = ctx.index >= count - 1;
+    // Acrobat と同じく、最初と最後の用紙でも［<］［>］は押せる見た目のままにする（押しても何もしない。go を参照）。
+    $('print-preview-prev').disabled = false;
+    $('print-preview-next').disabled = false;
   }
 
   function countText(sheet, count) {
@@ -114,7 +123,7 @@
   }
 
   function go(index) {
-    if (ctx.plan === null)
+    if (ctx.plan === null || index < 0 || index >= ctx.plan.sheets.length || index === ctx.index)
       return;
     ctx.index = index;
     draw();
