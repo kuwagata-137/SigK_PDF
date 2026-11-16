@@ -78,6 +78,7 @@
 |---|---|
 | クラウド実行環境（〜2026-08-30） | **不可。**`git push --delete` を git プロキシが HTTP 403 で拒否し、GitHub MCP にも `delete_branch` 系のツールが無かった。認証や `gh` の不在が原因ではなく、作成・更新・push は正常にできていた |
 | Windows 実機 ＋ `gh` CLI（2026-08-31〜） | **可。**`git push origin --delete <branch>` が通ることを実測で確認した |
+| クラウド実行環境（2026-11-11 に再確認） | **不可のまま。**`git push origin --delete` が HTTP 403 で断られた（`claude/version-1.0.1` を消そうとしたとき）。作成・更新の push は通る |
 
 したがって次のように扱う。
 
