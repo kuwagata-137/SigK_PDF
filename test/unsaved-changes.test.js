@@ -73,12 +73,12 @@ test('describe は決まった順に「N 件」でつなぎ、どれも 0 なら
 
 test('messageFor は 1 本なら F1 の文、2 本以上なら 5 個まで並べて「ほか N 個」', () => {
   const one = messageFor([{ name: '会議資料.pdf', counts: { ...ZERO, remove: 1, annot: 3 } }]);
-  assert.equal(one.lead, '「会議資料.pdf」には、保存していない変更（ページの削除 1 件・書き込み 3 件）があります。ツールはファイルに保存してある中身を使うので、このまま実行すると、その変更は結果に入りません。');
+  assert.equal(one.lead, '「会議資料.pdf」には、保存していない変更（ページの削除 1 件・書き込み 3 件）があります。ツールはファイルに保存してある内容を使うので、このまま実行すると、その変更は結果に反映されません。');
   assert.deepEqual(one.items, []);
   assert.equal(messageFor([{ name: 'a.pdf', counts: ZERO }]).lead.startsWith('「a.pdf」には、保存していない変更があります。'), true);
 
   const many = messageFor(Array.from({ length: 7 }, (_unused, index) => ({ name: `${index + 1}.pdf`, counts: index === 0 ? { ...ZERO, rotate: 2 } : ZERO })));
-  assert.equal(many.lead, '次の 7 個のファイルには、保存していない変更があります。ツールはファイルに保存してある中身を使うので、このまま実行すると、その変更は結果に入りません。');
+  assert.equal(many.lead, '次の 7 個のファイルには、保存していない変更があります。ツールはファイルに保存してある内容を使うので、このまま実行すると、その変更は結果に反映されません。');
   assert.deepEqual(many.items, ['「1.pdf」（ページの回転 2 件）', '「2.pdf」', '「3.pdf」', '「4.pdf」', '「5.pdf」']);
   assert.equal(many.more, 2);
 });

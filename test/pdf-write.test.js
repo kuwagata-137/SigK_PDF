@@ -153,7 +153,7 @@ test('置き換えに失敗しても元ファイルは無傷で、一時ファ�
       makeBackup: false,
       fsLike: failingFs('rename', 'EPERM'),
     });
-    assert.equal(result.error, 'ファイルが他のプログラムで使われているので、閉じてからもう一度お試しください。');
+    assert.equal(result.error, 'ファイルが他のプログラムで使われているので、ファイルを閉じてからもう一度お試しください。');
     assert.equal(result.phase, 'replace');
     assert.equal(fs.readFileSync(target, 'utf8'), 'OLD');
     assert.equal(fs.existsSync(tempPathFor(target)), false);
@@ -169,7 +169,7 @@ test('.bak を作れなかったら保存そのものを中止する', async () 
       fsLike: failingFs('copyFile', 'EACCES'),
     });
     assert.equal(result.phase, 'backup');
-    assert.match(result.error, /控えのファイル（.bak）を作れなかった/);
+    assert.match(result.error, /バックアップファイル（.bak）を作成できなかった/);
     assert.equal(fs.readFileSync(target, 'utf8'), 'OLD', '元ファイルを触っていない');
     assert.equal(fs.existsSync(tempPathFor(target)), false);
   } finally { ws.cleanup(); }

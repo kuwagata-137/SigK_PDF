@@ -58,14 +58,14 @@
     const api = root.pdfAPI;
     const read = typeof api?.readWatermarkImage === 'function'
       ? await api.readWatermarkImage(filePath)
-      : { error: '画像を読む機能を使えません。' };
+      : { error: '画像読み込み機能を使用できません。' };
     if (state.image !== next)
       return false;   // 読んでいる間に差し替えられた
     next.pending = false;
     if (read?.ok === true)
       Object.assign(next, { name: read.name ?? next.name, kind: read.kind, width: read.width, height: read.height, bytes: read.bytes });
     else
-      next.error = read?.error ?? '画像を読めませんでした。';
+      next.error = read?.error ?? '画像を読み込めませんでした。';
     changed();
     return next.error === null;
   }

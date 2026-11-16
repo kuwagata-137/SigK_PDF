@@ -6,6 +6,7 @@
   // 枠を並べるのは thumbnails.js のままである。あちらは「地図として紙を並べる」
   // 層で、閲覧モードと共通の仕組みを持つ。ここが足すのは**ページモードでしか
   // 意味を持たないもの**――選択と、ドラッグによる並べ替えである。
+  // 2026-11-12: 編集モードでサムネイルを表示しているときも、選択とドラッグを受ける（spec-7-5 確定事項E1。isGridMode）。
   //
   // 位置の判定（どの紙の手前へ入れるか、端でどれだけスクロールするか）は
   // page-plan.js の純粋関数に置いた。jsdom は elementFromPoint も
@@ -66,6 +67,12 @@
     return el !== null && el.doc.documentElement.getAttribute('data-mode') === 'pages';
   }
 
+  // 選択とドラッグ（並べ替え）を受けるか。ページ編集モードと、サムネイルを表示している編集モード（spec-7-5 確定事項E1）。
+  // 紙の上の小さなボタン（syncThumbTools）は、今までどおりページ編集モードだけ。
+  function isGridMode() {
+    return isPagesMode() || (el !== null && root.SigK.pageListTarget?.thumbsShown(el.doc) === true);
+  }
+
   function pageCount() {
     return viewer()?.getState().pageCount ?? 0;
   }
@@ -113,8 +120,8 @@
   // 紙の上に出す小さなボタン（確定事項52。docs/04 4-2）。ページモードのときだけ
   // 置く。紙の幅が 100px 前後になるため、文字は入れずアイコンだけにする。
   const THUMB_TOOLS = [
-    ['rotateLeft', 'rotateLeft', '左に回す'],
-    ['rotateRight', 'rotateRight', '右に回す'],
+    ['rotateLeft', 'rotateLeft', '左回転'],
+    ['rotateRight', 'rotateRight', '右回転'],
     ['delete', 'trash', 'このページを削除'],
   ];
 
@@ -166,10 +173,10 @@
     return setSelection(gridRules().selectAll(pageCount()), { anchor: 0 });
   }
 
-  // thumbnails.js のクリックから呼ばれる。ページモードで受け取ったら true を
+  // thumbnails.js のクリックから呼ばれる。ページモード（とサムネイルを表示している編集モード。E1）で受け取ったら true を
   // 返し、閲覧モードでは false を返して従来のページ移動へ譲る。
   function handleClick(index, event) {
-    if (!isPagesMode())
+    if (!isGridMode())
       return false;
     // 引いて離したあとの click は捨てる（spec-4b-7b 点検の直し）。同じサムネイルの上で離すと、click が選択を 1 枚に選び直し、
     // Ctrl＋クリックの手が少し動いて掴んだときは、押したページを外して選択が空になっていた。
@@ -209,8 +216,9 @@
       return edit.rotate(-90, [index]);
     if (tool === 'rotateRight')
       return edit.rotate(90, [index]);
+    // 削除は削除確認画面を通す（spec-7-5 確定事項D1）。
     if (tool === 'delete')
-      return edit.remove([index]);
+      return edit.requestRemove([index]);
     return false;
   }
 
@@ -335,7 +343,7 @@
   function onPointerDown(event) {
     clickAfterDrag = false;
     // 左ボタンだけを受ける。中クリック・右クリックでは掴まない。
-    if (!isPagesMode() || event.button !== 0)
+    if (!isGridMode() || event.button !== 0)
       return;
     // 紙の上のボタンを押したのであって、紙を掴んだのではない。
     if (event.target?.closest?.('.thumb-tool') !== null && event.target?.closest?.('.thumb-tool') !== undefined)
@@ -345,7 +353,7 @@
       return;
 
     // Ctrl+A を「サイドパネルにフォーカスがあるときだけ」に限るため、
-    // 触った時点でフォーカスを移す（確定事項18）。
+    // 触った時点でフォーカスを移す（確定事項18）。Delete・Ctrl+C/X/V も同じ（spec-7-5 確定事項K1）。
     el.scroll.focus?.({ preventScroll: true });
 
     // 押しただけでは選択を変えない。動かさずに離せばクリックで、選択は click 側（handleClick。確定事項15〜17）が決める。

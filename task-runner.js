@@ -84,7 +84,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
         child = utilityProcess.fork(workerPath);
       } catch (error) {
         onError({ message: 'ワーカーを起動できませんでした', stack: error?.stack, context: { workerPath } });
-        resolve({ error: '保存の処理を開始できませんでした。' });
+        resolve({ error: '保存処理を開始できませんでした。' });
         return;
       }
 
@@ -130,7 +130,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
 
       child.on('spawn', () => {
         try { child.postMessage({ type: 'run', taskId, spec }); }
-        catch (error) { settle({ error: '保存の処理を開始できませんでした。' }); }
+        catch (error) { settle({ error: '保存処理を開始できませんでした。' }); }
       });
 
       child.on('message', (message) => {
@@ -141,7 +141,7 @@ function createTaskRunner({ utilityProcess, workerPath, fsLike = fs, onError = (
           return;
         }
         if (message?.type === 'done')
-          settle(withoutDetail(message.result ?? { error: 'ワーカーから結果が返りませんでした。' }));
+          settle(withoutDetail(message.result ?? { error: '保存処理から結果が返りませんでした。' }));
       });
 
       // 子が落ちたとき。settle の中で kill() を呼ぶので、正常に終わった直後にも

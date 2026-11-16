@@ -105,12 +105,16 @@
     root.SigK.confirmOverwrite.init(doc, win);
     root.SigK.confirmExtract.init(doc, win);
     root.SigK.confirmReplace.init(doc, win);
+    // ページの削除確認画面（spec-7-5 確定事項D1）。［削除］ボタン・Delete キー・右クリックメニューから呼ばれる。
+    root.SigK.confirmPageDelete.init(doc, win);
     // ツールモードの枠組みと結合画面（spec-2-1）。shell.setMode から refresh が
     // 呼ばれるので、モードの復元（restoreUi）より先に用意しておく。
     // 帯の画面は tools.init（ツールモードなら選んでいるツールを出す）より前に用意する（spec-2-5 第 D 章）。
     root.SigK.strips.init(doc, win);
     // ツールモードの紙の倍率（docs/07 決定83）。帯の画面の Ctrl＋ホイールを受け、倍率を変えたら見ていた紙の所へ送る。
     root.SigK.toolsZoom.init(doc, win);
+    // 帯のページ段の上のホイールを左右に送る（spec-7-4 確定事項ST1）。
+    root.SigK.stripWheel?.init(doc, win);
     root.SigK.stripZoom.init(doc, win);
     root.SigK.stripDropZone.init(doc, win);
     root.SigK.stripInput.init(doc, win);
@@ -184,6 +188,9 @@
     root.SigK.annotateMosaic.init(doc, win);
     root.SigK.annotationMenu.init(doc, win);
     root.SigK.annotateRightButton.init(doc, win);
+    // ページの右クリックメニュー（spec-7-5 確定事項M1・M2）。左パネルのサムネイルとツールモードの帯で右クリックしたときに出す。
+    root.SigK.pageMenu.init(doc, win);
+    root.SigK.pageMenuRoute.init(doc, win);
     root.SigK.annotationProps.init(doc, win);
     root.SigK.annotationList.init(doc, win);
     // 閲覧の［選択］［ハンド］（spec-2-5 確定事項K）。編集の道具を映すので annotate の後。
@@ -199,6 +206,8 @@
     root.SigK.tabs.init(doc, win);
     root.SigK.recentPanel.init(doc, win);
     root.SigK.fileDrop.init(doc, win);
+    // 倍率の入力欄（spec-7-6 確定事項ZI1）。表示は viewer-controls.js の syncZoom がそろえる。
+    root.SigK.zoomInput.init(doc, win);
     root.SigK.viewerControls.init(doc, win);
     root.SigK.viewerWheel.init(doc, win);
     showAppVersion(doc);

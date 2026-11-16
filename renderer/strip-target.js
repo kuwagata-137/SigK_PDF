@@ -8,7 +8,7 @@
   // ページ数と寸法はファイルの中身（basePages）。ツールはこれまでどおりファイルを読み直して作る（保存していない変更は実行の前に確かめる）。
   // 使えない帯（開けなかった・パスワード付き・名前の無い新しい帯）は blocked に理由を入れる。sync() は対象が替わったときだけ onChange を呼ぶ。
 
-  const EMPTY = 'PDF を開くと、選んでいる帯が対象になります。';
+  const EMPTY = 'PDF を開くと、選択中の帯が対象になります。';
 
   // encryptedError は「画像にできません」のような、パスワード付きのときの述語。fieldsOf(peeked) はツールごとの欄。
   function create({ encryptedError, fieldsOf = () => ({}), onChange = () => {} }) {
@@ -16,14 +16,14 @@
 
     function blockedOf(tab, peeked) {
       if (peeked === null || peeked.doc === undefined)
-        return `「${tab.name}」は開けなかったので、ほかの帯を選んでください。`;
+        return `「${tab.name}」は開けなかったので、ほかの帯を選択してください。`;
       if (typeof tab.path !== 'string')
-        return `「${tab.name}」は、保存すると使えます。`;
+        return `「${tab.name}」は、保存すると使用できます。`;
       // 画像のタブは、ツールがパスから読み直せない（画像を PDF として読めない。spec-7-1 確定事項A8）。
       if (peeked.file?.image !== undefined)
-        return `「${tab.name}」は画像なので、PDF として保存すると使えます。`;
+        return `「${tab.name}」は画像なので、PDF として保存すると使用できます。`;
       if (peeked.file?.encrypted === true)
-        return `「${tab.name}」はパスワード付きなので${encryptedError}。ほかの帯を選んでください。`;
+        return `「${tab.name}」はパスワード付きなので${encryptedError}。ほかの帯を選択してください。`;
       return null;
     }
 

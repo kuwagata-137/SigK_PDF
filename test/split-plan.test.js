@@ -48,7 +48,7 @@ test('parseEvery は 1 以上の整数を読む。全角も受け、ほかは誤
   assert.deepEqual(parseEvery('3'), { n: 3 });
   assert.deepEqual(parseEvery(' ２ '), { n: 2 });
   for (const text of ['', '0', '1.5', 'a', '-2'])
-    assert.deepEqual(parseEvery(text), { error: '1 以上の整数を書いてください' }, text);
+    assert.deepEqual(parseEvery(text), { error: '1 以上の整数を入力してください' }, text);
 });
 
 test('カンマのすぐ後に空白が無く 3 けたが続くときは、千の位の区切りとして読む（決定79 ②）', () => {
@@ -67,9 +67,9 @@ test('parseCuts は「そのページの前で切る」番号を読み、昇順�
 });
 
 test('parseCuts の誤り: 書き方・1・ページ数を超える・重なり', () => {
-  assert.deepEqual(parseCuts('', 10), { error: '3, 7 のように書いてください' });
-  assert.deepEqual(parseCuts('3-5', 10), { error: '3, 7 のように書いてください' });
-  assert.deepEqual(parseCuts('1, 4', 10), { error: '1 の前では切れないので、2 から書いてください' });
+  assert.deepEqual(parseCuts('', 10), { error: '3, 7 のように入力してください' });
+  assert.deepEqual(parseCuts('3-5', 10), { error: '3, 7 のように入力してください' });
+  assert.deepEqual(parseCuts('1, 4', 10), { error: '1 ページ目の前では分割できません。2 以上を入力してください' });
   assert.deepEqual(parseCuts('4, 12', 10), { error: '10 ページまでです' });
   assert.deepEqual(parseCuts('7, 3, 7', 10), { error: '7 が 2 回あります' });
   // 1,000 以上の数にはカンマを付ける（決定78 ③）。

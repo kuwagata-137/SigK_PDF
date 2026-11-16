@@ -2,7 +2,7 @@
 
 // 起動確認 SIGK_SMOKE_LAUNCH=<待ち時間ms>（spec-1-6 確定事項72〜80・spec-5-1 確定事項35〜37）。
 // main.js の installSmokeCheck が使う（2,000 行を超えた main.js にこれ以上足さないため分けた。
-// smoke-rewrite.js と同じ）。`--open`・`--merge`・`--split`・`--to-pdf` と絶対パスを付けて起こす。
+// smoke-rewrite.js と同じ）。`--open`・`--merge`・`--split`・`--to-pdf`・`--edit-image` と絶対パスを付けて起こす。
 //
 // **ここでしか分からないことがある。**実機の argv がどう届くか（並べ替えと
 // `--allow-file-access-from-files` の差し込み）、レンダラーが購読を始めるまで保持した要求が

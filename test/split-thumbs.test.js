@@ -61,12 +61,14 @@ test('上限を超えたページと、頼まれなくなったページは手�
 });
 
 // 2026-10-23 から、紙の大きさはツールモードの紙の倍率で決まる（docs/07 決定83）。倍率を変えても前の絵はすぐには手放さず（白い枠に
-// しないため）、描き直したときに前の絵を手放す。ここは描く層だけを見るので、倍率の読み口（toolsZoom.get）だけを差し替える
-// （toolsZoom.set は帯の画面を組み直し、盤を帯に出していないこのテストでは、出していない間は紙を持たない決まりで全部手放すため）。
+// しないため）、描き直したときに前の絵を手放す。ここは描く層だけを見るので、倍率の読み口（toolsZoom.get と、盤が読む画面上の大きさの
+// 倍率 toolsZoom.scale。決定93）だけを差し替える（toolsZoom.set は帯の画面を組み直し、盤を帯に出していないこのテストでは、出していない
+// 間は紙を持たない決まりで全部手放すため）。
 function useZoom(shell, t, zoom) {
-  const original = shell.SigK.toolsZoom.get;
+  const { get, scale, PAPER_SCALE } = shell.SigK.toolsZoom;
   shell.SigK.toolsZoom.get = () => zoom;
-  t.after(() => { shell.SigK.toolsZoom.get = original; });
+  shell.SigK.toolsZoom.scale = () => zoom * PAPER_SCALE;
+  t.after(() => Object.assign(shell.SigK.toolsZoom, { get, scale }));
 }
 
 test('紙の倍率を変えても前の絵は残し、次に頼まれたときに新しい大きさで描き直して前の絵を手放す', async (t) => {
@@ -76,7 +78,8 @@ test('紙の倍率を変えても前の絵は残し、次に頼まれたとき�
   await settle(shell);
   pdfjs.cleanups.length = 0;
   useZoom(shell, t, 1.5);
-  assert.equal(thumbs.zoom(), 1.5);
+  // 盤が読むのは画面上の大きさの倍率（表示する倍率 150% の 2 倍。決定93）。
+  assert.equal(thumbs.zoom(), 3);
   assert.deepEqual(structuredClone(thumbs.getState().drawn), [0], '倍率を変えただけで前の絵を手放した');
   assert.deepEqual(pdfjs.cleanups, []);
   pdfjs.viewportCalls.length = 0;

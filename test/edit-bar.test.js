@@ -24,7 +24,7 @@ test('道具の段は、キーボードで押せるボタンに名前とアイ�
   const { document, SigK } = await withShell(t);
   const bar = document.getElementById('edit-bar');
   assert.equal(bar.getAttribute('role'), 'toolbar');
-  assert.equal(bar.getAttribute('aria-label'), '書き込みの道具');
+  assert.equal(bar.getAttribute('aria-label'), '書き込みツール');
   // ツールバーの下・本体の上に置く（spec-4b-1a 確定事項1）。
   assert.equal(bar.previousElementSibling.id, 'toolbar');
   assert.equal(bar.nextElementSibling.id, 'body');

@@ -3,7 +3,7 @@
 // 画像→PDF の変換のあと（spec-2-5 確定事項H3・H7・H11〜H13。決定80 ㊱。見本 screenshots/strips3-converted.png）。
 //
 // 書き出しそのものと「まとめる」「画像ごと」の基本の通知バーは test/tools-convert.test.js が見ている。
-// ここは「できた PDF」のカードの文・番号・ボタン、カードが消える 3 つの場合、帯の上限で入りきらないとき、枠の行き来を見る。
+// ここは「作成した PDF」のカードの文・番号・ボタン、カードが消える 3 つの場合、帯の上限で入りきらないとき、枠の行き来を見る。
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -55,7 +55,7 @@ function pick(shell, name, value) {
   node.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
 }
 
-test('「まとめる」のあと、足した帯を選んで画像の帯の枠を外し、右の欄に「できた PDF」のカードを出す（H3・H7）', async (t) => {
+test('「まとめる」のあと、足した帯を選んで画像の帯の枠を外し、右の欄に「作成した PDF」のカードを出す（H3・H7）', async (t) => {
   const shell = await createResultShell(t, { savePathResults: [{ path: OUT }], taskResults: [{ ok: true, path: OUT, pages: 2, inputs: 2 }] });
   const { SigK } = shell;
   assert.equal(card(shell).hidden, true, '変換する前は出さない');
@@ -66,8 +66,8 @@ test('「まとめる」のあと、足した帯を選んで画像の帯の枠�
   assert.equal((await SigK.toolsConvert.run()).ok, true);
   assert.equal(card(shell).hidden, false);
   assert.deepEqual(cardText(shell), {
-    title: 'できた PDF（a.pdf）',
-    desc: '新しい帯（2 番）として足しました。続けて使うツールを選べます。',
+    title: '作成した PDF（a.pdf）',
+    desc: '新しい帯（2 番）として追加しました。続けて使うツールを選択できます。',
     merge: 'この PDF をほかの帯と結合する',
     split: 'この PDF を分割する',
   });
@@ -100,10 +100,10 @@ test('「画像ごと」で 3 個のとき、カードは個数と番号の範�
 
   assert.deepEqual(paths(shell), [PDF, ...EACH]);
   assert.deepEqual(cardText(shell), {
-    title: 'できた PDF（3 個）',
-    desc: '新しい帯（2〜4 番）として足しました。続けて使うツールを選べます。',
-    merge: 'できた PDF をほかの帯と結合する',
-    split: '最後にできた PDF を分割する',
+    title: '作成した PDF（3 個）',
+    desc: '新しい帯（2〜4 番）として追加しました。続けて使うツールを選択できます。',
+    merge: '作成した PDF をほかの帯と結合する',
+    split: '最後に作成した PDF を分割する',
   });
 
   byId(shell, 'convert-result-merge').click();
@@ -121,10 +121,10 @@ test('できた帯を並べ替えたり閉じたりすると、カードの番�
 
   const ids = SigK.tabs.list().map((tab) => tab.id);
   assert.equal(SigK.tabs.reorder([ids[1], ids[0], ids[2], ids[3]]), true);
-  assert.equal(cardText(shell).desc, '新しい帯（1・3・4 番）として足しました。続けて使うツールを選べます。');
+  assert.equal(cardText(shell).desc, '新しい帯（1・3・4 番）として追加しました。続けて使うツールを選択できます。');
 
   SigK.tabs.forceCloseTab(ids[2]);
-  assert.equal(cardText(shell).desc, '新しい帯（1・3 番）として足しました。続けて使うツールを選べます。');
+  assert.equal(cardText(shell).desc, '新しい帯（1・3 番）として追加しました。続けて使うツールを選択できます。');
   SigK.tabs.forceCloseTab(ids[1]);
   SigK.tabs.forceCloseTab(ids[3]);
   assert.equal(card(shell).hidden, true);
@@ -153,7 +153,7 @@ test('カードは、用紙を変えたときと、次の変換を始めたと�
   release({ ok: true, path: EACH[2], pages: 2, inputs: 2 });
   await running;
   assert.equal(card(shell).hidden, false);
-  assert.equal(cardText(shell).title, 'できた PDF（c.pdf）', 'カードは最後の変換でできた PDF だけを書く');
+  assert.equal(cardText(shell).title, '作成した PDF（c.pdf）', 'カードは最後の変換でできた PDF だけを書く');
 });
 
 test('「画像ごと」で帯が上限を超えると、入る分だけ足して最後の 1 本を選び、残りの数を知らせる（H11・H13）', async (t) => {
@@ -171,10 +171,10 @@ test('「画像ごと」で帯が上限を超えると、入る分だけ足し�
   assert.equal(SigK.tabs.count(), 20);
   assert.deepEqual(paths(shell).slice(-2), EACH.slice(0, 2));
   assert.equal(SigK.tabs.activeId(), SigK.tabs.findByPath(EACH[1]).id);
-  assert.equal(bannerText(shell), '画像を 3 個の PDF にして、帯を 2 本足しました。残りの 1 個は、帯が 20 本を超えるので開いていません。フォルダを開く');
+  assert.equal(bannerText(shell), '画像を 3 個の PDF に変換して、帯を 2 本追加しました。残りの 1 個は、帯が 20 本を超えるので開いていません。フォルダを開く');
   assert.equal(action(shell).textContent, 'フォルダを開く');
-  assert.equal(cardText(shell).title, 'できた PDF（2 個）');
-  assert.equal(cardText(shell).desc, '新しい帯（19〜20 番）として足しました。続けて使うツールを選べます。');
+  assert.equal(cardText(shell).title, '作成した PDF（2 個）');
+  assert.equal(cardText(shell).desc, '新しい帯（19〜20 番）として追加しました。続けて使うツールを選択できます。');
 });
 
 test('「まとめる」でできた PDF を開けなかったときは、作ったことを知らせて［フォルダを開く］を付け、カードは出さない（H13）', async (t) => {
@@ -187,7 +187,7 @@ test('「まとめる」でできた PDF を開けなかったときは、作っ
   await SigK.toolsConvert.addPaths([A, B]);
   await SigK.toolsConvert.run();
   assert.equal(SigK.tabs.findByPath(OUT), null);
-  assert.equal(bannerText(shell), '画像を PDF にして「a.pdf」を作りました。フォルダを開く');
+  assert.equal(bannerText(shell), '画像を PDF に変換して「a.pdf」を作成しました。フォルダを開く');
   assert.equal(card(shell).hidden, true);
 });
 
@@ -195,7 +195,7 @@ test('「まとめる」でできた PDF を開けなかったときは、作っ
 // この文で上書きしていた。通知バーは「3 個」、帯とカードは「2 個」で、数が合わない理由が分からなかった。
 test('「画像ごと」でできた PDF の一部を開けなかったときは、足した帯の本数と開けなかった個数を知らせる', async (t) => {
   const shell = await createResultShell(t, {
-    files: { [EACH[1]]: { ok: false, error: 'ファイルを読めませんでした。' } },
+    files: { [EACH[1]]: { ok: false, error: 'ファイルを読み込めませんでした。' } },
     taskResults: [{ ok: true, written: 3, targets: EACH, pages: 3 }],
   });
   const { SigK } = shell;
@@ -204,16 +204,16 @@ test('「画像ごと」でできた PDF の一部を開けなかったときは
   await SigK.toolsConvert.run();
 
   assert.deepEqual(paths(shell), [PDF, EACH[0], EACH[2]]);
-  assert.equal(bannerText(shell), '画像を 3 個の PDF にして、帯を 2 本足しました。1 個は開けませんでした。フォルダを開く');
+  assert.equal(bannerText(shell), '画像を 3 個の PDF に変換して、帯を 2 本追加しました。1 個は開けませんでした。フォルダを開く');
   assert.equal(action(shell).textContent, 'フォルダを開く');
-  assert.equal(cardText(shell).title, 'できた PDF（2 個）', 'カードは足した帯だけを書く');
+  assert.equal(cardText(shell).title, '作成した PDF（2 個）', 'カードは足した帯だけを書く');
 });
 
 test('「画像ごと」で開けなかった PDF と、帯の上限で開かなかった PDF があるときは、両方の個数を知らせる', async (t) => {
   const many = Array.from({ length: 18 }, (_value, index) => `${DIR}\\t${index}.pdf`);
   const shell = await createResultShell(t, {
     open: [PDF, ...many],   // 帯は 19 本。開けない 1 個目のあと、2 個目で 20 本になり、3 個目は開かない
-    files: { ...Object.fromEntries(many.map((filePath) => [filePath, makeSource({ path: filePath })])), [EACH[0]]: { ok: false, error: 'ファイルを読めませんでした。' } },
+    files: { ...Object.fromEntries(many.map((filePath) => [filePath, makeSource({ path: filePath })])), [EACH[0]]: { ok: false, error: 'ファイルを読み込めませんでした。' } },
     taskResults: [{ ok: true, written: 3, targets: EACH, pages: 3 }],
   });
   const { SigK } = shell;
@@ -223,5 +223,5 @@ test('「画像ごと」で開けなかった PDF と、帯の上限で開かな
 
   assert.equal(SigK.tabs.count(), 20);
   assert.equal(paths(shell).at(-1), EACH[1]);
-  assert.equal(bannerText(shell), '画像を 3 個の PDF にして、帯を 1 本足しました。1 個は、帯が 20 本を超えるので開いていません。1 個は開けませんでした。フォルダを開く');
+  assert.equal(bannerText(shell), '画像を 3 個の PDF に変換して、帯を 1 本追加しました。1 個は、帯が 20 本を超えるので開いていません。1 個は開けませんでした。フォルダを開く');
 });

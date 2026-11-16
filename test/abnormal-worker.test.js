@@ -15,8 +15,8 @@ const { fixturePath } = require('./fixtures/build.js');
 
 const LOCKED = 'パスワードで保護された PDF は保存できません。';
 const BROKEN = 'この PDF は内容が壊れているため保存できません。';
-const INSERT_UNREADABLE = '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読めませんでした。';
-const INSERT_FORMAT = '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF・PDF を選んでください。';
+const INSERT_UNREADABLE = '内容が壊れているか、パスワードで保護されているので、差し込む PDF を読み込めませんでした。';
+const INSERT_FORMAT = '対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF・PDF を選択してください。';
 const MARK = { type: 'text', text: '社外秘', color: '#808080', opacity: 0.3, angle: 45, size: 'medium', position: 'center' };
 
 function workspace(t) {

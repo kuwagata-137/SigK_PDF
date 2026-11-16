@@ -414,26 +414,36 @@ test('選択中の複数ページをまとめて回す', async (t) => {
 
 // ---- 削除（確定事項40〜42） ----
 
+// 削除確認画面（spec-7-5 確定事項D1）の［削除］を押して、確認を済ませる。
+async function confirmDelete(shell) {
+  assert.equal(shell.document.getElementById('confirm-page-delete').hasAttribute('open'), true, '削除確認画面が表示されていない');
+  shell.document.getElementById('confirm-page-delete-ok').click();
+  await shell.flush();
+}
+
 test('削除のボタンで選択中のページが消える', async (t) => {
   const shell = await withPagesMode(t);
   const { SigK, document } = shell;
 
   SigK.pageGrid.setSelection([1]);
   document.getElementById('act-delete').click();
+  await confirmDelete(shell);
 
   assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [0, 2]);
   // 消した位置に来たページが選ばれる。続けて Delete を押せる。
   assert.deepEqual([...SigK.pageGrid.getSelection()], [1]);
 });
 
-// 確認を出さない根拠は「Ctrl+Z で戻せる」ことである（確定事項40）。
-test('削除に確認は出ないが、戻せる', async (t) => {
+// spec-1-5 確定事項40（削除に確認を出さない）は、決定92（spec-7-5 確定事項D1）で改めた。削除確認画面を表示し、削除した後は Ctrl+Z で戻せる。
+test('削除のボタンは削除確認画面を表示し、削除した後は戻せる', async (t) => {
   const shell = await withPagesMode(t);
   const { SigK, document } = shell;
 
   SigK.pageGrid.setSelection([1]);
   document.getElementById('act-delete').click();
-  assert.equal(document.querySelector('dialog[open]'), null, '確認ダイアログが出ている');
+  assert.equal(SigK.viewer.getState().pageCount, 3, '確認の前に削除している');
+  await confirmDelete(shell);
+  assert.equal(document.querySelector('dialog[open]'), null, '削除確認画面が閉じていない');
 
   SigK.pageEdit.undo();
   assert.deepEqual([...SigK.viewer.getPlan()].map((page) => page.src), [0, 1, 2]);
@@ -550,18 +560,23 @@ test('Ctrl+Z と Ctrl+Y はどのモードでも効く（確定事項55）', asy
   assert.equal(SigK.viewer.getPlan()[0].rotate, 90);
 });
 
-test('Delete はページモードでだけ効く（確定事項55）', async (t) => {
+// spec-7-5 確定事項D1 で、ページ編集モードの Delete は削除確認画面を通して削除するようにした。閲覧モードでは効かない（確定事項55）。
+test('Delete はページモードでだけ効き、削除確認画面を通して削除する（確定事項55・spec-7-5 確定事項D1）', async (t) => {
   const shell = await withOpenDocument(t);
-  const { SigK } = shell;
+  const { SigK, document } = shell;
 
   SigK.pageGrid.setSelection([1]);
-  pressKey(shell, 'Delete');
+  document.getElementById('side-scroll').focus();
+  pressKey(shell, 'Delete', { target: document.activeElement });
+  assert.equal(document.querySelector('dialog[open]'), null, '閲覧モードで削除確認画面が出ている');
   assert.equal(SigK.viewer.getState().pageCount, 3, '閲覧モードで消えている');
 
   SigK.shell.setMode(shell.document, 'pages');
   await shell.flush();
   SigK.pageGrid.setSelection([1]);
-  pressKey(shell, 'Delete');
+  document.getElementById('side-scroll').focus();
+  pressKey(shell, 'Delete', { target: document.activeElement });
+  await confirmDelete(shell);
   assert.equal(SigK.viewer.getState().pageCount, 2);
 });
 

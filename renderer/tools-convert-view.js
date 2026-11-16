@@ -11,7 +11,7 @@
   const ORIENTATIONS = ['auto', 'portrait', 'landscape'];
   const MARGINS = ['none', 'narrow', 'normal'];
   const OUTPUTS = ['single', 'each'];
-  const EMPTY = '画像をドロップするか、下の受け口の［ファイルを開く…］で選ぶと、「変換する画像」の帯に並びます。';
+  const EMPTY = '画像をドロップするか、下のドロップエリアの［ファイルを開く…］で選択すると、「変換する画像」の帯に並びます。';
 
   let el = null;
 
@@ -83,8 +83,8 @@
     el.state.hidden = !empty;
     syncRadios(settings, running);
     el.fitNote.textContent = settings.paper === 'image'
-      ? '画像の画素数をそのまま紙の大きさにします。余白は付きません。'
-      : '画像は余白の内側に、縦横比を保って収まる大きさに合わせます。';
+      ? '画像の画素数を、そのまま用紙サイズにします。余白は付きません。'
+      : '画像は、縦横比を保ったまま、余白の内側に収まるサイズに合わせます。';
     // フォルダの欄は「画像ごと」のときだけ出す（まとめるときの保存先は OS の保存ダイアログが決めるため。確定事項19・20）。
     const each = settings.output === 'each';
     el.folderKey.hidden = !each;
@@ -92,7 +92,7 @@
     el.folder.textContent = settings.folder ?? '';
     // 出力先のフォルダの説明の吹き出し（spec-2-5 J5）。フォルダが決まっていない間は外す（空の欄に名前だけを出さない）。
     if (settings.folder)
-      root.SigK.tipContent.text(el.folder, '出力先のフォルダ', settings.folder);
+      root.SigK.tipContent.text(el.folder, '出力先フォルダ', settings.folder);
     else
       root.SigK.tipContent.clear(el.folder);
     renderExample(plan, settings);

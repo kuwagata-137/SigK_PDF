@@ -54,7 +54,7 @@ test('1 本なら F1 の文で聞き、最初のフォーカスは［キャン�
   await shell.flush();
   assert.equal(dialog(shell).hasAttribute('open'), true);
   assert.equal(shell.document.getElementById('confirm-unsaved-run-text').textContent,
-    '「a.pdf」には、保存していない変更（ページの削除 1 件・ページの回転 1 件）があります。ツールはファイルに保存してある中身を使うので、このまま実行すると、その変更は結果に入りません。');
+    '「a.pdf」には、保存していない変更（ページの削除 1 件・ページの回転 1 件）があります。ツールはファイルに保存してある内容を使うので、このまま実行すると、その変更は結果に反映されません。');
   assert.equal(shell.document.getElementById('confirm-unsaved-run-list').hidden, true);
   assert.equal(shell.document.activeElement.id, 'confirm-unsaved-run-cancel');
   assert.equal(shell.SigK.toolsMerge.isRunning(), true, '聞いている間も実行中と数える（右クリックの束を預かる）');
@@ -85,7 +85,7 @@ test('［上書き保存してから実行］は、帯の順に 1 本ずつ上�
   const running = SigK.toolsMerge.run();
   await shell.flush();
   assert.equal(document.getElementById('confirm-unsaved-run-text').textContent,
-    '次の 2 個のファイルには、保存していない変更があります。ツールはファイルに保存してある中身を使うので、このまま実行すると、その変更は結果に入りません。');
+    '次の 2 個のファイルには、保存していない変更があります。ツールはファイルに保存してある内容を使うので、このまま実行すると、その変更は結果に反映されません。');
   assert.deepEqual([...document.querySelectorAll('#confirm-unsaved-run-list li')].map((node) => node.textContent),
     ['「a.pdf」（ページの削除 1 件・ページの回転 1 件）', '「c.pdf」（ページの削除 1 件・ページの回転 1 件）']);
 

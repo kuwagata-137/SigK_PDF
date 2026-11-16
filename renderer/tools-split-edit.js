@@ -46,7 +46,7 @@
     const { history: h, notice } = store().entryFor(now.tabId, now.view);
     if (notice === 'recount') {
       state.selection = null;
-      root.SigK.viewBanner?.show(`「${now.name}」のページ数が変わったので、分け目を消しました。`, { tone: 'warn' });
+      root.SigK.viewBanner?.show(`「${now.name}」のページ数が変わったので、分割位置を削除しました。`, { tone: 'warn' });
     }
     return h;
   }

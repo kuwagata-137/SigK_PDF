@@ -82,6 +82,8 @@ test('見開きでは枠が 1-2 で同じ高さに並び、奇数の末尾は左
 
 test('追従中に切り替えると「幅に合わせる」が2枚基準になり、戻すと1枚基準に戻る（確定事項4・18）', async (t) => {
   const { document, SigK } = await withOpenDocument(t);
+  // 決定93 で開いた直後は 100% になったので、前の条件の［幅］にそろえる。
+  SigK.viewer.applyFit('width');
   const layout = SigK.viewerLayout;
   const single = SigK.viewer.getState().zoom;
 
@@ -155,6 +157,8 @@ test('右ページを指定すると組の先頭へスクロールし、描画�
 
 test('見開きでは前後2ページまで先に描く（確定事項12）', async (t) => {
   const { document, SigK, flush } = await withOpenDocument(t, { sizes: Array.from({ length: 12 }, () => A4) });
+  // 決定93 で開いた直後は 100% になったので、前の条件の［幅］にそろえる。
+  SigK.viewer.applyFit('width');
   SigK.shell.setPageLayout(document, 'facing');
   SigK.viewer.goToPage(6);
   await flush();
@@ -239,7 +243,8 @@ test('ページ編集のあとも見開きのまま並び直る（確定事項22
   assert.equal(SigK.viewer.getState().facing, true);
 });
 
-test('覚えた見開きで立ち上がり、開いた直後から2枚基準で幅に合わせる（確定事項5・6）', async (t) => {
+// 決定93 で、開いた直後の倍率を［幅］から 100% に改めた（spec-7-6 確定事項ZV1）。見開きでも 100% で開き、［幅］を押すと 2 枚基準で幅に合わせる。
+test('覚えた見開きで立ち上がり、開いた直後は 100%。［幅］を押すと2枚基準で幅に合わせる（確定事項5・6）', async (t) => {
   const shell = await createShell({ ui: { mode: 'view', pageLayout: 'facing', sidePanel: { open: true, width: 240 } } });
   t.after(() => shell.cleanup());
   const { document, SigK, uiCalls } = shell;
@@ -252,11 +257,17 @@ test('覚えた見開きで立ち上がり、開いた直後から2枚基準で�
 
   await SigK.viewer.open(makeSource());
   await shell.flush();
+  assert.equal(SigK.viewer.getState().zoom, 1);
+  assert.equal(SigK.viewer.getState().fit, null);
+  assert.equal(document.getElementById('btn-facing').classList.contains('active'), true);
+
+  click(document, 'btn-fit-width');
   const layout = SigK.viewerLayout;
+  assert.equal(SigK.viewer.getState().fit, 'width');
   assert.equal(SigK.viewer.getState().zoom, layout.fitWidthZoom({
     pageWidth: A4.width * 2, viewportWidth: DEFAULT_VIEWPORT.width, gap: layout.FACING_GAP,
   }));
-  assert.equal(document.getElementById('btn-facing').classList.contains('active'), true);
+  assert.equal(document.getElementById('btn-fit-width').classList.contains('active'), true);
 });
 
 test('見開きはアプリ全体の設定で、タブを移っても変わらない（確定事項25）', async (t) => {

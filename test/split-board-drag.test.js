@@ -209,7 +209,7 @@ test('盤の中で動かしたあとの Ctrl+Z・Ctrl+Y は、並びと ✂ を�
 // 保存などの処理を走らせたままにする（終わらないワーカー）。走っている間、帯と盤の押しは効かない（I21。点検の指摘 2）。
 function holdBusy(shell) {
   shell.window.taskAPI.run = () => new Promise(() => {});
-  shell.SigK.save.runTask({ kind: 'copy-pages', label: 'ページの写しを用意' });
+  shell.SigK.save.runTask({ kind: 'copy-pages', label: 'ページのコピーを準備' });
   assert.equal(shell.SigK.save.isBusy(), true);
 }
 

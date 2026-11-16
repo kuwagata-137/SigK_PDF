@@ -25,6 +25,8 @@ async function withStrips(t, { taskResults = [] } = {}) {
     await shell.SigK.tabs.openPath(filePath);
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('merge');
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  shell.SigK.toolsZoom.set(0.5);
   await shell.flush();
   placeStrips(shell);
   return shell;
@@ -108,16 +110,16 @@ test('引いている間、カーソルに絵と「N ページ」の札、落と
   assert.equal(document.querySelector('.strip-drag-ghost .badge').textContent, '1 ページ');
   assert.equal(cellOf(shell, 0, 1).classList.contains('dragging'), true, '引いている紙は薄く');
   assert.equal(lineOf(shell).closest('.strip'), stripNodes(shell)[1]);
-  assert.equal(lineOf(shell).textContent, 'ここに 1 ページを写します');
+  assert.equal(lineOf(shell).textContent, 'ここに 1 ページをコピーします');
 
   move(shell, 12, 100);
   assert.equal(lineOf(shell).closest('.strip'), stripNodes(shell)[0]);
-  assert.equal(lineOf(shell).textContent, 'ここへ 1 ページを動かします');
+  assert.equal(lineOf(shell).textContent, 'ここへ 1 ページを移動します');
 
   move(shell, 100, 650);
   assert.equal(lineOf(shell), null);
   assert.equal(document.getElementById('strip-drop').classList.contains('hot'), true);
-  assert.equal(document.getElementById('strip-drop-text').textContent, 'ここにドロップすると、選んだ 1 ページで新しいファイルを作れます');
+  assert.equal(document.getElementById('strip-drop-text').textContent, 'ここにドロップすると、選択した 1 ページで新しいファイルを作成できます');
   const icon = () => document.querySelector('#strip-drop .line [data-icon]');
   assert.equal(icon().dataset.icon, 'plus', '受け口の文の頭の印は「＋」（見本 strips4-drag-new）');
   assert.ok(icon().querySelector('svg'));
@@ -125,7 +127,7 @@ test('引いている間、カーソルに絵と「N ページ」の札、落と
   release(shell, 100, 650);
   assert.equal(document.querySelector('.strip-drag-ghost'), null);
   assert.equal(document.getElementById('strip-drop').classList.contains('hot'), false);
-  assert.equal(document.getElementById('strip-drop-text').textContent, 'ページをここにドロップすると新しいファイルを作れます');
+  assert.equal(document.getElementById('strip-drop-text').textContent, 'ページをここにドロップすると新しいファイルを作成できます');
   assert.equal(icon().dataset.icon, 'open');
   assert.ok(icon().querySelector('svg'));
 });
@@ -205,9 +207,9 @@ test('保存していないモザイクのあるページは、ほかの帯の�
   placeStrips(shell);
   dragTo(shell, 0, 1, 12, 300);
   assert.equal(lineOf(shell), null);
-  assert.equal(shell.document.querySelector('.strip-drag-refusal').textContent, 'モザイクを保存していないページは写せません。');
+  assert.equal(shell.document.querySelector('.strip-drag-refusal').textContent, 'モザイクを保存していないページはコピーできません。');
   release(shell, 12, 300);
   await shell.flush();
-  assert.match(shell.SigK.viewBanner.text(), /^モザイクを保存していないページは写せません。「会議資料.pdf」を上書き保存してから/);
+  assert.match(shell.SigK.viewBanner.text(), /^モザイクを保存していないページはコピーできません。「会議資料.pdf」を上書き保存してから/);
   assert.equal(shell.taskCalls.length, 0);
 });

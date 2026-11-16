@@ -19,8 +19,9 @@ async function withShell(t) {
   return shell;
 }
 
+// 編集モードの「選択」は、上のツールバーの［選択］（spec-7-4 確定事項C3。編集モードのボタン列からは外した）。
 function selectButton(shell) {
-  return shell.document.querySelector('#edit-bar .edit-tool[data-tool="select"]');
+  return shell.document.getElementById('btn-pointer-select');
 }
 
 function mouse(shell, type, target, [x, y]) {
@@ -41,15 +42,11 @@ function drawSquare(shell, from, to) {
   return SigK.viewer.getAnnotations().added.at(-1).id;
 }
 
-test('「選択」は道具の段の先頭にあり、すぐ後ろに「ハンド」と区切りがあり、矢印のアイコンを持つ（確定事項C1、spec-4b-3b 確定事項A1）', async (t) => {
+test('編集モードのボタン列には「選択」「ハンド」を置かず、先頭はハイライト（spec-7-4 確定事項C3。確定事項C1 を改めた）', async (t) => {
   const shell = await withShell(t);
   const bar = shell.document.getElementById('edit-bar');
-  const first = bar.firstElementChild;
-  assert.equal(first.querySelector('.edit-tool').dataset.tool, 'select');
-  assert.equal(first.querySelector('.edit-name').textContent, '選択');
-  assert.equal(first.nextElementSibling.querySelector('.edit-tool').dataset.tool, 'hand');
-  assert.equal(first.nextElementSibling.nextElementSibling.classList.contains('edit-sep'), true);
-  assert.notEqual(first.querySelector('svg'), null, 'アイコンが埋まっている');
+  assert.equal(bar.querySelector('.edit-tool[data-tool="select"], .edit-tool[data-tool="hand"]'), null);
+  assert.equal(bar.firstElementChild.querySelector('.edit-tool').dataset.tool, 'highlight');
 });
 
 test('「選択」は押すと持ち、もう一度押すと道具なしに戻る。ほかの道具を押せば替わる（確定事項C2）', async (t) => {

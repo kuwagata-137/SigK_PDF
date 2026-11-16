@@ -21,7 +21,7 @@ const loadDocument = () => new JSDOM(fs.readFileSync(INDEX_PATH, 'utf8')).window
 
 // 文の表の「付ける要素」の列のうち、index.html に最初から書いてある要素。[選ぶ式, 鍵]。
 const MODES = [['view', 'mode.view'], ['pages', 'mode.pages'], ['annot', 'mode.annot'], ['tools', 'mode.tools']];
-const TOOLS = ['select', 'hand', 'highlight', 'underline', 'strikeout', 'text', 'callout', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim'];
+const TOOLS = ['highlight', 'underline', 'strikeout', 'text', 'callout', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim'];
 const SHAPES = ['arrow', 'line', 'square', 'circle', 'cross', 'polygon'];
 const STATIC_TARGETS = [
   ['#btn-open', 'bar.open'], ['#btn-save', 'bar.save'], ['#btn-save-as', 'bar.saveAs'], ['#btn-undo', 'bar.undo'], ['#btn-redo', 'bar.redo'],
@@ -36,7 +36,8 @@ const STATIC_TARGETS = [
   ['#split-zoom-close', 'zoom.close'], ['#split-zoom-prev', 'zoom.prev'], ['#split-zoom-next', 'zoom.next'],
   ...TOOLS.map((tool) => [`.edit-tool[data-tool="${tool}"]`, `edit.${tool}`]),
   ...SHAPES.map((shape) => [`.edit-tool[data-shape="${shape}"]`, `edit.${shape}`]),
-  ['#edit-more', 'edit.more'], ['#props-format [data-format="bold"]', 'format.bold'], ['#props-format [data-format="italic"]', 'format.italic'],
+  ['#edit-rotate-left', 'edit.rotateLeft'], ['#edit-rotate-right', 'edit.rotateRight'],
+  ['#edit-more', 'edit.more'],['#props-format [data-format="bold"]', 'format.bold'], ['#props-format [data-format="italic"]', 'format.italic'],
   ['#image-strip-clear', 'image.clear'], ['#split-undo', 'split.undo'], ['#split-redo', 'split.redo'],
   ['#act-rotate-left', 'pages.rotateLeft'], ['#act-rotate-right', 'pages.rotateRight'], ['#act-extract', 'pages.extract'],
   ['#act-insert', 'pages.insert'], ['#act-delete', 'pages.delete'],
@@ -44,7 +45,7 @@ const STATIC_TARGETS = [
 
 // 今まで aria-label が無かった、アイコンだけの要素に足す名前（spec-2-5 J3）。
 const ADDED_LABELS = [
-  ['#btn-undo', '元に戻す'], ['#btn-redo', 'やり直し'], ['#btn-find', '検索'], ['#btn-print', '印刷'], ['#page-prev', '前のページ'], ['#page-next', '次のページ'],
+  ['#btn-undo', '元に戻す'], ['#btn-redo', 'やり直す'], ['#btn-find', '検索'], ['#btn-print', '印刷'], ['#page-prev', '前のページ'], ['#page-next', '次のページ'],
   ['#zoom-out', '縮小'], ['#zoom-in', '拡大'], ['.tab-add', 'タブを追加'], ['#side-collapse', 'パネルを閉じる'], ['#find-case', '大文字と小文字を区別'],
   ['#find-prev', '前へ'], ['#find-next', '次へ'], ['#find-close', '閉じる'], ['#doc-info-close', '閉じる'], ['#help-close', '閉じる'], ['#print-close', '閉じる'],
 ];
@@ -86,7 +87,7 @@ test('今の aria-label は変えない（読み上げの名前と使い方の�
   assert.equal(doc.getElementById('btn-help').getAttribute('aria-label'), '使い方');
   assert.equal(doc.getElementById('btn-fit-width').getAttribute('aria-label'), '幅に合わせる');
   assert.equal(doc.getElementById('btn-facing').getAttribute('aria-label'), '見開き');
-  assert.equal(doc.getElementById('image-strip-clear').getAttribute('aria-label'), 'すべて外す');
+  assert.equal(doc.getElementById('image-strip-clear').getAttribute('aria-label'), 'すべて削除');
 });
 
 // 要素に title を付ける書き方を、ソースの文字から拾う。窓の題（doc.title）と、=== などの比べは拾わない。

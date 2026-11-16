@@ -1,6 +1,6 @@
 'use strict';
 
-// 書き出すときの最初のフォルダ（spec-6-1 タスク E の確定事項E-5。決定81 ⑥⑨）。設定の窓で「決めたフォルダ」を選んでいれば、
+// 書き出すときの最初のフォルダ（spec-6-1 タスク E の確定事項E-5。決定81 ⑥⑨）。設定の窓で「指定フォルダ」を選んでいれば、
 // 保存の窓の最初の場所（名前を付けて保存・ページの抽出・結合・透かし・フラット化）と、右の欄の「フォルダ」の最初の値
 // （分割・画像→PDF・PDF→画像）にそのフォルダを使う。無ければ今の決め方（元のファイルと同じフォルダ）。
 
@@ -81,8 +81,8 @@ test('結合・透かし・フラット化の保存の窓も、決めたフォ�
   assert.equal(flatten.savePathCalls[0].defaultPath, `${OUT}\\a_フラット化.pdf`);
 });
 
-// 点検の直し I-2。「1 つの PDF にまとめる」では右の欄に「フォルダ」の行が無く、保存の窓だけが行き先を決める。
-test('画像→PDF を「1 つの PDF にまとめる」で書き出す保存の窓も、決めたフォルダで開く', async (t) => {
+// 点検の直し I-2。「1 つの PDF に結合」では右の欄に「フォルダ」の行が無く、保存の窓だけが行き先を決める。
+test('画像→PDF を「1 つの PDF に結合」で書き出す保存の窓も、決めたフォルダで開く', async (t) => {
   const IMG = 'C:\\img\\a.png';
   const shell = await withShell(t, { ...FIXED, imageInfos: { [IMG]: { kind: 'png', width: 100, height: 100 } } });
   tools(shell, 'convert');
@@ -136,7 +136,7 @@ test('名前を付けて保存: 最初のフォルダを聞き直す間にタブ
   assert.equal(result.changed, true);
   assert.equal(shell.savePathCalls.length, 0, '保存の窓を出さない');
   assert.equal(shell.taskCalls.length, 0, '何も書かない');
-  assert.match(shell.document.getElementById('view-banner')?.textContent ?? '', /タブが替わったので、名前を付けて保存を取りやめました/);
+  assert.match(shell.document.getElementById('view-banner')?.textContent ?? '', /タブが切り替わったので、名前を付けて保存をキャンセルしました/);
 });
 
 // 点検の直し I-6。フォルダが今あるかは、保存の窓を出す前と、ツールを選んだときに、メインに聞き直す。

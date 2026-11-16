@@ -45,7 +45,7 @@
     for (const rawToken of source.split(',')) {
       const token_ = rawToken.trim();
       if (token_.length === 0)
-        return { error: `ページの指定を読み取れません: 「${rawToken}」` };
+        return { error: `ページ指定を読み取れません: 「${rawToken}」` };
 
       const parts = token_.split('-').map((part) => part.trim());
       if (parts.length > 2 || parts.some((part) => !/^\d+$/.test(part)))
@@ -56,7 +56,7 @@
       if (from < 1 || to > pageCount)
         return { error: `1 〜 ${pageCount} の範囲で指定してください: 「${token_}」` };
       if (from > to)
-        return { error: `終わりのページが始まりより前です: 「${token_}」` };
+        return { error: `終了ページが開始ページより前です: 「${token_}」` };
 
       for (let number = from; number <= to; number += 1)
         pages.add(number);
@@ -80,7 +80,7 @@
     if (mode === 'current')
       return withLimit([Math.min(pageCount, Math.max(1, (current ?? 0) + 1))]);
     if (mode !== 'custom')
-      return { error: '印刷する範囲を選んでください。' };
+      return { error: '印刷範囲を選択してください。' };
 
     const parsed = parsePageList(text, pageCount);
     if (parsed.error !== undefined)
@@ -199,7 +199,7 @@
   // 印刷ダイアログの手前までを行う。SIGK_SMOKE_PRINT はここまでを確かめる。
   async function prepare({ mode = null, text = null } = {}) {
     if (el === null)
-      return { error: '印刷の画面が用意されていません。' };
+      return { error: '印刷画面が準備されていません。' };
 
     const state = viewer().getState();
     const resolved = resolvePages({
@@ -235,14 +235,14 @@
       showProgress(resolved.pages.length, resolved.pages.length);
     } catch (error) {
       setBusy(false);
-      showError('ページを画像にできませんでした。');
+      showError('ページを画像に変換できませんでした。');
       root.SigK.log?.report({
         level: 'error',
         message: error?.message ?? String(error),
         stack: error?.stack,
         context: { source: 'print' },
       });
-      return { error: 'ページを画像にできませんでした。' };
+      return { error: 'ページを画像に変換できませんでした。' };
     }
 
     const placed = fillPrintArea(images);
@@ -274,8 +274,8 @@
     const api = root.printAPI;
     if (!api || api.available !== true) {
       setBusy(false);
-      showError('印刷の機能が使えません。');
-      return { error: '印刷の機能が使えません。' };
+      showError('印刷機能を使用できません。');
+      return { error: '印刷機能を使用できません。' };
     }
 
     let result = null;

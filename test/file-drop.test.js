@@ -298,7 +298,7 @@ test('透かしを選んでいるときは、透かしの画像に使えない B
 
   assert.equal(shell.SigK.tools.selected(), 'watermark', '画像→PDF へは切り替えない');
   assert.deepEqual(convertPaths(shell), []);
-  assert.equal(shell.SigK.viewBanner.text(), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像をドロップしてください。');
+  assert.equal(shell.SigK.viewBanner.text(), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG 画像をドロップしてください。');
 });
 
 test('ツールモードで落とした PDF のうち読めなかったものの理由は、後のタブを開いても帯に残る', async (t) => {

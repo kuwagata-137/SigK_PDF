@@ -88,7 +88,7 @@
     zone.classList.toggle('hot', on);
     setZoneIcon(zone, on ? 'plus' : 'open');
     if (on)
-      state.doc.getElementById('strip-drop-text').textContent = `ここにドロップすると、選んだ ${count} ページで新しいファイルを作れます`;
+      state.doc.getElementById('strip-drop-text').textContent = `ここにドロップすると、選択した ${count} ページで新しいファイルを作成できます`;
     else
       root.SigK.stripDropZone?.refresh();
   }
@@ -131,7 +131,7 @@
     const refused = target.refused ?? null;
     const lineable = (target.kind === 'move' || target.kind === 'copy') && refused === null && placement !== null;
     if (lineable)
-      showLine(placement, target.kind === 'move' ? `ここへ ${count} ページを動かします` : `ここに ${count} ページを写します`);
+      showLine(placement, target.kind === 'move' ? `ここへ ${count} ページを移動します` : `ここに ${count} ページをコピーします`);
     else
       hideLine();
     setZone(target.kind === 'new' && refused === null, count);

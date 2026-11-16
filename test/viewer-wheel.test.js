@@ -142,10 +142,11 @@ test('拡大・縮小しても、マウスの下の紙の点（ページとそ�
 test('最大・最小に達したら、それ以上は変えず表示も動かさない（確定事項C2）', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
-  SigK.viewer.setZoom(4);
+  // 上限は 1000%（spec-7-4 確定事項Z1）。
+  SigK.viewer.setZoom(10);
   view(shell).scrollTop = 500;
   wheel(shell, { deltaY: -100, ctrl: true });
-  assert.equal(zoomOf(shell), 4);
+  assert.equal(zoomOf(shell), 10);
   assert.equal(view(shell).scrollTop, 500);
   // 下限は 10%（spec-4b-7a 確定事項G1）。25% からは 20% へ下がる。
   SigK.viewer.setZoom(0.25);

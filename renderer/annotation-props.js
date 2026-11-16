@@ -78,7 +78,7 @@
     // 回転の行は四角・丸を選んでいるときだけ（spec-4b-2 確定事項25）。
     root.SigK.annotationAngleRow?.render(entry);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
-    el.textLabel.textContent = isText ? '本文' : '対象の文字';
+    el.textLabel.textContent = isText ? '本文' : '対象文字列';
     setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
     el.hint.textContent = hints().forSelected(entry);
     setDeleteEnabled(true);
@@ -126,7 +126,7 @@
     const kind = tool === null ? null : kindOfTool(tool);
     // 吹き出しの道具はテキストと同じ行を出す（spec-4b-4b 確定事項F6）。マーカーの道具はペンと同じ行（spec-4b-5b 確定事項30）。
     const rowKind = { callout: 'text', marker: 'ink' }[kind] ?? kind;
-    el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に付ける）`;
+    el.kind.textContent = tool === null ? '–' : `${annotate().TOOL_LABELS[kind]}（次に追加する書き込み）`;
     styleRows()?.render(tool === null ? null : {
       kind: rowKind, ...annotate().nextStyleOf(kind), lineWidth: annotate().getLineWidth(kind), opacity: annotate().getOpacity(kind),
       ...(rowKind === 'text' ? textToolTarget(kind) : { fontSize: null, bold: null, italic: null, border: null }),

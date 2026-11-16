@@ -21,7 +21,7 @@ async function createWatermarkShell(t, options = {}) {
     files: { [A]: makeSource({ path: A }), [B]: makeSource({ path: B }), [OUT]: makeSource({ path: OUT }) },
     watermarkImages: {
       [LOGO]: { kind: 'png', width: 400, height: 200 },
-      [BMP]: { error: 'PNG か JPEG の画像を選んでください。', kind: 'bmp' },
+      [BMP]: { error: 'PNG 画像か JPEG 画像を選択してください。', kind: 'bmp' },
     },
     ...options,
   });
@@ -67,7 +67,7 @@ test('一覧に「透かし」が並び、選ぶと既定値の画面が出る�
   assert.equal(byId(shell, 'wm-position-label').textContent, '中央');
   assert.equal(byId(shell, 'wm-image-row').hidden, true);
   assert.equal(byId(shell, 'wm-colors').hidden, false);
-  assert.equal(byId(shell, 'wm-state').textContent, 'PDF を開くと、選んでいる帯が対象になります。');
+  assert.equal(byId(shell, 'wm-state').textContent, 'PDF を開くと、選択中の帯が対象になります。');
   assert.equal(summary(shell), '', '対象が無いときは状態の文が出る');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
   assert.equal(shell.SigK.tools.panelFor('watermark').parentElement.id, 'tool-pane');
@@ -86,7 +86,7 @@ test('選んでいる帯が対象になり、要約（「a.pdf の 3 ページ�
 test('開けなかった帯・パスワード付きの帯は、状態の文を出して実行できない', async (t) => {
   const failed = await createWatermarkShell(t, { pdfjs: createPdfjsStub({ openError: new Error('broken') }) });
   await withSource(failed);
-  assert.equal(byId(failed, 'wm-state').textContent, '「a.pdf」は開けなかったので、ほかの帯を選んでください。');
+  assert.equal(byId(failed, 'wm-state').textContent, '「a.pdf」は開けなかったので、ほかの帯を選択してください。');
   assert.equal(failed.SigK.toolsWatermark.canRun(), false);
   assert.equal(summary(failed), '');
 
@@ -95,7 +95,7 @@ test('開けなかった帯・パスワード付きの帯は、状態の文を�
   const peek = locked.SigK.tabs.peek;
   locked.window.SigK.tabs.peek = (id) => ({ ...peek(id), file: { ...peek(id).file, encrypted: true } });
   locked.SigK.toolsWatermarkView.render();
-  assert.equal(locked.SigK.toolsWatermark.source().blocked, '「a.pdf」はパスワード付きなので透かしを入れられません。ほかの帯を選んでください。');
+  assert.equal(locked.SigK.toolsWatermark.source().blocked, '「a.pdf」はパスワード付きなので透かしを入れられません。ほかの帯を選択してください。');
   assert.equal(locked.SigK.toolsWatermark.canRun(), false);
 });
 
@@ -151,8 +151,8 @@ test('種類を「画像」にすると画像の欄が出て色が消え、画�
   assert.equal(byId(shell, 'wm-image-row').hidden, false);
   assert.equal(byId(shell, 'wm-colors').hidden, true);
   assert.equal(byId(shell, 'wm-text-row').hidden, true);
-  assert.match(byId(shell, 'wm-image-note').textContent, /PNG か JPEG の画像を選んでください/);
-  assert.equal(summary(shell), '透かしにする画像を選んでください。');
+  assert.match(byId(shell, 'wm-image-note').textContent, /PNG 画像か JPEG 画像を選択してください/);
+  assert.equal(summary(shell), '透かしに使う画像を選択してください。');
   byId(shell, 'wm-image-pick').click();
   await shell.flush();
   await shell.flush();
@@ -171,7 +171,7 @@ test('PNG・JPEG 以外の画像は断り、理由を画像の欄に出す', asy
   assert.equal(await shell.SigK.toolsWatermark.setImage(BMP), false);
   await shell.flush();
   assert.equal(checkedValue(shell, 'wm-type'), 'image');
-  assert.equal(byId(shell, 'wm-image-note').textContent, 'PNG か JPEG の画像を選んでください。');
+  assert.equal(byId(shell, 'wm-image-note').textContent, 'PNG 画像か JPEG 画像を選択してください。');
   assert.equal(byId(shell, 'wm-image-note').classList.contains('error'), true);
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
 });
@@ -201,12 +201,12 @@ test('実行は保存ダイアログで出力先を決め、spec をワーカー
 test('入力と同じ出力先と、タブで開いている出力先は断ってワーカーへ渡さない', async (t) => {
   const shell = await createWatermarkShell(t, { savePathResults: [{ path: A }, { path: B }] });
   await withSource(shell);
-  assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先に入力ファイルと同じファイルは選べません。');
-  assert.equal(bannerText(shell), '出力先に入力ファイルと同じファイルは選べません。');
+  assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先に入力ファイルと同じファイルは選択できません。');
+  assert.equal(bannerText(shell), '出力先に入力ファイルと同じファイルは選択できません。');
   await shell.SigK.tabs.openPath(B);
   // B を開くと選んでいる帯（＝対象）も B になるので、a.pdf の帯を選び直す。
   shell.SigK.tabs.activate(shell.SigK.tabs.list()[0].id);
-  assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
+  assert.equal((await shell.SigK.toolsWatermark.run()).error, '出力先ファイルはタブで開いているので、タブを閉じるか、別の名前を指定してください。');
   assert.equal(shell.taskCalls.length, 0);
 });
 
@@ -259,7 +259,7 @@ test('透かしを選んでいるときのドロップは、PDF を帯で開い�
   const rejected = new window.Event('drop', { bubbles: true, cancelable: true });
   rejected.dataTransfer = makeDataTransfer([makeDroppedFile('memo.txt', 'C:\\work\\memo.txt')]);
   assert.equal(await SigK.fileDrop.handleDrop(rejected), false);
-  assert.equal(bannerText(shell), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG の画像をドロップしてください。');
+  assert.equal(bannerText(shell), 'PDF でも PNG・JPEG でもないので、PDF か PNG・JPEG 画像をドロップしてください。');
 });
 
 test('透かしの画像を 2 つ以上渡したら、1つ目だけを使い、黄色の通知バーで知らせる', async (t) => {

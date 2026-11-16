@@ -9,9 +9,10 @@
 //
 // Electron の dialog は引数で受け取る（file-io.js と同じ作法。node --test から読める）。
 // 戻り値の形も file-io.js に揃える。
-//   成功     { ok: true, path, name, size, kind, width, height, pages, frames }
+//   成功     { ok: true, path, name, size, kind, width, height, pages, frames, rotation? }
 //            （pages はページ数、frames はページごとの寸法。複数ページを持つのは TIFF だけ。
-//              spec-3-2 確定事項28）
+//              spec-3-2 確定事項28。寸法は写真の EXIF の向きを当てた後の値で、回すときだけ rotation を添える。
+//              spec-7-4 確定事項X4）
 //   取り消し { canceled: true }
 //   失敗     { error: '人が読める文言' }
 
@@ -19,6 +20,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { detectFormat, isProgressiveJpeg, inspectImageBytes } = require('./worker/image-format.js');
+const { rotationOfJpeg, uprightSize } = require('./worker/jpeg-orientation.js');
 const { toBytes, describeReadFailure } = require('./file-io.js');
 const { writeDocument } = require('./pdf-write.js');
 
@@ -54,23 +56,31 @@ async function inspectImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_BYTES,
     if (stat.size > maxBytes)
       return { error: `${Math.floor(maxBytes / 1024 / 1024)}MB までに対応していますが、ファイルが大きすぎます。` };
 
-    let inspected = inspectImageBytes(await readHead(filePath, stat.size, fsLike));
+    let bytes = await readHead(filePath, stat.size, fsLike);
+    let inspected = inspectImageBytes(bytes);
     // 先頭だけでは寸法に届かなかった（SOF が 64KB より後ろ）。全体を読み直す。
-    if (inspected.incomplete === true && stat.size > HEAD_BYTES)
-      inspected = inspectImageBytes(toBytes(await fsLike.promises.readFile(filePath)));
+    if (inspected.incomplete === true && stat.size > HEAD_BYTES) {
+      bytes = toBytes(await fsLike.promises.readFile(filePath));
+      inspected = inspectImageBytes(bytes);
+    }
     if (inspected.ok !== true)
       return { error: inspected.error, kind: inspected.kind ?? null };
 
+    // 写真の EXIF の向きを当てた後の寸法を返す。画面はこの寸法で紙の向きと枠を決め、ワーカーは元の画素を回して載せる
+    // （spec-7-4 確定事項X4。EXIF の向きは APP1 の頭にあるので、先頭 64KB で読める）。
+    const rotation = inspected.kind === 'jpeg' ? rotationOfJpeg(bytes) : 0;
+    const frames = inspected.frames.map((frame) => uprightSize(frame, rotation));
     return {
       ok: true,
       path: filePath,
       name: path.basename(filePath),
       size: stat.size,
       kind: inspected.kind,
-      width: inspected.width,
-      height: inspected.height,
+      width: frames[0].width,
+      height: frames[0].height,
       pages: inspected.pages,
-      frames: inspected.frames,
+      frames,
+      ...(rotation === 0 ? {} : { rotation }),
     };
   } catch (error) {
     onError({ message: '画像を読めませんでした', stack: error?.stack, context: { path: filePath, code: error?.code } });
@@ -88,7 +98,7 @@ const CONVERT_SOURCE_FILTERS = [
 
 async function pickConvertSources({ dialogLike, parentWindow = null, defaultPath = undefined }) {
   const options = {
-    title: 'PDF か変換する画像を選ぶ',
+    title: 'PDF か変換する画像を選択',
     properties: ['openFile', 'multiSelections'],
     filters: CONVERT_SOURCE_FILTERS,
     defaultPath,
@@ -110,8 +120,8 @@ async function pickConvertSources({ dialogLike, parentWindow = null, defaultPath
 // 重なるため）。受け付けるかどうかは先頭バイトで判定し、文言はワーカー（worker/op-watermark.js）と揃える。
 
 const WATERMARK_IMAGE_FILTERS = [{ name: 'PNG・JPEG 画像', extensions: ['png', 'jpg', 'jpeg'] }];
-const WATERMARK_IMAGE_TITLE = '透かしにする画像を選ぶ';
-const WATERMARK_KIND_ERROR = 'PNG か JPEG の画像を選んでください。';
+const WATERMARK_IMAGE_TITLE = '透かしに使う画像を選択';
+const WATERMARK_KIND_ERROR = 'PNG 画像か JPEG 画像を選択してください。';
 
 // 透かしにする画像を 1 枚選ばせる。戻り値 { path } / { canceled }。
 async function pickWatermarkImage({ dialogLike, parentWindow = null, defaultPath = undefined }) {
@@ -142,7 +152,7 @@ async function readWatermarkImage(filePath, { fsLike = fs, maxBytes = MAX_IMAGE_
     if (kind !== 'png' && kind !== 'jpeg')
       return { error: WATERMARK_KIND_ERROR, kind };
     if (kind === 'jpeg' && isProgressiveJpeg(bytes))
-      return { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。', kind };
+      return { error: 'この JPEG はプログレッシブ形式なので、透かしに使用できません。', kind };
     const inspected = inspectImageBytes(bytes);
     if (inspected.ok !== true)
       return { error: inspected.error, kind };
@@ -169,7 +179,7 @@ function isImageWritePath(target) {
 // 戻り値 { ok, path, bytes, signature, backup } / { changed } / { error }。
 async function writeImage(target, bytes, { fsLike = fs, makeBackup = false, expect = null } = {}) {
   if (!isImageWritePath(target))
-    return { error: '画像の出力先ではありません。' };
+    return { error: '出力先が画像ファイルではありません。' };
   const view = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
   if (!(view instanceof Uint8Array) || view.length === 0)
     return { error: '書き出す画像がありません。' };
@@ -177,7 +187,7 @@ async function writeImage(target, bytes, { fsLike = fs, makeBackup = false, expe
   if (written.changed === true)
     return { changed: true };
   if (written.ok !== true)
-    return { error: written.error ?? '画像を書き込めませんでした。' };
+    return { error: written.error ?? '画像を保存できませんでした。' };
   return { ok: true, path: target, bytes: written.bytes, signature: written.signature ?? null, backup: written.backup ?? null };
 }
 

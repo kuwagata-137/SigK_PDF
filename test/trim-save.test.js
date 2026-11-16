@@ -128,7 +128,7 @@ test('切り方の正しくない plan は保存を断り、ファイルを変�
   const bytes = await plainPdf(1);
   fs.writeFileSync(file, bytes);
   const result = await runSave({ kind: 'save', source: file, target: file, pages: [{ src: 0, rotate: 0, crop: [700, 0, 900, 10] }], expect: await readSignature(file) });
-  assert.match(result.error, /切り方が正しくありません/);
+  assert.match(result.error, /トリミング範囲が正しくありません/);
   assert.deepEqual(fs.readFileSync(file), Buffer.from(bytes));
 });
 

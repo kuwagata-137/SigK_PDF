@@ -87,7 +87,14 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0; cur
 }
 .zoom .step{font-size:15px}
 .pager .step:hover,.zoom .step:hover{background:var(--surface); color:var(--text)}
-.zoom .val{min-width:48px; text-align:center; font-variant-numeric:tabular-nums}
+/* 倍率の入力欄（spec-7-6 確定事項ZI1）。ふだんは今までの数字と同じ見た目で、フォーカスがあるときだけ白い欄にする。 */
+.zoom .val{
+  width:52px; padding:0 2px; border:1px solid transparent; border-radius:4px; background:transparent; color:var(--text);
+  font:inherit; text-align:center; font-variant-numeric:tabular-nums;
+}
+.zoom .val:hover:not(:disabled){border-color:var(--border)}
+.zoom .val:focus{outline:none; background:var(--surface); border-color:var(--accent)}
+.zoom .val:disabled{color:inherit}
 .spacer{flex:1}
 /* 窓が 1100px より狭いときは［幅］［全体］［見開き］［選択］［ハンド］を絵だけにし、すき間を詰めて、幅 960 の窓（最小の大きさ）でも
    ツールバーを 1 列に収める（spec-2-5 確定事項B5・K2。見本 screenshots/strips1-view-hand-960.png）。名前は data-tip（説明の吹き出し）と aria-label に残る。 */
@@ -623,18 +630,32 @@ html[data-panel="collapsed"] #side-resizer{display:none}
 }
 #confirm-replace::backdrop{background:rgba(16,24,40,.34)}
 
-/* 上書き・パスワード・抽出・モザイクの確認。ほかの窓と同じ枠にする（枠を当てておらず、ブラウザの素の黒い枠で出ていた）。
-   幅は中身に合わせる。抽出とモザイクは文が長いので広め。 */
-#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic{
+/* 上書き・パスワード・抽出・モザイク・画像の上書きの確認。ほかの窓と同じ枠にする（枠を当てておらず、ブラウザの素の黒い枠で出ていた。
+   画像の上書きの確認は 2026-11-12 に追加した。spec-7-4 確定事項CF4）。幅は中身に合わせる。抽出・モザイク・画像の上書きは文が長いので広め。 */
+#confirm-overwrite, #password-prompt, #confirm-extract, #confirm-mosaic, #confirm-image-save{
   padding:0; border:1px solid var(--border); border-radius:var(--radius);
   background:var(--surface); color:var(--text); box-shadow:var(--shadow);
 }
 #confirm-overwrite{width:min(440px, 88vw)}
 #password-prompt{width:min(420px, 88vw)}
 #confirm-extract{width:min(460px, 88vw)}
-#confirm-mosaic{width:min(560px, 88vw)}
-#confirm-overwrite::backdrop, #password-prompt::backdrop, #confirm-extract::backdrop, #confirm-mosaic::backdrop{background:rgba(16,24,40,.34)}
-#confirm-mosaic .dlg-text + .dlg-text{margin-top:8px}
+#confirm-mosaic, #confirm-image-save{width:min(560px, 88vw)}
+#confirm-overwrite::backdrop, #password-prompt::backdrop, #confirm-extract::backdrop, #confirm-mosaic::backdrop, #confirm-image-save::backdrop{background:rgba(16,24,40,.34)}
+#confirm-mosaic .dlg-text + .dlg-text, #confirm-image-save .dlg-text + .dlg-text{margin-top:8px}
+#confirm-image-save .dlg-text[hidden]{display:none}
+/* 削除確認画面（spec-7-5 確定事項D2・D3。見本 screenshots/question-pg2-page-edit-mode.png）。注記は小さく灰色にし、すべてのページが対象のときは
+   ［削除］を押せなくする（disabled）。 */
+#confirm-page-delete{
+  padding:0; border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); color:var(--text); box-shadow:var(--shadow);
+  width:min(420px, 88vw);
+}
+#confirm-page-delete::backdrop{background:rgba(16,24,40,.34)}
+#confirm-page-delete .dlg-note{margin-top:8px; color:var(--muted); font-size:12px}
+#confirm-page-delete .dlg-note[hidden]{display:none}
+#confirm-page-delete .dlg-btn:disabled{opacity:.45; cursor:default}
+/* 確認の窓の足の左に置く「次回から表示しない」（spec-7-4 確定事項CF1）。ボタンは右に寄せたまま。 */
+.dlg-foot .confirm-skip{margin-right:auto; height:30px; font-size:12.5px; color:var(--muted)}
 
 /* ── 注釈一覧（spec-4-4 確定事項9・29〜32） ────────────────────── */
 /* サイドパネルの行。ツール一覧と同じトークンで組む。アイコンは注釈の色、表示のみは灰色に「表示のみ」の印。 */
@@ -927,6 +948,14 @@ html[data-mode="annot"] #props{display:flex}
 .annot-menu-item [data-icon]{color:var(--danger); display:inline-flex}
 .annot-menu-item .label{flex:1}
 .annot-menu-item .key{color:var(--muted); font-size:12px}
+/* ページの右クリックメニュー（spec-7-5 確定事項M1。見本 screenshots/question-pg1-paste-position.png）。書き込みのメニューと同じ見た目で、
+   ［削除］の文字だけ危険色にし、区切り線で分ける。押せない項目は灰色にし、カーソルを合わせても色を付けない。 */
+.annot-menu-sep{height:1px; margin:4px 2px; background:var(--border)}
+.annot-menu-item.danger .label{color:var(--danger)}
+.annot-menu-item[aria-disabled="true"]{opacity:.5; cursor:default}
+.annot-menu-item[aria-disabled="true"] .label{color:var(--muted)}
+.annot-menu-item[aria-disabled="true"]:hover{background:none}
+.page-menu{min-width:168px}
 .color-pop .ttl{font-size:11px; color:var(--muted); letter-spacing:.04em; margin:0 0 8px}
 .color-pop .sub{font-size:11px; color:var(--muted); margin:10px 0 6px}
 .color-pop .ttl + .sub{margin-top:0}

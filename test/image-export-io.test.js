@@ -50,7 +50,7 @@ test('writeImage は ArrayBuffer も受け、既にあるファイルは置き�
 });
 
 test('writeImage は画像以外の出力先と空のバイト列を断る', async () => {
-  assert.deepEqual(await writeImage('C:/out/a.pdf', new Uint8Array([1])), { error: '画像の出力先ではありません。' });
+  assert.deepEqual(await writeImage('C:/out/a.pdf', new Uint8Array([1])), { error: '出力先が画像ファイルではありません。' });
   assert.deepEqual(await writeImage('C:/out/a.png', new Uint8Array(0)), { error: '書き出す画像がありません。' });
   assert.deepEqual(await writeImage('C:/out/a.png', 'abc'), { error: '書き出す画像がありません。' });
 });

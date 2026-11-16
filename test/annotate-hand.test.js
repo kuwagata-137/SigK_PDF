@@ -20,8 +20,9 @@ async function withShell(t) {
   return shell;
 }
 
+// 編集モードの「ハンド」は、上のツールバーの［ハンド］（spec-7-4 確定事項C3。編集モードのボタン列からは外した）。
 function handButton(shell) {
-  return shell.document.querySelector('#edit-bar .edit-tool[data-tool="hand"]');
+  return shell.document.getElementById('btn-pointer-hand');
 }
 
 function pageNode(shell, index = 0) {
@@ -59,15 +60,10 @@ function scrollOf(shell) {
   return [view(shell).scrollLeft, view(shell).scrollTop];
 }
 
-test('「ハンド」は道具の段の「選択」のすぐ後ろ、区切りの前にあり、手のアイコンと名前を持つ（確定事項A1）', async (t) => {
+test('「ハンド」は上のツールバーの［ハンド］で、手のアイコンを持つ（spec-7-4 確定事項C3。確定事項A1 を改めた）', async (t) => {
   const shell = await withShell(t);
-  const bar = shell.document.getElementById('edit-bar');
-  const item = handButton(shell).closest('.edit-item');
-  assert.equal(item.previousElementSibling, bar.firstElementChild);
-  assert.equal(item.previousElementSibling.querySelector('.edit-tool').dataset.tool, 'select');
-  assert.equal(item.nextElementSibling.classList.contains('edit-sep'), true);
-  assert.equal(item.querySelector('.edit-name').textContent, 'ハンド');
-  assert.notEqual(item.querySelector('svg'), null, 'アイコンが埋まっている');
+  assert.equal(handButton(shell).getAttribute('aria-label'), 'ハンド');
+  assert.notEqual(handButton(shell).querySelector('svg'), null, 'アイコンが埋まっている');
 });
 
 test('「ハンド」は押すと持ち、もう一度押すと道具なしに戻る。描く道具ではないので右パネルの描く欄は出さない（確定事項A2）', async (t) => {

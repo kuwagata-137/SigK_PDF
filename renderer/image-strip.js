@@ -64,7 +64,7 @@
     off.type = 'button';
     off.tabIndex = -1;
     off.dataset.tip = 'image.remove';
-    off.setAttribute('aria-label', `「${name}」を外す`);
+    off.setAttribute('aria-label', `「${name}」を削除`);
     if (root.SigK.icons?.has('close'))
       off.append(root.SigK.icons.create(el.doc, 'close', { size: 11, strokeWidth: 2.2 }));
     item.append(thumbOf(row), off, node('span', 'cap', name));

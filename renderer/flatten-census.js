@@ -64,7 +64,7 @@
         next.result = result;
         counted.set(next.tabId, { path: next.path, doc: next.doc, result });
       } else {
-        next.error = result?.canceled === true ? '書き込みを数えるのを中止しました。' : (result?.error ?? '書き込みを数えられませんでした。');
+        next.error = result?.canceled === true ? '書き込みの集計を中止しました。' : (result?.error ?? '書き込みを集計できませんでした。');
       }
       // 数え終えたら「書き込みを確認しています」の通知バーを下げる（結果は右の欄に出る）。
       if (banner().text().startsWith(`${COUNT_LABEL}しています`))

@@ -13,9 +13,9 @@
   // 結果に映らない（確定事項1・13）。実行の前に確かめる（spec-2-5 確定事項F。run-guard.js）。
 
   // 通知バーの文言「画像にしています」「画像にするのを中止しました」の頭（確定事項17・20）。
-  const LABEL = '画像に';
+  const LABEL = '画像に変換';
   // 止めたときの文の動作の名前（「画像にするのを中止しました」と同じ言い方。決定81 ⑫）。
-  const VERB = '画像にするの';
+  const VERB = '画像への変換';
 
   const state = {
     mode: 'all', range: '',
@@ -206,7 +206,7 @@
         const { bytes } = await images.exportPage(el.doc, page, { scale: plan.scale, type: plan.format.type, quality: plan.format.quality });
         const result = await root.imageAPI.write(targets[index], bytes);
         if (result?.ok !== true)
-          return { error: `「${plan.names[index]}」を書き込めませんでした。${result?.error ?? ''}`.trim(), written };
+          return { error: `「${plan.names[index]}」を書き出せませんでした。${result?.error ?? ''}`.trim(), written };
         written += 1;
       }
       frame.report(total, total);
@@ -218,7 +218,7 @@
         stack: error?.stack,
         context: { source: 'to-image', page: current },
       });
-      return { error: `「${src.name}」の ${current} ページ目を画像にできませんでした。`, written };
+      return { error: `「${src.name}」の ${current} ページ目を画像に変換できませんでした。`, written };
     } finally {
       // 中止・失敗でも畳む（確定事項22）。
       await opened.task.destroy?.();
@@ -228,7 +228,7 @@
   // 保存していない帯の確かめ・同名の 3 択・フォルダの選び直しの間も実行中と数える（spec-5-1 確定事項12。結合と同じ）。
   async function run() {
     if (!canRun())
-      return { error: '画像にできる状態ではありません。' };
+      return { error: '画像に変換できる状態ではありません。' };
     state.running = true;
     view()?.render();
     try {
@@ -239,7 +239,7 @@
       // 上書き保存したら、ファイルの中身（ページ数・寸法）が変わっている。計画を組み直して確かめる。
       const replanned = currentPlan();
       if (replanned.ready !== true) {
-        const error = replanned.error ?? '画像にできる状態ではありません。';
+        const error = replanned.error ?? '画像に変換できる状態ではありません。';
         banner().show(error);
         return { error };
       }
@@ -254,13 +254,13 @@
     const current = currentPlan();
     const src = source();
     if (current.targets.some((target) => pathKey(target) === pathKey(src.path))) {
-      banner().show('出力先に元のファイルと同じファイルは選べません。');
-      return { error: '出力先に元のファイルと同じファイルは選べません。' };
+      banner().show('出力先に元のファイルと同じファイルは選択できません。');
+      return { error: '出力先に元のファイルと同じファイルは選択できません。' };
     }
     const api = root.imageAPI;
     if (api?.available !== true || typeof api.write !== 'function') {
-      banner().show('画像を書き出す機能を使えません。');
-      return { error: '画像を書き出す機能を使えません。' };
+      banner().show('画像書き出し機能を使用できません。');
+      return { error: '画像書き出し機能を使用できません。' };
     }
 
     const resolved = await resolveTargets(current.targets);
@@ -279,12 +279,12 @@
     if (result?.canceled === true) {
       const written = result.written ?? 0;
       // 自分で止めたので赤く塗らない（決定49）。
-      banner().show(written > 0 ? `画像にするのを中止しましたが、${written} ファイルは書き出し済みです。` : '画像にするのを中止しました。', { tone: 'info' });
+      banner().show(written > 0 ? `画像への変換を中止しましたが、${written} ファイルは書き出し済みです。` : '画像への変換を中止しました。', { tone: 'info' });
       return result;
     }
     if (result?.ok !== true) {
-      banner().show(result?.error ?? '画像にできませんでした。');
-      return result ?? { error: '画像にできませんでした。' };
+      banner().show(result?.error ?? '画像に変換できませんでした。');
+      return result ?? { error: '画像に変換できませんでした。' };
     }
     banner().show(`${result.written} ファイルに変換しました`, {
       autoHideMs: 0,

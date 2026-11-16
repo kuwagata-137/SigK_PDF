@@ -8,6 +8,8 @@
   // （左右に 4 枚ずつ先読み）だけで、全部の帯の合計で 160 枚まで（およそ 20MB）。
   // 2026-10-23 から、紙の大きさはツールモードの倍率（tools-zoom.js。50〜300%。docs/07 決定83）を掛ける（zoom。100% が上の数）。
   // 見出し・番号の札・余白は倍率で変えない。描く枚数の上限は面積で数える（倍率が 2 倍なら 4 分の 1 枚。メモリを 100% のときと同じに保つ）。
+  // 2026-11-13（docs/07 決定93）から、zoom は画面上の大きさの倍率（表示する倍率×2。tools-zoom.js の scale）。上の 104px・160 枚は、
+  // 表示する倍率 50%（前の 100%）のときの数で、表示する倍率 100% では紙の高さ 208px・上限 40 枚。
 
   const SHEET_HEIGHT = 104;
   const SHEET_MAX_WIDTH = 180;
@@ -31,8 +33,8 @@
 
   // 描く枚数の上限（面積で数える）。
   const limit = (zoom = 1) => Math.max(MIN_LIMIT, Math.round(LIMIT / (zoom * zoom)));
-  // 今のツールモードの紙の倍率。帯の画面・帯の絵・盤を戻した帯の高さが読む（変わったら tools-zoom.js の onChange で組み直す）。
-  const zoom = () => root.SigK.toolsZoom?.get() ?? 1;
+  // 今のツールモードの紙の画面上の大きさの倍率（表示する倍率×2。決定93）。帯の画面・帯の絵・盤を戻した帯の高さが読む（変わったら tools-zoom.js の onChange で組み直す）。
+  const zoom = () => root.SigK.toolsZoom?.scale() ?? 1;
 
   // 紙の大きさ（px）。size は plan を当てたあとの寸法（回転・切り取りのあと。viewer の sizes）。
   function sheetOf(size, zoom = 1) {

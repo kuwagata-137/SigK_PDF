@@ -56,7 +56,7 @@
   // 開いたファイルのタブが前に出て、別のタブの中身で抽出しないため。launch.js は枠が空くまで開くのを待つ）。
   async function run() {
     if (root.SigK.save?.isBusy() === true)
-      return { error: 'いま保存しています。' };
+      return { error: '現在、保存中です。' };
     return root.SigK.save.holding(extractHeld);
   }
 
@@ -75,7 +75,7 @@
     const indices = selection();
     const pages = indices.map((index) => plan[index]).filter((entry) => entry !== undefined);
     if (pages.length === 0)
-      return { error: '抽出するページが選ばれていません。' };
+      return { error: '抽出するページが選択されていません。' };
 
     // モザイクのあるページは、抽出したファイルでも画像に置き換える（spec-4b-6b 確定事項25。決定66 ②）。確認でそう伝える。
     const mosaicCount = indices.filter((index) => root.SigK.pageMosaic?.countOf(plan[index]) > 0).length;
@@ -128,7 +128,7 @@
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
+      return { error: picked?.error ?? '保存先を指定できませんでした。' };
     // 元のファイル自身と、タブで開いているファイルへは書かない（確定事項96）。元へ書くと
     // 選んだページだけに置き換わり（.bak も作らない）、ほかのタブは古い内容のまま残る。
     const refused = root.SigK.outputTarget.refusalFor(picked.path, { source: file.path });

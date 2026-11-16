@@ -142,7 +142,7 @@ test('元のファイルが無ければ、その旨を返す', async () => {
 
 test('保存先が決まっていなければ何もしない', async () => {
   const result = await runSave({ source: 'a.pdf', pages: identityPlan(1) });
-  assert.equal(result.error, '保存先が決まっていません。');
+  assert.equal(result.error, '保存先が指定されていません。');
 });
 
 test('ページが1枚も残らない plan は断る', async () => {

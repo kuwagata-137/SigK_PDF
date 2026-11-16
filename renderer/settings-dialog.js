@@ -25,12 +25,12 @@
 
   // 欄は幅で切れるので、右の欄の「フォルダ」と同じく吹き出しでパスの全体を出す（点検の直し M-11）。
   function renderFixed() {
-    el.fixedPath.textContent = state.fixed ?? 'まだ決めていません';
+    el.fixedPath.textContent = state.fixed ?? '未指定';
     el.fixedPath.classList.toggle('empty', state.fixed === null);
     if (state.fixed === null)
       root.SigK.tipContent?.clear(el.fixedPath);
     else
-      root.SigK.tipContent?.text(el.fixedPath, '決めたフォルダ', state.fixed);
+      root.SigK.tipContent?.text(el.fixedPath, '指定フォルダ', state.fixed);
   }
 
   // 今の値を欄へ写す。
@@ -39,7 +39,8 @@
       input.checked = input.value === values.outputFolder.mode;
     state.fixed = values.outputFolder.fixed;
     renderFixed();
-    el.backup.checked = values.makeBackup;
+    el.backup.checked = values.backupBeforeOverwrite;
+    el.imageConfirm.checked = values.confirmImageOverwrite;
     el.toolValues.checked = values.rememberToolValues;
     el.lastTool.checked = values.rememberLastTool;
   }
@@ -75,7 +76,7 @@
 
   // 「決めたフォルダ」を選ぶ（右の欄の［変更…］と同じフォルダを選ぶ窓）。選んだら「決めたフォルダ」の選択肢も選ぶ。
   async function changeFixed() {
-    const picked = await root.pdfAPI?.pickFolder?.({ defaultPath: state.fixed ?? undefined, title: '決めたフォルダを選ぶ' });
+    const picked = await root.pdfAPI?.pickFolder?.({ defaultPath: state.fixed ?? undefined, title: '指定フォルダを選択' });
     if (typeof picked?.path === 'string' && picked.path !== '') {
       state.fixed = picked.path;
       renderFixed();
@@ -98,12 +99,13 @@
       }
       const result = await preferences().set({
         outputFolder: { mode: chosenMode(), fixed: state.fixed },
-        makeBackup: el.backup.checked,
+        backupBeforeOverwrite: el.backup.checked,
+        confirmImageOverwrite: el.imageConfirm.checked,
         rememberToolValues: el.toolValues.checked,
         rememberLastTool: el.lastTool.checked,
       });
       if (result?.ok !== true) {
-        root.SigK.viewBanner?.show(result?.error ?? '設定を書けませんでした。');
+        root.SigK.viewBanner?.show(result?.error ?? '設定を保存できませんでした。');
         return false;
       }
       close();
@@ -126,7 +128,7 @@
       return false;
     win.__sigkSettingsReady = true;
     const byId = (id) => doc.getElementById(id);
-    el = { doc, dialog, fixedPath: byId('settings-fixed-path'), backup: byId('settings-backup'), toolValues: byId('settings-tool-values'), lastTool: byId('settings-last-tool') };
+    el = { doc, dialog, fixedPath: byId('settings-fixed-path'), backup: byId('settings-backup'), imageConfirm: byId('settings-image-confirm'), toolValues: byId('settings-tool-values'), lastTool: byId('settings-last-tool') };
     byId('settings-ok')?.addEventListener('click', () => confirm());
     byId('settings-cancel')?.addEventListener('click', () => close());
     byId('settings-close')?.addEventListener('click', () => close());

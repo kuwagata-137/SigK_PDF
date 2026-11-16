@@ -51,7 +51,7 @@ test('0 は指定できない', () => {
 });
 
 test('数字でない文字・空の要素・ハイフンだけは記法の誤り', () => {
-  const error = { error: '1-3,5 のように書いてください' };
+  const error = { error: '1-3,5 のように入力してください' };
   assert.deepEqual(parsePageRange('a', 8), error);
   assert.deepEqual(parsePageRange('1,,3', 8), error);
   assert.deepEqual(parsePageRange('1,', 8), error);
@@ -61,6 +61,6 @@ test('数字でない文字・空の要素・ハイフンだけは記法の誤�
 });
 
 test('ページ数が分からない文書には何も返さない', () => {
-  assert.deepEqual(parsePageRange('1', null), { error: 'ページ数が分かりません' });
+  assert.deepEqual(parsePageRange('1', null), { error: 'ページ数を取得できません' });
   assert.deepEqual(parsePageRange('', 0), { pages: [] });
 });

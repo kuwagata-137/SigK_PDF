@@ -92,7 +92,7 @@ test('applyCrop は重ならない・1pt 未満・形の違う値を断る', asy
   const doc = await PDFDocument.create();
   const page = doc.addPage([600, 800]);
   for (const crop of [[700, 0, 900, 100], [0, 0, 0.5, 100], [0, 0, 'a', 1], null])
-    assert.match(rules.applyCrop(page, crop, TOOLS).error, /切り方が正しくありません/, JSON.stringify(crop));
+    assert.match(rules.applyCrop(page, crop, TOOLS).error, /トリミング範囲が正しくありません/, JSON.stringify(crop));
   assert.equal(page.node.get(PDFName.of('CropBox')), undefined);
 });
 

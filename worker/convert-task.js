@@ -28,7 +28,7 @@ function convertEntries(images, reader) {
 async function runConvertSingle(spec, entries, { fsLike, advance }) {
   const { target } = spec;
   if (typeof target !== 'string')
-    return { error: '保存先が決まっていません。' };
+    return { error: '保存先が指定されていません。' };
 
   advance('read');
   advance('load');
@@ -42,7 +42,7 @@ async function runConvertSingle(spec, entries, { fsLike, advance }) {
   try {
     output = await converted.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return failure('変換した内容を組み立てられませんでした。', error);
+    return failure('変換後の PDF を作成できませんでした。', error);
   }
 
   advance('write');
@@ -57,7 +57,7 @@ async function runConvertSingle(spec, entries, { fsLike, advance }) {
 async function runConvertEach(spec, entries, { fsLike, advance }) {
   const targets = spec.images.map((image) => image.target);
   if (targets.some((target) => typeof target !== 'string'))
-    return { error: '出力先が決まっていません。' };
+    return { error: '出力先が指定されていません。' };
 
   advance('read');
   advance('load');
@@ -70,11 +70,11 @@ async function runConvertEach(spec, entries, { fsLike, advance }) {
       try {
         output = await doc.save(SAVE_OPTIONS);
       } catch (error) {
-        return failure(`${index + 1} / ${entries.length} 本目の内容を組み立てられませんでした。`, error);
+        return failure(`${index + 1} / ${entries.length} ファイル目の PDF を作成できませんでした。`, error);
       }
       const written = await writeDocument(targets[index], Buffer.from(output.buffer, output.byteOffset, output.byteLength), { makeBackup: false, expect: null, fsLike });
       if (written.ok !== true)
-        return { error: `${index + 1} / ${entries.length} 本目を書けませんでした。${written.error ?? ''}` };
+        return { error: `${index + 1} / ${entries.length} ファイル目を書き出せませんでした。${written.error ?? ''}` };
       return { ok: true };
     },
     onProgress: (done, total) => advance('write', done, total),
@@ -89,11 +89,11 @@ async function runConvert(spec, { fsLike = fs, advance = () => {} } = {}) {
   if (!Array.isArray(images) || images.length === 0)
     return { error: '変換する画像がありません。' };
   if (images.some((image) => typeof image?.path !== 'string'))
-    return { error: '変換する画像の場所が分かりません。' };
+    return { error: '変換する画像の場所を取得できません。' };
   if (images.some((image) => (image?.layout === undefined || image.layout === null) && !(Array.isArray(image?.layouts) && image.layouts.length > 0)))
-    return { error: '紙の大きさが決まっていません。' };
+    return { error: '用紙サイズが指定されていません。' };
   if (output !== 'single' && output !== 'each')
-    return { error: '出力の方式が決まっていません。' };
+    return { error: '出力方式が指定されていません。' };
 
   const entries = convertEntries(images, insertReader(fsLike));
   return output === 'each'

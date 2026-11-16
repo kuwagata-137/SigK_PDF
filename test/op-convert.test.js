@@ -63,7 +63,7 @@ test('読めるもの・断るものを名前無しの文言で返す', async ()
   assert.match((await loadImage('c.webp', reader)).error, /対応していない形式なので/);
   assert.match((await loadImage('d.pdf', reader)).error, /PDF は画像ではないので/);
   assert.match((await loadImage('p.jpg', reader)).error, /プログレッシブ/);
-  assert.match((await loadImage('missing.png', reader)).error, /読めませんでした/);
+  assert.match((await loadImage('missing.png', reader)).error, /読み込めませんでした/);
 });
 
 // ---- convertToSingle（確定事項23・29） ----
@@ -96,9 +96,9 @@ test('入力が無い・紙が決まっていないものは断る', async () =>
   assert.match((await convertToSingle([], TOOLS)).error, /画像がありません/);
   const entries = entriesFor({ 'a.png': makePng() });
   entries[0].layouts = [{ page: A4, box: { x: 0, y: 0, width: 0, height: 10 } }];
-  assert.match((await convertToSingle(entries, TOOLS)).error, /「a\.png」紙の大きさ/);
+  assert.match((await convertToSingle(entries, TOOLS)).error, /「a\.png」用紙サイズ/);
   entries[0].layouts = [];
-  assert.match((await convertToSingle(entries, TOOLS)).error, /「a\.png」紙の大きさ/);
+  assert.match((await convertToSingle(entries, TOOLS)).error, /「a\.png」用紙サイズ/);
 });
 
 // ---- 複数ページの TIFF と3形式（spec-3-2 確定事項20〜22） ----
@@ -255,7 +255,7 @@ test('画像ごと: 書けない出力先で止まり、書き終えた分は残
     const second = { path: ws.copyIn('image-tall.png'), name: 'image-tall.png', layout: layoutFor(A4), target: ws.file('second.pdf') };
     const third = { path: ws.copyIn('image-small.png'), name: 'image-small.png', layout: layoutFor(A4), target: ws.file('third.pdf') };
     const result = await runConvert({ kind: 'convert', output: 'each', images: [first, second, third], targets: [first.target, second.target, third.target] });
-    assert.match(result.error, /^2 \/ 3 本目を書けませんでした/);
+    assert.match(result.error, /^2 \/ 3 ファイル目を書き出せませんでした/);
     assert.equal(result.written, 1);
     assert.ok(fs.statSync(first.target).size > 0, '1本目は残る');
     assert.equal(fs.existsSync(third.target), false, '3本目には進まない');
@@ -307,9 +307,9 @@ test('まとめる: fixture の BMP・GIF・3ページ TIFF・FAX を1本にす�
 
 test('spec の欠けは書く前に断る', async () => {
   assert.match((await runConvert({ kind: 'convert', images: [] })).error, /画像がありません/);
-  assert.match((await runConvert({ kind: 'convert', images: [{ layout: layoutFor(A4) }] })).error, /場所が分かりません/);
-  assert.match((await runConvert({ kind: 'convert', images: [{ path: 'x.png' }] })).error, /紙の大きさ/);
-  assert.match((await runConvert({ kind: 'convert', images: [{ path: 'x.png', layouts: [] }] })).error, /紙の大きさ/);
+  assert.match((await runConvert({ kind: 'convert', images: [{ layout: layoutFor(A4) }] })).error, /場所を取得できません/);
+  assert.match((await runConvert({ kind: 'convert', images: [{ path: 'x.png' }] })).error, /用紙サイズ/);
+  assert.match((await runConvert({ kind: 'convert', images: [{ path: 'x.png', layouts: [] }] })).error, /用紙サイズ/);
   assert.match((await runConvert({ kind: 'convert', output: 'zip', images: [{ path: 'x.png', layout: layoutFor(A4) }] })).error, /方式/);
   assert.match((await runConvert({ kind: 'convert', output: 'single', images: [{ path: 'x.png', layout: layoutFor(A4) }] })).error, /保存先/);
   assert.match((await runConvert({ kind: 'convert', output: 'each', images: [{ path: 'x.png', layout: layoutFor(A4) }] })).error, /出力先/);

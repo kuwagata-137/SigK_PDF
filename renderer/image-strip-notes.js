@@ -38,7 +38,7 @@
       return row.path;
     const pages = row.pages > 1 ? `・${row.pages} ページ` : '';
     const planned = plan().planPage({ width: row.width, height: row.height }, convert().settings());
-    const paper = planned.error === undefined ? `\nこの紙: ${plan().describePage(planned, convert().settings().paper)}` : '';
+    const paper = planned.error === undefined ? `\n用紙サイズ: ${plan().describePage(planned, convert().settings().paper)}` : '';
     return `${row.path}\n${row.width}×${row.height}・${String(row.kind).toUpperCase()}${pages}${paper}`;
   }
 

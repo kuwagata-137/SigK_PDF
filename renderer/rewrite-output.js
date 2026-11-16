@@ -19,9 +19,9 @@
   // そのタブを上書き保存すると書き出した結果を消してしまうため。
   function refusalFor(target, sourcePath) {
     if (pathKey(target) === pathKey(sourcePath))
-      return '出力先に入力ファイルと同じファイルは選べません。';
+      return '出力先に入力ファイルと同じファイルは選択できません。';
     if ((tabs()?.list() ?? []).some((tab) => pathKey(tab.path) === pathKey(target)))
-      return '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。';
+      return '出力先ファイルはタブで開いているので、タブを閉じるか、別の名前を指定してください。';
     return null;
   }
 
@@ -29,13 +29,13 @@
   async function chooseTarget({ sourcePath, defaultPath, title }) {
     const api = root.pdfAPI;
     if (typeof api?.pickSavePath !== 'function')
-      return { error: '保存先を選べません。' };
+      return { error: '保存先を選択できません。' };
     // 最初の場所のフォルダは、設定の窓の「ファイルを書き出すときの、最初のフォルダ」に従う（spec-6-1 確定事項E-5）。透かしとフラット化。
     const picked = await api.pickSavePath({ defaultPath: await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath, title });
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
+      return { error: picked?.error ?? '保存先を指定できませんでした。' };
     const refused = refusalFor(picked.path, sourcePath);
     if (refused !== null) {
       banner().show(refused);

@@ -49,13 +49,13 @@ function panel(shell) {
   return { rows, scopes, buttons, hint: doc.getElementById('props-hint').textContent };
 }
 
-test('トリミングを持つと、種類・当てるページ・このページの状態と［トリミングを外す］を出し、ほかの行と［削除］を隠す', async (t) => {
+test('トリミングを持つと、種類・当てるページ・このページの状態と［トリミングを解除］を出し、ほかの行と［削除］を隠す', async (t) => {
   const shell = await withShell(t);
   await holdTrim(shell);
   const { HINTS } = shell.SigK.annotationHints;
 
   assert.deepEqual(panel(shell), {
-    rows: [['種類', 'トリミング'], ['当てるページ', null], ['このページ', '紙全体のままです']],
+    rows: [['種類', 'トリミング'], ['適用範囲', null], ['このページ', 'トリミングしていません']],
     scopes: ['このページ:true', 'すべてのページ:false'],
     buttons: ['props-trim-remove（押せない）'],
     hint: HINTS.trim,
@@ -67,14 +67,14 @@ test('枠を引くと、残す大きさと［取消］［適用］を出し、�
   await holdTrim(shell);
   drawFrame(shell);
 
-  assert.deepEqual(panel(shell).rows, [['種類', 'トリミング'], ['当てるページ', null], ['残す大きさ', '幅 106 mm × 高さ 141 mm']]);
+  assert.deepEqual(panel(shell).rows, [['種類', 'トリミング'], ['適用範囲', null], ['トリミングサイズ', '幅 106 mm × 高さ 141 mm']]);
   assert.deepEqual(panel(shell).buttons, ['props-trim-cancel', 'props-trim-apply']);
   shell.document.getElementById('props-trim-cancel').click();
   assert.equal(shell.SigK.annotateTrim.getFrame(), null);
   assert.deepEqual(panel(shell).buttons, ['props-trim-remove（押せない）']);
 });
 
-test('切ったページなら「切ってあります（大きさ）」と切り直しのヒントを出し、［トリミングを外す］を押せる', async (t) => {
+test('切ったページなら「トリミングしてあります（大きさ）」と切り直しのヒントを出し、［トリミングを解除］を押せる', async (t) => {
   const shell = await withShell(t);
   await holdTrim(shell);
   drawFrame(shell);
@@ -82,16 +82,16 @@ test('切ったページなら「切ってあります（大きさ）」と切�
   await shell.flush();
 
   const { rows, buttons, hint } = panel(shell);
-  assert.deepEqual(rows.at(-1), ['このページ', '切ってあります（幅 106 mm × 高さ 141 mm）']);
+  assert.deepEqual(rows.at(-1), ['このページ', 'トリミングしてあります（幅 106 mm × 高さ 141 mm）']);
   assert.deepEqual(buttons, ['props-trim-remove']);
   assert.equal(hint, shell.SigK.annotationHints.HINTS.trimCropped);
   // ページ番号の欄のページが替わると、そのページの状態に替わる。
   shell.SigK.viewer.goToPage(1);
-  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '紙全体のままです']);
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', 'トリミングしていません']);
   // 元に戻すと、切っていない状態に戻る。
   shell.SigK.viewer.goToPage(0);
   shell.SigK.pageEdit.undo();
-  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '紙全体のままです']);
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', 'トリミングしていません']);
 });
 
 test('［すべてのページ］を押すと切り替わり、切ってあるページの数を出す', async (t) => {
@@ -99,19 +99,19 @@ test('［すべてのページ］を押すと切り替わり、切ってある�
   await holdTrim(shell);
   shell.document.querySelector('#props-trim-scope button[data-scope="all"]').click();
   assert.deepEqual(panel(shell).scopes, ['このページ:false', 'すべてのページ:true']);
-  assert.deepEqual(panel(shell).rows.at(-1), ['すべてのページ', 'どのページも紙全体のままです']);
+  assert.deepEqual(panel(shell).rows.at(-1), ['すべてのページ', 'どのページもトリミングしていません']);
   drawFrame(shell);
   shell.document.getElementById('props-trim-apply').click();
 
-  assert.deepEqual(panel(shell).rows.at(-1), ['すべてのページ', '3 ページを切ってあります']);
+  assert.deepEqual(panel(shell).rows.at(-1), ['すべてのページ', '3 ページをトリミングしてあります']);
 });
 
-test('ほかのアプリで切ってあるページは、紙全体を読み終えると「切ってあります」になる', async (t) => {
+test('ほかのアプリで切ってあるページは、紙全体を読み終えると「トリミングしてあります」になる', async (t) => {
   const pdfjs = createPdfjsStub({ sizes: [{ width: 400, height: 500 }, A4, A4], views: [[50, 60, 450, 560]] });
   const shell = await withShell(t, { pdfjs, boxesResults: [{ ok: true, boxes: [PAPER, PAPER, PAPER] }] });
   await holdTrim(shell);
 
-  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '切ってあります（幅 141 mm × 高さ 176 mm）']);
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', 'トリミングしてあります（幅 141 mm × 高さ 176 mm）']);
   assert.deepEqual(panel(shell).buttons, ['props-trim-remove']);
 });
 
@@ -121,7 +121,7 @@ test('道具を替えると、トリミングの行とボタンを隠して［�
   shell.SigK.annotate.setTool('pen');
 
   const { rows, buttons } = panel(shell);
-  assert.equal(rows.some(([name]) => ['当てるページ', 'このページ', '残す大きさ'].includes(name)), false);
+  assert.equal(rows.some(([name]) => ['適用範囲', 'このページ', 'トリミングサイズ'].includes(name)), false);
   assert.deepEqual(buttons, ['props-delete（押せない）']);
 });
 
@@ -131,7 +131,7 @@ test('トリミングを持ったまま開き直すと、その文書の紙全�
   const { SigK } = shell;
   await holdTrim(shell);
   // 1 回目は読めなかったので、開いたときの見える範囲を紙全体と見なす。
-  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '紙全体のままです']);
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', 'トリミングしていません']);
 
   // 保存したことにして、大きさと更新時刻の変わったファイルを開き直す。
   shell.files[A] = makeSource({ path: A, name: 'a.pdf', size: 2048, mtimeMs: 2000 });
@@ -140,10 +140,10 @@ test('トリミングを持ったまま開き直すと、その文書の紙全�
 
   assert.equal(shell.boxesCalls.length, 2);
   assert.deepEqual(shell.boxesCalls[1].expect, { size: 2048, mtimeMs: 2000 });
-  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', '切ってあります（幅 141 mm × 高さ 176 mm）']);
+  assert.deepEqual(panel(shell).rows.at(-1), ['このページ', 'トリミングしてあります（幅 141 mm × 高さ 176 mm）']);
 });
 
-test('トリミングを持ったまま文書を閉じると、このページの行は「–」で［トリミングを外す］は押せない（点検 4）', async (t) => {
+test('トリミングを持ったまま文書を閉じると、このページの行は「–」で［トリミングを解除］は押せない（点検 4）', async (t) => {
   const shell = await withShell(t);
   await holdTrim(shell);
   shell.SigK.viewer.close();
@@ -172,6 +172,6 @@ test('トリミングを持っていても、注釈一覧などから書き込�
   SigK.annotate.select(id);
   const { rows, buttons } = panel(shell);
   assert.deepEqual(rows[0], ['種類', '四角']);
-  assert.equal(rows.some(([name]) => ['当てるページ', 'このページ', '残す大きさ'].includes(name)), false);
+  assert.equal(rows.some(([name]) => ['適用範囲', 'このページ', 'トリミングサイズ'].includes(name)), false);
   assert.deepEqual(buttons, ['props-delete']);
 });

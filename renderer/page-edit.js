@@ -187,6 +187,8 @@
     commitAnnots,
     rotate: (delta, explicit) => actions().rotate(delta, explicit),
     remove: (explicit) => actions().remove(explicit),
+    // 削除確認画面を通す削除（spec-7-5 確定事項D1）。
+    requestRemove: (explicit) => actions().requestRemove(explicit),
     canDelete: () => actions().canDelete(),
     undo,
     redo,

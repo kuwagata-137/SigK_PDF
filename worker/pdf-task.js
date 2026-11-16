@@ -48,7 +48,7 @@ function samePath(a, b) {
 async function runInsertPreview(spec, { fsLike = fs } = {}) {
   const { path: sourcePath, base = null } = spec ?? {};
   if (typeof sourcePath !== 'string')
-    return { error: '差し込むファイルが決まっていません。' };
+    return { error: '差し込むファイルが指定されていません。' };
 
   // 差し込む元の印は読む前に取る（読んだあとに取ると、間の書き換えを見落とす）。保存のときにワーカーが照らす（spec-6-1 確定事項C-8）。
   const signature = await readSignature(sourcePath, { fsLike });
@@ -59,7 +59,7 @@ async function runInsertPreview(spec, { fsLike = fs } = {}) {
   try {
     built = await buildPreview(sourcePath, base, TOOLS, insertReader(fsLike));
   } catch (error) {
-    return failure('差し込むページを組み立てられませんでした。', error);
+    return failure('差し込むページを作成できませんでした。', error);
   }
   if (built.ok !== true)
     return built;
@@ -78,7 +78,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
     copies = {} } = spec ?? {};
   // source が null なのは名前の無い帯（帯のページの写しでできた新しい帯）で、元の中身は copies[sourceCopy] のバイト列（spec-2-5 確定事項I4）。
   if ((typeof source !== 'string' && source !== null) || typeof target !== 'string')
-    return { error: '保存先が決まっていません。' };
+    return { error: '保存先が指定されていません。' };
   // 元のファイルが開いたときのままかを、読む前に確かめる（spec-6-1 確定事項C-2）。並び・書き込みの削除の参照・モザイクの画像は開いたときの
   // 中身を前提にしているので、書き換えられた中身には当てない。何もせずに知らせ、画面が開いたときの中身でやり直す（renderer/opened-source.js）。
   if (await sourceChanged(spec, fsLike))
@@ -119,7 +119,7 @@ async function runSave(spec, { fsLike = fs, advance = () => {} } = {}) {
   try {
     output = await applied.doc.save(SAVE_OPTIONS);
   } catch (error) {
-    return failure('保存する内容を組み立てられませんでした。', error);
+    return failure('保存する PDF を作成できませんでした。', error);
   }
 
   advance('write');

@@ -21,7 +21,7 @@
   ]);
 
   // 名前の無い帯（新しい帯）のファイル名の説明の吹き出し。まだ場所（フルパス）が無いので、その旨を出す。
-  const UNTITLED_DESC = 'まだファイルになっていない新しい帯です。';
+  const UNTITLED_DESC = 'まだファイルとして保存していない新しい帯です。';
 
   function span(doc, className, text = '') {
     const node = doc.createElement('span');

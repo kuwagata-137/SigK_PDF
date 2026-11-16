@@ -24,7 +24,8 @@
   const layout = () => root.SigK.splitLayout;
   const view = () => (state.tabId === null ? null : root.SigK.tabs?.peek(state.tabId) ?? null);
   const pendingKey = (tabId, index) => `${tabId}:${index}`;
-  const zoom = () => root.SigK.toolsZoom?.get() ?? 1;
+  // 画面上の大きさの倍率（表示する倍率×2。決定93）。
+  const zoom = () => root.SigK.toolsZoom?.scale() ?? 1;
 
   // ページの紙の大きさ（CSS px）。倍率の枠に、回転・切り取りのあとの縦横比のまま収める。
   function sheetFor(paperZoom, pageSize) {

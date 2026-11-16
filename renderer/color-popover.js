@@ -243,7 +243,7 @@
       });
       grid.append(button);
     });
-    sets.replaceChildren(node('p', 'sub', '線・塗り・文字の色をまとめて設定'), grid);
+    sets.replaceChildren(node('p', 'sub', '線・塗り・文字の色を一括設定'), grid);
   }
 
   function buildRecent(options) {

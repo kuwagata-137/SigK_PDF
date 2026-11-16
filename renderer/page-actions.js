@@ -15,6 +15,9 @@
   const ACTION_IDS = {
     rotateLeft: 'act-rotate-left',
     rotateRight: 'act-rotate-right',
+    // 編集モードのボタン列の［左回転］［右回転］（spec-7-4 確定事項RT1）。見ているページだけを回す。
+    editRotateLeft: 'edit-rotate-left',
+    editRotateRight: 'edit-rotate-right',
     extract: 'act-extract',
     insert: 'act-insert',
     remove: 'act-delete',
@@ -67,9 +70,18 @@
     return pageEdit().commit(next, { before: indices, after: indices });
   }
 
-  // 削除には確認を出さない（確定事項40）。docs/04 第7章がそう定めているが、
-  // **その根拠は「Ctrl+Z で戻せる」ことである**。だから undo を落とすなら
-  // 確認を出す側へ倒すこと。
+  // 編集モードの［左回転］［右回転］（spec-7-4 確定事項RT1・C1）。サムネイルで選んでいるページは使わず、見ているページだけを回す。
+  // 入力中のテキストと描きかけは、回す前に確定する（抽出と同じ。spec-4-2 確定事項8）。
+  function rotateCurrent(delta) {
+    if (!isOpen())
+      return false;
+    root.SigK.annotate?.finishEditing();
+    return rotate(delta, [viewer().getState().current]);
+  }
+
+  // 確認なしで削除する芯。ページを削除する画面の操作（Delete キー・［削除］ボタン・［このページを削除］・右クリックメニュー）は、
+  // requestRemove か page-list-commands.js の remove を通して削除確認画面を表示してから、ここを呼ぶ（spec-7-5 確定事項D1。
+  // spec-1-5 確定事項40「削除には確認を出さない」は決定92 で改めた）。右クリックメニューの［切り取り］は確認なしでここを呼ぶ（M5）。
   function remove(explicit) {
     if (!isOpen())
       return false;
@@ -82,6 +94,14 @@
 
     const result = pagePlan().deletePages(current, indices);
     return pageEdit().commit(result.plan, { before: indices, after: result.selection });
+  }
+
+  // 削除確認画面を表示してから削除する入口（spec-7-5 確定事項D1）。［削除］ボタンとサムネイルの［このページを削除］から呼ぶ。対象は remove と同じ。
+  // ［削除］を押して削除したら true になる Promise を返す。
+  function requestRemove(explicit) {
+    if (!isOpen())
+      return Promise.resolve(false);
+    return root.SigK.pageListCommands.remove(root.SigK.pageListTarget.thumbs(), targetIndices(explicit));
   }
 
   function canDelete() {
@@ -110,6 +130,8 @@
     const open = isOpen();
     setEnabled(ACTION_IDS.rotateLeft, open);
     setEnabled(ACTION_IDS.rotateRight, open);
+    setEnabled(ACTION_IDS.editRotateLeft, open);
+    setEnabled(ACTION_IDS.editRotateRight, open);
     setEnabled(ACTION_IDS.extract, root.SigK.extract?.canExtract() === true);
     setEnabled(ACTION_IDS.insert, root.SigK.insert?.canInsert() === true);
     setEnabled(ACTION_IDS.remove, canDelete());
@@ -126,7 +148,10 @@
     const node = doc.getElementById(id);
     if (node === null)
       return;
-    node.addEventListener('click', () => {
+    node.addEventListener('click', (event) => {
+      // 編集モードのボタン列のボタンは、マウスで押したらフォーカスを残さない（Enter でトリミングの枠を切れるように。edit-bar.js と同じ）。
+      if (node.classList.contains('edit-tool'))
+        root.SigK.editBar?.leaveIfMouse(event, node);
       if (node.getAttribute('aria-disabled') === 'true')
         return;
       handler();
@@ -138,9 +163,11 @@
 
     bindClick(doc, ACTION_IDS.rotateLeft, () => rotate(-90));
     bindClick(doc, ACTION_IDS.rotateRight, () => rotate(90));
+    bindClick(doc, ACTION_IDS.editRotateLeft, () => rotateCurrent(-90));
+    bindClick(doc, ACTION_IDS.editRotateRight, () => rotateCurrent(90));
     bindClick(doc, ACTION_IDS.extract, () => root.SigK.extract?.run());
     bindClick(doc, ACTION_IDS.insert, () => root.SigK.insert?.run());
-    bindClick(doc, ACTION_IDS.remove, () => remove());
+    bindClick(doc, ACTION_IDS.remove, () => requestRemove());
     bindClick(doc, ACTION_IDS.undo, () => (inTools() ? root.SigK.toolHistory : pageEdit()).undo());
     bindClick(doc, ACTION_IDS.redo, () => (inTools() ? root.SigK.toolHistory : pageEdit()).redo());
     syncActions();
@@ -148,5 +175,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageActions = { ACTION_IDS, init, rotate, remove, canDelete, syncActions };
+  SigK.pageActions = { ACTION_IDS, init, targetIndices, rotate, rotateCurrent, remove, requestRemove, canDelete, syncActions };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -116,7 +116,7 @@ test('道具はトグルで、持つとプロパティに種類と色が出る',
   assert.equal(SigK.annotate.getTool(), 'highlight');
   assert.equal(button.classList.contains('active'), true);
   assert.equal(button.getAttribute('aria-pressed'), 'true');
-  assert.equal(document.getElementById('props-kind').textContent, 'ハイライト（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, 'ハイライト（次に追加する書き込み）');
   // 色は今の色のチップ 1 つ（spec-4b-1b 確定事項2）。ハイライトには塗り・線種・太さ・不透明度の行を出さない。
   assert.equal(document.getElementById('props-color-row').hidden, false);
   assert.equal(document.getElementById('props-color-label').textContent, '色');
@@ -130,7 +130,7 @@ test('道具はトグルで、持つとプロパティに種類と色が出る',
   assert.equal(button.getAttribute('aria-pressed'), 'false');
   document.querySelector('#edit-bar .edit-tool[data-tool="note"]').dispatchEvent(new shell.window.MouseEvent('click'));
   assert.equal(SigK.annotate.getTool(), 'note');
-  assert.equal(document.getElementById('props-kind').textContent, 'ノート（次に付ける）');
+  assert.equal(document.getElementById('props-kind').textContent, 'ノート（次に追加する書き込み）');
   SigK.annotate.setTool(null);
 });
 

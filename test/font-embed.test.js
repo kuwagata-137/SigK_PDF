@@ -134,7 +134,7 @@ test('createFontSource はフォントを一度だけ読み、読めなければ
   assert.equal(failed.error, FONT_ERROR);
   // 握った例外の中身は、エラーの記録に残すために添える（spec-6-1 タスク B の点検の直し）。
   assert.equal(failed.detail.message, 'ENOENT');
-  assert.equal(FONT_ERROR, '日本語フォントを読めなかったため、テキストの書き込みを保存できません。');
+  assert.equal(FONT_ERROR, '日本語フォントを読み込めなかったため、テキストの書き込みを保存できません。');
 });
 
 test('embedBundledFont はサブセットのフォントと「文字を知る口」を返す', async () => {

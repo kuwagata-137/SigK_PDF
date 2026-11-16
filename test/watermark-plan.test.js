@@ -78,15 +78,15 @@ test('画像の透かしの spec は画像のパスを渡し、色は持たな�
 test('実行できない理由を返す（対象・文字・画像）', () => {
   const settings = { ...plan.DEFAULTS };
   const reason = (args) => plan.planOf({ source: READY_SOURCE, image: null, settings, ...args }).error;
-  assert.equal(reason({ source: null }), '透かしを入れる PDF を決めてください。');
-  assert.equal(reason({ source: { ...READY_SOURCE, pending: true } }), '対象の PDF を読んでいます…');
-  assert.equal(reason({ source: { ...READY_SOURCE, blocked: 'x。選び直してください' } }), '対象の PDF を選び直してください。');
-  assert.equal(reason({ settings: { ...settings, text: '  ' } }), '透かしの文字を入れてください。');
-  assert.equal(reason({ settings: { ...settings, text: 'あ'.repeat(51) } }), `透かしの文字は ${MAX_TEXT_LENGTH} 文字までです。`);
+  assert.equal(reason({ source: null }), '透かしを入れる PDF を指定してください。');
+  assert.equal(reason({ source: { ...READY_SOURCE, pending: true } }), '対象の PDF を読み込んでいます…');
+  assert.equal(reason({ source: { ...READY_SOURCE, blocked: 'x。選び直してください' } }), '対象の PDF をもう一度選択してください。');
+  assert.equal(reason({ settings: { ...settings, text: '  ' } }), '透かし文字を入力してください。');
+  assert.equal(reason({ settings: { ...settings, text: 'あ'.repeat(51) } }), `透かし文字は ${MAX_TEXT_LENGTH} 文字までです。`);
   const imageSettings = { ...settings, type: 'image' };
-  assert.equal(reason({ settings: imageSettings }), '透かしにする画像を選んでください。');
-  assert.equal(reason({ settings: imageSettings, image: { ...PNG, pending: true } }), '画像を読んでいます…');
-  assert.equal(reason({ settings: imageSettings, image: { ...PNG, error: 'PNG か JPEG の画像を選んでください。' } }), 'PNG か JPEG の画像を選んでください。');
+  assert.equal(reason({ settings: imageSettings }), '透かしに使う画像を選択してください。');
+  assert.equal(reason({ settings: imageSettings, image: { ...PNG, pending: true } }), '画像を読み込んでいます…');
+  assert.equal(reason({ settings: imageSettings, image: { ...PNG, error: 'PNG 画像か JPEG 画像を選択してください。' } }), 'PNG 画像か JPEG 画像を選択してください。');
 });
 
 test('文字の透かしでは画像の誤りを問わず、画像の透かしでは文字の誤りを問わない', () => {

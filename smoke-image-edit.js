@@ -15,6 +15,7 @@
 //   bmp       BMP に描き［上書き保存］→ 保存の窓（PNG を選ぶ）。PNG ができたかを見る
 //   pdf       PNG に描き［名前を付けて保存］で PDF。/Square の注釈が残るかを見る
 //   tools     画像のタブの道具の段で、灰色の道具と吹き出しの鍵を見る
+//   exif      EXIF の向きを持つ JPEG を開いて回し、上書き保存する（smoke-image-exif.js。spec-7-4 確定事項X1〜X3）
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -137,6 +138,11 @@ async function run({ win, dir, root, dialog, nativeImage }) {
   const js = (script) => win.webContents.executeJavaScript(script);
   const copy = (name, as) => { const target = path.join(dir, as); fs.copyFileSync(fixture(root, name), target); return target; };
   try {
+    // exif: EXIF の向きを持つ写真を開き、回して上書き保存する（smoke-image-exif.js）。SIGK_SMOKE_IMAGE_EDIT_ONLY=exif なら、これだけを行う。
+    report.exif = await require('./smoke-image-exif.js').run({ js, dir, nativeImage, saveScript, pixelsOf, dialog });
+    if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'exif')
+      return report;
+
     // png: 上書き保存（了承）
     const png = copy('image-wide.png', 'wide.png');
     const pngBefore = pixelsOf(nativeImage, png);
@@ -234,8 +240,16 @@ async function takeShots(win, dir) {
     document.getElementById('confirm-image-save-cancel').click();
     await window.__smokeSaving;
     await new Promise((resolve) => setTimeout(resolve, 300));
+    window.SigK.settingsDialog.open();
+    await new Promise((resolve) => setTimeout(resolve, 300));
   })()`);
-  return { tools, confirm };
+  // 設定の窓の「上書き保存」の欄（spec-7-4 確定事項BK1・CF3）。［キャンセル］で閉じる（設定は変えない）。
+  const settings = await shot('shot-settings.png');
+  await win.webContents.executeJavaScript(`(async () => {
+    window.SigK.settingsDialog.close();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  })()`);
+  return { tools, confirm, settings };
 }
 
 // 書いた PDF のページの大きさと注釈の種類（vendor の pdf-lib で読む。配布物に node_modules は無い）。

@@ -315,7 +315,7 @@ test('runTask の kind: flatten は焼くものが無ければ断って書かな
     assert.equal(broken.error, 'この PDF は内容が壊れているため保存できません。');
     const missing = await runTask({ kind: 'flatten-preview', source: path.join(dir, 'none.pdf') });
     assert.equal(missing.error, '元のファイルが見つかりません。移動または削除された可能性があります。');
-    assert.equal((await runTask({ kind: 'flatten-preview' })).error, '対象のファイルが決まっていません。');
+    assert.equal((await runTask({ kind: 'flatten-preview' })).error, '対象ファイルが指定されていません。');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

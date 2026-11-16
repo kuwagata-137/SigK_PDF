@@ -69,8 +69,8 @@ test('元の文書は変わらない', async () => {
 
 test('選択が空なら断る', async () => {
   const source = await makeDoc(2);
-  assert.match((await extractPages(source, [], { PDFDocument })).error, /選ばれていません/);
-  assert.match((await extractPages(source, null, { PDFDocument })).error, /選ばれていません/);
+  assert.match((await extractPages(source, [], { PDFDocument })).error, /選択されていません/);
+  assert.match((await extractPages(source, null, { PDFDocument })).error, /選択されていません/);
 });
 
 test('元の文書に無いページは断る', async () => {

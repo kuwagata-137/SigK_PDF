@@ -133,7 +133,7 @@ test('checkTiffSupport は非対応の圧縮を名指しで断る', () => {
 
 test('checkTiffSupport は色の形式で断る', () => {
   const base = { t256: [4], t257: [4], t273: [8] };
-  const bad = (page) => assert.equal(checkTiffSupport({ ...base, ...page }), 'この TIFF の色の形式には対応していません。');
+  const bad = (page) => assert.equal(checkTiffSupport({ ...base, ...page }), 'この TIFF のカラー形式には対応していません。');
   bad({ t258: [8, 8, 8], t259: [1], t262: [2], t277: [3], t284: [2] });     // PlanarConfiguration 2
   bad({ t258: [8, 8, 8], t259: [1], t262: [6], t277: [3] });                 // YCbCr の非圧縮
   bad({ t258: [8], t259: [1], t262: [8], t277: [1] });                       // CIELab

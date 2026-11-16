@@ -632,7 +632,7 @@ async function createShell({
         return { ok: true, path: filePath, name: filePath.split(/[\\/]/).pop(), size: bytes.length, kind: image.kind, width: image.width, height: image.height, bytes };
       },
     };
-    // エクスプローラーからの起動要求（spec-1-6 確定事項77・80）。
+    // エクスプローラーからの操作の起動要求（spec-1-6 確定事項77・80）。
     window.shellAPI = {
       available: true,
       onLaunch: (callback) => {

@@ -125,7 +125,7 @@ const stateScript = `(() => {
     fields: { width: value('props-width'), opacity: value('props-opacity'), opacityRange: value('props-opacity-range'), page: value('page-current') },
     current: state.current,
     scrollTop: Math.round(view.scrollTop),
-    zoom: document.getElementById('zoom-value')?.textContent ?? null,
+    zoom: document.getElementById('zoom-value')?.value ?? null,
     facing: state.facing,
     visible: visible.length,
     visibleDrawn: visible.filter((page) => page.querySelector('canvas') !== null).length,

@@ -106,13 +106,13 @@ test('ツールモードでも、ほかの処理（ツールの実行など）�
   const { SigK, document: doc } = shell;
   const saveAs = doc.getElementById('btn-save-as');
   let release = null;
-  const running = SigK.save.runLocal({ label: '画像に', run: () => new Promise((resolve) => { release = () => resolve({ ok: true }); }) });
+  const running = SigK.save.runLocal({ label: '画像に変換', run: () => new Promise((resolve) => { release = () => resolve({ ok: true }); }) });
   await shell.flush();
 
   assert.equal(doc.getElementById('btn-save').getAttribute('aria-disabled'), 'true');
   assert.equal(saveAs.getAttribute('aria-disabled'), 'true');
-  assert.match((await SigK.save.saveActive()).error, /いま画像にしています/);
-  assert.match((await SigK.save.saveAsActive()).error, /いま画像にしています/);
+  assert.match((await SigK.save.saveActive()).error, /現在、画像に変換中です/);
+  assert.match((await SigK.save.saveAsActive()).error, /現在、画像に変換中です/);
   assert.equal(shell.savePathCalls.length, 0);
 
   release();

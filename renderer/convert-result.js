@@ -44,21 +44,21 @@
     const max = tabs().MAX_TABS;
     const failed = total - opened.length - skipped;
     const folder = { autoHideMs: 0, tone: 'info', action: folderAction(targets[0]) };
-    const made = total === 1 ? `画像を PDF にして「${baseName(targets[0])}」を作りました` : `画像を ${total} 個の PDF にしました`;
+    const made = total === 1 ? `画像を PDF に変換して「${baseName(targets[0])}」を作成しました` : `画像を ${total} 個の PDF に変換しました`;
     // 1 つで帯が上限のときは、結合と同じく最近使ったファイルに載せるだけにする（tool-output.js）。
     if (skipped > 0 && opened.length === 0)
       banner().show(`${made}が、帯が ${max} 本を超えるので開いていません。`, total === 1 ? { tone: 'info' } : folder);
     else if (failed > 0 && opened.length > 0)
-      banner().show(`画像を ${total} 個の PDF にして、帯を ${opened.length} 本足しました。`
+      banner().show(`画像を ${total} 個の PDF に変換して、帯を ${opened.length} 本追加しました。`
         + (skipped > 0 ? `${skipped} 個は、帯が ${max} 本を超えるので開いていません。` : '') + `${failed} 個は開けませんでした。`, folder);
     else if (skipped > 0)
-      banner().show(`画像を ${total} 個の PDF にして、帯を ${opened.length} 本足しました。残りの ${skipped} 個は、帯が ${max} 本を超えるので開いていません。`, folder);
+      banner().show(`画像を ${total} 個の PDF に変換して、帯を ${opened.length} 本追加しました。残りの ${skipped} 個は、帯が ${max} 本を超えるので開いていません。`, folder);
     else if (opened.length === 0)
       banner().show(`${made}。`, folder);
     else if (total === 1)
-      banner().show(`画像を PDF にして、「${baseName(targets[0])}」の帯を足しました。`, { autoHideMs: 2500, tone: 'info' });
+      banner().show(`画像を PDF に変換して、「${baseName(targets[0])}」の帯を追加しました。`, { autoHideMs: 2500, tone: 'info' });
     else
-      banner().show(`画像を ${total} 個の PDF にして、帯を足しました。`, folder);
+      banner().show(`画像を ${total} 個の PDF に変換して、帯を追加しました。`, folder);
   }
 
   // 帯の上限まで 1 本ずつ開く（開いた帯が前に出るので、最後の 1 本が選ばれる。H11）。{ opened, skipped }。
@@ -123,10 +123,10 @@
     if (live.length === 0)
       return false;
     const single = state.paths.length === 1;
-    el.title.textContent = single ? `できた PDF（${baseName(live[0].path)}）` : `できた PDF（${live.length} 個）`;
-    el.desc.textContent = `新しい帯（${numbersText(live.map((entry) => entry.no))}）として足しました。続けて使うツールを選べます。`;
-    el.mergeText.textContent = single ? 'この PDF をほかの帯と結合する' : 'できた PDF をほかの帯と結合する';
-    el.splitText.textContent = single ? 'この PDF を分割する' : '最後にできた PDF を分割する';
+    el.title.textContent = single ? `作成した PDF（${baseName(live[0].path)}）` : `作成した PDF（${live.length} 個）`;
+    el.desc.textContent = `新しい帯（${numbersText(live.map((entry) => entry.no))}）として追加しました。続けて使うツールを選択できます。`;
+    el.mergeText.textContent = single ? 'この PDF をほかの帯と結合する' : '作成した PDF をほかの帯と結合する';
+    el.splitText.textContent = single ? 'この PDF を分割する' : '最後に作成した PDF を分割する';
     return true;
   }
 

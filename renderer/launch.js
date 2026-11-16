@@ -12,6 +12,7 @@
   // 右クリックで N 個選ぶと N 件）。ここは届いた順に 1 件ずつ画面へ渡すだけで、束の中の並びと、
   // 前の並びを置き換えるかは、受け取る画面が決める（tools-merge.js・tools-convert.js・tools-split.js）。
   // PDF はどの操作でもタブで開き、`open` ではモードを変えない（決定80）。
+  // 右クリックの「画像を編集する」（`editImage`）だけは、束の最初で編集モードへ切り替えてから、画像をタブで開く（spec-7-3）。
   //
   // **手が空いていなければ当てずに預かる**（論点4）。結合と画像→PDF は保存ダイアログから
   // 戻ってから一覧を読むので、その間に束が入ると出力に混ざるためである。
@@ -39,7 +40,7 @@
     for (const filePath of paths) {
       if (tabs.count() >= tabs.MAX_TABS && tabs.findByPath(filePath) === null) {
         if (openBatches().once('tabs'))
-          SigKOf().viewBanner.show(`${tabs.MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
+          SigKOf().viewBanner.show(`タブは ${tabs.MAX_TABS} 個まで開けます。タブが多すぎるので、使わないタブを閉じてください。`);
         continue;
       }
       const result = await SigKOf().toolHandoff.openOne(filePath);
@@ -71,8 +72,18 @@
     return result;
   }
 
+  // 画像を編集する（spec-7-3 確定事項C2・C3）。束の最初でだけ編集モードへ切り替え、そのあと届いた順に 1 枚ずつタブで開く。
+  // ツールモードから来ても、先に編集モードへ移すので、画像は帯ではなくタブになる。切り替えたモードは設定に覚える（確定事項C4）。
+  async function editImages(paths, batch) {
+    if (openBatches().enter(batch).starts)
+      SigKOf().shell.setMode(docOf(), 'annot');
+    const { opened } = await openTabs(paths);
+    return opened;
+  }
+
   const APPLY = {
     open: (paths, batch) => openAll(paths, batch),
+    editImage: (paths, batch) => editImages(paths, batch),
     // 結合・分割は帯（＝タブ）を対象にするので、開いてから束の帯にチェックを入れる・束の帯を選ぶ（spec-2-5 確定事項E7・G13。決定80 ㉛）。
     merge: (paths, batch) => SigKOf().toolsMerge.addFromLaunch(paths, { batch, open: (pdfs) => openPdfTabs(pdfs, batch) }),
     toPdf: (paths, batch) => intoTool(() => SigKOf().toolsConvert.addFromLaunch(paths, { batch }), paths, batch),

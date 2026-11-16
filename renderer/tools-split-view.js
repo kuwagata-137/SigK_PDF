@@ -50,7 +50,7 @@
     no.classList.toggle('even', box.file % 2 === 0);
     row.append(no, span('fname', name), span('p', rangeText(box.first, box.last)));
     // 説明の吹き出し（spec-2-5 J5）。
-    root.SigK.tipContent.text(row, name, 'クリックすると、このファイルの箱へ移ります。');
+    root.SigK.tipContent.text(row, name, 'クリックすると、この出力ファイルの枠へ移動します。');
     return row;
   }
 
@@ -88,7 +88,7 @@
     el.folder.textContent = settings.folder ?? '';
     // 出力先のフォルダの説明の吹き出し（spec-2-5 J5）。フォルダが決まっていない間は外す（空の欄に名前だけを出さない）。
     if (settings.folder)
-      root.SigK.tipContent.text(el.folder, '出力先のフォルダ', settings.folder);
+      root.SigK.tipContent.text(el.folder, '出力先フォルダ', settings.folder);
     else
       root.SigK.tipContent.clear(el.folder);
     el.ruleRadios.seq.checked = settings.rule === 'seq';
@@ -112,16 +112,16 @@
     if (plan.reason === 'no-source')
       return '';
     if (plan.reason === 'untouched')
-      return '✂ で分け目を入れるか、書き出さないページを決めると、実行できます。';
+      return '✂ で分割位置を追加するか、書き出さないページを指定すると、実行できます。';
     if (plan.reason === 'empty')
-      return '書き出すページが 1 枚も無いので、書き出さない印をどれか外してください。';
+      return '書き出すページが 1 枚も無いので、「書き出さない」のマークをどれか解除してください。';
     if (plan.reason === 'too-many')
-      return `いまの分け方では ${digits(plan.files)} ファイルになり、上限の ${root.SigK.splitPlan.MAX_OUTPUTS} を超えるので、実行できません。`;
+      return `現在の分割位置では ${digits(plan.files)} ファイルになり、上限の ${root.SigK.splitPlan.MAX_OUTPUTS} を超えるので、実行できません。`;
     const board = edit().board();
     const files = `${countOf(plan.files)}のファイル`;
     if (board.skipped.length === 0)
-      return `${digits(board.pageCount)} ページを ${files}に分けます。`;
-    return `${skippedText(board)}を書き出さずに、残りの ${digits(board.pageCount - board.skipped.length)} ページを ${files}に分けます。`;
+      return `${digits(board.pageCount)} ページを ${files}に分割します。`;
+    return `${skippedText(board)}を書き出さずに、残りの ${digits(board.pageCount - board.skipped.length)} ページを ${files}に分割します。`;
   }
 
   function render() {

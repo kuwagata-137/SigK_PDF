@@ -30,7 +30,7 @@ test('pickMergeSources は複数選択で、選んだ順にパスを返す', asy
 });
 
 // ツールモードの帯の受け口の［ファイルを開く…］（spec-2-5 確定事項D7）。選んだものはタブで開く。
-test('pickOpenSources は「開く PDF を選ぶ」の窓で複数を選び、取り消せる', async () => {
+test('pickOpenSources は「開く PDF を選択」の窓で複数を選び、取り消せる', async () => {
   const calls = [];
   const dialogLike = {
     showOpenDialog: async (options) => {
@@ -39,7 +39,7 @@ test('pickOpenSources は「開く PDF を選ぶ」の窓で複数を選び、�
     },
   };
   assert.deepEqual(await pickOpenSources({ dialogLike }), { paths: [IN_B, IN_A] });
-  assert.equal(calls[0].title, '開く PDF を選ぶ');
+  assert.equal(calls[0].title, '開く PDF を選択');
   assert.ok(calls[0].properties.includes('multiSelections'));
   assert.deepEqual(calls[0].filters, PDF_FILTERS);
   assert.deepEqual(await pickOpenSources({ dialogLike: { showOpenDialog: async () => ({ canceled: true }) } }), { canceled: true });

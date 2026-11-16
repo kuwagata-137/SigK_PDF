@@ -45,7 +45,7 @@
       name.textContent = '混在';
     else
       name.textContent = color === null ? 'なし' : palette().labelOf(color);
-    chip.setAttribute('aria-label', `${label} ${name.textContent} の一覧`);
+    chip.setAttribute('aria-label', `${label}（${name.textContent}）の一覧を表示`);
   }
 
   // 左側のボタン。絵を役割に合わせ、帯を直前の色にする。
@@ -60,7 +60,7 @@
     }
     main.dataset.role = role;
     main.querySelector('.bar').style.background = color ?? '';
-    const text = `${label}を ${palette().labelOf(color)} にする`;
+    const text = `${label}を ${palette().labelOf(color)} に変更`;
     root.SigK.tipContent.text(main, text);
     main.setAttribute('aria-label', text);
   }
@@ -72,7 +72,7 @@
     sample.style.background = set.fill;
     sample.style.borderColor = set.stroke;
     sample.style.color = set.text ?? '#222a35';
-    const text = `一括 ${palette().STYLE_SET_ROWS[Math.floor((memory()?.lastStyle() ?? 0) / 7)]} ${palette().labelOf(set.stroke)} を当てる`;
+    const text = `一括 ${palette().STYLE_SET_ROWS[Math.floor((memory()?.lastStyle() ?? 0) / 7)]} ${palette().labelOf(set.stroke)} を適用`;
     root.SigK.tipContent.text(main, text);
     main.setAttribute('aria-label', text);
   }

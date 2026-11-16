@@ -2,7 +2,8 @@
 
 // 「変換する画像」の帯の画像を横に引いて並べ替える（spec-2-5 確定事項H6）。image-strip-drag.js。
 //
-// jsdom は大きさを数えないので、画像の枠の rect を差し替える（幅 104px・間 12px。strips.css と image-strip-zoom.js の itemStep。紙の倍率 100%）。
+// jsdom は大きさを数えないので、画像の枠の rect を差し替える（幅 104px・間 12px。strips.css と image-strip-zoom.js の itemStep。紙の倍率 50%。
+// 決定93 の前の 100% と同じ大きさ）。
 // 引いて落とす基本と、実行中に引けないことは test/tools-convert.test.js が見ている。
 
 const test = require('node:test');
@@ -29,6 +30,8 @@ async function createDragShell(t) {
   await shell.SigK.tabs.openPath(PDF);
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('convert');
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  shell.SigK.toolsZoom.set(0.5);
   await shell.SigK.toolsConvert.addPaths([A, B, C]);
   return shell;
 }

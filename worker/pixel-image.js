@@ -32,11 +32,11 @@ function colorSpaceOf(context, pixels, { PDFName, PDFHexString }) {
 
 function validatePixels(pixels) {
   if (!(pixels?.width > 0) || !(pixels?.height > 0))
-    return '画像の大きさを読み取れませんでした。';
+    return '画像サイズを読み取れませんでした。';
   if (COLOR_SPACES[pixels.colorSpace] === undefined && pixels.colorSpace !== 'indexed')
-    return '画像の色の形式を扱えません。';
+    return '画像のカラー形式に対応していません。';
   if (![1, 2, 4, 8].includes(pixels.bitsPerComponent))
-    return '画像の色の形式を扱えません。';
+    return '画像のカラー形式に対応していません。';
   if (!(pixels.bytes instanceof Uint8Array))
     return '画像を読み込めませんでした。ファイルが壊れている可能性があります。';
   return null;

@@ -6,7 +6,7 @@
   // 「1 つにまとめる」は保存先を OS の保存ダイアログが決め、同名の確認もダイアログに任せる（結合と同じ）。「画像ごと」は出力先を
   // 画像の並びから組み、同名は 3 択で 1 回だけ確かめる。書くのはワーカー（save.js の runTask）。書けたあとの始末は convert-result.js。
 
-  const SAME_AS_INPUT = '出力先に入力ファイルと同じファイルは選べません。';
+  const SAME_AS_INPUT = '出力先に入力ファイルと同じファイルは選択できません。';
 
   const banner = () => root.SigK.viewBanner;
   const convert = () => root.SigK.toolsConvert;
@@ -82,7 +82,7 @@
     if (picked?.canceled === true)
       return { canceled: true };
     if (typeof picked?.path !== 'string')
-      return { error: picked?.error ?? '保存先を決められませんでした。' };
+      return { error: picked?.error ?? '保存先を指定できませんでした。' };
     const target = picked.path;
     if (isInput(target))
       return refuse(SAME_AS_INPUT);

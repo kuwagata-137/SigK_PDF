@@ -13,7 +13,7 @@ function childrenOf(document) {
   return [...document.getElementById('edit-bar').children].filter((node) => node.matches('.edit-sep, .edit-item:not(.edit-more)'));
 }
 
-// 右端の hide 個（トリミング・モザイクから左へ。区切り線も 1 個に数える）を隠す。
+// 右端の hide 個（右回転・左回転・区切り線・トリミング・モザイクから左へ。区切り線も 1 個に数える）を隠す。
 function hideRight(shell, hide) {
   const children = childrenOf(shell.document).map((node) => ({ width: node.classList.contains('edit-sep') ? 7 : 48, sep: node.classList.contains('edit-sep') }));
   const keep = children.length - hide;
@@ -21,7 +21,7 @@ function hideRight(shell, hide) {
   shell.SigK.editBarOverflow.fit({ children, available: span + 5 + 48, gap: 5, padding: [0, 0], moreWidth: 48 });
 }
 
-async function withHidden(t, hide = 5) {
+async function withHidden(t, hide = 8) {
   const shell = await createShell({ pdfjs: createPdfjsStub(), files: { [A]: makeSource({ path: A, name: 'a.pdf' }) } });
   t.after(() => shell.cleanup());
   await shell.SigK.tabs.openPath(A);
@@ -46,7 +46,7 @@ test('「その他」を押すと隠した道具の一覧が開き、もう一�
   button.click();
   assert.equal(menu.hidden, false);
   assert.equal(button.getAttribute('aria-expanded'), 'true');
-  assert.deepEqual(rowNames(document), ['消しゴム', 'ノート', 'モザイク', 'トリミング']);
+  assert.deepEqual(rowNames(document), ['消しゴム', 'ノート', 'モザイク', 'トリミング', '左回転', '右回転']);
   assert.ok(document.querySelector('#edit-more-menu .edit-more-row svg') !== null, '行に道具のアイコン');
   assert.equal(document.activeElement.textContent, '消しゴム', '先頭の行に移る');
   button.click();
@@ -58,7 +58,7 @@ test('一覧の行は、道具の段のボタンと同じ説明の吹き出し�
   const { document, SigK } = await withHidden(t);
   document.getElementById('edit-more').click();
   const rows = [...document.querySelectorAll('#edit-more-menu .edit-more-row')];
-  assert.deepEqual(rows.map((row) => row.dataset.tip), ['edit.eraser', 'edit.note', 'edit.mosaic', 'edit.trim']);
+  assert.deepEqual(rows.map((row) => row.dataset.tip), ['edit.eraser', 'edit.note', 'edit.mosaic', 'edit.trim', 'edit.rotateLeft', 'edit.rotateRight']);
   assert.equal(SigK.tipContent.resolve(rows[0]).name, '消しゴム');
 });
 
@@ -86,20 +86,20 @@ test('一覧の道具を押すとその道具を持ち、一覧は閉じて「�
 });
 
 test('キーボード: ↓ で開き、↑↓・Home・End で移り、Enter で選び、Esc で閉じて「その他」へ戻る', async (t) => {
-  const shell = await withHidden(t, 6);
+  const shell = await withHidden(t, 9);
   const { document, SigK } = shell;
   const button = document.getElementById('edit-more');
   key(shell, button, 'ArrowDown');
-  assert.deepEqual(rowNames(document), ['マーカー', '消しゴム', 'ノート', 'モザイク', 'トリミング']);
+  assert.deepEqual(rowNames(document), ['マーカー', '消しゴム', 'ノート', 'モザイク', 'トリミング', '左回転', '右回転']);
   const menu = document.getElementById('edit-more-menu');
   key(shell, menu, 'ArrowDown');
   assert.equal(document.activeElement.textContent, '消しゴム');
   key(shell, menu, 'End');
-  assert.equal(document.activeElement.textContent, 'トリミング');
+  assert.equal(document.activeElement.textContent, '右回転');
   key(shell, menu, 'ArrowDown');
   assert.equal(document.activeElement.textContent, 'マーカー', '端で反対の端へ');
   key(shell, menu, 'ArrowUp');
-  assert.equal(document.activeElement.textContent, 'トリミング');
+  assert.equal(document.activeElement.textContent, '右回転');
   key(shell, menu, 'Home');
   assert.equal(document.activeElement.textContent, 'マーカー');
   const enter = key(shell, menu, 'Enter');
@@ -129,6 +129,16 @@ test('Esc の順の先頭で一覧を閉じ（道具は離さない）、一覧�
   assert.equal(SigK.editBarMore.isOpen(), false);
   document.getElementById('edit-more').click();
   hideRight(shell, 1);
+  assert.equal(SigK.editBarMore.isOpen(), false);
+});
+
+test('一覧の［右回転］を押すと、見ているページを右に 90° 回し、道具は持たない（spec-7-4 確定事項RT1）', async (t) => {
+  const { document, SigK } = await withHidden(t);
+  document.getElementById('edit-more').click();
+  const row = [...document.querySelectorAll('#edit-more-menu .edit-more-row')].find((node) => node.textContent === '右回転');
+  row.click();
+  assert.equal(SigK.viewer.getPlan()[0].rotate, 90);
+  assert.equal(SigK.annotate.getTool(), null);
   assert.equal(SigK.editBarMore.isOpen(), false);
 });
 

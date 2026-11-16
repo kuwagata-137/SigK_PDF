@@ -12,7 +12,7 @@ const { failure } = require('./task-failure.js');
 const { GifReader } = require(path.join(__dirname, '..', 'vendor', 'omggif.js'));
 
 const BROKEN = '画像を読み込めませんでした。ファイルが壊れている可能性があります。';
-const SIZE_UNREADABLE = '画像の大きさを読み取れませんでした。';
+const SIZE_UNREADABLE = '画像サイズを読み取れませんでした。';
 
 function decodeGif(bytes) {
   let reader;

@@ -197,17 +197,19 @@ test('紙の倍率を上げると画像の枠の間隔が広がり、画素比 2
   shell.window.devicePixelRatio = 2;
   await shell.SigK.toolsConvert.addPaths(MANY.slice(0, 2));
   await shell.flush();
-  assert.deepEqual(structuredClone(shell.thumbnailSizes), [208, 208]);
-  assert.equal(shell.SigK.imageStripZoom.itemStep(), 116);
-  assert.equal(shell.document.documentElement.style.getPropertyValue('--paper-zoom'), '1');
+  // 決定93 で 100% を前の 200% の大きさにしたので、枠の幅は 100% で 208px（間を入れて 220px）、画素比 2 で頼む縮小は 416px
+  // （spec-7-6 確定事項ZT1）。--paper-zoom は画面上の大きさの倍率（表示する倍率×2）。
+  assert.deepEqual(structuredClone(shell.thumbnailSizes), [416, 416]);
+  assert.equal(shell.SigK.imageStripZoom.itemStep(), 220);
+  assert.equal(shell.document.documentElement.style.getPropertyValue('--paper-zoom'), '2');
 
   shell.SigK.toolsZoom.set(2);
-  assert.equal(shell.document.documentElement.style.getPropertyValue('--paper-zoom'), '2');
-  assert.equal(shell.SigK.imageStripZoom.itemStep(), 220);
+  assert.equal(shell.document.documentElement.style.getPropertyValue('--paper-zoom'), '4');
+  assert.equal(shell.SigK.imageStripZoom.itemStep(), 428);
   assert.ok(shell.SigK.imageThumbs.get(MANY[0])?.url !== undefined, '大きいものが届く前に前の縮小を捨てた');
   await shell.flush();
-  assert.deepEqual(structuredClone(shell.thumbnailSizes), [208, 208, 416, 416]);
-  assert.equal(shell.SigK.imageThumbs.get(MANY[0]).px, 416);
+  assert.deepEqual(structuredClone(shell.thumbnailSizes), [416, 416, 832, 832]);
+  assert.equal(shell.SigK.imageThumbs.get(MANY[0]).px, 832);
 
   // 下げても、大きいものを持っていれば頼み直さない。
   shell.SigK.toolsZoom.set(1);

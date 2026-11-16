@@ -43,7 +43,9 @@ const parts = (shell) => plain(shell.SigK.toolsSplit.currentPlan().parts);
 test('分割を選ぶと、盤は選んでいる帯の中に入り、帯を選び替えると移る。分割を離れると元の場所へ戻す（G1・G5）', async (t) => {
   const { shell } = await createStripShell(t);
   const { SigK } = shell;
-  const height = `${SigK.stripLayout.STRIP_HEIGHT}px`;
+  // 普通の帯の高さは、今の倍率の帯の高さ（決定93 で 100% を前の 200% の大きさにしたので、100% で 292px）。
+  const height = `${SigK.stripLayout.stripHeight(SigK.stripLayout.zoom())}px`;
+  assert.equal(height, '292px');
   assert.equal(board(shell).parentNode, nodeOf(shell, B), '最後に開いた b.pdf の帯');
   assert.equal(board(shell).hidden, false);
   assert.equal(nodeOf(shell, B).classList.contains('board'), true, '帯の紙の列を隠す印');

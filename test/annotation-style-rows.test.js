@@ -81,9 +81,9 @@ test('道具ごとに出す行と、色の行の見出しが替わる', async (t
   assert.deepEqual(shownStyles(document), ['solid', 'dashed', 'cloudy']);
   assert.equal(document.getElementById('props-fill-name').textContent, 'なし');
   assert.equal(document.querySelector('#props-fill-row .cur .sw').classList.contains('none'), true, '「なし」は白地に斜線');
-  // ▼ は「…の一覧」、左側は「…を 直前の色 にする」と読み上げ、2 つのボタンを聞き分けられる（spec-7-2 確定事項A1）。
-  assert.equal(document.getElementById('props-color').getAttribute('aria-label'), '線の色 #FF0000 の一覧');
-  assert.equal(document.getElementById('props-color-apply').getAttribute('aria-label'), '線の色を #ED7D31 にする');
+  // ▼ は「…の一覧を表示」、左側は「…を 直前の色 に変更」と読み上げ、2 つのボタンを聞き分けられる（spec-7-2 確定事項A1）。
+  assert.equal(document.getElementById('props-color').getAttribute('aria-label'), '線の色（#FF0000）の一覧を表示');
+  assert.equal(document.getElementById('props-color-apply').getAttribute('aria-label'), '線の色を #ED7D31 に変更');
   SigK.annotate.setShapeKind('line');
   assert.deepEqual(shownRows(document), ['color', 'style', 'width', 'opacity']);
   assert.deepEqual(shownStyles(document), ['solid', 'dashed']);

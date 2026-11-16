@@ -28,7 +28,7 @@ test('render は大きさがあれば行を出して値を入れ、null なら�
   assert.equal(SigK.annotationTextRows.render(18), true);
   assert.equal(row.hidden, false);
   assert.equal(number.value, '18');
-  assert.equal(label.textContent, '文字の大きさ');
+  assert.equal(label.textContent, '文字サイズ');
   SigK.annotationTextRows.render({ value: 24, mixed: true, label: '文字の大きさ（テキスト）' });
   assert.equal(number.value, '');
   assert.equal(number.placeholder, '–');

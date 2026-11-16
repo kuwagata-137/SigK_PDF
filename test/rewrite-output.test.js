@@ -24,10 +24,10 @@ const MESSAGES = { canceled: 'やめました。', failed: 'できませんで�
 test('refusalFor は入力と同じ出力先（大文字小文字・区切りを問わず）と、タブで開いている出力先を断る', async (t) => {
   const shell = await openShell(t);
   const { refusalFor } = shell.SigK.rewriteOutput;
-  assert.equal(refusalFor('c:/work/A.PDF', A), '出力先に入力ファイルと同じファイルは選べません。');
+  assert.equal(refusalFor('c:/work/A.PDF', A), '出力先に入力ファイルと同じファイルは選択できません。');
   assert.equal(refusalFor(B, A), null);
   await shell.SigK.tabs.openPath(B);
-  assert.equal(refusalFor('C:/WORK/b.pdf', A), '出力先のファイルはタブで開いているので、タブを閉じるか、別の名前を選んでください。');
+  assert.equal(refusalFor('C:/WORK/b.pdf', A), '出力先ファイルはタブで開いているので、タブを閉じるか、別の名前を指定してください。');
 });
 
 test('chooseTarget は保存ダイアログの答えを { target } / { canceled } / { error } にする', async (t) => {
@@ -36,8 +36,8 @@ test('chooseTarget は保存ダイアログの答えを { target } / { canceled 
   assert.deepEqual(structuredClone(await choose()), { target: OUT });
   assert.deepEqual(structuredClone(await choose()), { canceled: true });
   assert.deepEqual(structuredClone(await choose()), { error: '選べませんでした。' });
-  assert.deepEqual(structuredClone(await choose()), { error: '出力先に入力ファイルと同じファイルは選べません。' });
-  assert.equal(shell.SigK.viewBanner.text(), '出力先に入力ファイルと同じファイルは選べません。');
+  assert.deepEqual(structuredClone(await choose()), { error: '出力先に入力ファイルと同じファイルは選択できません。' });
+  assert.equal(shell.SigK.viewBanner.text(), '出力先に入力ファイルと同じファイルは選択できません。');
   assert.deepEqual(structuredClone(shell.savePathCalls[0]), { defaultPath: 'C:\\work\\a_x.pdf', title: 'T' });
 });
 

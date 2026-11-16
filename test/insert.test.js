@@ -73,7 +73,7 @@ test('保存中は挿入できない', async (t) => {
   await shell.flush();
 
   assert.equal(shell.SigK.insert.canInsert(), false);
-  assert.match((await shell.SigK.insert.run()).error, /いま保存しています/);
+  assert.match((await shell.SigK.insert.run()).error, /現在、保存中です/);
 
   release();
   await saving;

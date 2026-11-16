@@ -69,7 +69,7 @@
     event.preventDefault();
     // 差し込んだ未保存のページは切らない（確定事項16）。
     if (!Number.isInteger(viewer().getPlan()[page.index]?.src)) {
-      root.SigK.viewBanner?.show('差し込んだページは、保存してから切ってください。', { tone: 'warn' });
+      root.SigK.viewBanner?.show('差し込んだページは、保存してからトリミングしてください。', { tone: 'warn' });
       return true;
     }
     const viewport = viewportOf(page.index);

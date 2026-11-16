@@ -63,7 +63,7 @@
       return { error: '分割できる状態ではありません。' };
     const sourceKey = split().pathKey(src.path);
     if (current.targets.some((target) => split().pathKey(target) === sourceKey))
-      return refuse('出力先に元のファイルと同じファイルは選べません。');
+      return refuse('出力先に元のファイルと同じファイルは選択できません。');
 
     const resolved = await resolveTargets(current.targets);
     if (resolved.canceled === true)

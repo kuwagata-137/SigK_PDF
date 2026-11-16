@@ -19,7 +19,7 @@ const { embedImage } = require('./image-page.js');
 const { failure } = require('./task-failure.js');
 const WATERMARK_NAME = 'SigKWM';
 const MAX_TEXT_LENGTH = 50;
-const WATERMARK_FONT_ERROR = '日本語フォントを読めなかったため、文字の透かしを入れられません。';
+const WATERMARK_FONT_ERROR = '日本語フォントを読み込めなかったため、文字の透かしを入れられません。';
 // 透かしの行を包む印（ページ付けの付随物のうちの透かし。読み上げなどが本文と見分けられる）。
 const ARTIFACT_OPEN = '/Artifact <</Type /Pagination /Subtype /Watermark>> BDC';
 const IMAGE_KINDS = new Set(['png', 'jpeg']);
@@ -49,15 +49,15 @@ function normalizeText(text) {
 function textForm(mark, fontSource) {
   const text = normalizeText(mark.text);
   if (text === '')
-    return { error: '透かしの文字を入れてください。' };
+    return { error: '透かし文字を入力してください。' };
   if (text.length > MAX_TEXT_LENGTH)
-    return { error: `透かしの文字は ${MAX_TEXT_LENGTH} 文字までです。` };
+    return { error: `透かし文字は ${MAX_TEXT_LENGTH} 文字までです。` };
   const loaded = fontSource.load();
   if (loaded.ok !== true)
     return { error: WATERMARK_FONT_ERROR };
   const appearance = textMarkOf(outlineOf(loaded.fontkit.create(loaded.bytes), text), mark);
   if (appearance === null)
-    return { error: '透かしの文字を描けません。' };
+    return { error: '透かし文字を描画できません。' };
   return { ok: true, appearance, resources: {} };
 }
 
@@ -66,19 +66,19 @@ async function imageForm(doc, mark, TOOLS, readFile) {
   try {
     bytes = await readFile(mark.image);
   } catch (error) {
-    return failure('透かしの画像を読めませんでした。', error);
+    return failure('透かし画像を読み込めませんでした。', error);
   }
   const kind = detectFormat(bytes);
   if (!IMAGE_KINDS.has(kind))
-    return { error: 'PNG か JPEG の画像を選んでください。' };
+    return { error: 'PNG 画像か JPEG 画像を選択してください。' };
   if (kind === 'jpeg' && isProgressiveJpeg(bytes))
-    return { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。' };
+    return { error: 'この JPEG はプログレッシブ形式なので、透かしに使用できません。' };
   const embedded = await embedImage(doc, { kind, bytes }, TOOLS);
   if (embedded.ok !== true)
     return embedded;
   const appearance = imageMarkOf({ width: embedded.image.width, height: embedded.image.height, opacity: mark.opacity });
   if (appearance === null)
-    return { error: '画像の大きさを読み取れませんでした。' };
+    return { error: '画像サイズを読み取れませんでした。' };
   return { ok: true, appearance, resources: { XObject: { Im: embedded.image.ref } } };
 }
 
@@ -123,7 +123,7 @@ async function applyWatermark(doc, { pages, mark }, TOOLS, { fontSource, readFil
   if (!validPages(pages, doc.getPageCount()))
     return { error: '透かしを入れるページが正しくありません。' };
   if (!validMark(mark))
-    return { error: '透かしの設定が読めません。' };
+    return { error: '透かし設定を読み取れません。' };
   const form = mark.type === 'text' ? textForm(mark, fontSource) : await imageForm(doc, mark, TOOLS, readFile);
   if (form.ok !== true)
     return form;
@@ -138,7 +138,7 @@ async function applyWatermark(doc, { pages, mark }, TOOLS, { fontSource, readFil
     });
     const name = matrix === null ? null : xobjectName(page, ref, TOOLS);
     if (name === null)
-      return { error: `${index + 1} ページ目に透かしを置けません。` };
+      return { error: `${index + 1} ページ目に透かしを配置できません。` };
     const line = `${ARTIFACT_OPEN} q ${matrixText(matrix)} cm /${name} Do Q EMC`;
     page.node.addContentStream(doc.context.register(doc.context.stream(line)));
   }

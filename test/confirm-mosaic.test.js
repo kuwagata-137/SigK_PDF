@@ -33,11 +33,11 @@ test('上書きと名前を付けて保存で文面を替え、名前を付け�
   shell.SigK.confirmMosaic.ask({ mode: 'overwrite', count: 2, pages: '1・3 ページ目', name: 'a.pdf' });
   assert.equal(byId(shell, 'confirm-mosaic-text').textContent, 'モザイクを入れた 2 ページ（1・3 ページ目）を、丸ごと画像に置き換えて「a.pdf」に上書き保存します。');
   assert.equal(byId(shell, 'confirm-mosaic-loss').textContent, 'そのページの文字は検索・選択・コピーできなくなり、モザイクの下の内容は元に戻せません。書き込みは書き込みのまま残ります。');
-  assert.equal(byId(shell, 'confirm-mosaic-backup').textContent, '元の内容が残らないよう、このときは控えのファイル（.bak）を作りません。前に作った控えがあれば消します。');
+  assert.equal(byId(shell, 'confirm-mosaic-backup').textContent, '元の内容が残らないよう、この場合はバックアップファイル（.bak）を作成しません。以前に作成したバックアップファイルがあれば削除します。');
   assert.equal(byId(shell, 'confirm-mosaic-backup').hidden, false);
   byId(shell, 'confirm-mosaic-cancel').click();
   shell.SigK.confirmMosaic.ask({ mode: 'saveAs', count: 1, pages: '2 ページ目', name: 'b.pdf', sourceName: 'a.pdf' });
-  assert.equal(byId(shell, 'confirm-mosaic-text').textContent, 'モザイクを入れた 1 ページ（2 ページ目）を、丸ごと画像に置き換えて「b.pdf」に保存します。元のファイル「a.pdf」は変わりません。');
+  assert.equal(byId(shell, 'confirm-mosaic-text').textContent, 'モザイクを入れた 1 ページ（2 ページ目）を、丸ごと画像に置き換えて「b.pdf」に保存します。元のファイル「a.pdf」は変更されません。');
   assert.equal(byId(shell, 'confirm-mosaic-loss').textContent, '保存したファイルでは、そのページの文字は検索・選択・コピーできず、モザイクの下の内容は元に戻せません。書き込みは書き込みのまま残ります。');
   assert.equal(byId(shell, 'confirm-mosaic-backup').hidden, true);
 });

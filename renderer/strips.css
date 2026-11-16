@@ -4,6 +4,8 @@
 .strips-screen{position:absolute; inset:0; z-index:1; display:flex; flex-direction:column; background:var(--bg)}
 .strips-screen[hidden]{display:none}
 .strips{flex:1; min-height:0; overflow:auto; padding:12px 14px 14px; display:flex; flex-direction:column; gap:10px}
+/* 帯をクリックするとフォーカスが帯の画面に移る（spec-7-5 確定事項K1）。枠線は出さない（左パネルの .side-scroll と同じ）。 */
+.strips:focus{outline:none}
 
 .strip{display:flex; flex-direction:column; flex:0 0 auto; box-sizing:border-box; border:1px solid var(--border-strong); border-radius:var(--radius); background:var(--surface); padding:7px 10px 4px; cursor:pointer}
 .strip.sel{border:2px solid var(--accent); padding:6px 9px 3px; box-shadow:0 0 0 3px var(--select)}

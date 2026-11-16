@@ -42,7 +42,7 @@
 
   // 枠があるとき: 残す大きさと［取消］［適用］。
   function renderFrame(props, frame) {
-    el.sizeLabel.textContent = '残す大きさ';
+    el.sizeLabel.textContent = 'トリミングサイズ';
     el.size.textContent = tool().labelOf(frame);
     el.actions.hidden = false;
     el.remove.hidden = true;
@@ -52,12 +52,12 @@
   // このページのとき: 切ってあるか。すべてのページのとき: 切ってあるページの数。
   function statusText(scope, status) {
     if (scope === 'all')
-      return status.count > 0 ? `${status.count} ページを切ってあります` : 'どのページも紙全体のままです';
+      return status.count > 0 ? `${status.count} ページをトリミングしてあります` : 'どのページもトリミングしていません';
     if (status.page === null)
-      return '差し込んだページは切れません';
+      return '差し込んだページはトリミングできません';
     if (!status.page.cropped)
-      return '紙全体のままです';
-    return `切ってあります（${root.SigK.pageCrop.sizeLabel(status.page.box, status.page.rotation)}）`;
+      return 'トリミングしていません';
+    return `トリミングしてあります（${root.SigK.pageCrop.sizeLabel(status.page.box, status.page.rotation)}）`;
   }
 
   // 枠が無いとき: 今のページ（すべてなら全部）が切ってあるかと［トリミングを外す］。

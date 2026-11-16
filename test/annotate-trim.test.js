@@ -250,7 +250,7 @@ test('差し込んだ未保存のページで引くと、枠を出さずに通�
   fire(shell, 'mouseup', pageNode(shell, index), [200, 200]);
   assert.equal(down.defaultPrevented, true);
   assert.equal(frameOf(shell), null);
-  assert.equal(SigK.viewBanner.text(), '差し込んだページは、保存してから切ってください。');
+  assert.equal(SigK.viewBanner.text(), '差し込んだページは、保存してからトリミングしてください。');
   assert.equal(document.getElementById('view-banner').getAttribute('data-tone'), 'warn');
 });
 

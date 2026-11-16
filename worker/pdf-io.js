@@ -24,6 +24,7 @@ const TOOLS = {
   PDFImage: pdfLib.PDFImage,               // 画素列の埋め込み（pixel-image.js。spec-3-2 確定事項18）
   PngEmbedder: pdfLib.PngEmbedder,
   rgb: pdfLib.rgb,
+  degrees: pdfLib.degrees,                 // 写真の EXIF の向きを、ページの回転にする（image-open-task.js。spec-7-4 確定事項X1）
   PDFString: pdfLib.PDFString,             // 注釈の /NM・/M・/Contents（op-annotate.js。spec-4-1 確定事項25）
   PDFArray: pdfLib.PDFArray,
   PDFRef: pdfLib.PDFRef,
@@ -65,11 +66,11 @@ function describeSourceReadFailure(error) {
       return '元のファイルが見つかりません。移動または削除された可能性があります。';
     case 'EACCES':
     case 'EPERM':
-      return '元のファイルを読む権限がありません。';
+      return '元のファイルを読み取る権限がありません。';
     case 'EBUSY':
       return '元のファイルが他のプログラムで使われています。';
     default:
-      return '元のファイルを読めませんでした。';
+      return '元のファイルを読み込めませんでした。';
   }
 }
 

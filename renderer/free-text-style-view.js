@@ -27,7 +27,7 @@
     if (texts.length === 0)
       return { fontSize: null, format: null, border: null };
     return {
-      fontSize: { ...valueOf(texts, 'fontSize'), label: labelOf(texts, live, '文字の大きさ') },
+      fontSize: { ...valueOf(texts, 'fontSize'), label: labelOf(texts, live, '文字サイズ') },
       format: { bold: valueOf(texts, 'bold'), italic: valueOf(texts, 'italic'), label: labelOf(texts, live, '書式') },
       border: { ...valueOf(texts, 'border'), label: labelOf(texts, live, '枠線') },
     };

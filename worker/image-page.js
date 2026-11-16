@@ -21,7 +21,13 @@
 // BMP・GIF・TIFF は image-decode.js で画素へ展開し、pixel-image.js で /XObject にする。
 // 複数ページの TIFF は `frame` でページを選ぶ。PNG・JPEG は従来どおり pdf-lib に渡す。
 
+//
+// 【写真の向き】（spec-7-4 確定事項X4・X5。2026-11-12）
+// JPEG の EXIF の向きのうち回転（3・6・8）は、向きを当てた後の寸法で枠に収め、元の画素を回して描く。縦長の写真が
+// 横倒しの PDF にならないようにするため（ツールモードの帯の縮小画像は、Windows の縮小処理で向きを当てて表示している）。
+
 const { imageSize, MAX_PIXELS } = require('./image-format.js');
+const { rotationOfJpeg, uprightSize } = require('./jpeg-orientation.js');
 const { decodeImage } = require('./image-decode.js');
 const { embedPixels } = require('./pixel-image.js');
 
@@ -53,7 +59,7 @@ async function embedWithPdfLib(doc, kind, bytes) {
 // 自分で画素へ展開する形式（BMP・GIF・TIFF）。tools に PDFImage・PngEmbedder・PDFName・PDFHexString が要る。
 async function embedDecoded(doc, kind, bytes, frame, tools) {
   if (typeof tools?.PDFImage?.of !== 'function' || typeof tools?.PngEmbedder !== 'function')
-    return { error: '画像を埋め込む道具が揃っていません。' };
+    return { error: '画像埋め込みに必要な機能がそろっていません。' };
   const decoded = decodeImage(kind, bytes, { frame });
   if (decoded.ok !== true)
     return passFailure(decoded);
@@ -65,7 +71,7 @@ async function embedDecoded(doc, kind, bytes, frame, tools) {
 async function embedImage(doc, { kind, bytes }, tools = {}, { frame = 0 } = {}) {
   const pixels = imageSize(kind, bytes, { frame });
   if (pixels === null || !(pixels.width > 0) || !(pixels.height > 0))
-    return { error: '画像の大きさを読み取れませんでした。' };      // 0画素も含む（確定事項57）
+    return { error: '画像サイズを読み取れませんでした。' };      // 0画素も含む（確定事項57）
   if (pixels.width * pixels.height > MAX_PIXELS)
     return { error: '画像が大きすぎます。' };
 
@@ -75,30 +81,46 @@ async function embedImage(doc, { kind, bytes }, tools = {}, { frame = 0 } = {}) 
   if (embedded.ok !== true)
     return embedded;
   if (!(embedded.image.width > 0) || !(embedded.image.height > 0))
-    return { error: '画像の大きさを読み取れませんでした。' };
-  return embedded;
+    return { error: '画像サイズを読み取れませんでした。' };
+  // 表示のために回す角度（JPEG の EXIF の向き。それ以外は 0）。
+  return { ...embedded, rotation: kind === 'jpeg' ? rotationOfJpeg(bytes) : 0 };
+}
+
+// 元の画素を rotation（時計回り）だけ回して、紙の座標の枠 rect にちょうど収めて描く。pdf-lib の rotate は (x, y) を中心に
+// 反時計回りに回すので、時計回りの角度は負にし、回した後に枠の左下へ来る角を (x, y) にする。
+function drawRotated(page, image, rect, rotation, degrees) {
+  if (rotation === 0) {
+    page.drawImage(image, rect);
+    return;
+  }
+  const swap = rotation === 90 || rotation === 270;
+  const anchors = { 90: [rect.x, rect.y + rect.height], 180: [rect.x + rect.width, rect.y + rect.height], 270: [rect.x + rect.width, rect.y] };
+  const [x, y] = anchors[rotation];
+  page.drawImage(image, { x, y, width: swap ? rect.height : rect.width, height: swap ? rect.width : rect.height, rotate: degrees(-rotation) });
 }
 
 // 埋め込んだ絵を、紙（page）の中の箱（box。紙の左下が原点）へ載せた新しいページを作る。
 // paper が偽なら白を敷かない（画像を開くとき。透明な部分を保存で透明のまま残すため。spec-7-1 確定事項A3）。
-function drawImagePage(doc, image, { page: size, box, allowUpscale = false, paper = true }, { PDFPage, rgb }) {
-  const placed = fitInside(image, box, { allowUpscale });
+// rotation は時計回りに回す角度（embedImage の rotation）。枠は向きを当てた後の寸法で決める。画像を開くとき（image-open-task.js）は、
+// 回さずに載せてページの回転にする（spec-7-4 確定事項X1）ので、rotation を渡さない。
+function drawImagePage(doc, image, { page: size, box, allowUpscale = false, paper = true, rotation = 0 }, { PDFPage, rgb, degrees }) {
+  const placed = fitInside(uprightSize(image, rotation), box, { allowUpscale });
   if (placed === null)
-    return { error: '画像の大きさを読み取れませんでした。' };
+    return { error: '画像サイズを読み取れませんでした。' };
   const page = PDFPage.create(doc);
   page.setSize(size.width, size.height);
   if (paper)
     page.drawRectangle({ x: 0, y: 0, width: size.width, height: size.height, color: rgb(1, 1, 1) });
-  page.drawImage(image, { ...placed, x: box.x + placed.x, y: box.y + placed.y });
+  drawRotated(page, image, { ...placed, x: box.x + placed.x, y: box.y + placed.y }, rotation, degrees);
   return { ok: true, page };
 }
 
-// 1枚の画像を、箱と同じ大きさの紙の真ん中へ載せる（差し込み。拡大しない）。
+// 1枚の画像を、箱と同じ大きさの紙の真ん中へ載せる（差し込み。拡大しない）。写真の向きを当てる。
 async function placeImage(doc, loaded, box, tools, { frame = 0 } = {}) {
   const embedded = await embedImage(doc, loaded, tools, { frame });
   if (embedded.ok !== true)
     return embedded;
-  return drawImagePage(doc, embedded.image, { page: box, box: { x: 0, y: 0, ...box } }, tools);
+  return drawImagePage(doc, embedded.image, { page: box, box: { x: 0, y: 0, ...box }, rotation: embedded.rotation }, tools);
 }
 
 module.exports = { fitInside, embedImage, drawImagePage, placeImage };

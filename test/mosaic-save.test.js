@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const { A, B, PAPER, withMosaic, stubImages, byId, spec, okResult, makeSource } = require('./fixtures/mosaic-shell.js');
 
-// 保存・抽出の前にモザイクのページを画像にする（spec-4b-6b 確定事項18・19・23〜25。決定64 ⑤⑧・決定66 ①②）。jsdom には 2D コンテキストが
+// 保存・抽出の前にモザイクを入れたページを画像に変換する（spec-4b-6b 確定事項18・19・23〜25。決定64 ⑤⑧・決定66 ①②）。jsdom には 2D コンテキストが
 // 無いので、描く部品を差し替えて（fixtures/mosaic-shell.js）、確認・ワーカーへ渡す spec・通知バーを見る。描いた画像に元の文字が残らないことは
 // ワーカーのテスト（mosaic-save-worker.test.js）と起動確認が見る。画像にしている間の編集・中止・照合は mosaic-save-guard.test.js。
 
@@ -18,7 +18,7 @@ test('上書き保存: 確認でページ・保存先・控えを作らないこ
   assert.equal(byId(shell, 'confirm-mosaic-text').textContent, 'モザイクを入れた 2 ページ（1・3 ページ目）を、丸ごと画像に置き換えて「a.pdf」に上書き保存します。');
   assert.match(byId(shell, 'confirm-mosaic-loss').textContent, /検索・選択・コピーできなくなり/);
   assert.equal(byId(shell, 'confirm-mosaic-backup').hidden, false);
-  assert.match(byId(shell, 'confirm-mosaic-backup').textContent, /控えのファイル（\.bak）を作りません。前に作った控えがあれば消します。/);
+  assert.match(byId(shell, 'confirm-mosaic-backup').textContent, /バックアップファイル（\.bak）を作成しません。以前に作成したバックアップファイルがあれば削除します。/);
   assert.equal(shell.document.activeElement?.id, 'confirm-mosaic-cancel');
   assert.equal(byId(shell, 'confirm-mosaic-ok').classList.contains('danger'), true);
   byId(shell, 'confirm-mosaic-ok').click();
@@ -49,7 +49,7 @@ test('確認でキャンセルすると何も書かず、下見のモザイク�
   assert.equal((await saving).canceled, true);
   assert.equal(calls.length, 0);
   assert.equal(shell.taskCalls.length, 0);
-  assert.equal(shell.SigK.viewBanner.text(), '保存を取りやめました。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存をキャンセルしました。');
   assert.equal(shell.SigK.viewer.getPlan()[0].mosaic.length, 1);
 });
 
@@ -71,7 +71,7 @@ test('名前を付けて保存: 元のファイルは変わらないと伝え、
   const saving = shell.SigK.save.saveAsActive();
   await shell.flush();
   assert.equal(byId(shell, 'confirm-mosaic-text').textContent,
-    'モザイクを入れた 1 ページ（1 ページ目）を、丸ごと画像に置き換えて「b.pdf」に保存します。元のファイル「a.pdf」は変わりません。');
+    'モザイクを入れた 1 ページ（1 ページ目）を、丸ごと画像に置き換えて「b.pdf」に保存します。元のファイル「a.pdf」は変更されません。');
   assert.equal(byId(shell, 'confirm-mosaic-backup').hidden, true);
   byId(shell, 'confirm-mosaic-ok').click();
   assert.equal((await saving).ok, true);
@@ -88,7 +88,7 @@ test('前の控えを消せなかったら、保存は成功のまま黄色の�
   await shell.flush();
   byId(shell, 'confirm-mosaic-ok').click();
   assert.equal((await saving).ok, true);
-  assert.equal(shell.SigK.viewBanner.text(), '保存しましたが、控えのファイル（.bak）を消せませんでした。元の内容が残っているので、手で消してください。');
+  assert.equal(shell.SigK.viewBanner.text(), '保存しましたが、バックアップファイル（.bak）を削除できませんでした。元の内容が残っているので、手動で削除してください。');
   assert.equal(byId(shell, 'view-banner').getAttribute('data-tone'), 'warn');
 });
 
@@ -110,11 +110,11 @@ test('描けない環境（canvas が無い）では断って書かない', asyn
   byId(shell, 'confirm-mosaic-ok').click();
   assert.ok((await saving).error);
   assert.equal(shell.taskCalls.length, 0);
-  assert.equal(shell.SigK.viewBanner.text(), 'この環境ではモザイクのページを画像にできません。');
+  assert.equal(shell.SigK.viewBanner.text(), 'この環境では、モザイクを入れたページを画像に変換できません。');
 });
 
-test('モザイクが無ければ確認を出さず、今までどおり .bak を作って保存する', async (t) => {
-  const shell = await withMosaic(t, { taskResults: [okResult()] }, []);
+test('モザイクが無ければ確認を出さず、今までどおり .bak を作って保存する（控えのファイルを作る設定のとき）', async (t) => {
+  const shell = await withMosaic(t, { taskResults: [okResult()], preferences: { backupBeforeOverwrite: true } }, []);
   shell.SigK.viewer.applyPlan(shell.SigK.pagePlan.rotatePages(shell.SigK.viewer.getPlan(), [0], 90));
   const result = await shell.SigK.save.saveActive();
   assert.equal(result.ok, true);

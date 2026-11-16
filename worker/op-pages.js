@@ -54,7 +54,7 @@ function validatePlan(plan, pageCount, insertCount = 0) {
   for (const entry of plan) {
     // 切った範囲は元のページだけに付く（spec-4b-6a 確定事項1・22）。
     if (entry?.crop !== undefined && (isInsert(entry) || normalizeBox(entry.crop) === null))
-      return { error: 'ページの切り方が正しくありません。' };
+      return { error: 'トリミング範囲が正しくありません。' };
     if (isInsert(entry)) {
       // 差し込みも同じ理由で重複を弾く。実体は1つしか組み立てないので、
       // 2か所へ置くと回転を共有してしまう。
@@ -65,7 +65,7 @@ function validatePlan(plan, pageCount, insertCount = 0) {
     }
     const src = entry?.src;
     if (!Number.isInteger(src) || src < 0 || src >= pageCount)
-      return { error: 'ページの指定が元の文書と合わないので、もう一度開き直してください。' };
+      return { error: 'ページ指定が元の文書と合わないので、文書をもう一度開いてください。' };
     if (seen.has(src))
       return { error: '同じページを2回保存することはできません。' };
     seen.add(src);
@@ -90,7 +90,7 @@ function applyPlan(doc, plan, { inserted = [], tools = null } = {}) {
   if (check.ok !== true)
     return check;
   if (plan.some((entry) => entry?.crop !== undefined) && tools?.PDFName === undefined)
-    return { error: 'ページの切り方を保存できません。' };
+    return { error: 'トリミング範囲を保存できません。' };
 
   // 外すと親が根に付け替わり、ページ木の中間の /Pages から受け継いでいた箱や Resources が消える（事前調査 C）。外す前に写す。
   if (tools?.PDFName !== undefined)

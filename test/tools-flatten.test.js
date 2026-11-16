@@ -76,7 +76,7 @@ test('帯が無ければ状態の文を出し、数えず、実行できない',
   assert.match(item.textContent, /フラット化書き込みを焼き込む/);
   assert.equal(shell.SigK.tools.panelFor('flatten').parentElement.id, 'tool-pane');
   assert.equal(shell.SigK.tools.panelFor('flatten').hidden, false);
-  assert.equal(byId(shell, 'fl-state').textContent, 'PDF を開くと、選んでいる帯が対象になります。');
+  assert.equal(byId(shell, 'fl-state').textContent, 'PDF を開くと、選択中の帯が対象になります。');
   assert.equal(summary(shell), '');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
   assert.equal(byId(shell, 'fl-list').hidden, true);
@@ -95,8 +95,8 @@ test('選んでいる帯をワーカーで数え、ファイルにある種類�
   ]);
   assert.deepEqual(rows(shell).map((row) => row.querySelector('input').checked), [true, true, true, true, true], '既定は全部チェック');
   assert.equal(byId(shell, 'fl-keep-text').textContent,
-    'リンク・フォームの欄など 1 件はそのまま残します。見た目の情報を持たない書き込み 2 件（直線・テキストなど）は焼き込めないため、書き込みのまま残します。');
-  assert.equal(byId(shell, 'fl-warn').textContent, 'ノート 2 件は付箋の絵だけが残り、本文と作成者は書き出したファイルに残りません。');
+    'リンク・フォーム入力欄など 1 件はそのまま残します。外観情報を持たない書き込み 2 件（直線・テキストなど）は焼き込めないため、書き込みのまま残します。');
+  assert.equal(byId(shell, 'fl-warn').textContent, 'ノート 2 件は付箋アイコンだけが残り、本文と作成者は書き出したファイルに残りません。');
   assert.equal(summary(shell), '書き込み 12 件を焼き込みます');
   assert.equal(runButton(shell).getAttribute('aria-disabled'), null);
   assert.equal(byId(shell, 'fl-page-modes').querySelector('input[value="all"]').checked, true, '既定は［すべて］');
@@ -109,10 +109,10 @@ test('種類のチェックを外すと、焼く件数と要約が変わり、�
   check(shell, 'note', false);
   assert.equal(summary(shell), '書き込み 10 件を焼き込みます');
   assert.equal(byId(shell, 'fl-warn').hidden, true, 'ノートを焼かなければノートの注意は出さない');
-  assert.match(byId(shell, 'fl-keep-text').textContent, /選ばなかった書き込み 2 件（チェックを外した種類・範囲の外のページ）は、書き込みのまま残します。$/);
+  assert.match(byId(shell, 'fl-keep-text').textContent, /選択しなかった書き込み 2 件（チェックを外した種類・範囲外のページ）は、書き込みのまま残します。$/);
   for (const group of ['markup', 'text', 'shape', 'other'])
     check(shell, group, false);
-  assert.equal(summary(shell), '焼き込む書き込みを選んでください。');
+  assert.equal(summary(shell), '焼き込む書き込みを選択してください。');
   assert.equal(shell.SigK.toolsFlatten.canRun(), false);
   assert.equal(runButton(shell).getAttribute('aria-disabled'), 'true');
 });
@@ -126,8 +126,8 @@ test('ページを範囲にすると、種類の件数・残すもの・要約�
     'ハイライト・下線・取り消し線2 件', 'テキスト・吹き出し1 件', '図形・ペン2 件', 'ノート1 件', 'スタンプなど0 件',
   ], 'ファイルにある種類の行は、範囲の外にしか無くても残す');
   assert.equal(summary(shell), '書き込み 6 件を焼き込みます');
-  assert.match(byId(shell, 'fl-keep-text').textContent, /^見た目の情報を持たない書き込み 1 件/);
-  assert.match(byId(shell, 'fl-keep-text').textContent, /選ばなかった書き込み 6 件/);
+  assert.match(byId(shell, 'fl-keep-text').textContent, /^外観情報を持たない書き込み 1 件/);
+  assert.match(byId(shell, 'fl-keep-text').textContent, /選択しなかった書き込み 6 件/);
 
   range(shell, '9');
   assert.equal(byId(shell, 'fl-range').classList.contains('invalid'), true);
@@ -160,7 +160,7 @@ test('焼くものが無いファイル・数えられないファイルは理�
   await openTab(none);
   assert.equal(byId(none, 'fl-list').hidden, true);
   assert.equal(byId(none, 'fl-status').textContent, '焼き込める書き込みがありません。');
-  assert.equal(byId(none, 'fl-keep-text').textContent, 'リンク・フォームの欄など 1 件はそのまま残します。');
+  assert.equal(byId(none, 'fl-keep-text').textContent, 'リンク・フォーム入力欄など 1 件はそのまま残します。');
   assert.equal(summary(none), '焼き込める書き込みがありません。');
 
   const broken = await createFlattenShell(t, { taskResults: [{ error: 'この PDF は内容が壊れているため保存できません。' }] });
@@ -173,7 +173,7 @@ test('焼くものが無いファイル・数えられないファイルは理�
 test('開けなかった帯・パスワード付きの帯は数えずに、状態の文を出す', async (t) => {
   const failed = await createFlattenShell(t, { pdfjs: createPdfjsStub({ openError: new Error('broken') }) });
   await openTab(failed);
-  assert.equal(byId(failed, 'fl-state').textContent, '「a.pdf」は開けなかったので、ほかの帯を選んでください。');
+  assert.equal(byId(failed, 'fl-state').textContent, '「a.pdf」は開けなかったので、ほかの帯を選択してください。');
   assert.equal(failed.taskCalls.length, 0);
   assert.equal(failed.SigK.toolsFlatten.canRun(), false);
 
@@ -182,7 +182,7 @@ test('開けなかった帯・パスワード付きの帯は数えずに、状�
   const peek = locked.SigK.tabs.peek;
   locked.window.SigK.tabs.peek = (id) => ({ ...peek(id), file: { ...peek(id).file, encrypted: true } });
   locked.SigK.toolsFlattenView.render();
-  assert.equal(locked.SigK.toolsFlatten.source().blocked, '「a.pdf」はパスワード付きなので焼き込めません。ほかの帯を選んでください。');
+  assert.equal(locked.SigK.toolsFlatten.source().blocked, '「a.pdf」はパスワード付きなので焼き込めません。ほかの帯を選択してください。');
   assert.equal(locked.SigK.toolsFlatten.canRun(), false);
 });
 
@@ -213,7 +213,7 @@ test('実行は保存ダイアログ → 確認（既定はキャンセル）→
   assert.equal(shell.SigK.confirmFlatten.isOpen(), true);
   assert.equal(shell.document.activeElement?.id, 'confirm-flatten-cancel');
   assert.equal(byId(shell, 'confirm-flatten-text').textContent,
-    '書き込み 5 件をページの内容として焼き込み、「a_フラット化.pdf」に書き出します。書き出したファイルでは、これらの書き込みを選んだり直したりできません。元のファイルは変わりません。');
+    '書き込み 5 件をページの内容として焼き込み、「a_フラット化.pdf」に書き出します。書き出したファイルでは、これらの書き込みを選択・編集できません。元のファイルは変更されません。');
   assert.equal(byId(shell, 'confirm-flatten-notes').hidden, true);
   assert.equal(shell.taskCalls.length, 1, '確認の前にはワーカーへ渡さない');
   byId(shell, 'confirm-flatten-ok').click();
@@ -257,7 +257,7 @@ test('保存ダイアログと確認の間も実行中と数え、キャンセ�
 test('入力と同じ出力先は、確認を出す前に断る', async (t) => {
   const shell = await createFlattenShell(t, { taskResults: [CENSUS], savePathResults: [{ path: A }] });
   await openTab(shell);
-  assert.equal((await shell.SigK.toolsFlatten.run()).error, '出力先に入力ファイルと同じファイルは選べません。');
+  assert.equal((await shell.SigK.toolsFlatten.run()).error, '出力先に入力ファイルと同じファイルは選択できません。');
   assert.equal(shell.SigK.confirmFlatten.isOpen(), false);
   assert.equal(shell.taskCalls.length, 1);
 });

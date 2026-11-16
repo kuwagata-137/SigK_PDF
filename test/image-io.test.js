@@ -12,6 +12,7 @@ const {
 const { makePng, makeJpeg, GIF89A, WEBP } = require('./fixtures/images.js');
 const { makeTiff } = require('./fixtures/tiff.js');
 const { makeBmp, rgbaGradient } = require('./fixtures/bmp.js');
+const { jpegWithExif } = require('./fixtures/jpeg-exif.js');
 
 const IN_A = 'C:/in/a.png';
 const IN_B = 'C:/in/b.jpg';
@@ -64,6 +65,15 @@ test('先頭だけ読んで形式・画素数・名前を返す', async () => {
   assert.equal(counts.whole, 0, '先頭で足りれば全体は読まない');
 });
 
+test('EXIF の向きが回転の JPEG は、向きを当てた後の寸法（縦長の写真なら縦長）と rotation を返す（spec-7-4 確定事項X4）', async () => {
+  const IN_C = 'C:/in/c.jpg';
+  const { fsLike } = fsFor({ [IN_B]: { bytes: Buffer.from(jpegWithExif(6, { width: 300, height: 200 })) }, [IN_C]: { bytes: Buffer.from(jpegWithExif(3, { width: 300, height: 200 })) } });
+  const turned = await inspectImage(IN_B, { fsLike });
+  assert.deepEqual([turned.width, turned.height, turned.frames, turned.rotation], [200, 300, [{ width: 200, height: 300 }], 90]);
+  const upside = await inspectImage(IN_C, { fsLike });
+  assert.deepEqual([upside.width, upside.height, upside.frames, upside.rotation], [300, 200, [{ width: 300, height: 200 }], 180]);
+});
+
 test('先頭 64KB に寸法が無ければ全体を読み直す', async () => {
   // APP1 を 40KB × 2 本入れた JPEG（セグメントの長さは 65535 まで）。SOF は先頭 64KB より後ろに来る。
   const app1 = () => {
@@ -85,12 +95,12 @@ test('先頭 64KB に寸法が無ければ全体を読み直す', async () => {
 test('断る理由は形式ごとに返し、kind を添える', async () => {
   const { fsLike } = fsFor({ 'C:/in/c.webp': { bytes: WEBP }, 'C:/in/d.pdf': { bytes: Buffer.from('%PDF-1.7\n') }, 'C:/in/p.jpg': { bytes: makeJpeg({ marker: 0xc2 }) }, 'C:/in/g.gif': { bytes: GIF89A.subarray(0, 8) } });
   const webp = await inspectImage('C:/in/c.webp', { fsLike });
-  assert.match(webp.error, /対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選んでください/);
+  assert.match(webp.error, /対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF を選択してください/);
   assert.equal(webp.kind, null);
   assert.match((await inspectImage('C:/in/d.pdf', { fsLike })).error, /PDF は画像ではないので/);
   assert.match((await inspectImage('C:/in/p.jpg', { fsLike })).error, /プログレッシブ/);
   const gif = await inspectImage('C:/in/g.gif', { fsLike });
-  assert.match(gif.error, /大きさを読み取れませんでした/, '先頭だけの GIF は寸法が無い');
+  assert.match(gif.error, /画像サイズを読み取れませんでした/, '先頭だけの GIF は寸法が無い');
   assert.equal(gif.kind, 'gif');
 });
 
@@ -144,7 +154,7 @@ test('pickConvertSources は PDF と画像のフィルターで複数選択さ�
   assert.deepEqual(calls[0][0].properties, ['openFile', 'multiSelections']);
   assert.deepEqual(calls[0][0].filters.map((filter) => filter.name), ['PDF と画像', 'PDF', '画像ファイル']);
   assert.deepEqual(calls[0][0].filters[0].extensions, ['pdf', ...IMAGE_FILTERS[0].extensions]);
-  assert.equal(calls[0][0].title, 'PDF か変換する画像を選ぶ');
+  assert.equal(calls[0][0].title, 'PDF か変換する画像を選択');
   assert.equal(calls[0][0].defaultPath, 'C:/in');
 
   const parent = { id: 1 };
@@ -198,9 +208,9 @@ test('readWatermarkImage は PNG・JPEG 以外とプログレッシブの JPEG �
   });
   assert.deepEqual(await readWatermarkImage('C:/in/c.bmp', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'bmp' });
   assert.deepEqual(await readWatermarkImage('C:/in/d.gif', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: 'gif' });
-  assert.deepEqual(await readWatermarkImage('C:/in/e.jpg', { fsLike }), { error: 'この JPEG はプログレッシブ形式なので、透かしに使えません。', kind: 'jpeg' });
+  assert.deepEqual(await readWatermarkImage('C:/in/e.jpg', { fsLike }), { error: 'この JPEG はプログレッシブ形式なので、透かしに使用できません。', kind: 'jpeg' });
   assert.deepEqual(await readWatermarkImage('C:/in/f.png', { fsLike }), { error: WATERMARK_KIND_ERROR, kind: null });
-  assert.equal(WATERMARK_KIND_ERROR, 'PNG か JPEG の画像を選んでください。');
+  assert.equal(WATERMARK_KIND_ERROR, 'PNG 画像か JPEG 画像を選択してください。');
 });
 
 test('readWatermarkImage は無い・フォルダ・大きすぎるものを読む前に断る', async () => {

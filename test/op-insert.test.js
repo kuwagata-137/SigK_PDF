@@ -167,7 +167,7 @@ test('0画素の画像は断る', async () => {
   const doc = await makeDoc(1);
   const result = await insertInto(doc, [{ src: 0 }, { insert: 0 }], [{ path: 'z.png' }],
     { 'z.png': makePng({ width: 0, height: 0 }) });
-  assert.match(result.error, /大きさを読み取れませんでした/);
+  assert.match(result.error, /画像サイズを読み取れませんでした/);
 });
 
 test('受け付けない形式は、断る理由まで返す', async () => {
@@ -176,7 +176,7 @@ test('受け付けない形式は、断る理由まで返す', async () => {
 
   assert.match((await at('a.webp', WEBP)).error, /対応していない形式なので、PNG・JPEG・BMP・GIF・TIFF・PDF/);
   assert.match((await at('a.jpg', makeJpeg({ marker: 0xc2 }))).error, /プログレッシブ形式/);
-  assert.match((await at('a.gif', Buffer.from('GIF89a      '))).error, /大きさを読み取れませんでした/);
+  assert.match((await at('a.gif', Buffer.from('GIF89a      '))).error, /画像サイズを読み取れませんでした/);
   assert.match((await at('a.gif', Buffer.from('GIF89a     ;'))).error, /壊れている/);
 });
 
@@ -228,7 +228,7 @@ test('プレビューは複数ページの TIFF をページ数ぶん組む', as
 test('読めないファイルは、その旨を返す', async () => {
   const doc = await makeDoc(1);
   const result = await insertInto(doc, [{ src: 0 }, { insert: 0 }], [{ path: 'ない.png' }], {});
-  assert.match(result.error, /差し込むファイルを読めませんでした/);
+  assert.match(result.error, /差し込むファイルを読み込めませんでした/);
 });
 
 test('差し込む番号が無ければ断る', async () => {

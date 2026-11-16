@@ -179,7 +179,7 @@
     node.dataset.tabId = String(tab.id);
     // 説明の吹き出し（spec-2-5 J5）は名前とフルパス。名前の無いタブ（新しい帯）はまだ場所が無いので、その旨を出す。
     const untitled = peek(tab.id)?.file?.untitled === true;
-    root.SigK.tipContent.text(node, tab.name, untitled ? 'まだファイルになっていない新しい PDF です。' : tab.path ?? tab.name);
+    root.SigK.tipContent.text(node, tab.name, untitled ? 'まだファイルとして保存していない新しい PDF です。' : tab.path ?? tab.name);
 
     const name = el.doc.createElement('span');
     name.className = 'name';
@@ -278,7 +278,7 @@
   function refuseCrowded() {
     if (state.list.length < MAX_TABS)
       return false;
-    messageFor(`${MAX_TABS} 個まで開けますが、タブが多すぎるので、使わないタブを閉じてください。`);
+    messageFor(`タブは ${MAX_TABS} 個まで開けます。タブが多すぎるので、使わないタブを閉じてください。`);
     return true;
   }
 
@@ -355,7 +355,7 @@
   async function openPath(filePath, call = null) {
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
-      messageFor('ファイルを開く機能が使えません。');
+      messageFor('ファイルを開く機能を使用できません。');
       return false;
     }
 
@@ -402,7 +402,7 @@
   async function openViaDialog(call = null) {
     const api = root.pdfAPI;
     if (!api || api.available !== true) {
-      messageFor('ファイルを開く機能が使えません。');
+      messageFor('ファイルを開く機能を使用できません。');
       return false;
     }
     if (refuseCrowded())

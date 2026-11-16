@@ -30,13 +30,13 @@ function isBox(box) {
 // 渡されたものが、この文書に当てられる形か。src の重なりも断る（同じページを 2 度描き替えない）。
 function validateMosaics(mosaics, pageCount) {
   if (!Array.isArray(mosaics))
-    return { error: 'モザイクのページの指定が正しくありません。' };
+    return { error: 'モザイクを入れたページの指定が正しくありません。' };
   const seen = new Set();
   for (const item of mosaics) {
     const valid = Number.isInteger(item?.src) && item.src >= 0 && item.src < pageCount && !seen.has(item.src)
       && KINDS.has(item.kind) && item.bytes instanceof Uint8Array && item.bytes.length > 0 && isBox(item.box);
     if (!valid)
-      return { error: 'モザイクのページの指定が正しくありません。' };
+      return { error: 'モザイクを入れたページの指定が正しくありません。' };
     seen.add(item.src);
   }
   return { ok: true };
@@ -61,7 +61,7 @@ async function replacePage(doc, page, item, tools) {
   const { PDFName, PDFNumber } = tools;
   const embedded = await embedImage(doc, { kind: item.kind, bytes: toBytes(item.bytes) }, tools);
   if (embedded.ok !== true)
-    return { error: 'モザイクのページを画像にできませんでした。' };
+    return { error: 'モザイクを入れたページを画像に変換できませんでした。' };
   // すぐ埋め込み、展開した画素を手放す（pdf-lib は save() まで抱えるので、300dpi の A4 で 1 ページ 26MB ずつ溜まる）。
   if (typeof embedded.image.embed === 'function')
     await embedded.image.embed();

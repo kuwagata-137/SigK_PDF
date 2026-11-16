@@ -22,13 +22,13 @@
   function planPage(pixels, { paper: paperId, orientation, margin } = {}) {
     const sizes = paper();
     if (!sizes.isPaper(paperId))
-      return { error: '用紙を選んでください' };
+      return { error: '用紙を選択してください' };
     if (!sizes.isOrientation(orientation))
-      return { error: '向きを選んでください' };
+      return { error: '向きを選択してください' };
     if (!sizes.isMargin(margin))
-      return { error: '余白を選んでください' };
+      return { error: '余白を選択してください' };
     if (!(pixels?.width > 0) || !(pixels?.height > 0))
-      return { error: '画像の大きさが分かりません' };
+      return { error: '画像サイズを取得できません' };
 
     // 画像サイズに合わせる: 1px = 1pt。余白なし、拡大も縮小もしない（ちょうど 1 倍になる）。
     if (paperId === 'image') {
@@ -131,7 +131,7 @@
     if (settings?.output === 'each') {
       const dupes = duplicateNames(names);
       if (dupes.length > 0)
-        return { ready: false, error: `出力名が重なります: ${dupes.join('、')}` };
+        return { ready: false, error: `出力名が重複しています: ${dupes.join('、')}` };
     }
     return { ready: true, error: null, pages, totalPages: total, names };
   }

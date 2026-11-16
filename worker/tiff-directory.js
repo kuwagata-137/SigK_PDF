@@ -31,9 +31,9 @@ const COMPRESSION_NAMES = {
 };
 
 const BROKEN = 'TIFF の構造を読み取れませんでした。ファイルが壊れている可能性があります。';
-const NOT_TIFF = 'TIFF として読めませんでした。';
+const NOT_TIFF = 'TIFF として読み込めませんでした。';
 const NO_PAGES = 'この TIFF にはページがありません。';
-const UNSUPPORTED_COLOR = 'この TIFF の色の形式には対応していません。';
+const UNSUPPORTED_COLOR = 'この TIFF のカラー形式には対応していません。';
 
 function describeCompression(compression) {
   return COMPRESSION_NAMES[compression] ?? null;

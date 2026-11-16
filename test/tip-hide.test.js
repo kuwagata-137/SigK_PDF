@@ -124,7 +124,7 @@ test('タブを押して描き直されたあと、別のタブへ入ったら�
   assert.equal(document.querySelector('#tip .tip-name').textContent, 'a.pdf');
 });
 
-test('サムネイルの上の［左に回す］を押してサムネイルが描き直されても、同じボタンの上にいる間は出し直さない。出て入り直すと出す（J11）', async (t) => {
+test('サムネイルの上の［左回転］を押してサムネイルが描き直されても、同じボタンの上にいる間は出し直さない。出て入り直すと出す（J11）', async (t) => {
   const shell = await withShell(t, 'pages');
   const { SigK, document } = shell;
   await shell.flush();
@@ -142,7 +142,7 @@ test('サムネイルの上の［左に回す］を押してサムネイルが�
   over(shell, after);
   await sleep(shell, 60);
   assert.equal(SigK.tip.isShown(), true, '出て入り直すと出す');
-  assert.equal(document.querySelector('#tip .tip-name').textContent, '左に回す');
+  assert.equal(document.querySelector('#tip .tip-name').textContent, '左回転');
 });
 
 test('samePressed は、同じノードか、押した要素が文書から外れていて説明の吹き出しの属性が同じときだけ真（J11）', async (t) => {
@@ -259,7 +259,7 @@ test('待っている間に対象が画面から消えたら出さない', async
   over(shell, close);
   await sleep(shell, 60);
   assert.equal(SigK.tip.isShown(), true, '比べるため: 消えなければ出る');
-  assert.equal(document.querySelector('#tip .tip-keys').textContent, 'キー: Ctrl+W（選んでいる帯）');
+  assert.equal(document.querySelector('#tip .tip-keys').textContent, 'キー: Ctrl+W（選択中の帯）');
   SigK.tip.hide();
   over(shell, close);
   strip.remove();

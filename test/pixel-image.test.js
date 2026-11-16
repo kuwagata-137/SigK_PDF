@@ -88,9 +88,9 @@ test('形の合わない pixels は文言で断る', async () => {
   const doc = await PDFDocument.create();
   const before = doc.context.enumerateIndirectObjects().length;
   const bytes = new Uint8Array(3);
-  assert.match((await embedPixels(doc, { width: 0, height: 1, colorSpace: 'rgb', bitsPerComponent: 8, bytes }, TOOLS)).error, /大きさ/);
-  assert.match((await embedPixels(doc, { width: 1, height: 1, colorSpace: 'ycbcr', bitsPerComponent: 8, bytes }, TOOLS)).error, /色の形式/);
-  assert.match((await embedPixels(doc, { width: 1, height: 1, colorSpace: 'rgb', bitsPerComponent: 16, bytes }, TOOLS)).error, /色の形式/);
+  assert.match((await embedPixels(doc, { width: 0, height: 1, colorSpace: 'rgb', bitsPerComponent: 8, bytes }, TOOLS)).error, /画像サイズ/);
+  assert.match((await embedPixels(doc, { width: 1, height: 1, colorSpace: 'ycbcr', bitsPerComponent: 8, bytes }, TOOLS)).error, /カラー形式/);
+  assert.match((await embedPixels(doc, { width: 1, height: 1, colorSpace: 'rgb', bitsPerComponent: 16, bytes }, TOOLS)).error, /カラー形式/);
   assert.match((await embedPixels(doc, { width: 1, height: 1, colorSpace: 'rgb', bitsPerComponent: 8, bytes: null }, TOOLS)).error, /壊れている/);
   assert.equal(doc.context.enumerateIndirectObjects().length, before, '断ったときは何も登録しない');
 });

@@ -28,6 +28,8 @@ async function createInputShell(t, { pages = 12 } = {}) {
   canvas.getBoundingClientRect = () => ({ top: -strips.scrollTop, left: 0, right: 640, bottom: 500, width: 640, height: 500 });
   shell.SigK.shell.setMode(shell.document, 'tools');
   shell.SigK.tools.select('split');
+  // 決定93 で 100% が前の 200% の大きさになったので、前の 100% と同じ大きさの 50% で確かめる。
+  shell.SigK.toolsZoom.set(0.5);
   await shell.SigK.tabs.openPath(A);
   for (let i = 0; i < 4; i += 1)
     await shell.flush();
@@ -69,7 +71,7 @@ test('クリックはその 1 枚を選び、Shift＋クリックはその間を
   assert.deepEqual(range(shell), { from: 2, to: 2 });
   press(shell, 5, { shift: true });
   assert.deepEqual(range(shell), { from: 2, to: 5 });
-  assert.equal(shell.document.getElementById('split-band-text').textContent, '3〜6 ページを選んでいます');
+  assert.equal(shell.document.getElementById('split-band-text').textContent, '3〜6 ページを選択しています');
 });
 
 test('押したままなぞると、押したページからなぞった所までを選ぶ。なぞったあとの click は捨てる', async (t) => {
@@ -167,7 +169,7 @@ test('なぞっていないときの Esc は、選択を外す（確定事項G2�
   assert.equal(range(shell), null);
 });
 
-test('✂ と［つなげる］の上では、なぞり始めない', async (t) => {
+test('✂ と［前のファイルと結合］の上では、なぞり始めない', async (t) => {
   const shell = await createInputShell(t);
   const cut = shell.document.querySelector('.sb-cut[data-cut="3"]');
   const at = centerOf(shell, 3);

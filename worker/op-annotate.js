@@ -120,7 +120,7 @@ function validateAdd(add, pageCount) {
     if (!Number.isInteger(entry?.src) || entry.src < 0 || entry.src >= pageCount)
       return { error: `書き込み ${index + 1} のページ番号が文書に合いません。` };
     if (!validAdd(entry))
-      return { error: `書き込み ${index + 1} の形が読めません。` };
+      return { error: `書き込み ${index + 1} の形式を読み取れません。` };
   }
   return null;
 }
@@ -152,7 +152,7 @@ async function applyAnnotations(doc, { add = [], remove = [] } = {}, tools, { no
   if (invalid !== null)
     return invalid;
   if (!Array.isArray(remove) || remove.some((id) => parseRef(id) === null))
-    return { error: '消す書き込みの指定が読めません。' };
+    return { error: '削除する書き込みの指定を読み取れません。' };
   const { fonts, error } = await fontsFor(doc, add, fontSource);
   if (error !== undefined)
     return { error };

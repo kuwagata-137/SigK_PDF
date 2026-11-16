@@ -73,8 +73,9 @@ test('切り替えても倍率と読み位置が元のまま戻る', async (t) =
 
   SigK.tabs.activate(tabA.id);
   await flush();
-  // A は開いた直後のまま（幅に合わせる・1ページ目）。
-  assert.equal(SigK.viewer.getState().fit, 'width');
+  // A は開いた直後のまま（100%・1ページ目。決定93 で開いた直後は［幅］から 100% になった）。
+  assert.equal(SigK.viewer.getState().fit, null);
+  assert.equal(SigK.viewer.getState().zoom, 1);
   assert.equal(SigK.viewer.getState().current, 0);
   assert.equal(SigK.viewer.getState().file.name, 'a.pdf');
 

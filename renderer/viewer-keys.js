@@ -155,12 +155,8 @@
     if (isTextField(event.target) && !isPanelChoice(event.target))
       return false;
 
-    // Delete はページモードでだけ効かせる（確定事項55）。
-    if (event.key === 'Delete' && inPagesMode) {
-      event.preventDefault();
-      edit.remove();
-      return true;
-    }
+    // ページの Delete は、handleKey が先に呼ぶ page-list-keys.js が受け、削除確認画面を通して削除する（spec-7-5 確定事項K1・D1）。
+    // ページ編集モードの Delete は、フォーカスがどこにあっても page-list-keys.js が受ける（spec-1-5 確定事項55 のまま）。
     return handleAnnotKey(event, doc);
   }
 
@@ -220,6 +216,10 @@
     // 欄のもの（spec-4-2 確定事項8、spec-4-4 確定事項4、spec-4b-1b 確定事項6・7）。Ctrl+Z は素の取り消し、Delete・
     // PageUp 等も奪わない。Ctrl+Enter は欄自身が確定に使う。
     if (event.target?.closest?.('.free-text-editor, .props-field, .color-pop') && !passesPanelChoice(event))
+      return;
+    // ページ一覧（左パネルのサムネイル・ツールモードの帯）にフォーカスがあるときの Delete・Ctrl+C/X/V・Backspace（spec-7-5 確定事項K1・K2）。
+    // 編集モードの書き込みの削除（handleAnnotKey）より先に受ける。
+    if (root.SigK.pageListKeys?.handleKey(event, doc) === true)
       return;
     if (handlePageEditKey(event, doc))
       return;
