@@ -1,0 +1,93 @@
+/* 印刷画面から開く小さな画面（docs/spec-7-7-print-dialog.md）。ページ設定・注釈の一覧の確認・ⓘ の説明 2 つ・進行状況画面。
+   寸法と位置は、Acrobat の画面写真 3-10〜3-14 を 1 画素ずつ読み取った値（題名バーの下・枠の内側を原点にした座標）。
+   ボタン・選択欄・入力欄・ラジオボタンの見た目と書体は print-dialog.css（.pd）と同じ。 */
+
+/* ページ設定は Windows の［ページ設定］画面なので、日本語は MS UI Gothic の 12px（印刷画面の 13px 相当より 1 px 小さい。画面写真 3-11） */
+@font-face{
+  font-family:'SigK Print JA 12'; src:local('MS UI Gothic'), local('MS-UIGothic');
+  unicode-range:U+3000-30FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF;
+}
+
+/* 下の段のボタンの入れ物は、画面の中の決まった位置に置く（print-dialog.css の dialog.pd .pd-foot より強い指定にする） */
+dialog.pd.pd-sub .dlg-foot{position:absolute; display:flex; height:auto; padding:0; border:0}
+.ps-at, .pi-body p, .pc-text, .pt-text, .pp-text{position:absolute; white-space:nowrap; line-height:16px}
+
+/* ページ設定（画面写真 3-11。中身 420 × 480） */
+#print-setup-dialog{width:422px}
+.ps-body{position:relative; height:450px; font-family:'Segoe UI', 'SigK Print JA 12', 'Yu Gothic UI', 'Meiryo UI', sans-serif}
+.ps-preview{position:absolute; left:0; right:0; top:15px; height:150px; display:flex; align-items:center; justify-content:center}
+.ps-paper{position:relative; background:#fff; border:1px solid; border-color:#808080 #000 #000 #808080; box-shadow:9px 9px 0 #a0a0a0}
+.ps-paper-margin{
+  position:absolute; border:1px dashed #808080;
+  background:repeating-linear-gradient(#fff 0 3px, #b9c4d4 3px 4px, #fff 4px 6px) content-box; padding:3px 4px;
+}
+.ps-group{position:absolute; border:1px solid #dcdcdc}
+.ps-cap{position:absolute; left:6px; top:-9px; padding:0 3px; background:#f0f0f0; line-height:16px}
+.ps-group-paper{left:14px; top:187px; width:392px; height:97px}
+.ps-group-orient{left:14px; top:300px; width:112px; height:97px}
+.ps-group-margins{left:140px; top:300px; width:266px; height:97px}
+/* 余白 (ミリ) の見出しは黒。使えない欄の名前は、灰色の文字の右下に白い影を付ける（Windows の無効な文字と同じ） */
+.ps-group-margins span.ps-at{color:#a0a0a0; text-shadow:1px 1px 0 #fff}
+.ps-l-size{left:14px; top:20px}
+.ps-size{left:97px; top:18px; width:280px; height:23px}
+.ps-l-source{left:14px; top:59px}
+.ps-source{left:97px; top:56px; width:280px; height:23px}
+#print-setup-dialog .pd-select{padding-left:4px}
+.ps-portrait{left:13px; top:21px}
+.ps-landscape{left:13px; top:58px}
+.ps-m-l1, .ps-m-l3{left:14px}
+.ps-m-l2, .ps-m-l4{left:147px}
+.ps-m-l1, .ps-m-l2{top:21px}
+.ps-m-l3, .ps-m-l4{top:58px}
+.ps-m-i1, .ps-m-i3{left:66px}
+.ps-m-i2, .ps-m-i4{left:199px}
+.ps-m-i1, .ps-m-i2{top:18px}
+.ps-m-i3, .ps-m-i4{top:55px}
+.ps-group-margins .pd-input{width:56px; padding:2px 4px 3px; border:1px solid #ececec; box-shadow:inset 0 0 0 1px #fbfbfb; background:#f0f0f0; color:#6d6d6d}
+.ps-foot{left:232px; top:414px; gap:9px}
+.ps-foot .pd-btn{width:82px}
+
+/* 注釈の一覧の確認（画面写真 3-10。中身 515 × 166） */
+#print-summary-confirm{width:517px}
+.pc-body{position:relative; height:136px}
+/* 質問のアイコン（32 px）: 灰色と白の輪の中に、上半分につやのある濃い青の球と、白い ? */
+.pc-icon{
+  position:absolute; left:15px; top:15px; width:32px; height:32px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Cdefs%3E%3CradialGradient id='b' cx='.32' cy='.28' r='.78'%3E%3Cstop offset='0' stop-color='%236b93ef'/%3E%3Cstop offset='.5' stop-color='%232a57bd'/%3E%3Cstop offset='1' stop-color='%230c3289'/%3E%3C/radialGradient%3E%3ClinearGradient id='g' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.3'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='.05'/%3E%3C/linearGradient%3E%3ClinearGradient id='q' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='1' stop-color='%23c8c8d0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='15.5' fill='%23fbfbfb' stroke='%237a7979'/%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23b)'/%3E%3Cpath d='M2.6 16a13.4 13.4 0 0 1 26.8 0z' fill='url(%23g)'/%3E%3Cpath d='M11.6 11.6c.2-2.9 2.2-4.8 5.1-4.8 2.8 0 4.8 1.8 4.8 4.2 0 2.1-1.3 3.1-2.6 4-1.2.8-1.8 1.6-1.8 3v1.2' fill='none' stroke='%2314286a' stroke-width='5.4'/%3E%3Cpath d='M11.6 11.6c.2-2.9 2.2-4.8 5.1-4.8 2.8 0 4.8 1.8 4.8 4.2 0 2.1-1.3 3.1-2.6 4-1.2.8-1.8 1.6-1.8 3v1.2' fill='none' stroke='url(%23q)' stroke-width='4'/%3E%3Ccircle cx='17.1' cy='24.4' r='2.7' fill='%2314286a'/%3E%3Ccircle cx='17.1' cy='24.4' r='2' fill='url(%23q)'/%3E%3C/svg%3E") no-repeat;
+}
+.pc-text{left:58px; top:14px}
+.pc-foot{left:319px; top:96px; gap:12px}
+.pc-foot .pd-btn{width:84px}
+
+/* ページサイズ処理の説明（画面写真 3-12。中身 546 × 239）。「小冊子」の段落は 2 行目を 14 px 下に書く。 */
+#print-handling-info-dialog{width:548px}
+.pi-body{position:relative; height:209px}
+/* 情報のアイコン（29 px。右下の 2 px は影）: 上が明るい水色のガラスの球に、紺色の i */
+.pi-icon{
+  position:absolute; left:9px; top:11px; width:29px; height:29px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29'%3E%3Cdefs%3E%3ClinearGradient id='s' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23a6cce3'/%3E%3Cstop offset='1' stop-color='%233d82b6'/%3E%3C/linearGradient%3E%3ClinearGradient id='h' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.85'/%3E%3Cstop offset='.5' stop-color='%23fff' stop-opacity='.5'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='14.7' cy='14.7' r='13.6' fill='%23000' fill-opacity='.14'/%3E%3Ccircle cx='13.5' cy='13.5' r='13' fill='url(%23s)' stroke='%233a78a8'/%3E%3Ccircle cx='13.5' cy='13.5' r='11.8' fill='none' stroke='url(%23h)' stroke-width='1.2'/%3E%3Cpath d='M10.8 11H15v9.2h1.5V22h-6v-1.8H12v-7.4h-1.2z' fill='%230a4998'/%3E%3Ccircle cx='13.6' cy='7.7' r='1.9' fill='%230a4998'/%3E%3C/svg%3E") no-repeat;
+}
+.pi-body .pi-head{left:44px; top:18px}
+.pi-body .pi-line{left:74px}
+.pi-body .pi-l1{top:43px}
+.pi-body .pi-l2{top:73px}
+.pi-body .pi-l3{top:104px}
+.pi-body .pi-l4{top:135px; line-height:14px}
+.pi-foot{left:453px; top:176px}
+.pi-foot .pd-btn{width:84px}
+
+/* トナー節約情報（画面写真 3-13。中身 420 × 99） */
+#print-ink-info-dialog{width:422px}
+.pt-body{position:relative; height:69px}
+.pt-text{left:7px; top:4px}
+.pt-foot{left:329px; top:32px}
+.pt-foot .pd-btn{width:84px}
+
+/* 進行状況画面（画面写真 3-14。中身 467 × 147）。横棒の右に［キャンセル］、横棒の下に「準備中 : 0%」。 */
+#print-progress-dialog{width:469px}
+.pp-body{position:relative; height:117px}
+.pp-bar{position:absolute; left:22px; top:50px; width:300px; height:14px; border:1px solid #bcbcbc; background:#e6e6e6}
+.pp-bar-fill{height:100%; width:0; background:#06b025}
+.pp-foot{left:335px; top:45px}
+.pp-foot .pd-btn{width:109px; height:25px}
+.pp-text{left:23px; top:82px}

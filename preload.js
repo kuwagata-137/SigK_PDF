@@ -158,12 +158,18 @@ contextBridge.exposeInMainWorld('appCloseAPI', {
   confirm: (ok) => ipcRenderer.invoke('app:closeConfirm', ok),
 });
 
-// 印刷（spec-1-4 確定事項30）。レンダラーが印刷用のコンテナへ画像を並べてからここを呼ぶ。実際に紙へ送るのはメイン側の
-// webContents.print() で、silent を false にすると OS の印刷ダイアログが出る。レンダラーの window.print() を使わないのは、
-// オプションを渡せず結果（成功・取り消し・失敗）も受け取れないためである（確定事項29）。
+// 印刷（spec-1-4 確定事項30・spec-7-7）。レンダラーが印刷用のコンテナへ用紙 1 枚ぶんずつの画像を並べてから print を呼ぶ。
+// 実際に紙へ送るのはメイン側の webContents.print() で、印刷画面の［印刷］は silent: true で選んだプリンターへ直接送る。
+// レンダラーの window.print() を使わないのは、オプションを渡せず結果（成功・取り消し・失敗）も受け取れないためである（確定事項29）。
 contextBridge.exposeInMainWorld('printAPI', {
   available: true,
   print: (options) => ipcRenderer.invoke('print:run', options),
+  // { ok: true, printers: [{ name, displayName }], defaultName }。defaultName は取得できない時 null。
+  listPrinters: () => ipcRenderer.invoke('print:listPrinters'),
+  // 選んだプリンターの用紙・印刷可能領域（µm）・両面・カラーの初期値。取得できない時は A4 の初期値（ok: false）。
+  printerConfig: (name) => ipcRenderer.invoke('print:printerConfig', name),
+  // ［プロパティ(P)］。印刷設定の画面を開き、閉じたら取り直した初期値を返す（質問 PR1 案A）。
+  openPreferences: (name) => ipcRenderer.invoke('print:openPreferences', name),
 });
 
 // 注釈の辞書の読み戻し（spec-4b-1a 確定事項20〜22）。pdf.js が返さない欄（/CA・/IC・/BE・/RD など）を、

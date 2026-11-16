@@ -58,12 +58,13 @@
 
   // ---- 印刷（確定事項28） ----
 
-  // ページ src の注釈を canvas 2D に描く口。無ければ null。
-  function painterFor(src) {
+  // ページ src の注釈を canvas 2D に描く口。無ければ null。keep は描くものを絞る条件（印刷の注釈とフォーム(M)。spec-7-7）。
+  function painterFor(src, keep = null) {
     const view = viewer();
     if (view === undefined || !isOpen() || !Number.isInteger(src))
       return null;
-    const entries = annotationState().annotsOnPage(view.getAnnotations(), view.getImported(), src);
+    const all = annotationState().annotsOnPage(view.getAnnotations(), view.getImported(), src);
+    const entries = typeof keep === 'function' ? all.filter(keep) : all;
     if (entries.length === 0)
       return null;
     return (ctx, viewport) => root.SigK.annotationLayer.paint(ctx, entries, viewport);

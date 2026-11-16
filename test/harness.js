@@ -419,6 +419,22 @@ function makeDataTransfer(files, { types = ['Files'] } = {}) {
   return { types, files, dropEffect: 'none' };
 }
 
+// 試験用プリンターの設定（printer-xml.js の buildConfig の形。A4・四辺 4.23 mm・片面・カラー。両面に対応）。spec-7-7。
+const TEST_PRINTER_CONFIG = Object.freeze({
+  ok: true,
+  source: 'printer',
+  paper: { id: 'psk:ISOA4', name: 'A4', width: 210000, height: 297000 },
+  imageable: { x: 4230, y: 4230, width: 201540, height: 288540 },
+  duplex: { supported: true, mode: 'simplex' },
+  color: { supported: true, value: true },
+  collate: true,
+  paperSizes: [
+    { id: 'psk:ISOA4', name: 'A4', width: 210000, height: 297000 },
+    { id: 'psk:ISOA3', name: 'A3', width: 297000, height: 420000 },
+    { id: 'psk:ISOA5', name: 'A5', width: 148000, height: 210000 },
+  ],
+});
+
 async function createShell({
   appInfo = DEFAULT_APP_INFO,
   withApis = true,
@@ -431,8 +447,13 @@ async function createShell({
   ui = DEFAULT_UI,
   // パス → 読み込み結果。pdfAPI.read(path) がここを引く。
   files = {},
-  // printAPI.print() が返すもの。取り消しや失敗の経路を作れる。
+  // printAPI.print() が返すもの。取り消しや失敗の経路を作れる（関数なら、届いた指定で答えを変えられる）。
   printResult = { ok: true, canceled: false, reason: null },
+  // printAPI.listPrinters() が返すプリンターと既定のプリンター、printerConfig(name) が返す設定（spec-7-7）。
+  // プリンター名は試験用の架空の名前にする（社内のプリンター名を書かない）。
+  printers = [{ name: '試験用プリンター', displayName: '試験用プリンター' }, { name: '試験用プリンター2', displayName: '試験用プリンター2' }],
+  defaultPrinter = '試験用プリンター',
+  printerConfigs = {},
   // taskAPI.run() が返すものの並び。1本ずつ取り出す（spec-1-6）。
   taskResults = [],
   // annotationAPI.readDetails() が返すものの並び（spec-4b-1a 確定事項20）。1 本ずつ取り出し、無ければ
@@ -503,6 +524,7 @@ async function createShell({
     return { ok: true, preferences: structuredClone(savedPreferences), available: { last: exists(folder.last), fixed: exists(folder.fixed) } };
   };
   const printCalls = [];
+  const preferenceCalls = [];
   const closeRequestHandlers = [];
   // メインへ知らせた未保存のタブ数と、確認の答え（spec-1-5 確定事項56）。
   const dirtyCalls = [];
@@ -755,7 +777,13 @@ async function createShell({
       available: true,
       print: async (options) => {
         printCalls.push(structuredClone(options ?? {}));
-        return printResult;
+        return typeof printResult === 'function' ? printResult(options) : printResult;
+      },
+      listPrinters: async () => ({ ok: true, printers: printers.map((printer) => ({ ...printer })), defaultName: defaultPrinter }),
+      printerConfig: async (name) => structuredClone(printerConfigs[name] ?? TEST_PRINTER_CONFIG),
+      openPreferences: async (name) => {
+        preferenceCalls.push(name);
+        return { ok: true, config: structuredClone(printerConfigs[name] ?? TEST_PRINTER_CONFIG) };
       },
     };
     // PDF→画像の書き出し（spec-3-3 確定事項19）。実際に書くのはメイン側なので、
@@ -841,6 +869,8 @@ async function createShell({
     fireSettingsRequest: () => settingsRequestHandlers.forEach((handler) => handler()),
     // printAPI.print() に届いたオプションの並び。
     printCalls,
+    // printAPI.openPreferences() に届いたプリンター名の並び（［プロパティ(P)］。spec-7-7）。
+    preferenceCalls,
     // taskAPI.run() に届いた { taskId, spec } の並び（spec-1-6）。
     taskCalls,
     // taskAPI.cancel() に届いた taskId の並び。
@@ -965,6 +995,7 @@ module.exports = {
   DEFAULT_STRIPS,
   DEFAULT_UI,
   A4,
+  TEST_PRINTER_CONFIG,
   readScriptSources,
   readClassicSources,
   createPdfjsStub,
