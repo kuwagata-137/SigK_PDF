@@ -88,6 +88,8 @@ const ACTIONS = {
     const [n, ratio] = arg.split(':').map(Number);
     return `(() => { const pages = document.querySelectorAll('#strips .strip .strip-pages')[${n}]; if (!pages) return null; pages.scrollLeft = Math.round((pages.scrollWidth - pages.clientWidth) * ${ratio}); return pages.scrollLeft; })()`;
   },
+  // 空のタブ（spec-7-8 確定事項NT1）。タブバーの「＋」と同じく、空のタブを開く（あれば切り替える）。返すのは開けたか。
+  newtab: () => 'SigK.tabs.openBlankTab()',
 };
 
 function actionScript(name, arg) {
@@ -133,7 +135,18 @@ const stateScript = `(() => {
     history: SigK.pageEdit.getHistoryState().at,
     dirty: SigK.viewer.isDirty(),
     // 開いたファイルの見せ方の作り直し（spec-2-5）の PR-1 で足した欄。
+    // タブ名の並びには、空のタブ（新しいタブ）も入る（spec-7-8）。
     tabs: [...document.querySelectorAll('#tabbar .tab .name')].map((el) => el.textContent),
+    // 空のタブ（spec-7-8）。映しているタブの名前・映しているタブが空のタブか・空のタブの画面（#newtab）が表示されているか・通知バーの文言。
+    newTab: (() => {
+      const panel = document.getElementById('newtab');
+      return {
+        active: document.querySelector('#tabbar .tab.active .name')?.textContent ?? null,
+        blank: SigK.tabs.isBlankActive(),
+        shown: panel !== null && !panel.hidden && getComputedStyle(panel).display !== 'none',
+        banner: SigK.viewBanner.text(),
+      };
+    })(),
     thumbsDrawn: document.querySelectorAll('#thumbs .thumb canvas').length,
     viewPointer: SigK.pointerMode?.get() ?? null,
     panning: document.documentElement.hasAttribute('data-panning'),

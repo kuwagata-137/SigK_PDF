@@ -30,7 +30,7 @@ const STATIC_TARGETS = [
   ['#zoom-out', 'bar.zoomOut'], ['#zoom-in', 'bar.zoomIn'], ['#btn-fit-width', 'bar.fitWidth'], ['#btn-fit-page', 'bar.fitPage'],
   ['#btn-facing', 'bar.facing'], ['#btn-find', 'bar.find'], ['#btn-print', 'bar.print'], ['#btn-settings', 'bar.settings'], ['#btn-help', 'bar.help'],
   ...MODES.map(([mode, key]) => [`.rail-item[data-mode="${mode}"]`, key]),
-  ['.tab-add', 'tab.add'], ['#side-collapse', 'side.collapse'], ['#side-expand', 'side.expand'],
+  ['.tab-add', 'tab.add'], ['#newtab-open', 'newtab.open'], ['#side-collapse', 'side.collapse'], ['#side-expand', 'side.expand'],
   ['#find-case', 'find.case'], ['#find-prev', 'find.prev'], ['#find-next', 'find.next'], ['#find-close', 'find.close'],
   ['#status-file', 'status.file'], ['#doc-info-close', 'dialog.close'], ['#help-close', 'dialog.close'], ['#print-close', 'dialog.close'], ['#settings-close', 'dialog.close'],
   ['#color-dialog-close', 'dialog.close'],
@@ -50,7 +50,7 @@ const STATIC_TARGETS = [
 
 // 今まで aria-label が無かった、アイコンだけの要素に足す名前（spec-2-5 J3）。
 const ADDED_LABELS = [
-  ['#btn-undo', '元に戻す'], ['#btn-redo', 'やり直す'], ['#btn-find', '検索'], ['#btn-print', '印刷'], ['#page-prev', '前のページ'], ['#page-next', '次のページ'],
+  ['#btn-undo', '元に戻す'], ['#btn-redo', 'やり直す'], ['#btn-find', '検索'], ['#page-prev', '前のページ'], ['#page-next', '次のページ'],
   ['#zoom-out', '縮小'], ['#zoom-in', '拡大'], ['.tab-add', 'タブを追加'], ['#side-collapse', 'パネルを閉じる'], ['#find-case', '大文字と小文字を区別'],
   ['#find-prev', '前へ'], ['#find-next', '次へ'], ['#find-close', '閉じる'], ['#doc-info-close', '閉じる'], ['#help-close', '閉じる'], ['#print-close', '閉じる'],
 ];

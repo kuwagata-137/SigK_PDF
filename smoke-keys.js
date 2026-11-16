@@ -10,7 +10,8 @@
 //   slide:<id>:<割合>:<割合>（スライダーを押して動かす。離さない）/ thumb-drag:<from>-<to>（サムネイルを押して動かす。離さない）
 //   shape:<kind>:<page>:<x1>x<y1>-<x2>x<y2>（合成のマウスで描く）
 //   mode・tool:<名前|none>・find・dialog:<info|print|help>・print-prepare・focus:<id|none>・select-pages:<a>-<b>・select-text:<page>・zoom・facing:<on|off>・
-//   fit・scroll:<割合>（画面の口を呼ぶ。smoke-keys-page.js）
+//   fit・scroll:<割合>・newtab（画面の口を呼ぶ。smoke-keys-page.js。newtab は空のタブを開く。spec-7-8）
+//   空のタブでの key:ctrl+v は、SIGK_SMOKE_CLIPBOARD（PNG のパスか empty）の画像を、クリップボードの画像の代わりに貼り付ける（spec-7-8 確定事項NT12）
 //   wait:<ms> / state（様子を控える）/ memory（アプリ全体の実メモリを控える）
 //   split（分割の盤を出す）・split-cut:<ページ>・split-press:<ページ>[:shift]・split-drag:<a>-<b>・split-dblclick:<ページ>・split-move:<ページ>:<先>（smoke-keys-split.js）
 //   click:<id>・tab-x:<n>・chord（本物のマウスで要素を押す・タブの × を押す・左＋右）・strip-page・strip-drag・strip-drag-new・strip-hold

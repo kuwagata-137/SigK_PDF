@@ -51,6 +51,7 @@
       "file-io.js",
       "image-io.js",
       "image-open.js",
+      "clipboard-image.js",
       "image-thumbnail.js",
       "recent-documents.js",
       "pdf-write.js",

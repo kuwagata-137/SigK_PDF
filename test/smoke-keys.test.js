@@ -219,3 +219,20 @@ test('pick-tool・scroll-strips・scroll-strip は画面で回せ、様子の控
   for (const key of ['unsaved', 'picked', 'canvases', 'drawn', 'drawing', 'overlays', 'bigDrop', 'tabbarHidden', 'paneWidth', 'tool'])
     assert.ok(key in state.strips, key);
 });
+
+// 空のタブ（spec-7-8 確定事項NT1）の起動確認の口。空のタブでの key:ctrl+v は、SIGK_SMOKE_CLIPBOARD の画像を貼り付ける（NT12）。
+test('newtab は空のタブを開き、様子の控えに空のタブの欄（映しているタブ・空のタブか・空のタブの画面・通知バー）がある', async (t) => {
+  assert.ok(page.ACTION_NAMES.includes('newtab'));
+  assert.ok(keyEvent('ctrl+v') !== null, 'Ctrl+V を送れる');
+  const shell = await createShell({ files: { [A]: makeSource({ path: A, name: 'a.pdf' }) } });
+  t.after(() => shell.cleanup());
+  await shell.SigK.tabs.openPath(A);
+  await shell.flush();
+  let state = structuredClone(await shell.window.eval(page.stateScript));
+  assert.deepEqual(state.newTab, { active: 'a.pdf', blank: false, shown: false, banner: '' });
+
+  assert.equal(await shell.window.eval(page.actionScript('newtab', '')), true);
+  state = structuredClone(await shell.window.eval(page.stateScript));
+  assert.deepEqual(state.tabs, ['a.pdf', '新しいタブ']);
+  assert.deepEqual(state.newTab, { active: '新しいタブ', blank: true, shown: true, banner: '' });
+});

@@ -837,9 +837,8 @@
 
     // 名前の無い帯の中身は、保存のときワーカーへ渡すので、pdf.js が中身を移して空にする前に写しておく（spec-2-5 確定事項I4）。
     // 画像のタブも、組み立てた PDF を同じく写しておく（PDF での保存と帯のページを写す機能が読む。spec-7-1 確定事項A6）。
-    const untitled = source.untitled === true
-      ? { untitled: true, copy: source.copy, bytes: source.bytes.slice(), folder: source.folder ?? null }
-      : imageFields(source);
+    // 名前の無い画像（空のタブに貼り付けた画像。spec-7-8 確定事項NT8）は、両方の欄を持つ（untitledFields）。
+    const untitled = source.untitled === true ? untitledFields(source) : imageFields(source);
     try {
       const loaded = await loadDocument(source);
       if (token !== state.token) {
@@ -884,6 +883,15 @@
     if (source?.image === undefined || source.image === null)
       return {};
     return { image: { ...source.image }, copy: IMAGE_COPY, bytes: source.bytes.slice() };
+  }
+
+  // 名前の無い文書の欄（spec-2-5 確定事項I4）。folder は名前を付けて保存の画面の最初のフォルダ（無ければ null）。
+  // 名前の無い画像（spec-7-8 確定事項NT8）は、画像のタブの欄 image も持ち、鍵（copy）は画像のタブと同じ IMAGE_COPY にする。こうすると、
+  // 保存は名前の無い帯と同じく上書き保存から名前を付けて保存へ回り（save.js）、そこから画像のタブの保存（image-save.js）へ進む。
+  // 名前の無い帯の鍵は、作った側（page-transfer.js）が付けた copy-<番号>。
+  function untitledFields(source) {
+    const image = source.image === undefined || source.image === null ? {} : { image: { ...source.image } };
+    return { untitled: true, ...image, copy: source.copy ?? IMAGE_COPY, bytes: source.bytes.slice(), folder: source.folder ?? null };
   }
 
   // 読んだ文書を映す（状態を作り直し、ページ・サムネイル・状態の欄を組む）。

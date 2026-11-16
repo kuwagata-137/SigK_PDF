@@ -208,6 +208,9 @@
     // ツールモードの Ctrl＋＋/－/0 は帯の紙の倍率（docs/07 決定83）。「変換する画像」の帯だけで文書が無くても効かせる。
     if (root.SigK.toolsZoom?.handleKey(event, doc) === true)
       return;
+    // 空のタブの Ctrl+V は、クリップボードの画像を貼り付ける（spec-7-8 確定事項NT6・NT7）。空のタブには文書が無いので、文書の有無を見る前に渡す。
+    if (root.SigK.newTab?.handleKey(event, doc) === true)
+      return;
     if (viewer().getState().open !== true)
       return;
     if (handleFindPrintKey(event))

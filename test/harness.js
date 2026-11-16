@@ -496,6 +496,9 @@ async function createShell({
   // shellAPI.ready() を受けたときに流す起動要求の並び。メインが準備前に溜めていた要求を、
   // ready を合図に流すのを真似る（spec-1-6 確定事項77・spec-5-1 確定事項14 の競合）。
   launchOnReady = [],
+  // clipboardAPI.readImage() が返すものの並び（空のタブの Ctrl+V。spec-7-8 確定事項NT6〜NT8）。1 本ずつ取り出し（関数なら呼ぶ）、
+  // 無ければ { empty: true }（クリップボードに画像が無い）。試験はユーザーのクリップボードに触れない（NT12）。
+  clipboardResults = [],
 } = {}) {
   const html = fs.readFileSync(INDEX_PATH, 'utf8');
   const dom = new JSDOM(html, {
@@ -551,6 +554,8 @@ async function createShell({
   const thumbnailCalls = [];
   // そのとき頼んだ大きさ（長い辺 px。ツールモードの紙の倍率で変わる。docs/07 決定83）。thumbnailCalls と同じ順。
   const thumbnailSizes = [];
+  // clipboardAPI.readImage() を呼んだ回数（spec-7-8）。
+  let clipboardReads = 0;
   // shellAPI.showInFolder() に届いたパスの並び（spec-2-2 確定事項30）。
   const showInFolderCalls = [];
   // 起動要求（spec-1-6 確定事項77）。購読より先に ready が送られていないかを
@@ -804,6 +809,15 @@ async function createShell({
         return imageThumbnails[filePath] ?? { ok: true, url: 'data:image/png;base64,AAAA', width: 192, height: 128 };
       },
     };
+    // 空のタブの Ctrl+V（spec-7-8 確定事項NT6〜NT8）。実際にクリップボードを読んで PDF に組み立てるのはメイン側なので、ここは仕込んだ結果を返す。
+    window.clipboardAPI = {
+      available: true,
+      readImage: async () => {
+        clipboardReads += 1;
+        const next = clipboardResults.shift();
+        return typeof next === 'function' ? next() : (next ?? { empty: true });
+      },
+    };
     window.recentAPI = {
       available: true,
       list: async () => ({ ok: true, recent: recentList }),
@@ -898,6 +912,9 @@ async function createShell({
     // imageAPI.thumbnail() に届いたパス（spec-2-5 確定事項H5）。
     thumbnailCalls,
     thumbnailSizes,
+    // clipboardAPI.readImage() を呼んだ回数と、返す結果の並び（テストから追加できる。spec-7-8）。
+    clipboardReads: () => clipboardReads,
+    clipboardResults,
     // pdfAPI.pickWatermarkImage() に届いたオプションと、readWatermarkImage が返す画像（spec-4-5）。
     watermarkImageCalls,
     watermarkImages,

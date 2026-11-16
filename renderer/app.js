@@ -205,6 +205,8 @@
     root.SigK.helpDialog.init(doc, win);
     root.SigK.tabs.init(doc, win);
     root.SigK.recentPanel.init(doc, win);
+    // 空のタブの画面と、空のタブでの Ctrl+V（spec-7-8 確定事項NT2・NT6）。tabs.render から sync が呼ばれる。
+    root.SigK.newTab.init(doc, win);
     root.SigK.fileDrop.init(doc, win);
     // 倍率の入力欄（spec-7-6 確定事項ZI1）。表示は viewer-controls.js の syncZoom がそろえる。
     root.SigK.zoomInput.init(doc, win);

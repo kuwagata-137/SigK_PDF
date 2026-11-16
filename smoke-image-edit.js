@@ -16,6 +16,8 @@
 //   pdf       PNG に描き［名前を付けて保存］で PDF。/Square の注釈が残るかを見る
 //   tools     画像のタブの道具の段で、灰色の道具と吹き出しの鍵を見る
 //   exif      EXIF の向きを持つ JPEG を開いて回し、上書き保存する（smoke-image-exif.js。spec-7-4 確定事項X1〜X3）
+//   paste     空のタブに貼り付けた画像に描き［上書き保存］→ 保存の窓で PNG（spec-7-8 確定事項NT8・NT9）。SIGK_SMOKE_CLIPBOARD の画像
+//             （クリップボードの代わり。NT12）があるときだけ行う。画素数・四角の線の色・四角の外の画素・保存後のタブを見る
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -25,10 +27,11 @@ const squareFor = ({ width, height }) => ({ from: [Math.round(width * 0.1), Math
 
 // 四角を描く（smoke-annotate.js の shape の手順と同じく、紙の pt を画面の座標にしてマウスを送る）。
 // 四角の大きさは、アプリが開いた画像の欄（file.image.frames）から決める（nativeImage は BMP・GIF・TIFF を読めないため）。
+// target が null なら開かずに、映している画像に描く（貼り付けた画像。paste の筋書き）。
 const drawScript = (target) => `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const SigK = window.SigK;
-  await SigK.tabs.openPath(${JSON.stringify(target)});
+  ${target === null ? '' : `await SigK.tabs.openPath(${JSON.stringify(target)});`}
   await wait(700);
   const size = SigK.viewer.getState().file.image.frames[0];
   const square = (${squareFor.toString()})(size);
@@ -70,6 +73,38 @@ const saveScript = (mode, answer) => `(async () => {
   return { confirm, result: { ok: result?.ok === true, canceled: result?.canceled === true, error: result?.error ?? null }, banner: SigK.viewBanner.text(),
     tab: { path: file?.path ?? null, image: file?.image?.kind ?? null, dirty: SigK.viewer.isDirty() } };
 })()`;
+
+// 編集モードで空のタブを開き、Ctrl+V と同じ処理（newTab.paste）でクリップボードの画像を貼り付ける（spec-7-8 確定事項NT1・NT6・NT8）。
+const pasteScript = `(async () => {
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const SigK = window.SigK;
+  SigK.shell.setMode(document, 'annot');
+  SigK.tabs.openBlankTab();
+  await wait(200);
+  const opened = await SigK.newTab.paste();
+  await wait(700);
+  const file = SigK.viewer.getState().file;
+  return { opened, name: file?.name ?? null, untitled: file?.untitled === true, image: file?.image?.kind ?? null, dirty: SigK.viewer.isDirty(),
+    tabs: SigK.tabs.list().map((tab) => tab.name), blank: SigK.tabs.isBlankActive() };
+})()`;
+
+// paste の筋書き。SIGK_SMOKE_CLIPBOARD の画像が無ければ行わない（null）。
+async function runPaste({ js, dir, nativeImage, answers }) {
+  const source = process.env.SIGK_SMOKE_CLIPBOARD;
+  if (typeof source !== 'string' || source === '' || source === 'empty')
+    return null;
+  const before = pixelsOf(nativeImage, path.resolve(source));
+  const pasted = await js(pasteScript);
+  const drawn = await js(drawScript(null));
+  const out = path.join(dir, 'pasted-out.png');
+  answers.push(out);
+  const saved = await js(saveScript('overwrite', 'ok'));
+  const after = fs.existsSync(out) ? pixelsOf(nativeImage, out) : null;
+  return {
+    pasted, drawn, saved, sizeBefore: [before.width, before.height], size: after === null ? null : [after.width, after.height],
+    edge: after === null ? null : edgeOf(after, before), outside: after === null ? null : outsideDiff(before, after, boxFor(before)),
+  };
+}
 
 const toolsScript = `(() => {
   const buttons = [...document.querySelectorAll('#edit-bar .edit-tool[data-tool]')];
@@ -138,6 +173,11 @@ async function run({ win, dir, root, dialog, nativeImage }) {
   const js = (script) => win.webContents.executeJavaScript(script);
   const copy = (name, as) => { const target = path.join(dir, as); fs.copyFileSync(fixture(root, name), target); return target; };
   try {
+    // paste: 空のタブに貼り付けた画像を保存する（spec-7-8 確定事項NT8・NT9）。SIGK_SMOKE_IMAGE_EDIT_ONLY=paste なら、これだけを行う。
+    report.paste = await runPaste({ js, dir, nativeImage, answers });
+    if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'paste')
+      return report;
+
     // exif: EXIF の向きを持つ写真を開き、回して上書き保存する（smoke-image-exif.js）。SIGK_SMOKE_IMAGE_EDIT_ONLY=exif なら、これだけを行う。
     report.exif = await require('./smoke-image-exif.js').run({ js, dir, nativeImage, saveScript, pixelsOf, dialog });
     if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'exif')

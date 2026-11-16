@@ -3,6 +3,7 @@
 
   // 最近使ったファイルの一覧（F-06-3・spec-1-2 確定事項9）。
   // 文書が1つも開いていないときだけ、ページビューの空きに出す。
+  // 空のタブを映しているときも、［ファイルを開く］の下に表示する（spec-7-8 確定事項NT2）。
   // アプリメニュー側の一覧はメイン側が組む。実体はどちらも settings.json にある。
   //
   // 存在確認はしない（確定事項10）。ネットワークドライブ上のパスで固まるためで、
@@ -49,11 +50,13 @@
     el.list.hidden = false;
   }
 
-  // タブが1枚でもあれば隠す。開いている文書の裏に履歴が透けるのは邪魔である。
+  // タブが1枚でもあれば隠す。開いている文書の裏に履歴が透けるのは邪魔である。ただし空のタブを映しているときは、［ファイルを開く］の
+  // 下に表示する（spec-7-8 確定事項NT2。クリックすると、空のタブの位置で開く。tabs.js の openSource）。
   function sync() {
     if (el === null)
       return;
-    const busy = (root.SigK.tabs?.count() ?? 0) > 0;
+    const tabs = root.SigK.tabs;
+    const busy = (tabs?.count() ?? 0) > 0 && tabs?.isBlankActive?.() !== true;
     if (busy) {
       el.list.hidden = true;
       return;

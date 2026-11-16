@@ -105,6 +105,9 @@
   // ［上書き保存］。PNG・JPEG で 1 ページなら確認のうえ同じ形式で書く。書けない形式・ページが 1 枚でないときは名前を付けて保存へ（確定事項B1・B3）。
   async function overwrite({ writePdf }) {
     const file = viewer().getState().file;
+    // 名前の無い画像は、上書きする先が無い（spec-7-8 確定事項NT9。save.js の overwrite も先に名前を付けて保存へ回している）。
+    if (file?.untitled === true)
+      return saveAs({ writePdf });
     if (!viewer().isDirty())
       return { ok: true, unchanged: true };
     const format = tab().overwriteFormatOf(file);
@@ -116,13 +119,22 @@
     return writeImage({ file, target: file.path, format, makeBackup: backup, expect: save().signatureOf(file) });
   }
 
-  // ［名前を付けて保存］。PNG・JPEG・PDF から選ぶ（確定事項B2）。
+  // 名前を付けて保存の画面の既定のパス（確定事項B2）。名前の無い画像（空のタブに貼り付けた画像）は「新しい画像 N.png」で、フォルダが
+  // あればそのフォルダに置く（spec-7-8 確定事項NT9。save.js の名前の無い PDF と同じ形）。
+  function defaultPathOf(file, format) {
+    if (file?.untitled !== true)
+      return tab().defaultPathFor(file.path, format);
+    const base = typeof file.folder === 'string' && file.folder !== '' ? `${file.folder}\\${file.name}` : file.name;
+    return tab().defaultPathFor(base, format);
+  }
+
+  // ［名前を付けて保存］。PNG・JPEG・PDF から選ぶ（確定事項B2）。名前の無い画像の［上書き保存］も、save.js がここへ回す（spec-7-8 確定事項NT9）。
   async function saveAs({ writePdf }) {
     const file = viewer().getState().file;
     const formats = tab().saveFormatsOf(file, viewer().getPlan().length);
     if (formats.length === 1)
       banner().show(MULTI_PAGE, { tone: 'warn' });
-    const defaultPath = tab().defaultPathFor(file.path, formats[0]);
+    const defaultPath = defaultPathOf(file, formats[0]);
     const initialPath = await root.SigK.preferences?.resolvePath(defaultPath) ?? defaultPath;
     if (!stillShowing(file))
       return { changed: true };
@@ -141,7 +153,8 @@
     if (picked.format === 'pdf')
       return writePdf({ target: picked.path, name: baseName(picked.path) });
     // 開いている画像そのものを選んだら、上書き保存と同じに扱う（確認の窓と控え。確定事項B2）。
-    if (pathKey(picked.path) === pathKey(file.path)) {
+    // 名前の無い画像（spec-7-8 確定事項NT9）は、開いている画像のファイルが無いので、この扱いにならない。
+    if (typeof file.path === 'string' && pathKey(picked.path) === pathKey(file.path)) {
       const backup = makesBackup();
       if (!(await confirmBurn(file, backup)) || !stillShowing(file))
         return { canceled: true };

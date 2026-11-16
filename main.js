@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, protocol, screen, session, shell, utilityProcess } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, nativeImage, protocol, screen, session, shell, utilityProcess } = require('electron');
 const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -27,6 +27,7 @@ const { handleRendererGone, runCrashCheck } = require('./renderer-gone.js');
 const { createFileIo } = require('./file-io.js');
 const { createImageIo } = require('./image-io.js');
 const { createImageOpener } = require('./image-open.js');
+const { createClipboardImageReader, clipboardFor } = require('./clipboard-image.js');
 const imageThumbnail = require('./image-thumbnail.js');
 const { addRecent, removeRecent, normalizeList } = require('./recent-documents.js');
 const { createTaskRunner } = require('./task-runner.js');
@@ -82,6 +83,8 @@ let settings = null;
 let preferences = null;
 let fileIo = null;
 let imageIo = null;
+// 空のタブに貼り付けるクリップボードの画像（spec-7-8 確定事項NT6〜NT8）。
+let clipboardImage = null;
 let taskRunner = null;
 let mainWindow = null;
 
@@ -464,6 +467,8 @@ function registerIpc() {
       preferences.rememberWritten(target);
     return result;
   });
+  // 空のタブで Ctrl+V を押したときの、クリップボードの画像（spec-7-8 確定事項NT6〜NT8）。画像を開く口と同じく、ワーカーで PDF に組み立てて返す。
+  ipcMain.handle('clipboard:readImage', () => clipboardImage.read());
   // 「変換する画像」の帯のサムネイル（spec-2-5 確定事項H5）。画像の拡張子の絶対パスだけ受け、data URL で返す。
   ipcMain.handle('image:thumbnail', (_event, filePath, size) => imageThumbnail.createThumbnail(filePath, { nativeImageLike: nativeImage, size: imageThumbnail.thumbSize(size) }));
   // 分割の出力をエクスプローラーで見せる（spec-2-2 確定事項30）。レンダラーから
@@ -2105,14 +2110,15 @@ function start() {
   settings.load();
   preferences = createPreferencesHost({ settings, logError, notify: (snapshot) => mainWindow?.webContents.send('preferences:changed', snapshot) });
   // 画像はワーカーで PDF に組み立ててから開く（spec-7-1 確定事項A4）。taskRunner はこのすぐ下で作るので、呼ぶときに引く。
+  // クリップボードの画像（spec-7-8 確定事項NT8）も同じワーカーで組み立てる。起動確認では、ユーザーのクリップボードの代わりに
+  // SIGK_SMOKE_CLIPBOARD の画像を使う（NT12。clipboardFor）。
   let imageOpenSerial = 0;
-  const imageOpener = createImageOpener({
-    run: (spec) => {
-      imageOpenSerial += 1;
-      return taskRunner.run(`image-open-${imageOpenSerial}`, spec);
-    },
-    onError: logError,
-  });
+  const runImageOpen = (spec) => {
+    imageOpenSerial += 1;
+    return taskRunner.run(`image-open-${imageOpenSerial}`, spec);
+  };
+  const imageOpener = createImageOpener({ run: runImageOpen, onError: logError });
+  clipboardImage = createClipboardImageReader({ clipboardLike: clipboardFor(process.env, clipboard), run: runImageOpen, onError: logError });
   fileIo = createFileIo({ dialog, onError: logError, readImage: (filePath) => imageOpener.read(filePath) });
   imageIo = createImageIo({ dialog, onError: logError });
   // ワーカーは asar の中からでも fork できる（spec-1-6 事前調査 A で実測）。

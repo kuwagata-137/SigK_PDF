@@ -8,9 +8,19 @@
   // canvas は持たない（確定事項1）。アクティブなタブの session は null で、
   // 実体は viewer が握っている。この非対称が分かりにくいので、出し入れは
   // stash() と restore() の2つに閉じてある。
+  //
+  // 空のタブ（ファイルを開いていないタブ。spec-7-8 確定事項NT1〜NT5・NT10）は { blank: true } のタブで、文書を持たない
+  // （session も error も null）。タブバーの「＋」で開き、同時に 1 枚だけにする。帯・ツール・終了の確認が使う一覧（list）には入れず、
+  // 上限の判定（count・isFull）には数える。空のタブを映している間に開いたファイルは、空のタブの位置に置き換える（NT4。openSource）。
+  // 映している間の画面（［ファイルを開く］と案内文）と Ctrl+V は new-tab.js が担当する。
 
   const MAX_TABS = 20;
   const TITLE = 'SigK PDF';
+  // 空のタブのタブ名（spec-7-8 確定事項NT1）と、タブのツールチップ（NT11）。名前の無い PDF のタブのツールチップは spec-2-5 J5。
+  const BLANK_NAME = '新しいタブ';
+  const BLANK_TIP = 'ファイルを開くか、Ctrl+V でクリップボードの画像を貼り付けるための空のタブです。';
+  const UNTITLED_PDF_TIP = 'まだファイルとして保存していない新しい PDF です。';
+  const UNTITLED_IMAGE_TIP = 'まだファイルとして保存していない画像です。';
 
   const state = {
     list: [],
@@ -53,8 +63,18 @@
     return { id: tab.id, path: tab.path, name: tab.name, active: tab.id === state.activeId };
   }
 
+  function blankTab() {
+    return state.list.find((tab) => tab.blank === true) ?? null;
+  }
+
+  // 映しているタブが空のタブか（spec-7-8 確定事項NT2・NT6）。
+  function isBlankActive() {
+    return find(state.activeId)?.blank === true;
+  }
+
+  // 開いているファイルのタブの一覧。空のタブは帯にもツールの対象にもならないので入れない（spec-7-8 確定事項NT10）。
   function list() {
-    return state.list.map(describe);
+    return state.list.filter((tab) => tab.blank !== true).map(describe);
   }
 
   // 書き出す先がタブで開いているかを、書き出す側が確かめる口（output-target.js）。
@@ -138,14 +158,19 @@
     return { doc, file, basePages, plan, savedPlan, annots, savedAnnots, imported, inserts, sizes, error: null };
   }
 
-  // タブの並びを替える（帯の［↑］［↓］。spec-2-5 確定事項D4）。ids は今のタブの id をちょうど 1 回ずつ並べたもの。
-  // 映しているタブは変えない。
+  // タブの並びを替える（帯の［↑］［↓］。spec-2-5 確定事項D4）。ids は今のタブ（空のタブを除く。list と同じ）の id をちょうど 1 回ずつ
+  // 並べたもの。映しているタブは変えない。空のタブは帯にならないので、元の位置に残す（spec-7-8 確定事項NT10）。
   function reorder(ids) {
-    if (!Array.isArray(ids) || ids.length !== state.list.length || new Set(ids).size !== ids.length || !ids.every((id) => find(id) !== null))
+    const files = state.list.filter((tab) => tab.blank !== true);
+    if (!Array.isArray(ids) || ids.length !== files.length || new Set(ids).size !== ids.length || !ids.every((id) => files.some((tab) => tab.id === id)))
       return false;
-    if (ids.every((id, index) => state.list[index].id === id))
+    if (ids.every((id, index) => files[index].id === id))
       return false;
-    state.list = ids.map(find);
+    const next = ids.map(find);
+    const blankAt = state.list.findIndex((tab) => tab.blank === true);
+    if (blankAt !== -1)
+      next.splice(blankAt, 0, state.list[blankAt]);
+    state.list = next;
     render();
     return true;
   }
@@ -155,6 +180,8 @@
       return false;
     state.activeId = tab.id;
     // 開けなかったタブは session を持たない。理由をもう一度出す（確定事項19）。
+    // 空のタブも session を持たず、error も null なので、ここで「文書が開かれていません」の画面に戻る。空のタブの画面（［ファイルを開く］と
+    // 案内文）は、続く render の中で new-tab.js が表示する（spec-7-8 確定事項NT2）。
     if (tab.session === null) {
       viewer().setMessage(tab.error ?? viewer().EMPTY_MESSAGE);
       if (tab.error !== null)
@@ -168,6 +195,17 @@
 
   // ---- 表示 ----
 
+  // タブのツールチップの説明（spec-2-5 J5）。名前とフルパスで、まだ場所が無いタブ（名前の無い PDF・貼り付けた画像・空のタブ）は、
+  // その旨を表示する（spec-7-8 確定事項NT11）。
+  function tipOf(tab) {
+    if (tab.blank === true)
+      return BLANK_TIP;
+    const file = peek(tab.id)?.file;
+    if (file?.untitled !== true)
+      return tab.path ?? tab.name;
+    return file.image === undefined || file.image === null ? UNTITLED_PDF_TIP : UNTITLED_IMAGE_TIP;
+  }
+
   function makeTabNode(tab) {
     const node = el.doc.createElement('div');
     const classes = ['tab'];
@@ -175,11 +213,11 @@
       classes.push('active');
     if (tab.error !== null)
       classes.push('failed');
+    if (tab.blank === true)
+      classes.push('blank');
     node.className = classes.join(' ');
     node.dataset.tabId = String(tab.id);
-    // 説明の吹き出し（spec-2-5 J5）は名前とフルパス。名前の無いタブ（新しい帯）はまだ場所が無いので、その旨を出す。
-    const untitled = peek(tab.id)?.file?.untitled === true;
-    root.SigK.tipContent.text(node, tab.name, untitled ? 'まだファイルとして保存していない新しい PDF です。' : tab.path ?? tab.name);
+    root.SigK.tipContent.text(node, tab.name, tipOf(tab));
 
     const name = el.doc.createElement('span');
     name.className = 'name';
@@ -240,10 +278,17 @@
     el.bar.replaceChildren(...nodes);
     revealActive();
     syncTitle();
-    root.SigK.recentPanel?.sync();
+    syncEmptyView();
     // ツールモードの帯と右の欄も、タブを描き直すここから合わせる（並び・選択・未保存の印。spec-2-5 確定事項D1〜D4・E2）。
     root.SigK.strips?.sync();
     root.SigK.toolPane?.sync();
+  }
+
+  // 文書の無い時の画面（空のタブの画面と、最近使ったファイルの一覧）を、映しているタブに合わせる（spec-7-8 確定事項NT2）。
+  // render のほか、空のタブの位置でファイルを読み込み始めた時にも呼ぶ（読み込んでいる間は「読み込んでいます…」を表示する）。
+  function syncEmptyView() {
+    root.SigK.newTab?.sync();
+    root.SigK.recentPanel?.sync();
   }
 
   // ---- 開く ----
@@ -255,7 +300,13 @@
       root.SigK.viewBanner.show(text);
   }
 
+  // 空のタブの画面は「文書が開かれていません」の文言欄（#view-message）を隠しているので、開けなかった理由などは通知バーに表示する
+  // （spec-7-8 確定事項NT2。文書を映している時と同じ。spec-1-2 確定事項20）。
   function messageFor(text) {
+    if (isBlankActive()) {
+      root.SigK.viewBanner.show(text);
+      return;
+    }
     viewer().setMessage(text);
     reportInTools(text);
   }
@@ -274,9 +325,15 @@
     }
   }
 
+  // タブが上限まで開いているか（spec-6-1 確定事項D-7）。空のタブも 1 枚に数える。ただし映している空のタブは、開いたファイルのタブに
+  // 置き換わるので数えない（spec-7-8 確定事項NT4・NT10）。
+  function isFull() {
+    return state.list.length - (isBlankActive() ? 1 : 0) >= MAX_TABS;
+  }
+
   // タブが上限まで開いていたら断る（true）。ファイルを読む前・［開く］の窓を出す前に呼ぶ（spec-6-1 確定事項D-7。前は読んでから断っていた）。
   function refuseCrowded() {
-    if (state.list.length < MAX_TABS)
+    if (!isFull())
       return false;
     messageFor(`タブは ${MAX_TABS} 個まで開けます。タブが多すぎるので、使わないタブを閉じてください。`);
     return true;
@@ -301,7 +358,7 @@
       return false;
     }
 
-    // 同じファイルは2枚にしない（確定事項4）。
+    // 同じファイルは2枚にしない（確定事項4）。空のタブを映していても、そのタブへ切り替え、空のタブは残す（spec-7-8 確定事項NT4）。
     const existing = tabFor(source.path);
     if (existing !== null) {
       activate(existing.id);
@@ -311,7 +368,12 @@
     if (refuseCrowded())
       return false;
 
+    // 空のタブを映していたら、作るタブ（開けなかったタブも）を空のタブの位置に置く（spec-7-8 確定事項NT4）。読み込んでいる間は
+    // 空のタブの画面を隠し、「読み込んでいます…」を表示する。
+    const blank = isBlankActive() ? find(state.activeId) : null;
     const previous = stash();
+    if (blank !== null)
+      syncEmptyView();
     let opened;
     state.opening += 1;
     try {
@@ -340,7 +402,7 @@
       error: opened ? null : viewer().getMessage(),
     };
     state.nextId += 1;
-    state.list.push(tab);
+    place(tab, blank);
     state.activeId = tab.id;
     render();
     if (!opened)
@@ -350,6 +412,35 @@
     if (opened)
       await rememberRecent(source);
     return opened;
+  }
+
+  // 作ったタブを並びに入れる。空のタブの位置で開いたときは、空のタブと入れ替える（spec-7-8 確定事項NT4）。読み込んでいる間に空のタブを
+  // 閉じていたら、今までどおり右端に追加する。
+  function place(tab, blank) {
+    const index = blank === null ? -1 : state.list.indexOf(blank);
+    if (index === -1)
+      state.list.push(tab);
+    else
+      state.list.splice(index, 1, tab);
+  }
+
+  // タブバーの「＋」（spec-7-8 確定事項NT1・NT5）。空のタブは 1 枚だけにし、あればそのタブへ切り替える。無ければ上限を確かめてから、
+  // 右端に追加して映す。どのモードでも同じ（ツールモードはタブバーを表示しないので押せない）。
+  function openBlankTab() {
+    const blank = blankTab();
+    if (blank !== null) {
+      activate(blank.id);
+      return true;
+    }
+    if (refuseCrowded())
+      return false;
+    const tab = { id: state.nextId, path: null, name: BLANK_NAME, session: null, error: null, blank: true };
+    state.nextId += 1;
+    stash();
+    state.list.push(tab);
+    restore(tab);
+    render();
+    return true;
   }
 
   async function openPath(filePath, call = null) {
@@ -418,8 +509,9 @@
     return openSource(result, call);
   }
 
-  // 「開く」の口（ツールバーの「開く」・タブの「＋」・メニューの「開く」（Ctrl+O）と「最近使ったファイル」）。パスが
+  // 「開く」の口（ツールバーの「開く」・空のタブの［ファイルを開く］・メニューの「開く」（Ctrl+O）と「最近使ったファイル」）。パスが
   // 付いていればそれを開き、無ければファイルを選ぶ窓を出す。
+  // 2026-11-13 までは、タブの「＋」もここを呼んでいた（spec-7-8 確定事項NT1 で、空のタブを開くボタンに変更した。openBlankTab）。
   //
   // どのモードで開いてもモードは変えない（決定80。2026-10-08 に「ツールモードで開いたら閲覧モードへ移る」とした
   // spec-2-1 確定事項4 を改めた）。ツールモードでは、開けなかった理由を通知バーに出す（reportInTools）。開いたタブは帯になり、
@@ -595,7 +687,7 @@
       if (node !== null && node !== undefined)
         closeTab(Number(node.dataset.tabId));
     });
-    el.add?.addEventListener('click', () => runOpenCommand());
+    el.add?.addEventListener('click', () => openBlankTab());
 
     render();
     return true;
@@ -605,11 +697,14 @@
   SigK.tabs = {
     MAX_TABS,
     TITLE,
+    BLANK_NAME,
     init,
     list,
     findByPath,
     activeId: () => state.activeId,
+    // タブの数（空のタブを含む。上限の判定に使う。spec-7-8 確定事項NT10）。
     count: () => state.list.length,
+    isFull,
     peek,
     reorder,
     isOpening: () => state.opening > 0,
@@ -617,6 +712,9 @@
     openPath,
     openViaDialog,
     runOpenCommand,
+    openBlankTab,
+    isBlankActive,
+    blankId: () => blankTab()?.id ?? null,
     activate,
     withActive,
     isBorrowing: () => state.borrowing > 0,

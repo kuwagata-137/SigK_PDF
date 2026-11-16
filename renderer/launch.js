@@ -33,12 +33,13 @@
 
   // 1本ずつ順にタブで開く（確定事項13）。まとめて投げると、同じファイルが2枚のタブになる経路（tabs.js の重複判定は
   // 開き終わってから効く）を作ってしまう。タブが上限なら開かず、通知バーを束につき 1 回出す。
+  // 上限の判定は tabs.js の isFull（映している空のタブは、開いたファイルのタブに置き換わるので数えない。spec-7-8 確定事項NT4・NT10）。
   // { opened } を返す（開いた数）。
   async function openTabs(paths) {
     const tabs = SigKOf().tabs;
     let opened = 0;
     for (const filePath of paths) {
-      if (tabs.count() >= tabs.MAX_TABS && tabs.findByPath(filePath) === null) {
+      if (tabs.isFull() && tabs.findByPath(filePath) === null) {
         if (openBatches().once('tabs'))
           SigKOf().viewBanner.show(`タブは ${tabs.MAX_TABS} 個まで開けます。タブが多すぎるので、使わないタブを閉じてください。`);
         continue;

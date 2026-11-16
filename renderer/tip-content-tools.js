@@ -31,7 +31,8 @@
     'strip.up': { name: '上へ', desc: 'この帯を 1 つ上へ移動します。タブの並び順と結合順序も、あわせて変わります。' },
     'strip.down': { name: '下へ', desc: 'この帯を 1 つ下へ移動します。タブの並び順と結合順序も、あわせて変わります。' },
     'strip.save': stripSave,
-    'strip.saveAs': { name: '名前を付けて保存', desc: 'この帯はまだ保存されていません。保存先と名前を指定して、PDF ファイルとして保存します。', keys: ['Ctrl+Shift+S'], keysNote: '選択中の帯' },
+    // 名前の無い帯のフロッピー。空のタブに貼り付けた画像の帯は、PNG・JPEG・PDF から形式を選ぶ（spec-7-8 確定事項NT9）。
+    'strip.saveAs': { name: '名前を付けて保存', desc: 'この帯はまだ保存されていません。保存先と名前を指定して保存します。新しい PDF の帯は PDF ファイルとして、貼り付けた画像の帯は PNG・JPEG・PDF から選んだ形式で保存します。', keys: ['Ctrl+Shift+S'], keysNote: '選択中の帯' },
     'strip.close': { name: '閉じる', desc: 'この帯（PDF のタブ）を閉じます。保存していない変更があれば、閉じる前に確認します。', keys: ['Ctrl+W'], keysNote: '選択中の帯' },
     'image.clear': { name: 'すべて削除', desc: '「変換する画像」の帯から、画像をすべて削除します。元の画像ファイルは削除されません。' },
     'image.remove': { name: '削除', desc: 'この画像を「変換する画像」の帯から削除します。元の画像ファイルは削除されません。' },
