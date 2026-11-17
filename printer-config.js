@@ -3,7 +3,8 @@
 // プリンターの既定の設定を Windows から取得する（docs/spec-7-7-print-dialog.md 確定事項C3）。
 //
 // Electron の getPrintersAsync は、既定のプリンター・用紙・両面・印刷可能領域を返さない。そこで、
-// 既定のプリンターはレジストリの Device の値を、用紙などは PowerShell の Get-PrintConfiguration を読む。
+// 既定のプリンターはレジストリの Device の値を読む。用紙などは、PowerShell で System.Printing の印刷チケットを読む
+// （CONFIG_SCRIPT。読めない時は Get-PrintConfiguration）。
 // ［プロパティ(P)］で開く印刷設定の画面（質問 PR1 案A）は printui.dll で開く。
 // どれも外部のコマンドなので、実行する関数（execFile・spawn）は外から渡す（試験では偽物を渡す）。
 // プリンター名はコマンドの文字列に埋め込まず、環境変数か引数で渡す（名前の記号でコマンドが壊れないように）。
@@ -27,11 +28,48 @@ const DEFAULT_SCRIPT = [
   "(Get-ItemProperty -LiteralPath 'HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows' -Name Device).Device",
 ].join('; ');
 
+// System.Printing（.NET の印刷機能）で印刷チケットと能力情報を読む手順（決定97 ④）。
+// 印刷設定（［プロパティ(P)］で開く画面）が変更するのは、ユーザーごとの設定値（UserPrintTicket）である。
+// Get-PrintConfiguration はプリンター全体の既定値（DefaultPrintTicket と同じ値）を返すので、印刷設定で変更した用紙が読めない。
+// ユーザーごとの設定値が無いプリンターは、プリンター全体の既定値を読む。能力情報は、読んだ印刷チケットに対する値を読む。
+// 印刷可能領域は、その印刷チケットで指定した用紙の値になる。
+// \\サーバー\名前 の形のプリンター名はネットワークプリンターなので、そのサーバーの PrintServer から取得する。
+// カラーと部単位は、印刷チケットに指定が無い時に Get-PrintConfiguration と同じ値（白黒・部単位）になるように決める。
+// 2026-11-17 に、このパソコンのプリンター 29 台で、両面・カラー・部単位が修正前と同じ値になることを確認した。
+const TICKET_STEPS = [
+  'Add-Type -AssemblyName System.Printing',
+  '$n = $env:SIGK_PRINTER',
+  String.raw`if ($n -match '^(\\\\[^\\]+)\\(.+)$') { $q = (New-Object System.Printing.PrintServer($Matches[1])).GetPrintQueue($Matches[2]) }`
+    + ' else { $q = (New-Object System.Printing.LocalPrintServer).GetPrintQueue($n) }',
+  "$t = $q.UserPrintTicket; $src = 'user'",
+  "if ($t -eq $null) { $t = $q.DefaultPrintTicket; $src = 'default' }",
+  '$tx = (New-Object System.IO.StreamReader($t.GetXmlStream())).ReadToEnd()',
+  '$cx = (New-Object System.IO.StreamReader($q.GetPrintCapabilitiesAsXml($t))).ReadToEnd()',
+  '$paper = [string]$t.PageMediaSize.PageMediaSizeName',
+  '$dup = [string]$t.Duplexing',
+  "$col = [string]$t.OutputColor -eq 'Color'",
+  "$coll = [string]$t.Collation -ne 'Uncollated'",
+].join('; ');
+
+// System.Printing で読めない時は、以前と同じく Get-PrintConfiguration（プリンター全体の既定値）を読む。
+const PRINTCONFIG_STEPS = [
+  '$c = Get-PrintConfiguration -PrinterName $env:SIGK_PRINTER',
+  "$src = 'printconfig'",
+  '$paper = [string]$c.PaperSize',
+  '$dup = [string]$c.DuplexingMode',
+  '$col = [bool]$c.Color',
+  '$coll = [bool]$c.Collate',
+  '$tx = [string]$c.PrintTicketXML',
+  '$cx = [string]$c.PrintCapabilitiesXML',
+].join('; ');
+
+// source は読み取り元（'user' はユーザーごとの設定値、'default' はプリンター全体の既定値、'printconfig' は
+// Get-PrintConfiguration）。
 const CONFIG_SCRIPT = [
   ...PS_PREFIX,
-  '$c = Get-PrintConfiguration -PrinterName $env:SIGK_PRINTER',
-  '[pscustomobject]@{ paperSize = [string]$c.PaperSize; duplexingMode = [string]$c.DuplexingMode; color = [bool]$c.Color; '
-    + 'collate = [bool]$c.Collate; ticket = [string]$c.PrintTicketXML; caps = [string]$c.PrintCapabilitiesXML } | ConvertTo-Json -Compress',
+  `try { ${TICKET_STEPS} } catch { ${PRINTCONFIG_STEPS} }`,
+  '[pscustomobject]@{ source = $src; paperSize = $paper; duplexingMode = $dup; color = $col; collate = $coll; ticket = $tx; caps = $cx } '
+    + '| ConvertTo-Json -Compress',
 ].join('; ');
 
 function systemExe(env, ...parts) {

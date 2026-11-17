@@ -65,6 +65,7 @@
   }
 
   // ［プロパティ(P)］: 印刷設定の画面を開き、閉じたら取得し直した既定の値に合わせる。
+  // 取得し直しに失敗した時（config.ok が true でない。メイン側は A4 の初期値を返す）は、直前の設定のままにする（決定97 ④）。
   async function openProperties() {
     const name = D().getState()?.printer;
     if (!name || typeof api()?.openPreferences !== 'function')
@@ -72,7 +73,7 @@
     D().setBusy(true);
     const result = await Promise.resolve(api().openPreferences(name)).catch(() => null);
     D().setBusy(false);
-    if (result?.ok !== true || !result.config?.paper || D().getState().printer !== name)
+    if (result?.ok !== true || result.config?.ok !== true || !result.config.paper || D().getState().printer !== name)
       return;
     D().setState(S().forPrinter(D().getState(), name));
     D().setConfig(result.config);

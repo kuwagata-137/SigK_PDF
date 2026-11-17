@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 
 const xml = require('../printer-xml.js');
-const { parseDeviceValue, parseConfigOutput, redact, createPrinterConfig } = require('../printer-config.js');
-const { buildPrintSettings } = require('../print-job-options.js');
+const { CONFIG_SCRIPT, parseDeviceValue, parseConfigOutput, redact, createPrinterConfig } = require('../printer-config.js');
+const { NAMED_PAPERS, buildPrintSettings } = require('../print-job-options.js');
 
 // ---- Print Schema の見本 ----
 
@@ -119,7 +119,8 @@ test('印刷チケットを読めない時は A4・四辺 4.23 mm・片面・カ
     assert.ok(config.paperSizes.length >= 8, 'ページ設定画面の用紙サイズの初期の一覧がある');
   }
   assert.equal(xml.fallbackConfig('failed').ok, false);
-  // 両面は印刷チケットに無くても、Get-PrintConfiguration の DuplexingMode から読む。
+  // 両面は印刷チケットの XML に無くても、取得結果の duplexingMode（PrintTicket の Duplexing か、Get-PrintConfiguration の
+  // DuplexingMode）から読む。
   assert.equal(xml.buildConfig({ ticket: ticketXml().replace(/<psf:Feature name="psk:JobDuplex[\s\S]*?<\/psf:Feature>/, ''), caps: '', duplexingMode: 'TwoSidedShortEdge' }).duplex.mode, 'shortEdge');
 });
 
@@ -145,6 +146,46 @@ test('ログに残す文から、プリンター名を伏せる', () => {
   assert.equal(redact('そのまま', ''), 'そのまま');
 });
 
+test('取得スクリプトは、System.Printing でユーザーごとの設定値（無ければプリンター全体の既定値）を読む（決定97 ④）', () => {
+  assert.ok(CONFIG_SCRIPT.includes('Add-Type -AssemblyName System.Printing'));
+  assert.ok(CONFIG_SCRIPT.includes("$t = $q.UserPrintTicket; $src = 'user'"));
+  assert.ok(CONFIG_SCRIPT.includes("if ($t -eq $null) { $t = $q.DefaultPrintTicket; $src = 'default' }"), 'ユーザーごとの設定値が無い時');
+  assert.ok(CONFIG_SCRIPT.includes('$t.GetXmlStream()'));
+  assert.ok(CONFIG_SCRIPT.includes('$q.GetPrintCapabilitiesAsXml($t)'), '能力情報は、読んだ印刷チケットに対する値');
+  assert.ok(CONFIG_SCRIPT.includes('New-Object System.Printing.LocalPrintServer'));
+  assert.ok(CONFIG_SCRIPT.includes('New-Object System.Printing.PrintServer($Matches[1])'));
+  assert.ok(CONFIG_SCRIPT.includes('$env:SIGK_PRINTER'), 'プリンター名は環境変数で受け取る');
+  assert.ok(!CONFIG_SCRIPT.includes('"'), 'スクリプトに二重引用符が無い');
+  // 印刷チケットに指定が無い時は、Get-PrintConfiguration と同じく白黒・部単位にする。
+  assert.ok(CONFIG_SCRIPT.includes("$col = [string]$t.OutputColor -eq 'Color'"));
+  assert.ok(CONFIG_SCRIPT.includes("$coll = [string]$t.Collation -ne 'Uncollated'"));
+  // 出力項目は、修正前と同じ 6 つと読み取り元（source）。
+  for (const key of ['source', 'paperSize', 'duplexingMode', 'color', 'collate', 'ticket', 'caps'])
+    assert.match(CONFIG_SCRIPT, new RegExp(`[{;] ${key} = \\$`), key);
+});
+
+test('取得スクリプトは、System.Printing で例外が起きたら、同じ PowerShell の中で Get-PrintConfiguration に戻す', () => {
+  const at = (text) => CONFIG_SCRIPT.indexOf(text);
+  assert.ok(at('try { Add-Type') >= 0);
+  assert.ok(at('try { Add-Type') < at('UserPrintTicket'));
+  assert.ok(at('UserPrintTicket') < at('} catch {'));
+  assert.ok(at('} catch {') < at('Get-PrintConfiguration -PrinterName $env:SIGK_PRINTER'));
+  assert.ok(CONFIG_SCRIPT.includes("$src = 'printconfig'"));
+  // 結果の JSON は、try と catch のどちらを通っても 1 回だけ出力する。
+  assert.equal(CONFIG_SCRIPT.split('ConvertTo-Json').length, 2);
+  assert.ok(at('} catch {') < at('ConvertTo-Json'));
+});
+
+test('取得スクリプトは、\\\\サーバー\\名前 の形をネットワークプリンター（サーバーと名前）に分け、それ以外はローカルプリンターとして扱う', () => {
+  const pattern = /-match '([^']+)'/.exec(CONFIG_SCRIPT)?.[1];
+  assert.ok(pattern, 'プリンター名を分ける正規表現がある');
+  // この正規表現は、.NET と JavaScript で同じ意味になる。
+  const re = new RegExp(pattern);
+  assert.deepEqual([...re.exec('\\\\server01\\試験用 プリンター').slice(1)], ['\\\\server01', '試験用 プリンター']);
+  assert.equal(re.exec('試験用プリンター'), null);
+  assert.equal(re.exec('\\\\server01'), null, 'サーバー名だけの時は分けない');
+});
+
 // 偽物の execFile。呼ばれた引数と環境変数を控え、決めた結果を返す。
 function fakeExecFile(answer) {
   const calls = [];
@@ -156,7 +197,7 @@ function fakeExecFile(answer) {
   return { calls, execFile };
 }
 
-const CONFIG_JSON = JSON.stringify({ paperSize: 'A4', duplexingMode: 'OneSided', color: true, collate: true, ticket: ticketXml(), caps: capsXml() });
+const CONFIG_JSON = JSON.stringify({ source: 'user', paperSize: 'ISOA4', duplexingMode: 'OneSided', color: true, collate: true, ticket: ticketXml(), caps: capsXml() });
 
 test('プリンター名はコマンドの文字列に入れず、環境変数で PowerShell に渡す', async () => {
   const fake = fakeExecFile(() => ({ stdout: CONFIG_JSON }));
@@ -265,16 +306,18 @@ test('印刷画面の［印刷］（silent）は、用紙を必ず指定し、�
 });
 
 test('部数・部単位・白黒・両面・向き・用紙の寸法を、型と範囲を確かめてから渡す', () => {
+  // はがき（100 × 148 mm）は、用紙番号で渡す 8 種の用紙に無いので、寸法を pageSize で渡す。
   const settings = buildPrintSettings({
-    silent: true, copies: 3, collate: false, color: false, duplexMode: 'shortEdge', landscape: true, pageSize: { width: 420000, height: 297000 },
+    silent: true, copies: 3, collate: false, color: false, duplexMode: 'shortEdge', landscape: true, pageSize: { width: 148000, height: 100000 },
   });
   assert.equal(settings.copies, 3);
   assert.equal(settings.collate, false);
   assert.equal(settings.color, false);
   assert.equal(settings.duplexMode, 'shortEdge');
   assert.equal(settings.landscape, true);
-  assert.deepEqual(settings.pageSize, { width: 297000, height: 420000 }, '寸法は縦長の向きで渡す');
+  assert.deepEqual(settings.pageSize, { width: 100000, height: 148000 }, '寸法は縦長の向きで渡す');
   assert.equal('usePrinterDefaultPageSize' in settings, false, 'pageSize と同時に指定しない');
+  assert.equal('mediaSize' in settings, false);
 
   assert.equal(buildPrintSettings({ silent: true, copies: 5000 }).copies, 999);
   assert.equal(buildPrintSettings({ silent: true, copies: 0 }).copies, 1);
@@ -283,6 +326,59 @@ test('部数・部単位・白黒・両面・向き・用紙の寸法を、型�
   assert.equal(buildPrintSettings({ silent: true, duplexMode: 'both' }).duplexMode, 'simplex');
   assert.equal(buildPrintSettings({ silent: true, pageSize: { width: 10, height: 297000 } }).usePrinterDefaultPageSize, true);
   assert.equal(buildPrintSettings({ silent: true, pageSize: 'A4' }).usePrinterDefaultPageSize, true);
+});
+
+test('用紙寸法が無い時は、プリンターの既定の用紙（usePrinterDefaultPageSize）で送り、mediaSize も pageSize も付けない', () => {
+  const settings = buildPrintSettings({ silent: true, deviceName: '試験用プリンター' });
+  assert.equal(settings.usePrinterDefaultPageSize, true);
+  assert.equal('mediaSize' in settings, false);
+  assert.equal('pageSize' in settings, false);
+});
+
+test('A3 の寸法は、Windows の用紙番号 8 を入れた mediaSize で渡し、pageSize を付けない（決定97 ③）', () => {
+  const settings = buildPrintSettings({ silent: true, deviceName: '試験用プリンター', pageSize: { width: 297000, height: 420000 } });
+  assert.deepEqual(settings.mediaSize, {
+    name: 'ISO_A3', custom_display_name: 'A3', width_microns: 297000, height_microns: 420000, vendor_id: '8',
+    imageable_area_left_microns: 0, imageable_area_bottom_microns: 0, imageable_area_right_microns: 297000, imageable_area_top_microns: 420000,
+  });
+  assert.equal('pageSize' in settings, false, 'pageSize を一緒に渡すと、Electron が mediaSize を組み立て直して vendor_id が消える');
+  assert.equal('usePrinterDefaultPageSize' in settings, false);
+  assert.equal(settings.deviceName, '試験用プリンター');
+  // 横向きの寸法でも、縦向きにそろえて同じ mediaSize にする。
+  assert.deepEqual(buildPrintSettings({ silent: true, pageSize: { width: 420000, height: 297000 } }).mediaSize, settings.mediaSize);
+});
+
+test('8 種の用紙は、それぞれの用紙番号で渡す。寸法差が縦横とも ±1 mm 以内なら一致とみなす', () => {
+  // 用紙番号は Windows の DMPAPER_*（レター 1・タブロイド 3・リーガル 5・A3 8・A4 9・A5 11・B4 (JIS) 12・B5 (JIS) 13）。
+  const table = [
+    ['NA_LETTER', '1', 215900, 279400],
+    ['NA_LEDGER', '3', 279400, 431800],
+    ['NA_LEGAL', '5', 215900, 355600],
+    ['ISO_A3', '8', 297000, 420000],
+    ['ISO_A4', '9', 210000, 297000],
+    ['ISO_A5', '11', 148000, 210000],
+    ['JIS_B4', '12', 257000, 364000],
+    ['JIS_B5', '13', 182000, 257000],
+  ];
+  assert.equal(NAMED_PAPERS.length, table.length);
+  for (const [name, vendorId, width, height] of table) {
+    const settings = buildPrintSettings({ silent: true, pageSize: { width, height } });
+    assert.equal(settings.mediaSize?.name, name);
+    assert.equal(settings.mediaSize.vendor_id, vendorId, name);
+    assert.deepEqual([settings.mediaSize.width_microns, settings.mediaSize.height_microns], [width, height], name);
+    assert.deepEqual([settings.mediaSize.imageable_area_right_microns, settings.mediaSize.imageable_area_top_microns], [width, height], name);
+    assert.equal('pageSize' in settings, false, name);
+  }
+  // ±1 mm 以内は一致（プリンターによっては A5 を 148.5 × 210 mm で返す）。
+  assert.equal(buildPrintSettings({ silent: true, pageSize: { width: 148500, height: 210000 } }).mediaSize?.vendor_id, '11');
+  assert.equal(buildPrintSettings({ silent: true, pageSize: { width: 298000, height: 419000 } }).mediaSize?.vendor_id, '8');
+  assert.equal(buildPrintSettings({ silent: true, pageSize: { width: 296000, height: 421000 } }).mediaSize?.vendor_id, '8');
+  // ±1 mm を超えると一致しない。寸法を pageSize で渡す。
+  for (const size of [{ width: 298001, height: 420000 }, { width: 297000, height: 418999 }]) {
+    const settings = buildPrintSettings({ silent: true, pageSize: size });
+    assert.equal('mediaSize' in settings, false);
+    assert.deepEqual(settings.pageSize, size);
+  }
 });
 
 test('silent でない印刷（Windows の印刷画面）は、以前と同じくプリンター名だけを渡す', () => {
