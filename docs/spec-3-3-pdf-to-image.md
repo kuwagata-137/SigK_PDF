@@ -150,7 +150,7 @@ Phase 3「変換」の前半（塊④・⑤）で画像を PDF にする経路�
 | ファイル | 役目 | 依存 |
 |---|---|---|
 | `renderer/image-export-plan.js` | `DPI_CHOICES`・`MAX_PAGES`・`MAX_PIXELS`・`scaleFor(dpi)`・`pixelSizeFor(size, dpi)`・`resolvePages(mode, text, pageCount)`・`outputNames(baseName, pages, pageCount, format)`・`planExport(settings, source)` | `pageRange`・`splitPlan.stem` |
-| `renderer/page-image.js` | `renderToCanvas`・`toBytes`・`toDataUrl`・`release`・`exportPage(doc, number, { dpi, type, quality })` | pdf.js（jsdom では寸法だけ） |
+| `renderer/page-image.js` | `renderToCanvas`・`toBytes`・`toObjectUrl`・`revokeUrl`（2026-11-17 に `toDataUrl` から変更。印刷用。`docs/07` 決定97 ⑤）・`release`・`exportPage(doc, number, { dpi, type, quality })` | pdf.js（jsdom では寸法だけ） |
 | `renderer/tools-to-image.js` | 画面の状態と指揮（対象・設定・計画・同名確認・実行ループ・後始末） | jsdom |
 | `renderer/tools-to-image-view.js` | 対象の行・ラジオ・フォルダ・例・要約の描画 | jsdom |
 
@@ -235,6 +235,7 @@ Phase 3「変換」の前半（塊④・⑤）で画像を PDF にする経路�
 ### 起草者の判断で決めたもの
 
 - 解像度の既定は 150dpi（印刷と同じ。確定事項7）。形式の既定は PNG（確定事項11）。ページの既定は「すべて」（確定事項6）。
+  （2026-11-17 追記: 印刷は `docs/07` 決定97 ⑤ で 300dpi にした。既定は 150dpi のまま変えず、画面の説明を 150dpi「標準解像度」・300dpi「印刷時と同じ解像度・細かい文字用」に変更した）
 - 範囲に同じページを 2 回書いても 1 本（確定事項6・10）。結合の「2 回入る」と違うのは、出力名が同じになるためである。
 - 画素の上限は `MAX_PIXELS`（40M）を共用（確定事項9。決定30 ⑦と同じ値）。
 - 出力フォルダはユーザーが変えたあとは追従しない（確定事項15。分割と同じ）。
