@@ -3,9 +3,18 @@
 #app{display:flex; flex-direction:column; height:100%; overflow:hidden}
 svg{display:block}
 
-button{font:inherit; color:inherit; background:none; border:none; padding:0; cursor:default}
+button{font:inherit; color:inherit; background:none; border:none; padding:0}
 :focus-visible{outline:2px solid var(--primary); outline-offset:1px; border-radius:4px}
 [aria-disabled="true"]{opacity:.45}
+
+/* カーソル（docs/07 決定97 ①）。指定が無いと、<div> で作成したボタンと画面の文字の上では、文字選択用の I 型になる。
+   押せるボタンは指差しにする。押せない時と、画面の枠（ツールバー・編集ツールバー・モード切り替えバー・タブバー・
+   ステータスバー・パネルの見出し・サムネイル・印刷画面・チェックボックスのラベル）の文字は矢印にする。入力欄は I 型のまま。
+   :where() で詳細度を 0 にし、個別指定（ドラッグの grab・押せない時の default など）を優先する。 */
+:where(#toolbar, #edit-bar, #rail, #tabbar, #status, .side-head, .thumb, dialog.pd, label){cursor:default}
+:where(button, [role="button"], .tb-btn, .rail-item, .pager .step, .zoom .step, .tab-add, #side-collapse){cursor:pointer}
+:where(button:disabled, [aria-disabled="true"], [aria-disabled="true"] *){cursor:default}
+:where(input, textarea, select){cursor:auto}
 
 /* ── タブバー ───────────────────────────────── */
 /* タブの列はツールバーの下・左の欄の右・ページの表示のすぐ上（#main の中。spec-2-5 確定事項B1）。
