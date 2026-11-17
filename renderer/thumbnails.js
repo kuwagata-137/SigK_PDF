@@ -171,13 +171,15 @@
     return typeof root.CanvasRenderingContext2D !== 'undefined';
   }
 
-  function releaseThumb(index) {
+  // keepPicture は、モザイクだけが変わったページを描き直すとき（setPlan の repaint）だけ true にする。新しい絵ができるまで前の絵を残す。
+  function releaseThumb(index, { keepPicture = false } = {}) {
     const entry = state.rendered.get(index);
     if (entry === undefined)
       return;
     state.rendered.delete(index);
     entry.task?.cancel();
-    el.sheets[index]?.replaceChildren();
+    if (!keepPicture)
+      el.sheets[index]?.replaceChildren();
   }
 
   function releaseAll() {
@@ -233,11 +235,15 @@
         return;
       el.sheets[index]?.replaceChildren(canvas);
     } catch (error) {
-      if (state.rendered.get(index) === entry)
+      const own = state.rendered.get(index) === entry;
+      if (own)
         state.rendered.delete(index);
       // スクロールで捨てた描画は失敗ではない。
       if (error?.name === 'RenderingCancelledException')
         return;
+      // 描けなかったサムネイルに、モザイクを置く前の絵を残したままにしない（releaseThumb の keepPicture）。
+      if (own)
+        el.sheets[index]?.replaceChildren();
       report(error, { page: index + 1 });
     }
   }
@@ -353,7 +359,8 @@
   // 並びだけを差し替える（spec-1-5 確定事項29）。setDocument を呼び直すと
   // スクロール位置も描画済みも全部捨てることになるので、編集のたびにそれを
   // やると「1枚回すたびにサイドパネルが先頭へ戻る」ことになる。
-  function setPlan(plan, sizes = null, inserts = null) {
+  // repaint は、モザイク欄だけが変わったページ位置の並び（viewer.applyPlan が pageMosaic.changedPages で求める）。
+  function setPlan(plan, sizes = null, inserts = null, { repaint = null } = {}) {
     state.plan = plan ?? [];
     if (inserts !== null)
       state.inserts = inserts;
@@ -365,6 +372,16 @@
     if (!isVisible()) {
       discard();
       return false;
+    }
+
+    // モザイク欄だけが変わったときは、枠を作り直さず、そのページのサムネイルだけを、前の絵を残したまま描き直す（2026-11-17 の不具合
+    // 「モザイクを配置するたびに画面がホワイトアウトする」の修正。枠を作り直すと、描き終えるまでサムネイルの白い背景が見えていた）。
+    // 枠をまだ作っていなければ（左パネルを開き直した直後など）、下の作り直しへ進む。
+    if (Array.isArray(repaint) && el.sheets.length === state.plan.length) {
+      for (const index of repaint)
+        releaseThumb(index, { keepPicture: true });
+      schedule();
+      return true;
     }
 
     // 並びが変われば紙の高さも順番も変わる。枠は作り直すが、見ている場所
