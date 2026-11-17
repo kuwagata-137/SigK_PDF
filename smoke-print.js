@@ -74,6 +74,11 @@ function printScript(value) {
       sheets: result.sheets || 0,
       placed: result.placed || 0,
       imgCount: document.querySelectorAll('#print-area img').length,
+      // 最初のシート画像の画素数（決定97 ⑤。A4 を 300 dpi で 2480 × 3508）と、URL の種類（blob:）。
+      sheetImage: (() => {
+        const img = document.querySelector('#print-area img');
+        return img ? { width: img.naturalWidth, height: img.naturalHeight, scheme: img.src.split(':')[0] } : null;
+      })(),
       totalBytes: (result.images || []).reduce((sum, image) => sum + image.bytes, 0),
       rendered: (result.rendered || []).slice(0, 4),
       elapsedMs: result.elapsedMs || null,
@@ -112,12 +117,18 @@ function printScript(value) {
     const sub = [...document.querySelectorAll('dialog[open]')].find((dialog) => dialog.id !== 'print-dialog');
     measured.subDialog = sub ? { id: sub.id, ...box(sub.id) } : null;
     measured.previewBox = box('print-preview-paper');
+    const canvas = $('print-preview-paper').querySelector('canvas');
+    const shown = canvas ? canvas.getBoundingClientRect() : null;
     measured.preview = {
       scale: $('print-preview-scale').textContent,
       size: $('print-preview-size').textContent,
       count: $('print-preview-count').textContent,
       status: $('print-preview-status').hidden ? null : $('print-preview-status').textContent,
-      canvas: !!$('print-preview-paper').querySelector('canvas'),
+      canvas: !!canvas,
+      // プレビューの canvas の画素数と、表示サイズ・位置をデバイスピクセルに直した値（決定97 ②。画素数と表示サイズが一致すれば滲まない）。
+      devicePixelRatio,
+      canvasPixels: canvas ? { width: canvas.width, height: canvas.height } : null,
+      canvasDevice: shown ? { width: shown.width * devicePixelRatio, height: shown.height * devicePixelRatio, x: shown.x * devicePixelRatio, y: shown.y * devicePixelRatio } : null,
     };
     return measured;
   })()`;

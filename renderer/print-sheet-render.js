@@ -5,11 +5,14 @@
   //
   // 配置（print-sheet-plan.js）どおりに、ページの画像・注釈の一覧ページ・ページ境界線・タイルマーク・ラベルを canvas に描く。
   // ページは用紙に入る部分だけを、用紙の上で dpi の解像度になる倍率で描く（拡大しても粗くならず、縮小しても無駄に大きく描かない）。
+  // ページ画像は、画素単位にそろえた位置に、拡大縮小せずに貼る（貼る時の補間で滲ませない。決定97 ②）。
   // 印刷する画像（forPrint）は、横のシートを時計回りに 90 度回して縦の用紙の向きにする（print-sheet-geometry.js）。
   // グレースケール (白黒) で印刷(Y) は灰色に、インク / トナーを節約は色を白に近づけて描く（質問 PR3 ③・PR5）。
   // jsdom には 2D コンテキストが無い。そのときもページは描かせ（経路と描く範囲を試験で見るため）、シートの canvas は作らない。
 
   const UM_PER_INCH = 25400;
+  // 時計回りに 90 度回す回転行列（成分を直接指定する）。ctx.rotate(Math.PI / 2) では cos(π/2) が 0 にならず、画素の位置がわずかにずれる。
+  const TURN = [0, 1, -1, 0];
   // インク / トナーを節約の濃さ（質問 PR5 の答え「15% 節約」。Acrobat の説明「トナーを最大 15% 節約できます」と同じにする）。
   const INK_SAVE_DENSITY = 0.85;
   const MARK_LENGTH = 4000;
@@ -24,9 +27,32 @@
     return root.SigK.pageImage.hasCanvas(doc.defaultView);
   }
 
+  // シート画像の画素数（回す前の向き）。canvas の大きさと同じく四捨五入する。
+  function sheetPixels(sheet, dpi) {
+    return { width: Math.max(1, Math.round(px(sheet.width, dpi))), height: Math.max(1, Math.round(px(sheet.height, dpi))) };
+  }
+
+  // シート画像の画素数上限は、モザイクを入れたページの保存（mosaic-save.js）と同じ 1 枚 4,000 万画素・1 辺 16,384 画素にする。
+  // dpi で描くと上限を超える用紙は、上限に収まる解像度に下げる（その用紙だけ。mosaic-save.js の scaleFor と同じ考え方。決定97 ⑤）。
+  function cappedDpi(sheet, dpi, { maxPixels = root.SigK.mosaicSave.MAX_PIXELS, maxSide = root.SigK.mosaicSave.MAX_SIDE } = {}) {
+    const size = sheetPixels(sheet, dpi);
+    if (size.width * size.height <= maxPixels && Math.max(size.width, size.height) <= maxSide)
+      return dpi;
+    const width = sheet.width / UM_PER_INCH;
+    const height = sheet.height / UM_PER_INCH;
+    // 0.999 は、画素数を四捨五入しても上限を超えないための余裕。
+    return Math.min(Math.sqrt(maxPixels / (width * height)), maxSide / Math.max(width, height)) * 0.999;
+  }
+
+  // 小数を含む矩形（px）を画素単位にそろえる。四辺をそれぞれ四捨五入する（隣り合う矩形の間に、隙間も重なりも作らない）。
+  function snapRect(rect) {
+    const x = Math.round(rect.x);
+    const y = Math.round(rect.y);
+    return { x, y, width: Math.round(rect.x + rect.width) - x, height: Math.round(rect.y + rect.height) - y };
+  }
+
   function sheetCanvas(doc, sheet, dpi, forPrint) {
-    const width = Math.max(1, Math.round(px(sheet.width, dpi)));
-    const height = Math.max(1, Math.round(px(sheet.height, dpi)));
+    const { width, height } = sheetPixels(sheet, dpi);
     const turn = forPrint && sheet.landscape;
     const canvas = doc.createElement('canvas');
     canvas.width = turn ? height : width;
@@ -36,14 +62,12 @@
     ctx.fillStyle = forPrint ? '#ffffff' : UNPRINTABLE;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (!forPrint && sheet.area) {
-      const area = rectPx(sheet.area, dpi);
+      const area = snapRect(rectPx(sheet.area, dpi));
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(area.x, area.y, area.width, area.height);
     }
-    if (turn) {
-      ctx.translate(canvas.width, 0);
-      ctx.rotate(Math.PI / 2);
-    }
+    if (turn)
+      ctx.transform(...TURN, canvas.width, 0);
     return { canvas, ctx };
   }
 
@@ -51,20 +75,29 @@
     return { x: px(rect.x, dpi), y: px(rect.y, dpi), width: px(rect.width, dpi), height: px(rect.height, dpi) };
   }
 
-  // 描いたページの部分を、枠の向き（rotation が 90 なら時計回り）で dest に描く。
+  // 描いたページの部分を、枠の向き（rotation が 90 なら時計回り）で dest に貼る。dest は画素単位にそろえた矩形（snapRect）。
+  // ページの部分は dest と同じ大きさ（差は 1 画素以内）で描いてあるので、拡大縮小せずに貼る（決定97 ②）。
+  // 差が 1 画素を超える時（pageImage の画素数上限で倍率を下げて描いた時）だけ、dest の大きさに合わせて伸ばす。
   function paste(ctx, image, dest, rotation, { grayscale, inkSave }) {
+    const turned = rotation === 90;
+    const width = turned ? dest.height : dest.width;
+    const height = turned ? dest.width : dest.height;
+    // drawImage は大きさ 0 の画像を受け付けない（例外になる）。画素単位にそろえて幅か高さが 0 になった細い部分は貼らない。
+    if (width <= 0 || height <= 0 || image.width <= 0 || image.height <= 0)
+      return;
     ctx.save();
     if (grayscale)
       ctx.filter = 'grayscale(1)';
     if (inkSave)
       ctx.globalAlpha = INK_SAVE_DENSITY;
-    if (rotation === 90) {
-      ctx.translate(dest.x + dest.width, dest.y);
-      ctx.rotate(Math.PI / 2);
-      ctx.drawImage(image, 0, 0, dest.height, dest.width);
-    } else {
-      ctx.drawImage(image, dest.x, dest.y, dest.width, dest.height);
-    }
+    if (turned)
+      ctx.transform(...TURN, dest.x + dest.width, dest.y);
+    else
+      ctx.translate(dest.x, dest.y);
+    if (Math.abs(image.width - width) <= 1 && Math.abs(image.height - height) <= 1)
+      ctx.drawImage(image, 0, 0);
+    else
+      ctx.drawImage(image, 0, 0, width, height);
     ctx.restore();
   }
 
@@ -140,7 +173,7 @@
           page: item.page, sourcePage: drawn.sourcePage, width: drawn.width, height: drawn.height, rotation: drawn.rotation, box: drawn.box ?? null, scale: drawn.scale,
         });
         if (target !== null && drawn.canvas !== null)
-          paste(target.ctx, drawn.canvas, rectPx(visible.dest, dpi), item.rotation, { grayscale, inkSave });
+          paste(target.ctx, drawn.canvas, snapRect(rectPx(visible.dest, dpi)), item.rotation, { grayscale, inkSave });
         root.SigK.pageImage.release(drawn.canvas);
       }
       if (target !== null && item.border === true)
@@ -156,5 +189,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.printSheetRender = { INK_SAVE_DENSITY, composeSheet };
+  SigK.printSheetRender = { INK_SAVE_DENSITY, sheetPixels, cappedDpi, snapRect, composeSheet };
 })(typeof window !== 'undefined' ? window : globalThis);

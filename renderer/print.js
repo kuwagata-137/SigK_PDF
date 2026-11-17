@@ -7,11 +7,12 @@
   // silent で呼ぶ（確定事項28・質問 PR1 案A）。レンダラーの window.print() を使わないのは、オプションを渡せず結果も受け取れないため
   // である（確定事項29）。［印刷］を押したら印刷画面を閉じ、進行状況画面を表示する（spec-7-7 確定事項C6）。
   // プリンターの取得は print-printers.js、プレビューとボタンで開く画面は print-actions.js、画像の準備は print-job.js。
+  // 印刷解像度（PRINT_DPI・PRINT_SCALE）は print-job.js の値を返す（決定97 ⑤）。
+  // シート画像を指す blob URL は、［印刷］では送り終えた時（中止・失敗を含む）に解放する。prepare で並べた画像は、次の準備・［印刷］・
+  // 中止（abandon。印刷画面を開いた時と、［キャンセル］で閉じた時）に解放する。
 
-  // pdf.js viewer の PRINT_RESOLUTION と同じ 150dpi 相当（確定事項31）。用紙の上でこの解像度になるように描く。
-  const PRINT_DPI = 150;
-  const PRINT_SCALE = PRINT_DPI / 72;
-  const ctx = { doc: null, dialog: null, area: null, token: 0, busy: false, running: false };
+  // held: prepare が #print-area に並べたシート画像（印刷画面を閉じた後も、起動確認が printToPDF で紙に写すまで残す）。
+  const ctx = { doc: null, dialog: null, area: null, token: 0, busy: false, running: false, held: null };
 
   const pagesApi = () => root.SigK.printPages;
   const viewer = () => root.SigK.viewer;
@@ -42,6 +43,15 @@
     D().setBusy(on);
   }
 
+  // prepare が残したシート画像を #print-area から外し、URL を解放する。
+  function releaseHeld() {
+    if (ctx.held === null)
+      return;
+    ctx.area?.replaceChildren();
+    root.SigK.printJob.releaseImages(ctx.held);
+    ctx.held = null;
+  }
+
   // 印刷の手前まで（用紙ごとの画像を #print-area に並べる）。SIGK_SMOKE_PRINT と試験はここまでを確かめる。
   async function prepare(overrides = {}) {
     if (ctx.dialog === null)
@@ -52,6 +62,7 @@
       return { error: first.error };
     }
     D().showError(null);
+    releaseHeld();
     // 世代は待つ前に取る（取得を待っている間に閉じられても、準備を捨てられるように）。
     const mine = (ctx.token += 1);
     setBusy(true);
@@ -61,6 +72,11 @@
     const result = await root.SigK.printJob.prepareImages(ctx.doc, ctx.area, jobFor(stateWith(overrides)), { isAlive: () => mine === ctx.token });
     if (mine === ctx.token)
       setBusy(false);
+    // 並べた画像は、次の準備・［印刷］・中止（abandon）まで残す。準備を終えた後に中止されていたら、すぐに解放する。
+    if (result.ok === true && mine === ctx.token)
+      ctx.held = result.jobs;
+    else
+      root.SigK.printJob.releaseImages(result.jobs);
     if (result.error !== undefined)
       D().showError(result.error);
     return result;
@@ -88,16 +104,19 @@
     }
     const mine = (ctx.token += 1);
     const isAlive = () => mine === ctx.token;
+    releaseHeld();
     ctx.running = true;
     hideDialog();
     setBusy(true);
     root.SigK.printProgress.show(() => abandon());
+    let prepared = null;
     try {
       await printers().whenReady();
       if (!isAlive())
         return { canceled: true };
       const job = jobFor(state);
-      const prepared = await root.SigK.printJob.prepareImages(ctx.doc, ctx.area, job, { isAlive, onProgress: progressText });
+      // 画像を #print-area に並べるのは send だけにする（place: false。決定97 ⑤）。
+      prepared = await root.SigK.printJob.prepareImages(ctx.doc, ctx.area, job, { isAlive, onProgress: progressText, place: false });
       if (prepared.ok !== true)
         return finishRun(prepared);
       root.SigK.printProgress.preparing(1);
@@ -108,6 +127,8 @@
       root.SigK.printProgress.hide();
       setBusy(false);
       ctx.area.replaceChildren();
+      // 送り終えた後（中止・失敗を含む）に、シート画像を指す URL を解放する。
+      root.SigK.printJob.releaseImages(prepared?.jobs);
     }
   }
 
@@ -147,12 +168,13 @@
       ctx.dialog.removeAttribute('open');
   }
 
-  // 作りかけがあれば捨てる。世代を上げれば飛んでいる準備は無効になる（確定事項36）。
+  // 作りかけがあれば捨てる。世代を上げれば飛んでいる準備は無効になる（確定事項36）。prepare が残した画像も捨てる。
   function abandon() {
     ctx.token += 1;
     actions().cancelPreview();
     setBusy(false);
     ctx.area?.replaceChildren();
+    releaseHeld();
   }
 
   function close() {
@@ -207,8 +229,12 @@
     get MAX_PAGES() {
       return pagesApi().MAX_PAGES;
     },
-    PRINT_DPI,
-    PRINT_SCALE,
+    get PRINT_DPI() {
+      return root.SigK.printJob.PRINT_DPI;
+    },
+    get PRINT_SCALE() {
+      return root.SigK.printJob.PRINT_SCALE;
+    },
     normalizeRangeText: (text) => pagesApi().normalizeRangeText(text),
     parsePageList: (text, pageCount) => pagesApi().parsePageList(text, pageCount),
     resolvePages: (spec) => pagesApi().resolvePages(spec),

@@ -139,8 +139,8 @@ test('A0 を 400% で映すと、pdf.js に頼む倍率を上限まで下げる�
   assert.ok(pixels <= shell.SigK.pageImage.MAX_CANVAS_PIXELS * 1.001, `${Math.round(pixels / 1e6)}M 画素`);
 });
 
-// spec-7-7 で、印刷は用紙に入る部分だけを用紙の上で 150 dpi になるように描くようにした。実際のサイズ（100%）でも、
-// A4 の用紙に入る部分（約 1240 × 1754 px）しか描かないので、画素の上限に届かない。
+// spec-7-7 で、印刷は用紙に入る部分だけを、用紙の上で PRINT_DPI（決定97 ⑤ で 150 から 300 dpi にした）になるように描くようにした。
+// 実際のサイズ（100%）でも、A4 の用紙に入る部分（300 dpi で約 2480 × 3508 px）しか描かないので、画素の上限に届かない。
 test('とても大きな紙を印刷するときも、用紙に入る部分だけを描き、1 ページの画像を画素の上限に収める（印刷）', async (t) => {
   const pdfjs = createPdfjsStub({ sizes: [{ width: 14400, height: 14400 }] });
   const shell = await openWith(t, {}, { pdfjs });
@@ -151,6 +151,8 @@ test('とても大きな紙を印刷するときも、用紙に入る部分だ�
   assert.equal(result.ok, true);
   const { width, height, box } = result.rendered[0];
   assert.ok(width * height <= shell.SigK.pageImage.MAX_CANVAS_PIXELS * 1.001, `${width}×${height}`);
-  assert.ok(width <= 1241 && height <= 1754, `用紙（A4）の大きさまで: ${width}×${height}`);
+  // A4 の用紙（210 × 297 mm）を PRINT_DPI で描いた画素数（端数は切り上げ）。
+  const side = (mm) => Math.ceil((mm / 25.4) * shell.SigK.print.PRINT_DPI);
+  assert.ok(width <= side(210) && height <= side(297), `用紙（A4）の大きさまで: ${width}×${height}`);
   assert.notEqual(box, null, 'ページの一部だけを描く範囲を渡す');
 });

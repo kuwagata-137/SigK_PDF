@@ -10,7 +10,7 @@ const images = globalThis.SigK.pageImage;
 //
 // Node にも jsdom にも 2D コンテキストは無い。ここで見るのは「無い環境では寸法だけ
 // 返す」「出口の変換が正しい」「ページの資源を手放す」の 3 点で、実際の画素は
-// 起動確認（SIGK_SMOKE_TO_IMAGE）に残す。
+// 起動確認（SIGK_SMOKE_TO_IMAGE）に残す。印刷用の出口（toObjectUrl）は、Node の Blob と URL で確かめる。
 
 const A4 = { width: 595.28, height: 841.89 };
 
@@ -147,13 +147,30 @@ test('release は canvas の寸法を 0 にして中身を手放す。null に�
   assert.doesNotThrow(() => images.release(undefined));
 });
 
-test('toDataUrl は data URL と、PNG そのもののバイト数を返す', () => {
-  const canvas = { toDataURL: () => 'data:image/png;base64,AAAAAAAA' };
-  const result = images.toDataUrl(canvas);
+// 印刷用の出口（決定97 ⑤）。data URL（base64 で 1.33 倍の文字列）をやめ、blob URL にした。
+test('toObjectUrl は PNG 形式の Blob から blob URL を作り、Blob の大きさをバイト数として返す。revokeUrl で解放する', async () => {
+  const { resolveObjectURL } = require('node:buffer');
+  const blob = new Blob([new Uint8Array([1, 2, 3, 4, 5])], { type: 'image/png' });
+  const canvas = {
+    toBlob: (callback, type, quality) => {
+      canvas.blobArgs = { type, quality };
+      callback(blob);
+    },
+  };
+  const result = await images.toObjectUrl(canvas);
 
-  assert.equal(result.url, 'data:image/png;base64,AAAAAAAA');
-  // base64 の 8 文字は 6 バイト。
-  assert.equal(result.bytes, 6);
+  assert.match(result.url, /^blob:/);
+  assert.equal(result.bytes, 5);
+  assert.deepEqual(canvas.blobArgs, { type: 'image/png', quality: undefined }, '既定は PNG');
+  assert.equal(resolveObjectURL(result.url)?.size, 5, '解放するまでは URL から Blob を読める');
+  images.revokeUrl(result.url);
+  assert.equal(resolveObjectURL(result.url), undefined, '解放した URL は読めない');
+});
+
+test('toObjectUrl は Blob を作れなければ理由付きで拒否する。revokeUrl は blob URL でないもの（null・data URL）には何もしない', async () => {
+  await assert.rejects(images.toObjectUrl({ toBlob: (callback) => callback(null) }), /画像にできませんでした/);
+  assert.doesNotThrow(() => images.revokeUrl(null));
+  assert.doesNotThrow(() => images.revokeUrl('data:image/png;base64,AAAA'));
 });
 
 test('toBytes は toBlob に形式と品質を渡し、Uint8Array を返す', async () => {

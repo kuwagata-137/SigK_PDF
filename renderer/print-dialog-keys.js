@@ -46,6 +46,13 @@
     return true;
   }
 
+  // CSS px の値を、デバイスピクセル単位にそろえる（devicePixelRatio が 1.25 なら 0.8 px 刻み）。
+  function snapToDevicePixel(value, dpr) {
+    const ratio = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+    return Math.round(value * ratio) / ratio;
+  }
+
+  // 題名バーをドラッグすると、画面を移動する。位置はデバイスピクセル単位にそろえる（画面内の文字と画像を、画素の境目に合わせる。決定97 ②）。
   function makeMovable(dialog, handle) {
     let drag = null;
     handle.addEventListener('pointerdown', (event) => {
@@ -59,8 +66,8 @@
       if (drag === null || event.pointerId !== drag.id)
         return;
       const win = dialog.ownerDocument.defaultView;
-      const left = Math.min(Math.max(0, event.clientX - drag.dx), Math.max(0, win.innerWidth - 80));
-      const top = Math.min(Math.max(0, event.clientY - drag.dy), Math.max(0, win.innerHeight - 30));
+      const left = snapToDevicePixel(Math.min(Math.max(0, event.clientX - drag.dx), Math.max(0, win.innerWidth - 80)), win.devicePixelRatio);
+      const top = snapToDevicePixel(Math.min(Math.max(0, event.clientY - drag.dy), Math.max(0, win.innerHeight - 30)), win.devicePixelRatio);
       Object.assign(dialog.style, { margin: '0', left: `${left}px`, top: `${top}px`, right: 'auto', bottom: 'auto' });
     });
     const end = () => {
@@ -93,5 +100,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.printDialogKeys = { attach, resetPosition, handleAccessKey };
+  SigK.printDialogKeys = { attach, resetPosition, handleAccessKey, snapToDevicePixel };
 })(typeof window !== 'undefined' ? window : globalThis);
