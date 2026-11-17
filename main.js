@@ -176,6 +176,13 @@ function hardenWebContents(contents) {
 // 起動スイッチでは変わらなかった）、ページの描画を固定の時間で待つ起動確認の操作が間に合わないため
 // （offscreen なら 60 fps で描け、capturePage も撮れる）。ready-to-show でも出さず（maximize も窓を
 // 出すので呼ばない）、閉じるときに窓の位置を常用の settings.json へ書かない。
+// SIGK_SMOKE_DPR（1 より大きく 3 以下）を付けると、offscreen 描画の拡大率（deviceScaleFactor）にする。
+// 拡大率 125%・150% の画面で、印刷画面のプレビューが滲まないことを確認するため（docs/07 決定97 ②）。
+function smokeOffscreen() {
+  const ratio = Number(process.env.SIGK_SMOKE_DPR);
+  return Number.isFinite(ratio) && ratio > 1 && ratio <= 3 ? { deviceScaleFactor: ratio } : true;
+}
+
 function createMainWindow({ hidden = false } = {}) {
   const saved = settings.get();
   const workAreas = screen.getAllDisplays().map((display) => display.workArea);
@@ -195,7 +202,7 @@ function createMainWindow({ hidden = false } = {}) {
     icon: APP_ICON_PATH,
     webPreferences: {
       ...buildWebPreferences({ preloadPath: path.join(ROOT_DIR, 'preload.js') }),
-      ...(hidden ? { offscreen: true } : {}),
+      ...(hidden ? { offscreen: smokeOffscreen() } : {}),
     },
   });
   if (hidden)
@@ -1756,7 +1763,7 @@ function installSmokeCheck(win, mode) {
           facing = await win.webContents.executeJavaScript(facingScript);
         if (process.env.SIGK_SMOKE_FIND)
           find = await win.webContents.executeJavaScript(findScript(process.env.SIGK_SMOKE_FIND));
-        // ページ編集を先に済ませてから印刷を測る。回転が 150dpi の画像に
+        // ページ編集を先に済ませてから印刷を測る。回転が印刷の画像に
         // 載るか（確定事項39）を、同じ起動の中で確かめられる。
         if (process.env.SIGK_SMOKE_PAGES) {
           pages = await win.webContents.executeJavaScript(pagesScript(process.env.SIGK_SMOKE_PAGES));

@@ -180,7 +180,8 @@ dialog.pd::backdrop{background:rgba(16,24,40,.34)}
 .pd-pv-scale{position:absolute; left:14px; top:-1px}
 .pd-pv-size{position:absolute; font-size:11.5px; line-height:14px}
 .pd-pv-paper{position:absolute; border:2px solid #000; background:#fff; overflow:hidden}
-.pd-pv-paper canvas{display:block; width:100%; height:100%}
+/* canvas の表示サイズは print-preview.js が「画素数 ÷ devicePixelRatio」で指定する（描いた画素を拡大縮小せずに表示する。決定97 ②） */
+.pd-pv-paper canvas{display:block}
 .pd-pv-status{position:absolute; left:12px; right:12px; top:300px; text-align:center; color:#555; white-space:normal}
 .pd-pv-prev, .pd-pv-next{position:absolute; top:334px; width:30px; padding:0}
 .pd-pv-prev{left:15px}
