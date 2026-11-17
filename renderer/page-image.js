@@ -4,7 +4,7 @@
   // 1 ページを canvas に描いて画像にする層（spec-3-3 確定事項23）。
   //
   // 印刷（print.js）と PDF→画像（tools-to-image.js）が共用する。canvas を作って
-  // 描くところまでは同じで、出口だけが違う。印刷は <img> に載せるので data URL、
+  // 描くところまでは同じで、出口だけが違う。印刷は <img> に載せるので blob URL、
   // PDF→画像はファイルに書くのでバイト列である。
   //
   // jsdom には 2D コンテキストが無い。そのときは canvas を作らず、寸法だけを
@@ -81,11 +81,25 @@
     canvas.height = 0;
   }
 
-  // 印刷の出口。data URL と、PNG そのもののバイト数を返す。base64 は 3 バイトを
-  // 4 文字にするので、接頭辞を除いた長さの 3/4 が中身である。
-  function toDataUrl(canvas, { type = PNG, quality } = {}) {
-    const url = canvas.toDataURL(type, quality);
-    return { url, bytes: Math.round(((url.length - url.indexOf(',') - 1) * 3) / 4) };
+  // 印刷用の出口。canvas を PNG 形式の Blob にして、<img> に載せる blob URL と、PNG のバイト数を返す（決定97 ⑤）。
+  // data URL（base64 で PNG の 1.33 倍の文字列）を作らないので、メモリーを節約できる。作った URL は、
+  // 使い終わったら revokeUrl で解放する（解放するまで Blob がメモリーに残る）。
+  function toObjectUrl(canvas, { type = PNG, quality } = {}) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob === null) {
+          reject(new Error('ページを画像にできませんでした'));
+          return;
+        }
+        resolve({ url: root.URL.createObjectURL(blob), bytes: blob.size });
+      }, type, quality);
+    });
+  }
+
+  // toObjectUrl で作った URL を解放する。blob URL でないもの（jsdom で画像を作らなかった時の null）には何もしない。
+  function revokeUrl(url) {
+    if (typeof url === 'string' && url.startsWith('blob:'))
+      root.URL.revokeObjectURL(url);
   }
 
   // ファイルに書く出口。toBlob は toDataURL の 1.5〜2.4 倍速く（spec-3-3 事前調査 A）、
@@ -118,5 +132,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageImage = { PNG, JPEG, MAX_CANVAS_PIXELS, cappedScale, hasCanvas, renderToCanvas, release, toDataUrl, toBytes, exportPage };
+  SigK.pageImage = { PNG, JPEG, MAX_CANVAS_PIXELS, cappedScale, hasCanvas, renderToCanvas, release, toObjectUrl, revokeUrl, toBytes, exportPage };
 })(typeof window !== 'undefined' ? window : globalThis);

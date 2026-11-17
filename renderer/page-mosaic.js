@@ -74,6 +74,19 @@
     return (plan ?? []).flatMap((entry, index) => (countOf(entry) > 0 ? [index] : []));
   }
 
+  // 2 つの並びの違いがモザイク欄だけなら、モザイクが違うページ位置（0 始まり）の並びを返す（違いが無ければ空の並び）。ページ数・
+  // 元ページ・回転・トリミング範囲のどれかが違えば null（ページ枠の大きさか中身が変わる）。viewer.applyPlan が、ページ枠を
+  // 作り直すかを決めるのに使う（2026-11-17 の不具合「モザイクを配置するたびに画面がホワイトアウトする」の修正）。比べ方は page-plan.js の samePlan。
+  function changedPages(before, after) {
+    const plan = root.SigK.pagePlan;
+    if (!Array.isArray(before) || !Array.isArray(after) || before.length !== after.length)
+      return null;
+    const frameOf = (entry) => ({ ...entry, mosaic: undefined });
+    if (!plan.samePlan(before.map(frameOf), after.map(frameOf)))
+      return null;
+    return after.flatMap((entry, index) => (plan.samePlan([before[index]], [entry]) ? [] : [index]));
+  }
+
   // 確認の文の「1・3 ページ目」。NAMED_PAGES を超えたら「1・3・5・7 ページ目ほか」。positions は 0 始まり。
   function pagesLabel(positions) {
     const named = positions.slice(0, NAMED_PAGES).map((index) => index + 1).join('・');
@@ -81,5 +94,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageMosaic = { BLOCKS, DEFAULT_BLOCK, BLOCK_SIZES, isBlock, countOf, withMosaic, withoutMosaic, gridOf, indicesOf, pagesLabel };
+  SigK.pageMosaic = { BLOCKS, DEFAULT_BLOCK, BLOCK_SIZES, isBlock, countOf, withMosaic, withoutMosaic, gridOf, indicesOf, changedPages, pagesLabel };
 })(typeof window !== 'undefined' ? window : globalThis);

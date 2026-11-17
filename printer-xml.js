@@ -2,8 +2,9 @@
 
 // プリンターの印刷チケット（PrintTicketXML）と能力情報（PrintCapabilitiesXML）を読む（spec-7-7 確定事項C3）。
 //
-// どちらも Windows の Print Schema の XML で、Get-PrintConfiguration が返す。名前空間の接頭辞（psf・psk・ns0000 など）は
-// ドライバーごとに変わり得るので、接頭辞を見ずに要素の名前と name 属性の後ろの部分で探す。
+// どちらも Windows の Print Schema の XML で、printer-config.js が System.Printing（読めない時は Get-PrintConfiguration）から
+// 読む。名前空間の接頭辞（psf・psk・ns0000 など）はドライバーごとに変わり得るので、接頭辞を見ずに要素の名前と name 属性の
+// 後ろの部分で探す。
 // main 側には DOMParser が無いので、正規表現で読む。ここは DOM に触らない純粋関数だけにして、試験で XML の見本を通す。
 // 長さの単位は µm（マイクロメートル）。Print Schema の値をそのまま使う。
 
@@ -145,7 +146,7 @@ function fitImageable(paper, imageable) {
   return width > 0 && height > 0 ? { x: imageable.x, y: imageable.y, width, height } : fallback;
 }
 
-// Get-PrintConfiguration の結果から、印刷画面が使う形にまとめる。
+// printer-config.js の CONFIG_SCRIPT が取得した値から、印刷画面が使う形にまとめる。
 function buildConfig(raw) {
   const ticket = readTicket(raw?.ticket);
   const caps = readCapabilities(raw?.caps);

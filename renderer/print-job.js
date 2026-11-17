@@ -1,13 +1,16 @@
 (function (root) {
   'use strict';
 
-  // 印刷の準備（docs/spec-7-7-print-dialog.md）: 印刷するページ → 用紙 1 枚ごとの配置 → シートの画像（PNG の data URL）。
+  // 印刷の準備（docs/spec-7-7-print-dialog.md）: 印刷するページ → 用紙 1 枚ごとの配置 → シート画像（PNG 形式。blob URL）。
   //
   // 印刷画面の指定（settings）は print-dialog.js が組む。ここは DOM の印刷画面に触らない（画面に見えている範囲を読むだけ）。
-  // 1 枚ずつ描いて PNG にし、canvas を捨てる（spec-1-4 確定事項32）。
+  // 1 枚ずつ描いて PNG にし、canvas を捨てる（spec-1-4 確定事項32）。blob URL は、送り終えた時・中止した時・失敗した時に
+  // releaseImages で解放する（決定97 ⑤）。
 
-  // pdf.js viewer の PRINT_RESOLUTION と同じ 150dpi（spec-1-4 確定事項31）。用紙の上でこの解像度になるように描く。
-  const PRINT_DPI = 150;
+  // 用紙の上でこの解像度になるように描く。以前は pdf.js viewer の PRINT_RESOLUTION と同じ 150dpi だった（spec-1-4 確定事項31）が、
+  // 600dpi のプリンターでは縦横 4 倍に拡大されて滲むので、300dpi にした（決定97 ⑤。A4 1 枚 2480 × 3508 画素）。
+  const PRINT_DPI = 300;
+  const PRINT_SCALE = PRINT_DPI / 72;
 
   const viewer = () => root.SigK.viewer;
   const R = () => root.SigK.printPageRegion;
@@ -108,26 +111,55 @@
     });
   }
 
+  // シート画像を指す blob URL を解放する。jobs は buildImages が返す jobs（null・undefined なら何もしない）。
+  function releaseImages(jobs) {
+    for (const job of jobs ?? []) {
+      for (const image of job.images ?? [])
+        root.SigK.pageImage.revokeUrl(image.url);
+    }
+  }
+
+  // シート画像を PNG 形式の blob URL にして、canvas を捨てる。jsdom では canvas が無いので url は null。
+  async function encodeSheet(canvas) {
+    if (canvas === null)
+      return { url: null, bytes: 0 };
+    try {
+      return await root.SigK.pageImage.toObjectUrl(canvas);
+    } finally {
+      root.SigK.pageImage.release(canvas);
+    }
+  }
+
   // シートの画像を作る。onProgress(done, total)、isAlive() が false になったら途中でやめる（{ canceled: true }）。
+  // 用紙が大きく、PRINT_DPI で描くと画素数上限を超える時は、その用紙だけ解像度を下げる（print-sheet-render.js の cappedDpi）。
+  // 途中でやめた時と失敗した時は、作った分の URL を解放する。
   async function buildImages(doc, plan, settings, { onProgress = () => {}, isAlive = () => true } = {}) {
     const renderPart = partRenderer(doc, settings.annotations ?? 'markups');
     const labelOf = labelMaker(viewer().getState().file?.name, new Date());
+    const render = root.SigK.printSheetRender;
     const images = [];
     const rendered = [];
-    for (let index = 0; index < plan.sheets.length; index += 1) {
-      onProgress(index, plan.sheets.length);
-      const sheet = plan.sheets[index];
-      const drawn = await root.SigK.printSheetRender.composeSheet(doc, sheet, {
-        dpi: PRINT_DPI, forPrint: true, grayscale: settings.grayscale === true, inkSave: settings.inkSave === true, renderPart, labelOf,
-      });
-      if (!isAlive()) {
-        root.SigK.pageImage.release(drawn.canvas);
-        return { canceled: true };
+    try {
+      for (let index = 0; index < plan.sheets.length && isAlive(); index += 1) {
+        onProgress(index, plan.sheets.length);
+        const sheet = plan.sheets[index];
+        const drawn = await render.composeSheet(doc, sheet, {
+          dpi: render.cappedDpi(sheet, PRINT_DPI), forPrint: true, grayscale: settings.grayscale === true, inkSave: settings.inkSave === true, renderPart, labelOf,
+        });
+        if (!isAlive()) {
+          root.SigK.pageImage.release(drawn.canvas);
+          break;
+        }
+        rendered.push(...drawn.rendered);
+        images.push({ sheet, ...(await encodeSheet(drawn.canvas)) });
       }
-      rendered.push(...drawn.rendered);
-      const image = drawn.canvas === null ? { url: null, bytes: 0 } : root.SigK.pageImage.toDataUrl(drawn.canvas);
-      root.SigK.pageImage.release(drawn.canvas);
-      images.push({ sheet, url: image.url, bytes: image.bytes });
+    } catch (error) {
+      releaseImages([{ images }]);
+      throw error;
+    }
+    if (!isAlive()) {
+      releaseImages([{ images }]);
+      return { canceled: true };
     }
     onProgress(plan.sheets.length, plan.sheets.length);
     const jobs = root.SigK.printSheetPlan.groupJobs(plan.sheets).map((job) => ({
@@ -137,9 +169,11 @@
     return { ok: true, jobs, rendered, sheets: plan.sheets.length };
   }
 
-  // 配置を作り、シートの画像を作って、最初の印刷の分を #print-area に並べる（印刷の手前まで）。isAlive() が false になったら
-  // { canceled: true }。戻り値の rendered は描いたページの部分（試験と起動確認が見る）。
-  async function prepareImages(doc, area, job, { isAlive = () => true, onProgress } = {}) {
+  // 配置を作り、シート画像を作る（印刷の手前まで）。place が true（既定）なら、最初の印刷分を #print-area に並べる
+  // （SigK.print.prepare。試験と起動確認が並んだ画像を見る）。［印刷］（print.js の run）は false を渡し、並べるのは
+  // print-send.js の send だけにする（同じ画像を 2 回並べない。決定97 ⑤）。isAlive() が false になったら { canceled: true }。
+  // 戻り値 jobs が持つシート画像の URL は、呼び出し元が releaseImages で解放する。rendered は描いたページの部分（試験と起動確認が見る）。
+  async function prepareImages(doc, area, job, { isAlive = () => true, onProgress, place = true } = {}) {
     await root.SigK.freeTextShape?.ensureLoaded(doc);
     const plan = planFor(doc, job);
     if (plan.error !== undefined)
@@ -152,12 +186,15 @@
       root.SigK.log?.report({ level: 'error', message: error?.message ?? String(error), stack: error?.stack, context: { source: 'print' } });
       return { error: 'ページを画像に変換できませんでした。' };
     }
-    if (built.canceled === true || !isAlive())
+    if (built.canceled === true)
       return { canceled: true };
-    const placed = root.SigK.printSend.fillArea(doc, area, built.jobs[0]);
-    await root.SigK.printSend.waitForImages(area);
+    const placed = place ? root.SigK.printSend.fillArea(doc, area, built.jobs[0]) : 0;
+    if (place)
+      await root.SigK.printSend.waitForImages(area);
     if (!isAlive()) {
-      area.replaceChildren();
+      if (place)
+        area.replaceChildren();
+      releaseImages(built.jobs);
       return { canceled: true };
     }
     const images = built.jobs.flatMap((entry) => entry.images.map(({ bytes }) => ({ bytes })));
@@ -168,5 +205,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.printJob = { PRINT_DPI, visibleFraction, pageDescriptors, partRenderer, labelMaker, planFor, buildImages, prepareImages };
+  SigK.printJob = { PRINT_DPI, PRINT_SCALE, visibleFraction, pageDescriptors, partRenderer, labelMaker, planFor, buildImages, releaseImages, prepareImages };
 })(typeof window !== 'undefined' ? window : globalThis);

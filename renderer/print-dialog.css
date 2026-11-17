@@ -30,14 +30,15 @@ dialog.pd::backdrop{background:rgba(16,24,40,.34)}
 .pd-x{position:absolute; right:0; top:0; width:31px; height:28px; display:flex; align-items:center; justify-content:center; background:transparent; border:0; color:#000}
 .pd-x:hover{background:#c42b1c; color:#fff}
 
-/* ボタン（枠 #d0d0d0・下の枠 #bababa・地 #fdfdfd）。フォーカスのあるボタンは、青い枠と点線の四角になる。 */
+/* ボタン（枠 #d0d0d0・下の枠 #bababa・地 #fdfdfd）。フォーカスのあるボタンは、青い枠と点線の四角になる。
+   カーソルは、押せる時は指差し、押せない時は矢印（docs/07 決定97 ①。Acrobat の矢印より、ユーザーの指示を優先する）。 */
 .pd-btn{
   height:24px; padding:0 6px 2px; background:#fdfdfd; border:1px solid #d0d0d0; border-bottom-color:#bababa; border-radius:3px;
-  color:#000; font:inherit; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; cursor:default;
+  color:#000; font:inherit; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; cursor:pointer;
 }
 .pd-btn:hover:not(:disabled){background:#f6f6f6}
 .pd-btn:active:not(:disabled){background:#f0f0f0; color:#5d5d5d}
-.pd-btn:disabled{color:#a0a0a0; background:#f5f5f5; border-color:#e5e5e5}
+.pd-btn:disabled{color:#a0a0a0; background:#f5f5f5; border-color:#e5e5e5; cursor:default}
 .pd-default, .pd-btn:focus{border-color:#0078d4; border-bottom-color:#006bbe}
 .pd-btn:focus{outline:1px dotted #000; outline-offset:-4px}
 /* ほかのボタンにフォーカスがある間は、既定のボタン（印刷・OK・はい）を普通のボタンの見た目に戻す（Windows と同じ）。 */
@@ -52,7 +53,7 @@ dialog.pd::backdrop{background:rgba(16,24,40,.34)}
   color:#7e7e7e; cursor:default;
 }
 .pd-q{font:700 10px/1 'Segoe UI', sans-serif}
-.pd-info{width:15px; font:700 9px/1 Georgia, serif}
+.pd-info{width:15px; font:700 9px/1 Georgia, serif; cursor:pointer}
 
 /* 選択欄（枠 #d2d2d2・下の枠 #bcbcbc）。フォーカスのある間は、選んだ項目を青で塗る（Windows のコンボボックスと同じ）。 */
 .pd-select{
@@ -179,7 +180,8 @@ dialog.pd::backdrop{background:rgba(16,24,40,.34)}
 .pd-pv-scale{position:absolute; left:14px; top:-1px}
 .pd-pv-size{position:absolute; font-size:11.5px; line-height:14px}
 .pd-pv-paper{position:absolute; border:2px solid #000; background:#fff; overflow:hidden}
-.pd-pv-paper canvas{display:block; width:100%; height:100%}
+/* canvas の表示サイズは print-preview.js が「画素数 ÷ devicePixelRatio」で指定する（描いた画素を拡大縮小せずに表示する。決定97 ②） */
+.pd-pv-paper canvas{display:block}
 .pd-pv-status{position:absolute; left:12px; right:12px; top:300px; text-align:center; color:#555; white-space:normal}
 .pd-pv-prev, .pd-pv-next{position:absolute; top:334px; width:30px; padding:0}
 .pd-pv-prev{left:15px}

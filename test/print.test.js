@@ -4,11 +4,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 // ページの解決は print-pages.js に移した（spec-7-7）。SigK.print からも同じ名前で呼べる。
+// 印刷解像度は print-job.js が持ち、SigK.print は同じ値を返す（決定97 ⑤）。
 require('../renderer/print-pages.js');
+require('../renderer/print-job.js');
 require('../renderer/print.js');
 const print = globalThis.SigK.print;
 
-const { createShell, createPdfjsStub, makeSource, A4 } = require('./harness.js');
+const { createShell, createPdfjsStub, makeSource, A4, TEST_PRINTER_CONFIG } = require('./harness.js');
 
 // 印刷（spec-1-4 E）。
 //
@@ -83,9 +85,12 @@ test('文書が開かれていなければ理由を返す', () => {
   assert.match(print.resolvePages({ mode: 'all', pageCount: 0 }).error, /文書が開かれていません/);
 });
 
-test('150dpi 相当の倍率を持つ', () => {
-  assert.equal(print.PRINT_DPI, 150);
-  assert.equal(print.PRINT_SCALE, 150 / 72);
+// 150 dpi では、600 dpi のプリンターで縦横 4 倍に拡大されて滲んだ（決定97 ⑤）。
+test('300 dpi 相当の倍率を持ち、値は print-job.js の値と同じ', () => {
+  assert.equal(print.PRINT_DPI, 300);
+  assert.equal(print.PRINT_SCALE, 300 / 72);
+  assert.equal(print.PRINT_DPI, globalThis.SigK.printJob.PRINT_DPI);
+  assert.equal(print.PRINT_SCALE, globalThis.SigK.printJob.PRINT_SCALE);
 });
 
 /// ---- 印刷画面の経路（docs/spec-7-7-print-dialog.md） ----
@@ -140,7 +145,7 @@ test('プリンターの一覧を取得して既定のプリンターを選び�
   assert.equal(document.getElementById('print-run').disabled, false);
 });
 
-test('ページを画像にする準備が、指定したページ数だけ走る（用紙の上で 150 dpi）', async (t) => {
+test('ページを画像にする準備が、指定したページ数だけ走る（用紙の上で 300 dpi）', async (t) => {
   const shell = await withDocument(t);
   await openPrint(shell);
 
@@ -150,7 +155,7 @@ test('ページを画像にする準備が、指定したページ数だけ走�
   assert.deepEqual([...result.pages], [1, 3]);
   assert.equal(result.sheets, 2);
   assert.deepEqual([...result.rendered.map((entry) => entry.page)], [1, 3]);
-  // A4 のページを A4 の印刷可能領域に合わせた倍率で、用紙の上で 150 dpi になるように描く（確定事項31）。
+  // A4 のページを A4 の印刷可能領域に合わせた倍率で、用紙の上で 300 dpi になるように描く（確定事項31 を決定97 ⑤ で改訂）。
   assert.ok(Math.abs(result.rendered[0].width - A4.width * print.PRINT_SCALE * FIT_A4) <= 1, `${result.rendered[0].width}`);
   assert.equal(shell.document.querySelectorAll('#print-area img').length, 0, 'jsdom では画像を作らない');
 });
@@ -295,4 +300,182 @@ test('準備の途中で印刷画面が Esc で閉じても、準備は無効に
   }
   assert.equal(shell.printCalls.length, 0);
   assert.equal(shell.SigK.print.isBusy(), false);
+});
+
+// ---- シート画像を指す blob URL（決定97 ⑤） ----
+
+// jsdom には 2D コンテキストが無い。シート合成を、大きさだけを持つ canvas を返すものに差し替え、作った blob URL と解放した blob URL を
+// 記録する。toBlob は Blob の代わりに { size } を返す（failAt 枚目は null を返し、画像を作れなかったことにする）。onCompose(枚数) は
+// 合成のたびに呼ぶ。
+function fakeSheetImages(shell, { failAt = null, onCompose = () => {} } = {}) {
+  const { window, SigK } = shell;
+  const created = [];
+  const revoked = [];
+  let composed = 0;
+  SigK.printSheetRender.composeSheet = async () => {
+    composed += 1;
+    const count = composed;
+    onCompose(count);
+    return { canvas: { width: 10, height: 10, toBlob: (callback) => callback(count === failAt ? null : { size: 100 }) }, rendered: [] };
+  };
+  window.URL.createObjectURL = () => {
+    created.push(`blob:sigk-test/${created.length + 1}`);
+    return created.at(-1);
+  };
+  window.URL.revokeObjectURL = (url) => revoked.push(url);
+  // jsdom は画像を読み込まない（complete が false のままで、load も起きない）ので、読み込み済みとして扱う。
+  Object.defineProperty(window.HTMLImageElement.prototype, 'complete', { configurable: true, get: () => true });
+  return { created, revoked };
+}
+
+const imagesIn = (document) => [...document.querySelectorAll('#print-area img')].map((img) => img.getAttribute('src'));
+
+test('［印刷］は、シート画像を blob URL にして #print-area に 1 回だけ並べ、送り終えたら URL を解放する', async (t) => {
+  const shell = await withDocument(t);
+  const document = await openPrint(shell);
+  const { created, revoked } = fakeSheetImages(shell);
+  const area = document.getElementById('print-area');
+  const fills = [];
+  const observer = new shell.window.MutationObserver((records) => fills.push(...records.filter((record) => record.addedNodes.length > 0)));
+  observer.observe(area, { childList: true });
+  const sent = [];
+  const print = shell.window.printAPI.print;
+  shell.window.printAPI.print = async (options) => {
+    sent.push(imagesIn(document));
+    return print(options);
+  };
+
+  const result = await shell.SigK.print.run({ mode: 'all' });
+  fills.push(...observer.takeRecords().filter((record) => record.addedNodes.length > 0));
+  observer.disconnect();
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(created, ['blob:sigk-test/1', 'blob:sigk-test/2', 'blob:sigk-test/3']);
+  assert.deepEqual(sent, [created], '送る時に 3 枚の画像が並んでいる');
+  assert.equal(fills.length, 1, '同じ画像を 2 回並べない（以前は準備と送る時の 2 回並べていた）');
+  assert.deepEqual(revoked, created, '送り終えたら 1 回ずつ解放する');
+  assert.deepEqual(imagesIn(document), []);
+});
+
+test('準備の途中で進行状況画面の［キャンセル］を押すと、作った分の blob URL を解放する', async (t) => {
+  const shell = await withDocument(t);
+  const document = await openPrint(shell);
+  const { created, revoked } = fakeSheetImages(shell, {
+    onCompose: (count) => {
+      if (count === 2)
+        document.getElementById('print-progress-cancel').click();
+    },
+  });
+
+  const result = await shell.SigK.print.run({ mode: 'all' });
+
+  assert.equal(result.canceled, true);
+  assert.deepEqual(created, ['blob:sigk-test/1'], '中止した後の 2 枚目は画像にしない');
+  assert.deepEqual(revoked, created);
+  assert.equal(shell.printCalls.length, 0);
+});
+
+test('画像に変換できなかったら、作った分の blob URL を解放し、通知バーに理由を表示する', async (t) => {
+  const shell = await withDocument(t);
+  await openPrint(shell);
+  const { created, revoked } = fakeSheetImages(shell, { failAt: 2 });
+
+  const result = await shell.SigK.print.run({ mode: 'all' });
+
+  assert.match(result.error, /ページを画像に変換できませんでした/);
+  assert.deepEqual(created, ['blob:sigk-test/1']);
+  assert.deepEqual(revoked, created);
+  assert.equal(shell.printCalls.length, 0);
+  assert.match(shell.SigK.viewBanner.text(), /印刷できませんでした/);
+});
+
+test('準備（prepare）で並べた画像は残し、次の準備と印刷画面を閉じた時に #print-area から外して URL を解放する', async (t) => {
+  const shell = await withDocument(t);
+  const document = await openPrint(shell);
+  const { created, revoked } = fakeSheetImages(shell);
+
+  const first = await shell.SigK.print.prepare({ mode: 'custom', text: '1-2' });
+  assert.equal(first.placed, 2);
+  assert.deepEqual(imagesIn(document), created, '並べた画像は残す（起動確認 SIGK_SMOKE_PRINT_PDF が printToPDF で紙に写す）');
+  assert.deepEqual(revoked, []);
+  await shell.SigK.print.prepare({ mode: 'current' });
+  assert.deepEqual(revoked, created.slice(0, 2), '次の準備で、前の画像を解放する');
+  assert.deepEqual(imagesIn(document), created.slice(2));
+  shell.SigK.print.close();
+  assert.deepEqual(revoked, created);
+  assert.deepEqual(imagesIn(document), []);
+});
+
+// ---- 画素単位にそろえる（決定97 ②） ----
+
+test('印刷画面を題名バーでドラッグすると、位置をデバイスピクセル単位にそろえる', async (t) => {
+  const shell = await withDocument(t);
+  const document = await openPrint(shell);
+  shell.window.devicePixelRatio = 1.25;
+  const dialog = document.getElementById('print-dialog');
+  const title = dialog.querySelector('.pd-title');
+  const fire = (type, x, y) => title.dispatchEvent(new shell.window.PointerEvent(type, { bubbles: true, button: 0, pointerId: 1, clientX: x, clientY: y }));
+
+  fire('pointerdown', 10, 10);
+  fire('pointermove', 110.3, 60.7);
+  fire('pointerup', 110.3, 60.7);
+
+  // jsdom では getBoundingClientRect が 0 を返すので、移動先は (100.3, 50.7)。1.25 倍して整数になる 0.8 px 刻みにそろえる。
+  assert.equal(dialog.style.left, '100px');
+  assert.equal(dialog.style.top, '50.4px');
+  const { snapToDevicePixel } = shell.SigK.printDialogKeys;
+  assert.equal(snapToDevicePixel(100.5, 1.5), 151 / 1.5);
+  assert.equal(snapToDevicePixel(100.3, 0), 100, 'devicePixelRatio が読めなければ 1 として扱う');
+});
+
+// 用紙寸法（µm）。B5 (JIS) とレターも、プレビューで枠の大きさを確かめる。
+const PREVIEW_PAPERS = [
+  { id: 'psk:ISOA4', name: 'A4', width: 210000, height: 297000 },
+  { id: 'psk:ISOA4', name: 'A4', width: 210000, height: 297000, landscape: true },
+  { id: 'psk:ISOA3', name: 'A3', width: 297000, height: 420000 },
+  { id: 'psk:JISB5', name: 'B5 (JIS)', width: 182000, height: 257000 },
+  { id: 'psk:NorthAmericaLetter', name: 'レター', width: 215900, height: 279400 },
+];
+
+// jsdom には 2D コンテキストが無いので、プレビューを描く間だけ有ることにし、シート合成を、本物と同じ画素数で何も描いていない canvas を
+// 返すものに差し替える（canvas の表示サイズと枠の大きさを見るため。画素そのものは起動確認で見る）。
+async function drawPreview(shell) {
+  const { window, SigK } = shell;
+  const compose = SigK.printSheetRender.composeSheet;
+  SigK.printSheetRender.composeSheet = async (doc, sheet, { dpi }) => {
+    const canvas = doc.createElement('canvas');
+    Object.assign(canvas, SigK.printSheetRender.sheetPixels(sheet, dpi));
+    return { canvas, rendered: [] };
+  };
+  window.CanvasRenderingContext2D = function CanvasRenderingContext2D() {};
+  SigK.print.refreshPreview(false);
+  delete window.CanvasRenderingContext2D;
+  await shell.flush();
+  SigK.printSheetRender.composeSheet = compose;
+  return shell.document.querySelector('#print-preview-paper canvas');
+}
+
+test('プレビューに表示する canvas は、表示画素数が canvas の画素数と一致し、黒い枠の内側との差が 1 画素未満（devicePixelRatio 1〜2・用紙 5 種）', async (t) => {
+  for (const { landscape, ...paper } of PREVIEW_PAPERS) {
+    const shell = await withDocument(t, { printerConfigs: { 試験用プリンター: { ...TEST_PRINTER_CONFIG, paper } } });
+    const document = await openPrint(shell);
+    if (landscape)
+      document.getElementById('print-orient-landscape').click();
+    for (const dpr of [1, 1.25, 1.5, 1.75, 2]) {
+      shell.window.devicePixelRatio = dpr;
+      const canvas = await drawPreview(shell);
+      const label = `${paper.name}${landscape ? ' 横' : ''}・devicePixelRatio ${dpr}`;
+      // 表示画素数（CSS px × devicePixelRatio）は canvas の画素数と同じ（以前は CSS の width:100% で枠に合わせて伸ばしていた）。
+      assert.ok(Math.abs(parseFloat(canvas.style.width) * dpr - canvas.width) < 1e-6, `${label}: 幅 ${canvas.style.width}・${canvas.width} 画素`);
+      assert.ok(Math.abs(parseFloat(canvas.style.height) * dpr - canvas.height) < 1e-6, `${label}: 高さ ${canvas.style.height}・${canvas.height} 画素`);
+      // 黒い枠（太さ 2 px）の内側と canvas の差は 1 画素未満。
+      const frame = document.getElementById('print-preview-paper').style;
+      assert.ok(Math.abs((parseFloat(frame.width) - 4) * dpr - canvas.width) < 1, `${label}: 枠の幅 ${frame.width}`);
+      assert.ok(Math.abs((parseFloat(frame.height) - 4) * dpr - canvas.height) < 1, `${label}: 枠の高さ ${frame.height}`);
+      // canvas の画素数は、プレビューに表示した用紙寸法（「297.00 x 210.00 ミリ」）を paperLayout に渡して求めた画素数。
+      const [width, height] = document.getElementById('print-preview-size').textContent.match(/[\d.]+/g).map((mm) => Math.round(Number(mm) * 1000));
+      // jsdom 内のオブジェクトは、こちらのオブジェクトと deepEqual で比べられないので、複製してから比べる。
+      assert.deepEqual({ width: canvas.width, height: canvas.height }, { ...shell.SigK.printPreview.paperLayout({ width, height }, dpr).pixels }, label);
+    }
+  }
 });

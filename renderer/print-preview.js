@@ -8,7 +8,7 @@
   // 用紙は、黒い枠（2 px）を含めて 210 × 276 px の中に収める。黒い枠の内側の位置は、内側の大きさ（端数のまま）から
   // 中心がプレビューの内側の左から 150.5 px・上から 185 px になるように四捨五入して決める（画面写真 1 の横の用紙と、2 の縦の用紙の位置が両方合う）。
   // 用紙の寸法の文字は、文字の左端が用紙の左端の 2 px 右・文字の下端が用紙の上の 12 px 上になるように置く（画面写真 1・2 の位置）。
-  // 描くのは印刷と同じ合成（print-sheet-render.js）。
+  // 描くのは印刷と同じ合成（print-sheet-render.js）。描いた画素を拡大縮小せずに表示する（決定97 ②。paperLayout）。
 
   const BOX = Object.freeze({ width: 210, height: 276, border: 2, centerX: 150.5, centerY: 185 });
   const SIZE_LABEL = Object.freeze({ dx: 1, dy: -24 });
@@ -35,19 +35,40 @@
       $(id).disabled = true;
   }
 
-  // 用紙の内側（黒い枠の内側）の大きさを決めてから、枠の分を足す。返すのは内側の大きさ（描く画像の大きさ）。
-  function placePaper(sheet) {
+  function devicePixelRatioOf(win) {
+    const ratio = win?.devicePixelRatio;
+    return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+  }
+
+  // 用紙の位置と、プレビューに表示する canvas の画素数・表示サイズを決める（DOM に触らない。dpr は devicePixelRatio）。
+  // canvas は、用紙を枠に収める倍率に devicePixelRatio を掛けた解像度（dpi）で描き、表示サイズ（css。CSS px）は
+  // 「画素数 ÷ devicePixelRatio」にする（描いた画素を拡大縮小せずに表示する）。黒い枠の内側の大きさも css にするので、
+  // canvas と枠の内側の差は無い。devicePixelRatio が 1 の時の枠は、以前と同じ大きさ（内側の大きさを四捨五入した整数）。
+  function paperLayout(sheet, dpr = 1) {
     const edge = BOX.border * 2;
     const ratio = Math.min((BOX.width - edge) / sheet.width, (BOX.height - edge) / sheet.height);
-    const exactWidth = sheet.width * ratio;
-    const exactHeight = sheet.height * ratio;
-    const width = Math.max(1, Math.round(exactWidth));
-    const height = Math.max(1, Math.round(exactHeight));
-    const left = Math.round(BOX.centerX - exactWidth / 2) - BOX.border;
-    const top = Math.round(BOX.centerY - exactHeight / 2) - BOX.border;
-    Object.assign($('print-preview-paper').style, { left: `${left}px`, top: `${top}px`, width: `${width + edge}px`, height: `${height + edge}px` });
+    const dpi = ratio * UM_PER_INCH * dpr;
+    const pixels = root.SigK.printSheetRender.sheetPixels(sheet, dpi);
+    return {
+      dpi,
+      pixels,
+      css: { width: pixels.width / dpr, height: pixels.height / dpr },
+      left: Math.round(BOX.centerX - (sheet.width * ratio) / 2) - BOX.border,
+      top: Math.round(BOX.centerY - (sheet.height * ratio) / 2) - BOX.border,
+    };
+  }
+
+  // 用紙（黒い枠）と寸法の文字を置く。枠の大きさは、内側の大きさに枠の太さ（2 px × 2）を追加した値。
+  function placePaper(layout) {
+    const edge = BOX.border * 2;
+    const { left, top, css } = layout;
+    Object.assign($('print-preview-paper').style, { left: `${left}px`, top: `${top}px`, width: `${css.width + edge}px`, height: `${css.height + edge}px` });
     Object.assign($('print-preview-size').style, { left: `${left + SIZE_LABEL.dx}px`, top: `${top + SIZE_LABEL.dy}px` });
-    return { width, height };
+  }
+
+  // canvas の表示サイズを「画素数 ÷ devicePixelRatio」にする（CSS の width:100% で枠に合わせて伸ばすと、1 画素の差で全体が補間されて滲む）。
+  function fitCanvas(canvas, dpr) {
+    Object.assign(canvas.style, { width: `${canvas.width / dpr}px`, height: `${canvas.height / dpr}px` });
   }
 
   function renderNav(count) {
@@ -78,7 +99,9 @@
     ctx.index = Math.min(Math.max(0, ctx.index), count - 1);
     const sheet = plan.sheets[ctx.index];
     setStatus(null);
-    const box = placePaper(sheet);
+    const dpr = devicePixelRatioOf(ctx.el.doc.defaultView);
+    const layout = paperLayout(sheet, dpr);
+    placePaper(layout);
     $('print-preview-paper').hidden = false;
     $('print-preview-size').textContent = `${mm(sheet.width)} x ${mm(sheet.height)} ミリ`;
     $('print-preview-scale').textContent = ctx.mode === 'size' ? `倍率 : ${sheet.scalePercent}%` : '';
@@ -87,10 +110,8 @@
     // jsdom（試験）には 2D コンテキストが無い。文字の表示までにする。
     if (!root.SigK.pageImage.hasCanvas(ctx.el.doc.defaultView))
       return;
-    const scale = ctx.el.doc.defaultView?.devicePixelRatio ?? 1;
-    const dpi = (box.width * scale) / (sheet.width / UM_PER_INCH);
     const drawn = await root.SigK.printSheetRender.composeSheet(ctx.el.doc, sheet, {
-      dpi,
+      dpi: layout.dpi,
       forPrint: false,
       grayscale: job.grayscale,
       inkSave: job.inkSave,
@@ -101,6 +122,7 @@
       root.SigK.pageImage.release(drawn.canvas);
       return;
     }
+    fitCanvas(drawn.canvas, dpr);
     $('print-preview-paper').replaceChildren(drawn.canvas);
   }
 
@@ -140,5 +162,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.printPreview = { BOX, init, show, showStatus, getIndex: () => ctx.index, drawn: () => ctx.token };
+  SigK.printPreview = { BOX, paperLayout, init, show, showStatus, getIndex: () => ctx.index, drawn: () => ctx.token };
 })(typeof window !== 'undefined' ? window : globalThis);

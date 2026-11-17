@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 require('../renderer/page-crop.js');
+require('../renderer/page-plan.js');
 require('../renderer/page-mosaic.js');
 const mosaic = globalThis.SigK.pageMosaic;
 
@@ -65,4 +66,21 @@ test('indicesOf はモザイクのあるページの位置、pagesLabel は 4 �
   assert.equal(mosaic.pagesLabel([1, 3]), '2・4 ページ目');
   assert.equal(mosaic.pagesLabel([0, 1, 2, 3, 4]), '1・2・3・4 ページ目ほか');
   assert.deepEqual(mosaic.indicesOf(undefined), []);
+});
+
+// 2026-11-17 の不具合（モザイクを配置するたびに画面がホワイトアウトする）の修正で、viewer.applyPlan がページ枠を作り直すかを決めるのに使う。
+test('changedPages は、違いがモザイク欄だけなら、モザイクが違うページ位置を返し、ほかの欄も違えば null を返す', () => {
+  const item = (block) => ({ box: [1, 2, 3, 4], block });
+  const base = [{ src: 0, rotate: 0 }, { src: 1, rotate: 0, mosaic: [item(8)] }, { src: 2, rotate: 0, crop: [0, 0, 100, 100] }];
+  const placed = [{ src: 0, rotate: 0 }, { src: 1, rotate: 0, mosaic: [item(8), item(4)] }, { src: 2, rotate: 0, crop: [0, 0, 100, 100], mosaic: [item(14)] }];
+  assert.deepEqual(mosaic.changedPages(base, placed), [1, 2]);
+  assert.deepEqual(mosaic.changedPages(placed, base), [1, 2]);
+  assert.deepEqual(mosaic.changedPages(base, base.map((entry) => ({ ...entry }))), []);
+  // 回転・トリミング範囲・並び順・ページ数・差し込んだページが違えば、ページ枠から作り直す。
+  assert.equal(mosaic.changedPages(base, [{ src: 0, rotate: 90 }, base[1], base[2]]), null);
+  assert.equal(mosaic.changedPages(base, [base[0], base[1], { src: 2, rotate: 0, crop: [0, 0, 50, 50] }]), null);
+  assert.equal(mosaic.changedPages(base, [base[1], base[0], base[2]]), null);
+  assert.equal(mosaic.changedPages(base, base.slice(0, 2)), null);
+  assert.equal(mosaic.changedPages(base, [{ insert: 0, rotate: 0 }, base[1], base[2]]), null);
+  assert.equal(mosaic.changedPages(null, base), null);
 });

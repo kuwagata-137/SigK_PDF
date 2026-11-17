@@ -16,6 +16,7 @@
 //   pdf       PNG に描き［名前を付けて保存］で PDF。/Square の注釈が残るかを見る
 //   tools     画像のタブの道具の段で、灰色の道具と吹き出しの鍵を見る
 //   exif      EXIF の向きを持つ JPEG を開いて回し、上書き保存する（smoke-image-exif.js。spec-7-4 確定事項X1〜X3）
+//   mosaic    モザイクを置いてから描き終えるまでに、ページの白い背景だけが見えるフレームが無いかを数える（smoke-image-mosaic.js。2026-11-17 の不具合）
 //   paste     空のタブに貼り付けた画像に描き［上書き保存］→ 保存の窓で PNG（spec-7-8 確定事項NT8・NT9）。SIGK_SMOKE_CLIPBOARD の画像
 //             （クリップボードの代わり。NT12）があるときだけ行う。画素数・四角の線の色・四角の外の画素・保存後のタブを見る
 
@@ -173,6 +174,11 @@ async function run({ win, dir, root, dialog, nativeImage }) {
   const js = (script) => win.webContents.executeJavaScript(script);
   const copy = (name, as) => { const target = path.join(dir, as); fs.copyFileSync(fixture(root, name), target); return target; };
   try {
+    // mosaic: モザイクを置いたときに、ページの白い背景だけが見えるフレームが無いか（smoke-image-mosaic.js。2026-11-17 の不具合）。
+    // SIGK_SMOKE_IMAGE_EDIT_ONLY=mosaic なら、これだけを行う。
+    if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'mosaic')
+      return { mosaic: await require('./smoke-image-mosaic.js').run({ win, js, dir, root, nativeImage }) };
+
     // paste: 空のタブに貼り付けた画像を保存する（spec-7-8 確定事項NT8・NT9）。SIGK_SMOKE_IMAGE_EDIT_ONLY=paste なら、これだけを行う。
     report.paste = await runPaste({ js, dir, nativeImage, answers });
     if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'paste')
@@ -182,6 +188,7 @@ async function run({ win, dir, root, dialog, nativeImage }) {
     report.exif = await require('./smoke-image-exif.js').run({ js, dir, nativeImage, saveScript, pixelsOf, dialog });
     if (process.env.SIGK_SMOKE_IMAGE_EDIT_ONLY === 'exif')
       return report;
+    report.mosaic = await require('./smoke-image-mosaic.js').run({ win, js, dir, root, nativeImage });
 
     // png: 上書き保存（了承）
     const png = copy('image-wide.png', 'wide.png');

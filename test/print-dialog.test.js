@@ -7,7 +7,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { createShell, makeSource, TEST_PRINTER_CONFIG } = require('./harness.js');
+const { createShell, createPdfjsStub, makeSource, A4, TEST_PRINTER_CONFIG } = require('./harness.js');
+const { fallbackConfig } = require('../printer-xml.js');
+
+// A3 のページ（pt）。試験で使う pdf.js の代わり（createPdfjsStub）は、ファイルの中身を読まずに、この寸法のページを返す。
+const A3_PAGE = { width: 841.89, height: 1190.55 };
+const A3_CONFIG = Object.freeze({
+  ...TEST_PRINTER_CONFIG,
+  paper: { id: 'psk:ISOA3', name: 'A3', width: 297000, height: 420000 },
+  imageable: { x: 4230, y: 4230, width: 288540, height: 411540 },
+});
 
 async function withPrint(t, options = {}) {
   const shell = await createShell(options);
@@ -133,6 +142,27 @@ test('［プロパティ(P)］は印刷設定の画面を開き、閉じたら�
   assert.equal($('print-duplex').checked, true);
 });
 
+test('［プロパティ(P)］で開いた印刷設定を閉じた後、取得し直しに失敗した時（A4 の初期値が届いた時）は、直前の設定（A3）のまま変えない（決定97 ④）', async (t) => {
+  const { shell, $, click } = await withPrint(t, { printerConfigs: { 試験用プリンター: A3_CONFIG } });
+  click('print-gray');
+  assert.equal($('print-gray').checked, true);
+  // メイン側は、取得に失敗すると printer-xml.js の fallbackConfig（ok: false・A4）を返す。
+  shell.window.printAPI.openPreferences = async (name) => {
+    shell.preferenceCalls.push(name);
+    return { ok: true, config: structuredClone(fallbackConfig('failed')) };
+  };
+  click('print-props');
+  await shell.flush();
+  assert.deepEqual([...shell.preferenceCalls], ['試験用プリンター']);
+  assert.equal($('print-run').disabled, false, '印刷できる状態に戻る');
+  shell.SigK.print.refreshPreview(false);
+  assert.equal($('print-preview-size').textContent, '297.00 x 420.00 ミリ', '用紙は A3 のまま');
+  assert.equal($('print-gray').checked, true, '印刷画面で変えたグレースケールも戻さない');
+  await shell.SigK.print.run({ mode: 'current' });
+  assert.equal('pageSize' in shell.printCalls[0], false, 'プリンターの既定の用紙（A3）として送る');
+  assert.equal(shell.printCalls[0].color, false);
+});
+
 test('注釈の一覧(T) は確認画面を表示し、［はい(Y)］で一覧ページを入れる。［いいえ(N)］で入れない', async (t) => {
   const { shell, $, click } = await withPrint(t);
   click('print-summary');
@@ -160,6 +190,28 @@ test('［ページ設定(S)...］でサイズを A3 にすると、A3 の用紙�
   await shell.flush();
   await shell.SigK.print.run({ mode: 'current' });
   assert.deepEqual({ ...shell.printCalls[0].pageSize }, { width: 297000, height: 420000 });
+});
+
+test('PDF のページサイズに合わせて用紙を選択(Z) にチェックを入れると、A3 のページは A3 の用紙になり、倍率が変わる（決定97 ③）', async (t) => {
+  const { shell, $, click } = await withPrint(t, { pdfjs: createPdfjsStub({ sizes: [A3_PAGE] }) });
+  shell.SigK.print.refreshPreview(false);
+  assert.equal($('print-preview-size').textContent, '210.00 x 297.00 ミリ', 'チェックが無い時は、プリンターの既定の用紙（A4）');
+  assert.equal($('print-preview-scale').textContent, '倍率 : 67%');
+  click('print-choose-paper');
+  assert.equal($('print-choose-paper').checked, true);
+  shell.SigK.print.refreshPreview(false);
+  assert.equal($('print-preview-size').textContent, '297.00 x 420.00 ミリ');
+  assert.equal($('print-preview-scale').textContent, '倍率 : 97%');
+});
+
+test('A4 と A3 が混ざる文書を、PDF のページサイズに合わせて用紙を選択(Z) で印刷すると、用紙ごとに 2 回送り、A3 の回だけ用紙寸法を付ける（決定97 ③）', async (t) => {
+  const { shell, click } = await withPrint(t, { pdfjs: createPdfjsStub({ sizes: [A4, A3_PAGE] }) });
+  click('print-choose-paper');
+  await shell.SigK.print.run();
+  assert.equal(shell.printCalls.length, 2);
+  assert.equal('pageSize' in shell.printCalls[0], false, '1 回目は A4（プリンターの既定の用紙）なので用紙を指定しない');
+  assert.deepEqual({ ...shell.printCalls[1].pageSize }, { width: 297000, height: 420000 });
+  assert.equal(shell.printCalls[1].deviceName, '試験用プリンター');
 });
 
 test('アクセスキー: Alt＋P で［プロパティ(P)］、Alt＋G でページ指定。ページ指定の欄で Enter を押すと印刷する', async (t) => {

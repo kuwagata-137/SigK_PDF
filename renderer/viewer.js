@@ -120,7 +120,7 @@
   }
 
   // pdf.js のページを借りる口。検索の全ページ取り出し（spec-1-4 確定事項2）と
-  // 印刷の 150dpi 描画（同31）が使う。文書そのものを渡さないのは、破棄の
+  // 印刷の描画（同31。docs/07 決定97 で 300dpi）が使う。文書そのものを渡さないのは、破棄の
   // 責任をこことタブ層に閉じたままにするためである。
   //
   // 表示上の番号から元ファイルのページを引く（spec-1-5 確定事項44）。この写像が
@@ -356,22 +356,32 @@
     if (state.doc === null)
       return false;
 
+    // モザイク欄だけが変わった（置いた・削除した・取り消した）ページ位置。ほかの欄も変わっていれば null。
+    const repaint = root.SigK.pageMosaic?.changedPages(state.plan, nextPlan) ?? null;
     state.plan = root.SigK.pagePlan.clonePlan(nextPlan);
     state.sizes = sizesFromPlan(state.plan);
     state.current = Math.min(state.sizes.length - 1, Math.max(0, state.current));
 
-    // 並びも寸法も変わる。飛んでいる描画ごと捨てて枠から作り直す。
-    state.token += 1;
-    render.releaseAll();
-    buildPages();
-    applyLayout();
+    if (repaint === null) {
+      // 並びも寸法も変わる。飛んでいる描画ごと捨てて枠から作り直す。
+      state.token += 1;
+      render.releaseAll();
+      buildPages();
+      applyLayout();
+    } else {
+      // ページ枠の並びと大きさは変わらないので、枠を作り直さず、モザイクが変わったページだけを描き直す。新しい絵ができるまで前の絵を
+      // 残す（2026-11-17 の不具合「モザイクを配置するたびに画面がホワイトアウトする」の修正。前は枠を全部作り直していたので、pdf.js が
+      // 描き終えるまでページの白い背景が見えていた。倍率を変えたときの 2026-10-23 の修正と同じ方法）。
+      for (const index of repaint)
+        render.releasePage(index, { keepPicture: true });
+    }
 
     // 検索結果は捨てる（確定事項47）。matches はページ index とページ内
     // オフセットを持つため、並べ替えなら付け替えられても削除では直せない。
     // 半分だけ正しいハイライトは、無いより悪い。
     root.SigK.find?.clear();
 
-    root.SigK.thumbnails?.setPlan(state.plan, state.sizes, state.inserts);
+    root.SigK.thumbnails?.setPlan(state.plan, state.sizes, state.inserts, { repaint });
     syncStatusPages();
     syncDirty();
     controls()?.syncAll(el.doc, getState());
