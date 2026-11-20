@@ -214,6 +214,16 @@
     // 道具の段の「多角形」（spec-4b-5a 確定事項27）。五角形。
     shapePolygon: [['path', { d: 'M12 3.6l8.2 6-3.1 10H6.9l-3.1-10z' }]],
     note: [['path', { d: 'M5 5h14v10H10l-4 4v-4H5z' }]],
+    // 編集ツールバーの「マーキング」と、プロパティパネルの行「形」の点付き丸（spec-7-9 確定事項F1・F2）。外の円の線と、中心の塗った点。
+    marking: [
+      ['circle', { cx: 12, cy: 12, r: 7.5 }],
+      ['circle', { cx: 12, cy: 12, r: 2.4, fill: 'currentColor', stroke: 'none' }],
+    ],
+    // 行「形」の二重丸・照準・番号付き丸・注意マーク（spec-7-9 確定事項F2）。
+    markingDouble: [['circle', { cx: 12, cy: 12, r: 7.5 }], ['circle', { cx: 12, cy: 12, r: 3.6 }]],
+    markingCrosshair: [['circle', { cx: 12, cy: 12, r: 6.5 }], ['path', { d: 'M2.5 12h19M12 2.5v19' }]],
+    markingNumber: [['circle', { cx: 12, cy: 12, r: 7.5 }], ['path', { d: 'M10.6 9.4l1.9-1.6v8.4' }]],
+    markingCaution: [['path', { d: 'M12 4.2l8.6 15H3.4z' }], ['path', { d: 'M12 9.6v4.6' }], ['circle', { cx: 12, cy: 16.8, r: 0.9, fill: 'currentColor', stroke: 'none' }]],
     // 道具の段の「消しゴム」（spec-4b-5b 確定事項29。見本 screenshots/phase4b-5b-more.png）。斜めに置いた消しゴムと、下の線。
     eraser: [
       ['path', { d: 'M8.2 19.5L3.8 15a1.6 1.6 0 0 1 0-2.3l8.5-8.5a1.6 1.6 0 0 1 2.3 0l5.6 5.6a1.6 1.6 0 0 1 0 2.3l-7.5 7.4z' }],

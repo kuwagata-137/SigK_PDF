@@ -86,7 +86,10 @@
       // マーカーの太さは別に覚える（spec-4b-5b 確定事項4）。
       if (kinds.includes('marker'))
         root.SigK.annotateShape.rememberLineWidth(value, 'marker');
-      if (kinds.some((kind) => root.SigK.annotationEntry.isDrawnKind(kind)))
+      // マーキングの太さも別に記憶する（spec-7-9 確定事項F5）。
+      if (kinds.includes('marking'))
+        root.SigK.annotateShape.rememberLineWidth(value, 'marking');
+      if (kinds.some((kind) => kind !== 'marking' && root.SigK.annotationEntry.isDrawnKind(kind)))
         root.SigK.annotateShape.rememberLineWidth(value);
     } else if (field === 'opacity') {
       kinds.forEach((kind) => root.SigK.annotateOpacity.rememberOpacity(kind, value));

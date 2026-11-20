@@ -29,6 +29,9 @@
   function getLineWidth(kind) {
     if (kind === 'marker')
       return state.markerWidth ?? presets().DEFAULT_MARKER_WIDTH;
+    // マーキングの太さは別に記憶する（spec-7-9 確定事項F5。annotate-marking.js）。
+    if (kind === 'marking')
+      return root.SigK.annotateMarking.getLineWidth();
     return state.lineWidth ?? presets().DEFAULT_LINE_WIDTH;
   }
 
@@ -49,6 +52,8 @@
   function rememberLineWidth(width, kind) {
     if (!presets().isLineWidth(width))
       return false;
+    if (kind === 'marking')
+      return root.SigK.annotateMarking.rememberLineWidth(width);
     if (kind === 'marker') {
       state.markerWidth = width;
       root.SigK.shell?.persist?.({ annotMarkerWidth: width });
@@ -78,7 +83,8 @@
     }
     // マーカーを選んでいるか、何も選ばずにマーカーの道具を持っていれば、マーカーの太さとして覚える。
     const marker = entry === null ? annotate().drawingTool() === 'marker' : root.SigK.shapeStyle.isMarker(entry);
-    rememberLineWidth(width, marker ? 'marker' : undefined);
+    const marking = entry === null ? annotate().drawingTool() === 'marking' : entry.kind === 'marking';
+    rememberLineWidth(width, marker ? 'marker' : (marking ? 'marking' : undefined));
     root.SigK.annotationProps?.refresh();
     return true;
   }

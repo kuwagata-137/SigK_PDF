@@ -118,9 +118,9 @@ test('ツールレールは 4 つのモードだけを持ち、編集の道具�
   assert.equal(document.querySelectorAll('#rail .rail-item').length, 4);
   const tools = [...document.querySelectorAll('#edit-bar .edit-tool[data-tool]')];
   // 吹き出しはテキストの隣（spec-4b-4b 確定事項F1。決定57 ⑦）。×印・多角形は丸の後ろ（spec-4b-5a 確定事項27）。マーカーと消しゴムは
-  // ペンの後ろ（spec-4b-5b 確定事項2・18）。トリミングはノートの後ろに区切りを挟む（spec-4b-6a 確定事項11）。
-  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'cross', 'polygon', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim']);
-  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', '×印', '多角形', 'ペン', 'マーカー', '消しゴム', 'ノート', 'モザイク', 'トリミング']);
+  // ペンの後ろ（spec-4b-5b 確定事項2・18）。マーキングは多角形の右（spec-7-9 確定事項F1）。トリミングはノートの後ろに区切りを挟む（spec-4b-6a 確定事項11）。
+  assert.deepEqual(tools.map((el) => el.dataset.shape ?? el.dataset.tool), ['highlight', 'underline', 'strikeout', 'text', 'callout', 'arrow', 'line', 'square', 'circle', 'cross', 'polygon', 'marking', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim']);
+  assert.deepEqual(tools.map((el) => el.nextElementSibling.textContent), ['ハイライト', '下線', '取り消し線', 'テキスト', '吹き出し', '矢印', '直線', '四角', '丸', '×印', '多角形', 'マーキング', 'ペン', 'マーカー', '消しゴム', 'ノート', 'モザイク', 'トリミング']);
   assert.equal(document.querySelectorAll('#edit-bar .edit-sep').length, 5);
   // ノートの後ろの区切り線の右に、モザイク・トリミングの順（spec-4b-6b 確定事項10）。
   assert.equal(tools.at(-2).closest('.edit-item').previousElementSibling.className, 'edit-sep');

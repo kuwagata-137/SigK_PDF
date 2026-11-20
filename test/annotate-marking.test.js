@@ -1,0 +1,148 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
+
+// マーキングの配置・番号・次に配置する値の記憶（spec-7-9 確定事項F1・F3・F5）。形と描画は marking-rules.test.js・marking-graphics.test.js、
+// ハンドルと行は marking-props.test.js、保存と読み戻しは marking-roundtrip.test.js が見る。
+
+const A = 'C:\\work\\a.pdf';
+const B = 'C:\\work\\b.pdf';
+
+function plain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+async function withShell(t, { ui = null } = {}) {
+  const shell = await createShell({
+    pdfjs: createPdfjsStub({ annotations: {} }),
+    files: { [A]: makeSource({ path: A, name: 'a.pdf' }), [B]: makeSource({ path: B, name: 'b.pdf' }) },
+    ...(ui === null ? {} : { ui }),
+  });
+  t.after(() => shell.cleanup());
+  await shell.SigK.tabs.openPath(A);
+  await shell.flush();
+  shell.SigK.shell.setMode(shell.document, 'annot');
+  return shell;
+}
+
+function mouse(shell, type, target, [x, y], extra = {}) {
+  target.dispatchEvent(new shell.window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, ...extra }));
+}
+
+function pageNode(shell) {
+  return shell.document.querySelector('.pdf-page[data-page="1"]');
+}
+
+function px(shell, point) {
+  return shell.SigK.viewer.getTextLayer(0).viewport.convertToViewportPoint(point[0], point[1]);
+}
+
+// pt の点をクリックする。
+function click(shell, point) {
+  const at = px(shell, point);
+  mouse(shell, 'mousedown', pageNode(shell), at);
+  mouse(shell, 'mouseup', pageNode(shell), at);
+  mouse(shell, 'click', pageNode(shell), at);
+}
+
+function added(shell) {
+  return shell.SigK.viewer.getAnnotations().added;
+}
+
+const center = ([x1, y1, x2, y2]) => [(x1 + x2) / 2, (y1 + y2) / 2];
+
+test('編集ツールバーの多角形の右に［マーキング］があり、押すとマーキングの書き込みツールを選択する', async (t) => {
+  const shell = await withShell(t);
+  const { document, SigK } = shell;
+  const button = document.querySelector('#edit-bar .edit-tool[data-tool="marking"]');
+  assert.equal(button.closest('.edit-item').previousElementSibling.querySelector('[data-shape]').dataset.shape, 'polygon');
+  assert.equal(button.querySelector('svg') !== null, true);
+  button.click();
+  assert.equal(SigK.annotate.getTool(), 'marking');
+  assert.equal(button.getAttribute('aria-pressed'), 'true');
+  assert.equal(document.documentElement.getAttribute('data-tool'), 'marking');
+  assert.equal(document.getElementById('props-kind').textContent, 'マーキング（次に追加する書き込み）');
+});
+
+test('ページをクリックすると、クリックした位置を中心に既定の点付き丸を配置して選択する。Ctrl+Z で元に戻る', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  click(shell, [200, 600]);
+  assert.equal(added(shell).length, 1);
+  const entry = added(shell)[0];
+  assert.equal(entry.kind, 'marking');
+  assert.deepEqual(plain(entry.marking), { shape: 'target', outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16 });
+  assert.deepEqual([entry.color, entry.opacity, entry.lineWidth], ['#ff0000', 1, 3]);
+  const [cx, cy] = center(entry.rect);
+  assert.ok(Math.abs(cx - 200) < 0.6 && Math.abs(cy - 600) < 0.6, `中心 ${cx},${cy}`);
+  assert.equal(entry.rect[2] - entry.rect[0], 32);
+  assert.equal(SigK.annotate.getSelected(), entry.id);
+  assert.equal(SigK.annotate.getTool(), 'marking', '書き込みツールは選択したまま');
+  assert.ok(shell.document.querySelector('.annot-layer g[data-kind="marking"] g.marking.target') !== null);
+  SigK.pageEdit.undo();
+  assert.equal(added(shell).length, 0);
+});
+
+test('既存の書き込みの上をクリックすると、配置せずにその書き込みを選択する', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  click(shell, [200, 600]);
+  const first = added(shell)[0];
+  SigK.annotate.select(null);
+  click(shell, [205, 603]);
+  assert.equal(added(shell).length, 1);
+  assert.equal(SigK.annotate.getSelected(), first.id);
+});
+
+test('番号付き丸は、配置するたびに文書の中の最大の番号＋1 になる。削除しても詰めず、取り消すと元の番号に戻る', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  assert.equal(SigK.annotateMarking.setShape('number'), true);
+  click(shell, [100, 700]);
+  click(shell, [200, 700]);
+  click(shell, [300, 700]);
+  assert.deepEqual(plain(added(shell).map((entry) => entry.marking.number)), [1, 2, 3]);
+  // 2 を削除しても、次は 4。
+  SigK.annotate.select(added(shell)[1].id);
+  SigK.annotate.remove();
+  click(shell, [400, 700]);
+  assert.deepEqual(plain(added(shell).map((entry) => entry.marking.number)), [1, 3, 4]);
+  SigK.pageEdit.undo();
+  SigK.pageEdit.undo();
+  assert.equal(SigK.annotateMarking.nextNumber(), 4, '取り消して 1・2・3 に戻った');
+});
+
+test('次に配置する形・大きさ・線の太さ・色・透明度を記憶し、起動時に戻す', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  SigK.annotateMarking.setShape('double');
+  assert.equal(SigK.annotateMarking.setSize('ring', 20), true);
+  assert.equal(SigK.annotateMarking.setSize('ring', 40), false, '中の円は外の円より大きくしない');
+  SigK.annotate.setLineWidth(5);
+  SigK.annotate.setOpacity(0.5);
+  SigK.annotate.setColor('#0070c0');
+  const saved = shell.uiCalls.reduce((memo, patch) => ({ ...memo, ...(patch.annotMarking ?? {}) }), {});
+  assert.deepEqual(saved, { shape: 'double', outer: 32, dot: 9, ring: 20, cross: 44.8, fontSize: 16, lineWidth: 5 });
+  assert.equal(shell.uiCalls.some((patch) => patch.annotOpacity?.marking === 0.5), true);
+  assert.equal(shell.uiCalls.some((patch) => patch.annotColors?.marking === '#0070c0'), true);
+  assert.equal(SigK.annotate.getLineWidth('square'), 2, '図形の線の太さは変わらない');
+  click(shell, [200, 600]);
+  const entry = added(shell)[0];
+  assert.deepEqual([entry.marking.shape, entry.marking.ring, entry.lineWidth, entry.opacity, entry.color], ['double', 20, 5, 0.5, '#0070c0']);
+});
+
+test('起動時に settings.json の annotMarking から戻す', async (t) => {
+  const ui = { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotMarking: { shape: 'caution', outer: 48, lineWidth: 6 } };
+  const shell = await withShell(t, { ui });
+  await shell.flush();
+  assert.equal(shell.SigK.annotateMarking.getNext().shape, 'caution');
+  assert.equal(shell.SigK.annotateMarking.getNext().outer, 48);
+  assert.equal(shell.SigK.annotate.getLineWidth('marking'), 6);
+});

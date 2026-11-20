@@ -838,6 +838,9 @@ html[data-pointer="hand"]:is([data-mode="view"],[data-mode="pages"]) .textLayer,
 /* ノート（spec-4-4 確定事項1）。押して置くので文字を選ばせない。 */
 html[data-mode="annot"][data-tool="note"] .textLayer{cursor:crosshair; user-select:none}
 html[data-mode="annot"][data-tool="note"] .textLayer span{user-select:none}
+/* マーキング（spec-7-9 確定事項F3）。クリックした位置を中心に配置するので、文字を選択させない。 */
+html[data-mode="annot"][data-tool="marking"] .textLayer{cursor:crosshair; user-select:none}
+html[data-mode="annot"][data-tool="marking"] .textLayer span{user-select:none}
 .annot-draft{pointer-events:none}
 /* トリミング（spec-4b-6a 確定事項12・13・27。見本 screenshots/phase4b-6-trim-frame.png）。紙の上は十字で、文字は選ばせない。枠のつまみと
    中の上では annotate-trim.js が html に data-trim-cursor（nwse・nesw・ns・ew・move）を付ける。 */

@@ -109,6 +109,8 @@ body{
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="circle" data-tip="edit.circle" aria-label="丸" aria-pressed="false"><span data-icon="shapeCircle" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">丸</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="cross" data-tip="edit.cross" aria-label="×印" aria-pressed="false"><span data-icon="shapeCross" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">×印</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="shape" data-shape="polygon" data-tip="edit.polygon" aria-label="多角形" aria-pressed="false"><span data-icon="shapePolygon" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">多角形</span></span>
+    <!-- マーキング（spec-7-9 確定事項F1）。多角形の右。図形の種類ではなく、独立した書き込みツール。 -->
+    <span class="edit-item"><button type="button" class="edit-tool" data-tool="marking" data-tip="edit.marking" aria-label="マーキング" aria-pressed="false"><span data-icon="marking" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">マーキング</span></span>
     <span class="edit-sep"></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="pen" data-tip="edit.pen" aria-label="ペン" aria-pressed="false"><span data-icon="pen" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">ペン</span></span>
     <span class="edit-item"><button type="button" class="edit-tool" data-tool="marker" data-tip="edit.marker" aria-label="マーカー" aria-pressed="false"><span data-icon="marker" data-icon-size="19" data-icon-stroke="1.7"></span></button><span class="edit-name">マーカー</span></span>
@@ -1477,6 +1479,7 @@ body{
 <script src="renderer/annotate-fill.js"></script>
 <script src="renderer/annotate-preview.js"></script>
 <script src="renderer/annotate-note.js"></script>
+<script src="renderer/annotate-marking.js"></script>
 <script src="renderer/shape-resize.js"></script>
 <script src="renderer/annotate-transform.js"></script>
 <script src="renderer/annotation-ghosts.js"></script>

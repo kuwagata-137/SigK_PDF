@@ -41,12 +41,14 @@ const EXPECTED_KEYS = [
   'print.advanced', 'print.comments', 'print.summary',
   // 空のタブの［ファイルを開く］（spec-7-8 確定事項NT11）。
   'newtab.open',
+  // 編集ツールバーの［マーキング］と、プロパティパネルの行「形」のボタン 5 個（spec-7-9 確定事項F1・F2）。
+  'edit.marking', 'marking.target', 'marking.double', 'marking.crosshair', 'marking.number', 'marking.caution',
 ];
 
 // 歯車のボタン（bar.settings）は spec-6-1 タスク E で、画像のタブで灰色にした道具の 4 個は spec-7-1 で足した。spec-7-4 で 2 個を外し、2 個を足した。
-test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの書き込みツールの 4 個（spec-7-4 で 2 個を替えた）と印刷画面の 3 個（spec-7-7）と空のタブの 1 個（spec-7-8）と過不足なく一致する（組み込みの text を除く）', () => {
+test('文の表の鍵が、計画の表の 84 個と歯車のボタンの 1 個と画像のタブの書き込みツールの 4 個（spec-7-4 で 2 個を替えた）と印刷画面の 3 個（spec-7-7）と空のタブの 1 個（spec-7-8）とマーキングの 6 個（spec-7-9）と過不足なく一致する（組み込みの text を除く）', () => {
   assert.deepEqual([...tableKeys()].sort(), [...EXPECTED_KEYS].sort());
-  assert.equal(EXPECTED_KEYS.length, 93);
+  assert.equal(EXPECTED_KEYS.length, 99);
 });
 // 空のタブ（spec-7-8 確定事項NT11）。「＋」は空のタブを開くボタンになったので、Ctrl+O（ダイアログを開く）をキーに書かない。
 test('「＋」と空のタブの［ファイルを開く］のツールチップは、仕様書 spec-7-8 の NT11 の文言のまま', () => {

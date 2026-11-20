@@ -22,7 +22,7 @@ const loadDocument = () => new JSDOM(fs.readFileSync(INDEX_PATH, 'utf8')).window
 
 // 文の表の「付ける要素」の列のうち、index.html に最初から書いてある要素。[選ぶ式, 鍵]。
 const MODES = [['view', 'mode.view'], ['pages', 'mode.pages'], ['annot', 'mode.annot'], ['tools', 'mode.tools']];
-const TOOLS = ['highlight', 'underline', 'strikeout', 'text', 'callout', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim'];
+const TOOLS = ['highlight', 'underline', 'strikeout', 'text', 'callout', 'marking', 'pen', 'marker', 'eraser', 'note', 'mosaic', 'trim'];
 const SHAPES = ['arrow', 'line', 'square', 'circle', 'cross', 'polygon'];
 const STATIC_TARGETS = [
   ['#btn-open', 'bar.open'], ['#btn-save', 'bar.save'], ['#btn-save-as', 'bar.saveAs'], ['#btn-undo', 'bar.undo'], ['#btn-redo', 'bar.redo'],
