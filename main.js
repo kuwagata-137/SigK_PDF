@@ -1718,6 +1718,7 @@ function installSmokeCheck(win, mode) {
       let annotate = null;
       let imageEdit = null;
       let pageRepaint = null;
+      let tabRepaint = null;
       let facing = null;
       let launch = null;
       let drag = null;
@@ -1829,6 +1830,10 @@ function installSmokeCheck(win, mode) {
         // 並びを変えた時（回転・削除・並べ替え・挿入・トリミングなど）に、絵の無い枠が見えるフレームを数える（docs/07 決定99 ②。smoke-page-repaint.js）。
         if (process.env.SIGK_SMOKE_PAGE_REPAINT)
           pageRepaint = await require('./smoke-page-repaint.js').run({ app, win, dir: path.resolve(process.env.SIGK_SMOKE_PAGE_REPAINT), root: ROOT_DIR, dialog, nativeImage });
+        // タブの切り替え・ツールモードから戻った時・左パネルの幅の変更で、絵の無い枠が見えるフレームと、サムネイルの文字欠けを数える
+        // （docs/07 決定100。smoke-tab-repaint.js）。
+        if (process.env.SIGK_SMOKE_TAB_REPAINT)
+          tabRepaint = await require('./smoke-tab-repaint.js').run({ app, win, dir: path.resolve(process.env.SIGK_SMOKE_TAB_REPAINT), root: ROOT_DIR });
         // 異常な PDF を本物の pdf.js で開いたときの様子（spec-6-1 タスク D の D2。smoke-abnormal.js）。
         if (process.env.SIGK_SMOKE_ABNORMAL)
           abnormal = await require('./smoke-abnormal.js').run({ win, paths: process.env.SIGK_SMOKE_ABNORMAL.split(';').map((p) => p.trim()).filter(Boolean).map((p) => path.resolve(p)), zoom: process.env.SIGK_SMOKE_ABNORMAL_ZOOM });
@@ -2087,6 +2092,7 @@ function installSmokeCheck(win, mode) {
         annotate,
         imageEdit,
         pageRepaint,
+        tabRepaint,
         facing,
         launch,
         drag,

@@ -138,7 +138,7 @@
 - [x] `SIGK_SMOKE=1 SIGK_SMOKE_PDF=test/fixtures/many-pages.pdf` でサムネイルが 40枚並び、1ページ目に枠が付き、コンソールエラー0件
 - [x] `SIGK_SMOKE_TEXT=1` でテキストレイヤーの `span` が出て、`window.getSelection().toString()` が文字を返す
 - [x] `SIGK_SMOKE_DROP` が引き続き通る（3つ目のタブが開き、受け入れ表示も畳まれた。確定事項24）
-- [x] `SIGK_SMOKE_TABS` でタブを切り替えても読み位置が戻り、canvas を持ち越さない
+- [x] `SIGK_SMOKE_TABS` でタブを切り替えても読み位置が戻り、canvas を持ち越さない（2026-11-20 改訂: 決定100 ① で、見えていたページとサムネイルの絵だけは、合計 1,600 万画素まで持ち越すようにした。`spec-1-2` 確定事項1）
 - [x] `npm run dist` で NSIS インストーラーが生成される
 - [x] **生成物が起動する**（`SIGK_SMOKE=1 SIGK_SMOKE_PDF=... SIGK_SMOKE_TEXT=1 "./dist/win-unpacked/SigK PDF.exe"` で `problems: []`。`docs/spec-1-2-tabs.md` 不具合3 で足した判定）
 - [x] `screenshots/phase1-thumbnails.png` を残す
