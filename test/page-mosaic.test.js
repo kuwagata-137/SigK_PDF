@@ -84,3 +84,27 @@ test('changedPages は、違いがモザイク欄だけなら、モザイクが�
   assert.equal(mosaic.changedPages(base, [{ insert: 0, rotate: 0 }, base[1], base[2]]), null);
   assert.equal(mosaic.changedPages(null, base), null);
 });
+
+// 決定99 ①: viewer.applyPlan が、ページを描き直さずに増えた範囲だけを塗るか（mosaic-paint.js の paintAppended）を決めるのに使う。
+test('appendedItem は、違いが「モザイクの並びの末尾に 1 つ増えただけ」なら増えた範囲を返し、ほかの違いがあれば null を返す', () => {
+  const first = { box: [10, 20, 110, 70], block: 8 };
+  const second = { box: [200, 300, 300, 400], block: 14 };
+  const page = { src: 1, rotate: 90, crop: [0, 0, 400, 500] };
+  const once = { ...page, mosaic: [first] };
+  const twice = { ...page, mosaic: [{ box: [...first.box], block: 8 }, second] };
+  assert.equal(mosaic.appendedItem(page, once), first);
+  assert.equal(mosaic.appendedItem(once, twice), second);
+  // 欄が空の配列でも、欄が無いのと同じに数える。
+  assert.equal(mosaic.appendedItem({ ...page, mosaic: [] }, once), first);
+  // 減った・途中が違う・2 つ以上増えた・増えていない。
+  assert.equal(mosaic.appendedItem(twice, once), null);
+  assert.equal(mosaic.appendedItem({ ...page, mosaic: [{ ...first, block: 4 }] }, twice), null);
+  assert.equal(mosaic.appendedItem(page, twice), null);
+  assert.equal(mosaic.appendedItem(once, { ...once }), null);
+  // 元ページ・回転・トリミング範囲も違う。
+  assert.equal(mosaic.appendedItem(once, { ...twice, rotate: 0 }), null);
+  assert.equal(mosaic.appendedItem(once, { ...twice, crop: [0, 0, 400, 400] }), null);
+  assert.equal(mosaic.appendedItem(once, { ...twice, src: 2 }), null);
+  assert.equal(mosaic.appendedItem(undefined, once), null);
+  assert.equal(mosaic.appendedItem(page, undefined), null);
+});
