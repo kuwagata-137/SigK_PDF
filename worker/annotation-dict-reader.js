@@ -19,6 +19,7 @@ const { pick } = require('./pdf-tree-reader.js');
 const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
 const { blendOf } = require('./appearance-blend.js');
 const { fillStyleOf } = require('./appearance-fill-style.js');
+const { markingOf } = require('./appearance-marking.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
 const { freeTextRotationOf } = require('./free-text-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
@@ -107,6 +108,8 @@ function detailsOf(dict, context, options = {}) {
     rotation: rotationOf(dict, context, options),
     blend: subtype === 'Ink' ? blendOf(context, dict) : null,
     fillStyle: FILL_SUBTYPES.includes(subtype) ? fillStyleOf(context, dict) : null,
+    // マーキング（spec-7-9 確定事項F6）。外観のマーク付き内容の属性 /MK を持つ丸だけ。
+    marking: subtype === 'Circle' ? markingOf(context, dict) : null,
   };
 }
 

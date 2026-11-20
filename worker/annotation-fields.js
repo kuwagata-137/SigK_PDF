@@ -63,7 +63,8 @@ function noteFields(entry, appearance, { PDFString, PDFHexString }, now) {
 // 種類ごとの欄。マークアップは /QuadPoints と /C、テキストは freeTextFields（free-text-fields.js。spec-4b-4a で移した）、
 // 図形・ペンは shapeFields、ノートは noteFields。
 function kindFields(entry, appearance, tools, now) {
-  if (SHAPE_KINDS.includes(entry.kind))
+  // マーキングは丸の注釈 /Circle と同じ欄（線の色 /C と線の太さ /BS。/IC は書かない。spec-7-9 確定事項F6）。
+  if (SHAPE_KINDS.includes(entry.kind) || entry.kind === 'marking')
     return shapeFields(appearance, tools);
   if (entry.kind === 'note')
     return noteFields(entry, appearance, tools, now);

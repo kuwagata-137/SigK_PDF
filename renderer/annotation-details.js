@@ -115,6 +115,10 @@
   function applyDetails(entry, detail, { answered = true, text = {} } = {}) {
     if (entry.readonly === true)
       return entry;
+    // 外観にマーキングの値を持つ丸は、マーキングの書き込みに組み直す（spec-7-9 確定事項F6。imported-marking.js）。
+    const marking = root.SigK.importedMarking?.withMarking(entry, detail) ?? null;
+    if (marking !== null)
+      return marking;
     if (!answered && (entry.kind === 'square' || entry.kind === 'circle' || entry.kind === 'polygon'))
       return readonlyOf(entry);
     if (!closedArrowReadable(entry, detail))

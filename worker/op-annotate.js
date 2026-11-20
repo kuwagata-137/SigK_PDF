@@ -22,6 +22,7 @@ const { freeTextAppearanceOf, isFreeTextEntry } = require('./free-text-appearanc
 const { isWrapped, isWrappedEntry, wrappedAppearanceOf } = require('./free-text-wrapped.js');
 const { shapeAppearanceOf, KINDS: SHAPE_KINDS } = require('./shape-appearance.js');
 const { noteAppearanceOf } = require('./note-appearance.js');
+const { markingAppearanceOf } = require('./marking-appearance.js');
 const { embedBundledFont, FONT_ERROR } = require('./font-embed.js');
 const { parseRef, annotsOf, removeAnnotations } = require('./annotation-remove.js');
 const { timestamp, kindFields, popupDict } = require('./annotation-fields.js');
@@ -42,15 +43,20 @@ function appearanceStream(context, appearance, font) {
   const resources = appearance.apart === undefined ? { ExtGState: { GS: gs } } : apartResources(context, appearance);
   if (font !== null && font !== undefined)
     resources.Font = { [font.measure.name]: font.font.ref };
+  // マーキングのマーク付き内容（spec-7-9 確定事項F6。marking-appearance.js）。外側の中身を BDC … EMC で囲み、属性を /Properties に書く。
+  const marked = appearance.marked;
+  if (marked !== undefined)
+    resources.Properties = marked.properties;
+  const wrap = (content) => (marked === undefined ? content : `/${marked.tag} /${marked.name} BDC\n${content}\nEMC`);
   const outer = appearance.matrix === undefined ? { Resources: resources } : { Resources: resources, Matrix: appearance.matrix };
   if (appearance.group === true) {
     // 半透明のテキストは、グループの中にも書体を付け、外側の先頭に pdf.js が読む文字の命令（prefix）を置く（spec-4b-4a 確定事項I3）。
     const inner = resources.Font === undefined ? {} : { Font: resources.Font };
     resources.XObject = { G0: formStream(context, appearance.content, appearance.bbox, { Group: { S: 'Transparency' }, Resources: inner }) };
     const outerContent = appearance.prefix === undefined ? 'q /GS gs /G0 Do Q' : `${appearance.prefix}\nq /GS gs /G0 Do Q`;
-    return formStream(context, outerContent, appearance.bbox, outer);
+    return formStream(context, wrap(outerContent), appearance.bbox, outer);
   }
-  return formStream(context, appearance.content, appearance.bbox, outer);
+  return formStream(context, wrap(appearance.content), appearance.bbox, outer);
 }
 
 // 塗りと枠線を分けて描く図形の資源（spec-7-9 確定事項B4・B5・C1。fill-apart-appearance.js）。塗りの GF と枠線の GL の ExtGState、
@@ -116,6 +122,8 @@ function appearanceFor(entry, fonts) {
   }
   if (entry.kind === 'note')
     return noteAppearanceOf(entry);
+  if (entry.kind === 'marking')
+    return markingAppearanceOf(entry);
   return SHAPE_KINDS.includes(entry.kind) ? shapeAppearanceOf(entry) : appearanceOf(entry);
 }
 
