@@ -51,6 +51,8 @@ function drawSquare(shell, from, to) {
 
 function change(shell, id, value) {
   const node = shell.document.getElementById(id);
+  // 欄にフォーカスを置いて入力し、確定する（Enter か欄の外）。
+  node.focus();
   node.value = String(value);
   node.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
 }

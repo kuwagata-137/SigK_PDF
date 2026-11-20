@@ -75,6 +75,8 @@ test('分けて描くのは、ハッチングがあるか、塗りつぶしと�
   assert.equal(fill.paintsApart(square({ opacity: 0.5, fillOpacity: 0.5 })), false);
   assert.equal(fill.paintsApart(square({ opacity: 0.5 })), false);
   assert.equal(fill.paintsApart(square({ fillOpacity: 0.5 })), true);
+  // 塗りつぶしもハッチングも無ければ、内側に描くものが無いので分けない（見た目は同じ）。
+  assert.equal(fill.paintsApart(square({ fill: null, opacity: 0.5, fillOpacity: 1 })), false);
   assert.equal(fill.paintsApart(square({ hatch: { ...HATCH } })), true);
   assert.equal(fill.paintsApart({ kind: 'line', color: '#c00000', opacity: 0.5 }), false);
 });

@@ -215,3 +215,9 @@ test('フラット化は外観をそのまま焼き込み、塗りと枠線の E
   const states = baked.map((stream) => context.lookup(pick(context.lookup(pick(stream.dict, '/Resources')), '/ExtGState'))).find((value) => value !== undefined);
   assert.notEqual(context.lookup(pick(context.lookup(pick(states, '/GF')), '/SMask')), undefined);
 });
+
+test('塗りつぶしもハッチングも無い図形は、塗りの不透明度が違っても今までどおりの外観で書く', () => {
+  const appearance = shapeAppearanceOf(entries.toSaveEntry(square({ fill: undefined, opacity: 0.5, fillOpacity: 1 })));
+  assert.equal(appearance.apart, undefined);
+  assert.equal(appearance.opacity, 0.5);
+});

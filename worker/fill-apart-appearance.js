@@ -25,9 +25,10 @@ function round4(value) {
   return Math.round(value * 10000) / 10000;
 }
 
-// 分けて描くか（塗りを持てる書き込みで、ハッチングがあるか、塗りと枠線の不透明度が違う時）。alpha は枠線の不透明度。
+// 分けて描くか（塗りを持てる書き込みで、ハッチングがある時か、塗りつぶしがあり、その不透明度が枠線と違う時。renderer/fill-style.js の
+// paintsApart と同じ）。alpha は枠線の不透明度。塗りつぶしもハッチングも無い図形は、今までどおりの外観で書く（今までのファイルと同じ）。
 function isApart(entry, style, alpha) {
-  return canFill(entry) && (style.hatch !== null || style.fillOpacity !== alpha);
+  return canFill(entry) && (style.hatch !== null || (style.fill !== null && style.fillOpacity !== alpha));
 }
 
 function hatchOps(entry, style, path) {

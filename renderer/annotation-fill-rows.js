@@ -42,7 +42,8 @@
 
   function renderNumber(row, number, value) {
     row.hidden = value === null;
-    if (value === null || number.ownerDocument.activeElement === number)
+    // 欄にフォーカスがあっても今の値にする（範囲の外の値を Enter で確定した時に、欄を今の値へ戻すため）。
+    if (value === null)
       return;
     number.value = value.mixed ? '' : String(value.value);
     number.placeholder = value.mixed ? '–' : '';

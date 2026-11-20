@@ -80,12 +80,12 @@
     return saved;
   }
 
-  // 塗りと枠線を分けて描くか（B4・B5）。ハッチングがあるか、塗りつぶしと枠線の不透明度が違う時。同じ値でハッチングが無ければ、
-  // 今までどおり図形全体を 1 つの絵として薄める。
+  // 塗りと枠線を分けて描くか（B4・B5）。ハッチングがある時か、塗りつぶしがあり、その不透明度が枠線と違う時。それ以外は、
+  // 今までどおり図形全体を 1 つの絵として薄める（塗りつぶしもハッチングも無ければ、内側に描くものが無いので見た目は同じ）。
   function paintsApart(entry) {
     if (!canFill(entry))
       return false;
-    return hatchOf(entry) !== null || fillOpacityOf(entry) !== (entry.opacity ?? 1);
+    return hatchOf(entry) !== null || ((entry.fill ?? null) !== null && fillOpacityOf(entry) !== (entry.opacity ?? 1));
   }
 
   // 枠線の不透明度を変える時に、持っていない塗りつぶしの不透明度を今の値で残す欄（枠線だけが変わるように。B2）。
