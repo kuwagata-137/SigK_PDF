@@ -35,6 +35,7 @@
     root.SigK.annotationAngleRow?.render(null);
     // 大きさと縦横比を固定の行は、複数選択では表示しない（spec-7-9 確定事項D4）。
     root.SigK.annotationSizeRow?.render(null);
+    root.SigK.markingProps?.render(null);
     show(doc, 'props-text-row', false);
     show(doc, 'props-page-row', true);
     doc.getElementById('props-page').textContent = displayNumberOf(entries[0]?.src);

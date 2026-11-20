@@ -79,6 +79,8 @@
     root.SigK.annotationAngleRow?.render(entry);
     // 大きさ（幅・高さ）と縦横比を固定の行は四角・丸・×印を選んでいるときだけ（spec-7-9 確定事項D1）。
     root.SigK.annotationSizeRow?.render(entry);
+    // マーキングの形・大きさ・番号の行（spec-7-9 確定事項F2・F4）。
+    root.SigK.markingProps?.render(entry);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象文字列';
     setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
@@ -151,6 +153,7 @@
     root.SigK.annotationAngleRow?.render(null);
     // 四角・丸・×印の書き込みツールでは、縦横比を固定のチェック欄だけを表示する（spec-7-9 確定事項D1）。
     root.SigK.annotationSizeRow?.render(null, kind);
+    root.SigK.markingProps?.render(null, kind);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
     el.hint.textContent = hints().forTool(annotate().getTool(), kind, kind === null ? null : annotate().fillOf(kind));
@@ -190,6 +193,7 @@
     noteRows()?.init(doc, win);
     root.SigK.annotationAngleRow?.init(doc, win);
     root.SigK.annotationSizeRow?.init(doc, win);
+    root.SigK.markingProps?.init(doc, win);
     root.SigK.annotationTextRows?.init(doc, win);
     root.SigK.trimProps?.init(doc, win);
     root.SigK.mosaicProps?.init(doc, win);

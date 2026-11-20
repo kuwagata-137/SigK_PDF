@@ -92,6 +92,7 @@
     root.SigK.annotationAngleRow?.render(null);
     // 大きさと縦横比を固定の行（spec-7-9 確定事項D1）も隠す。
     root.SigK.annotationSizeRow?.render(null);
+    root.SigK.markingProps?.render(null);
     props.pageRow.hidden = true;
     props.textRow.hidden = true;
     props.remove.hidden = true;

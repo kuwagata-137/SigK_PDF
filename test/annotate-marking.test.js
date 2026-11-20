@@ -146,3 +146,48 @@ test('起動時に settings.json の annotMarking から戻す', async (t) => {
   assert.equal(shell.SigK.annotateMarking.getNext().outer, 48);
   assert.equal(shell.SigK.annotate.getLineWidth('marking'), 6);
 });
+
+// pt の点から点へドラッグする（extra は Ctrl など）。
+function drag(shell, from, to, extra = {}) {
+  const [a, b] = [px(shell, from), px(shell, to)];
+  mouse(shell, 'mousedown', pageNode(shell), a, extra);
+  mouse(shell, 'mousemove', shell.document.body, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], extra);
+  mouse(shell, 'mousemove', shell.document.body, b, extra);
+  mouse(shell, 'mouseup', pageNode(shell), b, extra);
+}
+
+test('マーキングはドラッグで移動し、Ctrl を押しながらドラッグするとコピーを作る（番号付き丸の番号は同じまま）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  SigK.annotateMarking.setShape('number');
+  click(shell, [200, 600]);
+  SigK.annotate.setTool(null);
+  const before = added(shell)[0];
+  drag(shell, [200, 600], [260, 560]);
+  const moved = added(shell)[0];
+  assert.equal(added(shell).length, 1);
+  assert.deepEqual(plain(center(moved.rect)), [center(before.rect)[0] + 60, center(before.rect)[1] - 40]);
+  assert.deepEqual(plain(moved.marking), plain(before.marking));
+  drag(shell, [260, 560], [300, 500], { ctrlKey: true });
+  assert.equal(added(shell).length, 2);
+  assert.deepEqual(plain(added(shell).map((entry) => entry.marking.number)), [1, 1]);
+});
+
+test('複数選択では、色・線の太さ・透明度をまとめて変える', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  click(shell, [100, 600]);
+  click(shell, [200, 600]);
+  SigK.annotate.setTool(null);
+  SigK.annotate.selectKeys(added(shell).map((entry) => entry.id));
+  assert.equal(SigK.annotate.getSelection().length, 2);
+  assert.equal(shell.document.getElementById('props-marking-shape-row').hidden, true, '複数選択では形の行を隠す');
+  SigK.annotate.setColor('#00b050');
+  SigK.annotate.setLineWidth(6);
+  SigK.annotate.setOpacity(0.4);
+  assert.deepEqual(plain(added(shell).map((entry) => [entry.color, entry.lineWidth, entry.opacity])), [['#00b050', 6, 0.4], ['#00b050', 6, 0.4]]);
+  assert.equal(SigK.annotate.getLineWidth('marking'), 6);
+  assert.equal(SigK.annotate.getLineWidth('square'), 2);
+});

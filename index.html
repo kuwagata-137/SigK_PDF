@@ -598,6 +598,9 @@ body{
         <div class="prop" id="props-mosaic-count-row" hidden><span class="k">このページ</span><span class="v" id="props-mosaic-count"></span></div>
         <!-- 色・塗り・線種・線の太さ・透明度（spec-4b-1b 確定事項1〜9。透明度の名前と向きは spec-7-9 確定事項B3）。中身と出し入れは annotation-style-rows.js。
              色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
+        <!-- マーキングの行「形」（spec-7-9 確定事項F2）。ボタンは marking-props.js が作る。 -->
+        <div class="prop" id="props-marking-shape-row" hidden><span class="k">形</span>
+          <div class="props-kinds marking-shapes" id="props-marking-shape" role="group" aria-label="形"></div></div>
         <div class="prop" id="props-set-row" hidden><span class="k">一括</span>
           <div class="chip-row"><span class="split"><button type="button" class="split-main set-main" id="props-set-apply"><span class="set-sample" aria-hidden="true">Ab</span></button><button type="button" class="chip split-drop" id="props-set" aria-haspopup="dialog" aria-expanded="false" aria-label="一括設定メニュー"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">一括設定</span></span></div></div>
         <!-- 見出し「枠線」と「塗り」（spec-7-9 確定事項B1）。四角・丸・閉じた多角形とその書き込みツールの時だけ表示し、塗りつぶしの行を塗りの見出しの下へ移す。
@@ -637,6 +640,13 @@ body{
           <div class="range hatch-field"><input type="number" class="props-field" id="props-hatch-width" min="0.25" max="10" step="0.25" aria-label="ハッチング線幅（pt）"><span class="unit">pt</span></div></div>
         <!-- 大きさ（幅・高さ）と縦横比を固定（spec-7-9 確定事項D1〜D4）。大きさは四角・丸・×印を 1 件選択している時だけ、縦横比を固定は
              その時と、四角・丸・×印の書き込みツールを選択している時。中身は annotation-size-row.js。 -->
+        <!-- マーキングの大きさと番号（spec-7-9 確定事項F4）。行の名前は形で変わる（marking-props.js）。 -->
+        <div class="prop" id="props-marking-outer-row" hidden><span class="k" id="props-marking-outer-label">外の円の直径</span>
+          <div class="range marking-size"><input type="number" class="props-field" id="props-marking-outer" min="4" max="720" step="any" aria-label="外の円の直径（pt）"><span class="unit">pt</span></div></div>
+        <div class="prop" id="props-marking-inner-row" hidden><span class="k" id="props-marking-inner-label">中の円の直径</span>
+          <div class="range marking-size"><input type="number" class="props-field" id="props-marking-inner" min="1" step="any" aria-label="中の円の直径（pt）"><span class="unit">pt</span></div></div>
+        <div class="prop" id="props-marking-number-row" hidden><span class="k">番号</span>
+          <div class="range marking-size"><input type="number" class="props-field" id="props-marking-number" min="1" max="9999" step="1" aria-label="番号"></div></div>
         <div class="prop" id="props-box-size-row" hidden><span class="k">大きさ</span>
           <div class="range box-size"><span class="box-size-k">幅</span><input type="number" class="props-field" id="props-box-width" min="1" max="14400" step="any" aria-label="幅（pt）"><span class="unit">pt</span><span class="box-size-k">高さ</span><input type="number" class="props-field" id="props-box-height" min="1" max="14400" step="any" aria-label="高さ（pt）"><span class="unit">pt</span></div></div>
         <div class="prop" id="props-keep-ratio-row" hidden><label class="print-choice keep-ratio"><input type="checkbox" class="props-field" id="props-keep-ratio">縦横比を固定</label></div>
@@ -1480,6 +1490,8 @@ body{
 <script src="renderer/annotate-preview.js"></script>
 <script src="renderer/annotate-note.js"></script>
 <script src="renderer/annotate-marking.js"></script>
+<script src="renderer/marking-handles.js"></script>
+<script src="renderer/marking-props.js"></script>
 <script src="renderer/shape-resize.js"></script>
 <script src="renderer/annotate-transform.js"></script>
 <script src="renderer/annotation-ghosts.js"></script>
