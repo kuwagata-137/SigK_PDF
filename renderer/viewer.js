@@ -170,7 +170,8 @@
     const late = new Promise((resolve) => {
       timer = root.setTimeout(() => resolve(false), PREPARE_LIMIT_MS);
     });
-    const jobs = Promise.all([render.prepare(sizes, added, limit), root.SigK.thumbnails?.prepare?.(sizes, added, limit)]).then(() => true);
+    // 描けなくても、挿入と貼り付けは止めない（入れた後に今までどおり描く）。
+    const jobs = Promise.all([render.prepare(sizes, added, limit), root.SigK.thumbnails?.prepare?.(sizes, added, limit)]).then(() => true, () => false);
     const finished = await Promise.race([jobs, late]);
     root.clearTimeout(timer);
     limit.cancelled = true;

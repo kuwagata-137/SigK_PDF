@@ -12,15 +12,15 @@
   // state.rendered と state.token を読み書きするため、複製を持たせると
   // 「捨てたはずのページが復活する」たぐいの食い違いを生む。
 
+  // 控えの画素数の上限（docs/07 決定99 ②。Claude の案）。1,600 万画素（RGBA で約 64 MB）。
+  const KEEP_PIXELS = 16_000_000;
+
   // 描画に要るものを viewer.js から受け取って組み立てる。
   //
   // - state: viewer.js の状態そのもの（差し替えられないので参照で持つ）
   // - el: 要素の束を返す関数。init() で差し替わるため関数で受ける
   // - report: 失敗の記録。source を 'viewer' の1本に保つため借りる
   // - getState: controls へ渡す読み取り専用の写し
-  // 控えの画素数の上限（docs/07 決定99 ②。Claude の案）。1,600 万画素（RGBA で約 64 MB）。
-  const KEEP_PIXELS = 16_000_000;
-
   function create(ctx) {
     const state = ctx.state;
     // 新しい絵を描き終えるまで前の絵を表示しているページ。index → 絵の記録（page-picture.js）。描けたら入れ替え、描く範囲から外れたら破棄する。

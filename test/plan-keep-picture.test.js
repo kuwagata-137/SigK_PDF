@@ -253,6 +253,17 @@ test('入れる前に描く時間が上限（500 ms）を過ぎたら、描画�
   assert.equal(pictureOf(frames(shell)[0]), null, '描けなかったページに、ほかのページの絵がある');
 });
 
+test('入れる前に描けなくても（ページを読めない・寸法が無い）、prepareInserts は例外を投げずに戻る', async (t) => {
+  const { shell } = await openShell(t);
+  const broken = { getPage: () => Promise.reject(new Error('読めないページ')) };
+
+  // ページを読めない時は、描かずに戻る（描き終えた扱い）。
+  assert.equal(await shell.SigK.viewer.prepareInserts({ at: 0, pages: [{ doc: broken, number: 1, size: { ...A4 } }] }), true);
+  // 寸法が無い（入れた後の配置を計算できない）時も、例外を投げずに false で戻る。呼んだ側は、そのまま並びに入れる。
+  assert.equal(await shell.SigK.viewer.prepareInserts({ at: 0, pages: [{ doc: broken, number: 1 }] }), false);
+  assert.equal(await shell.SigK.viewer.prepareInserts({ at: 0, pages: [] }), false);
+});
+
 test('トリミングの直後は前の絵を切った範囲に合わせ、取り消しでは切る前の絵（控え）で余白まで覆う', async (t) => {
   const { shell } = await openShell(t, { mode: 'annot' });
   const original = pictureOf(frames(shell)[0]);
