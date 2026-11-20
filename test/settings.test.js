@@ -227,7 +227,9 @@ const DEFAULT_COLORS = { highlight: '#ffd966', underline: '#c00000', strikeout: 
 // 図形の塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。
 const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { shape: false }, annotLineStyles: { shape: 'solid' },
   // 塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
-  annotFillOpacity: { shape: 1 }, annotHatch: { shape: { pattern: 'none', color: '#ff0000', gap: 6, width: 1 } } };
+  annotFillOpacity: { shape: 1 }, annotHatch: { shape: { pattern: 'none', color: '#ff0000', gap: 6, width: 1 } },
+  // 縦横比を固定（spec-7-9 確定事項D3）。
+  annotKeepRatio: false };
 // 最近使用した色と直前の色（spec-7-2 確定事項A4・B2）。
 const DEFAULT_COLOR_MEMORY = { annotRecentColors: [], annotLastColors: { line: '#ed7d31', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 8 } };
 const DEFAULT_OPACITY = { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 };
