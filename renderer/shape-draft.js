@@ -9,7 +9,7 @@
   // 幾何は shape-geometry.js。正方形・正円・45° の判定は表示の座標で行う（90° 単位の回転なので
   // 紙でも同じ形になる。確定事項4）。
 
-  // { index, src, viewport, kind, start, current, points, shift, color, lineWidth, opacity, fill, lineStyle, blend, fillOpacity, hatch }
+  // { index, src, viewport, kind, start, current, points, shift, keep, color, lineWidth, opacity, fill, lineStyle, blend, fillOpacity, hatch }
   let draft = null;
 
   function geometry() {
@@ -19,10 +19,11 @@
   // opacity は道具の「次に付ける不透明度」（spec-4b-1a 確定事項31）。fill・lineStyle は次に付ける塗りと線種で、color は
   // 四角・丸の線なしなら null（spec-4b-1b 確定事項42）。blend はマーカーの 'multiply'（spec-4b-5b 確定事項1）。描いている途中も
   // 確定後と同じ見た目で描く。
-  // fillOpacity・hatch は次に追加する塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
-  function begin({ index, src, viewport, kind, point, shift = false, color, lineWidth, opacity = 1, fill = null, lineStyle = 'solid', blend, fillOpacity, hatch = null }) {
+  // fillOpacity・hatch は次に追加する塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。keep は「縦横比を固定」にチェックがある時の
+  // true で、四角・丸・×印を Shift なしでも正方形・正円にする（spec-7-9 確定事項D3）。
+  function begin({ index, src, viewport, kind, point, shift = false, keep = false, color, lineWidth, opacity = 1, fill = null, lineStyle = 'solid', blend, fillOpacity, hatch = null }) {
     draft = {
-      index, src, viewport, kind, shift, color, lineWidth, opacity, fill, lineStyle, blend, fillOpacity, hatch,
+      index, src, viewport, kind, shift, keep, color, lineWidth, opacity, fill, lineStyle, blend, fillOpacity, hatch,
       start: [point[0], point[1]],
       current: [point[0], point[1]],
       points: [[point[0], point[1]]],
@@ -72,7 +73,7 @@
       ...(draft.blend === undefined ? {} : { blend: draft.blend }) });
     // ×印も四角と同じく箱で描く（spec-4b-5a 確定事項12）。
     if (draft.kind === 'square' || draft.kind === 'circle' || draft.kind === 'cross') {
-      const box = geometry().boxOf(draft.start, draft.current, { square: draft.shift });
+      const box = geometry().boxOf(draft.start, draft.current, { square: draft.shift || draft.keep === true });
       const rect = geometry().boxOf(toPdf([box[0], box[1]]), toPdf([box[2], box[3]]));
       return { ...base, ...geometry().rectOfShape({ kind: draft.kind, rect }) };
     }

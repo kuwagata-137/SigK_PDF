@@ -62,6 +62,8 @@
       // 図形の塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
       root.SigK.annotateFill?.applyFillOpacity(result.ui.annotFillOpacity);
       root.SigK.annotateFill?.applyHatch(result.ui.annotHatch);
+      // 四角・丸・×印の「縦横比を固定」（spec-7-9 確定事項D3）。古い settings.json には無いことがある。
+      root.SigK.shapeRatio?.apply(result.ui.annotKeepRatio);
       root.SigK.annotate?.applyFontSize(result.ui.annotFontSize);
       // テキストの太字・斜体（spec-4b-4a 確定事項H）。
       root.SigK.annotateTextStyle?.applyNextStyle(result.ui.annotTextStyle);

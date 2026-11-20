@@ -67,8 +67,9 @@ test('行の並びは 種類 → トリミングの当てるページと大き�
   // トリミングの 2 行は種類の直後（spec-4b-6a 確定事項17。道具を持っている間だけ出す）。モザイクの 2 行はその次（spec-4b-6b 確定事項14）。
   assert.deepEqual(ids, ['kind', 'props-trim-scope-row', 'props-trim-size-row', 'props-mosaic-block-row', 'props-mosaic-count-row', 'props-set-row', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
     'props-opacity-row', 'props-fill-opacity-row', 'props-hatch-row', 'props-hatch-color-row', 'props-hatch-gap-row', 'props-hatch-width-row',
-    'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
+    'props-box-size-row', 'props-keep-ratio-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
   // 塗りの見出しの行は透明度の下（spec-7-9 確定事項B1）。塗りつぶしの行は、四角・丸・閉じた多角形の時だけ塗りの見出しの下へ移す。
+  // 大きさと縦横比を固定の行は回転の行のすぐ上（spec-7-9 確定事項D1）。
 });
 
 test('道具ごとに出す行と、色の行の見出しが替わる', async (t) => {
@@ -130,9 +131,9 @@ test('四角・丸のヒントに「両方なしにはできない」を添え�
   const { HINTS } = SigK.annotationProps;
   SigK.annotate.setTool('shape');
   SigK.annotate.setShapeKind('square');
-  assert.equal(hint(), `${HINTS.shape}${HINTS.box}`);
+  assert.equal(hint(), `${HINTS.shape}${HINTS.boxRatio}${HINTS.box}`);
   SigK.annotate.setFill('#ffff00');
-  assert.equal(hint(), `${HINTS.shape}${HINTS.box}${HINTS.fill}`);
+  assert.equal(hint(), `${HINTS.shape}${HINTS.boxRatio}${HINTS.box}${HINTS.fill}`);
   SigK.annotate.setShapeKind('arrow');
   assert.equal(hint(), `${HINTS.shape}${HINTS.lineSnap}`);
   SigK.annotate.setTool('pen');

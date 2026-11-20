@@ -72,7 +72,9 @@
     // 色・塗り・線種は次に付ける値（線なしなら色は null。spec-4b-1b 確定事項42）。マーカーは乗算のペンとして描く。
     const look = annotate().nextStyleOf(kind);
     const drawn = kind === 'marker' ? { kind: 'ink', blend: 'multiply' } : { kind };
-    return draft().begin({ index, src, viewport, ...drawn, point, shift, ...look, lineWidth: getLineWidth(kind), opacity: annotate().getOpacity(kind) });
+    // 「縦横比を固定」にチェックがあれば、四角・丸・×印は正方形・正円にする（spec-7-9 確定事項D3）。
+    const keep = root.SigK.shapeRatio?.keepsFor(kind) === true;
+    return draft().begin({ index, src, viewport, ...drawn, point, shift, keep, ...look, lineWidth: getLineWidth(kind), opacity: annotate().getOpacity(kind) });
   }
 
   function updateDraft(point, shift = false) {

@@ -15,6 +15,8 @@
     callout: 'ページ上をクリックすると、そこに吹き出しを配置できます。Enter で改行、枠外をクリックするか Ctrl+Enter で確定します。しっぽの先は、配置したあとで白いハンドルをドラッグすると移動します。',
     calloutSelected: 'ダブルクリックか Enter で編集できます。ドラッグで移動できます。しっぽの先にある白いハンドルをドラッグすると、しっぽの向きが変わります（Shift で本体の向きに水平か垂直）。左右の白いハンドルで幅を、丸いハンドルで向きを変更できます。Delete で削除できます。Ctrl+Z で元に戻せます。',
     // 書き込みの上からのドラッグは描かずに動かす（決定84 ②④。spec-4b-3a 確定事項O7）。
+    // 四角・丸・×印の書き込みツールで shape のあとへ続ける（spec-7-9 確定事項D3）。
+    boxRatio: '「縦横比を固定」にチェックを入れると、Shift を押さなくても正方形・正円になります。',
     shape: 'ページ上をドラッグすると描画できます。Shift を押しながらドラッグすると、正方形・正円・45° 刻みになります。移動できる書き込みの上から（中を塗っていない四角・丸は線上から）ドラッグすると、描画せずにその書き込みが移動します。Esc で書き込みツールの選択を解除します。',
     // 多角形の道具（spec-4b-5a 確定事項31）。描いていないときと、描いている途中。
     polygon: 'クリックで頂点を配置します。始点をクリックすると閉じ、ダブルクリックで開いたまま確定します。Shift で 45° 刻みになります。Esc で書き込みツールの選択を解除します。',
@@ -28,7 +30,8 @@
     shapeSelected: 'ドラッグで移動できます。Delete で削除できます。Ctrl+Z で元に戻せます。',
     // 四角・丸と直線・矢印を選んだときに「掴んで動かせます。」のあとへ挟む（spec-4b-2 確定事項28）。
     move: 'ドラッグで移動できます。',
-    boxTransform: '四隅と辺の白いハンドルでサイズを、上の丸いハンドルで向きを変更できます。Shift を押しながらドラッグすると、四隅のハンドルは縦横比を保ち、向きは 15° ずつ回転します。',
+    // 大きさの数値欄と縦横比を固定の説明（spec-7-9 確定事項D1〜D3）は、今までの説明のあとに続ける。
+    boxTransform: '四隅と辺の白いハンドルでサイズを、上の丸いハンドルで向きを変更できます。Shift を押しながらドラッグすると、四隅のハンドルは縦横比を保ち、向きは 15° ずつ回転します。「大きさ」の幅と高さに数値（pt）を入力しても、サイズを変更できます。「縦横比を固定」にチェックを入れると、どのハンドルでも数値でも縦横比を保ちます。',
     lineTransform: '両端の白いハンドルで向きと長さを変更できます。Shift を押しながらドラッグすると、端は横か縦にだけ移動します。',
     // 多角形を選んだとき（spec-4b-5a 確定事項31）。
     polygonTransform: '頂点の白いハンドルで形を、上の丸いハンドルで向きを変更できます。Shift を押しながらドラッグすると、頂点は横か縦にだけ移動し、向きは 15° ずつ回転します。',
@@ -89,7 +92,8 @@
       const drawing = root.SigK.annotatePolygon?.isDrawing() === true;
       return drawing ? HINTS.polygonDrawing : `${HINTS.polygon}${boxHintOf(true, fill)}`;
     }
-    return `${HINTS[tool] ?? HINTS.tool}${boxHintOf(root.SigK.shapeStyle.isFillableKind(kind), fill)}`;
+    const ratio = tool === 'shape' && root.SigK.shapeSize?.isBoxKind(kind) === true ? HINTS.boxRatio : '';
+    return `${HINTS[tool] ?? HINTS.tool}${ratio}${boxHintOf(root.SigK.shapeStyle.isFillableKind(kind), fill)}`;
   }
 
   const SigK = (root.SigK = root.SigK || {});

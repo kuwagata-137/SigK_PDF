@@ -97,7 +97,9 @@
       // テキストは今までの形を新しい形へ移す（spec-4b-4b 確定事項A3）。
       return entry.kind === 'text' ? root.SigK.freeTextTurn.anglePatch(entry, patch.angle) : patch;
     }
-    return resize.resized(entry, handle.id, viewport.convertToPdfPoint(...press), viewport.convertToPdfPoint(...point), { shift });
+    // 「縦横比を固定」にチェックがあれば、角も辺も縦横比を保つ（spec-7-9 確定事項D3）。
+    const keep = root.SigK.shapeRatio?.keepsFor(entry.kind) === true;
+    return resize.resized(entry, handle.id, viewport.convertToPdfPoint(...press), viewport.convertToPdfPoint(...point), { shift, keep });
   }
 
   // ページを描き直して（倍率の変更など）枠が出ていないなら、ドラッグはもう続けられない。

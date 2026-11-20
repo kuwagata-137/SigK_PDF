@@ -77,6 +77,8 @@
     noteRows()?.render({ text: isNote ? entry.text : null, author: isNote ? (entry.author ?? '') : null, editable: false });
     // 回転の行は四角・丸を選んでいるときだけ（spec-4b-2 確定事項25）。
     root.SigK.annotationAngleRow?.render(entry);
+    // 大きさ（幅・高さ）と縦横比を固定の行は四角・丸・×印を選んでいるときだけ（spec-7-9 確定事項D1）。
+    root.SigK.annotationSizeRow?.render(entry);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象文字列';
     setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
@@ -147,6 +149,8 @@
     });
     noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
     root.SigK.annotationAngleRow?.render(null);
+    // 四角・丸・×印の書き込みツールでは、縦横比を固定のチェック欄だけを表示する（spec-7-9 確定事項D1）。
+    root.SigK.annotationSizeRow?.render(null, kind);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
     el.hint.textContent = hints().forTool(annotate().getTool(), kind, kind === null ? null : annotate().fillOf(kind));
@@ -185,6 +189,7 @@
     styleRows()?.init(doc, win);
     noteRows()?.init(doc, win);
     root.SigK.annotationAngleRow?.init(doc, win);
+    root.SigK.annotationSizeRow?.init(doc, win);
     root.SigK.annotationTextRows?.init(doc, win);
     root.SigK.trimProps?.init(doc, win);
     root.SigK.mosaicProps?.init(doc, win);

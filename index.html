@@ -633,6 +633,11 @@ body{
           <div class="range hatch-field"><input type="number" class="props-field" id="props-hatch-gap" min="1" max="50" step="0.5" aria-label="ハッチング間隔（pt）"><span class="unit">pt</span></div></div>
         <div class="prop" id="props-hatch-width-row" hidden><span class="k">ハッチング線幅</span>
           <div class="range hatch-field"><input type="number" class="props-field" id="props-hatch-width" min="0.25" max="10" step="0.25" aria-label="ハッチング線幅（pt）"><span class="unit">pt</span></div></div>
+        <!-- 大きさ（幅・高さ）と縦横比を固定（spec-7-9 確定事項D1〜D4）。大きさは四角・丸・×印を 1 件選択している時だけ、縦横比を固定は
+             その時と、四角・丸・×印の書き込みツールを選択している時。中身は annotation-size-row.js。 -->
+        <div class="prop" id="props-box-size-row" hidden><span class="k">大きさ</span>
+          <div class="range box-size"><span class="box-size-k">幅</span><input type="number" class="props-field" id="props-box-width" min="1" max="14400" step="any" aria-label="幅（pt）"><span class="unit">pt</span><span class="box-size-k">高さ</span><input type="number" class="props-field" id="props-box-height" min="1" max="14400" step="any" aria-label="高さ（pt）"><span class="unit">pt</span></div></div>
+        <div class="prop" id="props-keep-ratio-row" hidden><label class="print-choice keep-ratio"><input type="checkbox" class="props-field" id="props-keep-ratio">縦横比を固定</label></div>
         <!-- 回転（spec-4b-2 確定事項25〜27。モック screenshots/phase4b-2-square.png）。四角・丸を選んでいるときだけ。中身は annotation-angle-row.js。 -->
         <div class="prop" id="props-angle-row" hidden><span class="k">回転</span>
           <div class="range"><input type="range" class="props-field" id="props-angle-range" min="0" max="359" step="1" aria-label="回転"><input type="number" class="props-field" id="props-angle" min="0" max="359" step="1" aria-label="回転（度）"><span class="unit">°</span></div>
@@ -1264,6 +1269,8 @@ body{
 <script src="renderer/arrow-head.js"></script>
 <script src="renderer/shape-geometry.js"></script>
 <script src="renderer/shape-rotation.js"></script>
+<script src="renderer/shape-size.js"></script>
+<script src="renderer/shape-ratio.js"></script>
 <script src="renderer/cross-geometry.js"></script>
 <script src="renderer/polygon-geometry.js"></script>
 <script src="renderer/annotation-hit.js"></script>
@@ -1500,6 +1507,7 @@ body{
 <script src="renderer/annotation-fill-rows.js"></script>
 <script src="renderer/annotation-style-rows.js"></script>
 <script src="renderer/annotation-hints.js"></script>
+<script src="renderer/annotation-size-row.js"></script>
 <script src="renderer/annotation-angle-row.js"></script>
 <script src="renderer/annotation-bulk-props.js"></script>
 <script src="renderer/annotation-text-rows.js"></script>

@@ -127,3 +127,17 @@ test('下書きの entry は、四角・丸に塗りと線種を持たせ、選�
   assert.equal('lineStyle' in draft.draftFor(0), false, 'ペンは実線だけ');
   draft.cancel();
 });
+
+// 「縦横比を固定」にチェックがある時（spec-7-9 確定事項D3）。四角・丸・×印は Shift なしでも正方形・正円になる。
+test('keep の時は、四角・丸・×印は Shift なしでも正方形・正円になる', () => {
+  for (const kind of ['circle', 'square', 'cross']) {
+    begin(kind, [200, 283.78], { keep: true });
+    draft.update([400, 323.78], false);
+    const entry = draft.finish([400, 323.78], false, 3);
+    assert.equal(entry.kind, kind);
+    assert.deepEqual(entry.rect, [100, 600, 200, 700]);
+  }
+  // keep が無ければ今までどおり
+  begin('circle');
+  assert.deepEqual(draft.finish([400, 323.78], false, 3).rect, [100, 680, 200, 700]);
+});
