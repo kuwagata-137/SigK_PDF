@@ -101,18 +101,43 @@
     return copy;
   }
 
+  // 絵の記録を、画素数が limit 以下の縮めた絵の記録にする（控えの上限を 1 枚で超える大きな絵。高い倍率の写真など）。縮めた絵はぼやけるが、
+  // 枠の大きさに伸ばして表示するので、新しい絵を描き終えるまでの間は白い背景より見やすい。箱に入っていれば、箱の中の絵を入れ替える。
+  // 2D コンテキストを作れなければ null。
+  function shrink(record, limit) {
+    const canvas = record.canvas;
+    const doc = canvas?.ownerDocument;
+    if (doc === undefined || doc === null)
+      return null;
+    const ratio = Math.sqrt(limit / record.pixels);
+    const copy = doc.createElement('canvas');
+    copy.width = Math.max(1, Math.floor(canvas.width * ratio));
+    copy.height = Math.max(1, Math.floor(canvas.height * ratio));
+    const context = copy.getContext('2d');
+    if (typeof context?.drawImage !== 'function')
+      return null;
+    context.drawImage(canvas, 0, 0, copy.width, copy.height);
+    if (record.box !== undefined && canvas.parentNode === record.box)
+      record.box.replaceChild(copy, canvas);
+    return { ...record, canvas: copy, pixels: pixelsOf(copy) };
+  }
+
   // ---- 控え ----
 
-  // 控えを作る。追加した順番に絵の記録を持ち、画素数の合計が budget を超えたら、古い記録から破棄する。budget を 1 枚で超える絵は持たない。
+  // 控えを作る。追加した順番に絵の記録を持ち、画素数の合計が budget を超えたら、古い記録から破棄する。budget を 1 枚で超える絵は、
+  // 画素数を budget の半分に縮めて持つ（縮められなければ持たない）。
   function createKeeper({ budget }) {
     let records = [];
     let total = 0;
 
     function add(record) {
-      if (record === null || record === undefined || !(record.pixels <= budget))
+      if (record === null || record === undefined || !(record.pixels >= 0))
         return false;
-      records.push(record);
-      total += record.pixels;
+      const kept = record.pixels <= budget ? record : shrink(record, budget / 2);
+      if (kept === null)
+        return false;
+      records.push(kept);
+      total += kept.pixels;
       while (total > budget)
         total -= records.shift().pixels;
       return true;

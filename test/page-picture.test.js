@@ -172,7 +172,7 @@ test('控えは見た目が同じ絵を優先して返し、画素数の合計�
   assert.equal(keeper.find({ doc, number: 1 }, { src: 0, rotate: 180 }), turned);
   assert.equal(keeper.find({ doc, number: 2 }, { src: 1, rotate: 0 }), null);
 
-  // 1 枚で上限を超える絵は持たない。
+  // 1 枚で上限を超える絵は、縮められなければ（canvas が無い）持たない。
   assert.equal(keeper.add(record(3, 0, 101)), false);
   // 合計 130 になるので、いちばん古い plain を破棄する。
   keeper.add(record(2, 0, 70));
@@ -185,4 +185,27 @@ test('控えは見た目が同じ絵を優先して返し、画素数の合計�
   keeper.clear();
   assert.equal(keeper.size(), 0);
   assert.equal(keeper.pixels(), 0);
+});
+
+test('控えの上限を 1 枚で超える絵は、画素数を上限の半分に縮めた絵にして、箱の中の絵も入れ替える', () => {
+  const { window } = new JSDOM('');
+  const draws = [];
+  window.HTMLCanvasElement.prototype.getContext = () => ({ drawImage: (...args) => draws.push(args) });
+  const canvas = window.document.createElement('canvas');
+  canvas.width = 400;
+  canvas.height = 300;
+  const box = pagePicture.wrap(window.document, canvas);
+  const keeper = pagePicture.createKeeper({ budget: 30000 });
+  const doc = {};
+
+  assert.equal(keeper.add({ box, canvas, source: { doc, number: 1 }, plan: { src: 0, rotate: 0 }, pixels: pagePicture.pixelsOf(canvas) }), true);
+
+  const kept = keeper.find({ doc, number: 1 }, { src: 0, rotate: 0 });
+  assert.notEqual(kept.canvas, canvas);
+  assert.ok(kept.pixels <= 15000, `縮めた絵の画素数 ${kept.pixels}`);
+  assert.equal(Math.round((kept.canvas.width / kept.canvas.height) * 100), Math.round((400 / 300) * 100), '縦横の比が変わった');
+  assert.deepEqual(draws, [[canvas, 0, 0, kept.canvas.width, kept.canvas.height]]);
+  assert.equal(kept.box, box);
+  assert.deepEqual([...box.children], [kept.canvas]);
+  assert.equal(keeper.pixels(), kept.pixels);
 });
