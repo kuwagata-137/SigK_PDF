@@ -79,6 +79,9 @@
       return false;
     if (entry.angle !== undefined && !validAngle(entry.angle))
       return false;
+    // マーキングは線の色と形・大きさを必ず持つ（spec-7-9 確定事項F）。
+    if (entry.kind === 'marking')
+      return typeof entry.color === 'string' && root.SigK.markingRules.validMarking(entry.marking);
     return entryModule().isPathKind(entry.kind) ? validPaths(entry.kind, entry.paths) : true;
   }
 
@@ -94,7 +97,7 @@
       && Array.isArray(entry.quads) && entry.quads.length > 0 && entry.quads.every(isQuad)
       && Array.isArray(entry.rect) && entry.rect.length === 4 && style().validStyle(entry);
     if (!shape || (entry.angle !== undefined && !turnable(entry.kind)) || (entry.head !== undefined && entry.kind !== 'arrow')
-      || (entry.closed !== undefined && entry.kind !== 'polygon'))
+      || (entry.closed !== undefined && entry.kind !== 'polygon') || (entry.marking !== undefined && entry.kind !== 'marking'))
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);
@@ -119,6 +122,7 @@
       case 'quads': return Array.isArray(value) && value.length > 0 && value.every(isQuad);
       case 'paths': return validPaths(kind, value);
       case 'angle': return turnable(kind) && validAngle(value);
+      case 'marking': return kind === 'marking' && root.SigK.markingRules.validMarking(value);
       case 'width':
       case 'bold':
       case 'italic':

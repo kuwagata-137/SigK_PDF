@@ -66,6 +66,11 @@
       group.append(root.SigK.freeTextShape.svgOf(doc, entry, viewport));
       return group;
     }
+    // マーキング（spec-7-9 確定事項F。marking-graphics.js）。
+    if (entry.kind === 'marking') {
+      group.append(root.SigK.markingGraphics.svgOf(doc, entry, viewport));
+      return group;
+    }
     if (isDrawn(entry)) {
       group.append(root.SigK.shapeGraphics.svgOf(doc, entry, viewport));
       return group;
@@ -130,6 +135,10 @@
         continue;
       if (entry.kind === 'text') {
         root.SigK.freeTextShape.paint(ctx, entry, viewport);
+        continue;
+      }
+      if (entry.kind === 'marking') {
+        root.SigK.markingGraphics.paint(ctx, entry, viewport);
         continue;
       }
       if (isDrawn(entry)) {

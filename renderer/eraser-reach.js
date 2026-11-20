@@ -118,6 +118,8 @@
       case 'arrow': return lineShape(entry);
       case 'cross': return { lines: root.SigK.crossGeometry.localDiagonals(entry.rect), width: entry.lineWidth, region: null };
       case 'polygon': return polygonShape(entry);
+      // マーキングは線に触れても、外の円・三角形の内側をなぞっても丸ごと削除する（spec-7-9 確定事項F5。当たり判定と同じ範囲）。
+      case 'marking': return root.SigK.markingGeometry.outlineOf(entry);
       default: return null;
     }
   }

@@ -17,6 +17,8 @@
   //                角度で持ち、点列は持たない（保存のときに対角線を組む。spec-4b-5a 確定事項2）。多角形は { paths: [[頂点…]], closed }
   //                （回す前の頂点 3 つ以上と、閉じたかどうか）と { angle } を持て、閉じたものだけ塗りと線なしを持てる（spec-4b-5a 確定事項3）
   //   ノート     … さらに { author }。text は本文（空を許す）。rect は 20×20pt で左上が基準。quads は rect の四角 1 つ
+  //   マーキング … さらに { lineWidth, marking }。rect は描く範囲の外接で、中心が位置。quads は rect の四角 1 つ。marking の形は
+  //                marking-rules.js（spec-7-9 確定事項F）。線の太さを持つので図形・ペンと同じ「描く種類」（isDrawnKind）に数える
   //
   // 読み込んだだけで直せない「表示のみ」の注釈は { ref, kind: 'other', subtype, readonly: true } の形で imported に
   // だけ現れる（annotation-import.js）。KINDS には無く、ここでは作れない。
@@ -25,14 +27,14 @@
   // 「図形」の道具で描く種類と、点列（paths）を持つ種類（spec-4-3 確定事項14。×印は spec-4b-5a 確定事項1）。
   const SHAPE_KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'polygon']);
   const PATH_KINDS = Object.freeze(['line', 'arrow', 'ink', 'polygon']);
-  const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink', 'note']);
+  const KINDS = Object.freeze([...MARKUP_KINDS, 'text', ...SHAPE_KINDS, 'ink', 'note', 'marking']);
   const ROTATIONS = Object.freeze([0, 90, 180, 270]);
 
   // updateAnnot で書き換えられる欄（spec-4b-1b 確定事項21 で塗りと線種を、spec-4b-2 確定事項4 で角度を、spec-4b-4a 確定事項A4 で
   // テキストの幅・太字・斜体・枠線を足し、塗りをテキストにも許した。間隔と強さは右パネルから変えない）。塗りの透明度とハッチングは
   // spec-7-9 確定事項B2・C1 で追加した。
   const PATCH_FIELDS = Object.freeze(['color', 'fill', 'lineStyle', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity', 'angle',
-    'width', 'bold', 'italic', 'borderColor', 'borderWidth', 'callout', 'fillOpacity', 'hatch']);
+    'width', 'bold', 'italic', 'borderColor', 'borderWidth', 'callout', 'fillOpacity', 'hatch', 'marking']);
 
   function rules() {
     return root.SigK.annotationEntryRules;
@@ -63,9 +65,13 @@
     return PATH_KINDS.includes(kind);
   }
 
-  // 図形・ペン（線幅を持つもの）。
+  // 図形・ペン・マーキング（線幅を持つもの）。
   function isDrawnKind(kind) {
-    return SHAPE_KINDS.includes(kind) || kind === 'ink';
+    return SHAPE_KINDS.includes(kind) || kind === 'ink' || kind === 'marking';
+  }
+
+  function isMarkingKind(kind) {
+    return kind === 'marking';
   }
 
   function isNoteKind(kind) {
@@ -106,6 +112,8 @@
       copy.closed = entry.closed;
     if (isNoteKind(entry.kind))
       copy.author = entry.author ?? '';
+    if (entry.marking !== undefined)
+      copy.marking = root.SigK.markingRules.copyMarking(entry.marking);
     return copy;
   }
 
@@ -130,7 +138,8 @@
     return a.id === b.id && a.src === b.src && a.kind === b.kind && a.color === b.color
       && a.opacity === b.opacity && a.text === b.text && a.fontSize === b.fontSize
       && a.rotation === b.rotation && a.lineWidth === b.lineWidth && a.author === b.author && sameNumbers(a.rect, b.rect)
-      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && a.head === b.head && a.closed === b.closed && textFields().sameFields(a, b);
+      && samePaths(a.paths, b.paths) && style().sameStyle(a, b) && angleOf(a) === angleOf(b) && a.head === b.head && a.closed === b.closed && textFields().sameFields(a, b)
+      && (a.marking === b.marking || root.SigK.markingRules.sameMarking(a.marking, b.marking));
   }
 
   // ×印の保存の欄（spec-4b-5a 確定事項35）。回した位置の対角線 2 本と、その外接に線幅の半分を足した箱。角度は対角線に入る。
@@ -156,6 +165,9 @@
       return { src, kind, color, opacity, rect: [...rect], text, author: author ?? '' };
     if (kind === 'cross')
       return { src, kind, color, opacity, lineWidth, ...style().saveStyle(entry), ...crossSaveFields(entry) };
+    // マーキングは箱と線幅と形・大きさ（spec-7-9 確定事項F6。外観は worker/marking-appearance.js が組む）。
+    if (isMarkingKind(kind))
+      return { src, kind, color, opacity, rect: [...rect], lineWidth, marking: root.SigK.markingRules.copyMarking(entry.marking) };
     if (isDrawnKind(kind)) {
       const saved = { src, kind, color, opacity, rect: [...rect], lineWidth, ...style().saveStyle(entry) };
       if (isPathKind(kind))
@@ -185,6 +197,7 @@
     isPathKind,
     isDrawnKind,
     isNoteKind,
+    isMarkingKind,
     angleOf,
     copyEntry,
     sameEntry,

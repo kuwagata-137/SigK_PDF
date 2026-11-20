@@ -758,6 +758,8 @@ async function createShell({
           annotHatch: { shape: { ...(savedUi.annotHatch?.shape ?? {}), ...(patch?.annotHatch?.shape ?? {}) } },
           // 四角・丸・×印の「縦横比を固定」（spec-7-9 確定事項D3）。
           annotKeepRatio: patch?.annotKeepRatio ?? savedUi.annotKeepRatio,
+          // マーキングの次に配置する値（spec-7-9 確定事項F5）。欄ごとに重ねる。
+          annotMarking: { ...(savedUi.annotMarking ?? {}), ...(patch?.annotMarking ?? {}) },
           // テキストの文字の大きさ（spec-4-2 確定事項21）。
           annotFontSize: patch?.annotFontSize ?? savedUi.annotFontSize,
           // 図形・ペンの線の太さと図形の種類（spec-4-3 確定事項19）。

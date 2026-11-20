@@ -10,11 +10,11 @@ require('../renderer/annotation-presets.js');
 
 const presets = globalThis.SigK.annotationPresets;
 
-test('道具は 9 つで、マークアップは先頭の 3 つ。吹き出しはテキストの次、マーカーはペンの次（spec-4b-4b 確定事項F1、spec-4b-5b 確定事項2）', () => {
-  assert.deepEqual(presets.TOOLS, ['highlight', 'underline', 'strikeout', 'text', 'callout', 'shape', 'pen', 'marker', 'note']);
+test('書き込みツールは 10 個で、マークアップは先頭の 3 つ。吹き出しはテキストの次、マーカーはペンの次、マーキングは最後（spec-4b-4b 確定事項F1、spec-4b-5b 確定事項2、spec-7-9 確定事項F1）', () => {
+  assert.deepEqual(presets.TOOLS, ['highlight', 'underline', 'strikeout', 'text', 'callout', 'shape', 'pen', 'marker', 'note', 'marking']);
   assert.deepEqual(presets.MARKUP_TOOLS, ['highlight', 'underline', 'strikeout']);
   assert.deepEqual(presets.TOOL_LABELS, {
-    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', marker: 'マーカー', note: 'ノート',
+    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', marker: 'マーカー', note: 'ノート', marking: 'マーキング',
     square: '四角', circle: '丸', line: '直線', arrow: '矢印', cross: '×印', polygon: '多角形', ink: 'ペン',
   });
 });
@@ -68,7 +68,7 @@ test('既定の色は道具ごとのパレットの色', () => {
   const palette = globalThis.SigK.annotationPalette;
   assert.deepEqual(presets.DEFAULT_COLORS, {
     highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00',
-    note: '#ffd966',
+    note: '#ffd966', marking: '#ff0000',
   });
   assert.deepEqual(Object.keys(presets.DEFAULT_COLORS), presets.TOOLS);
   for (const color of Object.values(presets.DEFAULT_COLORS))
@@ -92,17 +92,17 @@ test('ノートの既定の色は黄', () => {
 });
 
 // 不透明度は 10〜100% で既定は 1。対象はテキスト・図形・ペン・ノート（spec-4-4 確定事項38、spec-4b-1b 確定事項20）。
-test('不透明度は 0.1〜1 で既定は 1、対象はテキスト・吹き出し・図形・ペン・マーカー・ノート', () => {
+test('不透明度は 0.1〜1 で既定は 1、対象はテキスト・吹き出し・図形・ペン・マーカー・ノート・マーキング', () => {
   assert.equal('OPACITIES' in presets, false, '選択肢の並びはやめた（スライダーと数値欄）');
   assert.equal(presets.OPACITY_MIN, 0.1);
   assert.equal(presets.DEFAULT_OPACITY, 1);
-  assert.deepEqual(presets.OPACITY_TOOLS, ['text', 'callout', 'shape', 'pen', 'marker', 'note']);
-  assert.deepEqual(presets.DEFAULT_OPACITIES, { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 });
+  assert.deepEqual(presets.OPACITY_TOOLS, ['text', 'callout', 'shape', 'pen', 'marker', 'note', 'marking']);
+  assert.deepEqual(presets.DEFAULT_OPACITIES, { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1, marking: 1 });
   for (const value of [0.1, 0.35, 0.6, 1])
     assert.equal(presets.isOpacity(value), true, String(value));
   for (const value of [0.09, 0, 1.01, '1', NaN])
     assert.equal(presets.isOpacity(value), false, String(value));
-  for (const kind of ['text', 'square', 'circle', 'line', 'arrow', 'ink', 'note'])
+  for (const kind of ['text', 'square', 'circle', 'line', 'arrow', 'ink', 'note', 'marking'])
     assert.equal(presets.isOpacityKind(kind), true, kind);
   for (const kind of ['highlight', 'underline', 'strikeout', 'other', undefined])
     assert.equal(presets.isOpacityKind(kind), false, String(kind));
