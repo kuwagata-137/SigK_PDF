@@ -204,11 +204,14 @@ async function watchOp({ win, js }, spec) {
   return { op: spec.label, ...renderer, paint: whiteFrames(stop(), base.at(-1) ?? null) };
 }
 
-async function openTab(js, target, mode) {
+// zoom を渡すと、開いた後にその倍率にする（渡さなければ開いた時の倍率のまま）。
+async function openTab(js, target, mode, zoom = null) {
   return js(`(async () => {
     const SigK = window.SigK;
     await SigK.tabs.openPath(${JSON.stringify(target)});
     SigK.shell.setMode(document, ${JSON.stringify(mode)});
+    if (${JSON.stringify(zoom)} !== null)
+      SigK.viewer.setZoom(${JSON.stringify(zoom)});
     SigK.viewer.goToPage(0);
     await window.__repaintWatch.settle();
     const state = SigK.viewer.getState();
@@ -264,9 +267,17 @@ const editSteps = [
   { label: 'トリミングの解除', op: 'untrim', index: 0 },
 ];
 
+// 写真を倍率 100% で表示した時の操作。切る前の絵は控えの上限（1,600 万画素）を 1 枚で超えるので、縮めた絵を控える。
+const photoSteps = [
+  { label: 'トリミング', op: 'trim', index: 0, ratio: 0.12 },
+  { label: 'トリミングの取り消し', op: 'undo' },
+  { label: '［右回転］', op: 'rotateCurrent', delta: 90 },
+  { label: '［右回転］の取り消し', op: 'undo' },
+];
+
 // 1 つのファイルで steps を順番に行う。setup の手順は見張らない。
-async function runCase(ctx, { name, target, mode, steps }) {
-  const opened = await openTab(ctx.js, target, mode);
+async function runCase(ctx, { name, target, mode, steps, zoom = null }) {
+  const opened = await openTab(ctx.js, target, mode, zoom);
   const ops = [];
   for (const step of steps) {
     if (step.file !== undefined)
@@ -312,6 +323,7 @@ async function run({ app, win, dir, root, dialog, nativeImage }) {
     cases.push(await runCase(ctx, { name: 'pdf-many', target: copy('many-pages.pdf', 'repaint-many.pdf'), mode: 'pages', steps: manySteps }));
     cases.push(await runCase(ctx, { name: 'pdf-edit', target: copy('three-pages.pdf', 'repaint-edit.pdf'), mode: 'annot', steps: editSteps }));
     cases.push(await runCase(ctx, { name: 'photo-edit', target: photo, mode: 'annot', steps: editSteps }));
+    cases.push(await runCase(ctx, { name: 'photo-100', target: photo, mode: 'annot', steps: photoSteps, zoom: 1 }));
     memory.atEnd = memoryOf(app, win);
     await js(`(() => { window.SigK.shell.setMode(document, 'view'); return true; })()`);
     const ops = cases.flatMap((item) => item.ops);
@@ -321,7 +333,7 @@ async function run({ app, win, dir, root, dialog, nativeImage }) {
       total: {
         ops: ops.length,
         framesWithoutPicture: ops.reduce((sum, item) => sum + item.framesWithoutPicture, 0),
-        photoWhiteFrames: cases.find((item) => item.name === 'photo-edit').ops.reduce((sum, item) => sum + item.paint.whiteFrames, 0),
+        photoWhiteFrames: cases.filter((item) => item.name.startsWith('photo')).flatMap((item) => item.ops).reduce((sum, item) => sum + item.paint.whiteFrames, 0),
         held: ops.reduce((sum, item) => sum + item.held, 0),
         doubles: ops.reduce((sum, item) => sum + item.doubles, 0),
         failedOps: ops.filter((item) => item.ok !== true).map((item) => item.op),
