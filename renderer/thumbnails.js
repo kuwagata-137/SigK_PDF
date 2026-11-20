@@ -35,10 +35,22 @@
     frame: 0,
   };
 
+  // 控えの画素数の上限（docs/07 決定99 ②。Claude の案）。サムネイルは小さいので 400 万画素（ページの表示域の控えとは別）。
+  const KEEP_PIXELS = 4_000_000;
+  // 新しい絵を描き終えるまで前の絵を表示しているサムネイル。index → 絵の記録（page-picture.js）。モザイクだけが変わった時と、
+  // 並びを変えた時（決定99 ②）に使う。描けたら入れ替え、描く範囲から外れたら破棄する。
+  const held = new Map();
+  // 控え（決定99 ②）。並びから外れたページのサムネイルなどを、次の 1 回の並びの変更まで残す。
+  const keeper = root.SigK.pagePicture.createKeeper({ budget: KEEP_PIXELS });
+
   let el = null;
 
   function layout() {
     return root.SigK.viewerLayout;
+  }
+
+  function picture() {
+    return root.SigK.pagePicture;
   }
 
   function report(error, context = {}) {
@@ -146,10 +158,11 @@
     root.SigK.pageGrid?.syncMarks();
   }
 
-  // 枠ごと捨てる。畳んでいるとき・閲覧モード以外・文書が無いときの姿へ戻す。
+  // 枠ごと捨てる。畳んでいるとき・閲覧モード以外・文書が無いときの姿へ戻す。控えた前の絵も破棄する（決定99 ②）。
   function discard() {
     state.token += 1;
     releaseAll();
+    keeper.clear();
     state.columnWidth = 0;
     state.columns = 1;
     state.layout = { pages: [], sheetWidth: 0, totalHeight: 0 };
@@ -171,20 +184,208 @@
     return typeof root.CanvasRenderingContext2D !== 'undefined';
   }
 
-  // keepPicture は、モザイクだけが変わったページを描き直すとき（setPlan の repaint）だけ true にする。新しい絵ができるまで前の絵を残す。
+  // keepPicture は、モザイクだけが変わったページを描き直すとき（setPlan の repaint）だけ true にする。新しい絵ができるまで前の絵を表示する。
   function releaseThumb(index, { keepPicture = false } = {}) {
     const entry = state.rendered.get(index);
     if (entry === undefined)
       return;
+    // 前の絵は、枠を空にする前に取り出す。
+    const kept = keepPicture ? held.get(index) ?? takeThumb(index, entry) : null;
     state.rendered.delete(index);
     entry.task?.cancel();
-    if (!keepPicture)
-      el.sheets[index]?.replaceChildren();
+    if (kept !== null && placeThumb(index, kept))
+      return;
+    held.delete(index);
+    el.sheets[index]?.replaceChildren();
   }
 
+  // 表示していた前の絵も破棄する。
   function releaseAll() {
     for (const index of [...state.rendered.keys()])
       releaseThumb(index);
+    for (const index of held.keys())
+      el.sheets[index]?.replaceChildren();
+    held.clear();
+  }
+
+  // ---- 前の絵（決定99 ②。page-picture.js） ----
+
+  function copyEntry(page) {
+    return root.SigK.pagePlan.clonePlan([page])[0];
+  }
+
+  // 描き終えたサムネイルを枠から取り出して、絵の記録にする。final は、描いた時の並びの要素の絵として完成していること（同じページが
+  // 同じ見た目のまま位置だけ変わったなら、描き直さずにそのまま使う）。描き終えていなければ null。
+  function takeThumb(index, entry) {
+    if (entry?.done !== true || entry.canvas?.parentNode !== el.sheets[index])
+      return null;
+    const { canvas, page, source, plan, viewport } = entry;
+    return { canvas, page, source, plan, viewport, pixels: picture().pixelsOf(canvas), final: true };
+  }
+
+  // 並びを変える前に、枠に表示している絵（描き終えた絵と前の絵）を取り出す。前の並びの位置 → 絵の記録。
+  function takeThumbs() {
+    const taken = new Map(held);
+    for (const [index, entry] of state.rendered) {
+      const record = taken.has(index) ? null : takeThumb(index, entry);
+      if (record !== null)
+        taken.set(index, record);
+    }
+    return taken;
+  }
+
+  // 絵の記録を index の枠に置く。same（同じページが同じ見た目のまま位置だけ変わった）で完成した絵なら、描き終えた絵として入れ、描き直さない。
+  // ほかは箱に入れて、絵を描いた時の回転と範囲から今の枠への変換を適用し、新しい絵を描き終えるまで表示する。
+  function placeThumb(index, record, { same = false } = {}) {
+    const sheet = el.sheets[index];
+    if (sheet === undefined)
+      return false;
+    if (same && record.final === true) {
+      sheet.replaceChildren(record.canvas);
+      const { page, source, canvas, viewport } = record;
+      state.rendered.set(index, { task: null, page, source, plan: copyEntry(state.plan[index]), canvas, viewport, done: true });
+      return true;
+    }
+    const shown = { ...record, final: false };
+    shown.box ??= picture().wrap(el.doc, record.canvas);
+    fitThumb(index, shown, sheet);
+    sheet.replaceChildren(shown.box);
+    held.set(index, shown);
+    return true;
+  }
+
+  // 前の絵の箱をサムネイル枠に合わせる（page-render.js の placeHeld と同じ考え方）。向きと範囲が同じ絵は枠いっぱいに伸ばす。ほかは、枠の幅
+  // （CSS px）から倍率を求めて変換を適用する。枠の大きさが分からなければ（jsdom）、配置の計算の大きさを使う。
+  function fitThumb(index, record, sheet) {
+    const now = state.plan[index];
+    if (record.fill === true || picture().sameLook(record.plan, now)) {
+      picture().fit(record.box);
+      return;
+    }
+    const page = record.page;
+    const rotation = (page?.rotate ?? 0) + (now?.rotate ?? 0);
+    const unit = root.SigK.pageViewbox.viewportFor(page, { scale: 1, rotation, box: now?.crop ?? null });
+    const planned = state.layout.pages[index];
+    const frame = { width: sheet.clientWidth || planned?.sheetWidth || 0, height: sheet.clientHeight || planned?.sheetHeight || 0 };
+    if (!(unit.width > 0) || !(frame.width > 0) || !(frame.height > 0)) {
+      picture().fit(record.box);
+      return;
+    }
+    const scale = frame.width / unit.width;
+    const from = root.SigK.pageViewbox.viewportFor(page, { scale, rotation: (page?.rotate ?? 0) + (record.plan?.rotate ?? 0), box: record.plan?.crop ?? null });
+    const to = root.SigK.pageViewbox.viewportFor(page, { scale, rotation, box: now?.crop ?? null });
+    picture().fit(record.box, from, to, frame);
+  }
+
+  // 控えに入れてよい絵か。開き直す前の文書の絵は入れない。
+  function keepable(record) {
+    return record !== null && record !== undefined && record.fill !== true;
+  }
+
+  // 描き終えた新しい絵に置き換えた前の絵を、見た目（回転・トリミング・モザイク）が違えば控えに入れる（page-render.js と同じ）。
+  function keepReplaced(record, plan) {
+    if (keepable(record) && !picture().sameLook(record.plan, plan))
+      keeper.add({ ...record, final: false });
+  }
+
+  // 並びを変えて枠を作り直した後で、取り出した絵を同じページの新しい枠に置く（page-render.js の placePictures と同じ優先順位。before は
+  // 前の並び）。同じページが同じ見た目のまま位置だけ変わったサムネイルは、描き直さない。
+  function placeThumbs(before, taken) {
+    const moves = root.SigK.pagePlan.pageMoves(before, state.plan);
+    const spare = [];
+    moves.forEach((move, index) => {
+      const carried = move === null ? null : taken.get(move.at) ?? null;
+      if (move !== null)
+        taken.delete(move.at);
+      if (carried !== null && move.same) {
+        placeThumb(index, carried, { same: true });
+        return;
+      }
+      const source = root.SigK.pagePlan.sourceOf(state.plan, index, state);
+      const chosen = picture().choose({ carried, keeper, source, look: state.plan[index] });
+      if (chosen.replaced !== null)
+        spare.push(chosen.replaced);
+      if (chosen.record !== null)
+        placeThumb(index, chosen.record);
+    });
+    keeper.renew([...spare, ...taken.values()].filter(keepable).map((record) => ({ ...record, final: false })));
+  }
+
+  // 上書き保存の後に開き直した時（viewer.reopen）。同じ位置で寸法が同じページは、前の絵を新しい枠いっぱいに表示する（page-render.js と同じ）。
+  function fillThumbs(taken, previousSizes) {
+    const same = (a, b) => a !== undefined && b !== undefined && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5;
+    for (const [index, record] of taken) {
+      if (same(state.sizes[index], previousSizes[index]))
+        placeThumb(index, { ...record, fill: true });
+    }
+  }
+
+  // ページの表示域で、前の絵が無いページの代わりの絵（決定99 ②。page-render.js の placePictures が、並びを変える前に呼ぶ）。source の
+  // ページのサムネイルを描き終えていれば、その絵の複製と、描いた時のページ・並びの要素を返す。無ければ null。
+  function standIn(source) {
+    if (el === null)
+      return null;
+    for (const entry of state.rendered.values()) {
+      if (entry.done !== true || !picture().sameSource(entry.source, source))
+        continue;
+      const canvas = picture().copyCanvas(el.doc, entry.canvas);
+      return canvas === null ? null : { canvas, page: entry.page, source: entry.source, plan: entry.plan };
+    }
+    return null;
+  }
+
+  // 挿入・貼り付けで新しく入るページのうち、入れた後にサムネイルに見えるページを、並びに入れる前に描いて控えに入れる（決定99 ②。
+  // page-render.js の prepare と同じ。引数も同じ）。
+  async function prepare(sizes, added, limit) {
+    if (el === null || state.doc === null || !isVisible() || el.sheets.length === 0 || !canDrawCanvas())
+      return;
+    const planned = layout().layoutThumbnails({ sizes, columnWidth: state.columnWidth, columns: state.columns });
+    const range = layout().visibleRange({ pages: planned.pages, scrollTop: el.scroll.scrollTop, viewportHeight: el.scroll.clientHeight });
+    const shown = added.filter(({ index }) => index >= range.first && index <= range.last);
+    const owner = state.doc;
+    await Promise.all(shown.map((item) => prepareThumb(item, { sheetWidth: planned.sheetWidth, size: sizes[item.index] }, limit, owner)));
+  }
+
+  async function prepareThumb({ doc, number }, { sheetWidth, size }, limit, owner) {
+    try {
+      const page = await doc.getPage(number);
+      if (limit.cancelled)
+        return;
+      const scale = layout().thumbnailScale({ sheetWidth, pageWidth: size?.width ?? 0, devicePixelRatio: root.devicePixelRatio });
+      const viewport = root.SigK.pageViewbox.viewportFor(page, { scale, rotation: page.rotate ?? 0 });
+      const canvas = el.doc.createElement('canvas');
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      const task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+      // 描いている間だけ、時間の上限で取り消す対象にする。
+      limit.tasks.add(task);
+      try {
+        await task.promise;
+      } finally {
+        limit.tasks.delete(task);
+      }
+      if (!limit.cancelled && state.doc === owner)
+        keeper.add({ canvas, page, source: { doc, number }, plan: { rotate: 0 }, viewport, pixels: picture().pixelsOf(canvas), final: false });
+    } catch {
+      // 時間の上限で取り消した描画と、描けなかったページは、入れた後に今までどおり描く（描けなければ、その時に記録する）。
+    }
+  }
+
+  // ---- ① のモザイクの範囲だけを塗る処理に渡す口（決定99） ----
+
+  // 今の並びで描き終えたサムネイル。{ canvas, viewport, page, plan }（page-render.js の drawnPicture と同じ）。無ければ null。
+  function drawnThumb(index) {
+    const entry = state.rendered.get(index);
+    if (entry?.done !== true || held.has(index))
+      return null;
+    return { canvas: entry.canvas, viewport: entry.viewport, page: entry.page, plan: entry.plan };
+  }
+
+  // drawnThumb の絵に、今の並びの要素のモザイクを塗った後に呼ぶ（page-render.js の markDrawn と同じ）。
+  function markDrawn(index) {
+    const entry = state.rendered.get(index);
+    if (entry?.done === true)
+      entry.plan = copyEntry(state.plan[index]);
   }
 
   async function renderThumb(index) {
@@ -192,7 +393,8 @@
       return;
 
     const token = state.token;
-    const entry = { task: null };
+    // canvas・viewport・done は描き終えた絵、source と plan はその絵の文書とページ番号・描いた時の並びの要素（決定99 ②）。
+    const entry = { task: null, page: null, source: null, plan: copyEntry(state.plan[index]), canvas: null, viewport: null, done: false };
     state.rendered.set(index, entry);
     const isStale = () => token !== state.token || state.rendered.get(index) !== entry;
 
@@ -204,7 +406,9 @@
         state.rendered.delete(index);
         return;
       }
+      entry.source = source;
       const page = await source.doc.getPage(source.number);
+      entry.page = page;
       if (isStale())
         return;
 
@@ -221,6 +425,8 @@
       const rotation = (page.rotate ?? 0) + (state.plan[index]?.rotate ?? 0);
       // 切った範囲で描く（spec-4b-6a 確定事項6）。
       const viewport = root.SigK.pageViewbox.viewportFor(page, { scale, rotation, box: state.plan[index]?.crop ?? null });
+      // 描いた時の viewport（決定99 ②。drawnThumb が返す）。
+      entry.viewport = viewport;
       if (!canDrawCanvas())
         return;
 
@@ -233,7 +439,13 @@
       await root.SigK.mosaicPaint?.paintOver(el.doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; } });
       if (isStale())
         return;
+      // 表示していた前の絵と入れ替える。
+      const replaced = held.get(index);
+      held.delete(index);
       el.sheets[index]?.replaceChildren(canvas);
+      entry.canvas = canvas;
+      entry.done = true;
+      keepReplaced(replaced, entry.plan);
     } catch (error) {
       const own = state.rendered.get(index) === entry;
       if (own)
@@ -241,9 +453,11 @@
       // スクロールで捨てた描画は失敗ではない。
       if (error?.name === 'RenderingCancelledException')
         return;
-      // 描けなかったサムネイルに、モザイクを置く前の絵を残したままにしない（releaseThumb の keepPicture）。
-      if (own)
+      // 描けなかったサムネイルに、前の絵を残したままにしない（releaseThumb の keepPicture・並びの変更）。
+      if (own) {
+        held.delete(index);
         el.sheets[index]?.replaceChildren();
+      }
       report(error, { page: index + 1 });
     }
   }
@@ -277,6 +491,13 @@
     for (const index of [...state.rendered.keys()]) {
       if (!targets.includes(index))
         releaseThumb(index);
+    }
+    // 描く範囲から外れたページには、前の絵を残さない（メモリを抱えないため）。
+    for (const index of [...held.keys()]) {
+      if (!targets.includes(index)) {
+        held.delete(index);
+        el.sheets[index]?.replaceChildren();
+      }
     }
     for (const index of targets)
       renderThumb(index);
@@ -336,9 +557,13 @@
 
   // 映すものを差し替える。canvas はタブをまたいで持ち越さない（確定事項13）。
   // 持ち越すのはスクロール位置だけである。
-  function setDocument({ doc, sizes, plan = null, inserts = [], current = 0, scrollTop = 0 }) {
+  // previousSizes は、上書き保存の後に開き直す時（viewer.reopen）だけ渡す前の文書の寸法。同じ位置で寸法が同じページは、新しい絵を
+  // 描き終えるまで前の絵を表示する（決定99 ②）。
+  function setDocument({ doc, sizes, plan = null, inserts = [], current = 0, scrollTop = 0, previousSizes = null }) {
+    const taken = previousSizes !== null && el !== null && state.doc !== null ? takeThumbs() : null;
     state.token += 1;
     releaseAll();
+    keeper.clear();
     state.doc = doc;
     state.inserts = inserts;
     state.sizes = sizes ?? [];
@@ -351,6 +576,8 @@
       return false;
     }
     build();
+    if (taken !== null)
+      fillThumbs(taken, previousSizes);
     el.scroll.scrollTop = scrollTop;
     schedule();
     return true;
@@ -361,6 +588,7 @@
   // やると「1枚回すたびにサイドパネルが先頭へ戻る」ことになる。
   // repaint は、モザイク欄だけが変わったページ位置の並び（viewer.applyPlan が pageMosaic.changedPages で求める）。
   function setPlan(plan, sizes = null, inserts = null, { repaint = null } = {}) {
+    const before = state.plan;
     state.plan = plan ?? [];
     if (inserts !== null)
       state.inserts = inserts;
@@ -385,10 +613,13 @@
     }
 
     // 並びが変われば紙の高さも順番も変わる。枠は作り直すが、見ている場所
-    // （scrollTop）はそのままにする。
+    // （scrollTop）はそのままにする。作り直す前に表示している絵を取り出し、同じページの新しい枠に置く（決定99 ②。前は、描き終えるまで
+    // 全部のサムネイルの白い背景が見えていた）。同じページが同じ見た目のまま位置だけ変わったサムネイルは、描き直さない。
+    const taken = takeThumbs();
     state.token += 1;
     releaseAll();
     build();
+    placeThumbs(before, taken);
     schedule();
     return true;
   }
@@ -486,5 +717,10 @@
     refresh,
     getScrollTop,
     getState,
+    // 前の絵を表示し続ける（決定99 ②）と、① のモザイクの範囲だけを塗る処理に渡す口（決定99）。
+    standIn,
+    prepare,
+    drawnThumb,
+    markDrawn,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -109,6 +109,10 @@
       return false;
     if (opened.ok !== true)
       return report(opened, '');
+    // 入れた後に見えるページを、並びに入れる前に描いておく（docs/07 決定99 ②。入れた直後に白い枠を表示しない）。ツールモードの帯では
+    // 描かない（viewer.prepareInserts がすぐに戻る）。描いている間にタブかページの並びが変わったら、貼り付けない。
+    if (unchanged(shot))
+      await viewer().prepareInserts?.({ at, pages: opened.sizes.map((size, page) => ({ doc: opened.doc, number: page + 1, size })) });
     if (!unchanged(shot)) {
       opened.doc?.loadingTask?.destroy?.();
       return { canceled: true };

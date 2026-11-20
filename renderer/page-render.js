@@ -18,14 +18,25 @@
   // - el: 要素の束を返す関数。init() で差し替わるため関数で受ける
   // - report: 失敗の記録。source を 'viewer' の1本に保つため借りる
   // - getState: controls へ渡す読み取り専用の写し
+  // 控えの画素数の上限（docs/07 決定99 ②。Claude の案）。1,600 万画素（RGBA で約 64 MB）。
+  const KEEP_PIXELS = 16_000_000;
+
   function create(ctx) {
     const state = ctx.state;
-    // 倍率を変えたとき、新しい絵ができるまで前の倍率の絵を残しているページの index（2026-10-23 の直し。前は枠を空にしていたので、
-    // pdf.js が描き終えるまで紙の白い地が見え、ズームのたびに白く光った）。描けたら入れ替え、描く範囲から外れたら捨てる。
-    const held = new Set();
+    // 新しい絵を描き終えるまで前の絵を表示しているページ。index → 絵の記録（page-picture.js）。描けたら入れ替え、描く範囲から外れたら破棄する。
+    // 倍率を変えた時（2026-10-23 の直し）、モザイクを配置した時（決定98）、並びを変えた時（決定99 ②）に使う。前は枠を空にしていたので、
+    // pdf.js が描き終えるまで紙の白い背景が見えていた。
+    const held = new Map();
+    // 控え（決定99 ②）。枠に置いていない前の絵（並びから外れたページの絵・描き終えた絵に置き換えられた見た目の違う絵・先に描いた挿入の
+    // ページの絵）を、次の 1 回の並びの変更まで残す。
+    const keeper = root.SigK.pagePicture.createKeeper({ budget: KEEP_PIXELS });
 
     function layout() {
       return root.SigK.viewerLayout;
+    }
+
+    function picture() {
+      return root.SigK.pagePicture;
     }
 
     // jsdom には 2D コンテキストが無い（canvas パッケージを入れていないため）。
@@ -52,25 +63,36 @@
       return root.SigK.pageViewbox.viewportFor(page, { scale, rotation: rotationFor(index, page), box: state.plan[index]?.crop ?? null });
     }
 
+    // 今の倍率で描く viewport。make(scale) は、その倍率の viewport を返す関数。
+    // 大きな紙を高い倍率で描くと、canvas が Chromium の上限を超えて白いままになるので、画素の数を上限に収める（spec-6-1 確定事項D-9）。
+    function drawViewport(make) {
+      const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
+      const viewport = make(scale);
+      const capped = root.SigK.pageImage?.cappedScale(scale, viewport.width, viewport.height) ?? scale;
+      return capped === scale ? viewport : make(capped);
+    }
+
+    // viewport の大きさの canvas。1px 以上（spec-4b-7a 確定事項G3。幅 0 の canvas には描けない）。
+    function newCanvas(viewport) {
+      const canvas = ctx.el().doc.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(viewport.width));
+      canvas.height = Math.max(1, Math.round(viewport.height));
+      return canvas;
+    }
+
     // ページ1枚を canvas に描く。描けない環境では null を返す。
     //
     // 「描けないなら打ち切る」ではなく「絵だけ無い」で返すのは、テキスト
     // レイヤーが canvas と独立しているためである。文字の層は DOM だけで
     // 作れるので、絵が出せない環境（jsdom）でも組み立てて確かめられる。
     async function drawCanvas({ entry, page, index }) {
-      const scale = layout().renderScale({ zoom: state.zoom, devicePixelRatio: root.devicePixelRatio });
-      let viewport = viewportAt(index, page, scale);
-      // 大きな紙を高い倍率で描くと、canvas が Chromium の上限を超えて白いままになるので、画素の数を上限に収める（spec-6-1 確定事項D-9）。
-      const capped = root.SigK.pageImage?.cappedScale(scale, viewport.width, viewport.height) ?? scale;
-      if (capped !== scale)
-        viewport = viewportAt(index, page, capped);
+      const viewport = drawViewport((scale) => viewportAt(index, page, scale));
+      // 描いた時の viewport（決定99 ②。drawnPicture が返す）。
+      entry.viewport = viewport;
       if (!canDrawCanvas())
         return null;
 
-      const canvas = ctx.el().doc.createElement('canvas');
-      // 1px 以上（spec-4b-7a 確定事項G3。幅 0 の canvas には描けない）。
-      canvas.width = Math.max(1, Math.round(viewport.width));
-      canvas.height = Math.max(1, Math.round(viewport.height));
+      const canvas = newCanvas(viewport);
       entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport, annotationMode: annotationMode() });
       await entry.task.promise;
       // モザイクの下見（spec-4b-6b 確定事項7）。書き込みを描かない絵をもう 1 枚描いて比べ、書き込みは塗らない。
@@ -131,11 +153,11 @@
 
     // 描いてあるページの注釈の層を描き直す（編集・undo・選択の変化）。
     // rerender に元ページ番号を渡すと、そのページは canvas ごと描き直す
-    // （読み込んだ注釈を集め終えたとき。pdf.js が描いたぶんを消すため）。
+    // （読み込んだ注釈を集め終えたとき。pdf.js が描いたぶんを消すため）。新しい絵を描き終えるまで前の絵を表示する（決定99 ②）。
     function redrawAnnotations({ rerender = [] } = {}) {
       for (const [index, entry] of [...state.rendered.entries()]) {
         if (rerender.includes(state.plan[index]?.src)) {
-          releasePage(index);
+          releasePage(index, { keepPicture: true });
           renderPage(index);
           continue;
         }
@@ -143,26 +165,61 @@
       }
     }
 
-    // 前の倍率の絵（canvas）と書き込みの層を枠に残し、ほかは外す。.pdf-page canvas は width/height 100% なので、絵は新しい枠の
-    // 大きさに引き伸ばされる。書き込みの層は前の倍率の座標のまま viewBox で伸ばす（2 回目以降は最初の大きさのまま）。
-    function holdPicture(index, node) {
-      const picture = node.querySelector(':scope > canvas');
-      const layer = node.querySelector(':scope > svg.annot-layer');
-      if (layer !== null && !layer.hasAttribute('viewBox')) {
-        layer.setAttribute('viewBox', `0 0 ${layer.getAttribute('width')} ${layer.getAttribute('height')}`);
-        layer.setAttribute('width', '100%');
-        layer.setAttribute('height', '100%');
-        layer.setAttribute('preserveAspectRatio', 'none');
-      }
-      const kept = [picture, layer].filter((part) => part !== null);
-      node.replaceChildren(...kept);
-      if (kept.length > 0)
-        held.add(index);
-      else
-        held.delete(index);
+    // ---- 前の絵（決定99 ②。page-picture.js） ----
+
+    function copyEntry(page) {
+      return root.SigK.pagePlan.clonePlan([page])[0];
     }
 
-    // 残していた前の絵を捨てる。残していなければ何もしない（描けたばかりの絵を消さないため）。
+    // 絵の記録を作る。canvas と書き込みの層は箱（div.pdf-held）に入れる。extra は standIn（代わりの絵）・fill（開き直した時）。
+    function recordOf(canvas, layer, { page, source, plan }, extra = {}) {
+      return { box: picture().wrap(ctx.el().doc, canvas, layer), canvas, page, source, plan, pixels: picture().pixelsOf(canvas), ...extra };
+    }
+
+    // 描き終えた絵を枠から取り出して、絵の記録にする。描き終えていなければ null。
+    function takePicture(index, entry) {
+      const node = ctx.el().pageNodes[index];
+      if (entry?.done !== true || node === undefined || node === null || entry.canvas?.parentNode !== node)
+        return null;
+      return recordOf(entry.canvas, node.querySelector(':scope > svg.annot-layer'), entry);
+    }
+
+    // 絵の記録を index の枠に置き、新しい絵を描き終えるまで表示する。向きと範囲が今の枠と同じ絵（倍率を変えた時・モザイクだけが変わった時・
+    // 並べ替えた時）と開き直した時の絵は、枠いっぱいに伸ばす。回転・トリミングで向きと範囲が変わったページは、絵を描いた時の回転と範囲
+    // （record.plan）から、今の枠の回転と範囲（state.plan[index]）への変換を、今の倍率の viewport で計算して適用する。
+    function placeHeld(index, record) {
+      const node = ctx.el().pageNodes[index];
+      if (node === undefined || node === null)
+        return false;
+      if (record.fill === true || picture().sameLook(record.plan, state.plan[index])) {
+        picture().fit(record.box);
+      } else {
+        const scale = state.zoom * layout().CSS_UNITS;
+        const rotation = (record.page?.rotate ?? 0) + (record.plan?.rotate ?? 0);
+        const from = root.SigK.pageViewbox.viewportFor(record.page, { scale, rotation, box: record.plan?.crop ?? null });
+        // 枠の寸法は viewer-layout.js の layoutPages と同じ計算（整数に丸める）。倍率を変えた時は、枠の寸法を書き換える前に呼ばれる。
+        const size = state.sizes[index] ?? { width: 0, height: 0 };
+        const frame = { width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)) };
+        picture().fit(record.box, from, viewportAt(index, record.page, scale), frame);
+      }
+      node.replaceChildren(record.box);
+      held.set(index, record);
+      return true;
+    }
+
+    // 控えに入れてよい絵か。代わりの絵（サムネイルを拡大した絵）と、開き直す前の文書の絵は入れない。
+    function keepable(record) {
+      return record !== null && record !== undefined && record.standIn !== true && record.fill !== true;
+    }
+
+    // 描き終えた新しい絵に置き換えた前の絵を、見た目（回転・トリミング・モザイク）が違えば控えに入れる。トリミングの取り消しで、
+    // 新しく見える余白を切る前の絵で覆うため。見た目が同じ絵（倍率を変えた時など）は、新しい絵と同じなので破棄する。
+    function keepReplaced(record, plan) {
+      if (keepable(record) && !picture().sameLook(record.plan, plan))
+        keeper.add(record);
+    }
+
+    // 表示していた前の絵を破棄する。表示していなければ何もしない（描けたばかりの絵を消さないため）。
     function dropPicture(index) {
       if (!held.delete(index))
         return;
@@ -170,18 +227,140 @@
     }
 
     function dropAllPictures() {
-      for (const index of [...held])
+      for (const index of [...held.keys()])
         dropPicture(index);
+    }
+
+    // ---- 並びの変更（決定99 ②） ----
+
+    // 並びを変える前に、枠に表示している絵（描き終えた絵と前の絵）を取り出す。前の並びの位置 → 絵の記録。
+    function takePictures() {
+      const taken = new Map(held);
+      for (const [index, entry] of state.rendered) {
+        const record = taken.has(index) ? null : takePicture(index, entry);
+        if (record !== null)
+          taken.set(index, record);
+      }
+      return taken;
+    }
+
+    // 並びを変えて枠を作り直した後で、取り出した絵を同じページの新しい枠に置く（previous は前の並び）。前の並びに無かったページは、
+    // 控え（削除の取り消しで戻ったページ・先に描いた挿入のページ）を探し、無ければ見えているページにだけサムネイルの代わりの絵を置く。
+    // 置かなかった絵（並びから外れたページ）と、控えを優先して置き換えた絵は、次の 1 回の並びの変更まで控えに残す。
+    function placePictures(previous, taken) {
+      const moves = root.SigK.pagePlan.pageMoves(previous, state.plan);
+      const range = visibleRange();
+      const spare = [];
+      moves.forEach((move, index) => {
+        const carried = move === null ? null : taken.get(move.at) ?? null;
+        if (move !== null)
+          taken.delete(move.at);
+        const source = sourceOf(index);
+        const chosen = picture().choose({ carried, keeper, source, look: state.plan[index] });
+        if (chosen.replaced !== null)
+          spare.push(chosen.replaced);
+        const record = chosen.record ?? (index >= range.first && index <= range.last ? standIn(source) : null);
+        if (record !== null)
+          placeHeld(index, record);
+      });
+      keeper.renew([...spare, ...taken.values()].filter(keepable));
+    }
+
+    // 今の並びで見えているページの範囲。
+    function visibleRange() {
+      const el = ctx.el();
+      return layout().visibleRange({ pages: state.layout.pages, scrollTop: el.view.scrollTop, viewportHeight: el.view.clientHeight });
+    }
+
+    // サムネイルの絵（小さい絵）の複製を、前の絵の代わりに拡大して表示する。サムネイルはまだ前の並びのまま（viewer.applyPlan の順番）。
+    function standIn(source) {
+      const found = source === null ? null : root.SigK.thumbnails?.standIn?.(source) ?? null;
+      return found === null ? null : recordOf(found.canvas, null, found, { standIn: true });
+    }
+
+    // 上書き保存の後に開き直した時（viewer.reopen）。保存した内容は画面と同じなので、同じ位置で寸法が同じページは、前の絵を新しい枠
+    // いっぱいに表示する。前の文書の絵なので、控えには入れない。
+    function fillPictures(taken, previousSizes) {
+      const same = (a, b) => a !== undefined && b !== undefined && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5;
+      for (const [index, record] of taken) {
+        if (same(state.sizes[index], previousSizes[index]))
+          placeHeld(index, { ...record, fill: true });
+      }
+    }
+
+    // 控えを全部破棄する（文書を閉じる・タブを移る・開き直す時と、ツールモード）。
+    function forget() {
+      keeper.clear();
+    }
+
+    // ---- 挿入・貼り付けで新しく入るページ（決定99 ②） ----
+
+    // 新しく入るページのうち、入れた後にページの表示域に見えるページを、並びに入れる前に今の倍率で描いて控えに入れる（入れた直後に
+    // 白い枠を表示しないため）。sizes は入れた後の並びの寸法、added は [{ index, doc, number }]（入れた後の位置と、描く文書とページ番号）。
+    // limit は viewer.prepareInserts の時間の上限で、cancelled になった後に描き終えた絵は控えに入れない。
+    async function prepare(sizes, added, limit) {
+      const el = ctx.el();
+      if (state.doc === null || !canDrawCanvas() || el.doc.documentElement.getAttribute('data-mode') === 'tools')
+        return;
+      const pages = layout().layoutPages({ sizes, zoom: state.zoom, facing: state.facing }).pages;
+      const range = layout().visibleRange({ pages, scrollTop: el.view.scrollTop, viewportHeight: el.view.clientHeight });
+      const shown = added.filter(({ index }) => index >= range.first && index <= range.last);
+      const owner = state.doc;
+      await Promise.all(shown.map((item) => prepareOne(item, limit, owner)));
+    }
+
+    async function prepareOne({ doc, number }, limit, owner) {
+      try {
+        const page = await doc.getPage(number);
+        if (limit.cancelled)
+          return;
+        const viewport = drawViewport((scale) => root.SigK.pageViewbox.viewportFor(page, { scale, rotation: page.rotate ?? 0 }));
+        const canvas = newCanvas(viewport);
+        const task = page.render({ canvasContext: canvas.getContext('2d'), viewport, annotationMode: annotationMode() });
+        // 描いている間だけ、時間の上限で取り消す対象にする。
+        limit.tasks.add(task);
+        try {
+          await task.promise;
+        } finally {
+          limit.tasks.delete(task);
+        }
+        if (!limit.cancelled && state.doc === owner)
+          keeper.add(recordOf(canvas, null, { page, source: { doc, number }, plan: { rotate: 0 } }));
+      } catch {
+        // 時間の上限で取り消した描画と、描けなかったページは、入れた後に今までどおり描く（描けなければ、その時に記録する）。
+      }
+    }
+
+    // ---- ① のモザイクの範囲だけを塗る処理に渡す口（決定99） ----
+
+    // 今の並びと倍率で描き終えた絵。{ canvas, viewport, page, plan }。plan は描いた時の並びの要素の写し（どのモザイクまで塗った絵か）。
+    // 描いている途中・前の絵を表示している間・描いていないページは null。
+    function drawnPicture(index) {
+      const entry = state.rendered.get(index);
+      if (entry?.done !== true || held.has(index))
+        return null;
+      return { canvas: entry.canvas, viewport: entry.viewport, page: entry.page, plan: entry.plan };
+    }
+
+    // drawnPicture の絵に、今の並びの要素のモザイクを塗った後に呼ぶ。絵の記録の並びの要素を、今の並びの要素にする（控えと並びの変更で、
+    // 絵の見た目を正しく比べるため）。
+    function markDrawn(index) {
+      const entry = state.rendered.get(index);
+      if (entry?.done === true)
+        entry.plan = copyEntry(state.plan[index]);
     }
 
     // cleanup は、画面から外れて手放すとき（update）だけ true にする。pdf.js のページが展開した画像などを捨てる（spec-4b-7a 点検の直し。
     // 捨てないと、スクロールで触れたページの分だけメモリが伸び続けた。描画が残っていれば pdf.js が終わるまで待つ）。倍率を変えて
     // 全部を描き直すとき（releaseAll）は、すぐまた使うので捨てない。
-    // keepPicture は倍率を変えて描き直すときだけ true にする。新しい絵ができるまで前の絵を残す（holdPicture）。
+    // keepPicture は、同じ枠で描き直す時（倍率を変えた時・モザイクだけが変わった時・読み込んだ書き込みを集め終えた時）に true にする。
+    // 新しい絵ができるまで前の絵（描き終えた絵か、表示していた前の絵）を表示する（placeHeld）。
     function releasePage(index, { cleanup = false, keepPicture = false } = {}) {
       const entry = state.rendered.get(index);
       if (entry === undefined)
         return;
+      // 前の絵は、枠を空にする前に取り出す。
+      const kept = keepPicture ? held.get(index) ?? takePicture(index, entry) : null;
       state.rendered.delete(index);
       entry.task?.cancel();
       if (cleanup)
@@ -192,21 +371,23 @@
       entry.annots = null;
       root.SigK.annotationFrame?.releasePage(index);
       root.SigK.freeTextEditor?.onPageReleased(index);
-      const node = ctx.el().pageNodes[index];
-      if (keepPicture && node !== undefined && node !== null) {
-        holdPicture(index, node);
+      if (kept !== null && placeHeld(index, kept))
         return;
-      }
       held.delete(index);
-      node?.replaceChildren();
+      ctx.el().pageNodes[index]?.replaceChildren();
     }
 
-    // keepPicture でなければ（閉じる・読み直す・並びが変わる・タブを移る）、残していた前の絵も捨てる。
+    // keepPicture でなければ（閉じる・読み直す・並びが変わる・タブを移る）、表示していた前の絵も破棄する。keepPicture なら、描画の記録が
+    // 無いページ（描き終える前に倍率を変えたページ）の前の絵も、今の倍率で置き直す。
     function releaseAll({ keepPicture = false } = {}) {
       for (const index of [...state.rendered.keys()])
         releasePage(index, { keepPicture });
-      if (!keepPicture)
+      if (!keepPicture) {
         dropAllPictures();
+        return;
+      }
+      for (const [index, record] of [...held.entries()])
+        placeHeld(index, record);
     }
 
     async function renderPage(index) {
@@ -214,7 +395,8 @@
         return;
 
       const token = state.token;
-      const entry = { task: null, text: null, annots: null, page: null };
+      // canvas・viewport・done は描き終えた絵、source と plan はその絵の文書とページ番号・描いた時の並びの要素（決定99 ②）。
+      const entry = { task: null, text: null, annots: null, page: null, source: null, plan: copyEntry(state.plan[index]), canvas: null, viewport: null, done: false };
       state.rendered.set(index, entry);
 
       // 捨てられたかどうかは、地図に載っているのが自分の entry かどうかで見る。
@@ -228,6 +410,7 @@
           state.rendered.delete(index);
           return;
         }
+        entry.source = source;
         const page = await source.doc.getPage(source.number);
         entry.page = page;
         if (isStale())
@@ -236,9 +419,13 @@
         const canvas = await drawCanvas({ entry, page, index });
         if (isStale())
           return;
-        // 残していた前の絵と入れ替える。絵が描けない環境（jsdom）でも枠を空にしてから書き込みの層を付ける（前の層と二重にしない）。
+        // 表示していた前の絵と入れ替える。絵が描けない環境（jsdom）でも枠を空にしてから書き込みの層を付ける（前の層と二重にしない）。
+        const replaced = held.get(index);
         held.delete(index);
         ctx.el().pageNodes[index]?.replaceChildren(...(canvas === null ? [] : [canvas]));
+        entry.canvas = canvas;
+        entry.done = canvas !== null;
+        keepReplaced(replaced, entry.plan);
         attachAnnotationLayer({ index, entry, page });
 
         await attachTextLayer({ index, entry, page, isStale });
@@ -309,6 +496,7 @@
         for (const index of [...state.rendered.keys()])
           releasePage(index, { cleanup: true });
         dropAllPictures();
+        forget();
         return;
       }
       const pages = state.layout.pages;
@@ -345,8 +533,8 @@
         if (!targets.includes(index))
           releasePage(index, { cleanup: true });
       }
-      // 倍率を変えたあと描く範囲から外れたページには、前の絵を残さない（メモリを抱えないため）。
-      for (const index of [...held]) {
+      // 描く範囲から外れたページには、前の絵を残さない（メモリを抱えないため）。
+      for (const index of [...held.keys()]) {
         if (!targets.includes(index))
           dropPicture(index);
       }
@@ -365,7 +553,13 @@
       });
     }
 
-    return { canDrawCanvas, releasePage, releaseAll, renderPage, update, scheduleUpdate, redrawAnnotations };
+    return {
+      canDrawCanvas, releasePage, releaseAll, renderPage, update, scheduleUpdate, redrawAnnotations,
+      // 並びの変更・開き直し・挿入で、前の絵を表示し続ける（決定99 ②）。
+      takePictures, placePictures, fillPictures, forget, prepare,
+      // ① のモザイクの範囲だけを塗る処理に渡す口（決定99）。
+      drawnPicture, markDrawn,
+    };
   }
 
   const SigK = (root.SigK = root.SigK || {});

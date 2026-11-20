@@ -3,6 +3,7 @@
 // 倍率を変えたとき、新しい絵ができるまで前の絵を残す（2026-10-23 ユーザーの報告「ハンドでズームすると一瞬真っ白になる」）。
 // 前は setZoom が各ページの枠を空にしてから描き直していたので、pdf.js が描き終えるまで紙の白い地が見えていた。
 // 今は前の倍率の絵（canvas）と書き込みの層（svg.annot-layer）を枠に残し、枠いっぱいに引き伸ばして見せる。
+// 前の絵は、箱（div.pdf-held。renderer/page-picture.js）に入れて、今の倍率の大きさにして表示する（docs/07 決定99 ②。並びを変えた時と同じ方法）。
 // jsdom には 2D コンテキストが無いので、テストの中だけ「描ける」ことにして canvas を貼らせる。
 
 const test = require('node:test');
@@ -31,12 +32,13 @@ function pageNode(shell, index) {
   return shell.document.querySelector(`.pdf-page[data-page="${index + 1}"]`);
 }
 
+// 枠に表示している絵。描き終えた絵は枠の直下、前の絵は箱（.pdf-held）の中にある。
 function pictureOf(node) {
-  return node.querySelector(':scope > canvas');
+  return node.querySelector(':scope > canvas, :scope > .pdf-held > canvas');
 }
 
 function layerOf(node) {
-  return node.querySelector(':scope > svg.annot-layer');
+  return node.querySelector(':scope > svg.annot-layer, :scope > .pdf-held > svg.annot-layer');
 }
 
 // canvas を抱えているページの index。
@@ -60,6 +62,12 @@ test('倍率を変えた直後も、新しい絵ができるまで前の絵と�
 
   assert.equal(pictureOf(node), picture, '倍率を変えた直後に絵が消えた（描き終えるまで白くなる）');
   assert.equal(layerOf(node), layer, '倍率を変えた直後に書き込みの層が消えた');
+  // 向きと範囲は変わらないので、箱を新しい倍率の枠いっぱいに伸ばす（変換は適用しない）。
+  const box = picture.parentElement;
+  assert.equal(box.className, 'pdf-held');
+  assert.equal(box.style.width, '100%');
+  assert.equal(box.style.height, '100%');
+  assert.equal(box.style.transform, '');
   // 書き込みの層は前の倍率の座標のまま、枠いっぱいに引き伸ばす。
   assert.equal(layer.getAttribute('viewBox'), `0 0 ${width} ${height}`);
   assert.equal(layer.getAttribute('width'), '100%');
@@ -78,6 +86,8 @@ test('新しい絵ができたら前の絵と入れ替え、絵も書き込み�
   await settle(shell);
 
   assert.equal(node.querySelectorAll(':scope > canvas').length, 1);
+  assert.equal(node.querySelectorAll('canvas').length, 1);
+  assert.equal(node.querySelector('.pdf-held'), null, '前の絵の箱が残っている');
   assert.notEqual(pictureOf(node), picture, '前の絵のまま');
   assert.equal(node.querySelectorAll(':scope > svg.annot-layer').length, 1);
   assert.notEqual(layerOf(node).getAttribute('width'), '100%', '書き込みの層が引き伸ばした前のもののまま');
@@ -95,8 +105,10 @@ test('続けて倍率を変えても、残した絵は 1 枚のまま、最初�
   shell.SigK.viewer.setZoom(2);
 
   assert.equal(pictureOf(node), picture);
-  assert.equal(node.querySelectorAll(':scope > canvas').length, 1);
+  assert.equal(node.querySelectorAll('canvas').length, 1);
+  assert.equal(node.querySelectorAll('.pdf-held').length, 1);
   assert.equal(layer.getAttribute('viewBox'), viewBox);
+  assert.equal(picture.parentElement.style.width, '100%');
 });
 
 test('倍率を変えたあと描く範囲から外れたページには、前の絵を残さない', async (t) => {
@@ -120,14 +132,19 @@ test('倍率を変えたあと描く範囲から外れたページには、前�
     assert.ok(rendered.includes(index), `描いていないページ ${index} に絵が残っている: ${after} / ${rendered}`);
 });
 
-test('前の絵を残した直後に文書を閉じても、並びを変えても、前の絵は残らない', async (t) => {
+test('前の絵を残した直後に並びを変えると、前の絵を新しい枠に移し、描き終えた後と文書を閉じた後は残らない', async (t) => {
   const shell = await withOpenDocument(t);
   const { SigK } = shell;
+  const picture = pictureOf(pageNode(shell, 0));
 
   SigK.viewer.setZoom(2);
   SigK.viewer.applyPlan(SigK.pagePlan.rotatePages(SigK.viewer.getPlan(), [0], 90));
-  assert.deepEqual(pagesWithPicture(shell), [], '並びを変えたのに前の絵が残っている');
+  // 並びを変えると枠を作り直すが、前の絵は回転して新しい枠に表示する（docs/07 決定99 ②。前はここで前の絵を捨てていた）。
+  assert.equal(pictureOf(pageNode(shell, 0)), picture, '並びを変えた直後に前の絵が消えた');
+  assert.equal(pageNode(shell, 0).querySelectorAll('canvas').length, 1);
   await settle(shell);
+  assert.notEqual(pictureOf(pageNode(shell, 0)), picture, '描き終えたのに前の絵のまま');
+  assert.equal(shell.document.querySelectorAll('.pdf-held').length, 0, '描き終えたのに前の絵の箱が残っている');
 
   SigK.viewer.setZoom(1.5);
   SigK.viewer.close();
