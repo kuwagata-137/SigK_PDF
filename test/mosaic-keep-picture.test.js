@@ -40,8 +40,9 @@ function pageNode(shell, index) {
   return shell.document.querySelector(`.pdf-page[data-page="${index + 1}"]`);
 }
 
+// 枠に表示している絵。描き終えた絵は枠の直下、前の絵は絵を置く要素（.pdf-held。renderer/page-picture.js）の中にある。
 function pictureOf(node) {
-  return node.querySelector(':scope > canvas');
+  return node.querySelector(':scope > canvas, :scope > .pdf-held > canvas');
 }
 
 function thumbSheet(shell, index) {
@@ -82,6 +83,7 @@ test('モザイクを置いた直後も、そのページ枠と前の絵を残�
   await settle(shell);
   assert.notEqual(pictureOf(node), picture, '新しい絵に入れ替わっていない');
   assert.equal(node.querySelectorAll(':scope > canvas').length, 1);
+  assert.equal(node.querySelector('.pdf-held'), null, '前の絵を置く要素が残っている');
   assert.equal(node.querySelectorAll(':scope > svg.annot-layer').length, 1);
   assert.ok(node.querySelector('.textLayer') !== null, '文字の層を付け直していない');
 });
@@ -138,11 +140,16 @@ test('取り消し・やり直し・［このページのモザイクを削除�
   }
 });
 
-test('モザイク以外の欄（回転）が変わったときは、今までどおりページ枠を作り直す', async (t) => {
+test('モザイク以外の欄（回転）が変わったときは、ページ枠を作り直し、前の絵を回転して新しい枠に表示する', async (t) => {
   const { shell } = await withMosaicTool(t);
   const { SigK } = shell;
   const node = pageNode(shell, 0);
+  const picture = pictureOf(node);
   SigK.viewer.applyPlan(SigK.pagePlan.rotatePages(SigK.viewer.getPlan(), [0], 90));
   assert.notEqual(pageNode(shell, 0), node);
-  assert.equal(pictureOf(pageNode(shell, 0)), null);
+  // 前は、新しい絵を描き終えるまで白い背景だけが見えていた（docs/07 決定99 ②。plan-keep-picture.test.js）。
+  assert.equal(pictureOf(pageNode(shell, 0)), picture, '回転の直後に前の絵が消えた');
+  assert.match(picture.parentElement.style.transform, /^matrix\(/);
+  await settle(shell);
+  assert.notEqual(pictureOf(pageNode(shell, 0)), picture, '回したページを描き直していない');
 });

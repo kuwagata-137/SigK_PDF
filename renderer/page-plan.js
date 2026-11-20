@@ -153,6 +153,30 @@
       && FIELD_NAMES.every((name) => sameField(name, page[name], b[index][name])));
   }
 
+  // ---- 並びを変えた前後の対応（docs/07 決定99 ②） ----
+
+  // ページの鍵。差し込んだページは i<番号>、元のファイルのページは s<番号>。鍵が同じページは、同じ文書の同じページを描く。
+  function pageKey(page) {
+    return Number.isInteger(page?.insert) ? `i${page.insert}` : `s${page?.src}`;
+  }
+
+  // 並びを変えた前後の対応表。after の位置ごとに、同じ鍵のページが before のどの位置にあったか（at）と、回転・トリミング・モザイクも
+  // 同じか（same）を返す。before に無いページは null。同じ鍵のページが複数あれば、前から順番に対応させる。
+  // 並びを変えた時に、前の絵を同じページの新しい枠に移して、新しい絵を描き終えるまで表示するのに使う（page-render.js・thumbnails.js）。
+  function pageMoves(before, after) {
+    const queues = new Map();
+    (before ?? []).forEach((page, at) => {
+      const key = pageKey(page);
+      if (!queues.has(key))
+        queues.set(key, []);
+      queues.get(key).push(at);
+    });
+    return (after ?? []).map((page) => {
+      const at = queues.get(pageKey(page))?.shift();
+      return at === undefined ? null : { at, same: samePlan([before[at]], [page]) };
+    });
+  }
+
   // plan の要素から「どの文書の何ページ目を描くか」を返す（spec-1-6 確定事項93）。
   //
   // src なら元の文書、insert なら差し込んだ文書である。引けなければ null。
@@ -195,5 +219,7 @@
     isDirty,
     samePlan,
     sourceOf,
+    pageKey,
+    pageMoves,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -152,6 +152,34 @@
     return entries.map((_entry, index) => first + index);
   }
 
+  // 挿入・貼り付けで新しく入るページを、並びに入れる前に描いておく時間の上限（決定99 ②。Claude の判断）。過ぎたら描画を取り消し、
+  // 入れた後に今までどおり描く。描き終えるまで、挿入と貼り付けの完了が遅れるため。
+  const PREPARE_LIMIT_MS = 500;
+
+  // 挿入・貼り付けで新しく入るページのうち、入れた後に見えるページ（ページの表示域とサムネイル）を、並びに入れる前に描いておく
+  // （決定99 ②。入れた直後に白い枠を表示しない）。at は入れる位置、pages は [{ doc, number, size }]（pdf.js の文書・1 始まりのページ番号・
+  // 回転を適用する前の寸法）。描き終えたら true、時間の上限を過ぎたら false。どちらでも、呼んだ側は続けて並びに入れる。
+  async function prepareInserts({ at, pages }) {
+    if (state.doc === null || !Array.isArray(pages) || pages.length === 0)
+      return false;
+    const position = Math.max(0, Math.min(at, state.sizes.length));
+    const sizes = [...state.sizes.slice(0, position), ...pages.map((page) => page.size), ...state.sizes.slice(position)];
+    const added = pages.map((page, offset) => ({ index: position + offset, doc: page.doc, number: page.number }));
+    const limit = { cancelled: false, tasks: new Set() };
+    let timer = 0;
+    const late = new Promise((resolve) => {
+      timer = root.setTimeout(() => resolve(false), PREPARE_LIMIT_MS);
+    });
+    // 描けなくても、挿入と貼り付けは止めない（入れた後に今までどおり描く）。
+    const jobs = Promise.all([render.prepare(sizes, added, limit), root.SigK.thumbnails?.prepare?.(sizes, added, limit)]).then(() => true, () => false);
+    const finished = await Promise.race([jobs, late]);
+    root.clearTimeout(timer);
+    limit.cancelled = true;
+    for (const task of limit.tasks)
+      task.cancel?.();
+    return finished;
+  }
+
   // いま画面に出ている寸法（plan の回転を当てたあと）。差し込むページの紙の
   // 大きさを決めるのに使う（確定事項95）。
   function getSizes() {
@@ -358,22 +386,30 @@
 
     // モザイク欄だけが変わった（置いた・削除した・取り消した）ページ位置。ほかの欄も変わっていれば null。
     const repaint = root.SigK.pageMosaic?.changedPages(state.plan, nextPlan) ?? null;
+    const previous = state.plan;
+    // 並びが変わる時は、枠を作り直す前に、表示している絵を取り出す（決定99 ②）。
+    const taken = repaint === null ? render.takePictures() : null;
     state.plan = root.SigK.pagePlan.clonePlan(nextPlan);
     state.sizes = sizesFromPlan(state.plan);
     state.current = Math.min(state.sizes.length - 1, Math.max(0, state.current));
 
     if (repaint === null) {
-      // 並びも寸法も変わる。飛んでいる描画ごと捨てて枠から作り直す。
+      // 並びも寸法も変わる。飛んでいる描画ごと捨てて枠から作り直す。取り出した絵は同じページの新しい枠に置き、新しい絵を描き終えるまで
+      // 表示する（決定99 ②。前は、pdf.js が描き終えるまで全部のページの白い背景が見えていた。回転・トリミングしたページは変換して表示する）。
       state.token += 1;
       render.releaseAll();
       buildPages();
       applyLayout();
+      render.placePictures(previous, taken);
     } else {
       // ページ枠の並びと大きさは変わらないので、枠を作り直さず、モザイクが変わったページだけを描き直す。新しい絵ができるまで前の絵を
       // 残す（2026-11-17 の不具合「モザイクを配置するたびに画面がホワイトアウトする」の修正。前は枠を全部作り直していたので、pdf.js が
       // 描き終えるまでページの白い背景が見えていた。倍率を変えたときの 2026-10-23 の修正と同じ方法）。
-      for (const index of repaint)
-        render.releasePage(index, { keepPicture: true });
+      // モザイクを 1 つ追加しただけのページは、描き直さずに、追加した範囲だけを塗る（決定99 ①。page-render.js の appendMosaic）。
+      for (const index of repaint) {
+        if (!render.appendMosaic(index, previous[index]))
+          render.releasePage(index, { keepPicture: true });
+      }
     }
 
     // 検索結果は捨てる（確定事項47）。matches はページ index とページ内
@@ -594,6 +630,8 @@
   function resetView() {
     state.token += 1;
     render.releaseAll();
+    // 控えた前の絵も、閉じる文書のものなので破棄する（決定99 ②）。
+    render.forget();
     // 別の文書に移るのだから、前の文書について出した通知バーは用済みである。ツールモードの通知バーはツールの画面の知らせで、
     // 下で開くタブとは関係が無いので残す（決定80。ツールモードでもタブを開くようにしたため）。
     if (root.SigK.tools?.isToolsMode() !== true)
@@ -1002,8 +1040,12 @@
     const previous = { doc: state.doc, inserts: state.inserts };
     const scrollTop = el.view.scrollTop;
     const thumbScrollTop = root.SigK.thumbnails?.getScrollTop() ?? 0;
+    // 保存した内容は画面と同じなので、同じ位置で寸法が同じページは、新しい絵を描き終えるまで前の絵を表示する（決定99 ②）。
+    const taken = render.takePictures();
+    const previousSizes = state.sizes;
     state.token += 1;
     render.releaseAll();
+    render.forget();
     state.doc = doc;
     state.file = {
       path: filePath,
@@ -1032,8 +1074,9 @@
 
     buildPages();
     applyLayout();
+    render.fillPictures(taken, previousSizes);
     root.SigK.thumbnails?.setDocument({
-      doc, sizes: state.sizes, plan: state.plan, inserts: state.inserts, current: state.current, scrollTop: thumbScrollTop,
+      doc, sizes: state.sizes, plan: state.plan, inserts: state.inserts, current: state.current, scrollTop: thumbScrollTop, previousSizes,
     });
     el.view.scrollTop = scrollTop;
     root.SigK.shell.setStatus(el.doc, {
@@ -1111,6 +1154,7 @@
     applyPlan,
     openCanceled,
     addInserts,
+    prepareInserts,
     getInserts,
     getCopies,
     getSizes,
@@ -1124,6 +1168,9 @@
     deliverImported,
     isLive,
     redrawAnnotations,
+    // 今の並びと倍率で描き終えた絵と、その絵に塗った後の記録（決定99。page-render.js の drawnPicture・markDrawn）。
+    drawnPicture: (index) => render.drawnPicture(index),
+    markDrawn: (index, plan) => render.markDrawn(index, plan),
     getBasePageCount,
     getPaperBox,
     getTextLayer,

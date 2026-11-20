@@ -1,7 +1,7 @@
 {
   "name": "sigk-pdf",
   "productName": "SigK PDF",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "PDF の閲覧・ページ操作・結合・分割・変換・注釈を1つの画面で行う Windows デスクトップアプリ",
   "author": "kuwagata-137",
   "license": "MIT",
@@ -70,6 +70,7 @@
       "smoke-image-edit.js",
       "smoke-image-exif.js",
       "smoke-image-mosaic.js",
+      "smoke-page-repaint.js",
       "smoke-paint-watch.js",
       "smoke-annotate-steps.js",
       "smoke-annotate-report.js",

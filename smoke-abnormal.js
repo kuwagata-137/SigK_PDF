@@ -54,12 +54,13 @@ const OPEN_ONE = (filePath, zoom) => `(async () => {
     SigK.viewer.setZoom(zoom.zoom);
     SigK.viewer.goToPage(0);
     // 倍率を変えてから新しい絵が貼られるまで、1 ページ目の枠に絵が無かったフレームを数える（白く光ったフレーム。2026-10-23 の直しで 0）。
+    // 新しい絵を描き終えるまでの前の絵は、前の絵を置く要素（.pdf-held。docs/07 決定99 ②）の中にあるので、その中の canvas も絵があると数える。
     const watch = await new Promise((resolve) => {
       const started = performance.now();
       let frames = 0;
       let blankFrames = 0;
       const tick = () => {
-        const canvas = first()?.querySelector(':scope > canvas') ?? null;
+        const canvas = first()?.querySelector(':scope > canvas, :scope > .pdf-held > canvas') ?? null;
         frames += 1;
         if (canvas === null)
           blankFrames += 1;

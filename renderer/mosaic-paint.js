@@ -105,12 +105,16 @@
     return true;
   }
 
+  function disabledMode() {
+    return root.SigK.pdfjs?.lib?.AnnotationMode?.DISABLE;
+  }
+
   // 書き込みを描かない絵を、canvas と同じ大きさで描く。track(task) で描画の task を渡す（ページビューが捨てるときに止めるため）。
   async function drawBase(doc, page, viewport, canvas, { track = () => {} } = {}) {
     const base = doc.createElement('canvas');
     base.width = canvas.width;
     base.height = canvas.height;
-    const task = page.render({ canvasContext: base.getContext('2d'), viewport, annotationMode: root.SigK.pdfjs?.lib?.AnnotationMode?.DISABLE });
+    const task = page.render({ canvasContext: base.getContext('2d'), viewport, annotationMode: disabledMode() });
     track(task);
     try {
       await task.promise;
@@ -140,5 +144,6 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.mosaicPaint = { needsPaint, pixelRectOf, paint, paintOver };
+  // clipRect と drawBase は、範囲の絵から色を読む塗り方（mosaic-region.js。決定99 ①）も使う。
+  SigK.mosaicPaint = { needsPaint, pixelRectOf, clipRect: clip, paint, drawBase, paintOver };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -87,6 +87,17 @@
     return after.flatMap((entry, index) => (plan.samePlan([before[index]], [entry]) ? [] : [index]));
   }
 
+  // before と after（plan で同じ位置にある要素）の違いが「モザイクの並びの末尾に 1 つ増えただけ」なら、増えた範囲 { box, block } を返す。
+  // 減った・途中が違う・2 つ以上増えた・元ページ・回転・トリミング範囲も違うときは null。viewer.applyPlan が、ページを描き直さずに
+  // 増えた範囲だけを塗るか（mosaic-paint.js の paintAppended）を決めるのに使う（決定99 ①）。比べ方は page-plan.js の samePlan。
+  function appendedItem(before, after) {
+    const items = after?.mosaic;
+    if (before === null || typeof before !== 'object' || !Array.isArray(items) || items.length !== countOf(before) + 1)
+      return null;
+    const same = root.SigK.pagePlan.samePlan([{ ...before, mosaic: before.mosaic ?? [] }], [{ ...after, mosaic: items.slice(0, -1) }]);
+    return same ? items[items.length - 1] : null;
+  }
+
   // 確認の文の「1・3 ページ目」。NAMED_PAGES を超えたら「1・3・5・7 ページ目ほか」。positions は 0 始まり。
   function pagesLabel(positions) {
     const named = positions.slice(0, NAMED_PAGES).map((index) => index + 1).join('・');
@@ -94,5 +105,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageMosaic = { BLOCKS, DEFAULT_BLOCK, BLOCK_SIZES, isBlock, countOf, withMosaic, withoutMosaic, gridOf, indicesOf, changedPages, pagesLabel };
+  SigK.pageMosaic = { BLOCKS, DEFAULT_BLOCK, BLOCK_SIZES, isBlock, countOf, withMosaic, withoutMosaic, gridOf, indicesOf, changedPages, appendedItem, pagesLabel };
 })(typeof window !== 'undefined' ? window : globalThis);

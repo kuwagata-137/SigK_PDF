@@ -98,6 +98,10 @@
       return { error: '差し込むページを表示できませんでした。' };
     }
 
+    // 入れた後に見えるページを、並びに入れる前に描いておく（docs/07 決定99 ②。入れた直後に白い枠を表示しない）。時間の上限
+    // （viewer.prepareInserts）を過ぎたら、今までどおり入れた後に描く。
+    await viewer().prepareInserts?.({ at, pages: built.pages.map((size, index) => ({ doc, number: index + 1, size })) });
+
     // 1つの PDF から複数ページ来ることがある。控えはページごとに作り、
     // pdf.js の文書は共有する（畳むのは viewer が実体ごとに1回だけ行う）。
     // 差し込んだときの元の印も控える。保存のときにワーカーが照らす（spec-6-1 確定事項C-8）。
