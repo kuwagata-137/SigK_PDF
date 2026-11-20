@@ -8,7 +8,8 @@
   // テキストの文字の大きさ・太字・斜体・塗り・枠線・枠線の太さ（太さの行）の当て方は free-text-style.js、テキストの行に出す形は
   // free-text-style-view.js が持つ。
 
-  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border']);
+  // 塗りの透明度（fillOpacity）とハッチング（hatch。種類・色・間隔・線幅の一部）は spec-7-9 確定事項B2・C1 で追加した。
+  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'fillOpacity', 'hatch']);
   // テキストにだけある欄（テキスト以外には当てない）。
   const TEXT_ONLY = Object.freeze(['fontSize', 'bold', 'italic', 'border']);
 
@@ -18,6 +19,10 @@
 
   function textStyle() {
     return root.SigK.freeTextStyle;
+  }
+
+  function fill() {
+    return root.SigK.fillStyle;
   }
 
   // テキストについて free-text-style.js へ回す欄か。
@@ -61,6 +66,8 @@
       case 'lineStyle': return hasLineStyles(entry.kind) && style().lineStylesOf(entry.kind).includes(value);
       case 'lineWidth': return isDrawnKind(entry.kind);
       case 'opacity': return isOpacityKind(entry.kind);
+      case 'fillOpacity':
+      case 'hatch': return style().canFill(entry);
       default: return false;
     }
   }
@@ -80,9 +87,22 @@
         if (entry.lineWidth === value)
           return null;
         return { lineWidth: value, ...root.SigK.shapeGeometry.rectOfEntry(entry, { lineWidth: value }) };
-      case 'opacity': return (entry.opacity ?? 1) === value ? null : { opacity: value };
+      // 枠線の不透明度を変えても塗りつぶしは変わらないように、持っていない塗りの不透明度を今の値で残す（spec-7-9 確定事項B2）。
+      case 'opacity': return (entry.opacity ?? 1) === value ? null : { opacity: value, ...fill().keepFillOpacity(entry) };
+      case 'fillOpacity': return fill().fillOpacityOf(entry) === value ? null : { fillOpacity: value };
+      case 'hatch': return hatchPatchOf(entry, value);
       default: return null;
     }
+  }
+
+  // ハッチングの一部を当てた後のハッチング。今と同じなら null。今がなしの書き込みに種類を当てる時は、次に追加する書き込みの値の
+  // 色・間隔・線幅を使う（annotate-fill.js）。
+  function hatchPatchOf(entry, partial) {
+    const current = fill().hatchOf(entry);
+    const next = fill().mergeHatch(current, partial, root.SigK.annotateFill?.hatchMemo());
+    if (next === null)
+      return current === null ? null : { hatch: null };
+    return current !== null && ['pattern', 'color', 'gap', 'width'].every((key) => current[key] === next[key]) ? null : { hatch: next };
   }
 
   // 右パネルに渡す形（今までの約束）。テキストの太さはその枠線の太さ（枠線が無ければ null）。
@@ -98,6 +118,9 @@
       lineStyle: style().lineStyleOf(entry),
       lineWidth: text ? (border === null ? null : entry.borderWidth) : entry.lineWidth,
       opacity: entry.opacity ?? 1,
+      // 塗りの透明度とハッチング（塗りを持てる書き込みだけ。spec-7-9 確定事項B2・C1）。
+      fillOpacity: style().canFill(entry) ? fill().fillOpacityOf(entry) : null,
+      hatch: style().canFill(entry) ? fill().hatchOf(entry) : null,
       fontSize: text ? entry.fontSize : null,
       bold: text ? entry.bold === true : null,
       italic: text ? entry.italic === true : null,
@@ -116,6 +139,20 @@
   // 塗りと線なしを持てる相手か。書き込みは閉じた多角形まで見て、道具の次に付ける値（closed を持たない）は種類で見る（spec-4b-5a 確定事項5・28）。
   function fillable(target) {
     return target.kind === 'polygon' && target.closed === undefined ? style().isFillableKind(target.kind) : style().canFill(target);
+  }
+
+  // ハッチングの行の値。種類はなしを 'none' として比べ、色・間隔・線幅はハッチングのある相手だけで比べる（無ければ null）。
+  function hatchViewOf(boxed) {
+    if (boxed.length === 0)
+      return null;
+    const hatched = boxed.map((target) => target.hatch ?? null).filter((hatch) => hatch !== null);
+    const fieldOf = (field) => (hatched.length === 0 ? null : valueOf(hatched, field));
+    return {
+      pattern: valueOf(boxed.map((target) => ({ pattern: target.hatch?.pattern ?? 'none' })), 'pattern'),
+      color: fieldOf('color'),
+      gap: fieldOf('gap'),
+      width: fieldOf('width'),
+    };
   }
 
   // 右パネルの行に出す形（確定事項I1）。targets は targetOf の形（道具の次に付ける値も同じ形）。表示のみは除き、残らなければ null。
@@ -141,6 +178,10 @@
       opacity: valueOf(live.filter((target) => isOpacityKind(target.kind)), 'opacity'),
       ...textView.textViewsOf(live),
       // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸か、テキストがあるときに選べる。
+      // 見出し「枠線」「塗り」で分けるか（塗りを持てる相手があり、テキストが無い時。spec-7-9 確定事項B1）と、塗りの行の値。
+      split: boxed.length > 0 && texts.length === 0,
+      fillOpacity: valueOf(boxed, 'fillOpacity'),
+      hatch: hatchViewOf(boxed),
       boxed: boxed.length > 0,
       strokeNoneEnabled: boxed.some((target) => target.fill !== null),
       fillNoneEnabled: boxed.some((target) => target.color !== null) || texts.length > 0,

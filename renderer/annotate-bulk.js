@@ -90,6 +90,11 @@
         root.SigK.annotateShape.rememberLineWidth(value);
     } else if (field === 'opacity') {
       kinds.forEach((kind) => root.SigK.annotateOpacity.rememberOpacity(kind, value));
+    } else if (field === 'fillOpacity' && boxed) {
+      // 塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
+      root.SigK.annotateFill.rememberFillOpacity(value);
+    } else if (field === 'hatch' && boxed) {
+      root.SigK.annotateFill.rememberHatch(value);
     }
   }
 
@@ -109,7 +114,7 @@
     if (annots !== before) {
       const after = keys.map((key) => renamed.get(key) ?? key);
       // 線なしは線の色の行で選ぶので、線の色と同じ欄として続けた変更に畳む（確定事項J1）。
-      const gesture = field === 'strokeNone' ? 'color' : field;
+      const gesture = field === 'strokeNone' ? 'color' : root.SigK.annotateFill?.gestureOf(field, value) ?? field;
       root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });
       annotate().selectKeys(after);
     }

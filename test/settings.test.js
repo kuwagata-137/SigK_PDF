@@ -225,7 +225,9 @@ test('範囲外のサイドパネル幅は上下限で止まる', () => {
 // レンダラーへ渡すのは画面の見た目の設定だけである。ウィンドウの位置や履歴は渡さない。
 const DEFAULT_COLORS = { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' };
 // 図形の塗り・線なし・線種の既定（spec-4b-1b 確定事項23〜25）。
-const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { shape: false }, annotLineStyles: { shape: 'solid' } };
+const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { shape: false }, annotLineStyles: { shape: 'solid' },
+  // 塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
+  annotFillOpacity: { shape: 1 }, annotHatch: { shape: { pattern: 'none', color: '#ff0000', gap: 6, width: 1 } } };
 // 最近使用した色と直前の色（spec-7-2 確定事項A4・B2）。
 const DEFAULT_COLOR_MEMORY = { annotRecentColors: [], annotLastColors: { line: '#ed7d31', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 8 } };
 const DEFAULT_OPACITY = { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 };

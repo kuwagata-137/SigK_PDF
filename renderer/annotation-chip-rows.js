@@ -120,7 +120,7 @@
     if (view === null || view.fill === null)
       return false;
     return popover().toggle(chip, {
-      title: '塗り',
+      title: '塗りつぶし',
       current: view.fill.mixed ? null : view.fill.value,
       role: 'fill',
       none: { label: '塗りなし', enabled: view.fillNoneEnabled },

@@ -8,6 +8,8 @@
 // できない。test/settings.test.js が一致を見張る）。受け取れない値は、渡された fallback、それも無ければ既定へ落とす。
 
 const { ANNOT_FONT_SIZES, textDefaults, pickTextSettings } = require('./annotation-text-settings.js');
+// 図形の塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
+const { fillDefaults, pickFillSettings, mergeFillSettings } = require('./annotation-fill-settings.js');
 
 // 色の移し替えを済ませた設定に書く印。1 が候補の色の移し替え（確定事項15）、2 が図形の既定の色の移し替え
 // （#c00000 → #ff0000。2026-10-14 のユーザーの指示）。
@@ -20,6 +22,7 @@ const ANNOT_DEFAULTS = {
   annotFills: { shape: null },
   annotStrokeNone: { shape: false },
   annotLineStyles: { shape: 'solid' },
+  ...fillDefaults(),
   ...textDefaults(),
   annotLineWidth: 2,
   annotMarkerWidth: 12,
@@ -195,6 +198,7 @@ function pickAnnotSettings(source) {
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(raw.annotStrokeNone, ANNOT_DEFAULTS.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(raw.annotLineStyles, ANNOT_DEFAULTS.annotLineStyles),
+    ...pickFillSettings(raw, ANNOT_DEFAULTS),
     ...pickTextSettings(raw, ANNOT_DEFAULTS),
     annotLineWidth: pickAnnotLineWidth(raw.annotLineWidth, ANNOT_DEFAULTS.annotLineWidth),
     annotMarkerWidth: pickAnnotLineWidth(raw.annotMarkerWidth, ANNOT_DEFAULTS.annotMarkerWidth, ANNOT_DEFAULTS.annotMarkerWidth),
@@ -219,6 +223,7 @@ function mergeAnnotUi(current, next) {
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(merged('annotStrokeNone'), current.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(merged('annotLineStyles'), current.annotLineStyles),
+    ...mergeFillSettings(current, next),
     ...pickTextSettings({ ...next, annotTextStyle: merged('annotTextStyle'), annotCalloutStyle: merged('annotCalloutStyle') }, current),
     annotLineWidth: pickAnnotLineWidth(next.annotLineWidth, current.annotLineWidth),
     annotMarkerWidth: pickAnnotLineWidth(next.annotMarkerWidth, current.annotMarkerWidth, ANNOT_DEFAULTS.annotMarkerWidth),

@@ -9,7 +9,7 @@
   // 幾何は shape-geometry.js。正方形・正円・45° の判定は表示の座標で行う（90° 単位の回転なので
   // 紙でも同じ形になる。確定事項4）。
 
-  // { index, src, viewport, kind, start, current, points, shift, color, lineWidth, opacity, fill, lineStyle, blend }
+  // { index, src, viewport, kind, start, current, points, shift, color, lineWidth, opacity, fill, lineStyle, blend, fillOpacity, hatch }
   let draft = null;
 
   function geometry() {
@@ -19,9 +19,10 @@
   // opacity は道具の「次に付ける不透明度」（spec-4b-1a 確定事項31）。fill・lineStyle は次に付ける塗りと線種で、color は
   // 四角・丸の線なしなら null（spec-4b-1b 確定事項42）。blend はマーカーの 'multiply'（spec-4b-5b 確定事項1）。描いている途中も
   // 確定後と同じ見た目で描く。
-  function begin({ index, src, viewport, kind, point, shift = false, color, lineWidth, opacity = 1, fill = null, lineStyle = 'solid', blend }) {
+  // fillOpacity・hatch は次に追加する塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
+  function begin({ index, src, viewport, kind, point, shift = false, color, lineWidth, opacity = 1, fill = null, lineStyle = 'solid', blend, fillOpacity, hatch = null }) {
     draft = {
-      index, src, viewport, kind, shift, color, lineWidth, opacity, fill, lineStyle, blend,
+      index, src, viewport, kind, shift, color, lineWidth, opacity, fill, lineStyle, blend, fillOpacity, hatch,
       start: [point[0], point[1]],
       current: [point[0], point[1]],
       points: [[point[0], point[1]]],
@@ -53,7 +54,16 @@
       entry = { ...entry, fill: draft.fill };
     if (draft.lineStyle !== 'solid' && style.lineStylesOf(draft.kind).includes(draft.lineStyle))
       entry = style.restyle(entry, draft.lineStyle);
-    return entry;
+    return withFill(entry, draft);
+  }
+
+  // 塗りの透明度（枠線と違う時だけ）とハッチング（ある時だけ）を、塗りを持てる種類に載せる（spec-7-9 確定事項B2・C3）。
+  function withFill(entry, look) {
+    const apart = Number.isFinite(look.fillOpacity) && look.fillOpacity !== (entry.opacity ?? 1);
+    const hatched = look.hatch !== null && look.hatch !== undefined;
+    if ((!apart && !hatched) || !root.SigK.shapeStyle.isFillableKind(entry.kind))
+      return entry;
+    return { ...entry, ...(apart ? { fillOpacity: look.fillOpacity } : {}), ...(hatched ? { hatch: { ...look.hatch } } : {}) };
   }
 
   // 下書きを紙の座標の entry にする。points は表示の px の点列（ペンはここまでに間引いたもの）。
@@ -116,5 +126,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.shapeDraft = { begin, update, finish, cancel, draftFor, isDrawing };
+  SigK.shapeDraft = { begin, update, finish, cancel, draftFor, isDrawing, withFill };
 })(typeof window !== 'undefined' ? window : globalThis);

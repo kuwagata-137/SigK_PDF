@@ -883,6 +883,9 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
 .prop[hidden]{display:none}
 .prop .k{font-size:11px; color:var(--muted); letter-spacing:.04em}
 .prop .v{font-size:13px; line-height:1.6; overflow-wrap:anywhere}
+/* 見出し「枠線」「塗り」（spec-7-9 確定事項B1）。.prop .k より少し強い小見出しで、下に細い線。 */
+.prop-head{font-size:12px; font-weight:700; color:var(--text); padding-bottom:4px; border-bottom:1px solid var(--border); margin-top:2px}
+.prop-head[hidden]{display:none}
 .swatches{display:flex; gap:8px; min-height:26px}
 .swatch{
   width:26px; height:26px; border-radius:50%; border:1px solid rgba(16,24,40,.18);
@@ -944,6 +947,10 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
   font:13px inherit; font-family:inherit;
 }
 .size-list option{color:var(--text); background:var(--surface)}
+/* ハッチングの種類の一覧と、ハッチング間隔・ハッチング線幅の数値欄（spec-7-9 確定事項C1・C3）。 */
+.hatch-list{height:28px; padding:0 6px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2); font:13px inherit; font-family:inherit; color:var(--text)}
+.hatch-list option{color:var(--text); background:var(--surface)}
+.hatch-field input[type=number]{width:76px}
 /* 回転の行の 0°・90°・180°・270° のボタン（spec-4b-2 確定事項25。モック）。今の角度と同じものに印。 */
 .angle-presets{display:flex; gap:4px}
 .angle-presets button{

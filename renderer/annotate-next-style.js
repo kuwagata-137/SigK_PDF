@@ -55,8 +55,9 @@
   }
 
   // 次に描く書き込みの見た目（shape-draft.begin・右パネルへ渡す）。線なしなら color は null。
+  // 塗りを持てる種類は、塗りの透明度とハッチング（annotate-fill.js。spec-7-9 確定事項B2・C3）も載せる。
   function nextStyleOf(kind) {
-    return { color: strokeNoneOf(kind) ? null : colorOf(kind), fill: fillOf(kind), lineStyle: lineStyleOf(kind) };
+    return { color: strokeNoneOf(kind) ? null : colorOf(kind), fill: fillOf(kind), lineStyle: lineStyleOf(kind), ...root.SigK.annotateFill?.nextFillOf(kind) };
   }
 
   // ---- 起動時に settings.json から戻す（範囲の外は捨てる） ----

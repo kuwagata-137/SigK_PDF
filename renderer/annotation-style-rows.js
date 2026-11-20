@@ -106,8 +106,8 @@
     }
     el.fillRow.hidden = view?.fill === null || view === null;
     if (!el.fillRow.hidden) {
-      chips().renderChip(el.fillChip, el.fillName, view.fill, '塗り');
-      chips().renderMain(el.fillMain, 'fill', '塗り');
+      chips().renderChip(el.fillChip, el.fillName, view.fill, '塗りつぶし');
+      chips().renderMain(el.fillMain, 'fill', '塗りつぶし');
     }
     // 一括は塗りを持てる書き込みがあるときだけ（spec-7-2 確定事項D1）。
     el.setRow.hidden = el.fillRow.hidden;
@@ -129,6 +129,8 @@
     // テキストの行（文字の大きさ・書式。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
     root.SigK.annotationTextRows?.render(view?.fontSize ?? null);
     root.SigK.annotationTextRows?.renderFormat(view?.format ?? null);
+    // 見出し「枠線」「塗り」と塗りの見出しの行（spec-7-9 確定事項B1。annotation-fill-rows.js）。
+    root.SigK.annotationFillRows?.render(view);
     // 開いているパレットの行が消えたら閉じる。
     if (popover()?.isOpen() && popover().anchor()?.closest('.prop')?.hidden === true)
       popover().close();
@@ -198,12 +200,13 @@
     });
     // 別の欄の操作で下見を捨てる（確定事項8）。スライダー自身は除く。
     el.body.addEventListener('focusin', (event) => {
-      if (event.target !== el.widthRange && event.target !== el.opacityRange)
+      if (event.target !== el.widthRange && event.target !== el.opacityRange && event.target.id !== 'props-fill-opacity-range')
         preview()?.cancel();
     });
+    root.SigK.annotationFillRows?.init(doc, win);
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationStyleRows = { LINE_STYLE_LABELS, init, render, colorLabelOf: (kind) => patch().colorLabelOf(kind) };
+  SigK.annotationStyleRows = { LINE_STYLE_LABELS, init, render, transparencyOf, opacityOf, colorLabelOf: (kind) => patch().colorLabelOf(kind) };
 })(typeof window !== 'undefined' ? window : globalThis);

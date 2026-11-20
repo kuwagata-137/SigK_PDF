@@ -9,7 +9,8 @@
   // Esc・選択の変更・別の欄の操作があれば cancel で捨てる。何も選んでいなければ下見は無く、commit は次に付ける値を覚えるだけ。
   // 描くときは page-render.js が previewFor で差し替える（選択の枠も下見の箱に付いてくる）。
 
-  const FIELDS = Object.freeze(['lineWidth', 'opacity']);
+  // 塗りの透明度（fillOpacity）は spec-7-9 確定事項B1 で追加した。
+  const FIELDS = Object.freeze(['lineWidth', 'opacity', 'fillOpacity']);
 
   // { field, key, value }。複数を選んでいるときは key の代わりに keys（鍵の集合）。下見が無ければ null。
   let preview = null;
@@ -67,8 +68,11 @@
         delete shaped.angle;
       return shaped;
     }
+    // 枠線の不透明度の下見でも塗りつぶしは変えない（spec-7-9 確定事項B2）。
     if (preview.field === 'opacity')
-      return { ...entry, opacity: preview.value };
+      return { ...entry, opacity: preview.value, ...root.SigK.fillStyle?.keepFillOpacity(entry) };
+    if (preview.field === 'fillOpacity')
+      return { ...entry, fillOpacity: preview.value };
     // テキストの太さの行は枠線の太さ（箱も余白ごと組み直す。spec-4b-4a 確定事項G4・K2）。
     if (entry.kind === 'text')
       return { ...entry, ...(root.SigK.freeTextStyle.patchFor('lineWidth', preview.value, entry) ?? {}) };
@@ -80,7 +84,8 @@
   function commit(field, value) {
     const active = preview !== null;
     preview = null;
-    const done = field === 'opacity' ? annotate().setOpacity(value) : annotate().setLineWidth(value);
+    const commits = { opacity: 'setOpacity', fillOpacity: 'setFillOpacity', lineWidth: 'setLineWidth' };
+    const done = annotate()[commits[field] ?? 'setLineWidth'](value);
     if (active)
       redraw();
     return done;

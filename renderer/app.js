@@ -59,6 +59,9 @@
       root.SigK.annotate?.applyFills(result.ui.annotFills);
       root.SigK.annotate?.applyStrokeNone(result.ui.annotStrokeNone);
       root.SigK.annotate?.applyLineStyles(result.ui.annotLineStyles);
+      // 図形の塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
+      root.SigK.annotateFill?.applyFillOpacity(result.ui.annotFillOpacity);
+      root.SigK.annotateFill?.applyHatch(result.ui.annotHatch);
       root.SigK.annotate?.applyFontSize(result.ui.annotFontSize);
       // テキストの太字・斜体（spec-4b-4a 確定事項H）。
       root.SigK.annotateTextStyle?.applyNextStyle(result.ui.annotTextStyle);

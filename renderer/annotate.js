@@ -130,6 +130,9 @@
     setStrokeNone: () => annotateColor().setStrokeNone(),
     setFill: (color) => annotateColor().setFill(color),
     setLineStyle: (lineStyle) => annotateColor().setLineStyle(lineStyle),
+    // 塗りの透明度とハッチング（annotate-fill.js。spec-7-9 確定事項B2・C3）。
+    setFillOpacity: (value) => root.SigK.annotateFill?.setFillOpacity(value) === true,
+    setHatch: (partial) => root.SigK.annotateFill?.setHatch(partial) === true,
     getFontSize: () => tools().getFontSize(),
     applyFontSize: (size) => tools().applyFontSize(size),
     rememberFontSize: (size) => tools().rememberFontSize(size),

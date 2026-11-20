@@ -107,7 +107,8 @@
       entry.fill = next.fill;
     if (next.lineStyle !== 'solid' && style.lineStylesOf(kind).includes(next.lineStyle))
       entry = style.restyle(entry, next.lineStyle);
-    return entry;
+    // 塗りの透明度とハッチングも、閉じた多角形にだけ当てる（spec-7-9 確定事項C4）。
+    return kind === 'polygon' && shape.closed ? root.SigK.shapeDraft.withFill(entry, next) : entry;
   }
 
   // 確定する（閉じる・開いたまま）。置けない形なら何も積まない。どちらでも描きかけは終わるので true。

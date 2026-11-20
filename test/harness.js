@@ -753,6 +753,9 @@ async function createShell({
           annotFills: { ...(savedUi.annotFills ?? {}), ...(patch?.annotFills ?? {}) },
           annotStrokeNone: { ...(savedUi.annotStrokeNone ?? {}), ...(patch?.annotStrokeNone ?? {}) },
           annotLineStyles: { ...(savedUi.annotLineStyles ?? {}), ...(patch?.annotLineStyles ?? {}) },
+          // 図形の塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。ハッチングは欄ごとに重ねる。
+          annotFillOpacity: { ...(savedUi.annotFillOpacity ?? {}), ...(patch?.annotFillOpacity ?? {}) },
+          annotHatch: { shape: { ...(savedUi.annotHatch?.shape ?? {}), ...(patch?.annotHatch?.shape ?? {}) } },
           // テキストの文字の大きさ（spec-4-2 確定事項21）。
           annotFontSize: patch?.annotFontSize ?? savedUi.annotFontSize,
           // 図形・ペンの線の太さと図形の種類（spec-4-3 確定事項19）。
