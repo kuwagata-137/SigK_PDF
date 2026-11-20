@@ -876,6 +876,8 @@ html[data-mode="annot"][data-tool="mosaic"] .pdf-page *{cursor:crosshair; user-s
   border-left:1px solid var(--border); display:none; flex-direction:column; min-height:0;
 }
 html[data-mode="annot"] #props{display:flex}
+/* 表示する設定が無い時は閉じる（spec-7-9 確定事項E1。判断は annotation-props.js、属性は shell.js の setPropsOpen）。 */
+html[data-mode="annot"][data-props="closed"] #props{display:none}
 .props-body{padding:12px 14px; display:flex; flex-direction:column; gap:14px; overflow:auto}
 .prop{display:flex; flex-direction:column; gap:6px}
 .prop[hidden]{display:none}

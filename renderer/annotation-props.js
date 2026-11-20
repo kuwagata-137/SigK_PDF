@@ -103,9 +103,23 @@
     return root.SigK.annotateShape?.kindOfTool(tool) ?? tool;
   }
 
+  // プロパティパネルに表示する設定があるか（spec-7-9 確定事項E1。質問 SH4「案A 設定表示時開閉」）。書き込みを選択している時と、
+  // ［選択］［ハンド］以外の書き込みツール（トリミング・モザイク・消しゴムを含む）を選択している時だけ開く。
+  const PANEL_LESS_TOOLS = Object.freeze(['select', 'hand']);
+  function wantsOpen() {
+    const tool = annotate().getTool();
+    return annotate().getSelection().length > 0 || (tool !== null && !PANEL_LESS_TOOLS.includes(tool));
+  }
+
   function refresh() {
     if (el === null)
       return false;
+    const done = renderBody();
+    root.SigK.shell?.setPropsOpen(el.doc, wantsOpen());
+    return done;
+  }
+
+  function renderBody() {
     // トリミングの道具を持っている間は、その行とボタンだけを出す（spec-4b-6a 確定事項17。trim-props.js）。モザイクの道具も同じく、
     // その行とボタンだけ（spec-4b-6b 確定事項14。mosaic-props.js）。どちらも必ず呼ぶ（持っていない側は自分の行を隠す。持ち替えたときに
     // 前の道具の行が残らないように。コードの点検で直した）。
