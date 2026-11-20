@@ -382,10 +382,40 @@
   }
 
   // drawnThumb の絵に、今の並びの要素のモザイクを塗った後に呼ぶ（page-render.js の markDrawn と同じ）。
-  function markDrawn(index) {
+  function markDrawn(index, plan = state.plan[index]) {
     const entry = state.rendered.get(index);
     if (entry?.done === true)
-      entry.plan = copyEntry(state.plan[index]);
+      entry.plan = copyEntry(plan);
+  }
+
+  // モザイクを 1 つ追加しただけのサムネイルは、描き直さずに、追加した範囲だけを塗る（決定99 ①。mosaic-append.js。setPlan の repaint）。
+  // 初めて使う時に作る（mosaic-append.js を読み込む順番に頼らないため）。
+  let appender = null;
+
+  function thumbAppender() {
+    appender ??= root.SigK.mosaicAppend?.create({
+      drawn: drawnThumb,
+      current: (index) => state.plan[index],
+      watch: (index, drawn) => {
+        const token = state.token;
+        return () => token === state.token && drawnThumb(index)?.canvas === drawn.canvas;
+      },
+      paint: (index, drawn, mosaic, alive) => root.SigK.mosaicRegion.paintAppended(el.doc, drawn.canvas, drawn.page, drawn.viewport, mosaic, {
+        alive,
+        track: (task) => {
+          const entry = state.rendered.get(index);
+          if (entry?.canvas === drawn.canvas)
+            entry.task = task;
+        },
+      }),
+      finish: (index, plan) => markDrawn(index, plan),
+      redraw: (index) => {
+        releaseThumb(index, { keepPicture: true });
+        schedule();
+      },
+      report: (error, index) => report(error, { page: index + 1 }),
+    }) ?? null;
+    return appender;
   }
 
   async function renderThumb(index) {
@@ -435,8 +465,8 @@
       canvas.height = Math.round(viewport.height);
       entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
       await entry.task.promise;
-      // モザイクの下見（spec-4b-6b 確定事項7）。
-      await root.SigK.mosaicPaint?.paintOver(el.doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; } });
+      // モザイクの下見（spec-4b-6b 確定事項7。塗り方は決定99 ① の mosaic-region.js）。pdf.js の既定の描き方で描いたので、annotationMode は渡さない。
+      await root.SigK.mosaicRegion?.paintRegions(el.doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; } });
       if (isStale())
         return;
       // 表示していた前の絵と入れ替える。
@@ -606,8 +636,10 @@
     // 「モザイクを配置するたびに画面がホワイトアウトする」の修正。枠を作り直すと、描き終えるまでサムネイルの白い背景が見えていた）。
     // 枠をまだ作っていなければ（左パネルを開き直した直後など）、下の作り直しへ進む。
     if (Array.isArray(repaint) && el.sheets.length === state.plan.length) {
-      for (const index of repaint)
-        releaseThumb(index, { keepPicture: true });
+      for (const index of repaint) {
+        if (thumbAppender()?.append(index, before[index], state.plan[index]) !== true)
+          releaseThumb(index, { keepPicture: true });
+      }
       schedule();
       return true;
     }

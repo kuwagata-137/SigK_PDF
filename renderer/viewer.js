@@ -405,8 +405,11 @@
       // ページ枠の並びと大きさは変わらないので、枠を作り直さず、モザイクが変わったページだけを描き直す。新しい絵ができるまで前の絵を
       // 残す（2026-11-17 の不具合「モザイクを配置するたびに画面がホワイトアウトする」の修正。前は枠を全部作り直していたので、pdf.js が
       // 描き終えるまでページの白い背景が見えていた。倍率を変えたときの 2026-10-23 の修正と同じ方法）。
-      for (const index of repaint)
-        render.releasePage(index, { keepPicture: true });
+      // モザイクを 1 つ追加しただけのページは、描き直さずに、追加した範囲だけを塗る（決定99 ①。page-render.js の appendMosaic）。
+      for (const index of repaint) {
+        if (!render.appendMosaic(index, previous[index]))
+          render.releasePage(index, { keepPicture: true });
+      }
     }
 
     // 検索結果は捨てる（確定事項47）。matches はページ index とページ内
@@ -1167,7 +1170,7 @@
     redrawAnnotations,
     // 今の並びと倍率で描き終えた絵と、その絵に塗った後の記録（決定99。page-render.js の drawnPicture・markDrawn）。
     drawnPicture: (index) => render.drawnPicture(index),
-    markDrawn: (index) => render.markDrawn(index),
+    markDrawn: (index, plan) => render.markDrawn(index, plan),
     getBasePageCount,
     getPaperBox,
     getTextLayer,

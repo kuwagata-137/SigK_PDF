@@ -95,8 +95,9 @@
       const canvas = newCanvas(viewport);
       entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport, annotationMode: annotationMode() });
       await entry.task.promise;
-      // モザイクの下見（spec-4b-6b 確定事項7）。書き込みを描かない絵をもう 1 枚描いて比べ、書き込みは塗らない。
-      await root.SigK.mosaicPaint?.paintOver(ctx.el().doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; } });
+      // モザイクの下見（spec-4b-6b 確定事項7）。表示のみの書き込みは塗らない。塗る色は、範囲だけを描いた小さな canvas から読む
+      // （決定99 ①。mosaic-region.js。表示中の大きな canvas から読むと、canvas 全体が CPU のメモリーへ移されて遅かった）。
+      await root.SigK.mosaicRegion?.paintRegions(ctx.el().doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; }, annotationMode: annotationMode() });
       return canvas;
     }
 
@@ -343,11 +344,61 @@
     }
 
     // drawnPicture の絵に、今の並びの要素のモザイクを塗った後に呼ぶ。絵の記録の並びの要素を、今の並びの要素にする（控えと並びの変更で、
-    // 絵の見た目を正しく比べるため）。
-    function markDrawn(index) {
+    // 絵の見た目を正しく比べるため）。続けて配置した時は、塗った時の並びの要素を plan に渡す（決定99 ①。mosaic-append.js）。
+    function markDrawn(index, plan = state.plan[index]) {
       const entry = state.rendered.get(index);
       if (entry?.done === true)
-        entry.plan = copyEntry(state.plan[index]);
+        entry.plan = copyEntry(plan);
+    }
+
+    // ① モザイクを 1 つ追加しただけのページは、描き直さずに、追加した範囲だけを塗る（決定99 ①。mosaic-append.js）。
+    const appender = root.SigK.mosaicAppend?.create({
+      drawn: drawnPicture,
+      current: (index) => state.plan[index],
+      watch: (index, drawn) => {
+        const token = state.token;
+        return () => token === state.token && drawnPicture(index)?.canvas === drawn.canvas;
+      },
+      paint: (index, drawn, mosaic, alive) => root.SigK.mosaicRegion.paintAppended(ctx.el().doc, drawn.canvas, drawn.page, drawn.viewport, mosaic, {
+        annotationMode: annotationMode(),
+        alive,
+        // 手放す時（releasePage）に、塗るために描いている四角も取り消すため。
+        track: (task) => {
+          const entry = state.rendered.get(index);
+          if (entry?.canvas === drawn.canvas)
+            entry.task = task;
+        },
+      }),
+      finish: (index, plan) => {
+        markDrawn(index, plan);
+        return refreshTextLayer(index);
+      },
+      redraw: (index) => {
+        releasePage(index, { keepPicture: true });
+        scheduleUpdate();
+      },
+      report: (error, index) => ctx.report(error, { page: index + 1 }),
+    }) ?? null;
+
+    // viewer.applyPlan が、モザイク欄だけが変わったページごとに呼ぶ。before は変更前の並びの要素（変更後は state.plan[index]）。
+    // 追加した範囲だけを塗る処理を予約したら true。false なら、呼ぶ側が今までどおり描き直す。
+    function appendMosaic(index, before) {
+      return appender?.append(index, before, state.plan[index]) ?? false;
+    }
+
+    // 範囲だけを塗った後に、そのページのテキストレイヤーを作り直す（モザイクに重なる行の文字を空にするため。描き直した時と同じ結果にする）。
+    async function refreshTextLayer(index) {
+      const entry = state.rendered.get(index);
+      if (entry?.done !== true || entry.page === null)
+        return;
+      const token = state.token;
+      const isStale = () => token !== state.token || state.rendered.get(index) !== entry;
+      try {
+        await attachTextLayer({ index, entry, page: entry.page, isStale, replace: true });
+      } catch (error) {
+        if (!isStale())
+          ctx.report(error, { page: index + 1 });
+      }
     }
 
     // cleanup は、画面から外れて手放すとき（update）だけ true にする。pdf.js のページが展開した画像などを捨てる（spec-4b-7a 点検の直し。
@@ -449,7 +500,9 @@
     //
     // canvas を貼ってから追いかける。テキストを待ってから両方を貼ると、
     // 絵が出るのがその分遅れる。
-    async function attachTextLayer({ index, entry, page, isStale }) {
+    //
+    // replace なら、新しい層を貼った後に、それまでの層を外す（範囲だけを塗った後の作り直し。決定99 ①）。
+    async function attachTextLayer({ index, entry, page, isStale, replace = false }) {
       const textLayer = root.SigK.textLayer;
       if (textLayer === undefined || !textLayer.available())
         return;
@@ -474,8 +527,13 @@
         return;
       }
 
+      const previous = entry.text;
       entry.text = handle;
       node.append(handle.node);
+      if (replace && previous !== null && previous !== handle) {
+        previous.cancel();
+        previous.node.remove();
+      }
       await handle.done;
       // 検索中なら、いま描いたページにハイライトを当てる（spec-1-4 確定事項
       // 17・20）。まだ描いていないページは span を持てないので、描いた
@@ -557,8 +615,8 @@
       canDrawCanvas, releasePage, releaseAll, renderPage, update, scheduleUpdate, redrawAnnotations,
       // 並びの変更・開き直し・挿入で、前の絵を表示し続ける（決定99 ②）。
       takePictures, placePictures, fillPictures, forget, prepare,
-      // ① のモザイクの範囲だけを塗る処理に渡す口（決定99）。
-      drawnPicture, markDrawn,
+      // ① のモザイクの範囲だけを塗る処理（決定99）。
+      drawnPicture, markDrawn, appendMosaic,
     };
   }
 
