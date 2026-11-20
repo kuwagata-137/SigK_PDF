@@ -60,7 +60,7 @@ test('一覧に「透かし」が並び、選ぶと既定値の画面が出る�
   // 色は分割ボタン（spec-7-2 確定事項E）。今の色は名前の欄に出す。
   assert.equal(byId(shell, 'wm-color-name').textContent, '#808080'.toUpperCase());
   assert.ok(byId(shell, 'wm-color-apply') !== null && byId(shell, 'wm-color') !== null);
-  assert.deepEqual([...byId(shell, 'wm-opacities').querySelectorAll('.lbl')].map((node) => node.textContent), ['15%', '30%', '50%', '100%']);
+  assert.deepEqual([...byId(shell, 'wm-opacities').querySelectorAll('.lbl')].map((node) => node.textContent), ['0%', '50%', '70%', '85%'], '透明度で、透けない順（spec-7-9 確定事項B3）');
   const cells = [...byId(shell, 'wm-grid').children];
   assert.equal(cells.length, 9);
   assert.deepEqual(cells.filter((cell) => cell.classList.contains('on')).map((cell) => cell.getAttribute('aria-label')), ['中央']);

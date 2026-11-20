@@ -201,9 +201,9 @@ test('不透明度の数値欄に打ちかけのまま別の書き込みを選�
   assert.equal(number.value, '50', '選び直した書き込みの値に替わる');
   number.dispatchEvent(new window.Event('change'));
   assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.5]);
-  number.value = '80';
+  number.value = '20';
   number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.8]);
+  assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.8], '透明度 20% は不透明度 0.8（spec-7-9 確定事項B3）');
 });
 
 test('太さの数値欄に打ちかけのまま太さの違う書き込みを足して選ぶと、欄は空で「–」になり、打ちかけの値はどちらにも当たらない', async (t) => {

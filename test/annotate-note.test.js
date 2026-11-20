@@ -360,9 +360,9 @@ test('「不透明度」の行は対象の道具と注釈で出て、道具ご�
   assert.equal(row.hidden, true);
   SigK.annotate.setTool('shape');
   assert.equal(row.hidden, false);
-  // 10〜100% のスライダーと数値欄（spec-4b-1b 確定事項7）。
-  assert.deepEqual([number.min, number.max, number.value], ['10', '100', '100']);
-  shell.slide('props-opacity-range', [80, 50]);
+  // 透明度 0〜90% のスライダーと数値欄（spec-4b-1b 確定事項7。名前と向きは spec-7-9 確定事項B3）。
+  assert.deepEqual([number.min, number.max, number.value], ['0', '90', '0']);
+  shell.slide('props-opacity-range', [20, 50]);
   assert.equal(SigK.annotate.getOpacity('shape'), 0.5);
   assert.equal(SigK.annotate.getOpacity('square'), 0.5);
   assert.equal(SigK.annotate.getOpacity('pen'), 1);
@@ -377,7 +377,7 @@ test('「不透明度」の行は対象の道具と注釈で出て、道具ご�
   assert.equal(SigK.annotate.setOpacity(0.05), false);
   assert.equal(SigK.annotate.setOpacity(1.2), false);
   assert.equal(SigK.annotate.setOpacity(0.25), true);
-  assert.equal(number.value, '25');
+  assert.equal(number.value, '75', '不透明度 0.25 は透明度 75%');
   // 次に置く付箋に付く。
   clickAt(shell, 200, 600);
   assert.equal(SigK.viewer.getAnnotations().added[0].opacity, 0.25);
@@ -388,8 +388,8 @@ test('選んでいる注釈の不透明度を変えると 1 世代積み、層�
   const { SigK, document } = shell;
   clickAt(shell, 200, 600);
   const entry = SigK.viewer.getAnnotations().added[0];
-  assert.equal(document.getElementById('props-opacity').value, '100');
-  shell.slide('props-opacity-range', [70, 50]);
+  assert.equal(document.getElementById('props-opacity').value, '0');
+  shell.slide('props-opacity-range', [30, 50]);
   assert.equal(SigK.viewer.getAnnotations().added[0].opacity, 0.5);
   assert.equal(pageNode(shell).querySelector(`.annot-layer g[data-annot="${entry.id}"]`).getAttribute('opacity'), '0.5');
   assert.equal(SigK.annotate.getOpacity('note'), 0.5, '変えた値は次の値にもなる');
@@ -420,9 +420,9 @@ test('読み込んだ注釈の不透明度は、スライダーと数値欄に %
   const shell = await withShell(t, { stub: { annotations: { 0: [{ id: '31R', subtype: 'Ink', rect: [58, 298, 222, 362], color: new Uint8ClampedArray([43, 92, 217]), borderStyle: { width: 3 }, inkLists: [new Float32Array([60, 300, 100, 360, 140, 300])], opacity: 0.6 }] } } });
   const { SigK, document } = shell;
   SigK.annotate.select('31R');
-  assert.equal(document.getElementById('props-opacity').value, '60');
-  assert.equal(document.getElementById('props-opacity-range').value, '60');
+  assert.equal(document.getElementById('props-opacity').value, '40', '不透明度 0.6 は透明度 40%');
+  assert.equal(document.getElementById('props-opacity-range').value, '40');
   SigK.annotate.select(null);
   SigK.annotate.setTool('pen');
-  assert.equal(document.getElementById('props-opacity').value, '100');
+  assert.equal(document.getElementById('props-opacity').value, '0');
 });

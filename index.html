@@ -500,7 +500,7 @@ body{
               </div>
               <span class="k" id="wm-color-key">色</span>
               <div class="chip-row wm-color" id="wm-colors"><span class="split"><button type="button" class="split-main" id="wm-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="wm-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="sw"></span><span class="name" id="wm-color-name"></span></span></div>
-              <span class="k">不透明度</span>
+              <span class="k">透明度</span>
               <div class="picks seg" id="wm-opacities"></div>
               <span class="k">向き</span>
               <div class="picks seg">
@@ -594,7 +594,7 @@ body{
         <div class="prop" id="props-mosaic-block-row" hidden><span class="k">粗さ</span>
           <div class="props-kinds mosaic-blocks" id="props-mosaic-block" role="group" aria-label="粗さ"><button type="button" data-block="4" aria-pressed="false">細かい</button><button type="button" data-block="8" aria-pressed="true">標準</button><button type="button" data-block="14" aria-pressed="false">粗い</button></div></div>
         <div class="prop" id="props-mosaic-count-row" hidden><span class="k">このページ</span><span class="v" id="props-mosaic-count"></span></div>
-        <!-- 色・塗り・線種・線の太さ・不透明度（spec-4b-1b 確定事項1〜9）。中身と出し入れは annotation-style-rows.js。
+        <!-- 色・塗り・線種・線の太さ・透明度（spec-4b-1b 確定事項1〜9。透明度の名前と向きは spec-7-9 確定事項B3）。中身と出し入れは annotation-style-rows.js。
              色と塗りのチップを押すとパレットの窓（#color-pop）が開く。 -->
         <div class="prop" id="props-set-row" hidden><span class="k">一括</span>
           <div class="chip-row"><span class="split"><button type="button" class="split-main set-main" id="props-set-apply"><span class="set-sample" aria-hidden="true">Ab</span></button><button type="button" class="chip split-drop" id="props-set" aria-haspopup="dialog" aria-expanded="false" aria-label="一括設定メニュー"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">一括設定</span></span></div></div>
@@ -615,8 +615,8 @@ body{
         <!-- .props-field の中のキーは欄のもの（viewer-keys.js が素通しする。Esc だけは escape-order.js が field-escape.js を通して受ける）。 -->
         <div class="prop" id="props-width-row" hidden><span class="k" id="props-width-label">線の太さ</span>
           <div class="range"><input type="range" class="props-field" id="props-width-range" min="1" max="40" step="1" aria-label="線の太さ"><input type="number" class="props-field" id="props-width" min="1" max="40" step="1" aria-label="線の太さ（pt）"><span class="unit">pt</span></div></div>
-        <div class="prop" id="props-opacity-row" hidden><span class="k">不透明度</span>
-          <div class="range"><input type="range" class="props-field" id="props-opacity-range" min="10" max="100" step="1" aria-label="不透明度"><input type="number" class="props-field" id="props-opacity" min="10" max="100" step="1" aria-label="不透明度（%）"><span class="unit">%</span></div></div>
+        <div class="prop" id="props-opacity-row" hidden><span class="k">透明度</span>
+          <div class="range"><input type="range" class="props-field" id="props-opacity-range" min="0" max="90" step="1" aria-label="透明度"><input type="number" class="props-field" id="props-opacity" min="0" max="90" step="1" aria-label="透明度（%）"><span class="unit">%</span></div></div>
         <!-- 回転（spec-4b-2 確定事項25〜27。モック screenshots/phase4b-2-square.png）。四角・丸を選んでいるときだけ。中身は annotation-angle-row.js。 -->
         <div class="prop" id="props-angle-row" hidden><span class="k">回転</span>
           <div class="range"><input type="range" class="props-field" id="props-angle-range" min="0" max="359" step="1" aria-label="回転"><input type="number" class="props-field" id="props-angle" min="0" max="359" step="1" aria-label="回転（度）"><span class="unit">°</span></div>
@@ -739,7 +739,7 @@ body{
       <section class="settings-sec">
         <p class="dlg-label">ツール</p>
         <label class="print-choice settings-check"><input type="checkbox" id="settings-tool-values">ツールで選択した値を記憶し、次回起動時にも使用する</label>
-        <p class="settings-note">透かし（種類・文字・色・不透明度・角度・大きさ・位置）、PDF→画像（形式・解像度）、画像→PDF（用紙・向き・余白・出力方式）、分割（ファイル名形式）、フラット化（焼き込む書き込みの種類）。ページ範囲と、透かしに使う画像ファイルは記憶しません。</p>
+        <p class="settings-note">透かし（種類・文字・色・透明度・角度・大きさ・位置）、PDF→画像（形式・解像度）、画像→PDF（用紙・向き・余白・出力方式）、分割（ファイル名形式）、フラット化（焼き込む書き込みの種類）。ページ範囲と、透かしに使う画像ファイルは記憶しません。</p>
         <label class="print-choice settings-check"><input type="checkbox" id="settings-last-tool">最後に使用したツールを記憶し、次回ツールモードを開いたときに選択した状態にする</label>
       </section>
       <section class="settings-sec">

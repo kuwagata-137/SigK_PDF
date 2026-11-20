@@ -73,6 +73,15 @@
 
   // スライダーと数値欄。そろっていなければ、スライダーは主の値に置き、数値欄は空にして「–」を出す（確定事項I1）。
   // shown は値を欄に出す形にする（不透明度は百分率の整数。太さは読み込んだ小数のまま）。
+  // 透明度（%。0 は透けない）と不透明度（0.1〜1）の変換（spec-7-9 確定事項B3）。
+  function transparencyOf(opacity) {
+    return Math.round(100 - opacity * 100);
+  }
+
+  function opacityOf(transparency) {
+    return Math.round(100 - transparency) / 100;
+  }
+
   function renderRange(row, slider, number, value, shown) {
     row.hidden = value === null;
     if (value === null)
@@ -115,7 +124,8 @@
     if (view?.lineWidth)
       el.widthLabel.textContent = view.lineWidth.label;
     renderRange(el.widthRow, el.widthRange, el.width, view?.lineWidth ?? null, (width) => width);
-    renderRange(el.opacityRow, el.opacityRange, el.opacity, view?.opacity ?? null, (opacity) => Math.round(opacity * 100));
+    // 画面は透明度（100 − 不透明度。spec-7-9 確定事項B3。質問 NM1）。データは今までどおり不透明度で持つ。
+    renderRange(el.opacityRow, el.opacityRange, el.opacity, view?.opacity ?? null, transparencyOf);
     // テキストの行（文字の大きさ・書式。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
     root.SigK.annotationTextRows?.render(view?.fontSize ?? null);
     root.SigK.annotationTextRows?.renderFormat(view?.format ?? null);
@@ -180,9 +190,9 @@
       targetOf: targetKey,
     });
     range().bind(el.opacityRange, el.opacity, {
-      min: Math.round(OPACITY_MIN * 100), max: 100,
-      onPreview: (percent) => preview().update('opacity', percent / 100),
-      onCommit: (percent) => preview().commit('opacity', percent / 100),
+      min: 0, max: transparencyOf(OPACITY_MIN),
+      onPreview: (percent) => preview().update('opacity', opacityOf(percent)),
+      onCommit: (percent) => preview().commit('opacity', opacityOf(percent)),
       onCancel: () => preview().cancel(),
       targetOf: targetKey,
     });

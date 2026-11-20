@@ -64,7 +64,8 @@
   }
 
   function buildOpacities() {
-    for (const value of planner().OPACITIES) {
+    // 画面は透明度（100 − 不透明度。spec-7-9 確定事項B3）で、透けない順（0% から）に並べる。値は今までどおり不透明度。
+    for (const value of [...planner().OPACITIES].reverse()) {
       const label = el.doc.createElement('label');
       label.className = 'pick';
       const input = el.doc.createElement('input');
@@ -73,7 +74,7 @@
       input.value = String(value);
       const text = el.doc.createElement('span');
       text.className = 'lbl';
-      text.textContent = `${Math.round(value * 100)}%`;
+      text.textContent = `${Math.round(100 - value * 100)}%`;
       label.append(input, text);
       el.opacities.append(label);
     }
