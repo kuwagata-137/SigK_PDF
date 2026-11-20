@@ -24,6 +24,7 @@ test('幅と高さは回す前の箱の大きさで、表示は小数 1 桁', ()
   assert.deepEqual(size.sizeOf(SQUARE), { width: 200, height: 100 });
   assert.equal(size.shownOf(123.456), '123.5');
   assert.equal(size.shownOf(100), '100');
+  assert.equal(size.shownOf(650.3 - 420.05), '230.3', '引き算の誤差で 230.2 にしない');
 });
 
 test('入力した側だけを変え、箱の中心は動かさない', () => {

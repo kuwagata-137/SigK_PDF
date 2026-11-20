@@ -31,7 +31,8 @@
 
   // 数値欄に表示する値（小数 1 桁）。
   function shownOf(value) {
-    return String(Math.round(value * 10) / 10);
+    // 引き算の誤差（650.3 − 420.05 = 230.2499…）で、同じ長さの幅と高さの表示が 0.1 ずれないように、先に小数 2 桁へ丸める。
+    return String(Math.round(round(value) * 10) / 10);
   }
 
   function inRange(value) {
