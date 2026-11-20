@@ -20,6 +20,11 @@
     return root.SigK.shapePrintLayer;
   }
 
+  // 塗りと枠線を分けて描くか（fill-style.js。読み込んでいなければ分けない）。
+  function paintsApart(entry) {
+    return root.SigK.fillStyle?.paintsApart(entry) === true;
+  }
+
   // 属性に書く数。小数 2 桁で十分で、浮動小数のごみを残さない。
   function fmt(value) {
     return String(Math.round(value * 100) / 100);
@@ -64,6 +69,10 @@
   // 部品を描いて <g> を箱の中心まわりに回す（spec-4b-2 確定事項6）。
   function svgOf(doc, entry, viewport) {
     const shape = figure().figureOf(entry, viewport);
+    // 塗りと枠線を分けて描く図形（spec-7-9 確定事項B4・B5・C2。fill-apart-graphics.js）。
+    const apart = paintsApart(entry) ? root.SigK.fillApartGraphics.svgOf(doc, entry, viewport, shape) : null;
+    if (apart !== null)
+      return apart;
     const group = element(doc, 'g', {
       class: `shape ${entry.kind}`,
       stroke: shape.stroke ?? 'none',
@@ -135,6 +144,8 @@
   // 回した四角・丸は canvas を回してから描く（spec-4b-2 確定事項7）。
   function paint(ctx, entry, viewport) {
     const shape = figure().figureOf(entry, viewport);
+    if (paintsApart(entry) && root.SigK.fillApartGraphics.paint(ctx, entry, viewport, shape, root.SigK.shapeRotation?.viewRotationOf(entry, viewport) ?? null))
+      return 1;
     const alpha = entry.opacity !== undefined && entry.opacity < 1 ? entry.opacity : 1;
     const marker = root.SigK.shapeStyle.isMarker(entry);
     const turn = root.SigK.shapeRotation?.viewRotationOf(entry, viewport) ?? null;
@@ -159,5 +170,6 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.shapeGraphics = { svgOf, paint };
+  // partElement・tracePart・drawFigure は、塗りと枠線を分けて描く fill-apart-graphics.js も使う。
+  SigK.shapeGraphics = { svgOf, paint, partElement, tracePart, drawFigure };
 })(typeof window !== 'undefined' ? window : globalThis);
