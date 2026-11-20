@@ -82,6 +82,21 @@ test('finish は閉じるなら 3 つ以上、開いたままなら 2 つ以上�
   assert.equal(draft.finish(false), null, '描いていなければ null');
 });
 
+test('undoLast は最後の頂点を 1 つ取り消し、頂点が 1 つなら描きかけを終える。描いていなければ null（spec-7-9 確定事項A1・A2）', () => {
+  draft.cancel();
+  assert.equal(draft.undoLast(), null);
+  begin([20, 20]);
+  place([200, 20]);
+  place([200, 200]);
+  assert.equal(draft.undoLast(), 'removed');
+  assert.equal(draft.previewOf(0).vertices.length, 2);
+  assert.equal(draft.undoLast(), 'removed');
+  assert.equal(draft.previewOf(0).vertices.length, 1);
+  assert.equal(draft.undoLast(), 'cancelled');
+  assert.equal(draft.isActive(), false);
+  assert.equal(draft.undoLast(), null);
+});
+
 test('svgOf は次の辺の点線・頂点の白い丸（始点は大きめ）・3 つ以上なら始点の輪を組む', () => {
   const { document } = new JSDOM('<svg></svg>').window;
   begin();

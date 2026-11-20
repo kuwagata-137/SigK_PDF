@@ -92,8 +92,8 @@
       return;
     }
     // 右は right-button へ（spec-4b-3b 確定事項D1・D6）。中ボタンなど、ほかのボタンは何もしない。描いている途中の多角形は、右の押しで
-    // やめてメニューを出さない（spec-4b-5a 確定事項16）。
-    const dropped = (event.button ?? 0) === 2 && placing()?.cancel() === true;
+    // 最後の頂点を 1 つ取り消し、メニューを表示しない（spec-7-9 確定事項A1〜A3。spec-4b-5a 確定事項16 を改めた）。
+    const dropped = (event.button ?? 0) === 2 && placing()?.rightPress() === true;
     if ((event.button ?? 0) === 2)
       rightButton()?.down(event, { swallowed: closedEditor || closedMenu || dropped });
     if (closedEditor || closedMenu || !isLeft(event) || inEditor(event) || !inAnnotMode() || !isOpen()) {

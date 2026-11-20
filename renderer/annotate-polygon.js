@@ -138,6 +138,15 @@
     return true;
   }
 
+  // 最後の頂点を 1 つ取り消す（右クリック。spec-7-9 確定事項A1・A2。頂点が 1 つなら描画をやめる）。描いていなければ false。
+  function undoLast() {
+    if (draft().undoLast() === null)
+      return false;
+    redraw();
+    refreshProps();
+    return true;
+  }
+
   // 置ける形なら開いたまま確定する（道具・モード・タブを替える、保存・印刷の前。確定事項16）。描いていなければ false。
   function commitPending() {
     return draft().isActive() ? commit(false) : false;
@@ -173,6 +182,7 @@
     draftFor,
     marksFor,
     isDrawing: () => draft().isActive(),
+    undoLast,
     isPolygonTool,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

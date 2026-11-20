@@ -157,6 +157,37 @@ test('Esc・右クリック・Ctrl+Z でやめ、Ctrl+Z では履歴を動かさ
   assert.equal(added(shell).length, 1, '確定した多角形は残る');
 });
 
+test('描いている途中の右クリックは、最後の頂点を 1 つだけ取り消し、頂点が 1 つなら描画をやめる（spec-7-9 確定事項A1〜A3）', async (t) => {
+  const shell = await withPolygon(t);
+  const { SigK } = shell;
+  const vertexCount = () => SigK.polygonDraft.previewOf(0)?.vertices.length ?? 0;
+  const rightClick = (point) => {
+    click(shell, point, { button: 2 });
+    const [x, y] = viewportOf(shell).convertToViewportPoint(point[0], point[1]);
+    pageNode(shell).dispatchEvent(new shell.window.MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2 }));
+  };
+  click(shell, [100, 700]);
+  click(shell, [200, 700]);
+  click(shell, [200, 600]);
+  assert.equal(vertexCount(), 3);
+  rightClick([250, 650]);
+  assert.equal(SigK.annotatePolygon.isDrawing(), true, '描画は続く');
+  assert.equal(vertexCount(), 2, '最後の頂点だけを取り消す');
+  assert.equal(JSON.stringify(SigK.polygonDraft.previewOf(0).vertices.at(-1).map(Math.round)), '[200,700]');
+  assert.equal(SigK.annotationMenu.isOpen(), false, '右クリックのメニューは表示しない');
+  // 取り消した後も、続けて頂点を置いて閉じられる
+  click(shell, [150, 600]);
+  assert.equal(vertexCount(), 3);
+  rightClick([250, 650]);
+  rightClick([250, 650]);
+  assert.equal(vertexCount(), 1);
+  rightClick([250, 650]);
+  assert.equal(SigK.annotatePolygon.isDrawing(), false, '頂点が 1 つの時は描画をやめる');
+  assert.equal(SigK.annotationMenu.isOpen(), false);
+  assert.equal(added(shell).length, 0, '書き込みは追加しない');
+  assert.equal(SigK.annotate.getTool(), 'shape', '書き込みツールは選択したまま');
+});
+
 test('道具を替えると置ける形なら開いたまま確定し、ほかのページの押し離しは無視する', async (t) => {
   const shell = await withPolygon(t);
   const { SigK, document } = shell;
