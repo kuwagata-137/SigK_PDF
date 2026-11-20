@@ -91,7 +91,11 @@
     if (next === null || !Number.isFinite(detail.ca))
       return next;
     // 不透明度 0（見えない）は直す形にしない。pdf.js が描くまま（見えないまま）にする。
-    return detail.ca <= 0 ? null : { ...next, opacity: Math.min(1, detail.ca) };
+    if (detail.ca <= 0)
+      return null;
+    // 塗りと枠線を分けて描いた外観は、外観の属性の不透明度とハッチングを使う（spec-7-9 確定事項B2・C1。imported-fill-style.js）。
+    const opaque = { ...next, opacity: Math.min(1, detail.ca) };
+    return root.SigK.importedFillStyle?.withFillStyle(opaque, detail.fillStyle) ?? opaque;
   }
 
   // 種類ごとの組み直し。自前のテキストは新しい形、多角形は塗り・回転（答えが無ければ回っていないとして頂点を丸める）。

@@ -39,7 +39,7 @@ function appearanceStream(context, appearance, font) {
   const gs = { Type: 'ExtGState', CA: appearance.opacity, ca: appearance.opacity };
   if (appearance.blend)
     gs.BM = appearance.blend;
-  const resources = { ExtGState: { GS: gs } };
+  const resources = appearance.apart === undefined ? { ExtGState: { GS: gs } } : apartResources(context, appearance);
   if (font !== null && font !== undefined)
     resources.Font = { [font.measure.name]: font.font.ref };
   const outer = appearance.matrix === undefined ? { Resources: resources } : { Resources: resources, Matrix: appearance.matrix };
@@ -51,6 +51,18 @@ function appearanceStream(context, appearance, font) {
     return formStream(context, outerContent, appearance.bbox, outer);
   }
   return formStream(context, appearance.content, appearance.bbox, outer);
+}
+
+// 塗りと枠線を分けて描く図形の資源（spec-7-9 確定事項B4・B5・C1。fill-apart-appearance.js）。塗りの GF と枠線の GL の ExtGState、
+// 枠線の帯を抜く輝度の SMask（Form）、マーク付き内容の属性 /Properties。
+function apartResources(context, appearance) {
+  const { mask, states, properties } = appearance.apart;
+  const fill = { Type: 'ExtGState', ...states.GF };
+  if (mask !== null) {
+    const group = formStream(context, mask, appearance.bbox, { Group: { S: 'Transparency', CS: 'DeviceGray' }, Resources: {} });
+    fill.SMask = { Type: 'Mask', S: 'Luminosity', G: group };
+  }
+  return { ExtGState: { GF: fill, GL: { Type: 'ExtGState', ...states.GL } }, Properties: properties };
 }
 
 function appendAnnots(page, context, PDFName, refs) {

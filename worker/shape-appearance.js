@@ -13,9 +13,9 @@ const { cloudPathOf } = require('./cloud-appearance.js');
 const { centerOf, rotatePoint, matrixOf, rectOf } = require('./shape-rotation.js');
 const { KINDS, styleOf, isShapeEntry } = require('./shape-style-rules.js');
 const { ARROW_MIN_LENGTH, ARROW_LENGTH_RATIO, ARROW_ANGLE, arrowHead } = require('./arrow-head.js');
-const { point, dashOps, lineOps, arrowOps, closedArrowOps, crossOps, polygonOps, inkOps } = require('./shape-path-ops.js');
-
-const KAPPA = 0.5523;
+const { dashOps, lineOps, arrowOps, closedArrowOps, crossOps, polygonOps, inkOps } = require('./shape-path-ops.js');
+const { KAPPA, drawWidthOf, rectPath, ellipsePath } = require('./box-path-ops.js');
+const { isApart, apartAppearanceOf } = require('./fill-apart-appearance.js');
 
 const SUBTYPES = Object.freeze({ square: 'Square', circle: 'Circle', line: 'PolyLine', arrow: 'PolyLine', cross: 'Ink', ink: 'Ink' });
 
@@ -26,34 +26,6 @@ function round(value) {
 function round4(value) {
   const rounded = Math.round(value * 10000) / 10000;
   return Object.is(rounded, -0) ? 0 : rounded;
-}
-
-// 四角・丸を描く線幅。短い辺の半分で頭打ちにする（線が箱より太くても、箱をすべて覆う。確定事項30）。
-function drawWidthOf([x1, y1, x2, y2], lineWidth) {
-  return Math.max(0, Math.min(lineWidth, Math.min(x2 - x1, y2 - y1) / 2));
-}
-
-// 四角の path（inset だけ内側の re。小さすぎる箱では幅 0 で、負にしない）。
-function rectPath([x1, y1, x2, y2], inset) {
-  const inner = [Math.max(0, x2 - x1 - inset * 2), Math.max(0, y2 - y1 - inset * 2)];
-  return `${point([x1 + inset, y1 + inset])} ${point(inner)} re`;
-}
-
-// 楕円の path（箱の中心を保ち、inset だけ内側の半径でベジェ 4 本。右端から反時計回り）。
-function ellipsePath([x1, y1, x2, y2], inset) {
-  const rx = Math.max(0, (x2 - x1) / 2 - inset);
-  const ry = Math.max(0, (y2 - y1) / 2 - inset);
-  const cx = (x1 + x2) / 2;
-  const cy = (y1 + y2) / 2;
-  const kx = rx * KAPPA;
-  const ky = ry * KAPPA;
-  return [
-    `${point([cx + rx, cy])} m`,
-    `${point([cx + rx, cy + ky, cx + kx, cy + ry, cx, cy + ry])} c`,
-    `${point([cx - kx, cy + ry, cx - rx, cy + ky, cx - rx, cy])} c`,
-    `${point([cx - rx, cy - ky, cx - kx, cy - ry, cx, cy - ry])} c`,
-    `${point([cx + kx, cy - ry, cx + rx, cy - ky, cx + rx, cy])} c`,
-  ].join('\n');
 }
 
 // 四角・丸（spec-4b-1b 確定事項29〜33）。線があれば描く線幅の半分だけ内側の path に線を引き、塗りがあれば同じ path を塗る。
@@ -146,29 +118,38 @@ function turnOf(entry, bbox) {
   return { matrix: matrixOf(bbox, entry.angle), rect: rectOf(bbox, entry.angle) };
 }
 
+// 中身と透明グループ。塗りと枠線を分けて描く図形（spec-7-9 確定事項B4・B5・C2）は fill-apart-appearance.js が組み、外観が不透明度を
+// 持つので opacity（辞書の /CA と外側の /GS）は 1 にする。
+function bodyOf(entry, style, alpha) {
+  if (isApart(entry, style, alpha)) {
+    const { content, mask, states, properties, cloud } = apartAppearanceOf(entry, style, alpha);
+    return { content, group: false, cloud, opacity: 1, apart: { mask, states, properties } };
+  }
+  const { ops, cloud } = opsOf(entry, style);
+  // マーカーは不透明度によらず透明グループで包み、外側で乗算する（spec-4b-5b 確定事項10。線どうしの交わりを濃くしない。事前調査 E）。
+  const group = alpha < 1 || entry.blend === 'multiply';
+  return { content: group ? ops : `/GS gs\n${ops}`, group, cloud, opacity: alpha };
+}
+
 // 外観の中身。戻り値は { content, group, bbox, subtype, rgb, fillRgb, dash, opacity, lineWidth, cloudIntensity?, rectDifference?,
-// vertices?, lineEndings?, inkList?, matrix?, rect? }。rgb は線が無ければ null。matrix と rect は回した四角・丸だけ（bbox は回す前の
-// 箱のまま）。形が違えば null。
+// vertices?, lineEndings?, inkList?, matrix?, rect?, apart? }。rgb は線が無ければ null。matrix と rect は回した四角・丸だけ（bbox は
+// 回す前の箱のまま）。apart は塗りと枠線を分けて描く時の資源（op-annotate.js が ExtGState・SMask・Properties にする）。形が違えば null。
 function shapeAppearanceOf(entry) {
   if (!isShapeEntry(entry))
     return null;
   const style = styleOf(entry);
   const alpha = Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1;
-  const { ops, cloud } = opsOf(entry, style);
-  // マーカーは不透明度によらず透明グループで包み、外側で乗算する（spec-4b-5b 確定事項10。線どうしの交わりを濃くしない。事前調査 E）。
+  const { cloud, ...body } = bodyOf(entry, style, alpha);
   const marker = entry.blend === 'multiply';
-  const group = alpha < 1 || marker;
   const turn = turnOf(entry, entry.rect.map(round));
   return {
-    content: group ? ops : `/GS gs\n${ops}`,
-    group,
+    ...body,
     bbox: entry.rect.map(round),
     subtype: entry.kind === 'polygon' ? (entry.closed === true ? 'Polygon' : 'PolyLine') : SUBTYPES[entry.kind],
     rgb: style.stroke,
     ...styleFieldsOf(style, cloud, turn.matrix !== undefined),
     // 塗った三角は /IC に線の色（spec-4b-5a 確定事項34）。
     ...(isClosedArrow(entry) ? { fillRgb: style.stroke } : {}),
-    opacity: alpha,
     ...(marker ? { blend: 'Multiply' } : {}),
     lineWidth: round(entry.lineWidth),
     ...fieldsOf(entry),

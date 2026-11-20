@@ -11,6 +11,7 @@
 //   dash は破線のときだけの、線の太さに対する倍数（無ければ 3:2）。cloudIntensity は雲形のときだけの強さ（無ければ 1）。
 
 const { parseColor } = require('./annotation-appearance.js');
+const { fillStyleOf } = require('./fill-style-rules.js');
 
 // 図形・ペンの種類（shape-appearance.js が同じ名前で公開する）。
 const KINDS = Object.freeze(['square', 'circle', 'line', 'arrow', 'cross', 'polygon', 'ink']);
@@ -62,7 +63,8 @@ function colorsOf(entry) {
 }
 
 // 見た目の欄を読んで描く形にする。形が崩れていれば null。
-//   { stroke, fill, lineStyle, dash（描く間隔 pt。破線でなければ null）, cloudIntensity（雲形でなければ null） }
+//   { stroke, fill, lineStyle, dash（描く間隔 pt。破線でなければ null）, cloudIntensity（雲形でなければ null）,
+//     fillOpacity（塗りつぶしの不透明度。無ければ opacity と同じ）, hatch（{ pattern, rgb, gap, width } か null。spec-7-9 確定事項B2・C1） }
 function styleOf(entry) {
   const colors = colorsOf(entry);
   if (colors === null)
@@ -74,8 +76,12 @@ function styleOf(entry) {
     return null;
   if (entry.cloudIntensity !== undefined && (lineStyle !== 'cloudy' || !validCloudIntensity(entry.cloudIntensity)))
     return null;
+  const fill = fillStyleOf(entry, canFill(entry), Number.isFinite(entry.opacity) ? Math.min(1, Math.max(0, entry.opacity)) : 1);
+  if (fill === null)
+    return null;
   return {
     ...colors,
+    ...fill,
     lineStyle,
     dash: lineStyle === 'dashed' ? (entry.dash ?? DEFAULT_DASH).map((ratio) => ratio * entry.lineWidth) : null,
     cloudIntensity: lineStyle === 'cloudy' ? (entry.cloudIntensity ?? DEFAULT_CLOUD_INTENSITY) : null,
