@@ -30,6 +30,11 @@
   const CLOUD_INTENSITY_MAX = 2;
   const HEX = /^#[0-9a-f]{6}$/i;
 
+  // 塗りの透明度とハッチング（fill-style.js。spec-7-9 確定事項B2・C1）。読み込んでいなければ欄が無いものとして扱う。
+  function fillFields() {
+    return root.SigK.fillStyle;
+  }
+
   function isBoxedKind(kind) {
     return BOXED_KINDS.includes(kind);
   }
@@ -101,7 +106,9 @@
       return false;
     if (entry.dash !== undefined && (lineStyle !== 'dashed' || !validDash(entry.dash)))
       return false;
-    return entry.cloudIntensity === undefined || (lineStyle === 'cloudy' && validCloudIntensity(entry.cloudIntensity));
+    if (entry.cloudIntensity !== undefined && !(lineStyle === 'cloudy' && validCloudIntensity(entry.cloudIntensity)))
+      return false;
+    return fillFields()?.validFillFields(entry) ?? true;
   }
 
   // 見た目の欄のうち、持っているものだけを写す。
@@ -116,6 +123,7 @@
       copy.cloudIntensity = entry.cloudIntensity;
     if (entry.blend !== undefined)
       copy.blend = entry.blend;
+    fillFields()?.copyFillFields(entry, copy);
     return copy;
   }
 
@@ -128,7 +136,7 @@
   // 見た目が同じか。無い欄は既定の値として比べる（lineStyle が無いものと 'solid' のものは同じ）。
   function sameStyle(a, b) {
     return fillOf(a) === fillOf(b) && lineStyleOf(a) === lineStyleOf(b) && sameDash(a.dash, b.dash) && a.blend === b.blend
-      && (lineStyleOf(a) !== 'cloudy' || cloudIntensityOf(a) === cloudIntensityOf(b));
+      && (lineStyleOf(a) !== 'cloudy' || cloudIntensityOf(a) === cloudIntensityOf(b)) && (fillFields()?.sameFillFields(a, b) ?? true);
   }
 
   // 線種を替えた書き込み。読み込んだ間隔と強さは捨て、雲形にしたときの強さは 1 にする（確定事項18）。同じ線種なら替えない。
@@ -145,7 +153,7 @@
 
   // ワーカーへ渡す見た目の欄（確定事項35）。既定と違うものだけを載せる（塗りなし・実線・ふつうの重ね方は載せない）。
   function saveStyle(entry) {
-    const saved = entry.blend === undefined ? {} : { blend: entry.blend };
+    const saved = { ...(entry.blend === undefined ? {} : { blend: entry.blend }), ...fillFields()?.saveFillFields(entry) };
     if (fillOf(entry) !== null)
       saved.fill = entry.fill;
     const lineStyle = lineStyleOf(entry);

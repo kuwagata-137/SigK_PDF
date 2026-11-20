@@ -110,6 +110,9 @@
       case 'lineStyle': return style().lineStylesOf(kind).includes(value);
       case 'text': return entryModule().isNoteKind(kind) ? typeof value === 'string' : validText(value);
       case 'opacity': return validOpacity(value);
+      // 塗りの透明度とハッチングは、塗りを持てる種類だけ（spec-7-9 確定事項B2・C4。閉じているかは当てた後の validEntry が見る）。
+      case 'fillOpacity': return style().isFillableKind(kind) && root.SigK.fillStyle.validFillOpacity(value);
+      case 'hatch': return style().isFillableKind(kind) && (value === null || root.SigK.fillStyle.validHatch(value));
       case 'fontSize': return validPositive(value);
       case 'lineWidth': return validPositive(value);
       case 'rect': return Array.isArray(value) && value.length === 4;
@@ -147,6 +150,9 @@
     const merged = { ...entry, ...rest };
     if (merged.angle === 0)
       delete merged.angle;
+    // ハッチングなしは欄を持たない（spec-7-9 確定事項C1）。
+    if (merged.hatch === null)
+      delete merged.hatch;
     if (merged.kind === 'text')
       root.SigK.freeTextEntry.tidy(merged);
     return lineStyle === undefined ? merged : style().restyle(merged, lineStyle);
