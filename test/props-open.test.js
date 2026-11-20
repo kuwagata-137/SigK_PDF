@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const { createShell, createPdfjsStub, makeSource } = require('./harness.js');
 
-// プロパティパネルの開閉（spec-7-9 確定事項E1・E2。決定100 ⑤、質問 SH4「案A 設定表示時開閉」）。
+// プロパティパネルの開閉（spec-7-9 確定事項E1・E2。決定101 ⑤、質問 SH4「案A 設定表示時開閉」）。
 // 表示する設定がある時（書き込みツールを選択した時・書き込みを選択した時）だけ開き、それ以外は閉じる。
 // jsdom は CSS を解釈しないので、<html> の data-props と、表示域の追従（viewer.refit の呼び出し）で確かめる。
 

@@ -130,7 +130,7 @@
     root.SigK.strips?.schedule();   // 帯の見えている紙も幅で決まる（spec-2-5 確定事項D8）
   }
 
-  // プロパティパネルの開閉（spec-7-9 確定事項E1・E2。決定100 ⑤）。表示する設定がある時だけ開く。判断は annotation-props.js の
+  // プロパティパネルの開閉（spec-7-9 確定事項E1・E2。決定101 ⑤）。表示する設定がある時だけ開く。判断は annotation-props.js の
   // refresh が行い、ここは <html> の data-props を変えて表示域を追従させる（左パネルの開閉と同じ合図）。変わらなければ何もしない。
   function setPropsOpen(doc, open) {
     const value = open ? 'open' : 'closed';

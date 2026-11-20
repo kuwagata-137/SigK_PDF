@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
 
-  // マーキングの値（形と大きさ）の決まりの純粋層（spec-7-9 確定事項F。決定100 ⑥）。DOM に触れない。
+  // マーキングの値（形と大きさ）の決まりの純粋層（spec-7-9 確定事項F。決定101 ⑥）。DOM に触れない。
   //
   // マーキングの書き込みは { kind: 'marking', color, opacity, lineWidth, rect, quads, text: '', marking } の形で、marking は
   //   { shape, outer, dot, ring, cross, fontSize, number? }
