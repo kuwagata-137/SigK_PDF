@@ -6,10 +6,10 @@
 // 検証用のファイル（test/fixtures の three-pages.pdf・many-pages.pdf の写しと、smoke-image-mosaic.js と同じ作り方の写真 4032 × 3024 の JPEG）をタブで開き、
 // 並びを変える操作ごとに、操作してから新しい絵を描き終えるまでの間に、絵の無い枠が見えるフレームがあるかを、次の 2 つで数える。
 //   ① 画面（レンダラー）: requestAnimationFrame ごとに、表示域に見えているページ枠（.pdf-page）と、左パネルに見えているサムネイル枠
-//      （.thumb .sheet）に canvas があるか（前の絵の箱 .pdf-held の中の canvas も、絵があると数える）。
+//      （.thumb .sheet）に canvas があるか（前の絵を置く要素 .pdf-held の中の canvas も、絵があると数える）。
 //   ② 描画したフレーム（メイン）: offscreen 描画の paint イベントの画像で、表示域の白い画素の割合（smoke-paint-watch.js）。操作の前と
 //      描き終えた後の割合より 0.1 以上白いフレームを、白いフレームと数える。PDF は白いページなので、② は写真だけで判定に使う。
-// 描き終えた後に、前の絵の箱が残っていないことと、1 つの枠に canvas が 2 枚以上無いことも見る。
+// 描き終えた後に、前の絵を置く要素が残っていないことと、1 つの枠に canvas が 2 枚以上無いことも見る。
 // ［挿入］のファイルを選ぶ画面は、main の dialog.showOpenDialog を差し替えて答える（画面を表示しない）。
 // 終わったら、開いたタブを保存せずに閉じる（あとの筋書きに影響させないため）。
 
@@ -48,7 +48,7 @@ function installWatch() {
   const shows = (rect, area) => area !== null && rect.width > 0 && rect.height > 0 && rect.bottom > area.top && rect.top < area.bottom
     && rect.right > area.left && rect.left < area.right;
 
-  // 見えている枠ごとの絵。0 は絵が無い、1 は前の絵の箱の中の絵、2 は描き終えた絵。
+  // 見えている枠ごとの絵。0 は絵が無い、1 は前の絵を置く要素の中の絵、2 は描き終えた絵。
   function visible() {
     const view = rectOf('view');
     const side = rectOf('side-scroll');
@@ -329,7 +329,7 @@ async function run({ app, win, dir, root, dialog, nativeImage }) {
     const ops = cases.flatMap((item) => item.ops);
     return {
       watchMs: WATCH_MS, whiteMargin: WHITE_MARGIN, memory, cases,
-      // 合格の目安: どの操作でも、絵の無い枠が見えるフレームが 0 で、描き終えた後に前の絵の箱も 2 枚目の canvas も残らない。
+      // 合格の目安: どの操作でも、絵の無い枠が見えるフレームが 0 で、描き終えた後に前の絵を置く要素も 2 枚目の canvas も残らない。
       total: {
         ops: ops.length,
         framesWithoutPicture: ops.reduce((sum, item) => sum + item.framesWithoutPicture, 0),

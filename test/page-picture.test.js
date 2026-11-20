@@ -34,7 +34,7 @@ function openFixture() {
 
 const apply = (m, [x, y]) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 
-// 前の絵の箱（from の大きさ）の 4 隅を、変換で移した先の外接矩形。
+// 前の絵を置く要素（from の大きさ）の 4 隅を、変換で移した先の外接矩形。
 function placedRect(m, from) {
   const corners = [[0, 0], [from.width, 0], [0, from.height], [from.width, from.height]].map((point) => apply(m, point));
   const xs = corners.map(([x]) => x);
@@ -116,7 +116,7 @@ test('回転したページのトリミングと、CropBox のあるページの
   placeAndCheck(boxed, { rotation: 0 }, { rotation: 180, box: [bx1 + 20, by1 + 30, bx2 - 40, by2 - 50] }, 'CropBox のあるページ');
 });
 
-test('箱は前の絵の大きさにして変換を当て、開き直した時は枠いっぱいに伸ばす', async () => {
+test('絵を置く要素は、前の絵の大きさにして変換を適用し、開き直した時は枠いっぱいに伸ばす', async () => {
   const { document } = new JSDOM('').window;
   const canvas = document.createElement('canvas');
   const layer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -127,7 +127,7 @@ test('箱は前の絵の大きさにして変換を当て、開き直した時�
 
   assert.equal(box.className, 'pdf-held');
   assert.deepEqual([...box.children], [canvas, layer]);
-  // 書き込みの層は描いた時の座標のまま、箱いっぱいに伸ばす（倍率を変えた時の 2026-10-23 の直しと同じ）。
+  // 書き込みの層は描いた時の座標のまま、要素いっぱいに伸ばす（倍率を変えた時の 2026-10-23 の直しと同じ）。
   assert.equal(layer.getAttribute('viewBox'), '0 0 600 800');
   assert.equal(layer.getAttribute('width'), '100%');
   assert.equal(layer.getAttribute('preserveAspectRatio'), 'none');
@@ -187,7 +187,7 @@ test('控えは見た目が同じ絵を優先して返し、画素数の合計�
   assert.equal(keeper.pixels(), 0);
 });
 
-test('控えの上限を 1 枚で超える絵は、画素数を上限の半分に縮めた絵にして、箱の中の絵も入れ替える', () => {
+test('控えの上限を 1 枚で超える絵は、画素数を上限の半分に縮めた絵にして、絵を置く要素の中の絵も入れ替える', () => {
   const { window } = new JSDOM('');
   const draws = [];
   window.HTMLCanvasElement.prototype.getContext = () => ({ drawImage: (...args) => draws.push(args) });

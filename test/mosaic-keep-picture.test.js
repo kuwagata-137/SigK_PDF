@@ -40,7 +40,7 @@ function pageNode(shell, index) {
   return shell.document.querySelector(`.pdf-page[data-page="${index + 1}"]`);
 }
 
-// 枠に表示している絵。描き終えた絵は枠の直下、前の絵は箱（.pdf-held。renderer/page-picture.js）の中にある。
+// 枠に表示している絵。描き終えた絵は枠の直下、前の絵は絵を置く要素（.pdf-held。renderer/page-picture.js）の中にある。
 function pictureOf(node) {
   return node.querySelector(':scope > canvas, :scope > .pdf-held > canvas');
 }
@@ -83,7 +83,7 @@ test('モザイクを置いた直後も、そのページ枠と前の絵を残�
   await settle(shell);
   assert.notEqual(pictureOf(node), picture, '新しい絵に入れ替わっていない');
   assert.equal(node.querySelectorAll(':scope > canvas').length, 1);
-  assert.equal(node.querySelector('.pdf-held'), null, '前の絵の箱が残っている');
+  assert.equal(node.querySelector('.pdf-held'), null, '前の絵を置く要素が残っている');
   assert.equal(node.querySelectorAll(':scope > svg.annot-layer').length, 1);
   assert.ok(node.querySelector('.textLayer') !== null, '文字の層を付け直していない');
 });

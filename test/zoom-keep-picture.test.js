@@ -3,7 +3,7 @@
 // 倍率を変えたとき、新しい絵ができるまで前の絵を残す（2026-10-23 ユーザーの報告「ハンドでズームすると一瞬真っ白になる」）。
 // 前は setZoom が各ページの枠を空にしてから描き直していたので、pdf.js が描き終えるまで紙の白い地が見えていた。
 // 今は前の倍率の絵（canvas）と書き込みの層（svg.annot-layer）を枠に残し、枠いっぱいに引き伸ばして見せる。
-// 前の絵は、箱（div.pdf-held。renderer/page-picture.js）に入れて、今の倍率の大きさにして表示する（docs/07 決定99 ②。並びを変えた時と同じ方法）。
+// 前の絵は、絵を置く要素（div.pdf-held。renderer/page-picture.js）に入れて、今の倍率の大きさにして表示する（docs/07 決定99 ②。並びを変えた時と同じ方法）。
 // jsdom には 2D コンテキストが無いので、テストの中だけ「描ける」ことにして canvas を貼らせる。
 
 const test = require('node:test');
@@ -32,7 +32,7 @@ function pageNode(shell, index) {
   return shell.document.querySelector(`.pdf-page[data-page="${index + 1}"]`);
 }
 
-// 枠に表示している絵。描き終えた絵は枠の直下、前の絵は箱（.pdf-held）の中にある。
+// 枠に表示している絵。描き終えた絵は枠の直下、前の絵は絵を置く要素（.pdf-held）の中にある。
 function pictureOf(node) {
   return node.querySelector(':scope > canvas, :scope > .pdf-held > canvas');
 }
@@ -62,7 +62,7 @@ test('倍率を変えた直後も、新しい絵ができるまで前の絵と�
 
   assert.equal(pictureOf(node), picture, '倍率を変えた直後に絵が消えた（描き終えるまで白くなる）');
   assert.equal(layerOf(node), layer, '倍率を変えた直後に書き込みの層が消えた');
-  // 向きと範囲は変わらないので、箱を新しい倍率の枠いっぱいに伸ばす（変換は適用しない）。
+  // 向きと範囲は変わらないので、絵を置く要素を新しい倍率の枠いっぱいに伸ばす（変換は適用しない）。
   const box = picture.parentElement;
   assert.equal(box.className, 'pdf-held');
   assert.equal(box.style.width, '100%');
@@ -87,7 +87,7 @@ test('新しい絵ができたら前の絵と入れ替え、絵も書き込み�
 
   assert.equal(node.querySelectorAll(':scope > canvas').length, 1);
   assert.equal(node.querySelectorAll('canvas').length, 1);
-  assert.equal(node.querySelector('.pdf-held'), null, '前の絵の箱が残っている');
+  assert.equal(node.querySelector('.pdf-held'), null, '前の絵を置く要素が残っている');
   assert.notEqual(pictureOf(node), picture, '前の絵のまま');
   assert.equal(node.querySelectorAll(':scope > svg.annot-layer').length, 1);
   assert.notEqual(layerOf(node).getAttribute('width'), '100%', '書き込みの層が引き伸ばした前のもののまま');
@@ -144,7 +144,7 @@ test('前の絵を残した直後に並びを変えると、前の絵を新し�
   assert.equal(pageNode(shell, 0).querySelectorAll('canvas').length, 1);
   await settle(shell);
   assert.notEqual(pictureOf(pageNode(shell, 0)), picture, '描き終えたのに前の絵のまま');
-  assert.equal(shell.document.querySelectorAll('.pdf-held').length, 0, '描き終えたのに前の絵の箱が残っている');
+  assert.equal(shell.document.querySelectorAll('.pdf-held').length, 0, '描き終えたのに前の絵を置く要素が残っている');
 
   SigK.viewer.setZoom(1.5);
   SigK.viewer.close();

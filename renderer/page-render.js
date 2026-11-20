@@ -171,7 +171,7 @@
       return root.SigK.pagePlan.clonePlan([page])[0];
     }
 
-    // 絵の記録を作る。canvas と書き込みの層は箱（div.pdf-held）に入れる。extra は standIn（代わりの絵）・fill（開き直した時）。
+    // 絵の記録を作る。canvas と書き込みの層は、絵を置く要素（div.pdf-held）に入れる。extra は standIn（代わりの絵）・fill（開き直した時）。
     function recordOf(canvas, layer, { page, source, plan }, extra = {}) {
       return { box: picture().wrap(ctx.el().doc, canvas, layer), canvas, page, source, plan, pixels: picture().pixelsOf(canvas), ...extra };
     }

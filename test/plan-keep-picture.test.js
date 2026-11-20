@@ -42,10 +42,10 @@ async function settle(shell) {
 
 const frames = (shell) => [...shell.document.querySelectorAll('#view-pages .pdf-page')];
 const sheets = (shell) => [...shell.document.querySelectorAll('#thumbs .thumb > .sheet')];
-// 枠に表示している絵（描き終えた絵か、前の絵の箱の中の絵）。無ければ null。
+// 枠に表示している絵（描き終えた絵か、前の絵を置く要素の中の絵）。無ければ null。
 const pictureOf = (node) => node?.querySelector(':scope > canvas, :scope > .pdf-held > canvas') ?? null;
 const pictures = (nodes) => nodes.map(pictureOf);
-// 前の絵の箱に当てた transform（箱に入っていなければ null）。
+// 前の絵を置く要素に適用した transform（要素に入っていなければ null）。
 const transformOf = (canvas) => (canvas?.parentElement?.classList.contains('pdf-held') ? canvas.parentElement.style.transform : null);
 const matrixOf = (canvas) => transformOf(canvas)?.match(/^matrix\((.*)\)$/)?.[1].split(',').map(Number) ?? null;
 // 変換の a・b・c・d が expected とほぼ同じか（枠の寸法を整数に丸めた分だけ、1 から少しずれる）。
@@ -64,7 +64,7 @@ function assertOnePicture(shell, label) {
     assert.ok(node.querySelectorAll('canvas').length <= 1, `${label}: 1 つの枠に絵が 2 枚ある`);
 }
 
-// 描き終えた後は、前の絵の箱が残らず、描いた枠には新しい絵が 1 枚だけある。
+// 描き終えた後は、前の絵を置く要素が残らず、描いた枠には新しい絵が 1 枚だけある。
 function assertSettled(shell, label) {
   assert.equal(shell.document.querySelectorAll('.pdf-held').length, 0, `${label}: 描き終えた後も前の絵が残っている`);
   assertOnePicture(shell, label);

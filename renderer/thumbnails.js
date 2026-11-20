@@ -235,7 +235,7 @@
   }
 
   // 絵の記録を index の枠に置く。same（同じページが同じ見た目のまま位置だけ変わった）で完成した絵なら、描き終えた絵として入れ、描き直さない。
-  // ほかは箱に入れて、絵を描いた時の回転と範囲から今の枠への変換を適用し、新しい絵を描き終えるまで表示する。
+  // ほかは絵を置く要素に入れて、絵を描いた時の回転と範囲から今の枠への変換を適用し、新しい絵を描き終えるまで表示する。
   function placeThumb(index, record, { same = false } = {}) {
     const sheet = el.sheets[index];
     if (sheet === undefined)
@@ -254,7 +254,7 @@
     return true;
   }
 
-  // 前の絵の箱をサムネイル枠に合わせる（page-render.js の placeHeld と同じ考え方）。向きと範囲が同じ絵は枠いっぱいに伸ばす。ほかは、枠の幅
+  // 前の絵を置く要素をサムネイル枠に合わせる（page-render.js の placeHeld と同じ考え方）。向きと範囲が同じ絵は枠いっぱいに伸ばす。ほかは、枠の幅
   // （CSS px）から倍率を求めて変換を適用する。枠の大きさが分からなければ（jsdom）、配置の計算の大きさを使う。
   function fitThumb(index, record, sheet) {
     const now = state.plan[index];
