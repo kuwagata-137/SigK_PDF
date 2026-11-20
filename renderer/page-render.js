@@ -294,6 +294,24 @@
       keeper.clear();
     }
 
+    // ---- タブを移る時（決定100 ①） ----
+
+    // タブを移る前に、ページの表示域に見えているページの絵（描き終えた絵と前の絵）を取り出す。前の並びの位置 → 絵の記録。
+    // 画素数の合計が limit を超えたら、全部を同じ割合で縮める（戻った時に新しい絵を描き終えるまでの間だけ表示するので、ぼやけてもよい）。
+    function takeVisible(limit) {
+      const range = visibleRange();
+      const shown = [...takePictures()].filter(([index, record]) => index >= range.first && index <= range.last && keepable(record));
+      const total = shown.reduce((sum, [, record]) => sum + record.pixels, 0);
+      const ratio = total > limit ? limit / total : 1;
+      const taken = new Map();
+      for (const [index, record] of shown) {
+        const kept = ratio === 1 ? record : picture().shrink(record, Math.max(1, Math.floor(record.pixels * ratio)));
+        if (kept !== null)
+          taken.set(index, kept);
+      }
+      return taken;
+    }
+
     // ---- 挿入・貼り付けで新しく入るページ（決定99 ②） ----
 
     // 新しく入るページのうち、入れた後にページの表示域に見えるページを、並びに入れる前に今の倍率で描いて控えに入れる（入れた直後に
@@ -548,12 +566,21 @@
         return;
 
       const el = ctx.el();
-      // ツールモードではページの表示がツールの画面の下に隠れている。描いた分を手放して描かない（帯を押して文書を映し直すたびに、
-      // 見えないページを描かないため。spec-2-5 危ない所「メモリ」）。モードを抜けると shell.setMode の refit が描き直す。
+      // ツールモードではページの表示がツールの画面の下に隠れている。描かない（帯を押して文書を映し直すたびに、見えないページを描かない
+      // ため。spec-2-5 危ない所「メモリ」）。見えている範囲の描き終えた絵と前の絵は残し、ツールモードから戻った時にそのまま表示する
+      // （決定100 ②。前は全部を手放したので、戻ると描き終えるまでページの白い背景が見えていた）。描いている途中のページと、
+      // 見えている範囲の外のページは手放す。モードを抜けると shell.setMode の refit が、足りないページを描く。
       if (el.doc.documentElement.getAttribute('data-mode') === 'tools') {
-        for (const index of [...state.rendered.keys()])
-          releasePage(index, { cleanup: true });
-        dropAllPictures();
+        const shown = visibleRange();
+        const inside = (index) => index >= shown.first && index <= shown.last;
+        for (const [index, entry] of [...state.rendered.entries()]) {
+          if (entry.done !== true || !inside(index))
+            releasePage(index, { cleanup: true, keepPicture: inside(index) });
+        }
+        for (const index of [...held.keys()]) {
+          if (!inside(index))
+            dropPicture(index);
+        }
         forget();
         return;
       }
@@ -615,6 +642,8 @@
       canDrawCanvas, releasePage, releaseAll, renderPage, update, scheduleUpdate, redrawAnnotations,
       // 並びの変更・開き直し・挿入で、前の絵を表示し続ける（決定99 ②）。
       takePictures, placePictures, fillPictures, forget, prepare,
+      // タブを移る時に、見えているページの絵を残す（決定100 ①）。
+      takeVisible,
       // ① のモザイクの範囲だけを塗る処理（決定99）。
       drawnPicture, markDrawn, appendMosaic,
     };
