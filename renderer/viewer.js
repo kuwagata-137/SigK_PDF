@@ -396,11 +396,19 @@
     if (repaint === null) {
       // 並びも寸法も変わる。飛んでいる描画ごと捨てて枠から作り直す。取り出した絵は同じページの新しい枠に置き、新しい絵を描き終えるまで
       // 表示する（決定99 ②。前は、pdf.js が描き終えるまで全部のページの白い背景が見えていた。回転・トリミングしたページは変換して表示する）。
+      // ［全体］か［幅］を選んでいる時は、今のページに合わせて倍率を計算し直す（決定100 ④。回転・トリミングで今のページの大きさが
+      // 変わると、前は倍率が変わらず、ページが表示域からはみ出したり小さく表示されたりした。refit・setFacing と同じ計算）。
+      // 取り出した絵は、新しい倍率で同じページの新しい枠に合わせて置く（page-render.js の placeHeld は今の倍率で変換を計算する）。
+      const zoomBefore = state.zoom;
+      if (state.fit !== null)
+        state.zoom = layout().clampZoom(fitZoomFor(state.fit));
       state.token += 1;
       render.releaseAll();
       buildPages();
       applyLayout();
       render.placePictures(previous, taken);
+      if (state.zoom !== zoomBefore)
+        goToPage(state.current);
     } else {
       // ページ枠の並びと大きさは変わらないので、枠を作り直さず、モザイクが変わったページだけを描き直す。新しい絵ができるまで前の絵を
       // 残す（2026-11-17 の不具合「モザイクを配置するたびに画面がホワイトアウトする」の修正。前は枠を全部作り直していたので、pdf.js が
