@@ -237,3 +237,61 @@ test('3回回した時点では dirty', () => {
 
   assert.equal(plan.isDirty(current, 2), true);
 });
+
+// ---- 並びを変えた前後の対応（docs/07 決定99 ②） ----
+// 並びを変えた時に、前の絵を同じページの新しい枠に移して表示するのに使う。位置ではなくページの鍵で対応させる。
+
+test('pageKey は、元のファイルのページを s<番号>、差し込んだページを i<番号> にする', () => {
+  assert.equal(plan.pageKey({ src: 3, rotate: 90 }), 's3');
+  assert.equal(plan.pageKey({ insert: 0, rotate: 0 }), 'i0');
+  // 差し込んだページは、同じ番号の元のファイルのページと区別する。
+  assert.notEqual(plan.pageKey({ insert: 2, rotate: 0 }), plan.pageKey({ src: 2, rotate: 0 }));
+});
+
+test('pageMoves は、並べ替えたページの前の位置を返し、欄が同じなら same にする', () => {
+  const before = plan.createPlan(4);
+  const after = plan.movePages(before, [0], 3).plan;
+
+  assert.deepEqual(after.map((page) => page.src), [1, 2, 0, 3]);
+  assert.deepEqual(plan.pageMoves(before, after), [
+    { at: 1, same: true },
+    { at: 2, same: true },
+    { at: 0, same: true },
+    { at: 3, same: true },
+  ]);
+});
+
+test('pageMoves は、回転・トリミング・モザイクが変わったページを same にしない', () => {
+  const before = plan.createPlan(4);
+  const rotated = plan.rotatePages(before, [0], 90);
+  const cropped = plan.cropPages(rotated, new Map([[1, (page) => ({ ...page, crop: [10, 10, 200, 300] })]]));
+  const after = plan.editPages(cropped, new Map([[2, (page) => ({ ...page, mosaic: [{ box: [0, 0, 50, 50], block: 8 }] })]]));
+
+  assert.deepEqual(plan.pageMoves(before, after), [
+    { at: 0, same: false },
+    { at: 1, same: false },
+    { at: 2, same: false },
+    { at: 3, same: true },
+  ]);
+});
+
+test('pageMoves は、削除したページを返さず、前に無いページ（挿入・取り消しで戻ったページ）を null にする', () => {
+  const before = plan.createPlan(3);
+  const deleted = plan.deletePages(before, [1]).plan;
+
+  assert.deepEqual(plan.pageMoves(before, deleted), [{ at: 0, same: true }, { at: 2, same: true }]);
+  // 削除を元に戻すと、削除したページは前の並びに無い。
+  assert.deepEqual(plan.pageMoves(deleted, before), [{ at: 0, same: true }, null, { at: 1, same: true }]);
+  // 差し込んだページも前の並びに無い。差し込みの前後のページは位置がずれる。
+  const inserted = [before[0], { insert: 0, rotate: 0 }, before[1], before[2]];
+  assert.deepEqual(plan.pageMoves(before, inserted), [{ at: 0, same: true }, null, { at: 1, same: true }, { at: 2, same: true }]);
+});
+
+test('pageMoves は、同じ鍵のページが複数あれば前から順番に対応させ、余った分を null にする', () => {
+  const before = [{ src: 0, rotate: 0 }, { src: 0, rotate: 90 }];
+  const after = [{ src: 0, rotate: 90 }, { src: 0, rotate: 0 }, { src: 0, rotate: 0 }];
+
+  assert.deepEqual(plan.pageMoves(before, after), [{ at: 0, same: false }, { at: 1, same: false }, null]);
+  assert.deepEqual(plan.pageMoves(null, after), [null, null, null]);
+  assert.deepEqual(plan.pageMoves(before, null), []);
+});
