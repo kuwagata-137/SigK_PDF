@@ -45,6 +45,7 @@
       "preferences.js",
       "annotation-text-settings.js",
       "annotation-fill-settings.js",
+      "annotation-ratio-settings.js",
       "errorlog.js",
       "error-capture.js",
       "log-folder.js",
