@@ -57,14 +57,14 @@ test('ツールバーの右端（歯車の右。spec-6-1 確定事項E-1）に�
   assert.notEqual(button.querySelector('svg'), null, 'アイコンが出ていない');
 });
 
-test('窓の中は、題・目次の 14 節・本文の 14 節を起動のときに組んである', async (t) => {
+test('窓の中は、題・目次の 15 節・本文の 15 節を起動のときに組んである', async (t) => {
   const shell = await withShell(t, { open: false });
   const { SigK } = shell;
   assert.equal(shell.document.getElementById('help-title').textContent, SigK.helpContent.TITLE);
   const items = [...dialog(shell).querySelectorAll('.help-nav .help-item')].map((node) => node.dataset.section);
   assert.deepEqual(items, Array.from(SigK.helpContent.SECTIONS, (section) => section.id));
   assert.equal(dialog(shell).querySelectorAll('.help-nav .help-grp').length, 5);
-  assert.equal(dialog(shell).querySelectorAll('.help-body .help-section').length, 14);
+  assert.equal(dialog(shell).querySelectorAll('.help-body .help-section').length, 15);
   assert.deepEqual(shown(shell), []);
   assert.notEqual(shell.document.querySelector('#help-close svg'), null);
   assert.equal(shell.document.getElementById('help-done').textContent, '閉じる');

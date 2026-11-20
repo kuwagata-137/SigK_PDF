@@ -191,3 +191,18 @@ test('複数選択では、色・線の太さ・透明度をまとめて変え�
   assert.equal(SigK.annotate.getLineWidth('marking'), 6);
   assert.equal(SigK.annotate.getLineWidth('square'), 2);
 });
+
+test('ヒント・注釈一覧の名前とアイコン・ツールチップは、マーキングの文言', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('marking');
+  const hint = () => document.getElementById('props-hint').textContent;
+  assert.equal(hint(), SigK.annotationHints.HINTS.marking);
+  click(shell, [200, 600]);
+  assert.equal(hint(), SigK.annotationHints.HINTS.markingSelected);
+  const entry = added(shell)[0];
+  assert.equal(SigK.annotationIndex.labelOf(entry), 'マーキング');
+  assert.equal(SigK.annotationIndex.iconOf(entry), 'marking');
+  assert.ok(SigK.icons.has('marking'));
+  assert.equal(SigK.tipContent.resolve(document.querySelector('.edit-tool[data-tool="marking"]')).name, 'マーキング');
+});
