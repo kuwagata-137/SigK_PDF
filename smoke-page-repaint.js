@@ -3,7 +3,7 @@
 // 起動確認 SIGK_SMOKE_PAGE_REPAINT=<出力フォルダ>（docs/07 決定99 ②。2026-11-17 の不具合「回転などで白く点滅する」の修正確認）。
 // main.js の installSmokeCheck が呼ぶ。ウインドウを表示しない起動確認（SIGK_SMOKE_HIDDEN）で使う。
 //
-// 検証用のファイル（test/fixtures の three-pages.pdf の写しと、smoke-image-mosaic.js と同じ作り方の写真 4032 × 3024 の JPEG）をタブで開き、
+// 検証用のファイル（test/fixtures の three-pages.pdf・many-pages.pdf の写しと、smoke-image-mosaic.js と同じ作り方の写真 4032 × 3024 の JPEG）をタブで開き、
 // 並びを変える操作ごとに、操作してから新しい絵を描き終えるまでの間に、絵の無い枠が見えるフレームがあるかを、次の 2 つで数える。
 //   ① 画面（レンダラー）: requestAnimationFrame ごとに、表示域に見えているページ枠（.pdf-page）と、左パネルに見えているサムネイル枠
 //      （.thumb .sheet）に canvas があるか（前の絵の箱 .pdf-held の中の canvas も、絵があると数える）。
@@ -96,6 +96,13 @@ function installWatch() {
     return SigK.pageCrop.visibleOf(entry, SigK.viewer.getBasePage(entry.src).view);
   }
 
+  // ページの表示域で描いていないが、サムネイルは描き終えているページ（先頭へ移すと、サムネイルの絵を拡大して表示する）。無ければ -1。
+  function drawnOnlyInThumbs() {
+    const rendered = SigK.viewer.getState().rendered;
+    const sheets = [...document.querySelectorAll('#thumbs .thumb > .sheet')];
+    return sheets.findIndex((sheet, index) => index > 0 && !rendered.includes(index) && sheet.querySelector(':scope > canvas') !== null);
+  }
+
   async function act(spec) {
     const list = () => SigK.pageListTarget.current(document);
     switch (spec.op) {
@@ -103,6 +110,10 @@ function installWatch() {
       case 'rotateCurrent': return SigK.pageActions.rotateCurrent(spec.delta);
       case 'remove': return SigK.pageActions.remove(spec.indices);
       case 'move': return SigK.pageTransfer.move(spec.indices, spec.to);
+      case 'moveFar': {
+        const far = drawnOnlyInThumbs();
+        return far > 0 && SigK.pageTransfer.move([far], 0);
+      }
       case 'copy': return (await SigK.pageListCommands.copy(list(), spec.indices))?.ok === true;
       case 'cut': return (await SigK.pageListCommands.cut(list(), spec.indices))?.ok === true;
       case 'paste': return (await SigK.pageListCommands.paste(list(), spec.at))?.ok === true;
@@ -232,6 +243,15 @@ const pageSteps = (inserts) => [
   { label: '上書き保存', op: 'save' },
 ];
 
+// ページの多い PDF（test/fixtures/many-pages.pdf。40 ページ）の操作。ページの表示域で描いていないページを先頭へ移すと、前の絵が無いので、
+// サムネイルの絵を拡大して表示する。3 ページを削除すると、ページの表示域で描いていなかったページが見える位置に来る。
+const manySteps = [
+  { label: 'ページの表示域で描いていないページの並べ替え', op: 'moveFar' },
+  { label: 'ページの表示域で描いていないページの並べ替えの取り消し', op: 'undo' },
+  { label: '3 ページの削除', op: 'remove', indices: [0, 1, 2] },
+  { label: '3 ページの削除の取り消し', op: 'undo' },
+];
+
 // 編集モードの操作（PDF と写真）。
 const editSteps = [
   { label: '［右回転］', op: 'rotateCurrent', delta: 90 },
@@ -289,6 +309,7 @@ async function run({ app, win, dir, root, dialog, nativeImage }) {
     const memory = { atStart: memoryOf(app, win) };
     const cases = [];
     cases.push(await runCase(ctx, { name: 'pdf-pages', target: copy('three-pages.pdf', 'repaint-pages.pdf'), mode: 'pages', steps: pageSteps(inserts) }));
+    cases.push(await runCase(ctx, { name: 'pdf-many', target: copy('many-pages.pdf', 'repaint-many.pdf'), mode: 'pages', steps: manySteps }));
     cases.push(await runCase(ctx, { name: 'pdf-edit', target: copy('three-pages.pdf', 'repaint-edit.pdf'), mode: 'annot', steps: editSteps }));
     cases.push(await runCase(ctx, { name: 'photo-edit', target: photo, mode: 'annot', steps: editSteps }));
     memory.atEnd = memoryOf(app, win);
