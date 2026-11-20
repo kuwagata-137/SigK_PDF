@@ -1717,6 +1717,7 @@ function installSmokeCheck(win, mode) {
       let toImage = null;
       let annotate = null;
       let imageEdit = null;
+      let pageRepaint = null;
       let facing = null;
       let launch = null;
       let drag = null;
@@ -1825,6 +1826,9 @@ function installSmokeCheck(win, mode) {
         // 画像を開いて書き込み、画像のまま保存する（spec-7-1 の完了判定。smoke-image-edit.js）。
         if (process.env.SIGK_SMOKE_IMAGE_EDIT)
           imageEdit = await require('./smoke-image-edit.js').run({ win, dir: path.resolve(process.env.SIGK_SMOKE_IMAGE_EDIT), root: ROOT_DIR, dialog, nativeImage });
+        // 並びを変えた時（回転・削除・並べ替え・挿入・トリミングなど）に、絵の無い枠が見えるフレームを数える（docs/07 決定99 ②。smoke-page-repaint.js）。
+        if (process.env.SIGK_SMOKE_PAGE_REPAINT)
+          pageRepaint = await require('./smoke-page-repaint.js').run({ app, win, dir: path.resolve(process.env.SIGK_SMOKE_PAGE_REPAINT), root: ROOT_DIR, dialog, nativeImage });
         // 異常な PDF を本物の pdf.js で開いたときの様子（spec-6-1 タスク D の D2。smoke-abnormal.js）。
         if (process.env.SIGK_SMOKE_ABNORMAL)
           abnormal = await require('./smoke-abnormal.js').run({ win, paths: process.env.SIGK_SMOKE_ABNORMAL.split(';').map((p) => p.trim()).filter(Boolean).map((p) => path.resolve(p)), zoom: process.env.SIGK_SMOKE_ABNORMAL_ZOOM });
@@ -2082,6 +2086,7 @@ function installSmokeCheck(win, mode) {
         toImage,
         annotate,
         imageEdit,
+        pageRepaint,
         facing,
         launch,
         drag,
