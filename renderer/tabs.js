@@ -121,7 +121,8 @@
     // 押したまま替えた押下は捨てる（替えた先のタブに置かないため。spec-4b-7a 点検の直し）。
     root.SigK.annotatePress?.reset();
     const tab = find(previous);
-    const session = viewer().detach();
+    // 見えているページとサムネイルの絵を残し、戻った時に新しい絵を描き終えるまで表示する（決定100 ①）。
+    const session = viewer().detach({ keep: tab !== null });
     if (tab !== null)
       tab.session = session;
     state.activeId = null;

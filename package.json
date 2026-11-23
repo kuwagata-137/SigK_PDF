@@ -74,6 +74,7 @@
       "smoke-image-exif.js",
       "smoke-image-mosaic.js",
       "smoke-page-repaint.js",
+      "smoke-tab-repaint.js",
       "smoke-paint-watch.js",
       "smoke-annotate-steps.js",
       "smoke-annotate-report.js",
