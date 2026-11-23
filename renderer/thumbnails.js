@@ -42,6 +42,9 @@
   const held = new Map();
   // 控え（決定99 ②）。並びから外れたページのサムネイルなどを、次の 1 回の並びの変更まで残す。
   const keeper = root.SigK.pagePicture.createKeeper({ budget: KEEP_PIXELS });
+  // サムネイルを隠した時（ツールモード・左パネルを閉じた時・編集モードで注釈一覧を選んだ時）に取り出した絵（決定100 ②）。
+  // { doc, plan, sheetWidth, taken（位置 → 絵の記録）, pixels }。表示し直した時に同じページの新しい枠に置く。文書が替わったら破棄する。
+  let hidden = null;
 
   let el = null;
 
@@ -320,6 +323,55 @@
     }
   }
 
+  // ---- 隠す時・タブを移る時・幅と列数を変えた時（決定100 ①〜③） ----
+
+  // 表示している絵を取り出す。visibleOnly なら、左パネルに見えているサムネイルの分だけ（タブを移る時。戻るとスクロール位置も戻る）。
+  function stashOf({ visibleOnly = false } = {}) {
+    let taken = takeThumbs();
+    if (visibleOnly) {
+      const range = layout().visibleRange({ pages: state.layout.pages, scrollTop: el.scroll.scrollTop, viewportHeight: el.scroll.clientHeight });
+      taken = new Map([...taken].filter(([index]) => index >= range.first && index <= range.last));
+    }
+    const pixels = [...taken.values()].reduce((sum, record) => sum + record.pixels, 0);
+    return { doc: state.doc, plan: copyPlan(state.plan), sheetWidth: state.layout.sheetWidth, taken, pixels };
+  }
+
+  function copyPlan(plan) {
+    return root.SigK.pagePlan.clonePlan(plan);
+  }
+
+  // 取り出した絵を、同じページの新しい枠に置き、新しい絵を描き終えるまで表示する。reuse なら、紙の幅が同じで、同じページが同じ見た目の
+  // 絵は、描き終えた絵として入れて描き直さない（幅と列数を変えた時だけ。タブに戻った時とツールモードから戻った時は、今までどおり描き直す。
+  // 描き直さないと、文字欠けのあるサムネイルが残るため）。紙の幅が違えば、前の絵として枠いっぱいに伸ばして表示する。
+  function restorePictures(stash, { reuse = false } = {}) {
+    if (stash === null || stash === undefined || stash.doc !== state.doc || el.sheets.length === 0)
+      return 0;
+    const sameWidth = reuse && stash.sheetWidth === state.layout.sheetWidth;
+    const moves = root.SigK.pagePlan.pageMoves(stash.plan, state.plan);
+    let placed = 0;
+    moves.forEach((move, index) => {
+      const record = move === null ? null : stash.taken.get(move.at) ?? null;
+      if (record === null)
+        return;
+      stash.taken.delete(move.at);
+      placeThumb(index, sameWidth ? record : { ...record, final: false }, { same: sameWidth && move.same });
+      placed += 1;
+    });
+    return placed;
+  }
+
+  // タブを移る時（viewer.detach）に、そのタブのサムネイルの絵を取り出す。隠している間（ツールモードなど）は、隠した時に取り出した絵を返す。
+  function takeAll({ visibleOnly = false } = {}) {
+    if (el === null || state.doc === null)
+      return null;
+    if (hidden !== null && hidden.doc === state.doc) {
+      const stash = hidden;
+      hidden = null;
+      return stash;
+    }
+    return state.layout.pages.length === 0 ? null : stashOf({ visibleOnly });
+  }
+
   // ページの表示域で、前の絵が無いページの代わりの絵（決定99 ②。page-render.js の placePictures が、並びを変える前に呼ぶ）。source の
   // ページのサムネイルを描き終えていれば、その絵の複製と、描いた時のページ・並びの要素を返す。無ければ null。
   function standIn(source) {
@@ -330,6 +382,13 @@
         continue;
       const canvas = picture().copyCanvas(el.doc, entry.canvas);
       return canvas === null ? null : { canvas, page: entry.page, source: entry.source, plan: entry.plan };
+    }
+    // 描き終えた絵が無ければ、表示している前の絵（タブに戻った時に置いた絵など）を使う（決定100 ①）。
+    for (const record of held.values()) {
+      if (!picture().sameSource(record.source, source))
+        continue;
+      const canvas = picture().copyCanvas(el.doc, record.canvas);
+      return canvas === null ? null : { canvas, page: record.page, source: record.source, plan: record.plan };
     }
     return null;
   }
@@ -356,7 +415,8 @@
       const canvas = el.doc.createElement('canvas');
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
-      const task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+      // CPU で描く canvas にする（決定100 ⑤。renderThumb と同じ）。
+      const task = page.render({ canvasContext: canvas.getContext('2d', { willReadFrequently: true }), viewport });
       // 描いている間だけ、時間の上限で取り消す対象にする。
       limit.tasks.add(task);
       try {
@@ -463,7 +523,8 @@
       const canvas = el.doc.createElement('canvas');
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
-      entry.task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+      // CPU で描く canvas にする（決定100 ⑤。GPU で描く canvas に何枚も同時に描くと、文字の一部が欠けることがある。page-image.js の software と同じ）。
+      entry.task = page.render({ canvasContext: canvas.getContext('2d', { willReadFrequently: true }), viewport });
       await entry.task.promise;
       // モザイクの下見（spec-4b-6b 確定事項7。塗り方は決定99 ① の mosaic-region.js）。pdf.js の既定の描き方で描いたので、annotationMode は渡さない。
       await root.SigK.mosaicRegion?.paintRegions(el.doc, canvas, page, viewport, state.plan[index]?.mosaic, { track: (task) => { entry.task = task; } });
@@ -543,11 +604,15 @@
       state.frame = 0;
       if (state.doc === null || !isVisible())
         return;
-      // 幅か列数が変われば紙の寸法が変わるので、枠から作り直す（確定事項27）。
+      // 幅か列数が変われば紙の寸法が変わるので、枠から作り直す（確定事項27）。作り直す前に表示している絵を取り出し、同じページの新しい枠に
+      // 伸ばして表示し、新しい大きさの絵を描き終えたら入れ替える（決定100 ③。前は、描き終えるまでサムネイルの白い背景が見えていた。
+      // つまみをドラッグしている間は、毎フレーム作り直すので、ずっと白かった）。
       if (columnWidthNow() !== state.columnWidth || columnsNow() !== state.columns) {
+        const stash = stashOf();
         state.token += 1;
         releaseAll();
         build();
+        restorePictures(stash, { reuse: true });
       }
       update();
     });
@@ -589,11 +654,13 @@
   // 持ち越すのはスクロール位置だけである。
   // previousSizes は、上書き保存の後に開き直す時（viewer.reopen）だけ渡す前の文書の寸法。同じ位置で寸法が同じページは、新しい絵を
   // 描き終えるまで前の絵を表示する（決定99 ②）。
-  function setDocument({ doc, sizes, plan = null, inserts = [], current = 0, scrollTop = 0, previousSizes = null }) {
+  // pictures は、タブに戻る時（viewer.attach）に渡す、タブを移る前に取り出した絵（決定100 ①）。同じページの新しい枠に置く。
+  function setDocument({ doc, sizes, plan = null, inserts = [], current = 0, scrollTop = 0, previousSizes = null, pictures = null }) {
     const taken = previousSizes !== null && el !== null && state.doc !== null ? takeThumbs() : null;
     state.token += 1;
     releaseAll();
     keeper.clear();
+    hidden = null;
     state.doc = doc;
     state.inserts = inserts;
     state.sizes = sizes ?? [];
@@ -603,12 +670,15 @@
       return false;
     if (!isVisible()) {
       discard();
+      // 隠している間（ツールモードなど）にタブへ戻った時は、表示し直した時に置く。
+      hidden = pictures?.doc === doc ? pictures : null;
       return false;
     }
     build();
     if (taken !== null)
       fillThumbs(taken, previousSizes);
     el.scroll.scrollTop = scrollTop;
+    restorePictures(pictures);
     schedule();
     return true;
   }
@@ -662,6 +732,7 @@
     state.sizes = [];
     state.plan = [];
     state.current = 0;
+    hidden = null;
     if (el === null)
       return false;
     discard();
@@ -684,8 +755,12 @@
     if (el === null)
       return false;
     if (!isVisible()) {
-      if (state.layout.pages.length > 0)
+      // 隠す前に表示している絵を取り出し、表示し直した時に置く（決定100 ②。ツールモードから戻った時・左パネルを開き直した時・
+      // 注釈一覧からサムネイルへ戻した時に、描き終えるまでサムネイルの白い背景が見えていた）。
+      if (state.layout.pages.length > 0) {
+        hidden = state.doc === null ? null : stashOf();
         discard();
+      }
       return false;
     }
     // 文書が無ければ「文書を開くと…」の案内。編集モードで注釈一覧からサムネイルへ戻したときも出し直す
@@ -695,8 +770,12 @@
       return false;
     }
     // 畳んでいる間に文書が変わっていることがある。枠が無ければここで作る。
-    if (state.layout.pages.length === 0)
+    if (state.layout.pages.length === 0) {
       build();
+      const stash = hidden;
+      hidden = null;
+      restorePictures(stash);
+    }
     schedule();
     return true;
   }
@@ -754,5 +833,7 @@
     prepare,
     drawnThumb,
     markDrawn,
+    // タブを移る時に、サムネイルの絵を残す（決定100 ①）。
+    takeAll,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

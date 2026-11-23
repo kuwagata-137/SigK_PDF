@@ -187,6 +187,47 @@
     return { record: carried, replaced: null };
   }
 
+  // ---- タブごとの絵（決定100 ①） ----
+
+  // 表示していないタブの絵（ページの表示域で見えていたページの絵と、サムネイルの絵）を、タブに戻った時に新しい絵を描き終えるまで表示する
+  // ために残す。owner（タブの pdf.js の文書）ごとに 1 組を持ち、画素数の合計が budget を超えたら、古く残した組から破棄する。
+  function createTabStore({ budget }) {
+    let entries = [];
+    let total = 0;
+
+    // owner の組を取り出す（残さない）。無ければ null。
+    function take(owner) {
+      const found = entries.find((entry) => entry.owner === owner);
+      if (found === undefined)
+        return null;
+      entries = entries.filter((entry) => entry !== found);
+      total -= found.pixels;
+      return found.pictures;
+    }
+
+    function put(owner, pictures, pixels) {
+      take(owner);
+      if (owner === null || owner === undefined || !(pixels > 0) || pixels > budget)
+        return false;
+      entries.push({ owner, pictures, pixels });
+      total += pixels;
+      while (total > budget)
+        total -= entries.shift().pixels;
+      return true;
+    }
+
+    function clear() {
+      entries = [];
+      total = 0;
+    }
+
+    return { put, take, remove: take, clear, stats: () => ({ tabs: entries.length, pixels: total }) };
+  }
+
+  // 表示していないタブの絵の画素数の上限（決定100 ①）。1,600 万画素（RGBA で約 64 MB。ページの表示域の控えと同じ）。
+  const TAB_PIXELS = 16_000_000;
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pagePicture = { multiply, invert, transformBetween, wrap, fit, sameSource, sameLook, pixelsOf, copyCanvas, createKeeper, choose };
+  SigK.pagePicture = { multiply, invert, transformBetween, wrap, fit, sameSource, sameLook, pixelsOf, copyCanvas, shrink, createKeeper, choose, createTabStore, TAB_PIXELS };
+  SigK.tabPictures = createTabStore({ budget: TAB_PIXELS });
 })(typeof window !== 'undefined' ? window : globalThis);

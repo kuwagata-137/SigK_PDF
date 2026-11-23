@@ -396,11 +396,19 @@
     if (repaint === null) {
       // 並びも寸法も変わる。飛んでいる描画ごと捨てて枠から作り直す。取り出した絵は同じページの新しい枠に置き、新しい絵を描き終えるまで
       // 表示する（決定99 ②。前は、pdf.js が描き終えるまで全部のページの白い背景が見えていた。回転・トリミングしたページは変換して表示する）。
+      // ［全体］か［幅］を選んでいる時は、今のページに合わせて倍率を計算し直す（決定100 ④。回転・トリミングで今のページの大きさが
+      // 変わると、前は倍率が変わらず、ページが表示域からはみ出したり小さく表示されたりした。refit・setFacing と同じ計算）。
+      // 取り出した絵は、新しい倍率で同じページの新しい枠に合わせて置く（page-render.js の placeHeld は今の倍率で変換を計算する）。
+      const zoomBefore = state.zoom;
+      if (state.fit !== null)
+        state.zoom = layout().clampZoom(fitZoomFor(state.fit));
       state.token += 1;
       render.releaseAll();
       buildPages();
       applyLayout();
       render.placePictures(previous, taken);
+      if (state.zoom !== zoomBefore)
+        goToPage(state.current);
     } else {
       // ページ枠の並びと大きさは変わらないので、枠を作り直さず、モザイクが変わったページだけを描き直す。新しい絵ができるまで前の絵を
       // 残す（2026-11-17 の不具合「モザイクを配置するたびに画面がホワイトアウトする」の修正。前は枠を全部作り直していたので、pdf.js が
@@ -667,9 +675,23 @@
     controls()?.syncAll(el.doc, getState());
   }
 
+  // 表示していないタブ 1 つ分のページの絵の画素数の上限（決定100 ①）。超えたら縮めて残す。
+  const TAB_PAGE_PIXELS = 4_000_000;
+
+  // タブを移る前に、見えているページの絵とサムネイルの絵を取り出す（決定100 ①）。
+  function capturePictures() {
+    const pages = render.takeVisible(TAB_PAGE_PIXELS);
+    const thumbs = root.SigK.thumbnails?.takeAll?.({ visibleOnly: true }) ?? null;
+    const pixels = [...pages.values()].reduce((sum, record) => sum + record.pixels, 0) + (thumbs?.pixels ?? 0);
+    return { plan: root.SigK.pagePlan.clonePlan(state.plan), pages, thumbs, pixels };
+  }
+
   // 映すのをやめ、続きから読むために要るものだけを持ち出す（spec-1-2 確定事項2）。
   // 文書は破棄しないので、attach() で元どおりに戻せる。
-  function detach() {
+  // keep は、タブを移る時（tabs.js の stash）だけ true にする。見えているページとサムネイルの絵を残し、戻った時に新しい絵を描き終えるまで
+  // 表示する（決定100 ①。前は canvas を持ち越さなかったので〔spec-1-3 確定事項13〕、戻ると描き終えるまで白い背景が見えていた）。
+  function detach({ keep = false } = {}) {
+    const pictures = keep && state.doc !== null ? capturePictures() : null;
     const session = state.doc === null ? null : {
       doc: state.doc,
       file: state.file,
@@ -687,8 +709,8 @@
       fit: state.fit,
       current: state.current,
       scrollTop: el.view.scrollTop,
-      // canvas は持ち越さない。持ち越すのは見ていた場所だけである
-      // （spec-1-3 確定事項13）。
+      // canvas は session に持ち越さない。持ち越すのは見ていた場所だけである
+      // （spec-1-3 確定事項13）。見えていた絵は、keep の時だけ上限付きで tabPictures に残す（決定100 ①）。
       thumbScrollTop: root.SigK.thumbnails?.getScrollTop() ?? 0,
       // 検索語・取り出した本文・ヒット一覧はタブごとに持つ（spec-1-4 確定事項
       // 3・27）。canvas と違って軽く、タブを戻すたびに読み直す理由がない。
@@ -698,6 +720,8 @@
       edit: root.SigK.pageEdit?.capture() ?? null,
     };
     resetView();
+    if (pictures !== null && session !== null)
+      root.SigK.tabPictures?.put(session.doc, pictures, pictures.pixels);
     return session;
   }
 
@@ -739,6 +763,8 @@
     buildPages();
     setDocumentOpen(true);
     applyLayout();
+    // タブを移る前に残した絵（決定100 ①）。無ければ null。
+    const pictures = root.SigK.tabPictures?.take(state.doc) ?? null;
     root.SigK.thumbnails?.setDocument({
       doc: state.doc,
       sizes: state.sizes,
@@ -746,8 +772,13 @@
       inserts: state.inserts,
       current: state.current,
       scrollTop: session.thumbScrollTop ?? 0,
+      pictures: pictures?.thumbs ?? null,
     });
     el.view.scrollTop = session.scrollTop ?? 0;
+    // 残した絵を同じページの新しい枠に置き、新しい絵を描き終えるまで表示する。ツールモードで帯の履歴を戻した時などで並びが変わっていても、
+    // ページの対応表で同じページへ置く（決定99 ② の placePictures。絵が無い見えているページには、サムネイルの絵を拡大して置く）。
+    if (pictures !== null)
+      render.placePictures(pictures.plan, pictures.pages);
     syncDirty();
     root.SigK.find?.restore(session.find);
     // 枠が並んだあとで印を付け直す。順番を逆にすると付ける先が無い。
@@ -779,6 +810,8 @@
   // 差し込んだページの文書も畳む（確定事項93）。複数ページの PDF を差し込むと
   // 同じ文書を複数の控えが指すので、実体ごとに1回だけ呼ぶ。
   function destroySession(session) {
+    // 閉じるタブのために残した絵も破棄する（決定100 ①）。
+    root.SigK.tabPictures?.remove(session?.doc);
     releaseDocument(session?.doc);
     const seen = new Set();
     for (const added of session?.inserts ?? []) {
