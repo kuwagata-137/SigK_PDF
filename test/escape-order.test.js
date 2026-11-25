@@ -331,12 +331,12 @@ test('スライダーを引いている途中の Esc は、下見を捨てて引
   assert.equal(SigK.propsRange.isHeld(), true);
   assert.equal(esc(shell, range).defaultPrevented, true);
   assert.equal(SigK.annotatePreview.isActive(), false);
-  assert.equal(range.value, '100');
-  assert.equal(number.value, '100');
+  assert.equal(range.value, '0');
+  assert.equal(number.value, '0');
   // 引き続けても、離しても動かない。
   range.value = '30';
   range.dispatchEvent(new window.Event('input', { bubbles: true }));
-  assert.equal(range.value, '100');
+  assert.equal(range.value, '0');
   assert.equal(SigK.annotatePreview.isActive(), false);
   range.value = '30';
   range.dispatchEvent(new window.Event('change', { bubbles: true }));

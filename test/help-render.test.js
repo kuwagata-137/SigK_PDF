@@ -71,14 +71,14 @@ test('目次は、グループの見出しと節のボタンを、グループ�
   const nodes = world.render.nav(world.doc, world.content);
   assert.equal(nodes.filter((node) => node.className === 'help-grp').length, 5);
   const buttons = nodes.filter((node) => node.tagName === 'BUTTON');
-  assert.equal(buttons.length, 14);
+  assert.equal(buttons.length, 15);
   assert.ok(buttons.every((button) => button.type === 'button' && button.className === 'help-item'));
   assert.deepEqual(buttons.map((button) => button.dataset.section), world.content.SECTIONS.map((section) => section.id));
   assert.equal(nodes[0].textContent, 'はじめに');
   assert.equal(nodes[1].textContent, '画面とモード');
 });
 
-test('fill は、窓の題・目次・14 節の本文（隠しておく）を組む', () => {
+test('fill は、窓の題・目次・15 節の本文（隠しておく）を組む', () => {
   const world = makeWorld();
   const dialog = world.doc.createElement('dialog');
   for (const [tag, attrs] of [['span', { id: 'help-title' }], ['nav', { class: 'help-nav' }], ['div', { class: 'help-body' }]]) {
@@ -89,9 +89,9 @@ test('fill は、窓の題・目次・14 節の本文（隠しておく）を組
   }
   world.render.fill(world.doc, dialog, world.content);
   assert.equal(dialog.querySelector('#help-title').textContent, 'SigK PDF の使い方');
-  assert.equal(dialog.querySelectorAll('.help-nav .help-item').length, 14);
+  assert.equal(dialog.querySelectorAll('.help-nav .help-item').length, 15);
   const sections = [...dialog.querySelectorAll('.help-body .help-section')];
-  assert.equal(sections.length, 14);
+  assert.equal(sections.length, 15);
   assert.ok(sections.every((node) => node.hidden));
-  assert.equal(sections[13].dataset.section, 'escape');
+  assert.equal(sections[14].dataset.section, 'escape');
 });

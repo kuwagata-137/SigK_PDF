@@ -21,7 +21,8 @@
   const EDGES = Object.freeze({ x1: [-1, 0], x2: [1, 0], y1: [0, -1], y2: [0, 1] });
   // 重なるときに先に当てる順（確定事項15）。
   // 吹き出しのしっぽの先（tip。spec-4b-4b 確定事項F4）と多角形の頂点（vertex。spec-4b-5a 確定事項22）は角のつまみと同じ順。
-  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, tip: 1, vertex: 1, edge: 2, width: 2, end: 3 });
+  // マーキングの中の円のハンドル（inner）は外の円のハンドル（outer）より先に当てる（spec-7-9 確定事項F4。重なった時に小さい方を掴めるように）。
+  const PRIORITY = Object.freeze({ rotate: 0, corner: 1, tip: 1, vertex: 1, inner: 1, edge: 2, width: 2, outer: 2, end: 3 });
   const RESIZE_CURSORS = Object.freeze(['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize']);
 
   function rotation() {
@@ -45,9 +46,13 @@
     return entry?.kind === 'polygon' && Array.isArray(entry.paths) && root.SigK.polygonHandles !== undefined;
   }
 
-  // つまみを出す書き込みか（四角・丸・×印・直線・矢印・テキスト・多角形で、表示のみでないもの）。
+  function isMarking(entry) {
+    return entry?.kind === 'marking' && entry.marking !== undefined && root.SigK.markingHandles !== undefined;
+  }
+
+  // つまみを出す書き込みか（四角・丸・×印・直線・矢印・テキスト・多角形・マーキングで、表示のみでないもの）。
   function hasHandles(entry) {
-    return entry?.readonly !== true && (isBoxed(entry) || isText(entry) || isPolygon(entry) || (isLine(entry) && Array.isArray(entry.paths)));
+    return entry?.readonly !== true && (isBoxed(entry) || isText(entry) || isPolygon(entry) || isMarking(entry) || (isLine(entry) && Array.isArray(entry.paths)));
   }
 
   function unit([x, y]) {
@@ -142,6 +147,9 @@
       return root.SigK.freeTextHandles.handlesOf(entry, viewport, room);
     if (isPolygon(entry))
       return root.SigK.polygonHandles.handlesOf(entry, viewport, room);
+    // マーキングは回転しないので、回転のハンドルは無い（spec-7-9 確定事項F4）。
+    if (isMarking(entry))
+      return root.SigK.markingHandles.handlesOf(entry, viewport);
     return isBoxed(entry) ? boxHandles(entry, viewport, room) : lineHandles(entry, viewport);
   }
 

@@ -37,11 +37,11 @@ function drawFrame(shell, box = BOX, index = 0) {
   fire('mouseup', node, to, 0);
 }
 
-// 右パネルの見えている行の名前と値、ボタン。
+// 右パネルの見えている行の名前と値、ボタン。名前の欄（.k）が無い行（チェック欄だけの「縦横比を固定」）は、行の文字を名前にする。
 function panel(shell) {
   const doc = shell.document;
   const rows = [...doc.querySelectorAll('#props .props-body > .prop')].filter((row) => !row.hidden)
-    .map((row) => [row.querySelector('.k').textContent, row.querySelector('.v')?.textContent ?? null]);
+    .map((row) => [row.querySelector('.k')?.textContent ?? row.textContent.trim(), row.querySelector('.v')?.textContent ?? null]);
   const scopes = [...doc.querySelectorAll('#props-trim-scope button')].map((button) => `${button.textContent}:${button.getAttribute('aria-pressed')}`);
   const buttons = ['props-trim-cancel', 'props-trim-apply', 'props-trim-remove', 'props-delete']
     .filter((id) => { const node = doc.getElementById(id); return !node.hidden && !(node.closest('[hidden]')); })

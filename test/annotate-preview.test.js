@@ -64,8 +64,8 @@ test('太さのスライダーを動かしている間は下見で描き、離�
 test('不透明度の下見は Esc で捨て、選択を替えても捨てる', async (t) => {
   const shell = await withSquare(t);
   const { SigK, document } = shell;
-  input(shell, 'props-opacity-range', 40);
-  assert.equal(shapeOf(shell).getAttribute('opacity'), '0.4');
+  input(shell, 'props-opacity-range', 60);
+  assert.equal(shapeOf(shell).getAttribute('opacity'), '0.4', '透明度 60% は不透明度 0.4');
   document.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   assert.equal(SigK.annotatePreview.isActive(), false);
   assert.equal(shapeOf(shell).getAttribute('opacity'), null, '下見を捨てて元の絵に戻る');

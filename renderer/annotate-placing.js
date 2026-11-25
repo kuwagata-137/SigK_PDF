@@ -19,10 +19,17 @@
     return polygon()?.isDrawing() === true || anchor()?.isActive() === true;
   }
 
-  // 右の押しなどでやめる。やめたら true（右クリックのメニューを出さない）。
+  // やめる。やめたら true（右クリックのメニューを表示しない）。
   function cancel() {
     const dropped = polygon()?.cancel() === true;
     return anchor()?.cancel() === true || dropped;
+  }
+
+  // 右の押し。描いている多角形は最後の頂点を 1 つ取り消し（spec-7-9 確定事項A1・A2）、始点合わせはやめる。受けたら true
+  // （右クリックのメニューを表示しない。確定事項A3）。
+  function rightPress() {
+    const undone = polygon()?.undoLast() === true;
+    return anchor()?.cancel() === true || undone;
   }
 
   // 左ボタンの離し。どちらかが受けたら true（ほかの経路へは流さない）。
@@ -41,5 +48,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotatePlacing = { isActive, cancel, release, doubleClick, move };
+  SigK.annotatePlacing = { isActive, cancel, rightPress, release, doubleClick, move };
 })(typeof window !== 'undefined' ? window : globalThis);

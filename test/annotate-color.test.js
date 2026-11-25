@@ -56,7 +56,7 @@ test('四角の道具で塗り・線なし・線種を選ぶと次に描く四�
   const shell = await withShell(t);
   const { SigK } = shell;
   shapeTool(shell, 'square');
-  assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#ff0000', fill: null, lineStyle: 'solid' });
+  assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#ff0000', fill: null, lineStyle: 'solid', fillOpacity: 1, hatch: null });
   // 塗りなしのまま線なしにはできない（線と塗りを両方なしにはできない。確定事項4）。
   assert.equal(SigK.annotate.setStrokeNone(), false);
   assert.equal(SigK.annotate.setFill('#FFFF00'), true);
@@ -74,7 +74,7 @@ test('四角の道具で塗り・線なし・線種を選ぶと次に描く四�
   // 色を選ぶと線が戻る（線なしの印を外す）。
   SigK.annotate.select(null);
   assert.equal(SigK.annotate.setColor('#4472c4'), true);
-  assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#4472c4', fill: '#ffff00', lineStyle: 'cloudy' });
+  assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#4472c4', fill: '#ffff00', lineStyle: 'cloudy', fillOpacity: 1, hatch: null });
   assert.deepEqual(plain(shell.uiCalls.slice(-2)), [{ annotColors: { shape: '#4472c4' } }, { annotStrokeNone: { shape: false } }]);
   // 塗りを外すと線なしの印も外れる。
   assert.equal(SigK.annotate.setFill(null), true);
@@ -106,7 +106,7 @@ test('覚えた塗り・線なし・線種は起動時に戻り、範囲の外�
   const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotFills: { shape: '#FFD966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'wavy' } } });
   await shell.flush();
   const { SigK } = shell;
-  assert.deepEqual(plain(SigK.annotate.nextStyleOf('circle')), { color: null, fill: '#ffd966', lineStyle: 'solid' });
+  assert.deepEqual(plain(SigK.annotate.nextStyleOf('circle')), { color: null, fill: '#ffd966', lineStyle: 'solid', fillOpacity: 1, hatch: null });
 });
 
 test('選んでいる四角の塗り・線なし・線種は 1 世代で変わり、線と塗りを両方なしにはできない', async (t) => {

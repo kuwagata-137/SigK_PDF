@@ -11,10 +11,11 @@
   const MARKUP_TOOLS = Object.freeze(['highlight', 'underline', 'strikeout']);
   // 吹き出し（callout）はテキストの書き込み（kind: 'text' に callout の欄）を置く道具（spec-4b-4b 確定事項A2・F1）。
   // マーカー（marker）は乗算のペン（kind: 'ink' に blend: 'multiply'）を描く道具（spec-4b-5b 確定事項1・2）。
-  const TOOLS = Object.freeze([...MARKUP_TOOLS, 'text', 'callout', 'shape', 'pen', 'marker', 'note']);
+  // マーキング（marking）は点付き丸などを配置する書き込みツール（spec-7-9 確定事項F1）。
+  const TOOLS = Object.freeze([...MARKUP_TOOLS, 'text', 'callout', 'shape', 'pen', 'marker', 'note', 'marking']);
   // 道具と、注釈の種類（kind）の表示名。図形の道具（shape）は 4 種の kind を描き分ける。
   const TOOL_LABELS = Object.freeze({
-    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', marker: 'マーカー', note: 'ノート',
+    highlight: 'ハイライト', underline: '下線', strikeout: '取り消し線', text: 'テキスト', callout: '吹き出し', shape: '図形', pen: 'ペン', marker: 'マーカー', note: 'ノート', marking: 'マーキング',
     square: '四角', circle: '丸', line: '直線', arrow: '矢印', cross: '×印', polygon: '多角形', ink: 'ペン',
   });
   // 「表示のみ」の注釈（他のツールが付け、読み込んで直せないもの）の種類名。pdf.js の subtype で引く
@@ -34,7 +35,7 @@
   // #rrggbb なら何でも受ける。
   const DEFAULT_COLORS = Object.freeze({
     highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00',
-    note: '#ffd966',
+    note: '#ffd966', marking: '#ff0000',
   });
   // 吹き出しの道具の、次に付ける書式の既定（決定57 ⑪。文字の色は DEFAULT_COLORS.callout）。枠線の太さ 1.5 は、右パネルの太さの行（1〜40 の
   // 整数）では選べない既定の値として受ける（spec-4b-4b 確定事項F2・F3）。
@@ -62,7 +63,7 @@
   // 画面から選べるのは 0.1〜1（右パネルでは 10〜100%）。ハイライトは multiply で既に文字が透けるので対象にしない。
   const OPACITY_MIN = 0.1;
   const DEFAULT_OPACITY = 1;
-  const OPACITY_TOOLS = Object.freeze(['text', 'callout', 'shape', 'pen', 'marker', 'note']);
+  const OPACITY_TOOLS = Object.freeze(['text', 'callout', 'shape', 'pen', 'marker', 'note', 'marking']);
   const DEFAULT_OPACITIES = Object.freeze(Object.fromEntries(OPACITY_TOOLS.map((tool) => [tool, DEFAULT_OPACITY])));
 
   // 道具ごとの値（色・不透明度）を引く鍵。図形 4 種は 'shape' を共有し、ペン（ink）は 'pen'（spec-4-3 確定事項28）。

@@ -153,8 +153,8 @@ function textEntry(overrides = {}) {
   };
 }
 
-test('KINDS は text と図形 7 種を含み、MARKUP_KINDS は 3 種のまま', () => {
-  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text', 'square', 'circle', 'line', 'arrow', 'cross', 'polygon', 'ink', 'note']);
+test('KINDS は text と図形 7 種とマーキングを含み、MARKUP_KINDS は 3 種のまま', () => {
+  assert.deepEqual(state.KINDS, ['highlight', 'underline', 'strikeout', 'text', 'square', 'circle', 'line', 'arrow', 'cross', 'polygon', 'ink', 'note', 'marking']);
   assert.deepEqual(state.MARKUP_KINDS, ['highlight', 'underline', 'strikeout']);
   assert.equal(state.isKind('text'), true);
   assert.equal(state.isMarkupKind('text'), false);

@@ -108,6 +108,9 @@
     // ×印は対角線 2 本からの距離（回したものは回す前の座標へ戻す。spec-4b-5a 確定事項21）。
     if (entry.kind === 'cross')
       return root.SigK.crossGeometry.distanceTo(entry, pdfPoint) <= hitTolerance(entry.lineWidth, viewport.scale ?? 1);
+    // マーキングは外の円・三角形の内側全体と、はみ出した十字線・番号（spec-7-9 確定事項F5。中は透けるが、掴みやすさを選んだ）。
+    if (entry.kind === 'marking')
+      return root.SigK.markingGeometry.hits(entry, pdfPoint, hitTolerance(0, viewport.scale ?? 1));
     // 多角形は辺からの距離と、閉じて塗ったものは中（spec-4b-5a 確定事項24）。
     if (entry.kind === 'polygon')
       return root.SigK.polygonGeometry.hits(entry, pdfPoint, hitTolerance(entry.lineWidth, viewport.scale ?? 1));

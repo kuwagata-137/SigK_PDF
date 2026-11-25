@@ -65,8 +65,12 @@ test('行の並びは 種類 → トリミングの当てるページと大き�
   const ids = [...shell.document.querySelectorAll('#props .props-body > .prop')].map((node) => node.id || 'kind');
   // 回転の行は不透明度の下（spec-4b-2 確定事項25）。文字の大きさは色の直後（spec-4b-4a 確定事項G1。960×600 でも見えるように）
   // トリミングの 2 行は種類の直後（spec-4b-6a 確定事項17。道具を持っている間だけ出す）。モザイクの 2 行はその次（spec-4b-6b 確定事項14）。
-  assert.deepEqual(ids, ['kind', 'props-trim-scope-row', 'props-trim-size-row', 'props-mosaic-block-row', 'props-mosaic-count-row', 'props-set-row', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
-    'props-opacity-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
+  assert.deepEqual(ids, ['kind', 'props-trim-scope-row', 'props-trim-size-row', 'props-mosaic-block-row', 'props-mosaic-count-row', 'props-marking-shape-row', 'props-set-row', 'props-color-row', 'props-size-row', 'props-format-row', 'props-fill-row', 'props-style-row', 'props-border-row', 'props-width-row',
+    'props-opacity-row', 'props-fill-opacity-row', 'props-hatch-row', 'props-hatch-color-row', 'props-hatch-gap-row', 'props-hatch-width-row',
+    'props-marking-outer-row', 'props-marking-inner-row', 'props-marking-number-row', 'props-box-size-row', 'props-keep-ratio-row', 'props-angle-row', 'props-contents-row', 'props-author-row', 'props-page-row', 'props-text-row']);
+  // 塗りの見出しの行は透明度の下（spec-7-9 確定事項B1）。塗りつぶしの行は、四角・丸・閉じた多角形の時だけ塗りの見出しの下へ移す。
+  // 大きさと縦横比を固定の行は回転の行のすぐ上（spec-7-9 確定事項D1）。マーキングの形の行は一括の行の上、大きさと番号の行は
+  // 大きさ（幅・高さ）の行の上（spec-7-9 確定事項F2・F4）。
 });
 
 test('道具ごとに出す行と、色の行の見出しが替わる', async (t) => {
@@ -128,9 +132,9 @@ test('四角・丸のヒントに「両方なしにはできない」を添え�
   const { HINTS } = SigK.annotationProps;
   SigK.annotate.setTool('shape');
   SigK.annotate.setShapeKind('square');
-  assert.equal(hint(), `${HINTS.shape}${HINTS.box}`);
+  assert.equal(hint(), `${HINTS.shape}${HINTS.boxRatio}${HINTS.box}`);
   SigK.annotate.setFill('#ffff00');
-  assert.equal(hint(), `${HINTS.shape}${HINTS.box}${HINTS.fill}`);
+  assert.equal(hint(), `${HINTS.shape}${HINTS.boxRatio}${HINTS.box}${HINTS.fill}`);
   SigK.annotate.setShapeKind('arrow');
   assert.equal(hint(), `${HINTS.shape}${HINTS.lineSnap}`);
   SigK.annotate.setTool('pen');
@@ -201,9 +205,9 @@ test('不透明度の数値欄に打ちかけのまま別の書き込みを選�
   assert.equal(number.value, '50', '選び直した書き込みの値に替わる');
   number.dispatchEvent(new window.Event('change'));
   assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.5]);
-  number.value = '80';
+  number.value = '20';
   number.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.8]);
+  assert.deepEqual(addedValues(SigK, 'opacity', 1), [1, 0.8], '透明度 20% は不透明度 0.8（spec-7-9 確定事項B3）');
 });
 
 test('太さの数値欄に打ちかけのまま太さの違う書き込みを足して選ぶと、欄は空で「–」になり、打ちかけの値はどちらにも当たらない', async (t) => {

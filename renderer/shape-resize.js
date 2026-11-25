@@ -6,7 +6,8 @@
   // どれも「押したとき」からの動きで決める（押した点がつまみの中心から少しずれていても、つまみが指に付いてくる）。
   //   resized … 四角・丸の大きさ。押した点と今の点を回す前の座標へ戻し、掴んだ辺だけを動きの分だけ動かす（反対側は動かない）。
   //             辺は最小 MIN_SIDE で、反対側を越えて裏返さない。角＋Shift は押したときの縦と横の比を保つ。新しい箱の中心を
-  //             回して戻すので、回した図形でも反対側が紙の上で動かない。
+  //             回して戻すので、回した図形でも反対側が紙の上で動かない。keep（「縦横比を固定」にチェック。spec-7-9 確定事項D3）の
+  //             時は、角は Shift なしでも比を保ち、辺は掴んだ向きと同じ比でもう一方の向きを中心から両側へ伸ばす。
   //   endpointMoved … 直線・矢印の端。表示の座標で動きを足し、Shift なら小さい方の向き（横か縦。等しいときは横を残す）を 0 にする。
   //             2 つの端が MIN_LENGTH より近づくなら null（直前のまま）。
   //   rotatedBy … 回転のつまみ。中心から見た向きの変化ぶんだけ回す（表示で時計回りが正）。Shift で 15° 刻み。
@@ -48,8 +49,28 @@
     return [sx < 0 ? x2 - width : x1, sy < 0 ? y2 - height : y1, sx < 0 ? x2 : x1 + width, sy < 0 ? y2 : y1 + height];
   }
 
+  // 縦横比を固定した辺（spec-7-9 確定事項D3）。掴んだ向きの伸び縮みと同じ比で、もう一方の向きを箱の中心から両側へ伸ばす
+  // （掴んだ辺の反対の辺は動かない）。どちらの向きも最小 minSide より小さくしない。
+  function keepRatioEdge([x1, y1, x2, y2], [nx1, ny1, nx2, ny2], [sx, sy], minSide) {
+    const [width, height] = [x2 - x1, y2 - y1];
+    const raw = sx !== 0 ? (nx2 - nx1) / width : (ny2 - ny1) / height;
+    const scale = Math.max(raw, minSide / width, minSide / height);
+    const [w, h] = [width * scale, height * scale];
+    const [cx, cy] = [(x1 + x2) / 2, (y1 + y2) / 2];
+    if (sx !== 0)
+      return [sx < 0 ? x2 - w : x1, cy - h / 2, sx < 0 ? x2 : x1 + w, cy + h / 2];
+    return [cx - w / 2, sy < 0 ? y2 - h : y1, cx + w / 2, sy < 0 ? y2 : y1 + h];
+  }
+
+  // 比を保つかに合わせた、回す前の座標の新しい箱。角は Shift か keep、辺は keep の時だけ比を保つ。
+  function localBoxOf(box, moved, handleId, signs, { shift, keep }) {
+    if (handleId in CORNER_SIGNS)
+      return shift || keep ? keepRatio(box, moved, signs) : moved;
+    return keep ? keepRatioEdge(box, moved, signs, geometry().MIN_SIDE) : moved;
+  }
+
   // 四角・丸の大きさ（確定事項16・17）。from・to は紙の座標の押した点と今の点。
-  function resized(entry, handleId, from, to, { shift = false } = {}) {
+  function resized(entry, handleId, from, to, { shift = false, keep = false } = {}) {
     const signs = CORNER_SIGNS[handleId] ?? EDGE_SIGNS[handleId];
     if (signs === undefined)
       return null;
@@ -60,7 +81,7 @@
     const minSide = geometry().MIN_SIDE;
     const [nx1, nx2] = sideOf(box[0], box[2], signs[0], end[0] - start[0], minSide);
     const [ny1, ny2] = sideOf(box[1], box[3], signs[1], end[1] - start[1], minSide);
-    const local = shift && handleId in CORNER_SIGNS ? keepRatio(box, [nx1, ny1, nx2, ny2], signs) : [nx1, ny1, nx2, ny2];
+    const local = localBoxOf(box, [nx1, ny1, nx2, ny2], handleId, signs, { shift, keep });
     // 回す前の座標の新しい箱の中心を、元の中心まわりに回して紙へ戻す（反対側が紙の上で動かない）。
     const center = rotation().rotatePoint(rotation().centerOf(local), rotation().centerOf(box), angle);
     const half = [(local[2] - local[0]) / 2, (local[3] - local[1]) / 2];

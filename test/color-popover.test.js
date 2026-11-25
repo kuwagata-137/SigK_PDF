@@ -105,7 +105,7 @@ test('塗りの［塗りなし］は線があるときだけ押せ、「その�
   shell.pickColor('props-fill', '#ffd966');
   assert.equal(SigK.annotate.fillOf('square'), '#ffd966');
   click(shell, document.getElementById('props-fill'));
-  assert.equal(pop.querySelector('.ttl').textContent, '塗り');
+  assert.equal(pop.querySelector('.ttl').textContent, '塗りつぶし');
   const none = pop.querySelector('.items .none');
   assert.deepEqual([none.textContent, none.getAttribute('aria-disabled')], ['塗りなし', null]);
   assert.equal(pop.querySelector('.cell.on').dataset.color, '#ffd966');

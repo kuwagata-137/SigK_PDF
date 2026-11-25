@@ -17,7 +17,7 @@ function joined(id) {
 }
 
 test('編集モードの 7 節は、どれも「編集（書き込み）」のグループ', () => {
-  assert.deepEqual(SECTIONS.map((section) => section.id), ['select', 'markup', 'text', 'shapes', 'pen', 'note', 'mosaic-trim']);
+  assert.deepEqual(SECTIONS.map((section) => section.id), ['select', 'markup', 'text', 'shapes', 'marking', 'pen', 'note', 'mosaic-trim']);
   assert.ok(SECTIONS.every((section) => section.group === 'annot'));
 });
 

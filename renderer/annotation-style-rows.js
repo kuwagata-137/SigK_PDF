@@ -73,6 +73,15 @@
 
   // スライダーと数値欄。そろっていなければ、スライダーは主の値に置き、数値欄は空にして「–」を出す（確定事項I1）。
   // shown は値を欄に出す形にする（不透明度は百分率の整数。太さは読み込んだ小数のまま）。
+  // 透明度（%。0 は透けない）と不透明度（0.1〜1）の変換（spec-7-9 確定事項B3）。
+  function transparencyOf(opacity) {
+    return Math.round(100 - opacity * 100);
+  }
+
+  function opacityOf(transparency) {
+    return Math.round(100 - transparency) / 100;
+  }
+
   function renderRange(row, slider, number, value, shown) {
     row.hidden = value === null;
     if (value === null)
@@ -97,8 +106,8 @@
     }
     el.fillRow.hidden = view?.fill === null || view === null;
     if (!el.fillRow.hidden) {
-      chips().renderChip(el.fillChip, el.fillName, view.fill, '塗り');
-      chips().renderMain(el.fillMain, 'fill', '塗り');
+      chips().renderChip(el.fillChip, el.fillName, view.fill, '塗りつぶし');
+      chips().renderMain(el.fillMain, 'fill', '塗りつぶし');
     }
     // 一括は塗りを持てる書き込みがあるときだけ（spec-7-2 確定事項D1）。
     el.setRow.hidden = el.fillRow.hidden;
@@ -115,10 +124,13 @@
     if (view?.lineWidth)
       el.widthLabel.textContent = view.lineWidth.label;
     renderRange(el.widthRow, el.widthRange, el.width, view?.lineWidth ?? null, (width) => width);
-    renderRange(el.opacityRow, el.opacityRange, el.opacity, view?.opacity ?? null, (opacity) => Math.round(opacity * 100));
+    // 画面は透明度（100 − 不透明度。spec-7-9 確定事項B3。質問 NM1）。データは今までどおり不透明度で持つ。
+    renderRange(el.opacityRow, el.opacityRange, el.opacity, view?.opacity ?? null, transparencyOf);
     // テキストの行（文字の大きさ・書式。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
     root.SigK.annotationTextRows?.render(view?.fontSize ?? null);
     root.SigK.annotationTextRows?.renderFormat(view?.format ?? null);
+    // 見出し「枠線」「塗り」と塗りの見出しの行（spec-7-9 確定事項B1。annotation-fill-rows.js）。
+    root.SigK.annotationFillRows?.render(view);
     // 開いているパレットの行が消えたら閉じる。
     if (popover()?.isOpen() && popover().anchor()?.closest('.prop')?.hidden === true)
       popover().close();
@@ -180,20 +192,21 @@
       targetOf: targetKey,
     });
     range().bind(el.opacityRange, el.opacity, {
-      min: Math.round(OPACITY_MIN * 100), max: 100,
-      onPreview: (percent) => preview().update('opacity', percent / 100),
-      onCommit: (percent) => preview().commit('opacity', percent / 100),
+      min: 0, max: transparencyOf(OPACITY_MIN),
+      onPreview: (percent) => preview().update('opacity', opacityOf(percent)),
+      onCommit: (percent) => preview().commit('opacity', opacityOf(percent)),
       onCancel: () => preview().cancel(),
       targetOf: targetKey,
     });
     // 別の欄の操作で下見を捨てる（確定事項8）。スライダー自身は除く。
     el.body.addEventListener('focusin', (event) => {
-      if (event.target !== el.widthRange && event.target !== el.opacityRange)
+      if (event.target !== el.widthRange && event.target !== el.opacityRange && event.target.id !== 'props-fill-opacity-range')
         preview()?.cancel();
     });
+    root.SigK.annotationFillRows?.init(doc, win);
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationStyleRows = { LINE_STYLE_LABELS, init, render, colorLabelOf: (kind) => patch().colorLabelOf(kind) };
+  SigK.annotationStyleRows = { LINE_STYLE_LABELS, init, render, transparencyOf, opacityOf, colorLabelOf: (kind) => patch().colorLabelOf(kind) };
 })(typeof window !== 'undefined' ? window : globalThis);

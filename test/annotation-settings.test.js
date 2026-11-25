@@ -13,7 +13,7 @@ const {
 } = require('../annotation-settings.js');
 const settings = require('../settings.js');
 
-const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFontSize', 'annotTextStyle', 'annotCalloutStyle', 'annotLineWidth', 'annotMarkerWidth',
+const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFillOpacity', 'annotHatch', 'annotKeepRatio', 'annotMarking', 'annotFontSize', 'annotTextStyle', 'annotCalloutStyle', 'annotLineWidth', 'annotMarkerWidth',
   'annotShapeKind', 'annotOpacity', 'annotAuthor', 'annotMosaicBlock', 'annotRecentColors', 'annotLastColors', 'annotPaletteVersion'];
 const UI_KEYS = KEYS.filter((key) => key !== 'annotPaletteVersion');
 
@@ -36,7 +36,7 @@ test('既定の色はパレットの色で、塗りは無し・線あり・実�
   // 図形だけは標準の色の赤 #ff0000（2026-10-14 のユーザーの指示）。下線・取り消し線・ペンは濃い赤 #c00000 のまま。
   assert.deepEqual(ANNOT_DEFAULTS.annotColors, {
     highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00',
-    note: '#ffd966',
+    note: '#ffd966', marking: '#ff0000',
   });
   assert.deepEqual(ANNOT_DEFAULTS.annotFills, { shape: null });
   assert.deepEqual(ANNOT_DEFAULTS.annotStrokeNone, { shape: false });
@@ -76,7 +76,7 @@ test('pickAnnotSettings は注釈のキーだけを検証して取り出し、�
   assert.equal(picked.annotLineWidth, 17);
   assert.equal(picked.annotMarkerWidth, 12, '無ければ既定の 12');
   assert.equal(picked.annotShapeKind, 'arrow');
-  assert.deepEqual(picked.annotOpacity, { text: 1, callout: 1, shape: 0.35, pen: 0.33, marker: 1, note: 1 }, '0.1 未満は既定、小数は 2 桁');
+  assert.deepEqual(picked.annotOpacity, { text: 1, callout: 1, shape: 0.35, pen: 0.33, marker: 1, note: 1, marking: 1 }, '0.1 未満は既定、小数は 2 桁');
   assert.equal(picked.annotAuthor, '総務');
   assert.equal(picked.annotPaletteVersion, 2);
 });
@@ -108,7 +108,7 @@ test('移し替えの印が無い設定は、今までの候補の色をパレ�
   const picked = pickAnnotSettings(old);
   assert.deepEqual(picked.annotColors, {
     highlight: '#ffd966', underline: '#c00000', strikeout: '#4472c4', text: '#222a35', callout: '#222a35', shape: '#00b050', pen: '#123456', marker: '#ffff00',
-    note: '#ffa8c8',
+    note: '#ffa8c8', marking: '#ff0000',
   });
   assert.equal(picked.annotPaletteVersion, 2);
   assert.deepEqual(pickAnnotSettings({ annotColors: { highlight: '#8ce99a', note: '#8fbfff' } }).annotColors.highlight, '#a9ce91');
@@ -164,7 +164,7 @@ test('mergeAnnotUi は色・塗り・線なし・線種・不透明度を種類�
   assert.deepEqual(merged.annotFills, { shape: '#ffd966' });
   assert.deepEqual(merged.annotStrokeNone, { shape: true });
   assert.deepEqual(merged.annotLineStyles, { shape: 'dashed' });
-  assert.deepEqual(merged.annotOpacity, { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 0.25 });
+  assert.deepEqual(merged.annotOpacity, { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 0.25, marking: 1 });
   assert.equal(merged.annotLineWidth, 3);
   assert.equal(merged.annotMarkerWidth, 12, 'マーカーの太さは送られなければ今の値のまま');
   assert.equal(merged.annotAuthor, '総務');

@@ -107,7 +107,8 @@
       entry.fill = next.fill;
     if (next.lineStyle !== 'solid' && style.lineStylesOf(kind).includes(next.lineStyle))
       entry = style.restyle(entry, next.lineStyle);
-    return entry;
+    // 塗りの透明度とハッチングも、閉じた多角形にだけ当てる（spec-7-9 確定事項C4）。
+    return kind === 'polygon' && shape.closed ? root.SigK.shapeDraft.withFill(entry, next) : entry;
   }
 
   // 確定する（閉じる・開いたまま）。置けない形なら何も積まない。どちらでも描きかけは終わるので true。
@@ -132,6 +133,15 @@
   // 描きかけを捨てる（Esc・右クリック・左＋右・Ctrl+Z／Ctrl+Y。確定事項16）。描いていなければ false。
   function cancel() {
     if (!draft().cancel())
+      return false;
+    redraw();
+    refreshProps();
+    return true;
+  }
+
+  // 最後の頂点を 1 つ取り消す（右クリック。spec-7-9 確定事項A1・A2。頂点が 1 つなら描画をやめる）。描いていなければ false。
+  function undoLast() {
+    if (draft().undoLast() === null)
       return false;
     redraw();
     refreshProps();
@@ -173,6 +183,7 @@
     draftFor,
     marksFor,
     isDrawing: () => draft().isActive(),
+    undoLast,
     isPolygonTool,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -111,3 +111,36 @@ test('回転は中心から見た向きの変化ぶんで、Shift なら 15° �
   assert.equal(resize.rotatedBy({ ...SQUARE, angle: 30 }, [300, 191.89], [300, 116.53], center, { shift: true }).angle, 0);
   assert.equal(resize.rotatedBy(SQUARE, [200, 100], [262, 120], center, { shift: true }).angle, 45);
 });
+
+// 「縦横比を固定」にチェックがある時（spec-7-9 確定事項D3）。
+test('keep の時は、角のハンドルは Shift なしでも縦と横の比を保つ', () => {
+  assert.deepEqual(resize.resized(SQUARE, 'x2y2', [300, 700], [400, 705], { keep: true }).rect, [100, 600, 400, 750]);
+  assert.deepEqual(resize.resized(SQUARE, 'x1y1', [100, 600], [100, 500], { keep: true }).rect, [-100, 500, 300, 700]);
+});
+
+test('keep の時は、辺のハンドルは同じ比でもう一方の向きを中心から両側へ伸ばす（反対の辺は動かない）', () => {
+  // 200×100 の箱の右の辺を右へ 100。横 300 に合わせて縦 150 を、縦の中心 650 から上下へ
+  assert.deepEqual(resize.resized(SQUARE, 'x2', [300, 650], [400, 650], { keep: true }).rect, [100, 575, 400, 725]);
+  // 下の辺（y1）を下へ 50。縦 150 に合わせて横 300 を、横の中心 200 から左右へ。上の辺は動かない
+  assert.deepEqual(resize.resized(SQUARE, 'y1', [200, 600], [200, 550], { keep: true }).rect, [50, 550, 350, 700]);
+  // 左の辺を右へ 100 で縮める。右の辺は動かない
+  assert.deepEqual(resize.resized(SQUARE, 'x1', [100, 650], [200, 650], { keep: true }).rect, [200, 625, 300, 675]);
+});
+
+test('keep の時の辺は、どちらの向きも最小 1pt より小さくしない', () => {
+  // 横を 1pt まで縮めると縦が 0.5pt になるので、縦 1pt（横 2pt）で止める
+  assert.deepEqual(resize.resized(SQUARE, 'x2', [300, 650], [50, 650], { keep: true }).rect, [100, 649.5, 102, 650.5]);
+});
+
+test('keep の時も、回した図形の掴んだ辺の反対側は紙の上で動かない', () => {
+  const turned = { ...SQUARE, angle: 30 };
+  const before = rot.cornersOf(turned.rect, 30);
+  const patch = resize.resized(turned, 'x2', rot.rotatePoint([300, 650], rot.centerOf(turned.rect), 30), rot.rotatePoint([400, 650], rot.centerOf(turned.rect), 30), { keep: true });
+  const width = patch.rect[2] - patch.rect[0];
+  const height = patch.rect[3] - patch.rect[1];
+  near([width, height], [300, 150]);
+  // 左の辺の中点（UL と LL の中点）は動かない
+  const after = rot.cornersOf(patch.rect, 30);
+  const mid = (corners) => [(corners[0][0] + corners[2][0]) / 2, (corners[0][1] + corners[2][1]) / 2];
+  near(mid(after), mid(before), 0.02);
+});

@@ -130,6 +130,17 @@
     root.SigK.strips?.schedule();   // 帯の見えている紙も幅で決まる（spec-2-5 確定事項D8）
   }
 
+  // プロパティパネルの開閉（spec-7-9 確定事項E1・E2。決定101 ⑤）。表示する設定がある時だけ開く。判断は annotation-props.js の
+  // refresh が行い、ここは <html> の data-props を変えて表示域を追従させる（左パネルの開閉と同じ合図）。変わらなければ何もしない。
+  function setPropsOpen(doc, open) {
+    const value = open ? 'open' : 'closed';
+    if (doc.documentElement.getAttribute('data-props') === value)
+      return false;
+    doc.documentElement.setAttribute('data-props', value);
+    notifyViewportChanged();
+    return true;
+  }
+
   // 閉じている間だけ、開き直す「＞」のある、閉じたパネルの細い欄を出す（2026-10-08 の直し）。閉じる「＜」はパネルと一緒に消えるため。
   function setSidePanelOpen(doc, open) {
     doc.documentElement.setAttribute('data-panel', open ? 'open' : 'collapsed');
@@ -282,6 +293,7 @@
     setMode,
     setSidePanelOpen,
     setSidePanelWidth,
+    setPropsOpen,
     setPageLayout,
     setEditSide,
     getEditSide: () => editSide,

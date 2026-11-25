@@ -34,7 +34,7 @@ test('目次は 5 つのグループと 14 の節で、グループの順に並�
   assert.equal(content.TITLE, 'SigK PDF の使い方');
   assert.deepEqual(content.GROUPS.map((group) => group.label), ['はじめに', '閲覧・ページ編集', '編集（書き込み）', 'ツール', '一覧']);
   assert.deepEqual(content.SECTIONS.map((section) => section.id), [
-    'basics', 'view', 'pages', 'select', 'markup', 'text', 'shapes', 'pen', 'note', 'mosaic-trim', 'tools', 'split', 'keys', 'escape',
+    'basics', 'view', 'pages', 'select', 'markup', 'text', 'shapes', 'marking', 'pen', 'note', 'mosaic-trim', 'tools', 'split', 'keys', 'escape',
   ]);
   const groupIds = content.GROUPS.map((group) => group.id);
   const order = content.SECTIONS.map((section) => groupIds.indexOf(section.group));

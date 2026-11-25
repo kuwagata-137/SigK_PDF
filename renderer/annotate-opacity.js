@@ -60,7 +60,8 @@
   // 形が崩れて updateAnnot が断ったなら何もしない。
   function updateSelected(entry, value) {
     const annots = viewer().getAnnotations();
-    const next = annotationState().updateAnnot(annots, entry, { opacity: value });
+    // 塗りを持てる図形は、持っていない塗りの不透明度を今の値で残す（枠線だけが変わる。spec-7-9 確定事項B2）。
+    const next = annotationState().updateAnnot(annots, entry, { opacity: value, ...root.SigK.fillStyle.keepFillOpacity(entry) });
     if (next === annots)
       return;
     const before = annotate().getSelected();

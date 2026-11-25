@@ -8,6 +8,7 @@ require('../renderer/shape-style.js');
 require('../renderer/free-text-entry.js');
 require('../renderer/annotation-entry-rules.js');
 require('../renderer/annotation-entry.js');
+require('../renderer/shape-size.js');
 require('../renderer/annotation-hints.js');
 
 // 右パネルのヒントの文言と選び方（spec-4b-1b 確定事項4 ほか）。
@@ -36,8 +37,11 @@ test('道具のヒントは道具で選び、四角・丸の道具には同じ�
   assert.equal(hints.forTool('pen', 'ink', null), HINTS.pen);
   // 直線・矢印の道具には始点合わせの説明を添える（spec-4b-5a 確定事項31）
   assert.equal(hints.forTool('shape', 'line', null), `${HINTS.shape}${HINTS.lineSnap}`);
-  assert.equal(hints.forTool('shape', 'square', null), `${HINTS.shape}${HINTS.box}`);
-  assert.equal(hints.forTool('shape', 'circle', '#ffd966'), `${HINTS.shape}${HINTS.box}${HINTS.fill}`);
+  // 四角・丸・×印の書き込みツールには縦横比を固定の説明を添える（spec-7-9 確定事項D3）
+  assert.equal(hints.forTool('shape', 'square', null), `${HINTS.shape}${HINTS.boxRatio}${HINTS.box}`);
+  assert.equal(hints.forTool('shape', 'circle', '#ffd966'), `${HINTS.shape}${HINTS.boxRatio}${HINTS.box}${HINTS.fill}`);
+  assert.equal(hints.forTool('shape', 'cross', null), `${HINTS.shape}${HINTS.boxRatio}`);
+  assert.ok(HINTS.boxTransform.includes('「縦横比を固定」'));
   assert.ok(Object.isFrozen(HINTS));
 });
 

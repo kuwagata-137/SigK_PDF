@@ -61,6 +61,13 @@
   }
 
   function handleElement(doc, handle) {
+    // 四角いハンドル（マーキングの外の円。spec-7-9 確定事項F4）。大きさは丸いハンドルの直径と同じ。
+    if (handle.shape === 'square') {
+      const size = handles().HANDLE_RADIUS * 2;
+      return [element(doc, 'rect', {
+        x: fmt(handle.at[0] - size / 2), y: fmt(handle.at[1] - size / 2), width: fmt(size), height: fmt(size), class: 'annot-handle square', 'data-handle': handle.id,
+      })];
+    }
     const rotate = handle.kind === 'rotate';
     const circle = element(doc, 'circle', {
       cx: fmt(handle.at[0]), cy: fmt(handle.at[1]), r: String(rotate ? handles().ROTATE_RADIUS : handles().HANDLE_RADIUS),

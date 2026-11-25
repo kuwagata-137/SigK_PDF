@@ -8,6 +8,12 @@
 // できない。test/settings.test.js が一致を見張る）。受け取れない値は、渡された fallback、それも無ければ既定へ落とす。
 
 const { ANNOT_FONT_SIZES, textDefaults, pickTextSettings } = require('./annotation-text-settings.js');
+// 図形の塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
+const { fillDefaults, pickFillSettings, mergeFillSettings } = require('./annotation-fill-settings.js');
+// 四角・丸・×印の「縦横比を固定」（spec-7-9 確定事項D3）。
+const { ratioDefaults, pickRatioSettings, mergeRatioSettings } = require('./annotation-ratio-settings.js');
+// マーキングの次に配置する値（spec-7-9 確定事項F5）。
+const { markingDefaults, pickMarkingSettings, mergeMarkingSettings } = require('./marking-settings.js');
 
 // 色の移し替えを済ませた設定に書く印。1 が候補の色の移し替え（確定事項15）、2 が図形の既定の色の移し替え
 // （#c00000 → #ff0000。2026-10-14 のユーザーの指示）。
@@ -16,15 +22,18 @@ const ANNOT_PALETTE_VERSION = 2;
 // 種類ごとに最後に使った色・図形の塗り（null は塗りなし）・図形の線なし・図形の線種・テキストの文字の大きさ（pt）・図形とペンの線の太さ（pt）・マーカーの太さ（pt。
 // spec-4b-5b 確定事項3）・「図形」の道具の種類・道具ごとの不透明度・ノートの作成者（空ならメインが OS のユーザー名で埋める）・モザイクの粗さ（pt。spec-4b-6b 確定事項14）。
 const ANNOT_DEFAULTS = {
-  annotColors: { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00', note: '#ffd966' },
+  annotColors: { highlight: '#ffd966', underline: '#c00000', strikeout: '#c00000', text: '#222a35', callout: '#222a35', shape: '#ff0000', pen: '#c00000', marker: '#ffff00', note: '#ffd966', marking: '#ff0000' },
   annotFills: { shape: null },
   annotStrokeNone: { shape: false },
   annotLineStyles: { shape: 'solid' },
+  ...fillDefaults(),
+  ...ratioDefaults(),
+  ...markingDefaults(),
   ...textDefaults(),
   annotLineWidth: 2,
   annotMarkerWidth: 12,
   annotShapeKind: 'square',
-  annotOpacity: { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1 },
+  annotOpacity: { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1, marking: 1 },
   annotAuthor: '',
   annotMosaicBlock: 8,
   // 色の一覧の「最近使用した色」（新しい順に 10 色まで）と、分割ボタンの左側で塗る「直前の色」（spec-7-2 確定事項A4・B2・D5）。
@@ -195,6 +204,9 @@ function pickAnnotSettings(source) {
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(raw.annotStrokeNone, ANNOT_DEFAULTS.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(raw.annotLineStyles, ANNOT_DEFAULTS.annotLineStyles),
+    ...pickFillSettings(raw, ANNOT_DEFAULTS),
+    ...pickRatioSettings(raw, ANNOT_DEFAULTS),
+    ...pickMarkingSettings(raw, ANNOT_DEFAULTS),
     ...pickTextSettings(raw, ANNOT_DEFAULTS),
     annotLineWidth: pickAnnotLineWidth(raw.annotLineWidth, ANNOT_DEFAULTS.annotLineWidth),
     annotMarkerWidth: pickAnnotLineWidth(raw.annotMarkerWidth, ANNOT_DEFAULTS.annotMarkerWidth, ANNOT_DEFAULTS.annotMarkerWidth),
@@ -219,6 +231,9 @@ function mergeAnnotUi(current, next) {
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(merged('annotStrokeNone'), current.annotStrokeNone, annotFills),
     annotLineStyles: pickAnnotLineStyles(merged('annotLineStyles'), current.annotLineStyles),
+    ...mergeFillSettings(current, next),
+    ...mergeRatioSettings(current, next),
+    ...mergeMarkingSettings(current, next),
     ...pickTextSettings({ ...next, annotTextStyle: merged('annotTextStyle'), annotCalloutStyle: merged('annotCalloutStyle') }, current),
     annotLineWidth: pickAnnotLineWidth(next.annotLineWidth, current.annotLineWidth),
     annotMarkerWidth: pickAnnotLineWidth(next.annotMarkerWidth, current.annotMarkerWidth, ANNOT_DEFAULTS.annotMarkerWidth),

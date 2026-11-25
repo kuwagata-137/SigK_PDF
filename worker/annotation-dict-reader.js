@@ -18,6 +18,8 @@ const { parseRef } = require('./annotation-remove.js');
 const { pick } = require('./pdf-tree-reader.js');
 const { appearanceOf, numbersOf: fixedNumbersOf, skewedContent } = require('./appearance-reader.js');
 const { blendOf } = require('./appearance-blend.js');
+const { fillStyleOf } = require('./appearance-fill-style.js');
+const { markingOf } = require('./appearance-marking.js');
 const { rotationOf: rotationOfAppearance } = require('./shape-rotation.js');
 const { freeTextRotationOf } = require('./free-text-rotation.js');
 const { freeTextDetailsOf } = require('./free-text-details.js');
@@ -26,6 +28,8 @@ const { readSignature, signaturesMatch } = require('../pdf-write.js');
 
 // 回転を読む種類（spec-4b-2 確定事項34。FreeText は spec-4b-4b 確定事項H1。多角形の Polygon・PolyLine は spec-4b-5a 確定事項40）。
 const BOXED_SUBTYPES = Object.freeze(['Square', 'Circle', 'FreeText', 'Polygon', 'PolyLine']);
+// 塗りの不透明度とハッチングを外観から読む種類（spec-7-9 確定事項B2・C1。塗りを持てる四角・丸・多角形）。
+const FILL_SUBTYPES = Object.freeze(['Square', 'Circle', 'Polygon']);
 
 // 一度に読む注釈の数の上限。画面の側も、これを超える文書では口を呼ばない（確定事項25）。
 const REFS_MAX = 10000;
@@ -103,6 +107,9 @@ function detailsOf(dict, context, options = {}) {
     rectDifference: numbersOf(context, pick(dict, '/RD')),
     rotation: rotationOf(dict, context, options),
     blend: subtype === 'Ink' ? blendOf(context, dict) : null,
+    fillStyle: FILL_SUBTYPES.includes(subtype) ? fillStyleOf(context, dict) : null,
+    // マーキング（spec-7-9 確定事項F6）。外観のマーク付き内容の属性 /MK を持つ丸だけ。
+    marking: subtype === 'Circle' ? markingOf(context, dict) : null,
   };
 }
 

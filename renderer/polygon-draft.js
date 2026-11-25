@@ -98,6 +98,19 @@
     return true;
   }
 
+  // 最後に置いた頂点を 1 つ取り消す（右クリック。spec-7-9 確定事項A1・A2）。戻り値は 'removed'（頂点が 2 つ以上あった）・
+  // 'cancelled'（頂点が 1 つで、描画をやめた）・null（描いていない）。
+  function undoLast() {
+    if (draft === null)
+      return null;
+    if (draft.vertices.length <= 1) {
+      draft = null;
+      return 'cancelled';
+    }
+    draft.vertices.pop();
+    return 'removed';
+  }
+
   // そのページの描きかけ（{ vertices, cursor }）。無ければ null。
   function previewOf(index) {
     if (draft === null || draft.index !== index)
@@ -138,6 +151,7 @@
     place,
     hover,
     finish,
+    undoLast,
     cancel,
     previewOf,
     svgOf,

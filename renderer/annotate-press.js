@@ -14,7 +14,8 @@
 
   // 選んでいない書き込みでも、動かせるものなら押したときに選んで 1 段で掴む道具（決定84 ④。null は道具なし）。「選択」は
   // 動かせない書き込みも選ぶ（決定53 ⑨）。
-  const GRAB_TOOLS = Object.freeze(['select', 'shape', 'hand', null, 'text', 'callout', 'note']);
+  // マーキング（spec-7-9 確定事項F3）も、既存の書き込みの上なら配置せずに選択して掴む。
+  const GRAB_TOOLS = Object.freeze(['select', 'shape', 'hand', null, 'text', 'callout', 'note', 'marking']);
   // 塗っていない四角・丸は線の上だけを当てる道具（決定84 ②。内側は図形を描く・表示を引く）。
   const OUTLINE_TOOLS = Object.freeze(['shape', 'hand']);
   // 書き込みを選ばず掴まない道具（spec-4b-5b 確定事項21、spec-4b-6a 確定事項12、spec-4b-6b 確定事項11）。
@@ -164,6 +165,10 @@
     }
     if (tool === 'note') {
       root.SigK.annotateNote?.place({ index: page.index, point: page.point });
+      return;
+    }
+    if (tool === 'marking') {
+      root.SigK.annotateMarking?.place({ index: page.index, point: page.point });
       return;
     }
     annotate().select(null);

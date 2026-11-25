@@ -79,6 +79,9 @@
       return false;
     if (entry.angle !== undefined && !validAngle(entry.angle))
       return false;
+    // マーキングは線の色と形・大きさを必ず持つ（spec-7-9 確定事項F）。
+    if (entry.kind === 'marking')
+      return typeof entry.color === 'string' && root.SigK.markingRules.validMarking(entry.marking);
     return entryModule().isPathKind(entry.kind) ? validPaths(entry.kind, entry.paths) : true;
   }
 
@@ -94,7 +97,7 @@
       && Array.isArray(entry.quads) && entry.quads.length > 0 && entry.quads.every(isQuad)
       && Array.isArray(entry.rect) && entry.rect.length === 4 && style().validStyle(entry);
     if (!shape || (entry.angle !== undefined && !turnable(entry.kind)) || (entry.head !== undefined && entry.kind !== 'arrow')
-      || (entry.closed !== undefined && entry.kind !== 'polygon'))
+      || (entry.closed !== undefined && entry.kind !== 'polygon') || (entry.marking !== undefined && entry.kind !== 'marking'))
       return false;
     if (entry.kind === 'text')
       return validTextFields(entry);
@@ -110,12 +113,16 @@
       case 'lineStyle': return style().lineStylesOf(kind).includes(value);
       case 'text': return entryModule().isNoteKind(kind) ? typeof value === 'string' : validText(value);
       case 'opacity': return validOpacity(value);
+      // 塗りの透明度とハッチングは、塗りを持てる種類だけ（spec-7-9 確定事項B2・C4。閉じているかは当てた後の validEntry が見る）。
+      case 'fillOpacity': return style().isFillableKind(kind) && root.SigK.fillStyle.validFillOpacity(value);
+      case 'hatch': return style().isFillableKind(kind) && (value === null || root.SigK.fillStyle.validHatch(value));
       case 'fontSize': return validPositive(value);
       case 'lineWidth': return validPositive(value);
       case 'rect': return Array.isArray(value) && value.length === 4;
       case 'quads': return Array.isArray(value) && value.length > 0 && value.every(isQuad);
       case 'paths': return validPaths(kind, value);
       case 'angle': return turnable(kind) && validAngle(value);
+      case 'marking': return kind === 'marking' && root.SigK.markingRules.validMarking(value);
       case 'width':
       case 'bold':
       case 'italic':
@@ -147,6 +154,9 @@
     const merged = { ...entry, ...rest };
     if (merged.angle === 0)
       delete merged.angle;
+    // ハッチングなしは欄を持たない（spec-7-9 確定事項C1）。
+    if (merged.hatch === null)
+      delete merged.hatch;
     if (merged.kind === 'text')
       root.SigK.freeTextEntry.tidy(merged);
     return lineStyle === undefined ? merged : style().restyle(merged, lineStyle);

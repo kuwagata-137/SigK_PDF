@@ -47,6 +47,12 @@
     return group;
   }
 
+  // 不透明度は <g> 全体に掛ける。塗りと枠線を分けて描く図形は、図形の側が塗りと枠線に別々に掛ける（spec-7-9 確定事項B5）。
+  function setOpacity(group, entry) {
+    if (entry.opacity !== undefined && entry.opacity < 1 && root.SigK.fillStyle?.paintsApart(entry) !== true)
+      group.setAttribute('opacity', String(entry.opacity));
+  }
+
   // 1 つの注釈の <g>。表示のみ（pdf.js が描く）は null。
   function groupOf(doc, entry, viewport) {
     if (entry.readonly === true)
@@ -54,11 +60,15 @@
     const group = doc.createElementNS(SVG_NS, 'g');
     group.setAttribute('data-annot', keyOf(entry));
     group.setAttribute('data-kind', entry.kind);
-    if (entry.opacity !== undefined && entry.opacity < 1)
-      group.setAttribute('opacity', String(entry.opacity));
+    setOpacity(group, entry);
     markBlend(group, entry);
     if (entry.kind === 'text') {
       group.append(root.SigK.freeTextShape.svgOf(doc, entry, viewport));
+      return group;
+    }
+    // マーキング（spec-7-9 確定事項F。marking-graphics.js）。
+    if (entry.kind === 'marking') {
+      group.append(root.SigK.markingGraphics.svgOf(doc, entry, viewport));
       return group;
     }
     if (isDrawn(entry)) {
@@ -78,8 +88,7 @@
   function draftOf(doc, draft, viewport) {
     const group = doc.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'annot-draft');
-    if (draft.opacity !== undefined && draft.opacity < 1)
-      group.setAttribute('opacity', String(draft.opacity));
+    setOpacity(group, draft);
     markBlend(group, draft);
     group.append(root.SigK.shapeGraphics.svgOf(doc, draft, viewport));
     return group;
@@ -126,6 +135,10 @@
         continue;
       if (entry.kind === 'text') {
         root.SigK.freeTextShape.paint(ctx, entry, viewport);
+        continue;
+      }
+      if (entry.kind === 'marking') {
+        root.SigK.markingGraphics.paint(ctx, entry, viewport);
         continue;
       }
       if (isDrawn(entry)) {

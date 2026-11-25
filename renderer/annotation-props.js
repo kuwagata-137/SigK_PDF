@@ -77,6 +77,10 @@
     noteRows()?.render({ text: isNote ? entry.text : null, author: isNote ? (entry.author ?? '') : null, editable: false });
     // 回転の行は四角・丸を選んでいるときだけ（spec-4b-2 確定事項25）。
     root.SigK.annotationAngleRow?.render(entry);
+    // 大きさ（幅・高さ）と縦横比を固定の行は四角・丸・×印を選んでいるときだけ（spec-7-9 確定事項D1）。
+    root.SigK.annotationSizeRow?.render(entry);
+    // マーキングの形・大きさ・番号の行（spec-7-9 確定事項F2・F4）。
+    root.SigK.markingProps?.render(entry);
     setRow(el.pageRow, displayNumberOf(entry.src), el.page);
     el.textLabel.textContent = isText ? '本文' : '対象文字列';
     setRow(el.textRow, !isNote && entry.text ? `「${previewOf(entry.text)}」` : null, el.text);
@@ -103,9 +107,23 @@
     return root.SigK.annotateShape?.kindOfTool(tool) ?? tool;
   }
 
+  // プロパティパネルに表示する設定があるか（spec-7-9 確定事項E1。質問 SH4「案A 設定表示時開閉」）。書き込みを選択している時と、
+  // ［選択］［ハンド］以外の書き込みツール（トリミング・モザイク・消しゴムを含む）を選択している時だけ開く。
+  const PANEL_LESS_TOOLS = Object.freeze(['select', 'hand']);
+  function wantsOpen() {
+    const tool = annotate().getTool();
+    return annotate().getSelection().length > 0 || (tool !== null && !PANEL_LESS_TOOLS.includes(tool));
+  }
+
   function refresh() {
     if (el === null)
       return false;
+    const done = renderBody();
+    root.SigK.shell?.setPropsOpen(el.doc, wantsOpen());
+    return done;
+  }
+
+  function renderBody() {
     // トリミングの道具を持っている間は、その行とボタンだけを出す（spec-4b-6a 確定事項17。trim-props.js）。モザイクの道具も同じく、
     // その行とボタンだけ（spec-4b-6b 確定事項14。mosaic-props.js）。どちらも必ず呼ぶ（持っていない側は自分の行を隠す。持ち替えたときに
     // 前の道具の行が残らないように。コードの点検で直した）。
@@ -133,6 +151,9 @@
     });
     noteRows()?.render({ text: null, author: tool === 'note' ? annotate().getAuthor() : null, editable: true });
     root.SigK.annotationAngleRow?.render(null);
+    // 四角・丸・×印の書き込みツールでは、縦横比を固定のチェック欄だけを表示する（spec-7-9 確定事項D1）。
+    root.SigK.annotationSizeRow?.render(null, kind);
+    root.SigK.markingProps?.render(null, kind);
     setRow(el.pageRow, null, el.page);
     setRow(el.textRow, null, el.text);
     el.hint.textContent = hints().forTool(annotate().getTool(), kind, kind === null ? null : annotate().fillOf(kind));
@@ -171,6 +192,8 @@
     styleRows()?.init(doc, win);
     noteRows()?.init(doc, win);
     root.SigK.annotationAngleRow?.init(doc, win);
+    root.SigK.annotationSizeRow?.init(doc, win);
+    root.SigK.markingProps?.init(doc, win);
     root.SigK.annotationTextRows?.init(doc, win);
     root.SigK.trimProps?.init(doc, win);
     root.SigK.mosaicProps?.init(doc, win);
