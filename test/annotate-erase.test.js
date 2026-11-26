@@ -306,8 +306,9 @@ test('消しゴムでは、紙の外にはみ出したつまみを押しても�
   const shell = await withShell(t);
   const { SigK, document } = shell;
   const square = drawSquare(shell, [100, 780], [300, 830]);
-  SigK.annotate.select(square);
+  // 書き込みツールを切り替えると選択を解除するので（決定102 ⑩）、消しゴムを選んでから選択する（注釈一覧で選択した時と同じ状態）。
   SigK.annotate.setTool('eraser');
+  SigK.annotate.select(square);
   await shell.flush();
   const rotate = SigK.annotationFrame.shown().shape.handles.find((handle) => handle.kind === 'rotate');
   const gray = document.getElementById('view-pages');

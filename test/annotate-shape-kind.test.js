@@ -13,11 +13,11 @@ const SigK = globalThis.SigK;
 const kinds = SigK.annotateShapeKind;
 
 function stub() {
-  const calls = { persist: [], sync: [], refresh: 0 };
+  const calls = { persist: [], sync: [], refresh: 0, selected: [] };
   SigK.shell = { persist: (patch) => calls.persist.push(patch) };
   SigK.editBar = { sync: (tool, kind) => calls.sync.push([tool, kind]) };
   SigK.annotationProps = { refresh: () => { calls.refresh += 1; } };
-  SigK.annotate = { getTool: () => 'shape' };
+  SigK.annotate = { getTool: () => 'shape', select: (key) => calls.selected.push(key) };
   return calls;
 }
 
@@ -50,6 +50,8 @@ test('setShapeKind は図形の種類だけを受け、設定へ書いて道具�
   assert.equal(kinds.getShapeKind(), 'circle');
   assert.deepEqual(calls.persist, [{ annotShapeKind: 'circle' }]);
   assert.deepEqual(calls.sync, [['shape', 'circle']]);
+  // 図形の書き込みツールを持ったまま種類を替えたら、選択を解除する（決定102 ⑩）。
+  assert.deepEqual(calls.selected, [null]);
   assert.equal(kinds.applyShapeKind('line'), 'line');
   assert.deepEqual(calls.persist, [{ annotShapeKind: 'circle' }]);
 });

@@ -62,6 +62,13 @@
     return TOOLS.includes(tool) || POINTER_TOOLS.includes(tool);
   }
 
+  // 切り替えても選択を解除しない書き込みツール（決定102 ⑩）。null は書き込みツールなし。
+  const SELECTION_KEEPING_TOOLS = Object.freeze([null, 'select', 'hand']);
+
+  function keepsSelection(tool) {
+    return SELECTION_KEEPING_TOOLS.includes(tool);
+  }
+
   // 描く道具。「選択」など描かない道具を持っているときは null（右パネル・色・不透明度・図形の種類はこちらを見る）。
   function drawingTool() {
     return TOOLS.includes(state.tool) ? state.tool : null;
@@ -78,7 +85,12 @@
     // モザイクの引いている途中もやめる（spec-4b-6b 確定事項12）。
     root.SigK.annotateMosaic?.cancel();
     // 画像のタブで使えない道具は持たせない（spec-7-1 確定事項C1。灰色のボタンは image-tools.js）。
+    const before = state.tool;
     state.tool = isTool(tool) && root.SigK.imageTools?.blocks(tool) !== true ? tool : null;
+    // 別の書き込みツールに切り替えた時は、選択を解除する（決定102 ⑩）。［選択］［ハンド］と、書き込みツールなしに戻した時は解除しない
+    // （選択した書き込みをハンドで動かす操作を残すため）。
+    if (state.tool !== before && keepsSelection(state.tool) === false)
+      root.SigK.annotate?.select(null);
     state.base = toolSwitch().remember(state.base, state.tool);
     if (state.tool === 'text' || state.tool === 'callout')
       root.SigK.freeTextShape?.ensureLoaded(state.doc);

@@ -115,6 +115,9 @@
       root.SigK.annotatePolygon?.commitPending();
       root.SigK.annotateLineAnchor?.cancel();
     }
+    // 図形の書き込みツールを持ったまま種類を切り替えた時（四角 → 丸など）も、選択を解除する（決定102 ⑩）。
+    if (kind !== getShapeKind() && annotate()?.getTool() === 'shape')
+      annotate().select(null);
     state.shapeKind = kind;
     root.SigK.shell?.persist?.({ annotShapeKind: kind });
     syncBar();

@@ -210,9 +210,10 @@ test('Ctrl を押していれば、四角の道具を持って書き込みの無
   const shell = await withShell(t);
   const { SigK } = shell;
   const a = drawSquare(shell, [100, 700], [200, 600]);
-  SigK.annotate.select(a);
+  // 書き込みツールを切り替えると選択を解除するので（決定102 ⑩）、書き込みツールを選んでから選択する。
   SigK.annotate.setTool('shape');
   SigK.annotate.setShapeKind('square');
+  SigK.annotate.select(a);
   dragPt(shell, [300, 400], [400, 300], { ctrl: true });
   assert.equal(count(shell), 1);
   assert.deepEqual([...SigK.annotate.getSelection()], [a]);
