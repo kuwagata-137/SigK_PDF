@@ -961,6 +961,9 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
 /* マーキングの大きさと番号の数値欄（spec-7-9 確定事項F4）。 */
 .marking-size input[type=number]{width:76px}
 .keep-ratio{font-size:12.5px; color:var(--text)}
+/* 見出し「枠線」のラジオボタン「あり」「なし」（決定102 ④）。設定画面と同じ .print-choice。塗りつぶしがなしの時の「なし」は薄くする。 */
+.stroke-choice{display:flex; gap:22px; font-size:12.5px; color:var(--text)}
+.stroke-choice .print-choice.disabled{opacity:.45; cursor:default}
 /* 回転の行の 0°・90°・180°・270° のボタン（spec-4b-2 確定事項25。モック）。今の角度と同じものに印。 */
 .angle-presets{display:flex; gap:4px}
 .angle-presets button{

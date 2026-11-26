@@ -115,6 +115,24 @@
     return true;
   }
 
+  // 枠線「あり」（プロパティパネルのラジオボタン。決定102 ④）。線なしの四角・丸・閉じた多角形に、その種類の次に付ける線の色を当てる
+  // （線がある書き込みは変えない）。2 件以上を選択していれば、線なしの全部に当てる。
+  function setStrokeOn() {
+    if (isMany())
+      return bulk().applyField('strokeOn', true);
+    const entry = editableSelected();
+    if (entry === null)
+      return false;
+    const kind = entry === undefined ? toolKind() : root.SigK.annotationPresets.kindOf(entry);
+    if (kind === null || !fillableOf(entry, kind))
+      return false;
+    if (entry !== undefined && entry.color === null && !updateSelected(entry, { color: next().colorOf(kind) }, 'color'))
+      return false;
+    next().rememberShape('strokeNone', false);
+    refresh();
+    return true;
+  }
+
   // 塗り（四角・丸とテキスト）。null は塗りなしで、四角・丸は線なしのときは選べない。塗りを外せば線なしの印も外す。テキストの塗りは
   // annotate-text-style.js が当てる（spec-4b-4a 確定事項G4）。
   function setFill(color) {
@@ -158,5 +176,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateColor = { setColor, setStrokeNone, setFill, setLineStyle };
+  SigK.annotateColor = { setColor, setStrokeNone, setStrokeOn, setFill, setLineStyle };
 })(typeof window !== 'undefined' ? window : globalThis);

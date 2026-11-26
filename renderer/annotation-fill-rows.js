@@ -80,6 +80,8 @@
       el.opacity.placeholder = opacity.mixed ? '–' : '';
     }
     renderHatch(split ? next.hatch : null);
+    // 見出し「枠線」の最初の行のラジオボタン「あり」「なし」（決定102 ④。annotation-stroke-row.js）。
+    root.SigK.annotationStrokeRow?.render(next);
     return true;
   }
 
@@ -152,6 +154,7 @@
       widthRow: byId('props-hatch-width-row'), width: byId('props-hatch-width'),
     };
     bind();
+    root.SigK.annotationStrokeRow?.init(doc, win);
     return true;
   }
 

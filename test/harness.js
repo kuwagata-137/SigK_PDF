@@ -975,7 +975,8 @@ async function createShell({
       return event;
     },
     // 右パネルの色・塗りのチップ（chipId）を押してパレットの窓を開き、色（#rrggbb）か［なし］（null）を押す
-    // （spec-4b-1b 確定事項6）。窓が開かないか、その色が無ければ落とす。
+    // （spec-4b-1b 確定事項6）。窓が開かないか、その色が無ければ落とす。線の色の［線なし］は削除した（決定102 ④）ので、
+    // 線の色の null は落ちる。
     pickColor: (chipId, color) => {
       window.document.getElementById(chipId).dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
       const pop = window.document.getElementById('color-pop');

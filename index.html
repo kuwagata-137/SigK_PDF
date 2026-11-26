@@ -606,6 +606,8 @@ body{
         <!-- 見出し「枠線」と「塗り」（spec-7-9 確定事項B1）。四角・丸・閉じた多角形とその書き込みツールの時だけ表示し、塗りつぶしの行を塗りの見出しの下へ移す。
              出し入れは annotation-fill-rows.js。 -->
         <div class="prop-head" id="props-stroke-head" hidden>枠線</div>
+        <!-- 枠線のあり・なし（決定102 ④）。見出し「枠線」の最初の行。中身は annotation-stroke-row.js。 -->
+        <div class="prop" id="props-stroke-on-row" hidden><div class="stroke-choice" role="radiogroup" aria-label="枠線"><label class="print-choice"><input type="radio" class="props-field" name="props-stroke-on" value="on">あり</label><label class="print-choice"><input type="radio" class="props-field" name="props-stroke-on" value="off">なし</label></div></div>
         <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
           <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">現在の色</span><span class="sw"></span><span class="name" id="props-color-name"></span></span></div></div>
         <!-- 文字の大きさ（spec-4b-4a 確定事項G1・G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼）。中身は annotation-text-rows.js。 -->
@@ -1526,6 +1528,7 @@ body{
 <script src="renderer/annotate-style-set.js"></script>
 <script src="renderer/annotation-chip-rows.js"></script>
 <script src="renderer/annotation-fill-rows.js"></script>
+<script src="renderer/annotation-stroke-row.js"></script>
 <script src="renderer/annotation-style-rows.js"></script>
 <script src="renderer/annotation-hints.js"></script>
 <script src="renderer/annotation-size-row.js"></script>

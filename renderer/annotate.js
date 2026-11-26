@@ -128,6 +128,7 @@
     applyLineStyles: (lineStyles) => nextStyle().applyLineStyles(lineStyles),
     setColor: (color) => annotateColor().setColor(color),
     setStrokeNone: () => annotateColor().setStrokeNone(),
+    setStrokeOn: () => annotateColor().setStrokeOn(),
     setFill: (color) => annotateColor().setFill(color),
     setLineStyle: (lineStyle) => annotateColor().setLineStyle(lineStyle),
     // 塗りの透明度とハッチング（annotate-fill.js。spec-7-9 確定事項B2・C3）。

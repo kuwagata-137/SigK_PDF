@@ -76,6 +76,9 @@
         next.rememberShape('strokeNone', false);
     } else if (field === 'strokeNone') {
       next.rememberShape('strokeNone', true);
+    } else if (field === 'strokeOn' && boxed) {
+      // 枠線「あり」（決定102 ④）。
+      next.rememberShape('strokeNone', false);
     } else if (field === 'fill' && boxed) {
       next.rememberShape('fills', value);
       if (value === null)
@@ -117,7 +120,7 @@
     if (annots !== before) {
       const after = keys.map((key) => renamed.get(key) ?? key);
       // 線なしは線の色の行で選ぶので、線の色と同じ欄として続けた変更に畳む（確定事項J1）。
-      const gesture = field === 'strokeNone' ? 'color' : root.SigK.annotateFill?.gestureOf(field, value) ?? field;
+      const gesture = field === 'strokeNone' || field === 'strokeOn' ? 'color' : root.SigK.annotateFill?.gestureOf(field, value) ?? field;
       root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });
       annotate().selectKeys(after);
     }

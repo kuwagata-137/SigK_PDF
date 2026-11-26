@@ -41,19 +41,15 @@ test('▼ を押すと、見出し・テーマの色・濃淡 5 段・標準の�
   assert.deepEqual([...pop.querySelectorAll('.sub')].filter((node) => !node.hidden).map((node) => node.textContent), ['テーマの色', '標準の色']);
   const grids = [...pop.querySelectorAll('.grid')].filter((grid) => !grid.hidden);
   assert.deepEqual(grids.map((grid) => grid.querySelectorAll('.cell').length), [10, 50, 10]);
-  // 項目は［線なし］［その他の色…］［太さ ▶］［線種 ▶］（spec-7-2 確定事項B3）。
-  assert.deepEqual([...pop.querySelectorAll('.items .item')].map((item) => item.querySelector('.label').textContent), ['線なし', 'その他の色…', '太さ', '線種']);
+  // 項目は［その他の色…］［太さ ▶］［線種 ▶］（spec-7-2 確定事項B3）。［線なし］は見出し「枠線」のラジオボタン「なし」にしたので削除した（決定102 ④）。
+  assert.deepEqual([...pop.querySelectorAll('.items .item')].map((item) => item.querySelector('.label').textContent), ['その他の色…', '太さ', '線種']);
   assert.deepEqual(plain(SigK.annotationPalette.PALETTE_ROWS.flat()), [...pop.querySelectorAll('.cell')].map((cell) => cell.dataset.color));
   const on = [...pop.querySelectorAll('.cell.on')];
   assert.deepEqual(on.map((cell) => [cell.dataset.color, cell.getAttribute('aria-pressed'), SigK.tipContent.resolve(cell).name]), [['#ff0000', 'true', '#FF0000']]);
   assert.equal(document.activeElement, on[0], '今の色へフォーカスを移す');
   assert.equal(chip.classList.contains('open'), true);
   assert.equal(chip.getAttribute('aria-expanded'), 'true');
-  // 線の色の［なし］は「線なし」。塗りが無いので押せない（線と塗りを両方なしにはできない）。
-  const none = pop.querySelector('.items .none');
-  assert.deepEqual([none.textContent, none.getAttribute('aria-disabled')], ['線なし', 'true']);
-  click(shell, none);
-  assert.equal(pop.hidden, false, '押せない［なし］では閉じない');
+  assert.equal(pop.querySelector('.items .none'), null);
   // 右パネルの左端から 276px 左、行の上端の 40px 上（jsdom は寸法が 0 なので下限の 8px・90px）。
   assert.deepEqual([pop.style.left, pop.style.top], ['8px', '90px']);
   // 色を選ぶと当てて閉じ、チップへフォーカスを戻す。
@@ -122,8 +118,10 @@ test('塗りの［塗りなし］は線があるときだけ押せ、「その�
   assert.equal(SigK.annotate.fillOf('square'), '#123456');
   assert.deepEqual([...SigK.colorMemory.recent()], ['#123456'], '色の設定の画面で選んだ色は最近使用した色に足す');
   assert.equal(SigK.colorMemory.lastOf('fill'), '#123456', '塗りの直前の色になる');
-  // 線なしにすると、塗りの［塗りなし］は押せない。
-  shell.pickColor('props-color', null);
+  // 見出し「枠線」で「なし」を選ぶと、塗りの［塗りなし］は押せない（決定102 ④）。
+  const off = document.querySelector('#props-stroke-on-row input[value="off"]');
+  off.checked = true;
+  off.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
   assert.equal(SigK.annotate.nextStyleOf('square').color, null);
   click(shell, document.getElementById('props-fill'));
   assert.equal(pop.querySelector('.items .none').getAttribute('aria-disabled'), 'true');

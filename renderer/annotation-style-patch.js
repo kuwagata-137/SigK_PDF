@@ -9,7 +9,8 @@
   // free-text-style-view.js が持つ。
 
   // 塗りの透明度（fillOpacity）とハッチング（hatch。種類・色・間隔・線幅の一部）は spec-7-9 確定事項B2・C1 で追加した。
-  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'fillOpacity', 'hatch']);
+  // 枠線「あり」（strokeOn。線なしの書き込みに、その種類の次に付ける線の色を当てる）は決定102 ④で追加した。
+  const FIELDS = Object.freeze(['color', 'strokeNone', 'strokeOn', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'fillOpacity', 'hatch']);
   // テキストにだけある欄（テキスト以外には当てない）。
   const TEXT_ONLY = Object.freeze(['fontSize', 'bold', 'italic', 'border']);
 
@@ -61,6 +62,7 @@
     switch (field) {
       case 'color': return true;
       case 'strokeNone': return style().canFill(entry) && style().fillOf(entry) !== null;
+      case 'strokeOn': return style().canFill(entry);
       // 線なしのまま塗りなしにはできない（spec-4b-1b 確定事項4）。塗れるのは四角・丸と閉じた多角形（spec-4b-5a 確定事項5）。
       case 'fill': return style().canFill(entry) && (value !== null || entry.color !== null);
       case 'lineStyle': return hasLineStyles(entry.kind) && style().lineStylesOf(entry.kind).includes(value);
@@ -81,6 +83,7 @@
     switch (field) {
       case 'color': return entry.color === value ? null : { color: value };
       case 'strokeNone': return entry.color === null ? null : { color: null };
+      case 'strokeOn': return entry.color !== null ? null : { color: root.SigK.annotateNextStyle.colorOf(root.SigK.annotationPresets.kindOf(entry)) };
       case 'fill': return style().fillOf(entry) === value ? null : { fill: value };
       case 'lineStyle': return style().lineStyleOf(entry) === value ? null : { lineStyle: value };
       case 'lineWidth':
@@ -183,6 +186,8 @@
       fillOpacity: valueOf(boxed, 'fillOpacity'),
       hatch: hatchViewOf(boxed),
       boxed: boxed.length > 0,
+      // 枠線のあり・なし（ラジオボタン。決定102 ④）。value は枠線があれば true。
+      stroke: boxed.length === 0 ? null : valueOf(boxed.map((target) => ({ on: target.color !== null })), 'on'),
       strokeNoneEnabled: boxed.some((target) => target.fill !== null),
       fillNoneEnabled: boxed.some((target) => target.color !== null) || texts.length > 0,
     };

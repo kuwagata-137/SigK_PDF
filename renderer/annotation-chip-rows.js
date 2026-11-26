@@ -99,7 +99,8 @@
     };
   }
 
-  // 色の行の ▼ を押した。線なしは、塗りのある四角・丸があるときだけ選べる（spec-4b-1b 確定事項4）。
+  // 色の行の ▼ を押した。線なしは、見出し「枠線」のラジオボタン「なし」で選ぶので、色の一覧には［線なし］を表示しない
+  // （決定102 ④。spec-4b-1b 確定事項4 の［線なし］を削除した）。
   function openColor(chip, title, view) {
     cancelPreview();
     if (view === null)
@@ -108,7 +109,7 @@
       title,
       current: view.color.mixed ? null : view.color.value,
       role: roleOfLabel(title),
-      none: view.boxed ? { label: '線なし', enabled: view.strokeNoneEnabled } : null,
+      none: null,
       onPick: setColorOf,
       ...lineExtras(title, view),
     });
