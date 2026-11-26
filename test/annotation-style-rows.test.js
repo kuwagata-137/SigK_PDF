@@ -73,6 +73,15 @@ test('行の並びは 種類 → トリミングの当てるページと大き�
   // 大きさ（幅・高さ）の行の上（spec-7-9 確定事項F2・F4）。枠線のあり・なしの行は見出し「枠線」のすぐ下（決定102 ④）。
 });
 
+// jsdom は shell.css を読まないので、見本と絵の色は CSS の文字で見張る（決定102 ⑤）。
+test('「現在の色」の「なし」の見本は黒枠に中身は白で赤い斜線が無く、色の一覧の［塗りなし］の絵は黒、［標準の色に戻す］の絵は赤（shell.css）', () => {
+  const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'renderer', 'shell.css'), 'utf8');
+  assert.match(css, /\.chip-row \.sw\.none\{background:#fff; border-color:var\(--text\)\}/);
+  assert.doesNotMatch(css, /\.sw\.none::after/);
+  assert.match(css, /\.color-pop \.item\.none \.ico\{color:var\(--text\)\}/);
+  assert.match(css, /\.color-pop \.item\.reset \.ico\{color:var\(--danger\)\}/);
+});
+
 test('道具ごとに出す行と、色の行の見出しが替わる', async (t) => {
   const shell = await withShell(t);
   const { document, SigK } = shell;
@@ -84,7 +93,7 @@ test('道具ごとに出す行と、色の行の見出しが替わる', async (t
   assert.equal(label(), '線の色');
   assert.deepEqual(shownStyles(document), ['solid', 'dashed', 'cloudy']);
   assert.equal(document.getElementById('props-fill-name').textContent, 'なし');
-  assert.equal(document.querySelector('#props-fill-row .cur .sw').classList.contains('none'), true, '「なし」は白地に斜線');
+  assert.equal(document.querySelector('#props-fill-row .cur .sw').classList.contains('none'), true, '「なし」は黒枠に中身は白（決定102 ⑤）');
   // ▼ は「…の一覧を表示」、左側は「…を 直前の色 に変更」と読み上げ、2 つのボタンを聞き分けられる（spec-7-2 確定事項A1）。
   assert.equal(document.getElementById('props-color').getAttribute('aria-label'), '線の色（#FF0000）の一覧を表示');
   assert.equal(document.getElementById('props-color-apply').getAttribute('aria-label'), '線の色を #ED7D31 に変更');

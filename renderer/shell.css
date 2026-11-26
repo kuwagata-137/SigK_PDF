@@ -924,10 +924,10 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
 .split.open .chip.split-drop{background:var(--select)}
 .chip-row .cur{display:inline-flex; align-items:center; gap:6px; min-width:0; font-size:12px; color:var(--muted)}
 .chip-row .cur .sw{width:16px; height:16px; flex:0 0 16px; border-radius:3px; border:1px solid rgba(16,24,40,.18); position:relative; overflow:hidden}
-.chip-row .sw.none{background:#fff}
+/* 「なし」（塗りなし・線なし・枠線なし）の見本は黒枠に中身は白（決定102 ⑤。赤い斜線を削除した）。 */
+.chip-row .sw.none{background:#fff; border-color:var(--text)}
 /* 複数を選んでいて色がそろっていないとき（spec-4b-3a 確定事項I1。モック screenshots/phase4b-3-multi.png）。斜線で、印は付けない。 */
 .chip-row .sw.mixed{background:repeating-linear-gradient(135deg, var(--surface) 0 3px, color-mix(in srgb, var(--muted) 45%, transparent) 3px 5px)}
-.chip-row .sw.none::after{content:""; position:absolute; left:50%; top:-6px; bottom:-6px; width:1.5px; margin-left:-.75px; background:var(--danger); transform:rotate(45deg)}
 .chip{
   height:28px; padding:0 7px 0 4px; border:1px solid var(--border); border-radius:7px; background:var(--surface-2);
   display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-size:12px; color:var(--muted);
@@ -1014,7 +1014,9 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
 .color-pop .item:hover,.color-pop .item.on{background:var(--select)}
 .color-pop .item[aria-disabled="true"]{cursor:default; background:none}
 .color-pop .item .ico{width:18px; display:grid; place-items:center; color:var(--muted)}
-.color-pop .item.none .ico,.color-pop .item.reset .ico{color:var(--danger)}
+/* ［塗りなし］［枠線なし］の絵は黒（決定102 ⑤）。［標準の色に戻す］の絵は赤のまま。 */
+.color-pop .item.none .ico{color:var(--text)}
+.color-pop .item.reset .ico{color:var(--danger)}
 .color-pop .item .label{flex:1}
 .color-pop .item .arr{font-size:9px; color:var(--muted)}
 .color-pop .grid.recent{margin-bottom:2px}
