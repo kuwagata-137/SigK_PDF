@@ -191,3 +191,23 @@ test('「選択」の道具を持っていなければ、書き込みの無い�
   assert.equal(SigK.annotateMarquee.isActive(), false);
   assert.equal(pageNode(shell).querySelector('.annot-marquee'), null);
 });
+
+// 版 1.5.0 の⑪（docs/spec-7-11-view-font.md）。範囲選択を始めた時にプロパティパネルが閉じると、表示倍率が［幅］の時は倍率が変わる。
+// 押した点を、押した時の倍率の px で控えていたので、枠の角と、枠に入ったかの判定が、押した時に見ていたページの点からずれていた。
+test('引いている途中で表示倍率が変わっても、押した所と離した所のページの点で囲む（版 1.5.0 の⑪）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  const a = drawSquare(shell, [100, 700], [200, 600]);
+  const b = drawSquare(shell, [300, 700], [400, 600]);
+  drawSquare(shell, [100, 500], [200, 400]);
+  SigK.annotate.setTool('select');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [80, 720]));
+  SigK.viewer.setZoom(SigK.viewer.getState().zoom * 1.5);
+  await shell.flush();
+  mouse(shell, 'mousemove', shell.document.body, px(shell, [420, 580]));
+  const div = pageNode(shell).querySelector('.annot-marquee');
+  const start = px(shell, [80, 720]);
+  assert.deepEqual([parseFloat(div.style.left), parseFloat(div.style.top)].map(Math.round), start.map(Math.round), '枠の角は、押したページの点（今の倍率の px）');
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [420, 580]));
+  assert.deepEqual(selection(shell), [a, b]);
+});

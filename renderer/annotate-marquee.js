@@ -7,7 +7,9 @@
   // 変えるだけで、書き込みは描き直さない）、離したら end（枠に完全に収まった書き込みを選ぶ）。素で始めたら押した時点で選択を
   // 外し、Ctrl か Shift で始めたら今の選択に足す。取りやめ（cancel）では押す前の選択に戻す。
 
-  // 引いているもの { index, node, viewport, start, last, add, before, div, moved }。無ければ null。
+  // 引いているもの { index, node, viewport, anchor, start, last, add, before, div, moved }。無ければ null。
+  // anchor は押した点のページの pt。start は anchor を今の倍率の px に直したもので、動かすたびに計算し直す（版 1.5.0 の⑪。
+  // 引いている途中でプロパティパネルの開閉などで倍率が変わっても、枠の角と、枠に入ったかの判定を、押したページの点に合わせる）。
   let marquee = null;
 
   function annotate() {
@@ -34,10 +36,17 @@
       return false;
     event.preventDefault();
     const before = annotate().getSelection();
-    marquee = { index: page.index, node: page.node, viewport, start: page.point, last: page.point, add, before, div: null, moved: false };
+    const anchor = viewport.convertToPdfPoint(page.point[0], page.point[1]);
+    marquee = { index: page.index, node: page.node, viewport, anchor, start: page.point, last: page.point, add, before, div: null, moved: false };
     if (!add)
       annotate().selectKeys([]);
     return true;
+  }
+
+  // 今の倍率の viewport を取り直し、押した点を今の倍率の px に直す。
+  function follow(current) {
+    current.viewport = viewportOf(current.index) ?? current.viewport;
+    current.start = current.viewport.convertToViewportPoint(current.anchor[0], current.anchor[1]);
   }
 
   function box(current) {
@@ -67,6 +76,7 @@
       cancel();
       return true;
     }
+    follow(marquee);
     marquee.last = pointIn(marquee.node, event);
     const [dx, dy] = [marquee.last[0] - marquee.start[0], marquee.last[1] - marquee.start[1]];
     if (Math.abs(dx) > slop() || Math.abs(dy) > slop())
@@ -97,6 +107,7 @@
       annotate().selectKeys(current.before);
       return true;
     }
+    follow(current);
     current.last = pointIn(current.node, event);
     const [dx, dy] = [current.last[0] - current.start[0], current.last[1] - current.start[1]];
     if (!current.moved && Math.abs(dx) <= slop() && Math.abs(dy) <= slop())
