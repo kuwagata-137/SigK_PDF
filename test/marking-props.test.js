@@ -86,7 +86,7 @@ test('マーキングの書き込みツールでは形の行と大きさの行�
   SigK.annotate.setTool('marking');
   assert.equal(rows.shape.hidden, false);
   assert.deepEqual([rows.outer.hidden, rows.inner.hidden, rows.number.hidden], [false, false, true]);
-  assert.deepEqual([rows.outerLabel.textContent, rows.outerField.value, rows.innerLabel.textContent, rows.innerField.value], ['外の円の直径', '32', '中の円の直径', '9']);
+  assert.deepEqual([rows.outerLabel.textContent, rows.outerField.value, rows.innerLabel.textContent, rows.innerField.value], ['外の円の直径', '100', '中の円の直径', '15']);
   const buttons = [...document.querySelectorAll('#props-marking-shape button')];
   assert.deepEqual(buttons.map((button) => [button.dataset.shape, button.getAttribute('aria-label'), button.dataset.tip]), [
     ['target', '点付き丸', 'marking.target'], ['double', '二重丸', 'marking.double'], ['crosshair', '照準', 'marking.crosshair'],
@@ -101,7 +101,7 @@ test('マーキングの書き込みツールでは形の行と大きさの行�
   buttons[3].click();
   assert.deepEqual([rows.innerLabel.textContent, rows.innerField.value], ['文字サイズ', '16']);
   buttons[2].click();
-  assert.deepEqual([rows.innerLabel.textContent, rows.innerField.value], ['十字線の長さ', '44.8']);
+  assert.deepEqual([rows.innerLabel.textContent, rows.innerField.value], ['十字線の長さ', '150']);
   buttons[4].click();
   assert.deepEqual([rows.outerLabel.textContent, rows.inner.hidden], ['三角形の幅', true]);
   const entry = place(shell, [200, 600], 'number');
@@ -118,7 +118,7 @@ test('形のボタンで、選択中のマーキングの形を中心を保っ�
   document.querySelector('#props-marking-shape [data-shape="crosshair"]').click();
   assert.equal(current(shell).marking.shape, 'crosshair');
   assert.deepEqual(plain(center(current(shell).rect)), plain(before));
-  assert.ok(Math.abs(current(shell).rect[2] - current(shell).rect[0] - 44.8) < 1e-9, 'rect は十字線まで');
+  assert.ok(Math.abs(current(shell).rect[2] - current(shell).rect[0] - 150) < 1e-9, 'rect は十字線まで');
   document.querySelector('#props-marking-shape [data-shape="number"]').click();
   assert.equal(current(shell).marking.number, 1);
   SigK.pageEdit.undo();
@@ -167,8 +167,8 @@ test('外の円の上下左右に四角いハンドル、中の円の右に丸�
   assert.equal(document.querySelector('.annot-frame-layer .rotate'), null);
   const scale = SigK.viewer.getTextLayer(0).viewport.scale;
   const [cx] = px(shell, [200, 600]);
-  assert.ok(Math.abs(shape.handles[1].at[0] - (cx + 16 * scale)) < 1, '右のハンドルは外の円の右端');
-  assert.ok(Math.abs(shape.handles[4].at[0] - (cx + 4.5 * scale + 5)) < 1, '中の円のハンドルは中の円の右端から半径 5px だけ右');
+  assert.ok(Math.abs(shape.handles[1].at[0] - (cx + 50 * scale)) < 1, '右のハンドルは外の円の右端');
+  assert.ok(Math.abs(shape.handles[4].at[0] - (cx + 7.5 * scale + 5)) < 1, '中の円のハンドルは中の円の右端から半径 5px だけ右');
   place(shell, [300, 600], 'caution');
   assert.deepEqual(plain(SigK.annotationFrame.shown().shape.handles.map((handle) => handle.kind)), ['outer', 'outer', 'outer', 'outer']);
 });
@@ -179,15 +179,15 @@ test('四角いハンドルで外の円を、丸いハンドルで中の円を�
   const entry = place(shell, [200, 600]);
   const scale = SigK.viewer.getTextLayer(0).viewport.scale;
   dragHandle(shell, 'outer-x2', [8 * scale, 0]);
-  assert.equal(current(shell).marking.outer, 48, '右へ 8pt で直径は 16pt 大きくなる');
-  assert.equal(current(shell).marking.dot, 9);
+  assert.equal(current(shell).marking.outer, 116, '右へ 8pt で直径は 16pt 大きくなる');
+  assert.equal(current(shell).marking.dot, 15);
   assert.deepEqual(plain(center(current(shell).rect)), plain(center(entry.rect)));
   dragHandle(shell, 'inner', [3 * scale, 0]);
-  assert.equal(current(shell).marking.dot, 15);
-  assert.equal(current(shell).marking.outer, 48);
+  assert.equal(current(shell).marking.dot, 21);
+  assert.equal(current(shell).marking.outer, 116);
   // 中の円は外の円で止まる。
   dragHandle(shell, 'inner', [100 * scale, 0]);
-  assert.equal(current(shell).marking.dot, 48);
+  assert.equal(current(shell).marking.dot, 116);
   SigK.pageEdit.undo();
-  assert.equal(current(shell).marking.dot, 15);
+  assert.equal(current(shell).marking.dot, 21);
 });

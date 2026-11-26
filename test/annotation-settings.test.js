@@ -45,7 +45,7 @@ test('既定の色はパレットの色で、塗りは無し・線あり・実�
   // マーカーの太さは別に覚え、既定は 12pt（spec-4b-5b 確定事項3・32）。
   assert.equal(ANNOT_DEFAULTS.annotMarkerWidth, 12);
   assert.equal(ANNOT_DEFAULTS.annotPaletteVersion, ANNOT_PALETTE_VERSION);
-  assert.equal(ANNOT_PALETTE_VERSION, 2);
+  assert.equal(ANNOT_PALETTE_VERSION, 3);
   assert.deepEqual(ANNOT_LINE_STYLES, ['solid', 'dashed', 'cloudy']);
 });
 
@@ -78,7 +78,7 @@ test('pickAnnotSettings は注釈のキーだけを検証して取り出し、�
   assert.equal(picked.annotShapeKind, 'arrow');
   assert.deepEqual(picked.annotOpacity, { text: 1, callout: 1, shape: 0.35, pen: 0.33, marker: 1, note: 1, marking: 1 }, '0.1 未満は既定、小数は 2 桁');
   assert.equal(picked.annotAuthor, '総務');
-  assert.equal(picked.annotPaletteVersion, 2);
+  assert.equal(picked.annotPaletteVersion, 3);
 });
 
 test('線の太さは 1〜40 の整数、線種は実線・破線・雲形、塗りは色か null だけを受け取る', () => {
@@ -110,7 +110,7 @@ test('移し替えの印が無い設定は、今までの候補の色をパレ�
     highlight: '#ffd966', underline: '#c00000', strikeout: '#4472c4', text: '#222a35', callout: '#222a35', shape: '#00b050', pen: '#123456', marker: '#ffff00',
     note: '#ffa8c8', marking: '#ff0000',
   });
-  assert.equal(picked.annotPaletteVersion, 2);
+  assert.equal(picked.annotPaletteVersion, 3);
   assert.deepEqual(pickAnnotSettings({ annotColors: { highlight: '#8ce99a', note: '#8fbfff' } }).annotColors.highlight, '#a9ce91');
   assert.deepEqual(pickAnnotSettings({ annotColors: { highlight: '#8ce99a', note: '#8fbfff' } }).annotColors.note, '#8faadc');
   // 印の付いた設定では、今までの候補と同じ値でも移さない（自分で選び直した色）。
@@ -129,7 +129,7 @@ test('印が 2 より前の設定は、図形の色が古い既定の #c00000 �
   assert.equal(v1.annotColors.pen, '#c00000', 'ペンの #c00000 は移さない');
   assert.equal(v1.annotColors.underline, '#c00000', '下線の #c00000 は移さない');
   assert.equal(v1.annotColors.strikeout, '#c00000', '取り消し線の #c00000 は移さない');
-  assert.equal(v1.annotPaletteVersion, 2);
+  assert.equal(v1.annotPaletteVersion, 3);
   assert.equal(pickAnnotSettings({ annotPaletteVersion: 1, annotColors: { shape: '#4472c4' } }).annotColors.shape, '#4472c4', '自分で選んだ色はそのまま');
   // 印が 2 なら移さない（移したあとに #c00000 を選び直した色）。
   assert.equal(pickAnnotSettings({ annotPaletteVersion: 2, annotColors: { shape: '#c00000' } }).annotColors.shape, '#c00000');
@@ -139,8 +139,8 @@ test('印が 2 より前の設定は、図形の色が古い既定の #c00000 �
   assert.equal(v0.annotColors.pen, '#c00000');
   // 印が数でない・先の版（新しい版で書いた設定を古い版で読んだ）のときの扱い。
   assert.equal(pickAnnotSettings({ annotPaletteVersion: '2', annotColors: { shape: '#c00000' } }).annotColors.shape, '#ff0000', '数でなければ印が無いのと同じ');
-  assert.equal(pickAnnotSettings({ annotPaletteVersion: 3, annotColors: { shape: '#c00000' } }).annotColors.shape, '#c00000', '先の版は移さない');
-  assert.equal(pickAnnotSettings({ annotPaletteVersion: 3 }).annotPaletteVersion, 2);
+  assert.equal(pickAnnotSettings({ annotPaletteVersion: 4, annotColors: { shape: '#c00000' } }).annotColors.shape, '#c00000', '先の版は移さない');
+  assert.equal(pickAnnotSettings({ annotPaletteVersion: 4 }).annotPaletteVersion, 3);
 });
 
 test('置き換えの対応は今までの候補の 7 色で、行き先はどれもパレットの色', () => {
@@ -178,7 +178,7 @@ test('mergeAnnotUi は色・塗り・線なし・線種・不透明度を種類�
   assert.deepEqual(noFill.annotStrokeNone, { shape: false });
   // 古い settings.json から来た current（注釈のキーが無い）でも既定へ落ちる。
   const { annotPaletteVersion, ...uiDefaults } = ANNOT_DEFAULTS;
-  assert.equal(annotPaletteVersion, 2);
+  assert.equal(annotPaletteVersion, 3);
   assert.deepEqual(mergeAnnotUi({}, {}), uiDefaults);
 });
 

@@ -3,7 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { MARKING_SHAPES, MARKING_RANGES, MARKING_DEFAULTS, markingDefaults, pickMarkingSettings, mergeMarkingSettings } = require('../marking-settings.js');
+const {
+  MARKING_SHAPES, MARKING_RANGES, MARKING_DEFAULTS, LEGACY_MARKING_DEFAULTS, markingDefaults, migrateMarking, pickMarkingSettings, mergeMarkingSettings,
+} = require('../marking-settings.js');
 const { ANNOT_DEFAULTS, pickAnnotSettings, mergeAnnotUi } = require('../annotation-settings.js');
 
 require('../renderer/marking-rules.js');
@@ -22,9 +24,31 @@ test('形・大きさの範囲と既定は renderer/marking-rules.js と同じ�
   assert.equal(ANNOT_DEFAULTS.annotOpacity.marking, 1);
 });
 
+test('既定は外の円 100・中の円 15・十字線 150（外の円の 1.5 倍）。決定102 ⑥', () => {
+  assert.deepEqual([MARKING_DEFAULTS.outer, MARKING_DEFAULTS.dot, MARKING_DEFAULTS.cross], [100, 15, 150]);
+  assert.equal(MARKING_DEFAULTS.cross, MARKING_DEFAULTS.outer * 1.5);
+  assert.deepEqual(LEGACY_MARKING_DEFAULTS, { outer: 32, dot: 9, cross: 44.8 });
+});
+
+test('印が 3 より前の設定は、1.4.0 の既定と同じ値の欄だけを新しい既定へ置き換える。自分で変えた値と、印 3 の設定はそのまま', () => {
+  const legacy = { shape: 'double', outer: 32, dot: 9, ring: 20, cross: 44.8, fontSize: 16, lineWidth: 3 };
+  assert.deepEqual(migrateMarking(legacy, 2), { ...legacy, outer: 100, dot: 15, cross: 150 });
+  assert.deepEqual(migrateMarking({ ...legacy, outer: 48, cross: 60 }, 2), { ...legacy, outer: 48, dot: 15, cross: 60 }, '自分で変えた外の円・十字線はそのまま');
+  assert.deepEqual(migrateMarking(legacy, 3), legacy, '移し替えを済ませた設定は置き換えない（後で 32 を選び直した値）');
+  assert.deepEqual(migrateMarking(legacy, '2'), { ...legacy, outer: 100, dot: 15, cross: 150 }, '印が数でなければ印が無いのと同じ');
+  assert.equal(migrateMarking(undefined, 2), undefined);
+  // annotation-settings.js の読み込みで、印 2 の設定に当たる。
+  const picked = pickAnnotSettings({ annotPaletteVersion: 2, annotMarking: legacy });
+  assert.deepEqual(picked.annotMarking, { ...legacy, outer: 100, dot: 15, cross: 150 });
+  assert.equal(picked.annotPaletteVersion, 3);
+  assert.deepEqual(pickAnnotSettings({ annotPaletteVersion: 3, annotMarking: legacy }).annotMarking, legacy);
+  // 自分で外の円を 10 にしていて、中の円が 1.4.0 の既定の 9 のままなら、中の円は 15 ではなく外の円の 10 で頭打ちになる。
+  assert.equal(pickAnnotSettings({ annotPaletteVersion: 2, annotMarking: { ...legacy, outer: 10 } }).annotMarking.dot, 10);
+});
+
 test('読み込みは欄ごとに範囲を見て、受け取れない欄は既定へ落とす。中の円は外の円で頭打ち', () => {
   const picked = pickMarkingSettings({ annotMarking: { shape: 'number', outer: 50, dot: 60, ring: 'x', cross: 2, fontSize: 24, lineWidth: 5 } }, markingDefaults()).annotMarking;
-  assert.deepEqual(picked, { shape: 'number', outer: 50, dot: 50, ring: 16, cross: 44.8, fontSize: 24, lineWidth: 5 });
+  assert.deepEqual(picked, { shape: 'number', outer: 50, dot: 50, ring: 16, cross: 150, fontSize: 24, lineWidth: 5 });
   assert.deepEqual(pickMarkingSettings({ annotMarking: { shape: 'star', lineWidth: 2.5 } }, markingDefaults()).annotMarking, MARKING_DEFAULTS);
   assert.deepEqual(pickMarkingSettings({}, markingDefaults()).annotMarking, MARKING_DEFAULTS);
   assert.deepEqual(pickAnnotSettings({ annotMarking: { shape: 'caution' } }).annotMarking.shape, 'caution');

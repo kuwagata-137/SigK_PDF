@@ -111,7 +111,7 @@ test('保存すると PDF 標準の丸の注釈 /Circle に外観を付け、値
   const mk = context.lookup(pick(context.lookup(pick(resources, '/Properties')), '/MK'));
   assert.equal(pick(mk, '/Shape').encodedName, '/Number');
   assert.equal(pick(mk, '/Number').asNumber(), 12);
-  assert.equal(pick(mk, '/Outer').asNumber(), 32);
+  assert.equal(pick(mk, '/Outer').asNumber(), markingRules.DEFAULTS.outer);
   const content = Buffer.from(stream.getContents()).toString('latin1');
   assert.match(content, /^\/SigKMark \/MK BDC\n/);
   assert.match(content, /\nEMC$/);

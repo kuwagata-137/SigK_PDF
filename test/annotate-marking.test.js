@@ -75,11 +75,11 @@ test('ページをクリックすると、クリックした位置を中心に�
   assert.equal(added(shell).length, 1);
   const entry = added(shell)[0];
   assert.equal(entry.kind, 'marking');
-  assert.deepEqual(plain(entry.marking), { shape: 'target', outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16 });
+  assert.deepEqual(plain(entry.marking), { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16 });
   assert.deepEqual([entry.color, entry.opacity, entry.lineWidth], ['#ff0000', 1, 3]);
   const [cx, cy] = center(entry.rect);
   assert.ok(Math.abs(cx - 200) < 0.6 && Math.abs(cy - 600) < 0.6, `中心 ${cx},${cy}`);
-  assert.equal(entry.rect[2] - entry.rect[0], 32);
+  assert.equal(entry.rect[2] - entry.rect[0], 100);
   assert.equal(SigK.annotate.getSelected(), entry.id);
   assert.equal(SigK.annotate.getTool(), 'marking', '書き込みツールは選択したまま');
   assert.ok(shell.document.querySelector('.annot-layer g[data-kind="marking"] g.marking.target') !== null);
@@ -99,19 +99,44 @@ test('既存の書き込みの上をクリックすると、配置せずにそ�
   assert.equal(SigK.annotate.getSelected(), first.id);
 });
 
+test('選択中に何も無い所をクリックすると、選択の解除だけを行い配置しない。もう一度クリックすると配置する（決定102 ⑧）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  click(shell, [200, 600]);
+  assert.equal(added(shell).length, 1);
+  assert.equal(SigK.annotate.getSelected(), added(shell)[0].id);
+  click(shell, [400, 600]);
+  assert.equal(added(shell).length, 1, '配置しない');
+  assert.equal(SigK.annotate.getSelected(), null, '選択を解除する');
+  click(shell, [400, 600]);
+  assert.equal(added(shell).length, 2);
+  assert.equal(SigK.annotate.getSelected(), added(shell)[1].id);
+  // ほかの書き込みを選択している時も同じ。
+  SigK.annotate.select(added(shell)[0].id);
+  click(shell, [300, 400]);
+  assert.equal(added(shell).length, 2);
+  assert.equal(SigK.annotate.getSelected(), null);
+});
+
 test('番号付き丸は、配置するたびに文書の中の最大の番号＋1 になる。削除しても詰めず、取り消すと元の番号に戻る', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
   SigK.annotate.setTool('marking');
   assert.equal(SigK.annotateMarking.setShape('number'), true);
-  click(shell, [100, 700]);
-  click(shell, [200, 700]);
-  click(shell, [300, 700]);
+  // 配置した番号付き丸は選択されるので、次のクリックの前に選択を解除する（決定102 ⑧）。
+  const place = (point) => {
+    SigK.annotate.select(null);
+    click(shell, point);
+  };
+  place([100, 700]);
+  place([200, 700]);
+  place([300, 700]);
   assert.deepEqual(plain(added(shell).map((entry) => entry.marking.number)), [1, 2, 3]);
   // 2 を削除しても、次は 4。
   SigK.annotate.select(added(shell)[1].id);
   SigK.annotate.remove();
-  click(shell, [400, 700]);
+  place([400, 700]);
   assert.deepEqual(plain(added(shell).map((entry) => entry.marking.number)), [1, 3, 4]);
   SigK.pageEdit.undo();
   SigK.pageEdit.undo();
@@ -124,12 +149,12 @@ test('次に配置する形・大きさ・線の太さ・色・透明度を記�
   SigK.annotate.setTool('marking');
   SigK.annotateMarking.setShape('double');
   assert.equal(SigK.annotateMarking.setSize('ring', 20), true);
-  assert.equal(SigK.annotateMarking.setSize('ring', 40), false, '中の円は外の円より大きくしない');
+  assert.equal(SigK.annotateMarking.setSize('ring', 120), false, '中の円は外の円より大きくしない');
   SigK.annotate.setLineWidth(5);
   SigK.annotate.setOpacity(0.5);
   SigK.annotate.setColor('#0070c0');
   const saved = shell.uiCalls.reduce((memo, patch) => ({ ...memo, ...(patch.annotMarking ?? {}) }), {});
-  assert.deepEqual(saved, { shape: 'double', outer: 32, dot: 9, ring: 20, cross: 44.8, fontSize: 16, lineWidth: 5 });
+  assert.deepEqual(saved, { shape: 'double', outer: 100, dot: 15, ring: 20, cross: 150, fontSize: 16, lineWidth: 5 });
   assert.equal(shell.uiCalls.some((patch) => patch.annotOpacity?.marking === 0.5), true);
   assert.equal(shell.uiCalls.some((patch) => patch.annotColors?.marking === '#0070c0'), true);
   assert.equal(SigK.annotate.getLineWidth('square'), 2, '図形の線の太さは変わらない');
@@ -179,6 +204,7 @@ test('複数選択では、色・線の太さ・透明度をまとめて変え�
   const { SigK } = shell;
   SigK.annotate.setTool('marking');
   click(shell, [100, 600]);
+  SigK.annotate.select(null);
   click(shell, [200, 600]);
   SigK.annotate.setTool(null);
   SigK.annotate.selectKeys(added(shell).map((entry) => entry.id));

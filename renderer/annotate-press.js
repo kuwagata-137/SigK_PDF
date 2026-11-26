@@ -167,7 +167,8 @@
       root.SigK.annotateNote?.place({ index: page.index, point: page.point });
       return;
     }
-    if (tool === 'marking') {
+    // マーキングは、書き込みを選択している間に何も無い所をクリックすると、選択の解除だけを行い、配置しない（決定102 ⑧。四角・丸と同じ）。
+    if (tool === 'marking' && annotate().getSelection().length === 0) {
       root.SigK.annotateMarking?.place({ index: page.index, point: page.point });
       return;
     }

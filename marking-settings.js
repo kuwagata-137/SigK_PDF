@@ -11,7 +11,12 @@
 
 const MARKING_SHAPES = ['target', 'double', 'crosshair', 'number', 'caution'];
 const MARKING_RANGES = { outer: [4, 720], dot: [1, 720], ring: [1, 720], cross: [4, 1440], fontSize: [4, 200] };
-const MARKING_DEFAULTS = { shape: 'target', outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16, lineWidth: 3 };
+// 決定102 ⑥で、外の円 100・中の円 15・十字線 150（外の円の 1.5 倍）に変更した。
+const MARKING_DEFAULTS = { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 };
+// 1.4.0 の既定（決定101）。settings.json には、既定の値もそのまま書かれている（settings.js の save）。
+const LEGACY_MARKING_DEFAULTS = Object.freeze({ outer: 32, dot: 9, cross: 44.8 });
+// この版の移し替えを済ませた印（annotation-settings.js の annotPaletteVersion）。
+const MARKING_MIGRATED_VERSION = 3;
 
 function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -44,6 +49,20 @@ function markingDefaults() {
   return { annotMarking: { ...MARKING_DEFAULTS } };
 }
 
+// 移し替えの印が 3 より前の設定で、1.4.0 の既定と同じ値の欄だけを新しい既定へ置き換える（決定102 ⑥。Claude の判断）。自分で変えた値は
+// そのまま。置き換えないと、1.4.0 を起動したことがある人には新しい既定が効かない。印が整数でなければ、印が無いのと同じに扱う。
+function migrateMarking(raw, version) {
+  const from = Number.isInteger(version) ? version : 0;
+  if (!isPlainObject(raw) || from >= MARKING_MIGRATED_VERSION)
+    return raw;
+  const next = { ...raw };
+  for (const [field, legacy] of Object.entries(LEGACY_MARKING_DEFAULTS)) {
+    if (next[field] === legacy)
+      next[field] = MARKING_DEFAULTS[field];
+  }
+  return next;
+}
+
 // 読み込んだ値から取り出す。fallback は既定。
 function pickMarkingSettings(source, fallback) {
   return { annotMarking: pickMarking(source?.annotMarking, fallback?.annotMarking) };
@@ -55,4 +74,7 @@ function mergeMarkingSettings(current, next) {
   return { annotMarking: pickMarking(merged, current?.annotMarking) };
 }
 
-module.exports = { MARKING_SHAPES, MARKING_RANGES, MARKING_DEFAULTS, markingDefaults, pickMarkingSettings, mergeMarkingSettings };
+module.exports = {
+  MARKING_SHAPES, MARKING_RANGES, MARKING_DEFAULTS, LEGACY_MARKING_DEFAULTS, MARKING_MIGRATED_VERSION,
+  markingDefaults, migrateMarking, pickMarkingSettings, mergeMarkingSettings,
+};

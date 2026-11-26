@@ -230,8 +230,8 @@ const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { sh
   annotFillOpacity: { shape: 1 }, annotHatch: { shape: { pattern: 'none', color: '#ff0000', gap: 6, width: 1 } },
   // 縦横比を固定（spec-7-9 確定事項D3）。
   annotKeepRatio: false,
-  // マーキングの次に配置する値（spec-7-9 確定事項F5）。
-  annotMarking: { shape: 'target', outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16, lineWidth: 3 } };
+  // マーキングの次に配置する値（spec-7-9 確定事項F5。既定は決定102 ⑥）。
+  annotMarking: { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 } };
 // 最近使用した色と直前の色（spec-7-2 確定事項A4・B2）。
 const DEFAULT_COLOR_MEMORY = { annotRecentColors: [], annotLastColors: { line: '#ed7d31', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 8 } };
 const DEFAULT_OPACITY = { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1, marking: 1 };
@@ -374,12 +374,12 @@ test('古い settings.json の候補の色は、読み込むときに 1 回だ�
   assert.equal(loaded.annotColors.shape, '#4472c4');
   assert.equal(loaded.annotColors.pen, '#123456', '自分で選んだ色はそのまま');
   assert.equal(loaded.annotColors.note, '#ffa8c8', '桃はそのまま');
-  assert.equal(loaded.annotPaletteVersion, 2);
+  assert.equal(loaded.annotPaletteVersion, 3);
   // 移したあとに今までの候補と同じ色を選び直しても、次の読み込みでは移さない。
   store.set(mergeUi(pickUi(store.get()), { annotColors: { shape: '#2c5cd9' } }));
-  assert.equal(store.get().annotPaletteVersion, 2);
+  assert.equal(store.get().annotPaletteVersion, 3);
   assert.equal(store.save(), true);
-  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 2);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 3);
   const reopened = createSettingsStore({ dir }).load();
   assert.equal(reopened.annotColors.shape, '#2c5cd9');
   assert.equal(reopened.annotColors.highlight, '#a9ce91');
@@ -394,14 +394,31 @@ test('印 1 の settings.json の図形の色 #c00000 は、読み込むとき�
   const store = createSettingsStore({ dir });
   const loaded = store.load();
   assert.deepEqual(loaded.annotColors, DEFAULT_COLORS, '図形だけが移り、下線・取り消し線・ペンの #c00000 は残る');
-  assert.equal(loaded.annotPaletteVersion, 2);
+  assert.equal(loaded.annotPaletteVersion, 3);
   store.set(mergeUi(pickUi(store.get()), { annotColors: { shape: '#c00000' } }));
   assert.equal(store.save(), true);
-  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 2);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 3);
   assert.equal(createSettingsStore({ dir }).load().annotColors.shape, '#c00000');
   // 自分で選んだ色（印 1 で #c00000 でない色）は移さない。
   fs.writeFileSync(file, JSON.stringify({ annotPaletteVersion: 1, annotColors: { shape: '#4472c4' } }));
   assert.equal(createSettingsStore({ dir }).load().annotColors.shape, '#4472c4');
+});
+
+// マーキングの既定を外の円 100・中の円 15・十字線 150 に変えた（決定102 ⑥）。1.4.0 の settings.json（印 2）には、既定の値
+// （32・9・44.8）もそのまま書かれているので、読み込むときに 1 回だけ置き換える。置き換えた後に 32 を選び直せば、次の読み込みでは置き換えない。
+test('印 2 の settings.json のマーキングの 1.4.0 の既定は、読み込むときに 1 回だけ新しい既定へ置き換わる', () => {
+  const dir = makeTempDir();
+  const file = path.join(dir, 'settings.json');
+  fs.writeFileSync(file, JSON.stringify({ annotPaletteVersion: 2, annotMarking: { shape: 'crosshair', outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16, lineWidth: 3 } }));
+  const store = createSettingsStore({ dir });
+  const loaded = store.load();
+  assert.deepEqual(loaded.annotMarking, { shape: 'crosshair', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 });
+  assert.equal(loaded.annotPaletteVersion, 3);
+  assert.equal(pickUi(store.get()).annotMarking.outer, 100, 'レンダラーへ渡す値も新しい既定');
+  store.set(mergeUi(pickUi(store.get()), { annotMarking: { outer: 32 } }));
+  assert.equal(store.save(), true);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).annotPaletteVersion, 3);
+  assert.equal(createSettingsStore({ dir }).load().annotMarking.outer, 32, '選び直した 32 はそのまま');
 });
 
 // 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。線と塗りを両方なしにはできない。

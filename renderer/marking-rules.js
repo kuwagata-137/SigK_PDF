@@ -27,8 +27,8 @@
     fontSize: Object.freeze([4, 200]),
   });
   const NUMBER_MAX = 9999;
-  // 既定（確定事項F3）。十字線は外の円の直径の 1.4 倍。
-  const DEFAULTS = Object.freeze({ shape: 'target', outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16 });
+  // 既定（確定事項F3。決定102 ⑥で外の円 100・中の円 15 に変更）。十字線は外の円の直径の 1.5 倍（ユーザーの指示「デフォルトは1.5倍の倍率」）。
+  const DEFAULTS = Object.freeze({ shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16 });
   const DEFAULT_LINE_WIDTH = 3;
   const DEFAULT_COLOR = '#ff0000';
   // 中の円のハンドルが変える欄（注意マークは無い）。中の円（dot・ring）は外の円より大きくしない。

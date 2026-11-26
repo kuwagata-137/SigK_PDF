@@ -23,9 +23,9 @@ function markingEntry(marking = TARGET, center = [100, 700]) {
   return { id: 'm1', src: 0, kind: 'marking', color: '#ff0000', opacity: 1, lineWidth: 3, text: '', marking, ...geometry.frameOf(marking, center) };
 }
 
-test('既定の値は外の円 32pt・中の円 9pt（点付き丸）と 16pt（二重丸）・十字線は外の円の 1.4 倍・文字サイズ 16pt・線の太さ 3pt・赤', () => {
-  assert.deepEqual({ ...rules.DEFAULTS }, TARGET);
-  assert.equal(rules.DEFAULTS.cross, rules.DEFAULTS.outer * 1.4);
+test('既定の値は外の円 100pt・中の円 15pt（点付き丸）と 16pt（二重丸）・十字線は外の円の 1.5 倍・文字サイズ 16pt・線の太さ 3pt・赤（決定102 ⑥）', () => {
+  assert.deepEqual({ ...rules.DEFAULTS }, { ...TARGET, outer: 100, dot: 15, cross: 150 });
+  assert.equal(rules.DEFAULTS.cross, rules.DEFAULTS.outer * 1.5);
   assert.equal(rules.DEFAULT_LINE_WIDTH, 3);
   assert.equal(rules.DEFAULT_COLOR, '#ff0000');
   assert.deepEqual([...rules.SHAPES], ['target', 'double', 'crosshair', 'number', 'caution']);
