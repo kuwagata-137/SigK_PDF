@@ -180,7 +180,8 @@
       lineWidth: textView.widthViewOf(live),
       opacity: valueOf(live.filter((target) => isOpacityKind(target.kind)), 'opacity'),
       ...textView.textViewsOf(live),
-      // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸か、テキストがあるときに選べる。
+      // 線なし（見出し「枠線」のラジオボタン「なし」。決定102 ④）は塗りのある四角・丸があるとき、塗りなし（色の一覧の［塗りなし］）は
+      // 線のある四角・丸か、テキストがあるときに選べる（下の strokeNoneEnabled・fillNoneEnabled）。
       // 見出し「枠線」「塗り」で分けるか（塗りを持てる相手があり、テキストが無い時。spec-7-9 確定事項B1）と、塗りの行の値。
       split: boxed.length > 0 && texts.length === 0,
       fillOpacity: valueOf(boxed, 'fillOpacity'),

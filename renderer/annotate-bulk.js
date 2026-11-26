@@ -119,7 +119,7 @@
     const { annots, keys: renamed } = root.SigK.annotationBulk.updateEach(before, view.getImported(), keys, (entry) => patch.patchFor(field, value, entry));
     if (annots !== before) {
       const after = keys.map((key) => renamed.get(key) ?? key);
-      // 線なしは線の色の行で選ぶので、線の色と同じ欄として続けた変更に畳む（確定事項J1）。
+      // 線なしと枠線「あり」（見出し「枠線」のラジオボタン。決定102 ④）は、線の色と同じ欄として続けた変更に畳む（確定事項J1）。
       const gesture = field === 'strokeNone' || field === 'strokeOn' ? 'color' : root.SigK.annotateFill?.gestureOf(field, value) ?? field;
       root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });
       annotate().selectKeys(after);
