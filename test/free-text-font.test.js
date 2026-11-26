@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
+require('../renderer/text-fonts.js');
 require('../renderer/free-text-font.js');
 
 // テキスト注釈の書体と字の幅（spec-4-2 確定事項33、spec-4b-4a 確定事項B6・D4）。free-text-shape.js から移した（spec-4b-4b）。

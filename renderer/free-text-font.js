@@ -7,7 +7,10 @@
   // 同梱フォント（shell.css の @font-face 'SigK Noto Sans JP'）の先読みと、幅の計測（canvas の measureText。保存側の
   // widthOfTextAtSize と日本語で一致する。事前調査 D）を持つ。詰め（kerning）は切って測る（保存の字の並びとそろえる。事前調査 E）。
 
-  const FAMILY = 'SigK Noto Sans JP';
+  // 描く時の font-family は、フォントの一覧（text-fonts.js。版 1.5.0 の③の下準備）の既定のフォントから取る。
+  function family() {
+    return root.SigK.textFonts.defaultFont().family;
+  }
   // 字の送り幅を測る大きさ（px）。小さいと canvas の丸めが効く（事前調査 E。7〜4000px で比例）。
   const ADVANCE_PX = 1000;
 
@@ -15,7 +18,7 @@
   const state = { loaded: false, loading: null, contexts: new WeakMap(), advances: { regular: new Map(), bold: new Map() } };
 
   function fontOf(px, bold = false, italic = false) {
-    return `${italic ? 'italic ' : ''}${bold ? '700 ' : ''}${px}px "${FAMILY}"`;
+    return `${italic ? 'italic ' : ''}${bold ? '700 ' : ''}${px}px "${family()}"`;
   }
 
   // フォントを先読みする。注釈モードに入ったとき・自前のテキストを読み込んだとき・
@@ -80,5 +83,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextFont = { FAMILY, ADVANCE_PX, fontOf, ensureLoaded, isLoaded, measure, advanceOf };
+  SigK.freeTextFont = { get FAMILY() { return family(); }, ADVANCE_PX, fontOf, ensureLoaded, isLoaded, measure, advanceOf };
 })(typeof window !== 'undefined' ? window : globalThis);

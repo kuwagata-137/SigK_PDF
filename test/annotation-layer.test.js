@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
+require('../renderer/text-fonts.js');
 require('../renderer/markup-quads.js');
 require('../renderer/markup-graphics.js');
 require('../renderer/shape-style.js');

@@ -29,8 +29,11 @@
 
   // ノートの色が無いときの塗り（ノートの既定の黄。spec-4b-1b 確定事項14 でパレットの色にした）。
   const DEFAULT_NOTE_COLOR = '#ffd966';
-  // 自分で付けたテキストの印（worker/font-embed.js の DA_FONT_NAME と同じ）。
-  const OWN_FONT_NAME = 'SigKJP';
+  // 自分で付けたテキストの印（/DA のフォント名）は、フォントの一覧（text-fonts.js。版 1.5.0 の③の下準備）で見分ける。
+  // OWN_FONT_NAME は既定のフォントの名前（今までの呼び名のまま公開する）。
+  function isOwnFontName(name) {
+    return root.SigK.textFonts.isOwnDaName(name);
+  }
   // pdf.js の id のうち、参照の形のもの（世代 0 は 12R、世代 1 以上は 12R1）。/Annots に直に置いた辞書は
   // annot_… と名付けられ、ワーカーが参照に直せない（消すと保存ごと断られていた）ので読み込まない
   // （spec-4b-1a 確定事項24）。pdf.js が描き続け、一覧には出ない。
@@ -43,7 +46,7 @@
   // 自分で付けたテキスト。/Rect と /Contents・/DA・/Rotate から組む（確定事項13）。
   function importedText(annotation, src) {
     const da = annotation.defaultAppearanceData;
-    if (da?.fontName !== OWN_FONT_NAME || !Array.isArray(annotation.rect) || annotation.rect.length !== 4)
+    if (!isOwnFontName(da?.fontName) || !Array.isArray(annotation.rect) || annotation.rect.length !== 4)
       return null;
     const text = root.SigK.freeTextGeometry.linesOf(annotation.contentsObj?.str ?? '').join('\n');
     const rotation = Number.isInteger(annotation.rotation) ? (((annotation.rotation % 360) + 360) % 360) : 0;
@@ -136,5 +139,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.importedEntry = { SUBTYPES, MARKUP_SUBTYPES, OWN_FONT_NAME, isRefId, importedEntry };
+  SigK.importedEntry = { SUBTYPES, MARKUP_SUBTYPES, get OWN_FONT_NAME() { return root.SigK.textFonts.defaultFont().daName; }, isRefId, importedEntry };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -17,17 +17,21 @@ const path = require('node:path');
 const { toBytes } = require('../file-io.js');
 
 const { failure, passFailure } = require('./task-failure.js');
-const FONT_PATH = path.join(__dirname, '..', 'assets', 'fonts', 'NotoSansJP-Regular.ttf');
-const BOLD_FONT_PATH = path.join(__dirname, '..', 'assets', 'fonts', 'NotoSansJP-Bold.ttf');
+const { defaultFont } = require('./text-fonts.js');
+
+// フォントのファイルと名前は、フォントの一覧（text-fonts.js。版 1.5.0 の③の下準備）の既定のフォントから取る。
+const DEFAULT_FONT = defaultFont();
+const FONT_PATH = DEFAULT_FONT.regular.file;
+const BOLD_FONT_PATH = DEFAULT_FONT.bold.file;
 const FONTKIT_PATH = path.join(__dirname, '..', 'vendor', 'fontkit.umd.min.js');
 
 // /DA と /AP の Resources で使うフォント名。読み込むときに自分の注釈を見分ける印にもなる
 // （pdf.js は defaultAppearanceData.fontName にこの名をそのまま返す。spec-4-2 事前調査 C）。太字のテキストは外観の Resources で
 // BOLD_FONT_NAME を使い、/DA は太字でも DA_FONT_NAME のまま（自分のテキストの印。spec-4b-4a 確定事項I4）。
-const DA_FONT_NAME = 'SigKJP';
-const BOLD_FONT_NAME = 'SigKJPB';
-const FONT_BASE_NAME = 'NotoSansJP-Regular';
-const BOLD_BASE_NAME = 'NotoSansJP-Bold';
+const DA_FONT_NAME = DEFAULT_FONT.regular.resourceName;
+const BOLD_FONT_NAME = DEFAULT_FONT.bold.resourceName;
+const FONT_BASE_NAME = DEFAULT_FONT.regular.baseName;
+const BOLD_BASE_NAME = DEFAULT_FONT.bold.baseName;
 const FONT_ERROR = '日本語フォントを読み込めなかったため、テキストの書き込みを保存できません。';
 // 合字を切る（fontkit の layout が fi・ff などを 1 字にまとめると、画面の行の幅と食い違う）。
 const FEATURES = Object.freeze({ liga: false });
