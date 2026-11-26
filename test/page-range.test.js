@@ -64,3 +64,26 @@ test('ページ数が分からない文書には何も返さない', () => {
   assert.deepEqual(parsePageRange('1', null), { error: 'ページ数を取得できません' });
   assert.deepEqual(parsePageRange('', 0), { pages: [] });
 });
+
+// 範囲の文字列を組み立てる（版 1.5.0 の②。帯で選択したページを範囲欄に入れる。docs/spec-7-11-view-font.md）。引数は 1 始まりの番号。
+const { formatPageRange } = globalThis.SigK.pageRange;
+
+test('formatPageRange は連続した番号を「2-4」にまとめ、ほかは「, 」で区切る', () => {
+  assert.equal(formatPageRange([2, 3, 4]), '2-4');
+  assert.equal(formatPageRange([2, 3, 4, 7]), '2-4, 7');
+  assert.equal(formatPageRange([1, 3, 5]), '1, 3, 5');
+  assert.equal(formatPageRange([5, 6]), '5-6');
+  assert.equal(formatPageRange([9]), '9');
+});
+
+test('formatPageRange は順番を昇順に並べ、重複と番号でない値を除く', () => {
+  assert.equal(formatPageRange([7, 2, 4, 3, 2]), '2-4, 7');
+  assert.equal(formatPageRange([0, -1, 1.5, '3', null, 3]), '3');
+  assert.equal(formatPageRange([]), '');
+  assert.equal(formatPageRange(undefined), '');
+});
+
+test('formatPageRange で組み立てた文字列は、parsePageRange で同じページに戻る', () => {
+  const numbers = [1, 2, 3, 8, 10, 11, 20];
+  assert.deepEqual(parsePageRange(formatPageRange(numbers), 20), { pages: numbers.map((number) => number - 1) });
+});

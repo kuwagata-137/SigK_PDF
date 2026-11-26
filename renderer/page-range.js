@@ -71,6 +71,22 @@
     return { pages };
   }
 
+  // 1 始まりのページ番号の並びを、範囲の記法の文字列にする（版 1.5.0 の②。帯で選択したページを範囲欄に入れる）。
+  // 昇順に並べて重複を除き、連続した番号は「2-4」にまとめ、ほかは「, 」で区切る（範囲欄の例「1-3, 5, 8-」と同じ書き方）。
+  // 1 以上の整数でない値は除く。何も残らなければ空の文字列（parsePageRange では「すべてのページ」に当たるので、使う側で扱う）。
+  function formatPageRange(numbers) {
+    const sorted = [...new Set((numbers ?? []).filter((value) => Number.isInteger(value) && value >= 1))].sort((a, b) => a - b);
+    const runs = [];
+    for (const number of sorted) {
+      const last = runs.at(-1);
+      if (last !== undefined && number === last[1] + 1)
+        last[1] = number;
+      else
+        runs.push([number, number]);
+    }
+    return runs.map(([from, to]) => (from === to ? String(from) : `${from}-${to}`)).join(', ');
+  }
+
   const SigK = (root.SigK = root.SigK || {});
-  SigK.pageRange = { EXAMPLE, normalize, parsePageRange };
+  SigK.pageRange = { EXAMPLE, normalize, parsePageRange, formatPageRange };
 })(typeof window !== 'undefined' ? window : globalThis);
