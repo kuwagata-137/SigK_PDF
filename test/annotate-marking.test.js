@@ -181,6 +181,61 @@ function drag(shell, from, to, extra = {}) {
   mouse(shell, 'mouseup', pageNode(shell), b, extra);
 }
 
+test('何も無い所からドラッグすると、押した点と離した点を対角とする正方形に外接する外の円で描き、ドラッグ中は下書きを表示する（決定102 ⑦）', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('marking');
+  const [a, b] = [px(shell, [100, 700]), px(shell, [180, 640])];
+  mouse(shell, 'mousedown', pageNode(shell), a);
+  mouse(shell, 'mousemove', document.body, b);
+  const draft = SigK.annotateShape.draftFor(0);
+  assert.equal(draft.kind, 'marking');
+  assert.equal(draft.marking.outer, 80, '|dx| 80pt と |dy| 60pt の大きい方');
+  assert.ok(pageNode(shell).querySelector('.annot-draft g.marking.target') !== null, '下書きを描く');
+  assert.equal(added(shell).length, 0);
+  mouse(shell, 'mouseup', pageNode(shell), b);
+  assert.equal(added(shell).length, 1);
+  const entry = added(shell)[0];
+  assert.equal(entry.marking.outer, 80);
+  assert.equal(entry.marking.dot, 15, '中の円は次に配置する値のまま（大きさの連動は質問 MK3 の回答の後）');
+  assert.deepEqual(plain(center(entry.rect)), [140, 660], '中心は正方形の中心（引いた向きへ伸ばす）');
+  assert.equal(SigK.annotate.getSelected(), entry.id);
+  assert.equal(SigK.annotateShape.draftFor(0), null);
+  SigK.pageEdit.undo();
+  assert.equal(added(shell).length, 0);
+});
+
+test('ドラッグで描く時も、外の円は 4〜720pt の範囲で止め、番号付き丸は次の番号を付ける。選択中でもドラッグなら描く', async (t) => {
+  const shell = await withShell(t);
+  const { SigK } = shell;
+  SigK.annotate.setTool('marking');
+  SigK.annotateMarking.setShape('number');
+  click(shell, [300, 300]);
+  assert.equal(SigK.annotate.getSelected(), added(shell)[0].id);
+  drag(shell, [100, 700], [101.5, 690]);
+  assert.equal(added(shell).length, 2, '選択中でもドラッグなら描く');
+  assert.deepEqual([added(shell)[1].marking.outer, added(shell)[1].marking.number], [10, 2]);
+  drag(shell, [200, 200], [203.5, 200]);
+  assert.equal(added(shell)[2].marking.outer, 4, '外の円は 4pt で止める');
+  SigK.annotate.select(null);
+  drag(shell, [50, 800], [51, 799.5]);
+  assert.equal(added(shell).length, 4, '3px 以内の動きはクリックとして、既定の大きさで配置する');
+  assert.equal(added(shell)[3].marking.outer, 100);
+});
+
+test('ドラッグの途中で Esc を押すと、描かずにやめる', async (t) => {
+  const shell = await withShell(t);
+  const { SigK, document } = shell;
+  SigK.annotate.setTool('marking');
+  mouse(shell, 'mousedown', pageNode(shell), px(shell, [100, 700]));
+  mouse(shell, 'mousemove', document.body, px(shell, [200, 600]));
+  assert.notEqual(SigK.annotateShape.draftFor(0), null);
+  SigK.annotate.escape();
+  assert.equal(SigK.annotateShape.draftFor(0), null);
+  mouse(shell, 'mouseup', pageNode(shell), px(shell, [200, 600]));
+  assert.equal(added(shell).length, 0);
+});
+
 test('マーキングはドラッグで移動し、Ctrl を押しながらドラッグするとコピーを作る（番号付き丸の番号は同じまま）', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;

@@ -115,7 +115,8 @@
       event.preventDefault();
       return;
     }
-    if (tool === 'shape' || tool === 'pen' || tool === 'marker')
+    // マーキングも、何も無い所からのドラッグで大きさを決めて描く（決定102 ⑦。丸と同じ）。動かさずに離せば、up で既定の大きさで配置する。
+    if (tool === 'shape' || tool === 'pen' || tool === 'marker' || tool === 'marking')
       root.SigK.annotateDraw.begin(event, page);
   }
 

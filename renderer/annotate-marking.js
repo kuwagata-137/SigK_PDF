@@ -103,29 +103,38 @@
     return root.SigK.freeTextEditor?.pageOf(index)?.viewport ?? viewer()?.getTextLayer(index)?.viewport ?? null;
   }
 
-  // マーキングのツールでページをクリックした点（.pdf-page 基準の CSS px）を中心に配置し、配置した書き込みを選択する（確定事項F3）。
-  function place({ index, point }) {
-    const viewport = viewportOf(index);
-    const src = viewer()?.getPlan()[index]?.src;
-    if (viewer()?.getState().open !== true || viewport === null || !Number.isInteger(src))
+  // 次に配置する値の書き込み（id なし）。marking は形と大きさ（番号付き丸なら次の番号を付ける）、center は中心（pt）。
+  // ドラッグの下書き（marking-draft.js）も同じ形で描く。
+  function entryOf({ src, center, marking = getNext() }) {
+    const sized = marking.shape === 'number' ? { ...marking, number: nextNumber() } : marking;
+    return {
+      src, kind: 'marking', color: annotate().colorOf('marking'), opacity: root.SigK.annotateOpacity?.opacityOf('marking') ?? 1,
+      lineWidth: state.lineWidth, text: '', marking: sized, ...geometry().frameOf(sized, center.map(round)),
+    };
+  }
+
+  // ドラッグで決めた外の円の直径（pt）の、次に配置する値（決定102 ⑦）。範囲の外は端で止め、中の円は外の円で止める。
+  function drawnMarking(outer) {
+    return rules().clampedSize(getNext(), 'outer', outer);
+  }
+
+  // 中心 center（pt）に配置し、配置した書き込みを選択する（確定事項F3）。
+  function placeAt({ src, center, marking }) {
+    if (viewer()?.getState().open !== true || !Number.isInteger(src))
       return false;
-    const center = viewport.convertToPdfPoint(point[0], point[1]).map(round);
-    const marking = state.next.shape === 'number' ? { ...getNext(), number: nextNumber() } : getNext();
     const id = annotationState().newId();
-    const next = annotationState().addAnnot(viewer().getAnnotations(), {
-      id,
-      src,
-      kind: 'marking',
-      color: annotate().colorOf('marking'),
-      opacity: root.SigK.annotateOpacity?.opacityOf('marking') ?? 1,
-      lineWidth: state.lineWidth,
-      text: '',
-      marking,
-      ...geometry().frameOf(marking, center),
-    });
+    const next = annotationState().addAnnot(viewer().getAnnotations(), { id, ...entryOf({ src, center, marking }) });
     root.SigK.pageEdit.commitAnnots(next, { annot: { before: null, after: id } });
     annotate().select(id);
     return true;
+  }
+
+  // マーキングのツールでページをクリックした点（.pdf-page 基準の CSS px）を中心に、次に配置する値で配置する（確定事項F3）。
+  function place({ index, point }) {
+    const viewport = viewportOf(index);
+    if (viewport === null)
+      return false;
+    return placeAt({ src: viewer()?.getPlan()[index]?.src, center: viewport.convertToPdfPoint(point[0], point[1]) });
   }
 
   // 1 件だけ選択している、編集できるマーキング。無ければ null。
@@ -186,6 +195,6 @@
 
   const SigK = (root.SigK = root.SigK || {});
   SigK.annotateMarking = {
-    reset, apply, getNext, getLineWidth, rememberLineWidth, nextNumber, place, selectedMarking, setShape, setSize, setNumber,
+    reset, apply, getNext, getLineWidth, rememberLineWidth, nextNumber, entryOf, drawnMarking, placeAt, place, selectedMarking, setShape, setSize, setNumber,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

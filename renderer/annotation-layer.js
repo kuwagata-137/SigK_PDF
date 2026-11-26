@@ -90,7 +90,9 @@
     group.setAttribute('class', 'annot-draft');
     setOpacity(group, draft);
     markBlend(group, draft);
-    group.append(root.SigK.shapeGraphics.svgOf(doc, draft, viewport));
+    // マーキングをドラッグで描く下書き（決定102 ⑦。marking-draft.js）は、配置した後と同じ marking-graphics.js で描く。
+    const graphics = draft.kind === 'marking' ? root.SigK.markingGraphics : root.SigK.shapeGraphics;
+    group.append(graphics.svgOf(doc, draft, viewport));
     return group;
   }
 

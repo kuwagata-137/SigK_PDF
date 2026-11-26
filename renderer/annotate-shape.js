@@ -62,10 +62,17 @@
 
   // ---- 描く（確定事項3） ----
 
+  // マーキングの書き込みツールのドラッグは、marking-draft.js が下書きを持つ（決定102 ⑦）。
+  function markingDraft() {
+    return root.SigK.markingDraft;
+  }
+
   function beginDraft({ index, point, shift = false }) {
     const kind = kindOfTool(annotate().getTool());
     const viewport = viewportOf(index);
     const src = viewer()?.getPlan()[index]?.src;
+    if (annotate().getTool() === 'marking')
+      return isOpen() && markingDraft()?.begin({ index, src, viewport, point }) === true;
     // 多角形はドラッグでは描かない（クリックで頂点を置く。spec-4b-5a 確定事項13）。
     if (kind === null || kind === 'polygon' || !isOpen() || viewport === null || !Number.isInteger(src))
       return false;
@@ -78,14 +85,21 @@
   }
 
   function updateDraft(point, shift = false) {
-    if (!draft().update(point, shift))
+    if (markingDraft()?.isDrawing() !== true && !draft().update(point, shift))
       return false;
+    markingDraft()?.update(point);
     viewer().redrawAnnotations();
     return true;
   }
 
   // 離した。動いていなければ捨てる（押しただけ）。動いていれば注釈にして 1 世代積み、選ぶ。
   function finishDraft(point, shift = false) {
+    if (markingDraft()?.isDrawing() === true) {
+      const placed = markingDraft().finish(point);
+      if (!placed)
+        viewer()?.redrawAnnotations();
+      return placed;
+    }
     const slop = root.SigK.annotatePointer?.CLICK_SLOP ?? 3;
     const entry = draft().finish(point, shift, slop);
     if (entry === null || !isOpen()) {
@@ -102,7 +116,8 @@
   }
 
   function cancelDraft() {
-    if (!draft().cancel())
+    const marked = markingDraft()?.cancel() === true;
+    if (!draft().cancel() && !marked)
       return false;
     viewer()?.redrawAnnotations();
     return true;
@@ -151,8 +166,8 @@
     updateDraft,
     finishDraft,
     cancelDraft,
-    draftFor: (index) => draft().draftFor(index),
-    isDrawing: () => draft().isDrawing(),
+    draftFor: (index) => markingDraft()?.draftFor(index) ?? draft().draftFor(index),
+    isDrawing: () => draft().isDrawing() || markingDraft()?.isDrawing() === true,
     move,
     commit,
     getLineWidth,
