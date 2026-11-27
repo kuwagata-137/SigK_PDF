@@ -63,11 +63,15 @@ test('使えるフォントの控え: 初めは同梱の Noto Sans JP だけ。�
   assert.deepEqual(screen.availableFonts().map((font) => font.id), ['noto-sans-jp']);
 });
 
-test('保存の側: 書き込みの font の欄から書体を引く。太字の書体が無いフォントは、太字でも標準の書体（質問 FT3）', () => {
+test('保存の側: 書き込みの font の欄から書体を引く。太字の書体が無いフォントの太字は、標準の書体の擬似太字（質問 FT3「案B」）', () => {
   assert.equal(saving.faceOfEntry({}).face.resourceName, 'SigKJP');
   assert.equal(saving.faceOfEntry({ bold: true }).face.resourceName, 'SigKJPB');
   assert.equal(saving.faceOfEntry({ font: 'yu-mincho', bold: true }).face.postscriptName, 'YuMincho-Demibold');
-  assert.deepEqual([saving.faceOfEntry({ font: 'ms-gothic', bold: true }).bold, saving.faceOfEntry({ font: 'ms-gothic', bold: true }).face.resourceName], [false, 'SigKMG']);
+  const msBold = saving.faceOfEntry({ font: 'ms-gothic', bold: true });
+  assert.deepEqual([msBold.bold, msBold.synthetic, msBold.face.resourceName], [false, true, 'SigKMG']);
+  assert.equal(saving.faceOfEntry({ font: 'yu-gothic', bold: true }).synthetic, false);
+  assert.equal(saving.faceOfEntry({ font: 'ms-gothic' }).synthetic, false);
+  assert.equal(saving.SYNTHETIC_BOLD_RATIO, 1 / 30);
   assert.equal(saving.faceOfEntry({ font: 'none' }), null);
 });
 

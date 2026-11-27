@@ -60,6 +60,8 @@
     node.style.fontWeight = fonts.boldOf(draft.bold, draft.font) ? '700' : '';
     // 既定でないフォント（版 1.5.0 の③）。既定は shell.css の font-family のまま。
     node.style.fontFamily = draft.font === undefined ? '' : `"${fonts.family(draft.font)}", sans-serif`;
+    // 擬似太字（質問 FT3「案B」）は、字の大きさの 30 分の 1 の線を、文字の色で輪郭に描く（注釈の層・印刷・保存と同じ太さ）。
+    node.style.setProperty('-webkit-text-stroke', fonts.syntheticBoldOf(draft.bold, draft.font) ? `calc(1em * ${fonts.SYNTHETIC_BOLD_RATIO}) currentColor` : '');
     node.style.fontStyle = draft.italic === true ? 'italic' : '';
     node.style.lineHeight = String(geometry().LINE_HEIGHT);
     node.style.padding = paddingOf(layout().insetOf(draft), scale);

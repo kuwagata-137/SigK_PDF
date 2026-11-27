@@ -74,9 +74,6 @@
       const value = format[button.dataset.format];
       button.classList.toggle('on', isOn(value));
       button.setAttribute('aria-pressed', value?.mixed === true ? 'mixed' : String(isOn(value)));
-      // 太字の書体が無いフォント（MS ゴシック・MS 明朝）では［B］を押せない（質問 FT3 の推奨案A）。
-      if (button.dataset.format === 'bold')
-        button.disabled = format.boldDisabled === true;
     }
     return true;
   }

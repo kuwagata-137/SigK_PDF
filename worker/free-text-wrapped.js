@@ -12,7 +12,7 @@
 const { num, colorOps, parseColor } = require('./annotation-appearance.js');
 const { LINE_HEIGHT, BASELINE, frameOf, isFreeTextEntry } = require('./free-text-appearance.js');
 const { defaultStyleOf } = require('./default-style.js');
-const { fontOfEntry } = require('./text-fonts.js');
+const { fontOfEntry, faceOfEntry, SYNTHETIC_BOLD_RATIO } = require('./text-fonts.js');
 const { decorOps, readableTextOps } = require('./free-text-decor.js');
 const { matrixOf, boundsOf } = require('./shape-rotation.js');
 const { calloutGeometryOf, outlineOps } = require('./callout-outline.js');
@@ -83,9 +83,12 @@ function isWrappedEntry(entry) {
   return Array.isArray(entry.lines) && entry.lines.every((line) => typeof line === 'string') && matchesText(entry.lines, entry.text);
 }
 
-// 行のブロック。origin は（回転後の座標での）中身の左上。空の行は描かない（行送りは数える）。
-function wrappedBlockOps({ lines, fontSize, rgb, origin, italic }, measure) {
+// 行のブロック。origin は（回転後の座標での）中身の左上。空の行は描かない（行送りは数える）。synthetic は擬似太字（太字の書体が
+// 無いフォントの太字。質問 FT3「案B」）で、塗りと線（2 Tr）で描き、文字の輪郭に字の大きさの 30 分の 1 の太さの線を、文字の色で追加する。
+function wrappedBlockOps({ lines, fontSize, rgb, origin, italic, synthetic = false }, measure) {
   const ops = ['BT', `${colorOps(rgb)} rg`, `/${measure.name} ${num(fontSize)} Tf`];
+  if (synthetic)
+    ops.push(`${colorOps(rgb)} RG`, `${num(fontSize * SYNTHETIC_BOLD_RATIO)} w`, '0 j', '2 Tr');
   const skew = italic ? ITALIC_SKEW : 0;
   lines.forEach((line, index) => {
     if (line === '')
@@ -124,7 +127,7 @@ function wrappedAppearanceOf(entry, measure) {
     ...(callout === null ? [] : outlineOps(callout.segments, { fill: fillRgb, border: borderRgb, borderWidth })),
     `${matrix.map(num).join(' ')} 0 0 cm`,
     ...(callout === null ? [`${clip.map(num).join(' ')} re W n`, ...decorOps({ clip, fill: fillRgb, border: borderRgb, borderWidth })] : []),
-    ...wrappedBlockOps({ lines: entry.lines, fontSize, rgb, origin, italic: entry.italic === true }, measure),
+    ...wrappedBlockOps({ lines: entry.lines, fontSize, rgb, origin, italic: entry.italic === true, synthetic: faceOfEntry(entry)?.synthetic === true }, measure),
     'Q',
   ].join('\n');
   const outer = callout === null ? rect : callout.bbox;

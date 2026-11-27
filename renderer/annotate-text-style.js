@@ -103,18 +103,12 @@
     return presets().isLineWidth(width) && applyText('lineWidth', width);
   }
 
-  // フォント（版 1.5.0 の③。このパソコンで使えるフォントの id）。太字の書体が無いフォントを選ぶと、太字を外し、次に付ける値も
-  // 太字なしにする（質問 FT3 の推奨案A。［B］を押せなくする）。
+  // フォント（版 1.5.0 の③。このパソコンで使えるフォントの id）。太字は変えない（太字の書体が無いフォントの太字は、文字の線を
+  // 太くして描く。質問 FT3「案B 擬似太字」）。
   function setTextFont(id) {
-    const fonts = root.SigK.textFonts;
-    if (fonts?.isAvailable(id) !== true)
+    if (root.SigK.textFonts?.isAvailable(id) !== true)
       return false;
-    const tool = toolKey();
-    applyText('font', id);
-    if (!fonts.hasBold(id) && nextStyles[tool].bold === true)
-      rememberFor('bold', false, tool);
-    root.SigK.annotationProps?.refresh();
-    return true;
+    return applyText('font', id);
   }
 
   // 次に置くテキスト（tool が 'callout' なら吹き出し。文字の大きさも持つ）の書式。

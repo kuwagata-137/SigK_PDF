@@ -70,12 +70,18 @@ function fontOfEntry(entry) {
   return entry?.font === undefined ? defaultFont() : fontById(entry.font);
 }
 
-// 書き込みに使う書体。太字の書体が無いフォントは、太字でも標準の書体（質問 FT3。画面の側は［B］を押せなくする）。
+// 擬似太字の線の太さ（字の大きさに掛ける）。文字の輪郭に、この太さの線を追加して太く見せる（質問 FT3「案B 擬似太字」。
+// 質問の図の見本と、spec-4b-4a 事前調査 B の検体と同じ 30 分の 1。画面の側は renderer/free-text-font.js の SYNTHETIC_BOLD_RATIO）。
+const SYNTHETIC_BOLD_RATIO = 1 / 30;
+
+// 書き込みに使う書体。太字の書体が無いフォント（MS ゴシック・MS 明朝）の太字は、標準の書体で描き、synthetic（擬似太字）を true にする。
 function faceOfEntry(entry) {
   const font = fontOfEntry(entry);
   if (font === null)
     return null;
-  return entry?.bold === true && font.bold !== null ? { font, bold: true, face: font.bold } : { font, bold: false, face: font.regular };
+  if (entry?.bold !== true)
+    return { font, bold: false, synthetic: false, face: font.regular };
+  return font.bold !== null ? { font, bold: true, synthetic: false, face: font.bold } : { font, bold: false, synthetic: true, face: font.regular };
 }
 
-module.exports = { DEFAULT_FONT_ID, SYSTEM_FONT_DIR, TEXT_FONTS, fontById, defaultFont, fontOfEntry, faceOfEntry };
+module.exports = { DEFAULT_FONT_ID, SYSTEM_FONT_DIR, SYNTHETIC_BOLD_RATIO, TEXT_FONTS, fontById, defaultFont, fontOfEntry, faceOfEntry };

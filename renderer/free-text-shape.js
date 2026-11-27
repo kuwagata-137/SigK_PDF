@@ -88,6 +88,8 @@
       group.setAttribute('font-weight', '700');
     // 既定でないフォント（版 1.5.0 の③）。shell.css は text の要素に font-family を指定しているので、text の要素ごとに style で指定する。
     const family = entry.font === undefined ? null : `"${font().family(entry.font)}", sans-serif`;
+    // 擬似太字（質問 FT3「案B」）は、文字の色で、字の大きさの 30 分の 1 の線を輪郭に描く（保存の 2 Tr と同じ。線の角は PDF の既定と同じ尖り）。
+    const strokeWidth = font().syntheticBoldOf(entry.bold, entry.font) ? fmt(entry.fontSize * scale * font().SYNTHETIC_BOLD_RATIO) : null;
     if (entry.italic === true)
       group.setAttribute('font-style', 'italic');
     // 塗りと枠線は文字より先（spec-4b-4a 確定事項D1。free-text-decor-graphics.js）。
@@ -100,6 +102,12 @@
       text.setAttribute('xml:space', 'preserve');
       if (family !== null)
         text.style.fontFamily = family;
+      if (strokeWidth !== null) {
+        text.setAttribute('stroke', entry.color);
+        text.setAttribute('stroke-width', strokeWidth);
+        text.setAttribute('stroke-linejoin', 'miter');
+        text.setAttribute('stroke-miterlimit', '10');
+      }
       text.textContent = line;
       group.append(text);
     }
@@ -119,8 +127,18 @@
     ctx.textRendering = 'optimizeSpeed';
     ctx.fillStyle = entry.color;
     ctx.textBaseline = 'alphabetic';
-    for (const { line, x, y } of linePositions(lines, entry.fontSize, scale, inset))
+    const synthetic = font().syntheticBoldOf(entry.bold, entry.font);
+    if (synthetic) {
+      ctx.strokeStyle = entry.color;
+      ctx.lineWidth = entry.fontSize * scale * font().SYNTHETIC_BOLD_RATIO;
+      ctx.lineJoin = 'miter';
+      ctx.miterLimit = 10;
+    }
+    for (const { line, x, y } of linePositions(lines, entry.fontSize, scale, inset)) {
       ctx.fillText(line, x, y);
+      if (synthetic)
+        ctx.strokeText(line, x, y);
+    }
     ctx.restore();
   }
 

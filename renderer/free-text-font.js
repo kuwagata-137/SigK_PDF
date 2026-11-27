@@ -13,9 +13,17 @@
     return root.SigK.textFonts.usableFont(fontId).family;
   }
 
-  // 太字で描くか。太字の書体が無いフォント（MS ゴシック・MS 明朝）は標準で描く（質問 FT3。保存の側も標準の書体で描く）。
+  // 太字の書体で描くか。太字の書体が無いフォント（MS ゴシック・MS 明朝）の太字は、標準の書体で描き、文字の線を太くする（擬似太字）。
   function boldOf(bold, fontId) {
     return bold === true && root.SigK.textFonts.hasBold(fontId);
+  }
+
+  // 擬似太字の線の太さ（字の大きさに掛ける。保存の側 worker/text-fonts.js の SYNTHETIC_BOLD_RATIO と同じ）。質問 FT3「案B 擬似太字」。
+  const SYNTHETIC_BOLD_RATIO = 1 / 30;
+
+  // 擬似太字で描くか（太字で、太字の書体が無いフォント）。字の送り幅は標準の書体のまま（線は幅を変えない。PDF の 2 Tr と同じ）。
+  function syntheticBoldOf(bold, fontId) {
+    return bold === true && !root.SigK.textFonts.hasBold(fontId);
   }
   // 字の送り幅を測る大きさ（px）。小さいと canvas の丸めが効く（事前調査 E。7〜4000px で比例）。
   const ADVANCE_PX = 1000;
@@ -97,5 +105,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextFont = { get FAMILY() { return family(); }, ADVANCE_PX, family, boldOf, fontOf, ensureLoaded, isLoaded, measure, advanceOf };
+  SigK.freeTextFont = { get FAMILY() { return family(); }, ADVANCE_PX, SYNTHETIC_BOLD_RATIO, family, boldOf, syntheticBoldOf, fontOf, ensureLoaded, isLoaded, measure, advanceOf };
 })(typeof window !== 'undefined' ? window : globalThis);

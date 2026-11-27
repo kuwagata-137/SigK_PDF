@@ -1064,7 +1064,6 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
 }
 /* フォント（版 1.5.0 の③）。フォントの名前が入る幅にする。 */
 .props-select.props-font{width:100%}
-.format-buttons button:disabled{opacity:.4; cursor:default}
 /* ノートの本文と作成者（spec-4-4 確定事項3）。本文は複数行で縦に伸ばせる。 */
 .props-textarea{
   font:12.5px inherit; font-family:inherit; width:100%; min-height:78px; padding:6px 8px; resize:vertical; line-height:1.5;

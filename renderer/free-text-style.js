@@ -10,8 +10,8 @@
   //   fill         … 塗り（'#rrggbb' か null）
   //   border       … 枠線の色（'#rrggbb' か null）。付けるときの太さは今の太さか、次に付ける太さ
   //   lineWidth    … 枠線の太さ（枠線があるときだけ。右パネルの太さの行は図形の線とテキストの枠線の両方に当たる。確定事項G5）
-  //   font         … フォントの id（版 1.5.0 の③。このパソコンで使えるフォントだけ）。太字の書体が無いフォントにすると太字を外す
-  //                  （質問 FT3 の推奨案A）。太字は、太字の書体が無いフォントには当てない
+  //   font         … フォントの id（版 1.5.0 の③。このパソコンで使えるフォントだけ）。太字は変えない（太字の書体が無いフォントの
+  //                  太字は、文字の線を太くして描く。質問 FT3「案B 擬似太字」）
   // 太字・斜体・塗り・枠線を今までの形に付けると、新しい書式で測った最長の段落の幅で固定の幅の新しい形に移す（行の並びは
   // 変わらない。確定事項A2）。余白（飾りの有無・枠線の太さ）と斜体の分が変わっても、文字の位置は動かさない（確定事項B5）。
 
@@ -46,8 +46,6 @@
       return (entry.borderColor ?? null) !== null && presets().isLineWidth(value);
     if (field === 'font')
       return root.SigK.textFonts?.isAvailable(value) === true;
-    if (field === 'bold' && value === true && root.SigK.textFonts?.hasBold(entry.font) === false)
-      return false;
     return typeof value === 'boolean';
   }
 
@@ -85,13 +83,12 @@
     return { borderColor: color, borderWidth: width };
   }
 
-  // フォントを変える patch（既定のフォントは持たない＝null。太字の書体が無いフォントなら太字も外す）。今と同じなら null。
+  // フォントを変える patch（既定のフォントは持たない＝null）。今と同じなら null。
   function fontPatch(entry, id) {
-    const fonts = root.SigK.textFonts;
-    const font = id === fonts.DEFAULT_FONT_ID ? null : id;
+    const font = id === root.SigK.textFonts.DEFAULT_FONT_ID ? null : id;
     if ((entry.font ?? null) === font)
       return null;
-    return stylePatch(entry, { font, ...(entry.bold === true && !fonts.hasBold(id) ? { bold: false } : {}) });
+    return stylePatch(entry, { font });
   }
 
   // 当てる値（updateAnnot に渡す patch）。当てられないか、今と同じなら null。

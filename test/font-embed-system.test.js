@@ -70,7 +70,7 @@ test('新しい形のテキストの /DA と /DS は、フォントの /DA の�
   assert.equal(isWrappedEntry(wrapped({ font: 'ms-mincho' })), true);
 });
 
-test('保存: フォントと太字ごとに 1 度だけ埋め、太字の書体が無いフォントの太字は標準の書体で描く', async () => {
+test('保存: フォントと太字ごとに 1 度だけ埋め、太字の書体が無いフォントの太字は標準の書体の擬似太字（2 Tr と字の大きさの 30 分の 1 の線）で描く', async () => {
   const doc = await PDFDocument.create();
   doc.addPage([595, 842]);
   reads.length = 0;
@@ -87,4 +87,11 @@ test('保存: フォントと太字ごとに 1 度だけ埋め、太字の書体
   const annots = doc.getPages()[0].node.Annots().asArray().map((ref) => doc.context.lookup(ref));
   const das = annots.map((dict) => dict.get(PDFName.of('DA')).decodeText().split(' ')[0]);
   assert.deepEqual(das, ['/SigKYG', '/SigKYG', '/SigKYG', '/SigKMG', '/SigKJP']);
+  const contentOf = (dict) => {
+    const normal = doc.context.lookup(dict.get(PDFName.of('AP'))).get(PDFName.of('N'));
+    return Buffer.from(doc.context.lookup(normal).getContents()).toString('latin1');
+  };
+  assert.match(contentOf(annots[3]), /\/SigKMG 10 Tf\n0\.11 0\.141 0\.188 RG\n0\.33 w\n0 j\n2 Tr\n/, 'MS ゴシックの太字は擬似太字');
+  assert.doesNotMatch(contentOf(annots[1]), / Tr\n/, '游ゴシックの太字は太字の書体');
+  assert.doesNotMatch(contentOf(annots[0]), / Tr\n/);
 });

@@ -53,13 +53,15 @@ test('保存へ渡す欄: このパソコンで使えないフォント（ほか
   assert.equal(SigK.freeTextEntry.saveFields(textEntry({ font: 'meiryo' }), layout).font, undefined);
 });
 
-test('画面の描き方: フォントの font-family で描き、太字の書体が無いフォントは太字でも標準で描く（質問 FT3）。使えないフォントは Noto Sans JP', async (t) => {
+test('画面の描き方: フォントの font-family で描き、太字の書体が無いフォントの太字は標準の書体の擬似太字（質問 FT3「案B」）。使えないフォントは Noto Sans JP', async (t) => {
   const { SigK } = await withFonts(t);
   const font = SigK.freeTextFont;
   assert.equal(font.fontOf(12, true, false, 'yu-gothic'), '700 12px "Yu Gothic"');
   assert.equal(font.fontOf(12, true, false, 'ms-gothic'), '12px "MS Gothic"');
   assert.equal(font.fontOf(12, false, true, 'meiryo'), 'italic 12px "SigK Noto Sans JP"');
   assert.equal(font.fontOf(12, true), '700 12px "SigK Noto Sans JP"');
+  assert.deepEqual([font.syntheticBoldOf(true, 'ms-gothic'), font.syntheticBoldOf(true, 'yu-gothic'), font.syntheticBoldOf(false, 'ms-gothic')], [true, false, false]);
+  assert.equal(font.SYNTHETIC_BOLD_RATIO, 1 / 30);
 });
 
 test('画面の描き方: 注釈の層の文字は、既定でないフォントだけ、text の要素ごとに style で font-family を指定する（shell.css は text の要素に指定している）', async (t) => {
@@ -68,8 +70,14 @@ test('画面の描き方: 注釈の層の文字は、既定でないフォント
     ?? SigK.freeTextShape.svgOf(document, entry, VIEWPORT);
   assert.equal(group(textEntry({ font: 'yu-gothic' })).querySelector('text').style.fontFamily, '"Yu Gothic", sans-serif');
   assert.equal(group(textEntry()).querySelector('text').style.fontFamily, '');
-  assert.equal(group(textEntry({ font: 'ms-gothic', bold: true })).getAttribute('font-weight'), null);
-  assert.equal(group(textEntry({ font: 'yu-gothic', bold: true })).getAttribute('font-weight'), '700');
+  const ms = group(textEntry({ font: 'ms-gothic', bold: true }));
+  assert.equal(ms.getAttribute('font-weight'), null, '擬似太字は font-weight を付けない（字の送り幅を標準の書体のままにする）');
+  const msText = ms.querySelector('text');
+  assert.deepEqual(['stroke', 'stroke-width', 'stroke-linejoin', 'stroke-miterlimit'].map((name) => msText.getAttribute(name)), ['#1c2430', '0.33', 'miter', '10'],
+    '文字の色で、字の大きさ 10pt の 30 分の 1 の線');
+  const yu = group(textEntry({ font: 'yu-gothic', bold: true }));
+  assert.equal(yu.getAttribute('font-weight'), '700');
+  assert.equal(yu.querySelector('text').getAttribute('stroke'), null);
 });
 
 test('読み戻し: /DA のフォント名から、どのフォントで付けたテキストかを見分ける（Noto Sans JP は持たない）', async (t) => {

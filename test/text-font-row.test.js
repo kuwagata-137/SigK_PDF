@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 
 const { withTextShell, placeText, plain } = require('./text-helpers.js');
 
-// プロパティパネルの「フォント」の行と、次に置くテキストのフォント（版 1.5.0 の③。質問 FT1「案B」。FT2・FT3 は推奨案A で仮に実装）。
+// プロパティパネルの「フォント」の行と、次に置くテキストのフォント（版 1.5.0 の③。質問 FT1「案B」・FT2「案A」・FT3「案B 擬似太字」）。
 
 const SYSTEM_FONTS = [{ id: 'yu-gothic', bold: true }, { id: 'ms-gothic', bold: false }];
 
@@ -63,7 +63,7 @@ test('選択中のテキストのフォントを変える（1 世代）。Noto S
   assert.equal(SigK.annotate.setTextFont('meiryo'), false, 'このパソコンで使えないフォントは選べない');
 });
 
-test('太字の書体が無いフォント（MS ゴシック）では［B］を押せず、選ぶと太字を外す（質問 FT3 の推奨案A）', async (t) => {
+test('太字の書体が無いフォント（MS ゴシック）でも［B］を押せ、太字はそのまま（擬似太字で描く。質問 FT3「案B」）', async (t) => {
   const shell = await withFonts(t);
   const { SigK } = shell;
   placeText(shell, 100, 700, 'あいう');
@@ -71,14 +71,15 @@ test('太字の書体が無いフォント（MS ゴシック）では［B］を�
   assert.equal(SigK.annotate.selectedEntry().bold, true);
   assert.equal(SigK.annotate.setTextFont('ms-gothic'), true);
   await shell.flush();
-  assert.equal(SigK.annotate.selectedEntry().bold, undefined);
-  assert.equal(SigK.annotate.getTextStyle('text').bold, false, '次に付ける値も太字なし');
-  assert.equal(boldButton(shell).disabled, true);
-  assert.equal(SigK.annotate.setTextFlag('bold', true), true);
-  assert.equal(SigK.annotate.selectedEntry().bold, undefined, '押しても太字にしない');
-  SigK.annotate.setTextFont('yu-gothic');
-  await shell.flush();
+  assert.equal(SigK.annotate.selectedEntry().bold, true, 'フォントを変えても太字は外さない');
+  assert.equal(SigK.annotate.getTextStyle('text').bold, true);
   assert.equal(boldButton(shell).disabled, false);
+  assert.equal(SigK.annotate.setTextFlag('bold', false), true);
+  assert.equal(SigK.annotate.selectedEntry().bold, undefined);
+  assert.equal(SigK.annotate.setTextFlag('bold', true), true);
+  assert.equal(SigK.annotate.selectedEntry().bold, true);
+  const text = shell.document.querySelector('.annot-layer g.free-text text');
+  assert.equal(text?.getAttribute('stroke-width'), String(Math.round((12 / 30) * shell.SigK.viewer.getTextLayer(0).viewport.scale * 100) / 100), '注釈の層は擬似太字の線で描く');
 });
 
 test('覚えたフォントは起動時に戻る。使えないフォントを覚えていても、置くテキストは Noto Sans JP', async (t) => {
