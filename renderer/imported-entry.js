@@ -53,7 +53,10 @@
     if (text.trim() === '' || !(da.fontSize > 0) || ![0, 90, 180, 270].includes(rotation))
       return null;
     const rect = values().roundRect(annotation.rect);
+    // /DA のフォント名から、どのフォントで付けたテキストか（版 1.5.0 の③。既定の Noto Sans JP は持たない）。
+    const font = root.SigK.textFonts.fontByDaName(da.fontName);
     return {
+      ...(font.id === root.SigK.textFonts.DEFAULT_FONT_ID ? {} : { font: font.id }),
       ref: annotation.id,
       src,
       kind: 'text',

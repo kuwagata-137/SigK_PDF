@@ -24,16 +24,16 @@
     return layout().paperLengthOf(root.SigK.viewer?.getPaperBox?.(src) ?? null, rotation);
   }
 
-  // 字（書記素）の送り幅（em）を返す関数。太字は太字の書体で測る。
+  // 字（書記素）の送り幅（em）を返す関数。太字は太字の書体で、フォントは書き込みの font の欄で測る（版 1.5.0 の③）。
   function advanceFor(entry) {
-    return (unit) => shape().advanceOf(root.document, unit, entry.bold === true);
+    return (unit) => shape().advanceOf(root.document, unit, entry.bold === true, entry.font);
   }
 
   // 行と箱（free-text-layout.js の layoutOf の答え）。entry は書き込みか下書き（src・text・fontSize・rotation と書式の欄）。
   function layoutOfEntry(entry) {
     return layout().layoutOf(entry, {
       advanceOf: advanceFor(entry),
-      lineWidthOf: (line) => shape().measure(root.document, line, entry.fontSize),
+      lineWidthOf: (line) => shape().measure(root.document, line, entry.fontSize, entry.font),
       pageLength: pageLengthOf(entry.src, entry.rotation),
     });
   }
@@ -60,7 +60,7 @@
   const FIXED_MARGIN = 0.02;
 
   function keepFixed(entry, width) {
-    const advanceOf = (unit, bold) => shape().advanceOf(root.document, unit, bold);
+    const advanceOf = (unit, bold, fontId) => shape().advanceOf(root.document, unit, bold, fontId);
     const judged = root.SigK.importedTextDetails.judgeWidth({ ...entry, width }, width, { advanceOf, pageLength: pageLengthOf(entry.src, entry.rotation) });
     if (!judged.auto)
       return width;

@@ -56,7 +56,10 @@
     node.style.left = `${x - BORDER}px`;
     node.style.top = `${y - BORDER}px`;
     node.style.fontSize = `${draft.fontSize * scale}px`;
-    node.style.fontWeight = draft.bold === true ? '700' : '';
+    const fonts = root.SigK.freeTextFont;
+    node.style.fontWeight = fonts.boldOf(draft.bold, draft.font) ? '700' : '';
+    // 既定でないフォント（版 1.5.0 の③）。既定は shell.css の font-family のまま。
+    node.style.fontFamily = draft.font === undefined ? '' : `"${fonts.family(draft.font)}", sans-serif`;
     node.style.fontStyle = draft.italic === true ? 'italic' : '';
     node.style.lineHeight = String(geometry().LINE_HEIGHT);
     node.style.padding = paddingOf(layout().insetOf(draft), scale);

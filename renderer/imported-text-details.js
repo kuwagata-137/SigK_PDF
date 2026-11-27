@@ -23,11 +23,11 @@
   // 中身の幅 content を自動の幅と見るか（J3）。本文を自動の幅で折った行が content で折った行と同じで、content が最長行の幅と
   // AUTO_TOLERANCE 以内なら自動。content で折るときも AUTO_TOLERANCE を足す（自動の箱は最長行を 0.01pt に丸めて保存するので、
   // content が最長行よりわずかに狭いことがある）。戻り値は { auto, longest（自動の幅で折った最長行の幅 pt） }。
-  // advanceOf(unit, bold) は字の送り幅（em）。固定の幅を決める側（free-text-metrics.js の keepFixed）も同じ見分けを使う。
+  // advanceOf(unit, bold, fontId) は字の送り幅（em）。固定の幅を決める側（free-text-metrics.js の keepFixed）も同じ見分けを使う。
   function judgeWidth(entry, content, { advanceOf, pageLength = null }) {
     const layout = root.SigK.freeTextLayout;
     const wrap = root.SigK.freeTextWrap;
-    const advance = (unit) => advanceOf(unit, entry.bold === true) * entry.fontSize;
+    const advance = (unit) => advanceOf(unit, entry.bold === true, entry.font) * entry.fontSize;
     const autoLines = wrap.wrapLines(entry.text, layout.autoWidthOf(entry, pageLength), advance);
     const longest = autoLines.reduce((max, line) => Math.max(max, wrap.widthOf(line, advance)), 0);
     const auto = Math.abs(content - longest) <= AUTO_TOLERANCE && sameLines(autoLines, wrap.wrapLines(entry.text, content + AUTO_TOLERANCE, advance));

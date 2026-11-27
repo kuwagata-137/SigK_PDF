@@ -57,7 +57,7 @@
   // 自前のテキストの読み戻しに渡す、字の送り幅と紙の長さ（spec-4b-4a 確定事項J3）。
   function textMeasureOf(views) {
     return {
-      advanceOf: (unit, bold) => root.SigK.freeTextShape.advanceOf(root.document, unit, bold),
+      advanceOf: (unit, bold, fontId) => root.SigK.freeTextShape.advanceOf(root.document, unit, bold, fontId),
       pageLengthOf: (src, rotation) => root.SigK.freeTextLayout.paperLengthOf(views[src], rotation),
     };
   }

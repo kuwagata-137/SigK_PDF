@@ -224,6 +224,11 @@
     // フルスクリーンモード（版 1.5.0 の①）。ボタンの結線は viewer-controls.js、F11 は viewer-keys.js、Esc は escape-order.js。
     root.SigK.fullscreenMode.init(doc);
     // このパソコンで使えるテキストのフォント（版 1.5.0 の③）。Windows のフォントを調べ終えたら、プロパティパネルの「フォント」の一覧に並べる。
+    // 一覧が届いたら、そのフォントで付けたテキストを、そのフォントで描き直す（届く前は Noto Sans JP で描いている）。
+    root.SigK.textFonts.onChange(() => {
+      root.SigK.viewer?.redrawAnnotations();
+      root.SigK.annotationProps?.refresh();
+    });
     if (root.fontsAPI?.available === true)
       root.fontsAPI.list().then((list) => root.SigK.textFonts.setAvailable(list), () => null);
     showAppVersion(doc);

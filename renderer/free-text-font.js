@@ -7,18 +7,32 @@
   // 同梱フォント（shell.css の @font-face 'SigK Noto Sans JP'）の先読みと、幅の計測（canvas の measureText。保存側の
   // widthOfTextAtSize と日本語で一致する。事前調査 D）を持つ。詰め（kerning）は切って測る（保存の字の並びとそろえる。事前調査 E）。
 
-  // 描く時の font-family は、フォントの一覧（text-fonts.js。版 1.5.0 の③の下準備）の既定のフォントから取る。
-  function family() {
-    return root.SigK.textFonts.defaultFont().family;
+  // 描く時の font-family は、フォントの一覧（text-fonts.js。版 1.5.0 の③）から取る。fontId は書き込みの font の欄（無い・このパソコンで
+  // 使えない時は既定の Noto Sans JP）。
+  function family(fontId) {
+    return root.SigK.textFonts.usableFont(fontId).family;
+  }
+
+  // 太字で描くか。太字の書体が無いフォント（MS ゴシック・MS 明朝）は標準で描く（質問 FT3。保存の側も標準の書体で描く）。
+  function boldOf(bold, fontId) {
+    return bold === true && root.SigK.textFonts.hasBold(fontId);
   }
   // 字の送り幅を測る大きさ（px）。小さいと canvas の丸めが効く（事前調査 E。7〜4000px で比例）。
   const ADVANCE_PX = 1000;
 
-  // advances は字ごとの送り幅（em）の覚え。標準と太字で分ける。フォントが読めてから覚える（読む前は代わりの書体で測るため）。
-  const state = { loaded: false, loading: null, contexts: new WeakMap(), advances: { regular: new Map(), bold: new Map() } };
+  // advances は字ごとの送り幅（em）の覚え。フォントと、標準と太字で分ける（鍵は「font-family|bold か regular」）。同梱のフォントは
+  // 読めてから覚える（読む前は代わりの書体で測るため）。Windows のフォントは初めから使えるので、いつも覚える。
+  const state = { loaded: false, loading: null, contexts: new WeakMap(), advances: new Map() };
 
-  function fontOf(px, bold = false, italic = false) {
-    return `${italic ? 'italic ' : ''}${bold ? '700 ' : ''}${px}px "${family()}"`;
+  function fontOf(px, bold = false, italic = false, fontId = undefined) {
+    return `${italic ? 'italic ' : ''}${boldOf(bold, fontId) ? '700 ' : ''}${px}px "${family(fontId)}"`;
+  }
+
+  function advanceCache(fontId, bold) {
+    const key = `${family(fontId)}|${boldOf(bold, fontId) ? 'bold' : 'regular'}`;
+    if (!state.advances.has(key))
+      state.advances.set(key, new Map());
+    return state.advances.get(key);
   }
 
   // フォントを先読みする。注釈モードに入ったとき・自前のテキストを読み込んだとき・
@@ -51,12 +65,12 @@
     return state.contexts.get(doc);
   }
 
-  // 1 行の幅（px。倍率 1 なら pt）。canvas が無ければ全角 1em・半角 0.5em の見積もり。
-  function measure(doc, text, px) {
+  // 1 行の幅（px。倍率 1 なら pt）。canvas が無ければ全角 1em・半角 0.5em の見積もり。fontId は書き込みの font の欄。
+  function measure(doc, text, px, fontId = undefined) {
     const ctx = contextOf(doc);
     if (ctx === null)
       return [...text].reduce((sum, ch) => sum + (ch.charCodeAt(0) < 128 ? 0.5 : 1), 0) * px;
-    ctx.font = fontOf(px);
+    ctx.font = fontOf(px, false, false, fontId);
     ctx.fontKerning = 'none';
     const width = ctx.measureText(text).width;
     ctx.fontKerning = 'auto';
@@ -65,23 +79,23 @@
 
   // 字（書記素）の送り幅（em）。新しい形の折り返しと箱に使う（spec-4b-4a 確定事項B6）。kerning を切った canvas で ADVANCE_PX で測り、
   // 字ごとに覚える（保存側の hmtx と一致する。事前調査 E）。canvas が無ければ全角 1em・半角 0.5em の見積もり。
-  function advanceOf(doc, unit, bold = false) {
+  function advanceOf(doc, unit, bold = false, fontId = undefined) {
     const ctx = contextOf(doc);
     if (ctx === null)
       return unit.charCodeAt(0) < 128 ? 0.5 : 1;
-    const cache = bold ? state.advances.bold : state.advances.regular;
+    const cache = advanceCache(fontId, bold);
     const known = cache.get(unit);
     if (known !== undefined)
       return known;
-    ctx.font = fontOf(ADVANCE_PX, bold);
+    ctx.font = fontOf(ADVANCE_PX, bold, false, fontId);
     ctx.fontKerning = 'none';
     const em = ctx.measureText(unit).width / ADVANCE_PX;
     ctx.fontKerning = 'auto';
-    if (state.loaded)
+    if (state.loaded || !root.SigK.textFonts.usableFont(fontId).bundled)
       cache.set(unit, em);
     return em;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextFont = { get FAMILY() { return family(); }, ADVANCE_PX, fontOf, ensureLoaded, isLoaded, measure, advanceOf };
+  SigK.freeTextFont = { get FAMILY() { return family(); }, ADVANCE_PX, family, boldOf, fontOf, ensureLoaded, isLoaded, measure, advanceOf };
 })(typeof window !== 'undefined' ? window : globalThis);

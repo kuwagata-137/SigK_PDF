@@ -9,12 +9,13 @@
   //   fill         … 塗り（'#rrggbb'）。無ければ持たない
   //   borderColor・borderWidth … 枠線の色（'#rrggbb'）と太さ（pt）。枠線があるときだけ、2 つそろえて持つ
   //   callout      … 吹き出し（spec-4b-4b 確定事項A2）。{ tip: [x, y] }（しっぽの先の紙の上の実際の点）。吹き出しのときだけ持つ
+  //   font         … フォントの id（版 1.5.0 の③。text-fonts.js）。既定の Noto Sans JP のときは持たない
   // 今までの形は、太字・斜体・塗り・枠線を持てず、吹き出しにもならない（付けるときは新しい形へ移す。確定事項A2）。
 
   const WIDTH_AUTO = 'auto';
   const FLAGS = Object.freeze(['bold', 'italic']);
   const DECOR = Object.freeze(['fill', 'borderColor', 'borderWidth']);
-  const FIELDS = Object.freeze(['width', ...FLAGS, ...DECOR, 'callout']);
+  const FIELDS = Object.freeze(['width', ...FLAGS, ...DECOR, 'callout', 'font']);
   const HEX = /^#[0-9a-f]{6}$/i;
 
   function isNewForm(entry) {
@@ -40,6 +41,15 @@
     return entry?.callout !== undefined;
   }
 
+  function fonts() {
+    return root.SigK.textFonts;
+  }
+
+  // 持てるフォント（一覧にあり、既定のフォントでない）。
+  function validFont(value) {
+    return typeof value === 'string' && value !== fonts().DEFAULT_FONT_ID && fonts().fontById(value) !== null;
+  }
+
   function validDecor(entry) {
     if (entry.fill !== undefined && !isHex(entry.fill))
       return false;
@@ -56,6 +66,8 @@
       return false;
     if (entry.callout !== undefined && !validCallout(entry.callout))
       return false;
+    if (entry.font !== undefined && !validFont(entry.font))
+      return false;
     return isNewForm(entry) || [...FLAGS, ...DECOR, 'callout'].every((field) => entry[field] === undefined);
   }
 
@@ -69,6 +81,9 @@
       return value === null || isHex(value);
     if (field === 'callout')
       return validCallout(value);
+    // フォントは一覧の id か null（null と既定のフォントは、持たない＝Noto Sans JP）。
+    if (field === 'font')
+      return value === null || value === fonts().DEFAULT_FONT_ID || validFont(value);
     return field === 'borderWidth' && Number.isFinite(value) && value > 0;
   }
 
@@ -80,6 +95,8 @@
     }
     if (entry.fill === null)
       delete entry.fill;
+    if (entry.font === null || (entry.font !== undefined && entry.font === fonts()?.DEFAULT_FONT_ID))
+      delete entry.font;
     if ((entry.borderColor ?? null) === null) {
       delete entry.borderColor;
       delete entry.borderWidth;
@@ -102,6 +119,8 @@
     }
     if (validCallout(entry.callout))
       copy.callout = { tip: [...entry.callout.tip] };
+    if (validFont(entry.font))
+      copy.font = entry.font;
     return copy;
   }
 
@@ -115,7 +134,7 @@
     const border = a.borderColor ?? null;
     return a.width === b.width && FLAGS.every((flag) => (a[flag] === true) === (b[flag] === true))
       && (a.fill ?? null) === (b.fill ?? null) && border === (b.borderColor ?? null) && (border === null || a.borderWidth === b.borderWidth)
-      && sameTip(a.callout, b.callout);
+      && sameTip(a.callout, b.callout) && (a.font ?? null) === (b.font ?? null);
   }
 
   // ワーカーへ渡す欄（確定事項I1）。新しい形は、書式の欄と、画面で決めた行 lines と、箱の左上から中身の左上までの inset [左, 上]
@@ -125,6 +144,10 @@
     if (!isNewForm(entry))
       return {};
     const saved = copyFields(entry, {});
+    // このパソコンで使えないフォント（ほかのパソコンで付けたテキスト）は、Noto Sans JP で直す（質問 FT1 の案B。行も Noto Sans JP で
+    // 測って組んである。text-fonts.js の usableFont）。
+    if (saved.font !== undefined && !fonts().isAvailable(saved.font))
+      delete saved.font;
     if (Array.isArray(layout?.lines) && Number.isFinite(layout.inset?.left) && Number.isFinite(layout.inset?.top)) {
       saved.lines = [...layout.lines];
       saved.inset = [layout.inset.left, layout.inset.top];

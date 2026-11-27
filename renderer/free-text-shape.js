@@ -84,8 +84,11 @@
     group.setAttribute('class', 'free-text');
     group.setAttribute('fill', entry.color);
     group.setAttribute('transform', `translate(${fmt(origin[0])} ${fmt(origin[1])}) rotate(${angle})`);
-    if (entry.bold === true)
+    if (font().boldOf(entry.bold, entry.font))
       group.setAttribute('font-weight', '700');
+    // 既定でないフォント（版 1.5.0 の③）。shell.css の font-family より強い style で指定する。
+    if (entry.font !== undefined)
+      group.style.fontFamily = `"${font().family(entry.font)}", sans-serif`;
     if (entry.italic === true)
       group.setAttribute('font-style', 'italic');
     // 塗りと枠線は文字より先（spec-4b-4a 確定事項D1。free-text-decor-graphics.js）。
@@ -109,7 +112,7 @@
     ctx.translate(origin[0], origin[1]);
     ctx.rotate((angle * Math.PI) / 180);
     root.SigK.freeTextDecorGraphics?.paint(ctx, entry, scale);
-    ctx.font = font().fontOf(entry.fontSize * scale, entry.bold === true, entry.italic === true);
+    ctx.font = font().fontOf(entry.fontSize * scale, entry.bold === true, entry.italic === true, entry.font);
     // 詰めと合字を切る（spec-4b-4a 確定事項D3。optimizeSpeed は合字を作らない）。
     ctx.fontKerning = 'none';
     ctx.textRendering = 'optimizeSpeed';
