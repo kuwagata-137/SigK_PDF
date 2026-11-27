@@ -43,10 +43,12 @@
 | RG2 | 保存していない並べ替えがある帯での番号（表示の位置／ファイルのページ番号／入れない） | `screenshots/question-rg2-range-unsaved.png` |
 | RG3 | 対象のツール（4 つすべて／結合を除く 3 つ） | `screenshots/question-rg3-range-tools.png` |
 | FT1 | フォントの用意の方法（同梱を追加／Windows のフォント／両方） | `screenshots/question-ft1-font-source.png` |
+| FT2 | 初めて使う時のフォント（Noto Sans JP 維持／游ゴシック変更） | `screenshots/question-ft2-default-font.png` |
+| FT3 | 太字の書体が無い MS ゴシック・MS 明朝の［B］（太字無効／擬似太字） | `screenshots/question-ft3-bold-missing.png` |
 
 質問の下書き（選択肢・推奨案・調べた結果）は `~/.claude/plans/v150-questions-b.md`。
 
-状態（2026-11-27）: ZM3・FS1 は回答をもらった（確定事項）。FS2 は、統括役が質問せず、FS1 の回答（「「見開き」ボタンの右側にボタンを作る」）で決まったものとして扱った。RG1・RG2・RG3・FT1 は回答を待っている。
+状態（2026-11-27）: ZM3・FS1・RG1・RG2・RG3・FT1 は回答をもらった（確定事項）。FS2 は、統括役が質問せず、FS1 の回答（「「見開き」ボタンの右側にボタンを作る」）で決まったものとして扱った。FT2・FT3 は FT1 の回答の後に作り、回答を待っている（推奨案で仮に実装した。確定事項T5・T6）。
 
 ## 確定事項
 
@@ -82,6 +84,29 @@
 - F7. フルスクリーンモードの状態は覚えない（次の起動はふつうの画面。Claude の案）。フルスクリーンのままウインドウを閉じた時は、入る前に最大化していたかを、ウインドウの状態として保存する。
 - F8. ウインドウを表示しない起動確認（offscreen）では、ウインドウを表示させないために、メインはウインドウをフルスクリーンにしない（画面の側の表示だけが切り替わる）。
 - F9. 使い方画面の閲覧の節に「フルスクリーンモード」の見出しを、ツールチップに `bar.fullscreen`（「フルスクリーン」。キー F11）を追加した。
+
+### 質問 RG1・RG2・RG3（2026-11-27）
+
+ユーザーの回答（統括役を通して。選んだ選択肢名のまま）: RG1「案A 選択時入力（推奨）」、RG2「案C 入力なし（推奨）」、RG3「案A 4 ツール対象（推奨）」
+
+- R1. ツールモードで、帯のページをクリック（Ctrl・Shift を含む）か Ctrl+A で選択するたびに、選択したページの番号を範囲欄に入力し、［範囲］を選択する。手で入力した番号も置き換える。選択を解除した時（Esc・並びが変わった時）は、範囲欄をそのままにする。
+- R2. 番号は「2-4, 7」の形（連続は「-」、ほかは「, 」区切り。`renderer/page-range.js` の `formatPageRange`）。
+- R3. 対象は、PDF→画像・透かし・フラット化（選択中の帯が対象）と、結合（ページを選択した帯の行の範囲欄）。分割・画像→PDF には範囲欄が無いので何もしない。結合の行のチェックは変えない（Claude が決めたこと）。
+- R4. 保存していない並べ替え・削除・差し込みがあり、帯の下の番号とファイルのページ番号がずれる帯では、番号を入力せず、通知バーに「保存していない並べ替えがあるので、選択したページの番号を範囲に入れませんでした。上書き保存してから、ページを選択し直してください。」を表示する。回転・トリミング・モザイクだけの帯は、番号がずれないので入力する（質問 RG2 の図の案C の注記。コミット 15ba2d5 で直した版）。統括役の連絡に「回転を含める」とあったので、ユーザーにお見せした図がどちらの版かを統括役に確かめている（返事待ち）。
+- R5. ページを動かした後に、動かしたページを選んだままにする時（`stripSelection.set`）は、入力しない（ユーザーが選択した時だけ。`stripSelection.onPick`）。
+- R6. 開けなかった帯・名前の無い帯・画像の帯・パスワード付きの帯では何もしない（ツールの対象にできないので、ツールの欄が理由を表示する）。
+
+### 質問 FT1（2026-11-27）と、仮に実装した FT2・FT3
+
+ユーザーの回答（統括役を通して。選んだ選択肢名のまま）: FT1「案B Windows フォント使用（推奨）」
+
+- T1. 一覧に並べるフォントは、Noto Sans JP（同梱）と、Windows に入っている游ゴシック・游明朝・メイリオ・MS ゴシック・MS 明朝（一覧の順）。このパソコンに入っていて、埋め込みの決まり（OpenType の fsType）が「編集できる文書にサブセットで埋め込んでよい」フォントだけを並べる（メインの `font-catalog.js`。初めて聞かれた時に 1 回だけ調べる）。
+- T2. プロパティパネルの「文字の色」の下に「フォント」の行（一覧）を追加する。テキスト・吹き出しの書き込みツールと、選択中のテキストで表示する。選んだフォントは、選択中のテキストに当て、次に置くテキスト・吹き出しの値として設定に保存する（太字・文字の色と同じ。Claude の案。質問 FT2 の図の経緯の表に書いた）。
+- T3. 保存は、書体（フォント×標準・太字）ごとにサブセットで埋め込む。.ttc は PostScript 名でフォントを選ぶ。/DA のフォント名（自分で付けたテキストの印）は、Noto Sans JP が今までどおり SigKJP、ほかは SigKYG・SigKYM・SigKMR・SigKMG・SigKMM。/DS のフォント名は Noto Sans JP・Yu Gothic・Yu Mincho・Meiryo・MS Gothic・MS Mincho。
+- T4. ほかのパソコンで付けたテキストのフォントが、このパソコンに無い時は、Noto Sans JP で描き、修正すると Noto Sans JP で保存する（質問 FT1 の案B の説明）。修正しなければ、保存してある外観のまま。
+- T5.（質問 FT2 の推奨案A で仮に実装。回答待ち）初めて使う時のフォントは Noto Sans JP。既定の Noto Sans JP は、書き込みにも設定にも font の欄を持たない（今までの形を変えない）。
+- T6.（質問 FT3 の推奨案A で仮に実装。回答待ち）太字の書体が無い MS ゴシック・MS 明朝では［B］を押せない。選ぶと太字を外し、次に付ける値も太字なしにする。保存の側も、太字の書体が無いフォントの太字は標準の書体で描く。
+- T7. 使い方画面のテキストの節に、フォントの説明を追加した。
 
 ## 実測（2026-11-26。質問 FT1 の材料）
 
@@ -125,3 +150,21 @@
 確かめていないこと:
 
 - 実際のウインドウのフルスクリーン（タイトルバー・メニューバー・タスクバーが消えるか、終了した時に元の大きさと最大化に戻るか、フルスクリーンのまま閉じて次に起動した時の大きさ）。ウインドウを表示しない起動では、ウインドウをフルスクリーンにしない（F8）ため。手動確認の手順: 最大化していないウインドウと最大化したウインドウのそれぞれで、F11 キーで入り、Esc キーで戻る。フルスクリーンのままアプリを終了し、次に起動した時の大きさを見る。
+
+### 質問 RG1〜RG3・FT1 の回答による実装（2026-11-27）
+
+| コミット | 内容 |
+|---|---|
+| `eb94cdb` | 質問 FT2・FT3 の画像 |
+| `5468102` | ② 確定事項R1〜R6。新しい `renderer/strip-range-fill.js`、`renderer/strip-selection.js` の `onPick`、`index.html`（`strip-range.js`・`strip-range-fill.js` の読み込み）、使い方画面のツールの節。試験 `test/strip-range-fill.test.js`（8 件） |
+| `1564355` | ③-1 一覧（`renderer/text-fonts.js`・`worker/text-fonts.js`）と、新しい `font-catalog.js`（IPC `fonts:list`・preload の `fontsAPI`）。フォントのフォルダは `SIGK_FONT_DIR` で差し替えられる。`package.json` の `build.files` に `font-catalog.js` を追加した。試験 `test/text-fonts.test.js`・`test/font-catalog.test.js`。試験用の .ttc は、同梱の Noto Sans JP の標準と太字から組み立てる（`test/ttc-fixture.js`） |
+| `299b63e` | ③-2 保存（`worker/font-embed.js`・`op-annotate.js`・`free-text-wrapped.js`・`default-style.js`）。試験 `test/font-embed-system.test.js` |
+| `9d6dfb4`・`f2c4f06` | ③-3 画面の計測と描画（`renderer/free-text-font.js`・`free-text-shape.js`・`free-text-editor-node.js`・`free-text-metrics.js`）、書き込みの font の欄（`free-text-entry.js`）、読み戻し（`imported-entry.js`）。`f2c4f06` は、`shell.css` が text の要素に font-family を指定しているため、g の要素の指定が効かなかった不具合の修正（表示しない起動の撮影で見つけた）。試験 `test/free-text-font-choice.test.js` |
+| `c787dc6` | ③-4 「フォント」の行（`index.html`・`annotation-text-rows.js`・`annotation-style-rows.js`）、次に置く書式（`annotate-text-style.js`・`annotation-text-settings.js`）、当て方（`free-text-style.js`・`annotation-style-patch.js`・`annotation-entry.js` の `PATCH_FIELDS`）、使い方画面。試験 `test/text-font-row.test.js` |
+
+ウインドウを表示しない起動で確かめたこと（`SIGK_FONT_DIR` を空のフォルダにして、メインに Windows のフォントのファイルを読ませず、画面の側に使えるフォントを直接渡した）: 「フォント」の行が「文字の色」の下にあり、6 つのフォントが並ぶ。游明朝・メイリオ（太字）・MS ゴシックのテキストが、それぞれのフォントで描かれる。MS ゴシックを選ぶと［B］が灰色になる。
+
+確かめていないこと:
+
+- Windows のフォントを実際に読んで、使えるかを調べる処理（`font-catalog.js`）と、保存した PDF に Windows のフォントが埋め込まれること（.ttc から選んだフォントのサブセット・ほかのアプリでの表示）。Windows のフォントのファイルはリポジトリの外なので、表示しない起動でもアプリに読ませていない。試験は、Noto Sans JP から組み立てた .ttc で行った。
+- 入力欄（textarea）の文字の上下の位置。行の高さとベースラインは Noto Sans JP の値のまま（画面の注釈の層と PDF は同じ値なので一致する）なので、ほかのフォントでは、入力中と確定した後で文字の上下の位置がわずかにずれる可能性がある。

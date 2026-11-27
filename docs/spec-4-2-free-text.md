@@ -64,6 +64,8 @@ Phase 4 の2つ目の塊。**注釈モードで「テキスト」の道具を選
 | npm `@fontsource/noto-sans-jp` 5.3.0 | 2,319 ファイル・80MB。woff2 を unicode-range で 1,125 本に割った配布で、単一の TTF／OTF が無い | 却下（`scripts/vendor.js` に足す形は取れない） |
 | OS のフォント（游ゴシック等） | 再配布・埋め込みの許諾が無い | 却下（`docs/06`） |
 
+> 2026-11-27 改定の注記: 上の表の「OS のフォント」の「埋め込みの許諾が無い」は誤り。Microsoft の Font redistribution FAQ は、埋め込みの決まり（OpenType の fsType）に従うアプリが作る文書への埋め込みを認めている（同梱〔再配布〕は認めない）。版 1.5.0 の③（質問 FT1「案B」）で、Windows のフォントを書き込みに使うようにした（`docs/spec-7-11-view-font.md`）。
+
 読み込みの経路（ワーカーはタスクごとに fork されるので、**素の Node の新プロセス**で 3 回測った）:
 `require(vendor/fontkit.umd.min.js)` 43ms／TTF の `readFileSync` 3.5ms／`fontkit.create()`＋`layout()` 16ms／
 `embedFont`＋`embed()`（7 文字）27〜35ms。RSS の増分は pdf-lib 込みで +40MB。**テキスト注釈のある保存に約 90ms 足す**だけで、
