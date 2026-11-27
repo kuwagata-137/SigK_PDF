@@ -158,6 +158,12 @@ contextBridge.exposeInMainWorld('appCloseAPI', {
   confirm: (ok) => ipcRenderer.invoke('app:closeConfirm', ok),
 });
 
+// テキストの書き込みに使えるフォント（版 1.5.0 の③。renderer/text-fonts.js の setAvailable へ渡す）。[{ id, bold }]。
+contextBridge.exposeInMainWorld('fontsAPI', {
+  available: true,
+  list: () => ipcRenderer.invoke('fonts:list'),
+});
+
 // ウインドウのフルスクリーン（版 1.5.0 の①。フルスクリーンモード。renderer/fullscreen-mode.js）。
 contextBridge.exposeInMainWorld('windowAPI', {
   available: true,

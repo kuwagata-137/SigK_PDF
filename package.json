@@ -43,6 +43,7 @@
       "settings.js",
       "annotation-settings.js",
       "preferences.js",
+      "font-catalog.js",
       "annotation-text-settings.js",
       "annotation-fill-settings.js",
       "annotation-ratio-settings.js",

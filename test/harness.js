@@ -445,6 +445,8 @@ async function createShell({
   openResults = [],
   recent = [],
   ui = DEFAULT_UI,
+  // fontsAPI.list() が返す、このパソコンで使える Windows のフォント（版 1.5.0 の③。[{ id, bold }]。同梱の Noto Sans JP は先頭に入れる）。
+  systemFonts = [],
   // パス → 読み込み結果。pdfAPI.read(path) がここを引く。
   files = {},
   // printAPI.print() が返すもの。取り消しや失敗の経路を作れる（関数なら、届いた指定で答えを変えられる）。
@@ -794,6 +796,11 @@ async function createShell({
         return { ok: true, fullScreen: on === true };
       },
       onFullScreenChanged: (callback) => fullScreenHandlers.push(callback),
+    };
+    // テキストの書き込みに使えるフォント（版 1.5.0 の③）。実際に Windows のフォントを調べるのはメイン側（font-catalog.js）。
+    window.fontsAPI = {
+      available: true,
+      list: async () => [{ id: 'noto-sans-jp', bold: true }, ...systemFonts],
     };
     // 印刷（spec-1-4 確定事項30）。実際に紙へ送るのはメイン側なので、
     // ここは呼ばれたことと渡された値だけを控える。

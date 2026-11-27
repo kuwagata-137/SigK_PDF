@@ -223,6 +223,9 @@
     root.SigK.viewerWheel.init(doc, win);
     // フルスクリーンモード（版 1.5.0 の①）。ボタンの結線は viewer-controls.js、F11 は viewer-keys.js、Esc は escape-order.js。
     root.SigK.fullscreenMode.init(doc);
+    // このパソコンで使えるテキストのフォント（版 1.5.0 の③）。Windows のフォントを調べ終えたら、プロパティパネルの「フォント」の一覧に並べる。
+    if (root.fontsAPI?.available === true)
+      root.fontsAPI.list().then((list) => root.SigK.textFonts.setAvailable(list), () => null);
     showAppVersion(doc);
     // 起動要求の受け口は**タブ層より後**、かつ**前回の見た目の復元が返った後**に結線する。
     // 購読を始めた時点でメインが溜めていた要求を流してくる（確定事項77）が、復元より先に

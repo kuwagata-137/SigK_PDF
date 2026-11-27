@@ -44,6 +44,8 @@ const smokeAnnotate = require('./smoke-annotate.js');
 const smokeKeys = require('./smoke-keys.js');
 const smokeDrop = require('./smoke-drop.js');
 const smokePrint = require('./smoke-print.js');
+// テキストの書き込みに使えるフォント（版 1.5.0 の③）。初めて聞かれた時に 1 回だけ Windows のフォントを調べる。
+const fontCatalog = require('./font-catalog.js').createFontCatalog();
 
 // OS のユーザー名。取れない環境（userInfo が投げる）では空にし、作成者は空のまま渡す。
 function osUserName() {
@@ -446,6 +448,9 @@ function registerIpc() {
 
   // フルスクリーンモード（版 1.5.0 の①。renderer/fullscreen-mode.js）。ウインドウを画面全体に広げる・戻す。{ ok, fullScreen }。
   // ウインドウを表示しない起動確認（offscreen）では、ウインドウを表示させないために広げず、値だけを返す。
+  // テキストの書き込みに使えるフォント（版 1.5.0 の③。font-catalog.js）。[{ id, bold }]（bold は太字の書体があるか）。
+  ipcMain.handle('fonts:list', () => fontCatalog.list());
+
   ipcMain.handle('window:setFullScreen', (event, on) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win === null)
