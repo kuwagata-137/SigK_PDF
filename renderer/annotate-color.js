@@ -108,15 +108,20 @@
     const fill = entry === undefined ? next().fillOf(kind) : style().fillOf(entry);
     if (!fillableOf(entry, kind) || fill === null)
       return false;
-    if (entry !== undefined && entry.color !== null && !updateSelected(entry, { color: null }, 'color'))
-      return false;
+    if (entry !== undefined && entry.color !== null) {
+      const before = entry.color;
+      if (!updateSelected(entry, { color: null }, 'color'))
+        return false;
+      // 「あり」に戻す時に元の色を当てるため、なしにした後の鍵で記憶する（質問 SH5 案A。stroke-color-memo.js）。
+      root.SigK.strokeColorMemo?.remember(annotate().getSelected(), before);
+    }
     next().rememberShape('strokeNone', true);
     refresh();
     return true;
   }
 
-  // 枠線「あり」（プロパティパネルのラジオボタン。決定102 ④）。線なしの四角・丸・閉じた多角形に、その種類の次に付ける線の色を当てる
-  // （線がある書き込みは変えない）。2 件以上を選択していれば、線なしの全部に当てる。
+  // 枠線「あり」（プロパティパネルのラジオボタン。決定102 ④）。線なしの四角・丸・閉じた多角形に、なしにする前の線の色（記憶が無ければ
+  // その種類の次に付ける線の色。stroke-color-memo.js）を当てる（線がある書き込みは変えない）。2 件以上を選択していれば、線なしの全部に当てる。
   function setStrokeOn() {
     if (isMany())
       return bulk().applyField('strokeOn', true);
@@ -126,7 +131,7 @@
     const kind = entry === undefined ? toolKind() : root.SigK.annotationPresets.kindOf(entry);
     if (kind === null || !fillableOf(entry, kind))
       return false;
-    if (entry !== undefined && entry.color === null && !updateSelected(entry, { color: next().colorOf(kind) }, 'color'))
+    if (entry !== undefined && entry.color === null && !updateSelected(entry, { color: root.SigK.strokeColorMemo.colorOf(entry) }, 'color'))
       return false;
     next().rememberShape('strokeNone', false);
     refresh();

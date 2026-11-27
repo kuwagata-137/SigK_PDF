@@ -9,7 +9,7 @@
   // free-text-style-view.js が持つ。
 
   // 塗りの透明度（fillOpacity）とハッチング（hatch。種類・色・間隔・線幅の一部）は spec-7-9 確定事項B2・C1 で追加した。
-  // 枠線「あり」（strokeOn。線なしの書き込みに、その種類の次に付ける線の色を当てる）は決定102 ④で追加した。
+  // 枠線「あり」（strokeOn。線なしの書き込みに、なしにする前の線の色を当てる。stroke-color-memo.js）は決定102 ④で追加した。
   const FIELDS = Object.freeze(['color', 'strokeNone', 'strokeOn', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'fillOpacity', 'hatch']);
   // テキストにだけある欄（テキスト以外には当てない）。
   const TEXT_ONLY = Object.freeze(['fontSize', 'bold', 'italic', 'border']);
@@ -83,7 +83,7 @@
     switch (field) {
       case 'color': return entry.color === value ? null : { color: value };
       case 'strokeNone': return entry.color === null ? null : { color: null };
-      case 'strokeOn': return entry.color !== null ? null : { color: root.SigK.annotateNextStyle.colorOf(root.SigK.annotationPresets.kindOf(entry)) };
+      case 'strokeOn': return entry.color !== null ? null : { color: root.SigK.strokeColorMemo.colorOf(entry) };
       case 'fill': return style().fillOf(entry) === value ? null : { fill: value };
       case 'lineStyle': return style().lineStyleOf(entry) === value ? null : { lineStyle: value };
       case 'lineWidth':
@@ -189,6 +189,8 @@
       boxed: boxed.length > 0,
       // 枠線のあり・なし（ラジオボタン。決定102 ④）。value は枠線があれば true。
       stroke: boxed.length === 0 ? null : valueOf(boxed.map((target) => ({ on: target.color !== null })), 'on'),
+      // 全部が枠線なしの四角・丸・閉じた多角形か（線の色・線種・線の太さ・透明度の行を非表示にする。質問 SH5 案A）。
+      strokeless: boxed.length === live.length && boxed.every((target) => target.color === null),
       strokeNoneEnabled: boxed.some((target) => target.fill !== null),
       fillNoneEnabled: boxed.some((target) => target.color !== null) || texts.length > 0,
     };

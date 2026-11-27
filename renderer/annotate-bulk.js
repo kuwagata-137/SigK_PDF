@@ -119,6 +119,11 @@
     const { annots, keys: renamed } = root.SigK.annotationBulk.updateEach(before, view.getImported(), keys, (entry) => patch.patchFor(field, value, entry));
     if (annots !== before) {
       const after = keys.map((key) => renamed.get(key) ?? key);
+      // 「なし」にした書き込みの元の線の色を、なしにした後の鍵で記憶する（質問 SH5 案A。stroke-color-memo.js）。
+      if (field === 'strokeNone') {
+        const memo = root.SigK.strokeColorMemo;
+        targets.forEach((entry) => memo?.remember(renamed.get(memo.keyOf(entry)) ?? memo.keyOf(entry), entry.color));
+      }
       // 線なしと枠線「あり」（見出し「枠線」のラジオボタン。決定102 ④）は、線の色と同じ欄として続けた変更に畳む（確定事項J1）。
       const gesture = field === 'strokeNone' || field === 'strokeOn' ? 'color' : root.SigK.annotateFill?.gestureOf(field, value) ?? field;
       root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });

@@ -5,9 +5,11 @@
   //
   // 四角・丸・閉じた多角形（とその書き込みツール）の時だけ表示する（見出し「枠線」「塗り」を表示する時と同じ。annotation-fill-rows.js）。
   // 「なし」は annotate.setStrokeNone（線の色を null にする。保存では /C を書かない。今までの［線なし］と同じ）、「あり」は
-  // annotate.setStrokeOn（その種類の次に付ける線の色を当てる）。塗りつぶしがなしの時は「なし」をクリックできない（線と塗りつぶしを両方
+  // annotate.setStrokeOn（なしにする前の線の色を当てる）。塗りつぶしがなしの時は「なし」をクリックできない（線と塗りつぶしを両方
   // なしにはできない。spec-4b-1b 確定事項4）。複数選択で、枠線のあるものとないものが混ざる時は、どちらも選択しない。
-  // 「なし」の時の線の色・線種・線の太さ・透明度の行の表示は、質問 SH5 の回答の後に決める。
+  // 「なし」の時は、見出し「枠線」の線の色・線種・線の太さ・透明度の行を非表示にする（質問 SH5 案A。テキストの枠線と、ハッチングの
+  // 行と同じ決まり）。「あり」に戻すと、なしにする前の線の色（stroke-color-memo.js）と、残っている線種・線の太さ・透明度で表示する。
+  // 複数選択で枠線のある書き込みか、四角・丸・閉じた多角形以外の書き込みがある時は、4 行を表示する（その書き込みの値を変えられるように）。
 
   let el = null;
 
@@ -28,6 +30,9 @@
     // 枠線があり塗りつぶしがない時は、「なし」をクリックできない（今の決まり）。
     el.off.disabled = view.strokeNoneEnabled !== true && !el.off.checked;
     el.offLabel.classList.toggle('disabled', el.off.disabled);
+    // 4 行の表示は annotation-style-rows.js の render が先に決めるので、ここでは非表示にするだけ。
+    if (view.strokeless === true)
+      el.lineRows.forEach((line) => (line.hidden = true));
     return true;
   }
 
@@ -51,6 +56,8 @@
       on: row.querySelector('input[value="on"]'),
       off: row.querySelector('input[value="off"]'),
       offLabel: row.querySelector('input[value="off"]').closest('label'),
+      // 「なし」の時に非表示にする行（線の色・線種・線の太さ・透明度）。
+      lineRows: ['props-color-row', 'props-style-row', 'props-width-row', 'props-opacity-row'].map((id) => doc.getElementById(id)).filter((line) => line !== null),
     };
     el.on.addEventListener('change', onChange);
     el.off.addEventListener('change', onChange);
