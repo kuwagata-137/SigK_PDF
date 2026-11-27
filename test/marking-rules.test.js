@@ -23,8 +23,8 @@ function markingEntry(marking = TARGET, center = [100, 700]) {
   return { id: 'm1', src: 0, kind: 'marking', color: '#ff0000', opacity: 1, lineWidth: 3, text: '', marking, ...geometry.frameOf(marking, center) };
 }
 
-test('既定の値は外の円 100pt・中の円 15pt（点付き丸）と 16pt（二重丸）・十字線は外の円の 1.5 倍・文字サイズ 16pt・線の太さ 3pt・赤（決定102 ⑥）', () => {
-  assert.deepEqual({ ...rules.DEFAULTS }, { ...TARGET, outer: 100, dot: 15, cross: 150 });
+test('既定の値は外の円 100pt・中の円 15pt（点付き丸）と 50pt（二重丸）・十字線は外の円の 1.5 倍・文字サイズ 50pt・線の太さ 3pt・赤（決定102 ⑥・質問 MK2 案A）', () => {
+  assert.deepEqual({ ...rules.DEFAULTS }, { ...TARGET, outer: 100, dot: 15, ring: 50, cross: 150, fontSize: 50 });
   assert.equal(rules.DEFAULTS.cross, rules.DEFAULTS.outer * 1.5);
   assert.equal(rules.DEFAULT_LINE_WIDTH, 3);
   assert.equal(rules.DEFAULT_COLOR, '#ff0000');
@@ -46,20 +46,24 @@ test('形と大きさの検証。番号は番号付き丸だけが持ち、中�
   assert.equal(rules.validMarking(null), false);
 });
 
-test('大きさの変更: 範囲の外は null、外の円を小さくすると中の円も合わせる、中の円を外の円より大きくする値は null', () => {
+// 質問 MK3 案A「外の円と同じ比で、十字線・中の円・文字サイズをすべて変える（外の円 100 → 160 で、十字線 80 → 128、点付き丸の中の円 15 → 24）。」
+test('大きさの変更: 範囲の外は null、外の円を変えるとほかの大きさも同じ比で変える、中の円を外の円より大きくする値は null', () => {
   assert.equal(rules.withSize(TARGET, 'outer', 40).outer, 40);
   assert.equal(rules.withSize(TARGET, 'outer', 3), null);
   assert.equal(rules.withSize(TARGET, 'outer', 800), null);
   assert.equal(rules.withSize(TARGET, 'outer', Number.NaN), null);
-  const small = rules.withSize(TARGET, 'outer', 12);
-  assert.deepEqual([small.dot, small.ring], [9, 12]);
+  const scaled = rules.withSize({ ...TARGET, outer: 100, dot: 15, cross: 80, ring: 50, fontSize: 50 }, 'outer', 160);
+  assert.deepEqual([scaled.outer, scaled.cross, scaled.dot, scaled.ring, scaled.fontSize], [160, 128, 24, 80, 80], '質問 MK3 の図の例');
+  const small = rules.withSize(TARGET, 'outer', 16);
+  assert.deepEqual([small.dot, small.ring, small.cross, small.fontSize], [4.5, 8, 22.4, 8]);
   assert.equal(rules.withSize(TARGET, 'dot', 33), null);
   assert.equal(rules.withSize(TARGET, 'dot', 20.004).dot, 20);
-  // ハンドルは範囲の端と外の円で止める。
+  // ハンドルは範囲の端と外の円で止める。比で変えた値も範囲の端で止める。
   assert.equal(rules.clampedSize(TARGET, 'dot', 50).dot, 32);
   assert.equal(rules.clampedSize(TARGET, 'dot', -5).dot, 1);
-  assert.equal(rules.clampedSize(TARGET, 'outer', 2).outer, 4);
-  assert.equal(rules.clampedSize(TARGET, 'outer', 2).dot, 4);
+  const tiny = rules.clampedSize(TARGET, 'outer', 2);
+  assert.deepEqual([tiny.outer, tiny.dot, tiny.ring, tiny.cross, tiny.fontSize], [4, 1.13, 2, 5.6, 4]);
+  assert.equal(rules.clampedSize(TARGET, 'outer', 720).fontSize, 200, '文字サイズは 200 で止める');
 });
 
 test('形の変更: 番号付き丸にすると渡された番号を付け、ほかの形にすると番号を外す。大きさは形ごとに残る', () => {

@@ -28,7 +28,10 @@
   });
   const NUMBER_MAX = 9999;
   // 既定（確定事項F3。決定102 ⑥で外の円 100・中の円 15 に変更）。十字線は外の円の直径の 1.5 倍（ユーザーの指示「デフォルトは1.5倍の倍率」）。
-  const DEFAULTS = Object.freeze({ shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16 });
+  // 二重丸の中の円と番号付き丸の文字サイズは 50（版 1.4.0 の既定の比 16/32 を保つ。質問 MK2 案A）。
+  const DEFAULTS = Object.freeze({ shape: 'target', outer: 100, dot: 15, ring: 50, cross: 150, fontSize: 50 });
+  // 外の円の直径に合わせて同じ比で変える大きさ（質問 MK3 案A）。
+  const SCALED_FIELDS = Object.freeze(['dot', 'ring', 'cross', 'fontSize']);
   const DEFAULT_LINE_WIDTH = 3;
   const DEFAULT_COLOR = '#ff0000';
   // 中の円のハンドルが変える欄（注意マークは無い）。中の円（dot・ring）は外の円より大きくしない。
@@ -86,7 +89,24 @@
     return next;
   }
 
-  // 大きさを 1 つ替えた marking。範囲の外・数でない値は null。外の円を中の円より小さくしたら、中の円も外の円に合わせる。
+  function clampTo(field, value) {
+    const [min, max] = RANGES[field];
+    return round(Math.min(max, Math.max(min, value)));
+  }
+
+  // 外の円の直径を outer にした marking。中の円・十字線・文字サイズも、外の円と同じ比で変える（決定102 ⑦・質問 MK3 案A「外の円と
+  // 同じ比で、十字線・中の円・文字サイズをすべて変える」）。範囲の端で止め、中の円は外の円で止める。線の太さは変えない。
+  function scaledTo(marking, outer) {
+    const ratio = outer / marking.outer;
+    const next = { ...copyMarking(marking), outer };
+    for (const field of SCALED_FIELDS)
+      next[field] = clampTo(field, marking[field] * ratio);
+    next.dot = Math.min(next.dot, outer);
+    next.ring = Math.min(next.ring, outer);
+    return next;
+  }
+
+  // 大きさを 1 つ替えた marking。範囲の外・数でない値は null。外の円を替えたら、ほかの大きさも同じ比で変える（scaledTo）。
   // 中の円を外の円より大きくする値は null（数値欄では今の値に戻す。確定事項F4）。
   function withSize(marking, field, value) {
     if (!SIZE_FIELDS.includes(field) || !Number.isFinite(value))
@@ -94,11 +114,7 @@
     const size = round(value);
     if (!inRange(field, size))
       return null;
-    const next = { ...copyMarking(marking), [field]: size };
-    if (field === 'outer') {
-      next.dot = Math.min(next.dot, size);
-      next.ring = Math.min(next.ring, size);
-    }
+    const next = field === 'outer' ? scaledTo(marking, size) : { ...copyMarking(marking), [field]: size };
     return next.dot > next.outer || next.ring > next.outer ? null : next;
   }
 
@@ -137,6 +153,7 @@
     SHAPES,
     SHAPE_LABELS,
     SIZE_FIELDS,
+    SCALED_FIELDS,
     RANGES,
     NUMBER_MAX,
     DEFAULTS,
@@ -150,6 +167,7 @@
     sameMarking,
     withShape,
     withSize,
+    scaledTo,
     clampedSize,
     withNumber,
     sizeRowsOf,

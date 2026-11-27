@@ -75,7 +75,7 @@ test('ページをクリックすると、クリックした位置を中心に�
   assert.equal(added(shell).length, 1);
   const entry = added(shell)[0];
   assert.equal(entry.kind, 'marking');
-  assert.deepEqual(plain(entry.marking), { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16 });
+  assert.deepEqual(plain(entry.marking), { shape: 'target', outer: 100, dot: 15, ring: 50, cross: 150, fontSize: 50 });
   assert.deepEqual([entry.color, entry.opacity, entry.lineWidth], ['#ff0000', 1, 3]);
   const [cx, cy] = center(entry.rect);
   assert.ok(Math.abs(cx - 200) < 0.6 && Math.abs(cy - 600) < 0.6, `中心 ${cx},${cy}`);
@@ -154,7 +154,7 @@ test('次に配置する形・大きさ・線の太さ・色・透明度を記�
   SigK.annotate.setOpacity(0.5);
   SigK.annotate.setColor('#0070c0');
   const saved = shell.uiCalls.reduce((memo, patch) => ({ ...memo, ...(patch.annotMarking ?? {}) }), {});
-  assert.deepEqual(saved, { shape: 'double', outer: 100, dot: 15, ring: 20, cross: 150, fontSize: 16, lineWidth: 5 });
+  assert.deepEqual(saved, { shape: 'double', outer: 100, dot: 15, ring: 20, cross: 150, fontSize: 50, lineWidth: 5 });
   assert.equal(shell.uiCalls.some((patch) => patch.annotOpacity?.marking === 0.5), true);
   assert.equal(shell.uiCalls.some((patch) => patch.annotColors?.marking === '#0070c0'), true);
   assert.equal(SigK.annotate.getLineWidth('square'), 2, '図形の線の太さは変わらない');
@@ -197,7 +197,8 @@ test('何も無い所からドラッグすると、押した点と離した点�
   assert.equal(added(shell).length, 1);
   const entry = added(shell)[0];
   assert.equal(entry.marking.outer, 80);
-  assert.equal(entry.marking.dot, 15, '中の円は次に配置する値のまま（大きさの連動は質問 MK3 の回答の後）');
+  // 中の円・十字線・文字サイズも外の円と同じ比（80/100）で変える（質問 MK3 案A）。
+  assert.deepEqual([entry.marking.dot, entry.marking.cross, entry.marking.ring, entry.marking.fontSize], [12, 120, 40, 40]);
   assert.deepEqual(plain(center(entry.rect)), [140, 660], '中心は正方形の中心（引いた向きへ伸ばす）');
   assert.equal(SigK.annotate.getSelected(), entry.id);
   assert.equal(SigK.annotateShape.draftFor(0), null);

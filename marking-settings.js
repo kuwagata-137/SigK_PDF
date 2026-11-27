@@ -11,10 +11,10 @@
 
 const MARKING_SHAPES = ['target', 'double', 'crosshair', 'number', 'caution'];
 const MARKING_RANGES = { outer: [4, 720], dot: [1, 720], ring: [1, 720], cross: [4, 1440], fontSize: [4, 200] };
-// 決定102 ⑥で、外の円 100・中の円 15・十字線 150（外の円の 1.5 倍）に変更した。
-const MARKING_DEFAULTS = { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 };
+// 決定102 ⑥で、外の円 100・中の円 15・十字線 150（外の円の 1.5 倍）、二重丸の中の円と番号付き丸の文字サイズ 50（質問 MK2 案A）に変更した。
+const MARKING_DEFAULTS = { shape: 'target', outer: 100, dot: 15, ring: 50, cross: 150, fontSize: 50, lineWidth: 3 };
 // 1.4.0 の既定（決定101）。settings.json には、既定の値もそのまま書かれている（settings.js の save）。
-const LEGACY_MARKING_DEFAULTS = Object.freeze({ outer: 32, dot: 9, cross: 44.8 });
+const LEGACY_MARKING_DEFAULTS = Object.freeze({ outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16 });
 // この版の移し替えを済ませた印（annotation-settings.js の annotPaletteVersion）。
 const MARKING_MIGRATED_VERSION = 3;
 

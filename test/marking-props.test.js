@@ -99,7 +99,7 @@ test('マーキングの書き込みツールでは形の行と大きさの行�
   assert.deepEqual(['props-fill-row', 'props-hatch-row', 'props-style-row', 'props-angle-row', 'props-box-size-row', 'props-keep-ratio-row'].map(shown), [false, false, false, false, false, false]);
   assert.equal(document.getElementById('props-width').value, '3');
   buttons[3].click();
-  assert.deepEqual([rows.innerLabel.textContent, rows.innerField.value], ['文字サイズ', '16']);
+  assert.deepEqual([rows.innerLabel.textContent, rows.innerField.value], ['文字サイズ', '50']);
   buttons[2].click();
   assert.deepEqual([rows.innerLabel.textContent, rows.innerField.value], ['十字線の長さ', '150']);
   buttons[4].click();
@@ -131,7 +131,9 @@ test('数値欄で大きさを変える。範囲の外・中の円が外の円�
   const rows = rowsOf(document);
   const entry = place(shell, [200, 600]);
   enter(shell, rows.outerField, '50');
-  assert.equal(current(shell).marking.outer, 50);
+  // 外の円を変えると、中の円・十字線・文字サイズも同じ比で変える（質問 MK3 案A）。
+  assert.deepEqual([current(shell).marking.outer, current(shell).marking.dot, current(shell).marking.cross], [50, 7.5, 75]);
+  assert.equal(rows.innerField.value, '7.5');
   assert.deepEqual(plain(center(current(shell).rect)), plain(center(entry.rect)));
   enter(shell, rows.innerField, '20');
   assert.equal(current(shell).marking.dot, 20);
@@ -141,9 +143,9 @@ test('数値欄で大きさを変える。範囲の外・中の円が外の円�
     assert.equal(field.value, text === '800' ? '50' : '20', `「${text}」`);
   }
   assert.deepEqual([current(shell).marking.outer, current(shell).marking.dot], [50, 20]);
-  // 外の円を中の円より小さくすると、中の円も合わせる。
+  // 外の円を小さくすると、中の円も同じ比で小さくする（20 × 10/50）。
   enter(shell, rows.outerField, '10');
-  assert.deepEqual([current(shell).marking.outer, current(shell).marking.dot], [10, 10]);
+  assert.deepEqual([current(shell).marking.outer, current(shell).marking.dot], [10, 4]);
 });
 
 test('番号の数値欄で番号付き丸の番号を変える', async (t) => {
@@ -173,21 +175,23 @@ test('外の円の上下左右に四角いハンドル、中の円の右に丸�
   assert.deepEqual(plain(SigK.annotationFrame.shown().shape.handles.map((handle) => handle.kind)), ['outer', 'outer', 'outer', 'outer']);
 });
 
-test('四角いハンドルで外の円を、丸いハンドルで中の円を、中心を保って別々に変える。1 世代積む', async (t) => {
+test('四角いハンドルで外の円を（中の円も同じ比で）、丸いハンドルで中の円だけを、中心を保って変える。1 世代積む', async (t) => {
   const shell = await withShell(t);
   const { SigK } = shell;
   const entry = place(shell, [200, 600]);
   const scale = SigK.viewer.getTextLayer(0).viewport.scale;
   dragHandle(shell, 'outer-x2', [8 * scale, 0]);
   assert.equal(current(shell).marking.outer, 116, '右へ 8pt で直径は 16pt 大きくなる');
-  assert.equal(current(shell).marking.dot, 15);
+  // 外の円のハンドルでも、中の円・十字線を同じ比で変える（質問 MK3 案A）。
+  assert.deepEqual([current(shell).marking.dot, current(shell).marking.cross], [17.4, 174]);
   assert.deepEqual(plain(center(current(shell).rect)), plain(center(entry.rect)));
+  // 中の円のハンドルは、中の円だけを変える（質問 MK3「中の円だけを変える操作は、どの案でも今までどおり使える」）。
   dragHandle(shell, 'inner', [3 * scale, 0]);
-  assert.equal(current(shell).marking.dot, 21);
+  assert.equal(current(shell).marking.dot, 23.4);
   assert.equal(current(shell).marking.outer, 116);
   // 中の円は外の円で止まる。
   dragHandle(shell, 'inner', [100 * scale, 0]);
   assert.equal(current(shell).marking.dot, 116);
   SigK.pageEdit.undo();
-  assert.equal(current(shell).marking.dot, 21);
+  assert.equal(current(shell).marking.dot, 23.4);
 });

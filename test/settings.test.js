@@ -231,7 +231,7 @@ const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { sh
   // 縦横比を固定（spec-7-9 確定事項D3）。
   annotKeepRatio: false,
   // マーキングの次に配置する値（spec-7-9 確定事項F5。既定は決定102 ⑥）。
-  annotMarking: { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 },
+  annotMarking: { shape: 'target', outer: 100, dot: 15, ring: 50, cross: 150, fontSize: 50, lineWidth: 3 },
   // 図形の書き込みツールごとの値（決定102 ⑨）。
   annotShapeStyles: Object.fromEntries(['square', 'circle', 'line', 'arrow', 'cross', 'polygon'].map((kind) => [kind, {
     color: '#ff0000', fill: null, strokeNone: false, lineStyle: 'solid', lineWidth: 2, opacity: 1, fillOpacity: 1, hatch: { pattern: 'none', color: '#ff0000', gap: 6, width: 1 },
@@ -408,15 +408,15 @@ test('印 1 の settings.json の図形の色 #c00000 は、読み込むとき�
   assert.equal(createSettingsStore({ dir }).load().annotColors.shape, '#4472c4');
 });
 
-// マーキングの既定を外の円 100・中の円 15・十字線 150 に変えた（決定102 ⑥）。1.4.0 の settings.json（印 2）には、既定の値
-// （32・9・44.8）もそのまま書かれているので、読み込むときに 1 回だけ置き換える。置き換えた後に 32 を選び直せば、次の読み込みでは置き換えない。
+// マーキングの既定を外の円 100・中の円 15・十字線 150・二重丸の中の円と文字サイズ 50 に変えた（決定102 ⑥・質問 MK2 案A）。1.4.0 の
+// settings.json（印 2）には、既定の値（32・9・44.8・16）もそのまま書かれているので、読み込むときに 1 回だけ置き換える。置き換えた後に 32 を選び直せば、次の読み込みでは置き換えない。
 test('印 2 の settings.json のマーキングの 1.4.0 の既定は、読み込むときに 1 回だけ新しい既定へ置き換わる', () => {
   const dir = makeTempDir();
   const file = path.join(dir, 'settings.json');
   fs.writeFileSync(file, JSON.stringify({ annotPaletteVersion: 2, annotMarking: { shape: 'crosshair', outer: 32, dot: 9, ring: 16, cross: 44.8, fontSize: 16, lineWidth: 3 } }));
   const store = createSettingsStore({ dir });
   const loaded = store.load();
-  assert.deepEqual(loaded.annotMarking, { shape: 'crosshair', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 });
+  assert.deepEqual(loaded.annotMarking, { shape: 'crosshair', outer: 100, dot: 15, ring: 50, cross: 150, fontSize: 50, lineWidth: 3 });
   assert.equal(loaded.annotPaletteVersion, 3);
   assert.equal(pickUi(store.get()).annotMarking.outer, 100, 'レンダラーへ渡す値も新しい既定');
   store.set(mergeUi(pickUi(store.get()), { annotMarking: { outer: 32 } }));
