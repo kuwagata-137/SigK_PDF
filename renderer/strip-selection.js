@@ -8,6 +8,9 @@
 
   const byTab = new Map();
   const listeners = [];
+  // ユーザーが選択した時（クリック・Ctrl/Shift＋クリック・Ctrl+A）だけの通知（版 1.5.0 の②。strip-range-fill.js が範囲欄に番号を入力する）。
+  // 動かしたページを選んだままにする set と、並びが変わって外す時には呼ばない。
+  const pickListeners = [];
 
   function notify(tabId) {
     listeners.forEach((listener) => listener(tabId));
@@ -23,6 +26,7 @@
     const next = root.SigK.pageGridRules.resolveClick({ selection: current.selection, anchor: current.anchor, index, ctrl, shift });
     byTab.set(tabId, { selection: next.selection, anchor: next.anchor, plan: plan ?? current.plan });
     notify(tabId);
+    pickListeners.forEach((listener) => listener(tabId));
     return get(tabId);
   }
 
@@ -36,7 +40,9 @@
 
   // 全部のページを選ぶ（ツールモードの Ctrl+A。spec-2-5 確定事項I9）。
   function selectAll(tabId, count, plan) {
-    return set(tabId, Array.from({ length: count }, (_value, index) => index), plan);
+    const selection = set(tabId, Array.from({ length: count }, (_value, index) => index), plan);
+    pickListeners.forEach((listener) => listener(tabId));
+    return selection;
   }
 
   function clear(tabId) {
@@ -79,10 +85,14 @@
     listeners.push(listener);
   }
 
+  function onPick(listener) {
+    pickListeners.push(listener);
+  }
+
   function hasAny() {
     return [...byTab.values()].some((entry) => entry.selection.length > 0);
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.stripSelection = { get, click, set, selectAll, clear, forget, escape, onPlanChanged, onChange, hasAny };
+  SigK.stripSelection = { get, click, set, selectAll, clear, forget, escape, onPlanChanged, onChange, onPick, hasAny };
 })(typeof window !== 'undefined' ? window : globalThis);
