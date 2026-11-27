@@ -104,6 +104,19 @@
     }
   }
 
+  // 枠線のあり・なし（決定102 ④）を、続けて変えた時に畳む欄の名前。
+  const GESTURE_OF = Object.freeze({ strokeNone: 'color', strokeOn: 'color', borderOn: 'border' });
+
+  // 「なし」にした書き込みの元の線の色（テキスト・吹き出しは枠線の色）を、なしにした後の鍵で記憶する（質問 SH5 案A・SH8 案B。
+  // stroke-color-memo.js）。
+  function rememberStrokeColors(field, value, targets, renamed) {
+    const memo = root.SigK.strokeColorMemo;
+    const colorOf = field === 'strokeNone' ? (entry) => entry.color : (entry) => entry.borderColor;
+    if (memo === undefined || (field !== 'strokeNone' && !(field === 'border' && value === null)))
+      return;
+    targets.forEach((entry) => memo.remember(renamed.get(memo.keyOf(entry)) ?? memo.keyOf(entry), colorOf(entry) ?? null));
+  }
+
   // 見た目の欄を、選んでいる書き込みのうちその欄を持てるもの全部に当てて 1 世代（確定事項I2）。持てるものが無ければ false。
   // 値が全部同じで変わらなくても、次に付ける値は覚える（1 件のときと同じ）。
   function applyField(field, value) {
@@ -119,13 +132,10 @@
     const { annots, keys: renamed } = root.SigK.annotationBulk.updateEach(before, view.getImported(), keys, (entry) => patch.patchFor(field, value, entry));
     if (annots !== before) {
       const after = keys.map((key) => renamed.get(key) ?? key);
-      // 「なし」にした書き込みの元の線の色を、なしにした後の鍵で記憶する（質問 SH5 案A。stroke-color-memo.js）。
-      if (field === 'strokeNone') {
-        const memo = root.SigK.strokeColorMemo;
-        targets.forEach((entry) => memo?.remember(renamed.get(memo.keyOf(entry)) ?? memo.keyOf(entry), entry.color));
-      }
+      rememberStrokeColors(field, value, targets, renamed);
       // 線なしと枠線「あり」（見出し「枠線」のラジオボタン。決定102 ④）は、線の色と同じ欄として続けた変更に畳む（確定事項J1）。
-      const gesture = field === 'strokeNone' || field === 'strokeOn' ? 'color' : root.SigK.annotateFill?.gestureOf(field, value) ?? field;
+      // テキスト・吹き出しの枠線「あり」は、枠線の色と同じ欄として畳む（質問 SH8 案B）。
+      const gesture = GESTURE_OF[field] ?? root.SigK.annotateFill?.gestureOf(field, value) ?? field;
       root.SigK.pageEdit.commitAnnots(annots, { annot: { before: selection().annotKeys(keys), after: selection().annotKeys(after) }, gesture });
       annotate().selectKeys(after);
     }

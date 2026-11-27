@@ -619,8 +619,10 @@ body{
         <div class="prop" id="props-fill-row" hidden><span class="k">塗りつぶし</span>
           <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-fill-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-fill" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">現在の色</span><span class="sw"></span><span class="name" id="props-fill-name"></span></span></div></div>
         <div class="prop" id="props-style-row" hidden><span class="k">線種</span><div class="props-kinds" id="props-style" role="group" aria-label="線種"></div></div>
-        <!-- テキストの枠線（spec-4b-4a 確定事項G4）。色のチップと同じ作りで、パレットに［枠線なし］がある。太さは下の太さの行（枠線の太さ）。 -->
+        <!-- テキストの枠線（spec-4b-4a 確定事項G4）。色のチップと同じ作り。枠線なしはラジオボタン「なし」で選ぶ（決定102 ④・質問 SH8 案B）。太さは下の太さの行（枠線の太さ）。 -->
         <div class="prop" id="props-border-row" hidden><span class="k" id="props-border-label">枠線</span>
+          <!-- テキスト・吹き出しの枠線のあり・なし（決定102 ④・質問 SH8 案B）。中身は annotation-stroke-row.js。 -->
+          <div class="stroke-choice" id="props-border-on" role="radiogroup" aria-label="枠線"><label class="print-choice"><input type="radio" class="props-field" name="props-border-on" value="on">あり</label><label class="print-choice"><input type="radio" class="props-field" name="props-border-on" value="off">なし</label></div>
           <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-border-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-border" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">現在の色</span><span class="sw"></span><span class="name" id="props-border-name"></span></span></div></div>
         <!-- .props-field の中のキーは欄のもの（viewer-keys.js が素通しする。Esc だけは escape-order.js が field-escape.js を通して受ける）。 -->
         <div class="prop" id="props-width-row" hidden><span class="k" id="props-width-label">線の太さ</span>

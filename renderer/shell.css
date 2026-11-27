@@ -966,6 +966,8 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
 /* 見出し「枠線」のラジオボタン「あり」「なし」（決定102 ④）。設定画面と同じ .print-choice。塗りつぶしがなしの時の「なし」は薄くする。 */
 .stroke-choice{display:flex; gap:22px; font-size:12.5px; color:var(--text)}
 .stroke-choice .print-choice.disabled{opacity:.45; cursor:default}
+/* テキスト・吹き出しの枠線が「なし」の時は、行「枠線」の色のボタンを非表示にする（決定102 ④・質問 SH8 案B）。 */
+#props-border-row .chip-row[hidden]{display:none}
 /* 回転の行の 0°・90°・180°・270° のボタン（spec-4b-2 確定事項25。モック）。今の角度と同じものに印。 */
 .angle-presets{display:flex; gap:4px}
 .angle-presets button{

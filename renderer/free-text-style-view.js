@@ -29,7 +29,12 @@
     return {
       fontSize: { ...valueOf(texts, 'fontSize'), label: labelOf(texts, live, '文字サイズ') },
       format: { bold: valueOf(texts, 'bold'), italic: valueOf(texts, 'italic'), label: labelOf(texts, live, '書式') },
-      border: { ...valueOf(texts, 'border'), label: labelOf(texts, live, '枠線') },
+      // on は枠線のあり・なし（ラジオボタン「あり」「なし」。決定102 ④・質問 SH8 案B）。value は枠線があれば true。
+      border: {
+        ...valueOf(texts, 'border'),
+        label: labelOf(texts, live, '枠線'),
+        on: valueOf(texts.map((target) => ({ on: (target.border ?? null) !== null })), 'on'),
+      },
     };
   }
 

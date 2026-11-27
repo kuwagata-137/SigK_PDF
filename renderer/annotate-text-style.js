@@ -13,7 +13,8 @@
   const nextStyles = { text: { bold: false, italic: false, fill: null, border: null, borderWidth: 1 }, callout: { ...root.SigK.annotationPresets.DEFAULT_CALLOUT_STYLE } };
   const SETTING_KEYS = Object.freeze({ text: 'annotTextStyle', callout: 'annotCalloutStyle' });
   // 欄の名前 → 次に付ける値の名前（文字の大きさは annotate-tools.js が覚える）。
-  const NEXT_KEYS = Object.freeze({ bold: 'bold', italic: 'italic', fill: 'fill', border: 'border', lineWidth: 'borderWidth' });
+  // 枠線「あり」（borderOn。決定102 ④・質問 SH8 案B）は、当てた枠線の色を border に覚える。
+  const NEXT_KEYS = Object.freeze({ bold: 'bold', italic: 'italic', fill: 'fill', border: 'border', borderOn: 'border', lineWidth: 'borderWidth' });
 
   function annotate() {
     return root.SigK.annotate;
@@ -97,6 +98,30 @@
     return isColorOrNone(color) && applyText('border', color === null ? null : color.toLowerCase());
   }
 
+  // 枠線「なし」（行「枠線」のラジオボタン。決定102 ④・質問 SH8 案B）。1 件の時は、「あり」に戻す時のために元の枠線の色を記憶する
+  // （stroke-color-memo.js。2 件以上は annotate-bulk.js が記憶する）。
+  function setBorderNone() {
+    const entry = annotate().getSelection().length > 1 ? null : annotate().selectedEntry();
+    const before = entry?.borderColor ?? null;
+    if (!setBorder(null))
+      return false;
+    if (before !== null && (annotate().selectedEntry()?.borderColor ?? null) === null)
+      root.SigK.strokeColorMemo?.remember(annotate().getSelected(), before);
+    return true;
+  }
+
+  // 枠線「あり」。枠線の無いテキスト・吹き出しに、なしにする前の枠線の色を当てる。記憶が無ければ、行「枠線」の左側のボタンの色
+  // （直前の色。color-memory.js）を当てる（Claude の判断）。枠線のあるものは変えない。
+  function setBorderOn() {
+    const color = root.SigK.colorMemory?.lastOf('line') ?? '#000000';
+    if (annotate().getSelection().length > 1)
+      return root.SigK.annotateBulk.applyField('borderOn', color);
+    const entry = annotate().selectedEntry();
+    if ((entry?.borderColor ?? null) !== null)
+      return false;
+    return setBorder(entry === null ? color : root.SigK.strokeColorMemo.colorOf(entry, color));
+  }
+
   // 枠線の太さ（右パネルの太さの行。1〜40）。
   function setBorderWidth(width) {
     return presets().isLineWidth(width) && applyText('lineWidth', width);
@@ -132,5 +157,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateTextStyle = { setFontSize, setTextFlag, setTextFill, setBorder, setBorderWidth, getNextStyle, applyNextStyle, rememberFor };
+  SigK.annotateTextStyle = { setFontSize, setTextFlag, setTextFill, setBorder, setBorderNone, setBorderOn, setBorderWidth, getNextStyle, applyNextStyle, rememberFor };
 })(typeof window !== 'undefined' ? window : globalThis);

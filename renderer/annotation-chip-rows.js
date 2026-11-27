@@ -131,7 +131,8 @@
     });
   }
 
-  // テキストの枠線の ▼ を押した（spec-4b-4a 確定事項G4）。［枠線なし］はいつでも選べる。太さも選べる（spec-7-2 確定事項B3）。
+  // テキストの枠線の ▼ を押した（spec-4b-4a 確定事項G4）。太さも選べる（spec-7-2 確定事項B3）。枠線なしは、行「枠線」のラジオボタン
+  // 「なし」で選ぶので、色の一覧には［枠線なし］を表示しない（決定102 ④・質問 SH8 案B）。
   function openBorder(chip, view) {
     cancelPreview();
     if (view === null || (view.border ?? null) === null)
@@ -141,7 +142,7 @@
       title: view.border.label,
       current: view.border.mixed ? null : view.border.value,
       role: 'line',
-      none: { label: '枠線なし', enabled: true },
+      none: null,
       onPick: (color) => annotate().setBorder(color),
       widths: width ? { current: width.mixed ? null : width.value, onPick: (value) => annotate().setLineWidth(value) } : null,
     });

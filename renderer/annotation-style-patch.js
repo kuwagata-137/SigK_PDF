@@ -9,8 +9,9 @@
   // free-text-style-view.js が持つ。
 
   // 塗りの透明度（fillOpacity）とハッチング（hatch。種類・色・間隔・線幅の一部）は spec-7-9 確定事項B2・C1 で追加した。
-  // 枠線「あり」（strokeOn。線なしの書き込みに、なしにする前の線の色を当てる。stroke-color-memo.js）は決定102 ④で追加した。
-  const FIELDS = Object.freeze(['color', 'strokeNone', 'strokeOn', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'fillOpacity', 'hatch']);
+  // 枠線「あり」（strokeOn。線なしの書き込みに、なしにする前の線の色を当てる。stroke-color-memo.js）は決定102 ④で、テキスト・吹き出しの
+  // 枠線「あり」（borderOn。value はなしにする前の色の記憶が無い時の色）は質問 SH8 案B で追加した。
+  const FIELDS = Object.freeze(['color', 'strokeNone', 'strokeOn', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'borderOn', 'fillOpacity', 'hatch']);
   // テキストにだけある欄（テキスト以外には当てない）。
   const TEXT_ONLY = Object.freeze(['fontSize', 'bold', 'italic', 'border']);
 
@@ -55,6 +56,8 @@
   function appliesTo(field, entry, value) {
     if (entry === null || entry === undefined || entry.readonly === true)
       return false;
+    if (field === 'borderOn')
+      return entry.kind === 'text' && (entry.borderColor ?? null) === null;
     if (isTextField(field, entry))
       return textStyle().appliesTo(field, entry, value);
     if (TEXT_ONLY.includes(field))
@@ -78,6 +81,8 @@
   function patchFor(field, value, entry) {
     if (!appliesTo(field, entry, value))
       return null;
+    if (field === 'borderOn')
+      return textStyle().patchFor('border', root.SigK.strokeColorMemo.colorOf(entry, value), entry);
     if (isTextField(field, entry))
       return textStyle().patchFor(field, value, entry);
     switch (field) {
