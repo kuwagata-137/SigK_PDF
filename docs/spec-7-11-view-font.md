@@ -48,7 +48,7 @@
 
 質問の下書き（選択肢・推奨案・調べた結果）は `~/.claude/plans/v150-questions-b.md`。
 
-状態（2026-11-27）: ZM3・FS1・RG1・RG2・RG3・FT1 は回答をもらった（確定事項）。FS2 は、統括役が質問せず、FS1 の回答（「「見開き」ボタンの右側にボタンを作る」）で決まったものとして扱った。FT2・FT3 は FT1 の回答の後に作り、回答を待っている（推奨案で仮に実装した。確定事項T5・T6）。
+状態（2026-11-27）: 全問の回答をもらった（確定事項）。FS2 は、統括役が質問せず、FS1 の回答（「「見開き」ボタンの右側にボタンを作る」）で決まったものとして扱った。FT2・FT3 は FT1 の回答の後に作った。
 
 ## 確定事項
 
@@ -96,17 +96,24 @@
 - R5. ページを動かした後に、動かしたページを選んだままにする時（`stripSelection.set`）は、入力しない（ユーザーが選択した時だけ。`stripSelection.onPick`）。
 - R6. 開けなかった帯・名前の無い帯・画像の帯・パスワード付きの帯では何もしない（ツールの対象にできないので、ツールの欄が理由を表示する）。
 
-### 質問 FT1（2026-11-27）と、仮に実装した FT2・FT3
+### 質問 FT1・FT2・FT3（2026-11-27）
 
-ユーザーの回答（統括役を通して。選んだ選択肢名のまま）: FT1「案B Windows フォント使用（推奨）」
+ユーザーの回答（統括役を通して。選んだ選択肢名のまま）: FT1「案B Windows フォント使用（推奨）」、FT2「案A Noto Sans JP 維持（推奨）」、FT3「案B 擬似太字」
 
 - T1. 一覧に並べるフォントは、Noto Sans JP（同梱）と、Windows に入っている游ゴシック・游明朝・メイリオ・MS ゴシック・MS 明朝（一覧の順）。このパソコンに入っていて、埋め込みの決まり（OpenType の fsType）が「編集できる文書にサブセットで埋め込んでよい」フォントだけを並べる（メインの `font-catalog.js`。初めて聞かれた時に 1 回だけ調べる）。
 - T2. プロパティパネルの「文字の色」の下に「フォント」の行（一覧）を追加する。テキスト・吹き出しの書き込みツールと、選択中のテキストで表示する。選んだフォントは、選択中のテキストに当て、次に置くテキスト・吹き出しの値として設定に保存する（太字・文字の色と同じ。Claude の案。質問 FT2 の図の経緯の表に書いた）。
 - T3. 保存は、書体（フォント×標準・太字）ごとにサブセットで埋め込む。.ttc は PostScript 名でフォントを選ぶ。/DA のフォント名（自分で付けたテキストの印）は、Noto Sans JP が今までどおり SigKJP、ほかは SigKYG・SigKYM・SigKMR・SigKMG・SigKMM。/DS のフォント名は Noto Sans JP・Yu Gothic・Yu Mincho・Meiryo・MS Gothic・MS Mincho。
 - T4. ほかのパソコンで付けたテキストのフォントが、このパソコンに無い時は、Noto Sans JP で描き、修正すると Noto Sans JP で保存する（質問 FT1 の案B の説明）。修正しなければ、保存してある外観のまま。
-- T5.（質問 FT2 の推奨案A で仮に実装。回答待ち）初めて使う時のフォントは Noto Sans JP。既定の Noto Sans JP は、書き込みにも設定にも font の欄を持たない（今までの形を変えない）。
-- T6.（質問 FT3 の推奨案A で仮に実装。回答待ち）太字の書体が無い MS ゴシック・MS 明朝では［B］を押せない。選ぶと太字を外し、次に付ける値も太字なしにする。保存の側も、太字の書体が無いフォントの太字は標準の書体で描く。
-- T7. 使い方画面のテキストの節に、フォントの説明を追加した。
+- T5.（FT2）初めて使う時のフォントは Noto Sans JP。既定の Noto Sans JP は、書き込みにも設定にも font の欄を持たない（今までの形を変えない）。
+- T6.（FT3）太字の書体が無い MS ゴシック・MS 明朝でも［B］を押せる。太字は、標準の書体の文字の輪郭に線を追加して太く見せる（擬似太字）。フォントを変えても太字は外さない。統括役の依頼: 図の案B のとおり、保存した PDF も同じ描き方で、画面・印刷・保存で同じ太さに見えること。
+- T7. 擬似太字の線（Claude が決めたこと。統括役の依頼「字の大きさの 30 分の 1 の太さの線を文字の輪郭に追加する方法を基準にする」）:
+  - 太さは字の大きさの **30 分の 1**（12pt なら 0.4pt）。線は輪郭の内と外に半分ずつかかるので、字の線は片側 60 分の 1 ずつ、合わせて 30 分の 1 太くなる。理由: ユーザーが FT3 の図の見本（この太さで描いた MS ゴシック）を見て案B を選んだので、見本と同じ太さにする。spec-4b-4a 事前調査 B で Noto Sans JP の太字を比べた時の検体も、同じ 30 分の 1 だった。
+  - 色は文字の色。角の形は尖り（PDF の既定の 0 j と、限度 10。画面も同じ値を指定する）。
+  - 保存: 外観の BT の中に、線の色（RG）・線の太さ（w）・角の形（0 j）と、塗りと線で描く指定（2 Tr）を書く（`worker/free-text-wrapped.js`）。線の太さは、ほかの数と同じく小数 2 桁に丸める（10pt で 0.33pt）。
+  - 画面: 注釈の層は text の要素の stroke、印刷は canvas の strokeText、入力欄は -webkit-text-stroke で、同じ太さの線を描く。どれも、保存の 2 Tr と同じく輪郭の中心に線を描く。
+  - 字の送り幅は標準の書体のまま（線は送り幅を変えない）。そのため、画面では font-weight を付けない（Chromium の太字の合成は、送り幅と形が保存と違う可能性があるため）。行の折り返しは、標準の書体の幅で決める。
+- T8. 使い方画面のテキストの節に、フォントの説明を追加した（擬似太字の説明を含む）。
+
 
 ## 実測（2026-11-26。質問 FT1 の材料）
 
@@ -160,11 +167,13 @@
 | `1564355` | ③-1 一覧（`renderer/text-fonts.js`・`worker/text-fonts.js`）と、新しい `font-catalog.js`（IPC `fonts:list`・preload の `fontsAPI`）。フォントのフォルダは `SIGK_FONT_DIR` で差し替えられる。`package.json` の `build.files` に `font-catalog.js` を追加した。試験 `test/text-fonts.test.js`・`test/font-catalog.test.js`。試験用の .ttc は、同梱の Noto Sans JP の標準と太字から組み立てる（`test/ttc-fixture.js`） |
 | `299b63e` | ③-2 保存（`worker/font-embed.js`・`op-annotate.js`・`free-text-wrapped.js`・`default-style.js`）。試験 `test/font-embed-system.test.js` |
 | `9d6dfb4`・`f2c4f06` | ③-3 画面の計測と描画（`renderer/free-text-font.js`・`free-text-shape.js`・`free-text-editor-node.js`・`free-text-metrics.js`）、書き込みの font の欄（`free-text-entry.js`）、読み戻し（`imported-entry.js`）。`f2c4f06` は、`shell.css` が text の要素に font-family を指定しているため、g の要素の指定が効かなかった不具合の修正（表示しない起動の撮影で見つけた）。試験 `test/free-text-font-choice.test.js` |
+| `81f1d09` | 質問 FT3「案B」。仮に入れた案A（［B］を押せなくする・太字を外す）を戻し、擬似太字（確定事項T6・T7）を保存・注釈の層・印刷・入力欄に追加した。試験は `test/font-embed-system.test.js`（MS ゴシックの太字の外観に 2 Tr と線）・`test/free-text-font-choice.test.js`（注釈の層の stroke）・`test/text-font-row.test.js`（［B］を押せる） |
 | `c787dc6` | ③-4 「フォント」の行（`index.html`・`annotation-text-rows.js`・`annotation-style-rows.js`）、次に置く書式（`annotate-text-style.js`・`annotation-text-settings.js`）、当て方（`free-text-style.js`・`annotation-style-patch.js`・`annotation-entry.js` の `PATCH_FIELDS`）、使い方画面。試験 `test/text-font-row.test.js` |
 
-ウインドウを表示しない起動で確かめたこと（`SIGK_FONT_DIR` を空のフォルダにして、メインに Windows のフォントのファイルを読ませず、画面の側に使えるフォントを直接渡した）: 「フォント」の行が「文字の色」の下にあり、6 つのフォントが並ぶ。游明朝・メイリオ（太字）・MS ゴシックのテキストが、それぞれのフォントで描かれる。MS ゴシックを選ぶと［B］が灰色になる。
+ウインドウを表示しない起動で確かめたこと（`SIGK_FONT_DIR` を空のフォルダにして、メインに Windows のフォントのファイルを読ませず、画面の側に使えるフォントを直接渡した）: 「フォント」の行が「文字の色」の下にあり、6 つのフォントが並ぶ。游明朝・メイリオ（太字）・MS ゴシックのテキストが、それぞれのフォントで描かれる。MS ゴシック・MS 明朝でも［B］を押せ、太字は線を太くして描かれる（倍率 114% の 12pt で線 0.61px。画面写真 `screenshots/spec-7-11-font-row.png`）。
 
 確かめていないこと:
 
 - Windows のフォントを実際に読んで、使えるかを調べる処理（`font-catalog.js`）と、保存した PDF に Windows のフォントが埋め込まれること（.ttc から選んだフォントのサブセット・ほかのアプリでの表示）。Windows のフォントのファイルはリポジトリの外なので、表示しない起動でもアプリに読ませていない。試験は、Noto Sans JP から組み立てた .ttc で行った。
+- 擬似太字の、画面と保存した PDF（pdf.js で描いた絵）の画素の比べ。保存した PDF を作るには MS ゴシックのファイルを読む必要があるため、行っていない（線の太さ・色・角の形の値が同じことを試験で確かめた）。
 - 入力欄（textarea）の文字の上下の位置。行の高さとベースラインは Noto Sans JP の値のまま（画面の注釈の層と PDF は同じ値なので一致する）なので、ほかのフォントでは、入力中と確定した後で文字の上下の位置がわずかにずれる可能性がある。
