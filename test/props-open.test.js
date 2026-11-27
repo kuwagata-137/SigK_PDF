@@ -52,22 +52,65 @@ test('［選択］［ハンド］の時は、書き込みを選択するまで�
   }
 });
 
-test('開閉するたびに表示域を追従させ（倍率の計算し直し）、同じ状態のままなら何もしない', async (t) => {
+// 版 1.5.0 の⑪（質問 ZM3「案A 重ね表示」）で、開閉のたびに倍率を計算し直す決まり（spec-7-9 確定事項E2）を改めた。
+test('開閉するたびに、倍率は計算し直さず（refit を呼ばない）、ページの左右の位置だけを合わせる。同じ状態のままなら何もしない', async (t) => {
   const shell = await withAnnotMode(t);
   const { SigK } = shell;
-  let refits = 0;
-  const original = SigK.viewer.refit;
-  SigK.viewer.refit = (...args) => {
-    refits += 1;
-    return original(...args);
-  };
-  t.after(() => {
-    SigK.viewer.refit = original;
-  });
+  const calls = { refit: 0, recenter: 0 };
+  const original = { refit: SigK.viewer.refit, recenter: SigK.viewer.recenter };
+  for (const name of ['refit', 'recenter']) {
+    SigK.viewer[name] = (...args) => {
+      calls[name] += 1;
+      return original[name](...args);
+    };
+  }
+  t.after(() => Object.assign(SigK.viewer, original));
   SigK.annotate.setTool('shape');
-  assert.equal(refits, 1);
+  assert.deepEqual(calls, { refit: 0, recenter: 1 });
   SigK.annotate.setShapeKind('circle');
-  assert.equal(refits, 1, '開いたままなら追従しない');
+  assert.deepEqual(calls, { refit: 0, recenter: 1 }, '開いたままなら何もしない');
   SigK.annotate.setTool(null);
-  assert.equal(refits, 2);
+  assert.deepEqual(calls, { refit: 0, recenter: 2 });
+});
+
+// 版 1.5.0 の⑪（質問 ZM3「案A 重ね表示」。docs/spec-7-11-view-font.md）。プロパティパネルの幅は、ページの並べ方と倍率の計算に入れない。
+// jsdom はレイアウトしないので、表示域の幅（#view の clientWidth）とプロパティパネルの幅（#props の offsetWidth）を、data-props に合わせて差し替える。
+function layoutLikeBrowser(shell, { full = 1000, panel = 260 } = {}) {
+  const html = shell.document.documentElement;
+  const open = () => html.getAttribute('data-mode') === 'annot' && html.getAttribute('data-props') === 'open';
+  Object.defineProperty(shell.document.getElementById('view'), 'clientWidth', { get: () => (open() ? full - panel : full), configurable: true });
+  Object.defineProperty(shell.document.getElementById('props'), 'offsetWidth', { get: () => (open() ? panel : 0), configurable: true });
+}
+
+const pagesBox = (shell) => {
+  const pages = shell.document.getElementById('view-pages');
+  return { margin: pages.style.marginLeft, width: pages.style.width };
+};
+
+test('プロパティパネルを開閉しても、［幅］の表示倍率とページの左右の位置を変えない（版 1.5.0 の⑪）', async (t) => {
+  const shell = await withAnnotMode(t);
+  const { SigK } = shell;
+  layoutLikeBrowser(shell);
+  SigK.viewer.applyFit('width');
+  const before = { zoom: SigK.viewer.getState().zoom, box: pagesBox(shell) };
+  SigK.annotate.setTool('shape');
+  assert.equal(propsState(shell), 'open');
+  assert.deepEqual({ zoom: SigK.viewer.getState().zoom, box: pagesBox(shell) }, before, '開いた');
+  assert.equal(SigK.viewer.getState().fit, 'width', '［幅］のまま');
+  SigK.annotate.setTool(null);
+  assert.deepEqual({ zoom: SigK.viewer.getState().zoom, box: pagesBox(shell) }, before, '閉じた');
+});
+
+test('表示倍率が数値の時も、プロパティパネルの開閉でページを左右に動かさない（版 1.5.0 の⑪）', async (t) => {
+  const shell = await withAnnotMode(t);
+  const { SigK } = shell;
+  layoutLikeBrowser(shell);
+  SigK.viewer.setZoom(0.5);
+  const before = pagesBox(shell);
+  const contentWidth = parseFloat(before.width);
+  assert.equal(parseFloat(before.margin), Math.floor((1000 - contentWidth) / 2), '閉じた時の表示域の中央');
+  SigK.annotate.setTool('shape');
+  assert.deepEqual(pagesBox(shell), before, '開いても同じ位置（プロパティパネルを含めた幅の中央）');
+  SigK.annotate.setTool(null);
+  assert.deepEqual(pagesBox(shell), before);
 });

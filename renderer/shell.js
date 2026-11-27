@@ -130,14 +130,17 @@
     root.SigK.strips?.schedule();   // 帯の見えている紙も幅で決まる（spec-2-5 確定事項D8）
   }
 
-  // プロパティパネルの開閉（spec-7-9 確定事項E1・E2。決定101 ⑤）。表示する設定がある時だけ開く。判断は annotation-props.js の
-  // refresh が行い、ここは <html> の data-props を変えて表示域を追従させる（左パネルの開閉と同じ合図）。変わらなければ何もしない。
+  // プロパティパネルの開閉（spec-7-9 確定事項E1。決定101 ⑤）。表示する設定がある時だけ開く。判断は annotation-props.js の
+  // refresh が行い、ここは <html> の data-props を変える。変わらなければ何もしない。
+  // 開閉しても、表示倍率とページの位置は変えない（版 1.5.0 の⑪。質問 ZM3「案A 重ね表示」。spec-7-9 確定事項E2 を改めた）。
+  // ページを並べる幅にプロパティパネルの幅を含めるので（viewer.js の layoutWidth）、倍率は計算し直さず、左右の位置と描く範囲だけを
+  // 合わせる（横に広いページで横のスクロールバーが表示されて表示域の高さが変わっても、［全体］の倍率を変えないため）。
   function setPropsOpen(doc, open) {
     const value = open ? 'open' : 'closed';
     if (doc.documentElement.getAttribute('data-props') === value)
       return false;
     doc.documentElement.setAttribute('data-props', value);
-    notifyViewportChanged();
+    root.SigK.viewer?.recenter();
     return true;
   }
 

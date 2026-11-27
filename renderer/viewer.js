@@ -493,11 +493,25 @@
     el.pages.replaceChildren(...nodes);
   }
 
+  // ページを並べる幅。表示域（#view）の幅と、開いているプロパティパネルの幅の合計（版 1.5.0 の⑪。質問 ZM3「案A 重ね表示」）。
+  // プロパティパネルの開閉で、表示倍率（［幅］［全体］の計算）とページの左右の位置を変えないため。開いている間、ページの右側は
+  // プロパティパネルの所で隠れ、横にスクロールすると表示される。縦のスクロールバーはプロパティパネルの左に残る。
+  function layoutWidth() {
+    return el.view.clientWidth + (el.doc.getElementById('props')?.offsetWidth ?? 0);
+  }
+
+  // #view-pages を、ページを並べる幅の中央に置く（今までの CSS の margin:auto と同じ位置。プロパティパネルの開閉で動かさない）。
+  function center() {
+    const width = state.layout?.contentWidth ?? 0;
+    el.pages.style.marginLeft = `${Math.max(0, Math.floor((layoutWidth() - width) / 2))}px`;
+  }
+
   function applyLayout() {
     const next = layout().layoutPages({ sizes: state.sizes, zoom: state.zoom, facing: state.facing });
     state.layout = next;
     el.pages.style.width = `${next.contentWidth}px`;
     el.pages.style.height = `${next.totalHeight}px`;
+    center();
 
     for (const page of next.pages) {
       const node = el.pageNodes[page.index];
@@ -563,7 +577,7 @@
       return state.zoom;
     const size = layout().spreadSize(state.sizes, state.current, state.facing);
     const gap = state.facing ? layout().FACING_GAP : 0;
-    const viewportWidth = el.view.clientWidth;
+    const viewportWidth = layoutWidth();
     const viewportHeight = el.view.clientHeight;
     if (mode === 'page')
       return layout().fitPageZoom({ pageWidth: size.width, pageHeight: size.height, viewportWidth, viewportHeight, gap });
@@ -612,11 +626,21 @@
   function refit() {
     if (state.doc === null)
       return;
+    // 表示域の幅が変わったので、ページの左右の位置を計算し直す（倍率が変わらない時も。今までは CSS の margin:auto が追従していた）。
+    center();
     if (state.fit === null) {
       render.scheduleUpdate();
       return;
     }
     applyFit(state.fit);
+  }
+
+  // 倍率を変えずに、ページの左右の位置を合わせ、見えているページを描く（プロパティパネルの開閉。shell.js の setPropsOpen）。
+  function recenter() {
+    if (state.doc === null)
+      return;
+    center();
+    render.scheduleUpdate();
   }
 
   // ---- ページ移動 ----
@@ -1213,6 +1237,7 @@
     setZoom,
     applyFit,
     refit,
+    recenter,
     setFacing,
     isFacing: () => state.facing,
     goToPage,

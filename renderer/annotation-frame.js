@@ -50,8 +50,12 @@
     if (![left, top, width, height].every(Number.isFinite))
       return null;
     const view = pagesEl.parentNode;
-    const side = Math.max(0, ((view?.clientWidth ?? 0) - width) / 2);
-    return { left: -left - side, top: -top, right: width - left + side, bottom: Math.max(height, view?.clientHeight ?? 0) - top };
+    const clientWidth = view?.clientWidth ?? 0;
+    // 左の灰色は #view-pages の左の余白（viewer.js の center が置く。版 1.5.0 の⑪でプロパティパネルの幅を含めた中央にしたので、
+    // 左右が同じとは限らない）。置いていなければ今までどおり左右同じ。
+    const margin = parseFloat(pagesEl.style.marginLeft);
+    const side = Number.isFinite(margin) ? margin : Math.max(0, (clientWidth - width) / 2);
+    return { left: -left - side, top: -top, right: Math.max(width, clientWidth - side) - left, bottom: Math.max(height, view?.clientHeight ?? 0) - top };
   }
 
   // selected は鍵の並び（今までの 1 件の鍵や null も受ける）。
