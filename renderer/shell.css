@@ -917,6 +917,8 @@ html[data-mode="annot"][data-props="closed"] #props{display:none}
 .split-main:hover{background:var(--select)}
 .split-main .ico{display:grid; place-items:center; height:17px}
 .split-main .bar{display:block; width:20px; height:4px; border:1px solid rgba(16,24,40,.18); border-radius:1px}
+/* 塗りなしを選んだ後のカラーバーは、「なし」の見本と同じ黒枠に中身は白（決定102 ⑤・質問 SH6 案B）。 */
+.split-main .bar.none{background:#fff; border-color:var(--text)}
 .split-main.set-main .set-sample{width:24px; height:18px; border:1.5px solid; border-radius:3px; display:grid; place-items:center; font:600 10px/1 inherit; font-family:inherit}
 .chip.split-drop{height:auto; width:20px; padding:0; border:0; border-left:1px solid var(--border); border-radius:0; justify-content:center; gap:0}
 .chip.split-drop:hover{background:var(--select)}

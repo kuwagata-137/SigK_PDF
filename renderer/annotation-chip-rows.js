@@ -48,9 +48,11 @@
     chip.setAttribute('aria-label', `${label}（${name.textContent}）の一覧を表示`);
   }
 
-  // 左側のボタン。絵を役割に合わせ、帯を直前の色にする。
+  // 左側のボタン。絵を役割に合わせ、帯を直前の色にする。塗りの直前の色が塗りなし（null）なら、帯を「なし」の見本と同じ黒枠に中身は
+  // 白にする（決定102 ⑤・質問 SH6 案B）。
   function renderMain(main, role, label) {
     const color = memory()?.lastOf(role) ?? null;
+    main.querySelector('.bar').classList.toggle('none', color === null);
     if (main.dataset.icon !== ICON_OF_ROLE[role]) {
       main.dataset.icon = ICON_OF_ROLE[role];
       const holder = main.querySelector('.ico');
@@ -60,7 +62,7 @@
     }
     main.dataset.role = role;
     main.querySelector('.bar').style.background = color ?? '';
-    const text = `${label}を ${palette().labelOf(color)} に変更`;
+    const text = color === null ? `${label}をなしに変更` : `${label}を ${palette().labelOf(color)} に変更`;
     root.SigK.tipContent.text(main, text);
     main.setAttribute('aria-label', text);
   }
@@ -158,15 +160,16 @@
     });
   }
 
-  // 左側のボタンを押した。直前の色を、一覧で同じ色を選んだときと同じように当てる（spec-7-2 確定事項A5）。
+  // 左側のボタンを押した。直前の色を、一覧で同じ色を選んだときと同じように当てる（spec-7-2 確定事項A5）。塗りの直前の色が塗りなしなら、
+  // 塗りつぶしなしを当てる（決定102 ⑤・質問 SH6 案B。線なしの四角・丸などには当てられない）。
   function applyLast(role, field) {
     cancelPreview();
     popover()?.close();
     const color = memory()?.lastOf(role) ?? null;
-    if (color === null)
-      return false;
     if (field === 'fill')
       return annotate().setFill(color);
+    if (color === null)
+      return false;
     if (field === 'border')
       return annotate().setBorder(color);
     return annotate().setColor(color);

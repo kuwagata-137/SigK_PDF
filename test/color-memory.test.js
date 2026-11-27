@@ -42,16 +42,29 @@ test('最近使用した色は一覧に無い色だけを新しい順に 10 色�
   assert.equal(memory.pushRecent('x'), false);
 });
 
-test('直前の色は役割ごとに覚え、［なし］や形の違う値は覚えない', (t) => {
+test('直前の色は役割ごとに覚え、塗り以外の［なし］や形の違う値は覚えない', (t) => {
   const patches = withPersist(t);
   assert.equal(memory.setLast('fill', '#FFD966'), true);
   assert.equal(memory.lastOf('fill'), '#ffd966');
   assert.equal(memory.setLast('fill', '#ffd966'), false, '同じ色なら書かない');
-  assert.equal(memory.setLast('fill', null), false);
+  assert.equal(memory.setLast('line', null), false, '線の［なし］は覚えない');
   assert.equal(memory.setLast('other', '#000000'), false);
   assert.equal(memory.setLastStyle(15), true);
   assert.equal(memory.setLastStyle(21), false);
   assert.deepEqual(patches, [{ annotLastColors: { fill: '#ffd966' } }, { annotLastColors: { style: 15 } }]);
+});
+
+// 質問 SH6 案B「塗りなしを選んだ後は、カラーバーも黒枠に中身は白にする。バケツのボタンをクリックすると、塗りつぶしなしを当てる。」
+test('塗りの［塗りなし］（null）は直前の色として覚え、settings.json に書き、起動時に戻す', (t) => {
+  const patches = withPersist(t);
+  assert.deepEqual([...memory.NONE_ROLES], ['fill']);
+  assert.equal(memory.setLast('fill', null), true);
+  assert.equal(memory.lastOf('fill'), null);
+  assert.equal(memory.setLast('fill', null), false, '同じなら書かない');
+  assert.deepEqual(patches, [{ annotLastColors: { fill: null } }]);
+  memory.reset();
+  assert.equal(memory.apply({ lastColors: { fill: null, line: null } }).last.fill, null);
+  assert.equal(memory.lastOf('line'), '#ed7d31', '線の null は捨てる');
 });
 
 test('起動時に settings.json の値を戻す。形の違う値は捨てる', (t) => {

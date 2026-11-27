@@ -622,3 +622,12 @@ test('annotLastColors は役割ごとに #rrggbb を受け、一括は 0〜20 �
   const merged = mergeUi(ui, { annotLastColors: { font: '#00ff00' } });
   assert.deepEqual(merged.annotLastColors, { line: '#abcdef', fill: '#5b9bd5', font: '#00ff00', mark: '#ffff00', style: 20 });
 });
+
+test('annotLastColors の塗りは塗りなし（null）も受け、ほかの役割の null は既定にする（決定102 ⑤・質問 SH6 案B）', () => {
+  const ui = pickUi(mergeDefaults({ annotLastColors: { fill: null, line: null } }));
+  assert.deepEqual([ui.annotLastColors.fill, ui.annotLastColors.line], [null, '#ed7d31']);
+  assert.equal(mergeUi(ui, { annotLastColors: { font: '#00ff00' } }).annotLastColors.fill, null, '部分更新で塗りなしを残す');
+  assert.equal(mergeUi(ui, { annotLastColors: { fill: '#ffd966' } }).annotLastColors.fill, '#ffd966');
+  const filled = pickUi(mergeDefaults({ annotLastColors: { fill: '#ffd966' } }));
+  assert.equal(mergeUi(filled, { annotLastColors: { fill: null } }).annotLastColors.fill, null);
+});

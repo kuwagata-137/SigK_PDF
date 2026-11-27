@@ -8,6 +8,9 @@
   // 直前の色の役割は 線（線の色・枠線）・塗り・文字（文字の色・透かし）・色（ハイライトなどの色の行）の 4 つと、一括の組の番号。
 
   const ROLES = Object.freeze(['line', 'fill', 'font', 'mark']);
+  // 直前の色を塗りなし（null）にできる役割。塗りなしを選んだ後は、塗りつぶしのカラーバーも「なし」の表示にし、左側のボタンで
+  // 塗りつぶしなしを当てる（決定102 ⑤・質問 SH6 案B）。
+  const NONE_ROLES = Object.freeze(['fill']);
   const DEFAULT_LAST = Object.freeze({ line: '#ed7d31', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 8 });
 
   const state = { recent: [], last: { ...DEFAULT_LAST } };
@@ -42,7 +45,7 @@
       state.recent = [...new Set(recentColors.map((color) => palette().normalizeHex(color)).filter((color) => color !== null))].slice(0, palette().RECENT_MAX);
     for (const role of ROLES) {
       const value = palette().normalizeHex(lastColors?.[role]);
-      if (value !== null)
+      if (value !== null || (lastColors?.[role] === null && NONE_ROLES.includes(role)))
         state.last[role] = value;
     }
     if (isStyleIndex(lastColors?.style))
@@ -64,10 +67,11 @@
     return true;
   }
 
-  // 一覧か色の設定の画面で選んだ色を、その役割の直前の色にする。［なし］（null）は直前の色にしない。
+  // 一覧か色の設定の画面で選んだ色を、その役割の直前の色にする。［なし］（null）は、塗り（NONE_ROLES）の時だけ直前の色にする。
   function setLast(role, color) {
     const value = palette().normalizeHex(color);
-    if (!ROLES.includes(role) || value === null || state.last[role] === value)
+    const none = color === null && NONE_ROLES.includes(role);
+    if (!ROLES.includes(role) || (value === null && !none) || state.last[role] === value)
       return false;
     state.last[role] = value;
     persist({ annotLastColors: { [role]: value } });
@@ -88,5 +92,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.colorMemory = { ROLES, DEFAULT_LAST, recent, lastOf, lastStyle, apply, pushRecent, setLast, setLastStyle, reset };
+  SigK.colorMemory = { ROLES, NONE_ROLES, DEFAULT_LAST, recent, lastOf, lastStyle, apply, pushRecent, setLast, setLastStyle, reset };
 })(typeof window !== 'undefined' ? window : globalThis);

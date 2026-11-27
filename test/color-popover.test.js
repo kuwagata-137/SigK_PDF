@@ -130,6 +130,48 @@ test('塗りの［塗りなし］は線があるときだけ押せ、「その�
   assert.deepEqual([...pop.querySelectorAll('.cell.on')].map((cell) => cell.dataset.color), ['#123456'], '最近使用した色の今の色に印を付ける');
 });
 
+// 質問 SH6 案B「塗りなしを選んだ後は、カラーバーも黒枠に中身は白にする。バケツのボタンをクリックすると、塗りつぶしなしを当てる。
+// 赤で塗りたい時は、▼ の一覧で赤を選ぶ。」
+test('［塗りなし］を選んだ後は、塗りつぶしのカラーバーを「なし」の表示にし、左側のボタンで塗りつぶしなしを当てる', async (t) => {
+  const shell = await withSquareTool(t);
+  const { document, SigK } = shell;
+  const pop = document.getElementById('color-pop');
+  const main = document.getElementById('props-fill-apply');
+  const bar = main.querySelector('.bar');
+  shell.pickColor('props-fill', '#ff0000');
+  assert.equal(bar.classList.contains('none'), false);
+  assert.equal(bar.style.background, 'rgb(255, 0, 0)');
+  click(shell, document.getElementById('props-fill'));
+  click(shell, pop.querySelector('.items .none'));
+  assert.equal(SigK.annotate.fillOf('square'), null);
+  assert.equal(SigK.colorMemory.lastOf('fill'), null);
+  assert.equal(bar.classList.contains('none'), true, 'カラーバーは黒枠に中身は白');
+  assert.equal(bar.style.background, '');
+  assert.equal(main.getAttribute('aria-label'), '塗りつぶしをなしに変更');
+  assert.equal(shell.uiCalls.some((patch) => patch.annotLastColors?.fill === null), true, 'settings.json に書く');
+  // 塗りつぶしのある四角を描き、左側のボタンをクリックすると、塗りつぶしなしを当てる。
+  shell.pickColor('props-fill', '#ffd966');
+  const node = document.querySelector('.pdf-page[data-page="1"]');
+  const px = (point) => SigK.viewer.getTextLayer(0).viewport.convertToViewportPoint(point[0], point[1]);
+  const mouse = (type, target, [x, y]) => target.dispatchEvent(new shell.window.MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 }));
+  mouse('mousedown', node, px([100, 700]));
+  mouse('mousemove', document.body, px([200, 600]));
+  mouse('mouseup', node, px([200, 600]));
+  const id = SigK.viewer.getAnnotations().added.at(-1).id;
+  const fillOf = () => SigK.viewer.getAnnotations().added.find((entry) => entry.id === id).fill;
+  assert.equal(fillOf(), '#ffd966');
+  assert.equal(bar.classList.contains('none'), false, '色を選ぶとカラーバーはその色');
+  click(shell, document.getElementById('props-fill'));
+  click(shell, pop.querySelector('.items .none'));
+  assert.equal(fillOf(), null);
+  // 元に戻すと塗りつぶしは #ffd966 に戻り、直前の色は塗りなしのまま。左側のボタンで塗りつぶしなしを当てる。
+  SigK.pageEdit.undo();
+  assert.equal(fillOf(), '#ffd966');
+  assert.equal(bar.classList.contains('none'), true);
+  click(shell, main);
+  assert.equal(fillOf(), null, '左側のボタンで塗りつぶしなしを当てる');
+});
+
 test('テキストの色のパレットには［なし］を出さず、窓の中のキーは紙の上の操作に取られない', async (t) => {
   const shell = await withSquareTool(t);
   const { document, SigK } = shell;

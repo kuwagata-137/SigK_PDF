@@ -336,11 +336,11 @@
     return true;
   }
 
-  // 色を選んだ。役割があれば直前の色にする（［なし］は直前の色にしない）。
+  // 色を選んだ。役割があれば直前の色にする（［なし］は塗りの［塗りなし］だけを直前の色にする。決定102 ⑤。color-memory.js）。
   function pick(color) {
     const options = state.options;
     close({ restoreFocus: true });
-    if (color !== null && options?.role)
+    if (options?.role)
       memory()?.setLast(options.role, color);
     options?.onPick?.(color);
   }

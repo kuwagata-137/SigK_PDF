@@ -175,12 +175,25 @@ function pickAnnotRecentColors(raw, fallback) {
   return [...new Set(source.map(normalizeHex).filter((color) => color !== null))].slice(0, ANNOT_RECENT_MAX);
 }
 
-// 直前の色。役割ごとに #rrggbb なら受け取り、一括は組の番号（0〜20 の整数）。無ければ fallback の値、それも無ければ既定。
+// 直前の色に塗りなし（null）を受け取る役割（塗りつぶしのカラーバーを「なし」にする。決定102 ⑤・質問 SH6 案B）。
+const ANNOT_LAST_NONE_ROLES = ['fill'];
+
+function pickAnnotLastColor(role, source, fallback) {
+  for (const value of [source[role], fallback?.[role]]) {
+    if (value === null && ANNOT_LAST_NONE_ROLES.includes(role))
+      return null;
+    if (normalizeHex(value) !== null)
+      return normalizeHex(value);
+  }
+  return ANNOT_DEFAULTS.annotLastColors[role];
+}
+
+// 直前の色。役割ごとに #rrggbb（塗りは null も）なら受け取り、一括は組の番号（0〜20 の整数）。無ければ fallback の値、それも無ければ既定。
 function pickAnnotLastColors(raw, fallback) {
   const source = objectOf(raw);
   const picked = {};
   for (const role of ANNOT_LAST_COLOR_ROLES)
-    picked[role] = normalizeHex(source[role]) ?? normalizeHex(fallback?.[role]) ?? ANNOT_DEFAULTS.annotLastColors[role];
+    picked[role] = pickAnnotLastColor(role, source, fallback);
   const isStyle = (value) => Number.isInteger(value) && value >= 0 && value < ANNOT_STYLE_SET_COUNT;
   picked.style = [source.style, fallback?.style].find(isStyle) ?? ANNOT_DEFAULTS.annotLastColors.style;
   return picked;
