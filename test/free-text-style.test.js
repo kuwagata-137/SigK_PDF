@@ -11,7 +11,7 @@ test('appliesTo はテキストの欄を、表示のみでないテキストに�
   const { SigK } = await withTextShell(t);
   const style = SigK.freeTextStyle;
   const text = { kind: 'text', fontSize: 12, text: 'あ', rect: [100, 681, 116, 700], rotation: 0 };
-  assert.deepEqual([...style.FIELDS], ['fontSize', 'bold', 'italic', 'fill', 'border', 'lineWidth']);
+  assert.deepEqual([...style.FIELDS], ['fontSize', 'bold', 'italic', 'fill', 'border', 'lineWidth', 'font']);
   assert.equal(style.appliesTo('fill', text, '#ffff00'), true);
   assert.equal(style.appliesTo('border', text, null), true);
   assert.equal(style.appliesTo('lineWidth', text, 2), false, '枠線が無ければ太さは当てない');

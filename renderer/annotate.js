@@ -139,6 +139,8 @@
     setFontSize: (size) => root.SigK.annotateTextStyle?.setFontSize(size) === true,
     // 太字・斜体（spec-4b-4a 確定事項G3）。field は 'bold' か 'italic'。
     setTextFlag: (field, value) => root.SigK.annotateTextStyle?.setTextFlag(field, value) === true,
+    // フォント（版 1.5.0 の③）。id はこのパソコンで使えるフォントの id。
+    setTextFont: (id) => root.SigK.annotateTextStyle?.setTextFont(id) === true,
     // テキストの枠線の色（spec-4b-4a 確定事項G4）。null は枠線なし。
     setBorder: (color) => root.SigK.annotateTextStyle?.setBorder(color) === true,
     getTextStyle: (tool = 'text') => root.SigK.annotateTextStyle?.getNextStyle(tool) ?? { bold: false, italic: false },

@@ -13,6 +13,9 @@ const DEFAULT_ANNOT_FONT_SIZE = 12;
 
 // 次に置くテキストの書式（spec-4b-4a 確定事項H1・H2）。既定は太字なし・斜体なし・塗りなし・枠線なし・枠線の太さ 1。
 // border は枠線の色、borderWidth は枠線を付けるときの太さ（図形の線の太さと同じ 1〜40 の整数）。
+// font はフォントの id（版 1.5.0 の③。worker/text-fonts.js の一覧）。既定の Noto Sans JP（質問 FT2 の推奨案A）は持たない
+// （今までの設定の形を変えない）。ユーザーがフォントを選んだ後だけ持つ。
+const { TEXT_FONTS } = require('./worker/text-fonts.js');
 const DEFAULT_ANNOT_TEXT_STYLE = Object.freeze({ bold: false, italic: false, fill: null, border: null, borderWidth: 1 });
 // 次に置く吹き出しの書式（spec-4b-4b 確定事項F2・F3。決定57 ⑪）。文字の大きさも持つ（テキストと別に覚える）。枠線の太さは既定の 1.5 も受ける。
 const DEFAULT_ANNOT_CALLOUT_STYLE = Object.freeze({ fontSize: 12, bold: false, italic: false, fill: '#ffffff', border: '#c00000', borderWidth: 1.5 });
@@ -37,6 +40,7 @@ const TEXT_STYLE_RULES = Object.freeze({
   fill: (value) => value === null || (typeof value === 'string' && HEX.test(value)),
   border: (value) => value === null || (typeof value === 'string' && HEX.test(value)),
   borderWidth: (value) => Number.isInteger(value) && value >= 1 && value <= 40,
+  font: (value) => TEXT_FONTS.some((font) => font.id === value),
 });
 
 const CALLOUT_STYLE_RULES = Object.freeze({
@@ -54,7 +58,10 @@ function pickStyle(raw, fallback, rules, defaults) {
     // null（塗りなし・枠線なし）も受け取れる値なので、?? ではなく見つかったかどうかで既定へ落とす。
     const found = [source[field], base[field]].find((candidate) => candidate !== undefined && valid(candidate));
     const value = found === undefined ? defaults[field] : found;
-    picked[field] = typeof value === 'string' ? value.toLowerCase() : value;
+    // 既定の無い欄（font）は、受け取れる値が無ければ持たない。
+    if (value === undefined)
+      continue;
+    picked[field] = typeof value === 'string' && field !== 'font' ? value.toLowerCase() : value;
   }
   return picked;
 }

@@ -15,6 +15,8 @@
   let current = null;
   // いま出している書式 { bold, italic, label }（bold・italic は { value, mixed }）。行を出していなければ null。
   let format = null;
+  // 「フォント」の行（版 1.5.0 の③。質問 FT1「案B」）。いま出している { value, mixed, label }。行を出していなければ null。
+  let font = null;
   // 数値の欄にフォーカスが入ったときの相手（targetKey）。フォーカスが無ければ null。
   let typingFor = null;
 
@@ -72,7 +74,43 @@
       const value = format[button.dataset.format];
       button.classList.toggle('on', isOn(value));
       button.setAttribute('aria-pressed', value?.mixed === true ? 'mixed' : String(isOn(value)));
+      // 太字の書体が無いフォント（MS ゴシック・MS 明朝）では［B］を押せない（質問 FT3 の推奨案A）。
+      if (button.dataset.format === 'bold')
+        button.disabled = format.boldDisabled === true;
     }
+    return true;
+  }
+
+  // 「フォント」の一覧の選択肢を、このパソコンで使えるフォントで作り直す（text-fonts.js の availableFonts。一覧の順）。
+  function fillFonts() {
+    const fonts = root.SigK.textFonts?.availableFonts() ?? [];
+    const ids = fonts.map((entry) => entry.id).join('|');
+    if (el.fontSelect.dataset.ids === ids)
+      return;
+    el.fontSelect.dataset.ids = ids;
+    const blank = el.doc.createElement('option');
+    blank.value = '';
+    blank.hidden = true;
+    el.fontSelect.replaceChildren(blank, ...fonts.map((entry) => {
+      const option = el.doc.createElement('option');
+      option.value = entry.id;
+      option.textContent = entry.label;
+      return option;
+    }));
+  }
+
+  // 「フォント」の行。view は null（行を隠す）か { value（フォントの id）, mixed, label }。そろっていなければ空にする。
+  // このパソコンで使えないフォント（ほかのパソコンで付けたテキスト）は、描いている Noto Sans JP を出す。
+  function renderFont(view) {
+    if (el === null || el.fontRow === null)
+      return false;
+    font = view ?? null;
+    el.fontRow.hidden = font === null;
+    if (font === null)
+      return true;
+    fillFonts();
+    el.fontLabel.textContent = font.label ?? 'フォント';
+    el.fontSelect.value = font.mixed ? '' : (root.SigK.textFonts?.usableFont(font.value).id ?? '');
     return true;
   }
 
@@ -136,7 +174,12 @@
       doc, sizeRow: byId('props-size-row'), label: byId('props-size-label'), size: byId('props-size'), list: byId('props-size-list'),
       formatRow: byId('props-format-row'), formatLabel: byId('props-format-label'),
       formatButtons: [...(byId('props-format')?.querySelectorAll('button[data-format]') ?? [])],
+      fontRow: byId('props-font-row'), fontLabel: byId('props-font-label'), fontSelect: byId('props-font'),
     };
+    el.fontSelect?.addEventListener('change', () => {
+      if (el.fontSelect.value !== '')
+        annotate().setTextFont(el.fontSelect.value);
+    });
     fillSizes(doc, el.list);
     bindFormat(el.formatButtons);
     el.size.addEventListener('focus', () => { typingFor = targetKey(); });
@@ -151,9 +194,11 @@
     // Esc は打ちかけを捨てて今の相手の値に戻し、欄から抜ける（spec-4b-7a 確定事項E1）。一覧は抜けるだけ。
     root.SigK.fieldEscape?.bind(el.size, { shown: () => (current === null || current.mixed ? '' : String(current.value)) });
     root.SigK.fieldEscape?.bind(el.list);
+    if (el.fontSelect !== null)
+      root.SigK.fieldEscape?.bind(el.fontSelect);
     return true;
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotationTextRows = { init, render, renderFormat };
+  SigK.annotationTextRows = { init, render, renderFormat, renderFont };
 })(typeof window !== 'undefined' ? window : globalThis);

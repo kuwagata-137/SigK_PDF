@@ -34,7 +34,9 @@
   // テキストの幅・太字・斜体・枠線を足し、塗りをテキストにも許した。間隔と強さは右パネルから変えない）。塗りの透明度とハッチングは
   // spec-7-9 確定事項B2・C1 で追加した。
   const PATCH_FIELDS = Object.freeze(['color', 'fill', 'lineStyle', 'text', 'fontSize', 'rect', 'quads', 'lineWidth', 'paths', 'opacity', 'angle',
-    'width', 'bold', 'italic', 'borderColor', 'borderWidth', 'callout', 'fillOpacity', 'hatch', 'marking']);
+    'width', 'bold', 'italic', 'borderColor', 'borderWidth', 'callout', 'fillOpacity', 'hatch', 'marking',
+    // テキストのフォント（版 1.5.0 の③。null は既定の Noto Sans JP に戻す）。
+    'font']);
 
   function rules() {
     return root.SigK.annotationEntryRules;

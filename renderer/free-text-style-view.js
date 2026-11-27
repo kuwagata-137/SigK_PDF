@@ -28,9 +28,22 @@
       return { fontSize: null, format: null, border: null };
     return {
       fontSize: { ...valueOf(texts, 'fontSize'), label: labelOf(texts, live, '文字サイズ') },
-      format: { bold: valueOf(texts, 'bold'), italic: valueOf(texts, 'italic'), label: labelOf(texts, live, '書式') },
+      format: { bold: valueOf(texts, 'bold'), italic: valueOf(texts, 'italic'), label: labelOf(texts, live, '書式'), ...boldDisabledOf(texts) },
       border: { ...valueOf(texts, 'border'), label: labelOf(texts, live, '枠線') },
     };
+  }
+
+  // ［B］は、どのテキストのフォントにも太字の書体が無ければ押せない（版 1.5.0 の③。質問 FT3 の推奨案A）。押せる時は空の形。
+  function boldDisabledOf(texts) {
+    return texts.every((target) => root.SigK.textFonts?.hasBold(target.font) === false) ? { boldDisabled: true } : {};
+  }
+
+  // 「フォント」の行（版 1.5.0 の③）。値はフォントの id（無い＝既定の Noto Sans JP）。テキストが無ければ null。
+  function fontViewOf(live) {
+    const texts = textsOf(live).map((target) => ({ font: target.font ?? root.SigK.textFonts?.DEFAULT_FONT_ID }));
+    if (texts.length === 0)
+      return null;
+    return { ...valueOf(texts, 'font'), label: labelOf(texts, live, 'フォント') };
   }
 
   // 太さの行。当たるものが無ければ null。
@@ -45,5 +58,5 @@
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.freeTextStyleView = { textViewsOf, widthViewOf };
+  SigK.freeTextStyleView = { textViewsOf, widthViewOf, fontViewOf };
 })(typeof window !== 'undefined' ? window : globalThis);

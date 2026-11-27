@@ -129,6 +129,7 @@
     // テキストの行（文字の大きさ・書式。annotation-text-rows.js）も同じ形から出し入れする（spec-4b-4a 確定事項G5）。
     root.SigK.annotationTextRows?.render(view?.fontSize ?? null);
     root.SigK.annotationTextRows?.renderFormat(view?.format ?? null);
+    root.SigK.annotationTextRows?.renderFont(view?.font ?? null);
     // 見出し「枠線」「塗り」と塗りの見出しの行（spec-7-9 確定事項B1。annotation-fill-rows.js）。
     root.SigK.annotationFillRows?.render(view);
     // 開いているパレットの行が消えたら閉じる。

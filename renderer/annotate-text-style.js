@@ -10,10 +10,11 @@
   // 選んでいる書き込みが吹き出しか、何も選んでいなければ持っている道具で決める。
 
   // 次に置くテキスト（text）と吹き出し（callout）の書式。border は枠線の色（null は枠線なし）、borderWidth は枠線を付けるときの太さ。
+  // font はフォントの id（版 1.5.0 の③）。既定の Noto Sans JP（質問 FT2 の推奨案A）の間は持たない。
   const nextStyles = { text: { bold: false, italic: false, fill: null, border: null, borderWidth: 1 }, callout: { ...root.SigK.annotationPresets.DEFAULT_CALLOUT_STYLE } };
   const SETTING_KEYS = Object.freeze({ text: 'annotTextStyle', callout: 'annotCalloutStyle' });
   // 欄の名前 → 次に付ける値の名前（文字の大きさは annotate-tools.js が覚える）。
-  const NEXT_KEYS = Object.freeze({ bold: 'bold', italic: 'italic', fill: 'fill', border: 'border', lineWidth: 'borderWidth' });
+  const NEXT_KEYS = Object.freeze({ bold: 'bold', italic: 'italic', fill: 'fill', border: 'border', lineWidth: 'borderWidth', font: 'font' });
 
   function annotate() {
     return root.SigK.annotate;
@@ -102,6 +103,20 @@
     return presets().isLineWidth(width) && applyText('lineWidth', width);
   }
 
+  // フォント（版 1.5.0 の③。このパソコンで使えるフォントの id）。太字の書体が無いフォントを選ぶと、太字を外し、次に付ける値も
+  // 太字なしにする（質問 FT3 の推奨案A。［B］を押せなくする）。
+  function setTextFont(id) {
+    const fonts = root.SigK.textFonts;
+    if (fonts?.isAvailable(id) !== true)
+      return false;
+    const tool = toolKey();
+    applyText('font', id);
+    if (!fonts.hasBold(id) && nextStyles[tool].bold === true)
+      rememberFor('bold', false, tool);
+    root.SigK.annotationProps?.refresh();
+    return true;
+  }
+
   // 次に置くテキスト（tool が 'callout' なら吹き出し。文字の大きさも持つ）の書式。
   function getNextStyle(tool = 'text') {
     return { ...nextStyles[tool === 'callout' ? 'callout' : 'text'] };
@@ -127,10 +142,12 @@
       next.borderWidth = style.borderWidth;
     if (tool === 'callout' && presets().isFontSize(style?.fontSize))
       next.fontSize = style.fontSize;
+    if (root.SigK.textFonts?.fontById(style?.font) !== null && typeof style?.font === 'string')
+      next.font = style.font;
     root.SigK.annotationProps?.refresh();
     return getNextStyle(tool);
   }
 
   const SigK = (root.SigK = root.SigK || {});
-  SigK.annotateTextStyle = { setFontSize, setTextFlag, setTextFill, setBorder, setBorderWidth, getNextStyle, applyNextStyle, rememberFor };
+  SigK.annotateTextStyle = { setFontSize, setTextFlag, setTextFill, setBorder, setBorderWidth, setTextFont, getNextStyle, applyNextStyle, rememberFor };
 })(typeof window !== 'undefined' ? window : globalThis);

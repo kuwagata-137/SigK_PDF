@@ -9,9 +9,9 @@
   // free-text-style-view.js が持つ。
 
   // 塗りの透明度（fillOpacity）とハッチング（hatch。種類・色・間隔・線幅の一部）は spec-7-9 確定事項B2・C1 で追加した。
-  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'fillOpacity', 'hatch']);
+  const FIELDS = Object.freeze(['color', 'strokeNone', 'fill', 'lineStyle', 'lineWidth', 'opacity', 'fontSize', 'bold', 'italic', 'border', 'fillOpacity', 'hatch', 'font']);
   // テキストにだけある欄（テキスト以外には当てない）。
-  const TEXT_ONLY = Object.freeze(['fontSize', 'bold', 'italic', 'border']);
+  const TEXT_ONLY = Object.freeze(['fontSize', 'bold', 'italic', 'border', 'font']);
 
   function style() {
     return root.SigK.shapeStyle;
@@ -125,6 +125,8 @@
       bold: text ? entry.bold === true : null,
       italic: text ? entry.italic === true : null,
       border,
+      // フォント（版 1.5.0 の③）。既定の Noto Sans JP 以外のテキストだけ持つ（無い＝Noto Sans JP）。
+      ...(text && entry.font !== undefined ? { font: entry.font } : {}),
     };
   }
 
@@ -177,6 +179,7 @@
       lineWidth: textView.widthViewOf(live),
       opacity: valueOf(live.filter((target) => isOpacityKind(target.kind)), 'opacity'),
       ...textView.textViewsOf(live),
+      font: textView.fontViewOf(live),
       // パレットの［なし］。線なしは塗りのある四角・丸があるとき、塗りなしは線のある四角・丸か、テキストがあるときに選べる。
       // 見出し「枠線」「塗り」で分けるか（塗りを持てる相手があり、テキストが無い時。spec-7-9 確定事項B1）と、塗りの行の値。
       split: boxed.length > 0 && texts.length === 0,

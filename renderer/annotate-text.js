@@ -59,8 +59,11 @@
 
   // 次に置くテキスト（tool が 'callout' なら吹き出し）の太字・斜体・塗り・枠線（持つものだけ。spec-4b-4a 確定事項H、spec-4b-4b 確定事項F3）。
   function nextFlags(tool) {
-    const { bold, italic, fill, border, borderWidth } = annotate().getTextStyle(tool);
-    return root.SigK.freeTextEntry.copyFields({ width: 'auto', bold, italic, fill, borderColor: border, borderWidth }, {});
+    const { bold, italic, fill, border, borderWidth, font } = annotate().getTextStyle(tool);
+    // フォント（版 1.5.0 の③）は、このパソコンで使えるものだけ（使えなければ Noto Sans JP）。太字の書体が無いフォントは太字なし。
+    const usable = root.SigK.textFonts?.isAvailable(font) === true ? font : undefined;
+    const withBold = bold === true && root.SigK.textFonts?.hasBold(usable) !== false;
+    return root.SigK.freeTextEntry.copyFields({ width: 'auto', bold: withBold, italic, fill, borderColor: border, borderWidth, font: usable }, {});
   }
 
   // テキストの道具で紙を押して離した点（.pdf-page 基準の CSS px）に入力欄を出す。callout なら吹き出し（下書きの callout は true。

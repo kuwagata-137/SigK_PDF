@@ -611,6 +611,9 @@ body{
         <div class="prop-head" id="props-stroke-head" hidden>枠線</div>
         <div class="prop" id="props-color-row" hidden><span class="k" id="props-color-label">色</span>
           <div class="chip-row"><span class="split"><button type="button" class="split-main" id="props-color-apply"><span class="ico" aria-hidden="true"></span><span class="bar"></span></button><button type="button" class="chip split-drop" id="props-color" aria-haspopup="dialog" aria-expanded="false"><span class="caret" aria-hidden="true">▼</span></button></span><span class="cur"><span class="cur-k">現在の色</span><span class="sw"></span><span class="name" id="props-color-name"></span></span></div></div>
+        <!-- フォント（版 1.5.0 の③。質問 FT1「案B」。「文字の色」の下）。選択肢はこのパソコンで使えるフォント。中身は annotation-text-rows.js。 -->
+        <div class="prop" id="props-font-row" hidden><span class="k" id="props-font-label">フォント</span>
+          <select class="props-select props-font" id="props-font" aria-label="フォント"></select></div>
         <!-- 文字の大きさ（spec-4b-4a 確定事項G1・G2。モック screenshots/phase4b-4-props.png）。数値の欄と、よく使う大きさの一覧（▼）。中身は annotation-text-rows.js。 -->
         <div class="prop" id="props-size-row" hidden><span class="k" id="props-size-label">文字サイズ</span>
           <div class="range size-field"><input type="number" class="props-field" id="props-size" min="8" max="200" step="0.5" aria-label="文字サイズ（pt）"><select class="size-list props-field" id="props-size-list" aria-label="よく使うサイズ"></select><span class="unit">pt</span></div></div>

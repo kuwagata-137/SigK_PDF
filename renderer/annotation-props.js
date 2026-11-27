@@ -98,8 +98,8 @@
   // テキストの道具（tool が 'callout' なら吹き出しの道具）の次に付ける書式（右パネルの形。太さの行は枠線があるときだけ。
   // spec-4b-4a 確定事項G1・H、spec-4b-4b 確定事項F3）。
   function textToolTarget(tool) {
-    const { fontSize, bold, italic, fill, border, borderWidth } = annotate().getTextStyle(tool);
-    return { fontSize: tool === 'callout' ? fontSize : annotate().getFontSize(), bold, italic, fill, border, lineWidth: border === null ? null : borderWidth };
+    const { fontSize, bold, italic, fill, border, borderWidth, font } = annotate().getTextStyle(tool);
+    return { fontSize: tool === 'callout' ? fontSize : annotate().getFontSize(), bold, italic, fill, border, lineWidth: border === null ? null : borderWidth, font };
   }
 
   // 道具が描く種類（図形は道具の段で選んだ種類、ペンは ink、ほかは道具の名前）。

@@ -128,6 +128,7 @@
       case 'italic':
       case 'borderColor':
       case 'borderWidth':
+      case 'font':
       case 'callout': return kind === 'text' && root.SigK.freeTextEntry.validPatchValue(field, value);
       default: return false;
     }
