@@ -4,12 +4,11 @@
   // 塗りの透明度とハッチングの指揮と、次に追加する書き込みの値（spec-7-9 確定事項B2・C3）。
   //
   // プロパティパネルの塗りの見出しの行（塗りの透明度・ハッチング・ハッチング色・ハッチング間隔・ハッチング線幅）から来た値を、選択中の
-  // 書き込みに当てて 1 世代積むか、選択していなければ図形の書き込みツールの「次に追加する書き込みの値」として記憶する（塗りつぶしの
-  // 記憶〔annotate-next-style.js の fills〕と同じ扱い。settings.json の annotFillOpacity・annotHatch）。2 件以上を選択していれば、
-  // 塗りを持てる全部に当てる（annotate-bulk.js）。当てる値と比べ方は annotation-style-patch.js。
+  // 書き込みに当てて 1 世代積むか、選択していなければ図形の書き込みツールの「次に追加する書き込みの値」として記憶する。記憶は書き込み
+  // ツール（四角・丸・多角形）ごとで、shape-tool-memory.js に置く（決定102 ⑨・質問 SH7 案B。settings.json の annotShapeStyles）。
+  // 2 件以上を選択していれば、塗りを持てる全部に当てる（annotate-bulk.js）。当てる値と比べ方は annotation-style-patch.js。
 
   const DEFAULT_MEMO = Object.freeze({ pattern: 'none', color: '#ff0000', gap: 6, width: 1 });
-  const state = { fillOpacity: 1, hatch: { ...DEFAULT_MEMO } };
 
   function annotate() {
     return root.SigK.annotate;
@@ -27,8 +26,8 @@
     root.SigK.annotationProps?.refresh();
   }
 
-  function persist(patch) {
-    root.SigK.shell?.persist?.(patch);
+  function memory() {
+    return root.SigK.shapeToolMemory;
   }
 
   // ---- 次に追加する書き込みの値 ----
@@ -37,13 +36,13 @@
   function nextFillOf(kind) {
     if (!style().isFillableKind(kind))
       return {};
-    const { pattern, color, gap, width } = state.hatch;
-    return { fillOpacity: state.fillOpacity, hatch: pattern === 'none' ? null : { pattern, color, gap, width } };
+    const { pattern, color, gap, width } = hatchMemo(kind);
+    return { fillOpacity: memory().get(kind, 'fillOpacity'), hatch: pattern === 'none' ? null : { pattern, color, gap, width } };
   }
 
-  // 今がなしの書き込みにハッチングの種類を当てる時に使う、色・間隔・線幅の記憶。
-  function hatchMemo() {
-    return { ...state.hatch };
+  // 今がなしの書き込みにハッチングの種類を当てる時に使う、書き込みツール kind の色・間隔・線幅の記憶。
+  function hatchMemo(kind) {
+    return memory()?.isShapeKind(kind) ? memory().get(kind, 'hatch') : { ...DEFAULT_MEMO };
   }
 
   function validPartial(partial) {
@@ -53,38 +52,15 @@
     return Object.keys(partial).length > 0 && Object.keys(partial).every((key) => key in DEFAULT_MEMO) && fill().validHatch(probe);
   }
 
-  // 起動時に settings.json から戻す。受け取れない値は捨てる。
-  function applyFillOpacity(values) {
-    if (fill().validFillOpacity(values?.shape) && values.shape >= 0.1)
-      state.fillOpacity = values.shape;
-    refresh();
-    return state.fillOpacity;
+  // 書き込みツール kind の塗りの透明度とハッチングを記憶する（塗りを持てる種類だけ。変わらなければ書かない）。
+  function rememberFillOpacity(value, kind) {
+    if (style().isFillableKind(kind))
+      memory().set(kind, 'fillOpacity', value);
   }
 
-  // ハッチングは欄ごとに受け取る（受け取れない欄だけを捨てる）。
-  function applyHatch(values) {
-    const memo = values?.shape ?? {};
-    for (const field of Object.keys(DEFAULT_MEMO)) {
-      if (memo[field] !== undefined && validPartial({ [field]: memo[field] }))
-        state.hatch[field] = typeof memo[field] === 'string' ? memo[field].toLowerCase() : memo[field];
-    }
-    refresh();
-    return hatchMemo();
-  }
-
-  function rememberFillOpacity(value) {
-    if (state.fillOpacity === value)
-      return;
-    state.fillOpacity = value;
-    persist({ annotFillOpacity: { shape: value } });
-  }
-
-  function rememberHatch(partial) {
-    const next = { ...state.hatch, ...partial, ...(typeof partial.color === 'string' ? { color: partial.color.toLowerCase() } : {}) };
-    if (Object.keys(next).every((key) => next[key] === state.hatch[key]))
-      return;
-    state.hatch = next;
-    persist({ annotHatch: { shape: { ...partial, ...(typeof partial.color === 'string' ? { color: next.color } : {}) } } });
+  function rememberHatch(partial, kind) {
+    if (style().isFillableKind(kind))
+      memory().setHatch(kind, partial);
   }
 
   // ---- 当てる ----
@@ -126,14 +102,14 @@
     if (entry === null) {
       if (!style().isFillableKind(toolKind()))
         return false;
-      remember(value);
+      remember(value, toolKind());
       refresh();
       return true;
     }
     if (entry.readonly === true || !style().canFill(entry))
       return false;
     updateSelected(entry, field, value);
-    remember(value);
+    remember(value, root.SigK.annotationPresets.kindOf(entry));
     refresh();
     return true;
   }
@@ -153,8 +129,7 @@
   }
 
   function reset() {
-    state.fillOpacity = 1;
-    state.hatch = { ...DEFAULT_MEMO };
+    memory()?.reset();
   }
 
   const SigK = (root.SigK = root.SigK || {});
@@ -162,8 +137,6 @@
     DEFAULT_MEMO,
     nextFillOf,
     hatchMemo,
-    applyFillOpacity,
-    applyHatch,
     rememberFillOpacity,
     rememberHatch,
     setFillOpacity,

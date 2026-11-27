@@ -435,6 +435,14 @@ const TEST_PRINTER_CONFIG = Object.freeze({
   ],
 });
 
+// 図形の書き込みツールごとの値（annotShapeStyles。決定102 ⑨）の部分更新を、メインと同じく種類ごと・欄ごとに重ねる。
+function mergeShapeStyles(current, patch) {
+  const merged = { ...(current ?? {}) };
+  for (const [kind, part] of Object.entries(patch ?? {}))
+    merged[kind] = { ...(merged[kind] ?? {}), ...part, hatch: { ...(merged[kind]?.hatch ?? {}), ...(part?.hatch ?? {}) } };
+  return merged;
+}
+
 async function createShell({
   appInfo = DEFAULT_APP_INFO,
   withApis = true,
@@ -756,6 +764,8 @@ async function createShell({
           // 図形の塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。ハッチングは欄ごとに重ねる。
           annotFillOpacity: { ...(savedUi.annotFillOpacity ?? {}), ...(patch?.annotFillOpacity ?? {}) },
           annotHatch: { shape: { ...(savedUi.annotHatch?.shape ?? {}), ...(patch?.annotHatch?.shape ?? {}) } },
+          // 図形の書き込みツールごとの値（決定102 ⑨）。種類ごと・欄ごとに重ね、ハッチングは欄の中まで重ねる。
+          annotShapeStyles: mergeShapeStyles(savedUi.annotShapeStyles, patch?.annotShapeStyles),
           // 四角・丸・×印の「縦横比を固定」（spec-7-9 確定事項D3）。
           annotKeepRatio: patch?.annotKeepRatio ?? savedUi.annotKeepRatio,
           // マーキングの次に配置する値（spec-7-9 確定事項F5）。欄ごとに重ねる。

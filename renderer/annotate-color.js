@@ -87,7 +87,7 @@
       return false;
     next().rememberColor(kind, value);
     if (style().isFillableKind(kind))
-      next().rememberShape('strokeNone', false);
+      next().rememberShape('strokeNone', false, kind);
     refresh();
     return true;
   }
@@ -115,7 +115,7 @@
       // 「あり」に戻す時に元の色を当てるため、なしにした後の鍵で記憶する（質問 SH5 案A。stroke-color-memo.js）。
       root.SigK.strokeColorMemo?.remember(annotate().getSelected(), before);
     }
-    next().rememberShape('strokeNone', true);
+    next().rememberShape('strokeNone', true, kind);
     refresh();
     return true;
   }
@@ -133,7 +133,7 @@
       return false;
     if (entry !== undefined && entry.color === null && !updateSelected(entry, { color: root.SigK.strokeColorMemo.colorOf(entry) }, 'color'))
       return false;
-    next().rememberShape('strokeNone', false);
+    next().rememberShape('strokeNone', false, kind);
     refresh();
     return true;
   }
@@ -155,9 +155,9 @@
       return false;
     if (entry !== undefined && style().fillOf(entry) !== value && !updateSelected(entry, { fill: value }, 'fill'))
       return false;
-    next().rememberShape('fills', value);
+    next().rememberShape('fills', value, kind);
     if (value === null)
-      next().rememberShape('strokeNone', false);
+      next().rememberShape('strokeNone', false, kind);
     refresh();
     return true;
   }
@@ -175,7 +175,7 @@
     if (entry !== undefined && style().lineStyleOf(entry) !== lineStyle && !updateSelected(entry, { lineStyle }, 'lineStyle'))
       return false;
     if (style().lineStylesOf(kind).length > 1)
-      next().rememberShape('lineStyles', lineStyle);
+      next().rememberShape('lineStyles', lineStyle, kind);
     refresh();
     return true;
   }

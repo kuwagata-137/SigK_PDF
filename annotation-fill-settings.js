@@ -35,16 +35,22 @@ function pickFillOpacity(raw, fallback) {
   return { shape: fillOpacityOf(objectOf(raw).shape) ?? fillOpacityOf(fallback?.shape) ?? DEFAULT_FILL_OPACITY };
 }
 
-// 欄ごとに受け取る。受け取れない欄は fallback、それも無ければ既定。色は小文字にそろえる。
-function pickHatch(raw, fallback) {
-  const source = objectOf(objectOf(raw).shape);
-  const base = objectOf(objectOf(fallback).shape);
+// ハッチングの記憶 1 つ（{ pattern, color, gap, width }）を欄ごとに受け取る。受け取れない欄は base、それも無ければ既定。
+// 色は小文字にそろえる。図形の書き込みツールごとの記憶（shape-style-settings.js。決定102 ⑨）も使う。
+function pickHatchMemo(raw, base) {
+  const source = objectOf(raw);
+  const fallback = objectOf(base);
   const picked = {};
   for (const [field, valid] of Object.entries(HATCH_RULES)) {
-    const value = [source[field], base[field]].find(valid) ?? DEFAULT_HATCH_MEMO[field];
+    const value = [source[field], fallback[field]].find(valid) ?? DEFAULT_HATCH_MEMO[field];
     picked[field] = typeof value === 'string' ? value.toLowerCase() : value;
   }
-  return { shape: picked };
+  return picked;
+}
+
+// 欄ごとに受け取る。受け取れない欄は fallback、それも無ければ既定。色は小文字にそろえる。
+function pickHatch(raw, fallback) {
+  return { shape: pickHatchMemo(objectOf(raw).shape, objectOf(fallback).shape) };
 }
 
 function fillDefaults() {
@@ -66,4 +72,4 @@ function mergeFillSettings(current, next) {
   return pickFillSettings({ annotFillOpacity: opacity, annotHatch: hatch }, { annotFillOpacity: current.annotFillOpacity, annotHatch: current.annotHatch });
 }
 
-module.exports = { HATCH_PATTERNS, DEFAULT_FILL_OPACITY, DEFAULT_HATCH_MEMO, fillDefaults, pickFillSettings, mergeFillSettings };
+module.exports = { HATCH_PATTERNS, DEFAULT_FILL_OPACITY, DEFAULT_HATCH_MEMO, fillDefaults, pickFillSettings, mergeFillSettings, fillOpacityOf, pickHatchMemo };

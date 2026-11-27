@@ -83,15 +83,19 @@ test('書き込みツールの塗りの透明度とハッチングは、次に�
   const { document, SigK } = shell;
   SigK.annotate.setTool('shape');
   SigK.annotate.setShapeKind('square');
+  // 書き込みツールごとに settings.json の annotShapeStyles へ書く（決定102 ⑨）。
   shell.slide('props-fill-opacity-range', [40, 70]);
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotFillOpacity: { shape: 0.3 } });
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { fillOpacity: 0.3 } } });
   change(shell, 'props-hatch', 'cross');
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotHatch: { shape: { pattern: 'cross' } } });
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { hatch: { pattern: 'cross' } } } });
   assert.deepEqual(shownIds(document).slice(-4), ['hatch', 'hatch-color', 'hatch-gap', 'hatch-width']);
   change(shell, 'props-hatch-gap', 9);
   change(shell, 'props-hatch-width', 1.5);
   shell.pickColor('props-hatch-color', '#0070c0');
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotHatch: { shape: { color: '#0070c0' } } });
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { hatch: { color: '#0070c0' } } } });
+  // 丸の書き込みツールは、四角で選んだ値を引き継がない。
+  const circle = plain(SigK.annotate.nextStyleOf('circle'));
+  assert.deepEqual([circle.fillOpacity, circle.hatch], [1, null]);
   // 範囲の外は当てずに、今の値へ戻す。
   change(shell, 'props-hatch-gap', 80);
   assert.equal(document.getElementById('props-hatch-gap').value, '9');

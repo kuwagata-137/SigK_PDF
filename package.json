@@ -47,6 +47,7 @@
       "annotation-fill-settings.js",
       "annotation-ratio-settings.js",
       "marking-settings.js",
+      "shape-style-settings.js",
       "errorlog.js",
       "error-capture.js",
       "log-folder.js",

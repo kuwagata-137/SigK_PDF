@@ -80,7 +80,7 @@
     const { kind, src, from } = anchor;
     const next = annotate().nextStyleOf(kind);
     const style = root.SigK.shapeStyle;
-    const lineWidth = annotate().getLineWidth();
+    const lineWidth = annotate().getLineWidth(kind);
     const paths = [[[...from], to]];
     const entry = { src, kind, color: next.color ?? root.SigK.annotateNextStyle.colorOf(kind), opacity: annotate().getOpacity(kind), lineWidth, paths, ...root.SigK.shapeGeometry.rectOfShape({ kind, paths, lineWidth }) };
     return next.lineStyle !== 'solid' && style.lineStylesOf(kind).includes(next.lineStyle) ? style.restyle(entry, next.lineStyle) : entry;

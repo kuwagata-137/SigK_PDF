@@ -55,13 +55,9 @@
       root.SigK.pointerMode?.apply(result.ui.viewPointer);
       // 注釈の色と文字の大きさ（spec-4-1 確定事項34、spec-4-2 確定事項21）。古い settings.json には無いことがある。
       root.SigK.annotate?.applyColors(result.ui.annotColors);
-      // 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。
-      root.SigK.annotate?.applyFills(result.ui.annotFills);
-      root.SigK.annotate?.applyStrokeNone(result.ui.annotStrokeNone);
-      root.SigK.annotate?.applyLineStyles(result.ui.annotLineStyles);
-      // 図形の塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
-      root.SigK.annotateFill?.applyFillOpacity(result.ui.annotFillOpacity);
-      root.SigK.annotateFill?.applyHatch(result.ui.annotHatch);
+      // 図形の書き込みツールごとの線の色・塗り・線なし・線種・線の太さ・透明度・塗りの透明度・ハッチング（決定102 ⑨・質問 SH7 案B）。
+      // 種類の値が無い欄は、版 1.4.0 までの共有の値（annotColors.shape など）を転記する。
+      root.SigK.shapeToolMemory?.apply(result.ui);
       // 四角・丸・×印の「縦横比を固定」（spec-7-9 確定事項D3）。古い settings.json には無いことがある。
       root.SigK.shapeRatio?.apply(result.ui.annotKeepRatio);
       // マーキングの次に配置する形・大きさ・線の太さ（spec-7-9 確定事項F5）。古い settings.json には無いことがある。

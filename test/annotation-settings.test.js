@@ -13,7 +13,7 @@ const {
 } = require('../annotation-settings.js');
 const settings = require('../settings.js');
 
-const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFillOpacity', 'annotHatch', 'annotKeepRatio', 'annotMarking', 'annotFontSize', 'annotTextStyle', 'annotCalloutStyle', 'annotLineWidth', 'annotMarkerWidth',
+const KEYS = ['annotColors', 'annotFills', 'annotStrokeNone', 'annotLineStyles', 'annotFillOpacity', 'annotHatch', 'annotKeepRatio', 'annotMarking', 'annotShapeStyles', 'annotFontSize', 'annotTextStyle', 'annotCalloutStyle', 'annotLineWidth', 'annotMarkerWidth',
   'annotShapeKind', 'annotOpacity', 'annotAuthor', 'annotMosaicBlock', 'annotRecentColors', 'annotLastColors', 'annotPaletteVersion'];
 const UI_KEYS = KEYS.filter((key) => key !== 'annotPaletteVersion');
 

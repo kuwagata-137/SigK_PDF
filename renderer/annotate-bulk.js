@@ -62,46 +62,44 @@
 
   // 当てた欄の値を、当てた書き込みの種類ごとに「次に付ける値」としても覚える（確定事項I4。1 件のときと同じ決まり）。
   // テキストの書式（文字の大きさ・太字・斜体・塗り・枠線・枠線の太さ）は annotate-text-style.js が覚える（spec-4b-4a 確定事項H）。
+  // 図形の値は、当てた書き込みの種類（四角・丸など）ごとに覚える（決定102 ⑨・質問 SH7 案B。shape-tool-memory.js）。
   function rememberNext(field, value, kinds) {
     const next = root.SigK.annotateNextStyle;
     const style = root.SigK.shapeStyle;
-    const boxed = kinds.some((kind) => style.isFillableKind(kind));
+    const boxed = kinds.filter((kind) => style.isFillableKind(kind));
     if (field !== 'color' && field !== 'opacity') {
       for (const tool of ['text', 'callout'].filter((each) => kinds.includes(each)))
         root.SigK.annotateTextStyle.rememberFor(field, value, tool);
     }
     if (field === 'color') {
       kinds.forEach((kind) => next.rememberColor(kind, value));
-      if (boxed)
-        next.rememberShape('strokeNone', false);
-    } else if (field === 'strokeNone') {
-      next.rememberShape('strokeNone', true);
-    } else if (field === 'strokeOn' && boxed) {
-      // 枠線「あり」（決定102 ④）。
-      next.rememberShape('strokeNone', false);
-    } else if (field === 'fill' && boxed) {
-      next.rememberShape('fills', value);
+      boxed.forEach((kind) => next.rememberShape('strokeNone', false, kind));
+    } else if (field === 'strokeNone' || field === 'strokeOn') {
+      // 枠線「あり」（strokeOn。決定102 ④）は線なしを外す。
+      boxed.forEach((kind) => next.rememberShape('strokeNone', field === 'strokeNone', kind));
+    } else if (field === 'fill') {
+      boxed.forEach((kind) => next.rememberShape('fills', value, kind));
       if (value === null)
-        next.rememberShape('strokeNone', false);
-    } else if (field === 'lineStyle' && kinds.some((kind) => style.lineStylesOf(kind).length > 1)) {
-      next.rememberShape('lineStyles', value);
-    } else if (field === 'lineWidth' && kinds.some((kind) => kind === 'marker' || root.SigK.annotationEntry.isDrawnKind(kind))) {
-      // マーカーの太さは別に覚える（spec-4b-5b 確定事項4）。
-      if (kinds.includes('marker'))
-        root.SigK.annotateShape.rememberLineWidth(value, 'marker');
-      // マーキングの太さも別に記憶する（spec-7-9 確定事項F5）。
-      if (kinds.includes('marking'))
-        root.SigK.annotateShape.rememberLineWidth(value, 'marking');
-      if (kinds.some((kind) => kind !== 'marking' && root.SigK.annotationEntry.isDrawnKind(kind)))
-        root.SigK.annotateShape.rememberLineWidth(value);
+        boxed.forEach((kind) => next.rememberShape('strokeNone', false, kind));
+    } else if (field === 'lineStyle') {
+      kinds.filter((kind) => style.lineStylesOf(kind).length > 1).forEach((kind) => next.rememberShape('lineStyles', value, kind));
+    } else if (field === 'lineWidth') {
+      rememberLineWidths(value, kinds);
     } else if (field === 'opacity') {
       kinds.forEach((kind) => root.SigK.annotateOpacity.rememberOpacity(kind, value));
-    } else if (field === 'fillOpacity' && boxed) {
+    } else if (field === 'fillOpacity') {
       // 塗りの透明度とハッチング（spec-7-9 確定事項B2・C3）。
-      root.SigK.annotateFill.rememberFillOpacity(value);
-    } else if (field === 'hatch' && boxed) {
-      root.SigK.annotateFill.rememberHatch(value);
+      boxed.forEach((kind) => root.SigK.annotateFill.rememberFillOpacity(value, kind));
+    } else if (field === 'hatch') {
+      boxed.forEach((kind) => root.SigK.annotateFill.rememberHatch(value, kind));
     }
+  }
+
+  // 線の太さ。マーカー（spec-4b-5b 確定事項4）・マーキング（spec-7-9 確定事項F5）・図形の種類ごと（決定102 ⑨）・ペンを別に覚える。
+  function rememberLineWidths(value, kinds) {
+    const shape = root.SigK.annotateShape;
+    for (const kind of kinds.filter((each) => each === 'marker' || root.SigK.annotationEntry.isDrawnKind(each)))
+      shape.rememberLineWidth(value, kind);
   }
 
   // 枠線のあり・なし（決定102 ④）を、続けて変えた時に畳む欄の名前。

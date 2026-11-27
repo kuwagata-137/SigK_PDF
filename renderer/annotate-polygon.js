@@ -93,7 +93,7 @@
     const style = root.SigK.shapeStyle;
     const geometry = root.SigK.shapeGeometry;
     const kind = !shape.closed && shape.vertices.length === 2 ? 'line' : 'polygon';
-    const lineWidth = annotate().getLineWidth();
+    const lineWidth = annotate().getLineWidth('polygon');
     const paths = [shape.vertices];
     const filled = kind === 'polygon' && shape.closed && next.fill !== null;
     let entry = {
@@ -156,7 +156,7 @@
   // 下書きの絵（annotation-layer.js が描く）。置いた辺は確定後と同じ見た目の開いた多角形、印は頂点・次の辺・輪。
   function lookOf() {
     const next = annotate().nextStyleOf('polygon');
-    return { color: root.SigK.annotateNextStyle.colorOf('polygon'), lineWidth: annotate().getLineWidth(), lineStyle: next.lineStyle, opacity: annotate().getOpacity('polygon') };
+    return { color: root.SigK.annotateNextStyle.colorOf('polygon'), lineWidth: annotate().getLineWidth('polygon'), lineStyle: next.lineStyle, opacity: annotate().getOpacity('polygon') };
   }
 
   function draftFor(index) {

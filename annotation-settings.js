@@ -14,6 +14,8 @@ const { fillDefaults, pickFillSettings, mergeFillSettings } = require('./annotat
 const { ratioDefaults, pickRatioSettings, mergeRatioSettings } = require('./annotation-ratio-settings.js');
 // マーキングの次に配置する値（spec-7-9 確定事項F5）。
 const { markingDefaults, migrateMarking, pickMarkingSettings, mergeMarkingSettings } = require('./marking-settings.js');
+// 図形の書き込みツールごとの、次に追加する書き込みの値（決定102 ⑨・質問 SH7 案B）。
+const { shapeStyleDefaults, pickShapeStyleSettings, mergeShapeStyleSettings } = require('./shape-style-settings.js');
 
 // 色の移し替えを済ませた設定に書く印。1 が候補の色の移し替え（確定事項15）、2 が図形の既定の色の移し替え
 // （#c00000 → #ff0000。2026-10-14 のユーザーの指示）、3 が版 1.5.0 の移し替え（マーキングの既定。決定102 ⑥。marking-settings.js）。
@@ -29,6 +31,7 @@ const ANNOT_DEFAULTS = {
   ...fillDefaults(),
   ...ratioDefaults(),
   ...markingDefaults(),
+  ...shapeStyleDefaults(),
   ...textDefaults(),
   annotLineWidth: 2,
   annotMarkerWidth: 12,
@@ -212,7 +215,7 @@ function pickAnnotSettings(source) {
   const raw = objectOf(source);
   const colors = migrateColors(raw.annotColors, raw.annotPaletteVersion);
   const annotFills = pickAnnotFills(raw.annotFills, ANNOT_DEFAULTS.annotFills);
-  return {
+  const picked = {
     annotColors: pickAnnotColors(colors, ANNOT_DEFAULTS.annotColors),
     annotFills,
     annotStrokeNone: pickAnnotStrokeNone(raw.annotStrokeNone, ANNOT_DEFAULTS.annotStrokeNone, annotFills),
@@ -231,6 +234,10 @@ function pickAnnotSettings(source) {
     annotLastColors: pickAnnotLastColors(raw.annotLastColors, ANNOT_DEFAULTS.annotLastColors),
     annotPaletteVersion: ANNOT_PALETTE_VERSION,
   };
+  // 図形の書き込みツールごとの値。種類の値が無い欄は、上で受け取った共有の値を転記する（版 1.5.0 の移し替え。決定102 ⑨）。
+  // キーの並びは ANNOT_DEFAULTS と同じにする（settings.json に書く並び）。
+  const all = { ...picked, ...pickShapeStyleSettings(raw, picked) };
+  return Object.fromEntries(Object.keys(ANNOT_DEFAULTS).map((key) => [key, all[key]]));
 }
 
 // 部分更新の注釈のキー。色・塗り・線なし・線種・不透明度は種類（道具）ごとに重ねる。{ annotColors: { highlight } } を
@@ -247,6 +254,7 @@ function mergeAnnotUi(current, next) {
     ...mergeFillSettings(current, next),
     ...mergeRatioSettings(current, next),
     ...mergeMarkingSettings(current, next),
+    ...mergeShapeStyleSettings(current, next),
     ...pickTextSettings({ ...next, annotTextStyle: merged('annotTextStyle'), annotCalloutStyle: merged('annotCalloutStyle') }, current),
     annotLineWidth: pickAnnotLineWidth(next.annotLineWidth, current.annotLineWidth),
     annotMarkerWidth: pickAnnotLineWidth(next.annotMarkerWidth, current.annotMarkerWidth, ANNOT_DEFAULTS.annotMarkerWidth),

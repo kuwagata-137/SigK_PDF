@@ -107,7 +107,7 @@
   // 色・間隔・線幅を使う（annotate-fill.js）。
   function hatchPatchOf(entry, partial) {
     const current = fill().hatchOf(entry);
-    const next = fill().mergeHatch(current, partial, root.SigK.annotateFill?.hatchMemo());
+    const next = fill().mergeHatch(current, partial, root.SigK.annotateFill?.hatchMemo(root.SigK.annotationPresets.kindOf(entry)));
     if (next === null)
       return current === null ? null : { hatch: null };
     return current !== null && ['pattern', 'color', 'gap', 'width'].every((key) => current[key] === next[key]) ? null : { hatch: next };

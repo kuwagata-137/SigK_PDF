@@ -27,8 +27,14 @@
     return root.SigK.annotationProps;
   }
 
-  // 道具（か種類）の次に付ける不透明度。対象外なら 1。
+  function memory() {
+    return root.SigK.shapeToolMemory;
+  }
+
+  // 道具（か種類）の次に付ける不透明度。対象外なら 1。図形は書き込みツールごとに記憶する（決定102 ⑨。shape-tool-memory.js）。
   function opacityOf(kind) {
+    if (memory()?.isShapeKind(kind))
+      return memory().get(kind, 'opacity');
     const palette = paletteOf(kind);
     return OPACITY_TOOLS.includes(palette) ? state.opacities[palette] : 1;
   }
@@ -48,6 +54,8 @@
   }
 
   function rememberOpacity(kind, value) {
+    if (memory()?.isShapeKind(kind))
+      return isOpacity(value) && (memory().set(kind, 'opacity', value) || memory().get(kind, 'opacity') === value);
     const palette = paletteOf(kind);
     if (!OPACITY_TOOLS.includes(palette) || !isOpacity(value))
       return false;
@@ -80,8 +88,10 @@
       return root.SigK.annotateBulk.applyField('opacity', value);
     const entry = annotate().selectedEntry();
     if (entry === null) {
-      const tool = annotate().drawingTool();
-      if (tool === null || !rememberOpacity(tool, value))
+      // 図形の書き込みツールは、編集ツールバーで選んだ種類（四角・丸など）の値として記憶する（決定102 ⑨）。
+      const drawing = annotate().drawingTool();
+      const tool = drawing === 'shape' ? root.SigK.annotateShape?.getShapeKind() : drawing;
+      if (tool === null || tool === undefined || !rememberOpacity(tool, value))
         return false;
       props()?.refresh();
       return true;

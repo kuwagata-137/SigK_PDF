@@ -96,7 +96,7 @@ test('書き込みを選択していない時は、次に描く四角の枠線�
   SigK.annotate.setShapeKind('square');
   SigK.annotate.setFill('#ddebf7');
   choose(shell, radios(document).off);
-  assert.equal(shell.uiCalls.some((patch) => patch.annotStrokeNone?.shape === true), true);
+  assert.equal(shell.uiCalls.some((patch) => patch.annotShapeStyles?.square?.strokeNone === true), true);
   const id = draw(shell, 'square', [100, 700], [200, 600]);
   assert.equal(entryOf(shell, id).color, null);
   SigK.annotate.select(null);

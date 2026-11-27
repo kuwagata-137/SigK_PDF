@@ -231,7 +231,11 @@ const DEFAULT_SHAPE_STYLE = { annotFills: { shape: null }, annotStrokeNone: { sh
   // 縦横比を固定（spec-7-9 確定事項D3）。
   annotKeepRatio: false,
   // マーキングの次に配置する値（spec-7-9 確定事項F5。既定は決定102 ⑥）。
-  annotMarking: { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 } };
+  annotMarking: { shape: 'target', outer: 100, dot: 15, ring: 16, cross: 150, fontSize: 16, lineWidth: 3 },
+  // 図形の書き込みツールごとの値（決定102 ⑨）。
+  annotShapeStyles: Object.fromEntries(['square', 'circle', 'line', 'arrow', 'cross', 'polygon'].map((kind) => [kind, {
+    color: '#ff0000', fill: null, strokeNone: false, lineStyle: 'solid', lineWidth: 2, opacity: 1, fillOpacity: 1, hatch: { pattern: 'none', color: '#ff0000', gap: 6, width: 1 },
+  }])) };
 // 最近使用した色と直前の色（spec-7-2 確定事項A4・B2）。
 const DEFAULT_COLOR_MEMORY = { annotRecentColors: [], annotLastColors: { line: '#ed7d31', fill: '#5b9bd5', font: '#ff0000', mark: '#ffff00', style: 8 } };
 const DEFAULT_OPACITY = { text: 1, callout: 1, shape: 1, pen: 1, marker: 1, note: 1, marking: 1 };
@@ -424,8 +428,12 @@ test('印 2 の settings.json のマーキングの 1.4.0 の既定は、読み�
 // 図形の塗り・線なし・線種（spec-4b-1b 確定事項23〜25）。線と塗りを両方なしにはできない。
 test('annotFills・annotStrokeNone・annotLineStyles は図形の値を受け取り、種類ごとに重ねる', () => {
   assert.deepEqual(mergeDefaults({}).annotFills, { shape: null });
-  assert.deepEqual(mergeDefaults({ annotFills: { shape: '#FFD966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'dashed' } }),
-    { ...mergeDefaults({}), annotFills: { shape: '#ffd966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'dashed' } });
+  const { annotShapeStyles, ...legacy } = mergeDefaults({ annotFills: { shape: '#FFD966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'dashed' } });
+  const { annotShapeStyles: defaultStyles, ...defaults } = mergeDefaults({});
+  assert.deepEqual(legacy, { ...defaults, annotFills: { shape: '#ffd966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'dashed' } });
+  // 版 1.4.0 までの共有の値は、図形の書き込みツールごとの値へ転記する（決定102 ⑨）。
+  assert.deepEqual([annotShapeStyles.square.fill, annotShapeStyles.square.strokeNone, annotShapeStyles.circle.lineStyle], ['#ffd966', true, 'dashed']);
+  assert.equal(defaultStyles.square.fill, null);
   assert.deepEqual(mergeDefaults({ annotStrokeNone: { shape: true } }).annotStrokeNone, { shape: false }, '塗りが無ければ線は消せない');
   const current = { mode: 'annot', pageLayout: 'single', sidePanel: { open: true, width: 300 }, annotFills: { shape: '#ffd966' }, annotStrokeNone: { shape: true }, annotLineStyles: { shape: 'cloudy' } };
   assert.deepEqual(mergeUi(current, { annotLineStyles: { shape: 'dashed' } }).annotLineStyles, { shape: 'dashed' });

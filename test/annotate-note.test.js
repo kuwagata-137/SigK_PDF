@@ -363,12 +363,13 @@ test('「不透明度」の行は対象の道具と注釈で出て、道具ご�
   // 透明度 0〜90% のスライダーと数値欄（spec-4b-1b 確定事項7。名前と向きは spec-7-9 確定事項B3）。
   assert.deepEqual([number.min, number.max, number.value], ['0', '90', '0']);
   shell.slide('props-opacity-range', [20, 50]);
-  assert.equal(SigK.annotate.getOpacity('shape'), 0.5);
+  // 図形は書き込みツール（編集ツールバーで選んだ種類。既定は四角）ごとに記憶する（決定102 ⑨）。
   assert.equal(SigK.annotate.getOpacity('square'), 0.5);
+  assert.equal(SigK.annotate.getOpacity('circle'), 1);
   assert.equal(SigK.annotate.getOpacity('pen'), 1);
   assert.equal(SigK.annotate.getOpacity('highlight'), 1);
   await shell.flush();
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotOpacity: { shape: 0.5 } });
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { opacity: 0.5 } } });
   assert.equal(SigK.pageEdit.canUndo(), false, '編集ではない');
   // 道具を持っていなければ断る。10〜100% の外も断る（spec-4b-1b 確定事項20）。
   SigK.annotate.setTool(null);

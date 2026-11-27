@@ -122,7 +122,9 @@ test('複数に当てた値は、当てた種類ごとに次に付ける値に�
   SigK.annotate.setColor('#123456');
   SigK.annotate.setOpacity(0.6);
   const after = SigK.annotate.getColors();
-  assert.equal(after.shape, '#123456');
+  // 図形は書き込みツールごとに記憶する（決定102 ⑨）。四角だけが変わり、丸は変わらない。
+  assert.equal(SigK.annotate.colorOf('square'), '#123456');
+  assert.equal(SigK.annotate.colorOf('circle'), '#ff0000');
   assert.equal(after.pen, '#123456');
   assert.equal(after.text, before.text, 'テキストの色は変わらない');
   assert.equal(SigK.annotate.getOpacity('ink'), 0.6);

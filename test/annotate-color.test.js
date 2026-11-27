@@ -59,13 +59,14 @@ test('四角の道具で塗り・線なし・線種を選ぶと次に描く四�
   assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#ff0000', fill: null, lineStyle: 'solid', fillOpacity: 1, hatch: null });
   // 塗りなしのまま線なしにはできない（線と塗りを両方なしにはできない。確定事項4）。
   assert.equal(SigK.annotate.setStrokeNone(), false);
+  // 図形の値は書き込みツールごとに settings.json の annotShapeStyles へ書く（決定102 ⑨）。
   assert.equal(SigK.annotate.setFill('#FFFF00'), true);
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotFills: { shape: '#ffff00' } });
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { fill: '#ffff00' } } });
   assert.equal(SigK.annotate.setStrokeNone(), true);
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotStrokeNone: { shape: true } });
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { strokeNone: true } } });
   assert.equal(SigK.annotate.setFill(null), false, '線なしのまま塗りなしにはできない');
   assert.equal(SigK.annotate.setLineStyle('cloudy'), true);
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotLineStyles: { shape: 'cloudy' } });
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { lineStyle: 'cloudy' } } });
   assert.equal(SigK.pageEdit.canUndo(), false, '次に付ける値は編集ではない');
 
   drag(shell, [100, 700], [300, 600]);
@@ -75,10 +76,13 @@ test('四角の道具で塗り・線なし・線種を選ぶと次に描く四�
   SigK.annotate.select(null);
   assert.equal(SigK.annotate.setColor('#4472c4'), true);
   assert.deepEqual(plain(SigK.annotate.nextStyleOf('square')), { color: '#4472c4', fill: '#ffff00', lineStyle: 'cloudy', fillOpacity: 1, hatch: null });
-  assert.deepEqual(plain(shell.uiCalls.slice(-2)), [{ annotColors: { shape: '#4472c4' } }, { annotStrokeNone: { shape: false } }]);
+  assert.deepEqual(plain(shell.uiCalls.slice(-2)), [{ annotShapeStyles: { square: { color: '#4472c4' } } }, { annotShapeStyles: { square: { strokeNone: false } } }]);
   // 塗りを外すと線なしの印も外れる。
   assert.equal(SigK.annotate.setFill(null), true);
   assert.equal(SigK.annotate.fillOf('square'), null);
+  // 丸の書き込みツールは、四角で選んだ値を引き継がない（決定102 ⑨・質問 SH7 案B）。
+  shapeTool(shell, 'circle');
+  assert.deepEqual(plain(SigK.annotate.nextStyleOf('circle')), { color: '#ff0000', fill: null, lineStyle: 'solid', fillOpacity: 1, hatch: null });
 });
 
 test('直線・矢印の道具は塗りと雲形を持たず、覚えた雲形は実線として描く', async (t) => {
@@ -99,7 +103,9 @@ test('直線・矢印の道具は塗りと雲形を持たず、覚えた雲形�
   SigK.annotate.setTool('pen');
   assert.equal(SigK.annotate.setLineStyle('dashed'), false);
   assert.equal(SigK.annotate.setLineStyle('solid'), true);
-  assert.equal(SigK.annotate.lineStyleOf('square'), 'dashed');
+  // 矢印で選んだ破線は矢印にだけ記憶し、四角は起動時の値（版 1.4.0 までの共有の値を転記した雲形）のまま（決定102 ⑨）。
+  assert.equal(SigK.annotate.lineStyleOf('arrow'), 'dashed');
+  assert.equal(SigK.annotate.lineStyleOf('square'), 'cloudy');
 });
 
 test('覚えた塗り・線なし・線種は起動時に戻り、範囲の外は捨てる', async (t) => {

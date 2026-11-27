@@ -78,8 +78,8 @@
       return;
     }
     next.rememberColor(kind, set.stroke);
-    next.rememberShape('strokeNone', false);
-    next.rememberShape('fills', set.fill);
+    next.rememberShape('strokeNone', false, kind);
+    next.rememberShape('fills', set.fill, kind);
   }
 
   function toolKind() {

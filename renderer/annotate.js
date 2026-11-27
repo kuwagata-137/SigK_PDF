@@ -123,9 +123,7 @@
     lineStyleOf: (kind) => nextStyle().lineStyleOf(kind),
     nextStyleOf: (kind) => nextStyle().nextStyleOf(kind),
     applyColors: (colors) => nextStyle().applyColors(colors),
-    applyFills: (fills) => nextStyle().applyFills(fills),
-    applyStrokeNone: (values) => nextStyle().applyStrokeNone(values),
-    applyLineStyles: (lineStyles) => nextStyle().applyLineStyles(lineStyles),
+    // 図形の書き込みツールごとの値（決定102 ⑨。shape-tool-memory.js）は、起動時に app.js が shapeToolMemory.apply で戻す。
     setColor: (color) => annotateColor().setColor(color),
     setStrokeNone: () => annotateColor().setStrokeNone(),
     setStrokeOn: () => annotateColor().setStrokeOn(),

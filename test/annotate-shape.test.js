@@ -334,8 +334,11 @@ test('線の太さは選んでいる図形を変えて /Rect を作り直し、�
   const after = SigK.viewer.getAnnotations().added[0];
   assert.equal(after.lineWidth, 8);
   near(after.rect[1], 496);
-  assert.equal(SigK.annotateShape.getLineWidth(), 8);
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotLineWidth: 8 });
+  // 図形の線の太さは書き込みツールごとに記憶し、ペンの太さとも別にする（決定102 ⑨）。
+  assert.equal(SigK.annotateShape.getLineWidth('line'), 8);
+  assert.equal(SigK.annotateShape.getLineWidth('square'), 2);
+  assert.equal(SigK.annotateShape.getLineWidth('ink'), 2);
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { line: { lineWidth: 8 } } });
   SigK.pageEdit.undo();
   assert.equal(SigK.viewer.getAnnotations().added[0].lineWidth, 2);
   // 選んでいなければ次の太さだけ
@@ -356,10 +359,11 @@ test('色は図形とペンで別々に覚え、選んでいる図形の色を�
   const shell = await withTool(t, 'shape');
   const { SigK } = shell;
   assert.equal(SigK.annotate.setColor('#4472c4'), true);
-  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotColors: { shape: '#4472c4' } });
+  // 図形の色は書き込みツールごとに記憶する（決定102 ⑨）。四角の色を変えても、矢印は既定の色のまま。
+  assert.deepEqual(plain(shell.uiCalls.at(-1)), { annotShapeStyles: { square: { color: '#4472c4' } } });
   assert.equal(SigK.annotate.colorOf('pen'), '#c00000');
   assert.equal(SigK.annotate.colorOf('ink'), '#c00000');
-  assert.equal(SigK.annotate.colorOf('arrow'), '#4472c4');
+  assert.equal(SigK.annotate.colorOf('arrow'), '#ff0000');
   drag(shell, [100, 700], [300, 600]);
   const entry = SigK.viewer.getAnnotations().added[0];
   assert.equal(entry.color, '#4472c4');
@@ -378,6 +382,8 @@ test('覚えた太さと種類は起動時に戻る', async (t) => {
   const shell = await withShell(t, { ui: { mode: 'view', pageLayout: 'single', sidePanel: { open: true, width: 240 }, annotLineWidth: 5, annotShapeKind: 'arrow' } });
   await shell.flush();
   assert.equal(shell.SigK.annotateShape.getLineWidth(), 5);
+  // 図形の種類ごとの値が無い時は、版 1.4.0 までの共有の太さを転記する（決定102 ⑨）。
+  assert.equal(shell.SigK.annotateShape.getLineWidth('arrow'), 5);
   assert.equal(shell.SigK.annotateShape.getShapeKind(), 'arrow');
 });
 
@@ -443,15 +449,17 @@ test('道具の段の図形の 4 つのボタンで種類を選び、右パネ�
   const width = document.getElementById('props-width');
   assert.deepEqual([width.min, width.max, width.step], ['1', '40', '1']);
   shell.slide('props-width-range', [7, 5]);
-  assert.equal(SigK.annotateShape.getLineWidth(), 5);
+  assert.equal(SigK.annotateShape.getLineWidth('circle'), 5);
   assert.equal(width.value, '5');
   width.value = '41';
   width.dispatchEvent(new shell.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  assert.equal(SigK.annotateShape.getLineWidth(), 40);
+  assert.equal(SigK.annotateShape.getLineWidth('circle'), 40);
   assert.equal(width.value, '40');
   width.value = '3.4';
   width.dispatchEvent(new shell.window.Event('change', { bubbles: true }));
-  assert.equal(SigK.annotateShape.getLineWidth(), 3);
+  assert.equal(SigK.annotateShape.getLineWidth('circle'), 3);
+  // 丸の太さは丸にだけ記憶する（決定102 ⑨）。
+  assert.equal(SigK.annotateShape.getLineWidth('square'), 2);
   // 丸の道具は線の色・塗り・線種（実線・破線・雲形）を出す。
   assert.equal(document.getElementById('props-color-label').textContent, '線の色');
   assert.equal(document.getElementById('props-fill-row').hidden, false);
