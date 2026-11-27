@@ -24,6 +24,7 @@ const { shapeAppearanceOf, KINDS: SHAPE_KINDS } = require('./shape-appearance.js
 const { noteAppearanceOf } = require('./note-appearance.js');
 const { markingAppearanceOf } = require('./marking-appearance.js');
 const { embedBundledFont, FONT_ERROR } = require('./font-embed.js');
+const { faceOfEntry } = require('./text-fonts.js');
 const { parseRef, annotsOf, removeAnnotations } = require('./annotation-remove.js');
 const { timestamp, kindFields, popupDict } = require('./annotation-fields.js');
 
@@ -109,9 +110,16 @@ function addAnnotation(doc, page, { entry, appearance }, fonts, tools, now, seri
   return annotRef;
 }
 
-// テキストが使う書体（太字なら太字の書体）。
+// テキストが使う書体の鍵（フォントと、太字の書体か。太字の書体が無いフォントは標準の書体。worker/text-fonts.js の faceOfEntry）。
+function faceKeyOf(entry) {
+  const picked = faceOfEntry(entry);
+  return picked === null ? null : `${picked.font.id}:${picked.bold ? 'bold' : 'regular'}`;
+}
+
+// テキストが使う書体（フォントごと。太字なら太字の書体）。
 function fontOfEntry(fonts, entry) {
-  return entry.bold === true ? fonts?.bold : fonts?.regular;
+  const key = faceKeyOf(entry);
+  return key === null ? undefined : fonts?.[key];
 }
 
 // 種類ごとの外観。テキストだけフォントの計量が要る。形が違えば null。
@@ -131,7 +139,7 @@ function appearanceFor(entry, fonts) {
 function validAdd(entry) {
   if (entry.kind !== 'text')
     return appearanceFor(entry) !== null;
-  return isWrapped(entry) ? isWrappedEntry(entry) : isFreeTextEntry(entry) && entry.bold === undefined && entry.italic === undefined && entry.angle === undefined;
+  return isWrapped(entry) ? isWrappedEntry(entry) : isFreeTextEntry(entry) && entry.bold === undefined && entry.italic === undefined && entry.angle === undefined && entry.font === undefined;
 }
 
 // add[] の形を先に全部見る。1 つでも違えば何も書かない（validatePlan と同じ流儀）。
@@ -146,21 +154,24 @@ function validateAdd(add, pageCount) {
 }
 
 // テキストがあるときだけフォントを埋める（embedFont を呼ぶと文字が無くても空のサブセットが
-// 埋まるため）。標準の書体は太字でないテキスト、太字の書体は太字のテキストがあるときだけ。読めなければ断る。
+// 埋まるため）。書体（フォント×標準・太字）ごとに、その書体のテキストがあるときだけ埋める（標準を先に。版 1.5.0 の③）。読めなければ断る。
 async function fontsFor(doc, add, fontSource) {
   const texts = add.filter((entry) => entry.kind === 'text');
   if (texts.length === 0)
     return { fonts: null };
   if (fontSource === undefined || fontSource === null)
     return { error: FONT_ERROR };
+  const picks = texts.map(faceOfEntry).filter((picked) => picked !== null);
+  const ordered = [...picks.filter((picked) => !picked.bold), ...picks.filter((picked) => picked.bold)];
   const fonts = {};
-  for (const bold of [false, true]) {
-    if (!texts.some((entry) => (entry.bold === true) === bold))
+  for (const picked of ordered) {
+    const key = `${picked.font.id}:${picked.bold ? 'bold' : 'regular'}`;
+    if (fonts[key] !== undefined)
       continue;
-    const embedded = await embedBundledFont(doc, fontSource, { bold });
+    const embedded = await embedBundledFont(doc, fontSource, { bold: picked.bold, fontId: picked.font.id });
     if (embedded.error !== undefined)
       return passFailure(embedded);
-    fonts[bold ? 'bold' : 'regular'] = embedded;
+    fonts[key] = embedded;
   }
   return { fonts };
 }

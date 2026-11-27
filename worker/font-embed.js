@@ -1,6 +1,7 @@
 'use strict';
 
-// 同梱フォント（Noto Sans JP）を pdf-lib へ埋め込む口（spec-4-2 確定事項22〜24）。
+// テキストのフォントを pdf-lib へ埋め込む口（spec-4-2 確定事項22〜24）。版 1.5.0 の③（質問 FT1「案B」）で、同梱の Noto Sans JP の
+// ほかに、Windows のフォント（worker/text-fonts.js の一覧。.ttc は PostScript 名で選ぶ）も、書き込みのフォントごとに埋めるようにした。
 //
 // fontkit は vendor から、フォントは assets から path.join で読む（配布物に node_modules は
 // 無い。docs/07 決定18）。どちらも test/dist-files.test.js が build.files に入ることを見張る。
@@ -17,7 +18,7 @@ const path = require('node:path');
 const { toBytes } = require('../file-io.js');
 
 const { failure, passFailure } = require('./task-failure.js');
-const { defaultFont } = require('./text-fonts.js');
+const { DEFAULT_FONT_ID, defaultFont, fontById } = require('./text-fonts.js');
 
 // フォントのファイルと名前は、フォントの一覧（text-fonts.js。版 1.5.0 の③の下準備）の既定のフォントから取る。
 const DEFAULT_FONT = defaultFont();
@@ -56,10 +57,14 @@ function paddedSubset(subset) {
   return subset;
 }
 
-function paddedFontkit(fontkit) {
+// postscriptName を渡すと、.ttc（複数のフォントを 1 つにしたファイル）からその名前のフォントを選ぶ（pdf-lib は名前を渡さずに
+// create を呼ぶため、ここで決めておく）。
+function paddedFontkit(fontkit, postscriptName = null) {
   return {
-    create(bytes, postscriptName) {
-      const font = fontkit.create(bytes, postscriptName);
+    create(bytes, name) {
+      const font = fontkit.create(bytes, postscriptName ?? name);
+      if (font === null || font === undefined || Array.isArray(font.fonts))
+        throw new Error(`フォント ${postscriptName ?? name ?? ''} が見つかりません`);
       const createSubset = font.createSubset.bind(font);
       font.createSubset = () => paddedSubset(createSubset());
       return font;
@@ -75,37 +80,40 @@ function subsetTag(random = Math.random) {
   return tag;
 }
 
-// fontkit とフォントの読み込みを 1 度だけ行う口。ワーカーは保存ごとに fork される新プロセス
+// fontkit とフォントの読み込みを書体ごとに 1 度だけ行う口。ワーカーは保存ごとに fork される新プロセス
 // なので、実際には 1 プロセス 1 回である（require 43ms・読み 3.5ms。spec-4-2 事前調査 A）。
-// load() は標準の書体、loadBold() は太字の書体（読むのは要るときだけ）。
+// loadFace(fontId, bold) はフォントと太字かで選んだ書体（読むのは要るときだけ）。load() は既定のフォントの標準、loadBold() は太字。
+// fontPath・boldPath は既定のフォント（Noto Sans JP）のファイルの差し替え（試験）。
 function createFontSource({ fsLike = fs, fontkit = null, fontPath = FONT_PATH, boldPath = BOLD_FONT_PATH } = {}) {
-  let loaded = null;
-  let bold = null;
-  function load() {
-    if (loaded !== null)
-      return loaded;
-    try {
-      const kit = paddedFontkit(fontkit ?? require(FONTKIT_PATH));
-      loaded = { ok: true, fontkit: kit, bytes: toBytes(fsLike.readFileSync(fontPath)) };
-    } catch (error) {
-      loaded = { ok: false, ...failure(FONT_ERROR, error) };
-    }
-    return loaded;
+  const loaded = new Map();
+  let base = null;
+  function fontkitBase() {
+    base ??= fontkit ?? require(FONTKIT_PATH);
+    return base;
   }
-  function loadBold() {
-    if (bold !== null)
-      return bold;
-    const base = load();
-    if (!base.ok)
-      return base;
-    try {
-      bold = { ok: true, fontkit: base.fontkit, bytes: toBytes(fsLike.readFileSync(boldPath)) };
-    } catch (error) {
-      bold = { ok: false, ...failure(FONT_ERROR, error) };
-    }
-    return bold;
+  function fileOf(font, bold) {
+    if (font.id === DEFAULT_FONT_ID)
+      return bold ? boldPath : fontPath;
+    return (bold ? font.bold : font.regular).file;
   }
-  return { load, loadBold };
+  function loadFace(fontId = DEFAULT_FONT_ID, bold = false) {
+    const key = `${fontId}:${bold ? 'bold' : 'regular'}`;
+    if (loaded.has(key))
+      return loaded.get(key);
+    const font = fontById(fontId);
+    let result;
+    try {
+      if (font === null || (bold && font.bold === null))
+        throw new Error(`フォント ${fontId} の書体がありません`);
+      const face = bold ? font.bold : font.regular;
+      result = { ok: true, fontkit: paddedFontkit(fontkitBase(), face.postscriptName), bytes: toBytes(fsLike.readFileSync(fileOf(font, bold))), face };
+    } catch (error) {
+      result = { ok: false, ...failure(FONT_ERROR, error) };
+    }
+    loaded.set(key, result);
+    return result;
+  }
+  return { loadFace, load: () => loadFace(DEFAULT_FONT_ID, false), loadBold: () => loadFace(DEFAULT_FONT_ID, true) };
 }
 
 // 純関数（free-text-appearance.js）へ渡す「文字を知る口」。name は外観の Resources で使う名前。
@@ -118,15 +126,19 @@ function measureOf(font, name = DA_FONT_NAME) {
   };
 }
 
-// 書体を 1 つ埋める。bold なら太字の書体。
-async function embedBundledFont(doc, fontSource, { random = Math.random, bold = false } = {}) {
-  const loaded = bold ? fontSource.loadBold() : fontSource.load();
+// 書体を 1 つ埋める。fontId はフォント（既定は Noto Sans JP）、bold なら太字の書体。
+async function embedBundledFont(doc, fontSource, { random = Math.random, bold = false, fontId = DEFAULT_FONT_ID } = {}) {
+  const loaded = typeof fontSource.loadFace === 'function' ? fontSource.loadFace(fontId, bold) : bold ? fontSource.loadBold() : fontSource.load();
   if (!loaded.ok)
     return passFailure(loaded);
   doc.registerFontkit(loaded.fontkit);
-  const baseName = bold ? BOLD_BASE_NAME : FONT_BASE_NAME;
-  const font = await doc.embedFont(loaded.bytes, { subset: true, customName: `${subsetTag(random)}+${baseName}`, features: FEATURES });
-  return { font, measure: measureOf(font, bold ? BOLD_FONT_NAME : DA_FONT_NAME) };
+  const face = loaded.face ?? (bold ? DEFAULT_FONT.bold : DEFAULT_FONT.regular);
+  try {
+    const font = await doc.embedFont(loaded.bytes, { subset: true, customName: `${subsetTag(random)}+${face.baseName}`, features: FEATURES });
+    return { font, measure: measureOf(font, face.resourceName) };
+  } catch (error) {
+    return failure(FONT_ERROR, error);
+  }
 }
 
 module.exports = {

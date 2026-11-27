@@ -14,6 +14,7 @@
 //   regular・bold … 標準と太字の書体。file はフォントのファイル、postscriptName は .ttc（複数のフォントを 1 つにしたファイル）から
 //                   選ぶ名前（.ttf は null）、baseName はサブセットの名前（BaseFont）の後ろ、resourceName は外観の Resources で使う名前
 //                   （spec-4b-4a 確定事項I4）。太字の書体が無いフォントは bold が null（質問 FT3）
+//   dsFamily      … /DS（既定の書式）に書くフォント名（ほかのアプリが外観を作り直す時に使う。worker/default-style.js）
 
 const path = require('node:path');
 
@@ -27,11 +28,12 @@ function face(dir, file, postscriptName, resourceName) {
   return Object.freeze({ file: path.join(dir, file), postscriptName, baseName: postscriptName ?? path.parse(file).name, resourceName });
 }
 
-function systemFont(id, regular, bold) {
+function systemFont(id, dsFamily, regular, bold) {
   const [file, postscriptName, resourceName] = regular;
   return Object.freeze({
     id,
     daName: resourceName,
+    dsFamily,
     bundled: false,
     regular: face(SYSTEM_FONT_DIR, file, postscriptName, resourceName),
     bold: bold === null ? null : face(SYSTEM_FONT_DIR, ...bold),
@@ -42,16 +44,17 @@ const TEXT_FONTS = Object.freeze([
   Object.freeze({
     id: 'noto-sans-jp',
     daName: 'SigKJP',
+    dsFamily: 'Noto Sans JP',
     bundled: true,
     regular: Object.freeze({ file: path.join(FONT_DIR, 'NotoSansJP-Regular.ttf'), postscriptName: null, baseName: 'NotoSansJP-Regular', resourceName: 'SigKJP' }),
     bold: Object.freeze({ file: path.join(FONT_DIR, 'NotoSansJP-Bold.ttf'), postscriptName: null, baseName: 'NotoSansJP-Bold', resourceName: 'SigKJPB' }),
   }),
   // PostScript 名は、Chromium のフォント一覧の機能（queryLocalFonts）で Windows 11 の名前を確かめた（2026-11-27）。
-  systemFont('yu-gothic', ['YuGothR.ttc', 'YuGothic-Regular', 'SigKYG'], ['YuGothB.ttc', 'YuGothic-Bold', 'SigKYGB']),
-  systemFont('yu-mincho', ['yumin.ttf', 'YuMincho-Regular', 'SigKYM'], ['yumindb.ttf', 'YuMincho-Demibold', 'SigKYMB']),
-  systemFont('meiryo', ['meiryo.ttc', 'Meiryo', 'SigKMR'], ['meiryob.ttc', 'Meiryo-Bold', 'SigKMRB']),
-  systemFont('ms-gothic', ['msgothic.ttc', 'MS-Gothic', 'SigKMG'], null),
-  systemFont('ms-mincho', ['msmincho.ttc', 'MS-Mincho', 'SigKMM'], null),
+  systemFont('yu-gothic', 'Yu Gothic', ['YuGothR.ttc', 'YuGothic-Regular', 'SigKYG'], ['YuGothB.ttc', 'YuGothic-Bold', 'SigKYGB']),
+  systemFont('yu-mincho', 'Yu Mincho', ['yumin.ttf', 'YuMincho-Regular', 'SigKYM'], ['yumindb.ttf', 'YuMincho-Demibold', 'SigKYMB']),
+  systemFont('meiryo', 'Meiryo', ['meiryo.ttc', 'Meiryo', 'SigKMR'], ['meiryob.ttc', 'Meiryo-Bold', 'SigKMRB']),
+  systemFont('ms-gothic', 'MS Gothic', ['msgothic.ttc', 'MS-Gothic', 'SigKMG'], null),
+  systemFont('ms-mincho', 'MS Mincho', ['msmincho.ttc', 'MS-Mincho', 'SigKMM'], null),
 ]);
 
 function fontById(id) {

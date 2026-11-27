@@ -12,7 +12,7 @@
 const { num, colorOps, parseColor } = require('./annotation-appearance.js');
 const { LINE_HEIGHT, BASELINE, frameOf, isFreeTextEntry } = require('./free-text-appearance.js');
 const { defaultStyleOf } = require('./default-style.js');
-const { DA_FONT_NAME } = require('./font-embed.js');
+const { fontOfEntry } = require('./text-fonts.js');
 const { decorOps, readableTextOps } = require('./free-text-decor.js');
 const { matrixOf, boundsOf } = require('./shape-rotation.js');
 const { calloutGeometryOf, outlineOps } = require('./callout-outline.js');
@@ -77,6 +77,9 @@ function isWrappedEntry(entry) {
     return false;
   if (![entry.bold, entry.italic].every((flag) => flag === undefined || flag === true) || !validDecor(entry))
     return false;
+  // フォント（版 1.5.0 の③。無ければ既定の Noto Sans JP）。一覧に無い id は読めない形。
+  if (entry.font !== undefined && (typeof entry.font !== 'string' || fontOfEntry(entry) === null))
+    return false;
   return Array.isArray(entry.lines) && entry.lines.every((line) => typeof line === 'string') && matchesText(entry.lines, entry.text);
 }
 
@@ -129,9 +132,9 @@ function wrappedAppearanceOf(entry, measure) {
     content,
     bbox: outer,
     rect: outer,
-    // /DA の書体名は太字でも自分の印の名前（確定事項I4）。色は枠線があれば枠線の色、無ければ文字の色（確定事項I5）。
-    da: `/${DA_FONT_NAME} ${num(fontSize)} Tf ${colorOps(borderRgb ?? rgb)} rg`,
-    ds: defaultStyleOf({ fontSize, color: entry.color, bold: entry.bold === true, italic: entry.italic === true }),
+    // /DA の書体名は太字でも自分の印の名前（確定事項I4。フォントごと。版 1.5.0 の③）。色は枠線があれば枠線の色、無ければ文字の色（確定事項I5）。
+    da: `/${fontOfEntry(entry).daName} ${num(fontSize)} Tf ${colorOps(borderRgb ?? rgb)} rg`,
+    ds: defaultStyleOf({ fontSize, color: entry.color, bold: entry.bold === true, italic: entry.italic === true, family: fontOfEntry(entry).dsFamily }),
     subtype: 'FreeText',
     rgb,
     fillRgb,

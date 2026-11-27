@@ -14,8 +14,9 @@ const HEX3 = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;
 const RGB = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i;
 
 // /DS の文字列。color は '#rrggbb'（大文字で書く）。
-function defaultStyleOf({ fontSize, color, bold = false, italic = false }) {
-  const parts = [`font: ${num(fontSize)}pt "${FAMILY}"`, `color: ${color.toUpperCase()}`];
+// family は /DS に書くフォント名（版 1.5.0 の③。既定は Noto Sans JP。worker/text-fonts.js の dsFamily）。
+function defaultStyleOf({ fontSize, color, bold = false, italic = false, family = FAMILY }) {
+  const parts = [`font: ${num(fontSize)}pt "${family}"`, `color: ${color.toUpperCase()}`];
   if (bold)
     parts.push('font-weight: bold');
   if (italic)
