@@ -83,6 +83,9 @@ body{
     <div class="tb-btn" id="btn-fit-page" aria-disabled="true" data-tip="bar.fitPage" aria-label="全体を表示"><span data-icon="fitPage"></span>全体</div>
     <!-- 見開き（spec-2-3 確定事項1・27）。押している間は「幅」「全体」と同じ .active で見せる。 -->
     <div class="tb-btn" id="btn-facing" aria-disabled="true" data-tip="bar.facing" aria-label="見開き"><span data-icon="facing"></span>見開き</div>
+    <!-- フルスクリーンモード（版 1.5.0 の①。質問 FS1「案A」。［見開き］の右に置く）。押せる・押せないは viewer-controls.js、入る・戻るは fullscreen-mode.js。
+         ウインドウの幅が狭い時の文字の扱いは shell.css（ツールバーの段階の詰め方）。 -->
+    <div class="tb-btn" id="btn-fullscreen" aria-disabled="true" data-tip="bar.fullscreen" aria-label="フルスクリーン"><span data-icon="fullscreen"></span>フルスクリーン</div>
     <div class="spacer"></div>
     <div class="tb-btn icon" id="btn-find" data-icon="search" data-tip="bar.find" aria-label="検索" aria-disabled="true"></div>
     <!-- 設定の窓を開く（spec-6-1 タスク E の確定事項E-1。見本 screenshots/phase6-mock-settings-entry.png）。どのモードでも、文書が無くても押せる。 -->
@@ -1556,6 +1559,7 @@ body{
 <script src="renderer/wheel-zoom.js"></script>
 <script src="renderer/viewer-wheel.js"></script>
 <script src="renderer/zoom-input.js"></script>
+<script src="renderer/fullscreen-mode.js"></script>
 <script src="renderer/viewer-controls.js"></script>
 <script src="renderer/app.js"></script>
 </body>

@@ -102,6 +102,8 @@ const pendingLaunch = [];
 const launchBatcher = createLaunchBatcher();
 // 確認が済んで閉じてよい状態。二度目の close で実際に閉じる。
 let allowClose = false;
+// フルスクリーンモード（版 1.5.0 の①）に入る前に、ウインドウを最大化していたか。フルスクリーンのまま閉じた時に、最大化の状態を覚えるため。
+let maximizedBeforeFullScreen = null;
 // アプリを終えている途中（before-quit のあと）。画面の処理が止まっても確認の窓を出さない。
 let quitting = false;
 // 画面の処理が止まったときにしたこと（renderer-gone.js。起動確認 SIGK_SMOKE_CRASH が読む）。
@@ -225,6 +227,10 @@ function createMainWindow({ hidden = false } = {}) {
     quitting = true;
   });
 
+  // フルスクリーン（版 1.5.0 の①）が、Windows の操作などで変わったことを画面へ伝える（renderer/fullscreen-mode.js が表示を合わせる）。
+  win.on('enter-full-screen', () => win.webContents.send('window:fullScreenChanged', true));
+  win.on('leave-full-screen', () => win.webContents.send('window:fullScreenChanged', false));
+
   win.on('close', (event) => {
     // 未保存があれば、閉じる前にレンダラーへ確認を頼む（確定事項56）。
     // 確認のダイアログはアプリ内の <dialog> なので、レンダラーでしか出せない。
@@ -244,7 +250,7 @@ function createMainWindow({ hidden = false } = {}) {
       return;
     const normal = win.getNormalBounds();
     settings.set({
-      window: { width: normal.width, height: normal.height, x: normal.x, y: normal.y, maximized: win.isMaximized() },
+      window: { width: normal.width, height: normal.height, x: normal.x, y: normal.y, maximized: win.isFullScreen() ? maximizedBeforeFullScreen === true : win.isMaximized() },
     });
     settings.save();
   });
@@ -436,6 +442,21 @@ function registerIpc() {
   // 未保存の数（spec-1-5 確定事項56）。返事は要らないので send で受ける。
   ipcMain.on('app:dirty', (_event, count) => {
     dirtyTabCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  });
+
+  // フルスクリーンモード（版 1.5.0 の①。renderer/fullscreen-mode.js）。ウインドウを画面全体に広げる・戻す。{ ok, fullScreen }。
+  // ウインドウを表示しない起動確認（offscreen）では、ウインドウを表示させないために広げず、値だけを返す。
+  ipcMain.handle('window:setFullScreen', (event, on) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win === null)
+      return { ok: false };
+    const next = on === true;
+    if (win.webContents.isOffscreen())
+      return { ok: true, fullScreen: next, skipped: true };
+    if (next && !win.isFullScreen())
+      maximizedBeforeFullScreen = win.isMaximized();
+    win.setFullScreen(next);
+    return { ok: true, fullScreen: next };
   });
 
   // 確認の答え。閉じてよければ、もう一度 close を通して実際に閉じる。

@@ -93,12 +93,18 @@
     if (closeFindBar() || clearTextSelection(doc))
       return true;
     if (annot)
-      return cancel().unselect() || cancel().dropTool();
+      return cancel().unselect() || cancel().dropTool() || leaveFullscreen();
     // 分割の盤の選択（spec-2-2b 確定事項G2④）。閲覧・ページ編集の最後の段はハンドを選択へ戻す（spec-2-5 確定事項K12）。
     // 帯のページの選択は、帯の画面が出ているときだけ外す（spec-2-5 確定事項D10）。
     return (inMode(doc, 'pages') && clearPageSelection()) || root.SigK.pointerMode?.escape() === true
       || (inMode(doc, 'tools') && root.SigK.toolsSplitEdit?.escape() === true)
-      || (inMode(doc, 'tools') && root.SigK.strips?.isShown() === true && root.SigK.stripSelection?.escape() === true);
+      || (inMode(doc, 'tools') && root.SigK.strips?.isShown() === true && root.SigK.stripSelection?.escape() === true)
+      || leaveFullscreen();
+  }
+
+  // いちばん最後の段: フルスクリーンモードを終了する（版 1.5.0 の①。質問 FS1 の回答「表示を戻すときは「Esc」キー」。今の Esc の働きを先に行う）。
+  function leaveFullscreen() {
+    return root.SigK.fullscreenMode?.escape() === true;
   }
 
   // 何かを取りやめたら preventDefault して true（確定事項C2）。

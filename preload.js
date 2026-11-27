@@ -158,6 +158,18 @@ contextBridge.exposeInMainWorld('appCloseAPI', {
   confirm: (ok) => ipcRenderer.invoke('app:closeConfirm', ok),
 });
 
+// ウインドウのフルスクリーン（版 1.5.0 の①。フルスクリーンモード。renderer/fullscreen-mode.js）。
+contextBridge.exposeInMainWorld('windowAPI', {
+  available: true,
+  // ウインドウを画面全体に広げる（true）・戻す（false）。{ ok, fullScreen }。
+  setFullScreen: (on) => ipcRenderer.invoke('window:setFullScreen', on === true),
+  // Windows の操作などでフルスクリーンが変わった時（true・false）。
+  onFullScreenChanged: (callback) => {
+    ipcRenderer.removeAllListeners('window:fullScreenChanged');
+    ipcRenderer.on('window:fullScreenChanged', (_event, on) => callback(on === true));
+  },
+});
+
 // 印刷（spec-1-4 確定事項30・spec-7-7）。レンダラーが印刷用のコンテナへ用紙 1 枚ぶんずつの画像を並べてから print を呼ぶ。
 // 実際に紙へ送るのはメイン側の webContents.print() で、印刷画面の［印刷］は silent: true で選んだプリンターへ直接送る。
 // レンダラーの window.print() を使わないのは、オプションを渡せず結果（成功・取り消し・失敗）も受け取れないためである（確定事項29）。

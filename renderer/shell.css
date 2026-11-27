@@ -123,6 +123,31 @@ button{font:inherit; color:inherit; background:none; border:none; padding:0}
   .tb-sep{margin:0 1px}
   #btn-open,#btn-print,#btn-save,#btn-save-as{padding:0 6px}
 }
+/* ［フルスクリーン］ボタン（版 1.5.0 の①。［見開き］の右）は、幅 1500px 未満のウインドウではアイコンだけにする（名前は data-tip と aria-label に残る）。
+   文字付き（幅 111px）だと、幅 1271〜1366px（1280px を含む）と 960px で右端の［使い方］がはみ出し、1400・1440px でもほかのボタンが縮んだ。
+   アイコンだけ（幅 30px）なら、960〜1920px のどの幅でもはみ出さない（2026-11-27 に、ウインドウを表示しない起動で実測）。 */
+@media (max-width:1499px){
+  #btn-fullscreen{font-size:0; gap:0; width:30px; padding:0; justify-content:center}
+}
+
+/* フルスクリーンモード（版 1.5.0 の①。質問 FS1「案A」。fullscreen-mode.js が <html> に data-fullscreen を付ける）。ページだけを表示する。
+   ツールバー・編集ツールバー・モード切り替えバー・左パネル（閉じたパネルの細い欄を含む）・タブバー・ステータスバー・プロパティパネルを隠す。
+   マウスカーソルは隠さない。通知バーと検索バーは表示域の上に重ねるので、そのまま使える。 */
+html[data-fullscreen="on"] #toolbar,
+html[data-fullscreen="on"] #edit-bar,
+html[data-fullscreen="on"] #rail,
+html[data-fullscreen="on"] #side,
+html[data-fullscreen="on"] #side-resizer,
+html[data-fullscreen="on"] #side-strip,
+html[data-fullscreen="on"] #tabbar,
+html[data-fullscreen="on"] #status,
+html[data-fullscreen="on"] #props{display:none !important}
+html[data-fullscreen="on"] #view{background:#3a3f47}
+/* 入った時に 3 秒表示する、終了の操作の案内（質問 FS1 の図の②と同じ見た目）。 */
+.fullscreen-hint{
+  position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:60; pointer-events:none;
+  padding:10px 18px; border-radius:8px; background:rgba(20,24,31,.86); color:#fff; font-size:14px; white-space:nowrap;
+}
 
 /* ── 本体 ───────────────────────────────────── */
 #body{flex:1; display:flex; min-height:0}

@@ -5,10 +5,11 @@
   // viewer.js は「文書とページ」、ここは「操作と表示」を持つ。
 
   // 文書が開いていないと押せないもの。開くボタンだけは常に押せる。
-  const DOCUMENT_CONTROLS = ['pager', 'zoom', 'btn-fit-width', 'btn-fit-page', 'btn-facing', 'btn-find', 'btn-print'];
+  const DOCUMENT_CONTROLS = ['pager', 'zoom', 'btn-fit-width', 'btn-fit-page', 'btn-facing', 'btn-fullscreen', 'btn-find', 'btn-print'];
   // ツールモードでは押せないもの。ツールの画面の下に隠れたページの表示に効くだけで、帯には何も起きないため（ユーザーの判断 2026-10-23。
   // docs/07 決定83）。押している印（見開き）は残す（［選択］［ハンド］と同じ。spec-2-5 確定事項K11）。
-  const HIDDEN_VIEW_CONTROLS = ['pager', 'btn-fit-width', 'btn-fit-page', 'btn-facing'];
+  // ［フルスクリーン］（版 1.5.0 の①）も、ページの表示だけに効くので同じ扱い。
+  const HIDDEN_VIEW_CONTROLS = ['pager', 'btn-fit-width', 'btn-fit-page', 'btn-facing', 'btn-fullscreen'];
 
   function viewer() {
     return root.SigK.viewer;
@@ -118,6 +119,8 @@
     bindClick(doc, 'btn-facing', () => {
       root.SigK.shell.setPageLayout(doc, viewer().getState().facing === true ? 'single' : 'facing');
     });
+    // フルスクリーンモード（版 1.5.0 の①。fullscreen-mode.js）。
+    bindClick(doc, 'btn-fullscreen', () => root.SigK.fullscreenMode?.toggle());
 
     const input = doc.getElementById('page-current');
     if (input !== null) {

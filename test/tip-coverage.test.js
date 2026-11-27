@@ -29,6 +29,8 @@ const STATIC_TARGETS = [
   ['#btn-pointer-select', 'bar.pointerSelect'], ['#btn-pointer-hand', 'bar.pointerHand'], ['#page-prev', 'bar.pagePrev'], ['#page-next', 'bar.pageNext'],
   ['#zoom-out', 'bar.zoomOut'], ['#zoom-in', 'bar.zoomIn'], ['#btn-fit-width', 'bar.fitWidth'], ['#btn-fit-page', 'bar.fitPage'],
   ['#btn-facing', 'bar.facing'], ['#btn-find', 'bar.find'], ['#btn-print', 'bar.print'], ['#btn-settings', 'bar.settings'], ['#btn-help', 'bar.help'],
+  // ツールバーの［見開き］の右の［フルスクリーン］（spec-7-11。質問 FS1）。
+  ['#btn-fullscreen', 'bar.fullscreen'],
   ...MODES.map(([mode, key]) => [`.rail-item[data-mode="${mode}"]`, key]),
   ['.tab-add', 'tab.add'], ['#newtab-open', 'newtab.open'], ['#side-collapse', 'side.collapse'], ['#side-expand', 'side.expand'],
   ['#find-case', 'find.case'], ['#find-prev', 'find.prev'], ['#find-next', 'find.next'], ['#find-close', 'find.close'],

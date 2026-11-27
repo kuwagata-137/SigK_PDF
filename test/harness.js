@@ -532,6 +532,9 @@ async function createShell({
   // メインへ知らせた未保存のタブ数と、確認の答え（spec-1-5 確定事項56）。
   const dirtyCalls = [];
   const closeAnswers = [];
+  // windowAPI.setFullScreen() に届いた値の並びと、メインからのフルスクリーンの変化を受ける口（版 1.5.0 の①）。
+  const fullScreenCalls = [];
+  const fullScreenHandlers = [];
   // taskAPI.run() に届いた spec の並びと、進捗を流す口（spec-1-6）。
   const taskCalls = [];
   // annotationAPI.readDetails() に届いた spec の並び（spec-4b-1a 確定事項20）。
@@ -783,6 +786,15 @@ async function createShell({
         return { ok: true };
       },
     };
+    // ウインドウのフルスクリーン（版 1.5.0 の①）。実際に画面全体へ広げるのはメイン側なので、呼ばれたことだけを控える。
+    window.windowAPI = {
+      available: true,
+      setFullScreen: async (on) => {
+        fullScreenCalls.push(on);
+        return { ok: true, fullScreen: on === true };
+      },
+      onFullScreenChanged: (callback) => fullScreenHandlers.push(callback),
+    };
     // 印刷（spec-1-4 確定事項30）。実際に紙へ送るのはメイン側なので、
     // ここは呼ばれたことと渡された値だけを控える。
     window.printAPI = {
@@ -940,6 +952,9 @@ async function createShell({
     fireProgress: (progress) => progressHandlers.forEach((handler) => handler(progress)),
     // メニューの「保存」「名前を付けて保存…」から届く合図。
     fireSaveRequest: (mode) => saveRequestHandlers.forEach((handler) => handler(mode)),
+    // windowAPI.setFullScreen() に届いた値の並び。fireFullScreenChanged はメインからのフルスクリーンの変化（Windows の操作で戻った時など）。
+    fullScreenCalls,
+    fireFullScreenChanged: (on) => fullScreenHandlers.forEach((handler) => handler(on)),
     // appCloseAPI.setDirty() に届いた数の並び（最後が「いま」）。
     dirtyCalls,
     // appCloseAPI.confirm() に返した答えの並び。

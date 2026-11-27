@@ -211,6 +211,13 @@
     // 空のタブの Ctrl+V は、クリップボードの画像を貼り付ける（spec-7-8 確定事項NT6・NT7）。空のタブには文書が無いので、文書の有無を見る前に渡す。
     if (root.SigK.newTab?.handleKey(event, doc) === true)
       return;
+    // F11 はフルスクリーンモードの切り替え（版 1.5.0 の①）。戻る時は文書が無くても効かせるので、文書の有無を見る前に受ける
+    // （入れるかどうかは fullscreen-mode.js が見る）。
+    if (event.key === 'F11') {
+      event.preventDefault();
+      root.SigK.fullscreenMode?.toggle();
+      return;
+    }
     if (viewer().getState().open !== true)
       return;
     if (handleFindPrintKey(event))

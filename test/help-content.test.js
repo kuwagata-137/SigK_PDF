@@ -28,7 +28,7 @@ function joined(id) {
 
 // Alt は印刷画面のアクセスキー（spec-7-7 確定事項C2）。
 const KEY_NAMES = new Set(['Ctrl', 'Shift', 'Alt', 'Esc', 'Enter', 'Delete', 'Backspace', 'Tab', 'PageUp', 'PageDown', 'Home', 'End',
-  'F1', 'F3', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'V', 'W', 'X', 'Y', 'Z', '0', '+', '-', ',', 'Space', '←', '→', '↑', '↓']);
+  'F1', 'F3', 'F11', 'A', 'C', 'F', 'I', 'O', 'P', 'S', 'V', 'W', 'X', 'Y', 'Z', '0', '+', '-', ',', 'Space', '←', '→', '↑', '↓']);
 
 test('目次は 5 つのグループと 14 の節で、グループの順に並ぶ', () => {
   assert.equal(content.TITLE, 'SigK PDF の使い方');
