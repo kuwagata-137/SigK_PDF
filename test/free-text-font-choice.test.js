@@ -62,12 +62,12 @@ test('画面の描き方: フォントの font-family で描き、太字の書�
   assert.equal(font.fontOf(12, true), '700 12px "SigK Noto Sans JP"');
 });
 
-test('画面の描き方: 注釈の層の文字は、既定でないフォントだけ style で font-family を指定する', async (t) => {
+test('画面の描き方: 注釈の層の文字は、既定でないフォントだけ、text の要素ごとに style で font-family を指定する（shell.css は text の要素に指定している）', async (t) => {
   const { SigK, document } = await withFonts(t);
   const group = (entry) => [...SigK.freeTextShape.svgOf(document, entry, VIEWPORT).querySelectorAll('g.free-text')].at(-1)
     ?? SigK.freeTextShape.svgOf(document, entry, VIEWPORT);
-  assert.equal(group(textEntry({ font: 'yu-gothic' })).style.fontFamily, '"Yu Gothic", sans-serif');
-  assert.equal(group(textEntry()).style.fontFamily, '');
+  assert.equal(group(textEntry({ font: 'yu-gothic' })).querySelector('text').style.fontFamily, '"Yu Gothic", sans-serif');
+  assert.equal(group(textEntry()).querySelector('text').style.fontFamily, '');
   assert.equal(group(textEntry({ font: 'ms-gothic', bold: true })).getAttribute('font-weight'), null);
   assert.equal(group(textEntry({ font: 'yu-gothic', bold: true })).getAttribute('font-weight'), '700');
 });

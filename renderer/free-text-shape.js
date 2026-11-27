@@ -86,9 +86,8 @@
     group.setAttribute('transform', `translate(${fmt(origin[0])} ${fmt(origin[1])}) rotate(${angle})`);
     if (font().boldOf(entry.bold, entry.font))
       group.setAttribute('font-weight', '700');
-    // 既定でないフォント（版 1.5.0 の③）。shell.css の font-family より強い style で指定する。
-    if (entry.font !== undefined)
-      group.style.fontFamily = `"${font().family(entry.font)}", sans-serif`;
+    // 既定でないフォント（版 1.5.0 の③）。shell.css は text の要素に font-family を指定しているので、text の要素ごとに style で指定する。
+    const family = entry.font === undefined ? null : `"${font().family(entry.font)}", sans-serif`;
     if (entry.italic === true)
       group.setAttribute('font-style', 'italic');
     // 塗りと枠線は文字より先（spec-4b-4a 確定事項D1。free-text-decor-graphics.js）。
@@ -99,6 +98,8 @@
       text.setAttribute('y', fmt(y));
       text.setAttribute('font-size', fmt(entry.fontSize * scale));
       text.setAttribute('xml:space', 'preserve');
+      if (family !== null)
+        text.style.fontFamily = family;
       text.textContent = line;
       group.append(text);
     }
